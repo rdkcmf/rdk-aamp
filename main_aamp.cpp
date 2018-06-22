@@ -2890,7 +2890,18 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		cfgPath += "/aamp.cfg";
 		FILE *f = fopen(cfgPath.c_str(), "rb");
 #else
-		FILE *f = fopen("/opt/aamp.cfg", "rb");
+#ifdef AAMP_CPC // Comcast builds
+        // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
+        const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
+#else
+        const char *env_aamp_enable_opt = "true";
+#endif
+
+        FILE *f = NULL;
+        if(env_aamp_enable_opt)
+        {
+            f = fopen("/opt/aamp.cfg", "rb");
+        }
 #endif
 		if (f)
 		{
