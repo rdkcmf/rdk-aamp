@@ -189,3 +189,42 @@ version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,Manifes
 version#4
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune
 
+MicroEvents Acronyms
+=====================
+Common:
+ct = Content Type
+it = Initiation Time of Playback in epoch format (on Receiver side)
+tt = Total Tune Time/latency
+pi = Playback Index
+ts = Tune Status
+va = Vector of tune Attempts
+
+Individual Tune Attempts:
+s = Start Time in epoch format
+td = Tune Duration
+st = Stream Type
+u = URL
+r = Result (1:Success, 0:Failure)
+v = Vector of Events happened
+
+Events:
+i = Id
+	0: Manifest Download
+	1: Video Playlist download
+	2: Audio Playlist download
+	3: Video Init fragment download
+	4: Audio Init fragment download
+	5: Video fragment download
+	6: Audio fragment download
+	7: Video framgment decryption
+	8: Audio framgment decryption
+	9: License Acquisition overall
+	10: License Acquisition pre-processing - Not included
+	11: License Acquisition Network
+	12: License Acquisition post-processing - Not included
+b = Beginning time of the event, relative to 's'
+d = Duration till the completion of event
+o = Output of Event (200:Success, Non 200:Error Code)
+
+
+

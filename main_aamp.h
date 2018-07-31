@@ -370,11 +370,16 @@ public:
  */
 enum MediaType
 {
-	eMEDIATYPE_VIDEO,       /**< Type video */
-	eMEDIATYPE_AUDIO,       /**< Type audio */
-	eMEDIATYPE_MANIFEST,    /**< Type manifest */
-	eMEDIATYPE_LICENCE,	/**< Type license */
-	eMEDIATYPE_IFRAME	/**< Type iframe */
+	eMEDIATYPE_VIDEO,               /**< Type video */
+	eMEDIATYPE_AUDIO,               /**< Type audio */
+	eMEDIATYPE_MANIFEST,            /**< Type manifest */
+	eMEDIATYPE_LICENCE,             /**< Type license */
+	eMEDIATYPE_IFRAME,              /**< Type iframe */
+	eMEDIATYPE_INIT_VIDEO,          /**< Type video init fragment */
+	eMEDIATYPE_INIT_AUDIO,          /**< Type audio init fragment */
+	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
+	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
+	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 
 /**

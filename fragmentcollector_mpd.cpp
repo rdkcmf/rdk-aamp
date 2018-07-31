@@ -172,8 +172,9 @@ public:
 		ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
 		CachedFragment* cachedFragment = GetFetchBuffer(true);
 		long http_code = 0;
+		MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
 		ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
-			        range, mediaType, &http_code);
+			        range, actualType, &http_code);
 
 		mContext->checkForRampdown = false;
 
@@ -1243,7 +1244,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				sscanf(range.c_str(), "%d-%d", &start, &pMediaStreamContext->fragmentOffset);
 
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
-				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, &pMediaStreamContext->index_len, curlInstance, range.c_str(),pMediaStreamContext->mediaType);
+				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, &pMediaStreamContext->index_len, curlInstance, range.c_str(),actualType);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 
@@ -1965,7 +1967,7 @@ void *CreateDRMSession(void *arg)
 		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED);
 		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure, NULL, isRetryEnabled);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
-		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
+		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 	}
 	else
 	{
@@ -2586,7 +2588,7 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 			downloadAttempt++;
 			memset(&manifest, 0, sizeof(manifest));
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
-			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error);
+			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
 			if (gotManifest)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);

@@ -1010,6 +1010,18 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 	SetCallbackAsPending(callbackID);
 }
 
+/**
+ * @brief Send tune events to receiver
+ *
+ * @param[in] success - Tune status
+ * @return void
+ */
+void PrivateInstanceAAMP::sendTuneMetrics(bool success)
+{
+	std::stringstream eventsJSON;
+	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),manifestUrl,success);
+	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.str().c_str());
+}
 
 /**
  * @brief Notify tune end for profiling/logging
@@ -1024,11 +1036,8 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	{
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-#ifdef CREATE_PIPE_SESSION_TO_XRE
-		SetupPipeSession();
-		SendMessageOverPipe((const char *) classicTuneStr, (int) strlen(classicTuneStr));
-		ClosePipeSession();
-#endif
+		SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+		if(gpGlobalConfig->enableMicroEvents) sendTuneMetrics(success);
 		mTuneCompleted = true;
 		mFirstTune = false;
 		TunedEventConfig tunedEventConfig = IsLive() ? gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
@@ -1807,14 +1816,13 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					traceprintf("%s:%d reset length. buffer %p avail %d\n", __FUNCTION__, __LINE__, buffer, (int)buffer->avail);
 					buffer->len = 0;
 				}
-
-				std::chrono::steady_clock::time_point tStartTime = std::chrono::steady_clock::now();
-				res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
-				std::chrono::steady_clock::time_point tEndTime = std::chrono::steady_clock::now();
+				long long tStartTime = NOW_STEADY_TS_MS;
+				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
+				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
 
-				downloadTimeMS = static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(tEndTime - tStartTime).count());
-
+				downloadTimeMS = tEndTime - tStartTime;
+				bool loopAgain = false;
 				if (res == CURLE_OK)
 				{ // all data collected
 					curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
@@ -1828,7 +1836,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 						if((500 == http_code || 503 == http_code) && downloadAttempt < 2)
 						{
 							logprintf("Download failed due to Server error. Retrying!\n");
-							continue;
+							loopAgain = true;
 						}
 					}
 					char *effectiveUrlPtr = NULL;
@@ -1868,7 +1876,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || fileType == eMEDIATYPE_MANIFEST))) && downloadAttempt < 2)
 					{
 						logprintf("Download failed due to curl connect timeout. Retrying!\n");
-						continue;
+						loopAgain = true;
 					}
 					/*
 					* Assigning curl error to http_code, for sending the error code as
@@ -1878,6 +1886,13 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					*/
 					http_code = res;
 				}
+
+				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
+				{
+					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
+				}
+
+				if(loopAgain) continue;
 
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
@@ -1890,7 +1905,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 				if (gpGlobalConfig->logging.isLogLevelAllowed(reqEndLogLevel))
 				{
-					double totalPerformRequest = (double)(std::chrono::duration_cast<std::chrono::microseconds>(tEndTime - tStartTime).count())/1000000;
+					double totalPerformRequest = (double)(downloadTimeMS)/1000;
 					curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
 					curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
 					curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appConnect);
@@ -1922,12 +1937,11 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			{
 				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%u\n", buffer->len, downloadTimeMS);
 			}
-			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE || (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)))
+			if (downloadTimeMS > 0 && (fileType == eMEDIATYPE_VIDEO || fileType == eMEDIATYPE_INIT_VIDEO) && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE || (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)))
 			{
 				{
-					long long currTime = aamp_GetCurrentTimeMS();
-					mAbrBitrateData.push_back(std::make_pair(currTime ,((long)(buffer->len / downloadTimeMS)*8000)));
-					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]\n",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,((long)(buffer->len / downloadTimeMS)*8000)));
+					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]\n",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMs)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
 				}
@@ -2875,6 +2889,16 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				gpGlobalConfig->minVODCacheSeconds = minVodCache;
 			}
 		}
+
+		const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
+		if(env_enable_micro_events)
+		{
+			if(std::string(env_enable_micro_events) == "true")
+			{
+				gpGlobalConfig->enableMicroEvents = true;
+			}
+			logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS=%s\n",gpGlobalConfig->enableMicroEvents ? "TRUE":"FALSE");
+		}
 	}
 }
 
@@ -3001,48 +3025,51 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 }
 
 
-
 /**
  * @brief Setup pipe session with application
  */
-void PrivateInstanceAAMP::SetupPipeSession()
+bool PrivateInstanceAAMP::SetupPipeSession()
 {
-       bool retVal = false;
-       m_fd = -1;
-        if(mkfifo(strAAMPPipeName, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) == -1) {
-                if(errno == EEXIST) {
-                // Pipe exists
-                        //logprintf("%s:CreatePipe: Pipe already exists",__FUNCTION__);
-                        retVal = true;
-                }
-                else {
-                // Error
-                	logprintf("%s:CreatePipe: Failed to create named pipe %s for reading errno = %d (%s)\n",
-                        	__FUNCTION__,strAAMPPipeName, errno, strerror(errno));
-                }
-                }
-                else {
-                        // Success
-                        //logprintf("%s:CreatePipe: mkfifo succeeded",__FUNCTION__);
-                        retVal = true;
-                }
+    bool retVal = false;
+    if(m_fd != -1)
+    {
+        retVal = true; //Pipe exists
+        goto EXIT;
+    }
+    if(mkfifo(strAAMPPipeName, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) == -1) {
+        if(errno == EEXIST) {
+            // Pipe exists
+            //logprintf("%s:CreatePipe: Pipe already exists",__FUNCTION__);
+            retVal = true;
+        }
+        else {
+            // Error
+            logprintf("%s:CreatePipe: Failed to create named pipe %s for reading errno = %d (%s)\n",
+                      __FUNCTION__,strAAMPPipeName, errno, strerror(errno));
+        }
+    }
+    else {
+        // Success
+        //logprintf("%s:CreatePipe: mkfifo succeeded",__FUNCTION__);
+        retVal = true;
+    }
 
-                if(retVal)
-                {
-                        // Open the named pipe for writing
-                        m_fd = open(strAAMPPipeName, O_WRONLY | O_NONBLOCK  );
-                        if (m_fd == -1) {
-                                // error
-                                logprintf("%s:OpenPipe: Failed to open named pipe %s for writing errno = %d (%s)",
-                                                __FUNCTION__,strAAMPPipeName, errno, strerror(errno));
-                        }
-                        else {
-                                // Success
-                                //logprintf("%s:OpenPipe: Success, created/opened named pipe %s for reading",__FUNCTION__, strAAMPPipeName);
-                                retVal = true;
-                        }
-
-                }
+    if(retVal)
+    {
+        // Open the named pipe for writing
+        m_fd = open(strAAMPPipeName, O_WRONLY | O_NONBLOCK  );
+        if (m_fd == -1) {
+            // error
+            logprintf("%s:OpenPipe: Failed to open named pipe %s for writing errno = %d (%s)\n",
+                      __FUNCTION__,strAAMPPipeName, errno, strerror(errno));
+        }
+        else {
+            // Success
+            retVal = true;
+        }
+    }
+EXIT:
+    return retVal;
 }
 
 
@@ -3082,6 +3109,24 @@ void PrivateInstanceAAMP::SendMessageOverPipe(const char *str,int nToWrite)
         }
 }
 
+void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const char *data)
+{
+#ifdef CREATE_PIPE_SESSION_TO_XRE
+    if(SetupPipeSession())
+    {
+        int dataLen = strlen(data);
+        int sizeToSend = AAMP2ReceiverMsgHdrSz + dataLen;
+        std::vector<uint8_t> tmp(sizeToSend,0);
+        AAMP2ReceiverMsg *msg = (AAMP2ReceiverMsg *)(tmp.data());
+        msg->type = (unsigned int)type;
+        msg->length = dataLen;
+        memcpy(msg->data, data, dataLen);
+        SendMessageOverPipe((char *)tmp.data(), sizeToSend);
+    }
+#else
+    logprintf("AAMP=>XRE: %s\n",data);
+#endif
+}
 
 /**
  * @brief Stop playback and release resources.
@@ -3098,9 +3143,15 @@ void PlayerInstanceAAMP::Stop(void)
 		logprintf("aamp_stop ignored since already at eSTATE_IDLE\n");
 		return;
 	}
+
+	logprintf("aamp_stop PlayerState=%d\n",state);
+	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
+	{
+		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
+		aamp->sendTuneMetrics(false);
+	}
 	aamp->SetState(eSTATE_IDLE);
 
-	logprintf("aamp_stop\n");
 	pthread_mutex_lock(&gMutex);
 	for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
 	{
@@ -3257,6 +3308,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
 	}
+	mInitSuccess = true;
 	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
 	if (retVal != eAAMPSTATUS_OK)
 	{
@@ -3273,6 +3325,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			//event.data.mediaError.description = "kECFileNotFound (90)";
 			//event.data.mediaError.playerRecoveryEnabled = false;
 		}
+		mInitSuccess = false;
 		return;
 	}
 	else
@@ -3335,7 +3388,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (newTune && !mPlayingAd)
 	{
-		SetState(eSTATE_PREPARED);
+		PrivAAMPState state;
+		GetState(state);
+		if(state != eSTATE_ERROR)
+		{
+			SetState(eSTATE_PREPARED);
+		}
 	}
 }
 
@@ -6004,6 +6062,10 @@ void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 	}
 }
 
+bool PrivateInstanceAAMP::IsTuneCompleted()
+{
+	return mTuneCompleted;
+}
 
 /**
  *   @brief Set Preferred DRM.
@@ -6014,4 +6076,80 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	AAMPLOG_INFO("%s:%d set preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
 	gpGlobalConfig->preferredDrm = drmType;
+}
+
+std::string PrivateInstanceAAMP::getStreamTypeString()
+{
+	std::string type;
+
+	if(mIsDash)
+	{
+		type = "DASH";
+	}
+	else
+	{
+		type = "HLS";
+	}
+
+	if(mInitSuccess) //Incomplete Init won't be set the DRM
+	{
+		switch(mCurrentDrm)
+		{
+			case eDRM_WideVine:
+				type += "/WV";
+				break;
+			case eDRM_CONSEC_agnostic:
+				type += "/Consec";
+				break;
+			case eDRM_PlayReady:
+				type += "/PR";
+				break;
+			case eDRM_Adobe_Access:
+				type += "/Access";
+				break;
+			case eDRM_Vanilla_AES:
+				type += "/VanillaAES";
+				break;
+			default:
+				type += "/Clear";
+				break;
+		}
+	}
+	else {
+		type += "/Unknown";
+	}
+	return type;
+}
+
+ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
+{
+	ProfilerBucketType pbt;
+	switch(fileType)
+	{
+		case eMEDIATYPE_VIDEO:
+			pbt = PROFILE_BUCKET_FRAGMENT_VIDEO;
+			break;
+		case eMEDIATYPE_AUDIO:
+			pbt = PROFILE_BUCKET_FRAGMENT_AUDIO;
+			break;
+		case eMEDIATYPE_MANIFEST:
+			pbt = PROFILE_BUCKET_MANIFEST;
+			break;
+		case eMEDIATYPE_INIT_VIDEO:
+			pbt = PROFILE_BUCKET_INIT_VIDEO;
+			break;
+		case eMEDIATYPE_INIT_AUDIO:
+			pbt = PROFILE_BUCKET_INIT_AUDIO;
+			break;
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+			pbt = PROFILE_BUCKET_PLAYLIST_VIDEO;
+			break;
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+			pbt = PROFILE_BUCKET_PLAYLIST_AUDIO;
+			break;
+		default:
+			pbt = (ProfilerBucketType)fileType;
+			break;
+	}
+	return pbt;
 }

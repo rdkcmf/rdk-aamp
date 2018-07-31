@@ -2530,7 +2530,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		int manifestDLFailCount = 0;
 		do
 		{
-			aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error);
+			aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
 			if (this->mainManifest.len)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -3726,7 +3726,7 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 
 		if (drmReturn != eDRM_SUCCESS)
 		{
-			aamp->profiler.ProfileError(bucketTypeFragmentDecrypt);
+			aamp->profiler.ProfileError(bucketTypeFragmentDecrypt, drmReturn);
 		}
 		return drmReturn;
 }
@@ -3950,7 +3950,8 @@ void TrackState::FetchPlaylist()
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
-		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type);
+		MediaType mType = (this->type == eTRACK_AUDIO)?eMEDIATYPE_PLAYLIST_AUDIO:eMEDIATYPE_PLAYLIST_VIDEO;
+		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, mType);
 		if(playlist.len)
 		{
 			aamp->profiler.ProfileEnd(bucketId);

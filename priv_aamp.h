@@ -37,6 +37,9 @@
 #include <chrono>
 #include <map>
 #include <set>
+#include <list>
+#include <sstream>
+#include <mutex>
 
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
@@ -420,6 +423,7 @@ public:
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
 	char *prLicenseServerURL;               /**< Playready License server URL*/
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
+	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 public:
 
 	/**
@@ -448,6 +452,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
+		,enableMicroEvents(false)
 	{
 		//XRE sends onStreamPlaying & onVideoInfo while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe. Hence, onTuned event should be sent only after the tune completion.
@@ -654,7 +659,6 @@ typedef enum
 	PROFILE_BUCKET_TYPE_COUNT           /**< Bucket count*/
 } ProfilerBucketType;
 
-
 /**
  * @brief Bucket types of classic profiler
  */
@@ -693,6 +697,29 @@ private:
 	// TODO: include settop type (to distinguish settop performance)
 	// TODO: include flag to indicate whether FOG used (to isolate FOG overhead)
 
+    /**
+     * @brief Class corresponding to tune time events.
+     */
+    class TuneEvent
+	{
+	public:
+		ProfilerBucketType id;      /**< Event identifier */
+		unsigned int start;         /**< Event start time */
+		unsigned int duration;      /**< Event duration */
+		int result;                 /**< Event result */
+
+		/**
+		 * @brief TuneEvent Constructor
+		 * @param[in] i - Event id
+		 * @param[in] s - Event start time
+		 * @param[in] d - Event duration
+		 * @param[in] r - Event result
+		 */
+		TuneEvent(ProfilerBucketType i, unsigned int s,
+				unsigned int d, int r):id(i),start(s),duration(d),result(r)
+		{}
+	};
+
 	/**
 	 * @brief Data structure corresponding to profiler bucket
 	 */
@@ -725,6 +752,8 @@ private:
 	long bandwidthBitsPerSecondAudio;       /**< Audio bandwidth in bps */
 	int drmErrorCode;                       /**< DRM error code */
 	bool enabled;                           /**< Profiler started or not */
+	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
+	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
 
 	/**
 	 * @brief Calculating effective time of two overlapping buckets.
@@ -788,6 +817,68 @@ public:
 		drmErrorCode = errCode;
 	}
 
+	/**
+	 * @brief Record a new tune time event.
+	 *
+	 * @param[in] pbt - Profiler bucket type
+	 * @param[in] start - Start time
+	 * @param[in] dur - Duration
+	 * @param[in] res - Event result
+	 * @return void
+	 */
+	void addtuneEvent(ProfilerBucketType pbt, unsigned int start,
+					  unsigned int dur, int res)
+	{
+		if(pbt >= PROFILE_BUCKET_TYPE_COUNT)
+		{
+			logprintf("WARN: bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
+			return;
+		}
+
+		if(!(buckets[pbt].complete))
+		{
+			std::lock_guard<std::mutex> lock(tuneEventListMtx);
+			tuneEventList.emplace_back(pbt,(start - tuneStartMonotonicBase),dur,res);
+		}
+	}
+
+	/**
+	 * @brief Get tune time events in JSON format
+	 *
+	 * @param[out] outSS - Output JSON string
+	 * @param[in] streamType - Stream type
+	 * @param[in] url - Tune URL
+	 * @param[in] success - Tune success/failure
+	 * @return void
+	 */
+	void getTuneEventsJSON(std::stringstream &outSS, const std::string &streamType, const char *url, bool success)
+	{
+		bool siblingEvent = false;
+		unsigned int tEndTime = NOW_STEADY_TS_MS;
+
+		outSS << "{\"s\":" << tuneStartBaseUTCMS
+				//TODO: It should be the duration relative to XRE start time.
+				<< ",\"td\":" << (tEndTime - tuneStartMonotonicBase)
+				<< ",\"st\":\"" << streamType << "\",\"u\":\"" << url
+				<< "\",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
+
+		std::lock_guard<std::mutex> lock(tuneEventListMtx);
+		for(auto &te:tuneEventList)
+		{
+			if(siblingEvent)
+			{
+				outSS<<",";
+			}
+			outSS << "{\"i\":" << te.id << ",\"b\":"
+					<< te.start << ",\"d\":" << te.duration << ",\"o\":"
+					<< te.result << "}";
+
+			siblingEvent = true;
+		}
+		outSS<<"]}";
+
+		tuneEventList.clear();
+	}
 
 	/**
 	 * @brief Profiler method to perform tune begin related operations.
@@ -803,6 +894,7 @@ public:
 		bandwidthBitsPerSecondAudio = 0;
 		drmErrorCode = 0;
 		enabled = true;
+		tuneEventList.clear();
 	}
 
 	/**
@@ -985,19 +1077,25 @@ public:
 		}
 	}
 
-
 	/**
 	 * @brief Marking error while executing a bucket
 	 *
 	 * @param[in] type - Bucket type
+	 * @param[in] result - Error code
 	 * @return void
 	 */
-	void ProfileError(ProfilerBucketType type)
+	void ProfileError(ProfilerBucketType type, int result = -1)
 	{
 		struct ProfilerBucket *bucket = &buckets[type];
 		if (!bucket->complete)
 		{
 			bucket->errorCount++;
+			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
+												 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
+			{
+				long long start = bucket->tStart + tuneStartMonotonicBase;
+				addtuneEvent(type, start, (unsigned int)(NOW_STEADY_TS_MS - start), result);
+			}
 		}
 	}
 
@@ -1013,8 +1111,13 @@ public:
 		struct ProfilerBucket *bucket = &buckets[type];
 		if (!bucket->complete)
 		{
-			bucket->complete = true;
 			bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
+			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
+												 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
+			{
+				long long start = bucket->tStart + tuneStartMonotonicBase;
+				addtuneEvent(type, start, (unsigned int)(bucket->tFinish - bucket->tStart), 200);
+			}
 			/*
 			static const char *bucketName[PROFILE_BUCKET_TYPE_COUNT] =
 			{
@@ -1031,6 +1134,7 @@ public:
 			bucket->tFinish - bucket->tStart,
 			bucketName[type]);
 			*/
+			bucket->complete = true;
 		}
 	}
 
@@ -1105,6 +1209,22 @@ struct ListenerData {
 class PrivateInstanceAAMP
 {
 
+	enum AAMP2ReceiverMsgType
+	{
+	    E_AAMP2Receiver_TUNETIME,
+	    E_AAMP2Receiver_EVENTS,
+	    E_AAMP2Receiver_MsgMAX
+	};
+
+	typedef struct __attribute__((__packed__)) _AAMP2ReceiverMsg
+	{
+	    unsigned int type;
+	    unsigned int length;
+	    char data[1];
+	}AAMP2ReceiverMsg;
+
+	static constexpr int AAMP2ReceiverMsgHdrSz = sizeof(AAMP2ReceiverMsg)-1;
+
 public:
 	/**
 	 * @brief Get profiler bucket type
@@ -1164,9 +1284,9 @@ public:
 	/**
 	 * @brief Establish PIPE session with Receiver
 	 *
-	 * @return void
+	 * @return Success/Failure
 	 */
-	void SetupPipeSession();
+	bool SetupPipeSession();
 
 	/**
 	 * @brief Close PIPE session with Receiver
@@ -1175,12 +1295,38 @@ public:
 	 */
 	void ClosePipeSession();
 
+	/**
+	 * @brief Send message to reciever over PIPE
+	 *
+	 * @param[in] type - Message type
+	 * @param[in] data - Message data
+	 * @return void
+	 */
+	void SendMessage2Receiver(AAMP2ReceiverMsgType type, const char *data);
+
+	/**
+	 * @brief Send tune events to receiver
+	 *
+	 * @param[in] success - Tune status
+	 * @return void
+	 */
+	void sendTuneMetrics(bool success);
+
+	/**
+	 * @brief Convert media file type to profiler bucket type
+	 *
+	 * @param[in] fileType - Media filetype
+	 * @return Profiler bucket type
+	 */
+	ProfilerBucketType mediaType2Bucket(MediaType fileType);
+
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutexattr_t mMutexAttr;
 
 	class StreamAbstractionAAMP *mpStreamAbstractionAAMP; // HLS or MPD collector
+	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mFormat;
 	StreamOutputFormat mAudioFormat;
 	pthread_cond_t mDownloadsDisabled;
@@ -1296,7 +1442,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_MANIFEST);
+	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT);
 
 	/**
 	 * @brief get Media Type in string
@@ -2133,6 +2279,13 @@ public:
 	int getStreamType();
 
 	/**
+	 *   @brief Get stream type as printable format
+	 *
+	 *   @return Stream type as string
+	 */
+	std::string getStreamTypeString();
+
+	/**
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type
@@ -2231,6 +2384,13 @@ public:
 	 *   @param[in] preferred download buffer size
 	 */
 	void SetDownloadBufferSize(int bufferSize);
+
+	/**
+	 *   @brief  Check if tune completed or not.
+	 *
+	 *   @return true, if tune completed.
+	 */
+	bool IsTuneCompleted();
 private:
 
 	/**

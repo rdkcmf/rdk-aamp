@@ -1182,7 +1182,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		else
 		{
-			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK);
+			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, responseCode);
 			logprintf("%s:%d Could not get license from server for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			if(412 == responseCode)
 			{
