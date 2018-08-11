@@ -1626,7 +1626,11 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		gint flags;
 		g_object_get(stream->sinkbin, "flags", &flags, NULL);
 		logprintf("playbin flags1: 0x%x\n", flags); // 0x617 on settop
+#ifdef NO_NATIVE_AV
+		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO;
+#else
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
+#endif
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
 		g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 		g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
