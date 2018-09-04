@@ -34,90 +34,184 @@
 #define MAX_CACHED_FRAGMENTS_PER_TRACK 3
 
 /**
- * @enum TrackType
- * @brief Type of media track
+ * @brief Media Track Types
  */
 typedef enum
 {
-	eTRACK_VIDEO,
-	eTRACK_AUDIO
+	eTRACK_VIDEO,   /**< Video track */
+	eTRACK_AUDIO    /**< Audio track */
 } TrackType;
 
 /**
- * @struct CachedFragment
- * @brief Holds information about a cached fragment
+ * @brief Structure of cached fragment data
+ *        Holds information about a cached fragment
  */
 struct CachedFragment
 {
-	GrowableBuffer fragment;
-	double position;
-	double duration;
-	bool discontinuity;
-	int profileIndex; /**< Updated internally*/
+	GrowableBuffer fragment;    /**< Buffer to keep fragment content */
+	double position;            /**< Position in the playlist */
+	double duration;            /**< Fragment duration */
+	bool discontinuity;         /**< PTS discontinuity status */
+	int profileIndex;           /**< Profile index; Updated internally */
 #ifdef AAMP_DEBUG_INJECT
-	char uri[MAX_URI_LENGTH];
+	char uri[MAX_URI_LENGTH];   /**< Fragment url */
 #endif
 };
 
 /**
- * @enum PlaylistType
- * @brief Type of playlist
+ * @brief Playlist Types
  */
 typedef enum
 {
-	ePLAYLISTTYPE_UNDEFINED,
-	ePLAYLISTTYPE_EVENT, // playlist may grow via appended lines, but otherwise won't change
-	ePLAYLISTTYPE_VOD, // playlist will never change
+	ePLAYLISTTYPE_UNDEFINED,    /**< Playlist type undefined */
+	ePLAYLISTTYPE_EVENT,        /**< Playlist may grow via appended lines, but otherwise won't change */
+	ePLAYLISTTYPE_VOD,          /**< Playlist will never change */
 } PlaylistType;
 
 /**
- * @class MediaTrack
- * @brief Base class of a media track
+ * @brief Base Class for Media Track
  */
 class MediaTrack
 {
 public:
+
+	/**
+	 * @brief MediaTrack Constructor
+	 *
+	 * @param[in] type - Media track type
+	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
+	 * @param[in] name - Media track name
+	 */
 	MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name);
+
+	/**
+	 * @brief MediaTrack Destructor
+	 */
 	virtual ~MediaTrack();
+
+	/**
+	 * @brief Start fragment injector loop
+	 *
+	 * @return void
+	 */
 	void StartInjectLoop();
+
+	/**
+	 * @brief Stop fragment injector loop
+	 *
+	 * @return void
+	 */
 	void StopInjectLoop();
+
+	/**
+	 * @brief Status of media track
+	 *
+	 * @return Enabled/Disabled
+	 */
 	bool Enabled();
+
+	/**
+	 * @brief Inject fragment into the gstreamer
+	 *
+	 * @return Success/Failure
+	 */
 	bool InjectFragment();
 
 	/**
-	 * @brief Get total injected duration of the track
-	 * @retval total injected duration of the track
+	 * @brief Get total fragment injected duration
+	 *
+	 * @return Total duration in seconds
 	 */
 	double GetTotalInjectedDuration() { return totalInjectedDuration; };
+
+	/**
+	 * @brief Run fragment injector loop.
+	 *
+	 * @return void
+	 */
 	void RunInjectLoop();
+
+	/**
+	 * @brief Update cache after fragment fetch
+	 *
+	 * @return void
+	 */
 	void UpdateTSAfterFetch();
+
+	/**
+	 * @brief Wait till fragments available
+	 *
+	 * @param[in] timeoutMs - Timeout in milliseconds. Default - infinite
+	 * @return Fragment available or not.
+	 */
 	bool WaitForFreeFragmentAvailable( int timeoutMs = -1);
+
+	/**
+	 * @brief Abort the waiting for cached fragments
+	 *
+	 * @param[in] immediate - Forced or lazy abort
+	 * @return void
+	 */
 	void AbortWaitForCachedFragment( bool immediate);
 
 	/**
 	 * @brief Notifies profile changes to subclasses
+	 *
+	 * @return void
 	 */
 	virtual void ABRProfileChanged(void) = 0;
 
 	/**
-	 * @brief Get number of fragments fetched
-	 * @retval total number of fragments fetched by the track
+	 * @brief Get number of fragments dpownloaded
+	 *
+	 * @return Number of downloaded fragments
 	 */
 	int GetTotalFragmentsFetched(){ return totalFragmentsDownloaded; }
 
+	/**
+	 * @brief Get buffer to store the downloaded fragment content
+	 *
+	 * @param[in] initialize - Buffer to to initialized or not
+	 * @return Fragment cache buffer
+	 */
 	CachedFragment* GetFetchBuffer(bool initialize);
+
+	/**
+	 * @brief Set current bandwidth
+	 *
+	 * @param[in] bandwidthBps - Bandwidth in bps
+	 * @return void
+	 */
 	void SetCurrentBandWidth(int bandwidthBps);
+
+	/**
+	 * @brief Get current bandwidth in bps
+	 *
+	 * @return Bandwidth in bps
+	 */
 	int GetCurrentBandWidth();
 	double GetTotalFetchedDuration() { return totalFetchedDuration; };
 protected:
 
+	/**
+	 * @brief Update segment cache and inject buffer to gstreamer
+	 *
+	 * @return void
+	 */
 	void UpdateTSAfterInject();
+
+	/**
+	 * @brief Wait till cached fragment available
+	 *
+	 * @return TRUE if fragment available, FALSE if aborted/fragment not available.
+	 */
 	bool WaitForCachedFragmentAvailable();
 
 
 	/**
 	 * @brief Get the context of media track. To be implemented by subclasses
-	 * @retval Context of track.
+	 *
+	 * @return Pointer to StreamAbstractionAAMP object
 	 */
 	virtual class StreamAbstractionAAMP* GetContext() = 0;
 
@@ -126,101 +220,113 @@ protected:
 	 *
 	 * @param[in] cachedFragment - contains fragment to be processed and injected
 	 * @param[out] fragmentDiscarded - true if fragment is discarded.
+	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 public:
-	bool eosReached; /**< set to true when a vod asset has been played to completion */
-	bool enabled; /**< set to true if track is enabled */
-	int numberOfFragmentsCached;/**< Number of fragments cached in this track*/
-	const char* name; /**< Track name used for debugging*/
-	double fragmentDurationSeconds; /**< duration in seconds for current fragment-of-interest */
-	int segDLFailCount; /**< Number of segment download failures */
-	int segDrmDecryptFailCount; /**< Number of segment decrypt failures */
-	int mSegInjectFailCount;	/**< Segment Inject/Decode fail count */
-	TrackType type; /**< Media type of the track*/
+	bool eosReached;                    /**< set to true when a vod asset has been played to completion */
+	bool enabled;                       /**< set to true if track is enabled */
+	int numberOfFragmentsCached;        /**< Number of fragments cached in this track*/
+	const char* name;                   /**< Track name used for debugging*/
+	double fragmentDurationSeconds;     /**< duration in seconds for current fragment-of-interest */
+	int segDLFailCount;                 /**< Segment download fail count*/
+	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
+	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
+	TrackType type;                     /**< Media type of the track*/
 protected:
-	PrivateInstanceAAMP* aamp; /**< private aamp instance associated with this track*/
+	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment cachedFragment[MAX_CACHED_FRAGMENTS_PER_TRACK]; /**< storage for currently-downloaded fragment */
-	bool abort; /**< Abort all operations if flag is set*/
-	pthread_mutex_t mutex; /**< protection of track variables accessed from multiple threads */
+	bool abort;                         /**< Abort all operations if flag is set*/
+	pthread_mutex_t mutex;              /**< protection of track variables accessed from multiple threads */
 private:
-	pthread_cond_t fragmentFetched; /**< Signaled after a fragment is fetched*/
-	pthread_cond_t fragmentInjected; /**< Signaled after a fragment is injected*/
-	pthread_t fragmentInjectorThreadID; /**< fragment Injector Thread ID */
-	int totalFragmentsDownloaded; /**< Total fragments downloaded since start by track*/
-	bool fragmentInjectorThreadStarted; /**< indicates if fragmentInjectorThread is started*/
-	double totalInjectedDuration; /**< total injected duration*/
-	int cacheDurationSeconds; /**< duration of cache in seconds*/
-	bool notifiedCachingComplete; /**< indicates if cache complete is notified*/
-	int fragmentIdxToInject; /**< Write position */
-	int fragmentIdxToFetch; /**< Read position */
-	int bandwidthBytesPerSecond; /** Bandwidth of last selected profile*/
-	double totalFetchedDuration; /** Total duration fetched by track*/
-	size_t fetchBufferPreAllocLen; /** Buffer length to pre-allocate for next fetch buffer*/
+	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
+	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
+	pthread_t fragmentInjectorThreadID; /**< Fragment injector thread id*/
+	int totalFragmentsDownloaded;       /**< Total fragments downloaded since start by track*/
+	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
+	double totalInjectedDuration;       /**< Total fragment injected duration*/
+	int cacheDurationSeconds;           /**< Total fragment cache duration*/
+	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
+	int fragmentIdxToInject;            /**< Write position */
+	int fragmentIdxToFetch;             /**< Read position */
+	int bandwidthBytesPerSecond;        /**< Bandwidth of last selected profile*/
+	double totalFetchedDuration;        /**< Total fragment fetched duration*/
+	size_t fetchBufferPreAllocLen;      /** Buffer length to pre-allocate for next fetch buffer*/
 };
 
 
 /**
- * @struct StreamResolution
- * @brief Holds resolution of stream
+ * @brief Structure holding the resolution of stream
  */
 struct StreamResolution
 {
-	int width; /**< Width in pixels*/
-	int height; /**< Height in pixels*/
+	int width;      /**< Width in pixels*/
+	int height;     /**< Height in pixels*/
 };
 
 /**
- * @struct StreamInfo
- * @brief Holds information of a stream.
+ * @brief Structure holding the information of a stream.
  */
 struct StreamInfo
 {
-	bool isIframeTrack; /**< indicates if the stream is iframe stream*/
-	long bandwidthBitsPerSecond; /**< Bandwidth of the stream bps*/
-	StreamResolution resolution; /**< Resolution of the stream*/
+	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
+	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
+	StreamResolution resolution;    /**< Resolution of the stream*/
 };
 
 /**
- * @class StreamAbstractionAAMP
- * @brief Base class of top level HLS/MPD collectors.
+ * @brief StreamAbstraction class of AAMP
  */
 class StreamAbstractionAAMP
 {
 public:
+	/**
+	 * @brief StreamAbstractionAAMP constructor.
+	 */
 	StreamAbstractionAAMP(PrivateInstanceAAMP* aamp);
+
+	/**
+	 * @brief StreamAbstractionAAMP destructor.
+	 */
 	virtual ~StreamAbstractionAAMP();
 
 	/**
 	 * @brief  Dump profiles for debugging.
-	 * @note To be implemented by sub classes
+	 *         To be implemented by sub classes
+	 *
+	 * @return void
 	 */
 	virtual void DumpProfiles(void) = 0;
 
 	/**
 	 *   @brief  Initialize a newly created object.
-	 *   @note   To be implemented by sub classes
-	 *   @param  tuneType to set type of object.
-	 *   @retval true on success
-	 *   @retval false on failure
+	 *           To be implemented by sub classes
+	 *
+	 *   @param[in]  tuneType - to set type of playback.
+	 *   @return true on success, false failure
 	 */
 	virtual bool Init(TuneType tuneType) = 0;
 
 	/**
-	 *   @brief  Set a position at which stop injection .
-	 *   @param  endPosition - playback end position.
+	 *   @brief  Set a position at which stop injection
+	 *
+	 *   @param[in]  endPosition - playback end position.
+	 *   @return void
 	 */
 	virtual void SetEndPos(double endPosition){};
 
 	/**
-	 *   @brief  Starts streaming.
+	 *   @brief  Start streaming.
+	 *
+ 	 *   @return void
 	 */
 	virtual void Start() = 0;
 
 	/**
 	*   @brief  Stops streaming.
 	*
-	*   @param  clearChannelData - clear channel /drm data on stop.
+	*   @param[in]  clearChannelData - clear channel /drm data on stop.
+	*   @return void
 	*/
 	virtual void Stop(bool clearChannelData) = 0;
 
@@ -228,8 +334,7 @@ public:
 	/**
 	 *   @brief  Check if the stream live.
 	 *
-	 *   @retval true if live stream
-	 *   @retval false if VOD
+	 *   @return TRUE if live, else FALSE
 	 */
 	virtual bool IsLive() = 0;
 
@@ -238,21 +343,21 @@ public:
 	 *
 	 *   @param[out]  primaryOutputFormat - format of primary track
 	 *   @param[out]  audioOutputFormat - format of audio track
-	 *   @retval void
+	 *   @return void
 	 */
 	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) = 0;
 
 	/**
 	 *   @brief Get current stream position.
 	 *
-	 *   @retval current position of stream.
+	 *   @return current position of stream.
 	 */
 	virtual double GetStreamPosition() = 0;
 
 	/**
 	 *   @brief  Get PTS of first sample.
 	 *
-	 *   @retval PTS of first sample
+	 *   @return PTS of first sample
 	 */
 	virtual double GetFirstPTS() = 0;
 
@@ -260,48 +365,105 @@ public:
 	 *   @brief Return MediaTrack of requested type
 	 *
 	 *   @param[in]  type - track type
-	 *   @retval MediaTrack pointer.
+	 *   @return MediaTrack pointer.
 	 */
 	virtual MediaTrack* GetMediaTrack(TrackType type) = 0;
 
+	/**
+	 *   @brief Waits track injection until caught up with video track.
+	 *          Used internally by injection logic
+	 *
+	 *   @param None
+	 *   @return void
+	 */
 	void WaitForVideoTrackCatchup();
 
+	/**
+	 *   @brief Unblock track if caught up with video or downloads are stopped
+	 *   
+	 *   @return void
+	 */
 	void ReassessAndResumeAudioTrack();
 
 	/**
 	 *   @brief When TSB is involved, use this to set bandwidth to be reported.
 	 *
 	 *   @param[in]  tsbBandwidth - Bandwidth of the track.
+	 *   @return void
 	 */
 	void SetTsbBandwidth(long tsbBandwidth){ mTsbBandwidth = tsbBandwidth;}
 
-	PrivateInstanceAAMP* aamp; /// pointer to PrivateInstanceAAMP object associated with stream
+	PrivateInstanceAAMP* aamp;  /**< Pointer to PrivateInstanceAAMP object associated with stream*/
 
+	/**
+	 * @brief Rampdown profile
+	 *
+	 * @return True, if ramp down successful. Else false
+	 */
 	bool RampDownProfile(void);
 
+	/**
+	 *   @brief Check for ramdown profile.
+	 *
+	 *   @param http_error
+	 *   @return true if rampdown needed in the case of fragment not available in higher profile.
+	 */
 	bool CheckForRampDownProfile(long http_error);
 
+	/**
+	 *   @brief Checks and update profile based on bandwidth.
+	 *
+	 *   @param None
+	 *   @return void
+	 */
 	void CheckForProfileChange(void);
 
+	/**
+	 *   @brief Get iframe track index.
+	 *   This shall be called only after UpdateIframeTracks() is done
+	 *
+	 *   @param None
+	 *   @return iframe track index.
+	 */
 	int GetIframeTrack();
 
+	/**
+	 *   @brief Update iframe tracks.
+	 *   Subclasses shall invoke this after StreamInfo is populated .
+	 *
+	 *   @param None
+	 *   @return void
+	 */
 	void UpdateIframeTracks();
 
+	/**
+	 *   @brief Get the desired profile to start fetching.
+	 *
+	 *   @param getMidProfile
+	 *   @return profile index to be used for the track.
+	 */
 	int GetDesiredProfile(bool getMidProfile);
 
+	/**
+	 *   @brief Notify bitrate updates to application.
+	 *   Used internally by injection logic
+	 *
+	 *   @param[in]  profileIndex - profile index of last injected fragment.
+	 *   @return void
+	 */
 	void NotifyBitRateUpdate(int profileIndex);
 
 	/**
 	 *   @brief Fragment Buffering is required before playing.
 	 *
-	 *   @retval true if buffering is required.
+	 *   @return true if buffering is required.
 	 */
 	bool IsFragmentBufferingRequired() { return false; }
 
 	/**
 	 *   @brief Whether we are playing at live point or not.
 	 *
-	 *   @retval true if we are at live point.
+	 *   @return true if we are at live point.
 	 */
 	bool IsStreamerAtLivePoint() { return mIsAtLivePoint; }
 
@@ -309,47 +471,55 @@ public:
 	 *   @brief Informs streamer that playback was paused.
 	 *
 	 *   @param[in] paused - true, if playback was paused
-	 *   @retval void
+	 *   @return void
 	 */
 	virtual void NotifyPlaybackPaused(bool paused);
 
 #ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
+	/**
+	 *   @brief Check if playback is stalled in streamer.
+	 *
+	 *   @param expectedInjectedDuration - Expected inject duration
+	 *   @return true if playback stalled, false otherwise.
+	 */
 	bool CheckIfPlaybackStalled(double expectedInjectedDuration);
 #else
 
 	bool CheckIfPlayerRunningDry(void );
 #endif
 
-	bool trickplayMode;  /**< trick play flag to be updated by subclasses*/
-	int currentProfileIndex;   /**< current profile index of the track*/
+	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
+	int currentProfileIndex;                /**< current profile index of the track*/
 	int profileIdxForBandwidthNotification; /**< internal - profile index for bandwidth change notification*/
-	bool hasDrm;  /**< denotes if the current asset is DRM protected*/
+	bool hasDrm;                            /**< denotes if the current asset is DRM protected*/
 
-	bool mIsAtLivePoint; /**< flag that denotes if playback is at live point*/
+	bool mIsAtLivePoint;                    /**< flag that denotes if playback is at live point*/
 
 #ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
-	bool mIsPlaybackStalled; /**< flag that denotes if playback was stalled or not*/
+	bool mIsPlaybackStalled;                /**< flag that denotes if playback was stalled or not*/
 #endif
-	bool mIsFirstBuffer; /** <flag that denotes if the first buffer was processed or not*/
+	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
 
 
 	/**
-	 * @brief Get index of profile that has maximum bandwidth
-	 * @retval Index of maximum bandwidth profile
+	 *   @brief Get profile index of highest bandwidth
+	 *
+	 *   @return Profile index
 	 */
 	int GetMaxBWProfile() { return mAbrManager.getMaxBandwidthProfile(); } /* Return the Top Profile Index*/
 
 	/**
-	 * @brief Get index of profile corresponds to bandwidth
-	 * @param[in] bandwidth Bandwidth to lookup profile
-	 * @retval profile index
+	 *   @brief Get profile index of given bandwidth.
+	 *
+	 *   @param[in]  bandwidth - Bandwidth
+	 *   @return Profile index
 	 */
 	virtual int GetBWIndex(long bandwidth) = 0;
 
 	/**
 	 *    @brief Get the ABRManager reference.
 	 *
-	 *    @retval The ABRManager reference.
+	 *    @return The ABRManager reference.
 	 */
 	ABRManager& GetABRManager() {
 		return mAbrManager;
@@ -369,25 +539,43 @@ protected:
 	 *   @brief Get stream information of a profile from subclass.
 	 *
 	 *   @param[in]  idx - profile index.
-	 *   @retval stream information corresponding to index.
+	 *   @return stream information corresponding to index.
 	 */
 	virtual StreamInfo* GetStreamInfo(int idx) = 0;
 
 private:
+
+	/**
+	 * @brief Get desired profile based on cache
+	 *
+	 * @return Profile index
+	 */
 	int GetDesiredProfileBasedOnCache(void);
+
+	/**
+	 * @brief Update profile based on fragments downloaded.
+	 *
+	 * @return void
+	 */
 	void UpdateProfileBasedOnFragmentDownloaded(void);
+
+	/**
+	 * @brief Update profile based on fragment cache.
+	 *
+	 * @return void
+	 */
 	void UpdateProfileBasedOnFragmentCache(void);
 
-	pthread_mutex_t mLock; /**< lock for A/V track catchup logic*/
-	pthread_cond_t mCond; /**< condition for A/V track catchup logic*/
+	pthread_mutex_t mLock;              /**< lock for A/V track catchup logic*/
+	pthread_cond_t mCond;               /**< condition for A/V track catchup logic*/
 
 	// abr variables
-	long mCurrentBandwidth; /**< stores current bandwidth*/
-	int mLastVideoFragCheckedforABR; /**< Last video fragment for which ABR is checked*/
-	long mTsbBandwidth; /**< stores bandwidth when TSB is involved*/
-	long mNwConsistencyBypass; /**< Network consistency bypass*/
+	long mCurrentBandwidth;             /**< stores current bandwidth*/
+	int mLastVideoFragCheckedforABR;    /**< Last video fragment for which ABR is checked*/
+	long mTsbBandwidth;                 /**< stores bandwidth when TSB is involved*/
+	long mNwConsistencyBypass;          /**< Network consistency bypass**/
 protected:
-	ABRManager mAbrManager; /**< Pointer to abr manager*/
+	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

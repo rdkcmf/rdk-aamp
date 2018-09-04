@@ -2480,9 +2480,11 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 
 
 /**
- * @brief Loads AAMP JS object into JS execution context
- * @param[in] context JS execution context
- * @param[in] playerInstanceAAMP instance of PlayerInstanceAAMP, if to be re-used
+ *   @brief  Loads AAMP JS object into JS execution context
+ *
+ *   @param[in]  context - JS execution context
+ *   @param[in]  playerInstanceAAMP - Instance of PlayerInstanceAAMP, if to be re-used
+ *   @return void
  */
 void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 {
@@ -2528,8 +2530,10 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 
 
 /**
- * @brief Removes the AAMP instance from JS context
- * @param[in] context JS execution context
+ *   @brief  Removes the AAMP instance from JS context
+ *
+ *   @param[in]  context - JS execution context
+ *   @return void
  */
 void aamp_UnloadJS(void* context)
 {
