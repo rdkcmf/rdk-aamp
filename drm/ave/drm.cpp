@@ -191,7 +191,17 @@ public:
 			*/
 			FILE *sentinelFile;
 			sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
-			fclose(sentinelFile);
+
+			if(sentinelFile)
+			{
+				fclose(sentinelFile);
+			}
+			else
+			{
+				logprintf("%s %d : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s\n",
+							__FUNCTION__, __LINE__, errno, strerror(errno));
+			}
+
 			sprintf(description, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 			mpAamp->SendErrorEvent(drmFailure, description);
 		}
