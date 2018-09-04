@@ -542,7 +542,7 @@ public:
 	 *
 	 *   @param  mainManifestUrl - HTTP/HTTPS url to be played.
 	 */
-	void Tune(const char *mainManifestUrl, const char *contentType=NULL);
+	void Tune(const char *mainManifestUrl, const char *contentType=NULL, bool bFirstAttempt = true, bool bFinalAttempt = false);
 
 	/**
 	 *   @brief Stop playback and release resources.

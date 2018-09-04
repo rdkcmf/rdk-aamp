@@ -33,7 +33,7 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.3"
+#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.4"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1258,8 +1258,18 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 	}
 
 	char* contentType = NULL;
+	bool bFinalAttempt = false;
+	bool bFirstAttempt = true;
 	switch(argumentCount)
 	{
+		case 4:
+			{
+				bFinalAttempt = JSValueToBoolean(context, arguments[3]);
+			}
+		case 3:
+			{
+				bFirstAttempt = JSValueToBoolean(context, arguments[2]);
+			}
 		case 2:
 			{
 				contentType = aamp_JSValueToCString(context, arguments[1], exception);
@@ -1267,7 +1277,7 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 		case 1:
 			{
 				char* url = aamp_JSValueToCString(context, arguments[0], exception);
-				pAAMP->_aamp->Tune(url, contentType);
+				pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt);
 				delete [] url;
 			}
 			if(NULL != contentType)
@@ -1276,7 +1286,7 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 			}
 			break;
 		default:
-			ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+			ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 to 4", __FUNCTION__, argumentCount);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.tune' - 1 argument required");
 			break;
 	}

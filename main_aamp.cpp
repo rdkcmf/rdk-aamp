@@ -1009,7 +1009,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	if (!mTuneCompleted)
 	{
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
-		profiler.GetClassicTuneTimeInfo(success, mTuneRetries, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 #ifndef STANDALONE_AAMP
 		SetupPipeSession();
 		SendMessageOverPipe((const char *) classicTuneStr, (int) strlen(classicTuneStr));
@@ -1017,7 +1017,6 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 #endif
 		mTuneCompleted = true;
 		mFirstTune = false;
-		mAssetId = ""; //Re-tuning to same asset should be considered as a new tune.
 	}
 	gpGlobalConfig->setLogLevel(eLOGLEVEL_WARN);
 }
@@ -3408,37 +3407,6 @@ static bool replace_cstring( char *string, const char *existingSubStringToReplac
 	return false;
 }
 
-static inline std::string get_asset_id(const char *manifestURL)
-{
-	/*
-	 * Removing the hostname part gives a unique string for each asset.
-	 */
-
-	std::vector<char> defoggedUrl(manifestURL, (manifestURL + strlen(manifestURL) + 1));
-	char *url = defoggedUrl.data();
-	DeFog(url);
-
-	int n = 0;
-	const char *sptr;
-
-	std::string assetId;
-	for(int i=0; (i<3) && *url; url++)
-	{
-		if('/' ==  *url) i++;  /* http://hostname/path/manifest.m3u8 */
-	}
-
-	sptr = url;
-
-	for(n=0; *url && (*url != '?'); url++, n++);
-
-	if(sptr)
-	{
-		assetId = std::string(sptr,n);
-	}
-	return assetId;
-}
-
-
 /**
  * @brief Common tune operations used on Tune, Seek, SetRate etc
  * @param tuneType type of tune
@@ -3596,7 +3564,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -3604,7 +3572,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	aamp->Tune(mainManifestUrl, contentType);
+	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt);
 }
 
 
@@ -3614,7 +3582,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
 {
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
 
@@ -3679,16 +3647,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	SetContentType(mainManifestUrl, contentType);
 
-	std::string newAssetId = get_asset_id(mainManifestUrl);
-	if(newAssetId == mAssetId)
+	if(bFirstAttempt)
 	{
-		mTuneRetries++;
+		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
+		mPlayerLoadTime = NOW_STEADY_TS_MS;
 	}
 	else
 	{
-		mTuneRetries = 1;	//New URL => ie, first attempt
-		mAssetId = newAssetId;
-		mPlayerLoadTime = NOW_STEADY_TS_MS;
+		mTuneAttempts++;
 	}
 	profiler.TuneBegin();
 
@@ -3771,7 +3737,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	mIsFirstRequestToFOG = (tuneType == eTUNETYPE_NEW_NORMAL && mIsLocalPlayback);
 
-	logprintf("aamp_tune: format: %s URL: %s\n", mIsDash?"DASH":"HLS" ,manifestUrl);
+	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
 	TuneHelper(tuneType);
 }

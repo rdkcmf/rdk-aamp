@@ -877,7 +877,7 @@ public:
 		}
 	}
 
-	void Tune(const char *url, const char *contentType);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
 	void TuneHelper(TuneType tuneType);
 	void TeardownStream(bool newTune);
 	void SendMessageOverPipe(const char *str,int nToWrite);
@@ -1141,8 +1141,7 @@ private:
 	int m_fd;
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
-	std::string mAssetId;		//Unique identifier of current playing assets. (Hack: URL less hostname part take as assetId)
-	int  mTuneRetries;			//To distinguish between new tune & retries with redundant over urls.
+	int  mTuneAttempts;			//To distinguish between new tune & retries with redundant over urls.
 	long long mPlayerLoadTime;
 	PrivAAMPState mState;
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
