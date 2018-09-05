@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /**
-* @file JavaScript bindings for AAMP_JSController
-*/
+ * @file jscontroller-jsbindings.cpp
+ * @brief JavaScript bindings for AAMP_JSController
+ */
+
 
 #include <JavaScriptCore/JavaScript.h>
 
@@ -31,15 +34,44 @@
 
 extern "C"
 {
+
+	/**
+	 * @brief
+	 * @param context
+	 */
 	void aamp_LoadJSController(JSGlobalContextRef context);
+
+	/**
+	 * @brief
+	 * @param context
+	 */
 	void aamp_UnloadJSController(JSGlobalContextRef context);
 
+
+	/**
+	 * @brief
+	 * @param *
+	 * @param int
+	 */
 	void setAAMPPlayerInstance(PlayerInstanceAAMP *, int);
+
+	/**
+	 * @brief
+	 * @param *
+	 */
 	void unsetAAMPPlayerInstance(PlayerInstanceAAMP *);
 }
 
+/**
+ * @class AAMPJSCEventListener;
+ * @brief
+ */
 class AAMPJSCEventListener;
 
+/**
+ * @struct AAMP_JSController
+ * @brief
+ */
 struct AAMP_JSController
 {
 	JSGlobalContextRef _ctx;
@@ -56,11 +88,22 @@ AAMP_JSController* _globalController = NULL;
 #ifdef AAMP_CC_ENABLED
 //TODO: Fix Race between gstaamp and AAMP_JSController for reading CC config.
 //AAMP_JSController is invoked earlier than gstaamp. Whereas gstaamp loads aamp.cfg
+
+/**
+ * @brief
+ * @retval
+ */
 static bool aamp_getClosedCaptionConfig()
 {
 	return aamp_IsCCEnabled();
 }
 
+
+/**
+ * @brief
+ * @param obj
+ * @param status
+ */
 static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 {
 	if(!aamp_IsCCEnabled())
@@ -86,6 +129,13 @@ static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 namespace AAMPJSController
 {
 
+
+/**
+ * @brief
+ * @param context
+ * @param callback
+ * @param event
+ */
 static void dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event)
 {
 	JSValueRef args[1] = { event };
@@ -97,13 +147,42 @@ static void dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObje
 
 }//namespace
 
+/**
+ * @class AAMPJSCEventListener
+ * @brief
+ */
 class AAMPJSCEventListener : public AAMPEventListener
 {
 public:
+
+	/**
+	 * @brief
+	 * @param jsObj
+	 * @param type
+	 * @param jsCallback
+	 */
 	static void AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
+
+	/**
+	 * @brief
+	 * @param jsObj
+	 * @param type
+	 * @param jsCallback
+	 */
 	static void RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
+
+	/**
+	 * @brief
+	 * @param jsObj
+	 */
 	static void RemoveAllEventListener(AAMP_JSController *jsObj);
 
+	/**
+	 * @brief AAMPJSCEventListener Constructor
+	 * @param obj
+	 * @param type
+	 * @param jsCallback
+	 */
 	AAMPJSCEventListener(AAMP_JSController* obj, AAMPEventType type, JSObjectRef jsCallback)
 		: p_aamp(obj)
 		, p_type(type)
@@ -113,11 +192,19 @@ public:
 		JSValueProtect(p_aamp->_ctx, p_jsCallback);
 	}
 
+	/**
+	 * @brief AAMPJSCEventListener Destructor
+	 */
 	~AAMPJSCEventListener()
 	{
 		JSValueUnprotect(p_aamp->_ctx, p_jsCallback);
 	}
 
+
+	/**
+	 * @brief
+	 * @param e
+	 */
 	void Event(const AAMPEvent& e)
 	{
 		LOG("[AAMP_JSController] %s() type=%d, jsCallback=%p", __FUNCTION__, e.type, p_jsCallback);
@@ -129,6 +216,7 @@ public:
 
 		JSObjectRef event = createNewJSEvent(p_aamp->_ctx, aamp_getNameFromEventType(e.type), false, false);
 		JSValueProtect(p_aamp->_ctx, event);
+
 		AAMPJSController::dispatchEventToJS(p_aamp->_ctx, p_jsCallback, event);
 		JSValueUnprotect(p_aamp->_ctx, event);
 	}
@@ -140,6 +228,13 @@ public:
 	AAMPJSCEventListener *p_next;
 };
 
+
+/**
+ * @brief
+ * @param jsObj
+ * @param type
+ * @param jsCallback
+ */
 void AAMPJSCEventListener::AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
 {
 	AAMPJSCEventListener *newListener = new AAMPJSCEventListener(jsObj, type, jsCallback);
@@ -152,6 +247,13 @@ void AAMPJSCEventListener::AddEventListener(AAMP_JSController *jsObj, AAMPEventT
 	}
 }
 
+
+/**
+ * @brief
+ * @param jsObj
+ * @param type
+ * @param jsCallback
+ */
 void AAMPJSCEventListener::RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
 {
 	LOG("[AAMP_JSController] AAMPJSCEventListener::RemoveEventListener (%d, %p)", type, jsCallback);
@@ -183,6 +285,11 @@ void AAMPJSCEventListener::RemoveEventListener(AAMP_JSController *jsObj, AAMPEve
 	}
 }
 
+
+/**
+ * @brief
+ * @param jsObj
+ */
 void AAMPJSCEventListener::RemoveAllEventListener(AAMP_JSController *jsObj)
 {
 	AAMPJSCEventListener *iter = jsObj->_eventListeners;
@@ -200,6 +307,12 @@ void AAMPJSCEventListener::RemoveAllEventListener(AAMP_JSController *jsObj)
 	jsObj->_eventListeners = NULL;
 }
 
+
+/**
+ * @brief
+ * @param aamp
+ * @param sessionID
+ */
 void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 {
 	LOG("[AAMP_JSController] setAAMPPlayerInstance (%p, id=%d)", aamp, sessionID);
@@ -234,6 +347,11 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 	}
 }
 
+
+/**
+ * @brief
+ * @param aamp
+ */
 void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
 {
         if (_globalController == NULL || _globalController->_player != aamp)
@@ -254,6 +372,15 @@ void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
 }
 
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JSController] %s()\n", __FUNCTION__);
@@ -268,6 +395,16 @@ static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context,
 	return JSValueMakeBoolean(context, obj->_closedCaptionEnabled);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JSController] %s()\n", __FUNCTION__);
@@ -295,6 +432,15 @@ static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObj
 	return true;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMPJSC_getProperty_aampSessionID(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JSController] %s() \n", __FUNCTION__);
@@ -321,6 +467,17 @@ static const JSStaticValue AAMP_JSController_static_values[] =
 	{NULL, NULL, NULL, 0}
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JSController] %s()", __FUNCTION__);
@@ -358,6 +515,17 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JSController] %s()", __FUNCTION__);
@@ -387,6 +555,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 
                         if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
                         {
+
                                 AAMPJSCEventListener::RemoveEventListener(aampObj, eventType, callbackFunc);
                         }
 
@@ -410,6 +579,11 @@ static const JSStaticFunction AAMP_JSController_static_methods[] =
 	{NULL, NULL, 0}
 };
 
+
+/**
+ * @brief
+ * @param thisObj
+ */
 void AAMP_JSController_finalize(JSObjectRef thisObj)
 {
 	LOG("[AAMP_JSController] AAMP_finalize: object=%p\n", thisObj);
@@ -422,6 +596,7 @@ void AAMP_JSController_finalize(JSObjectRef thisObj)
 	{
 		if (aampObj->_eventListeners != NULL)
 		{
+
 			AAMPJSCEventListener::RemoveAllEventListener(aampObj);
 		}
 	}
@@ -431,6 +606,16 @@ void AAMP_JSController_finalize(JSObjectRef thisObj)
 	delete aampObj;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param constructor
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSObjectRef AAMP_JSController_class_constructor(JSContextRef context, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	*exception = aamp_GetException(context, AAMPJS_GENERIC_ERROR, "Cannot create an object of AAMP_JSController");
@@ -458,6 +643,11 @@ static const JSClassDefinition AAMP_JSController_class_def =
 	NULL
 };
 
+
+/**
+ * @brief
+ * @param context
+ */
 void aamp_LoadJSController(JSGlobalContextRef context)
 {
 	INFO("[AAMP_JSController] aamp_LoadJSController context=%p\n", context);
@@ -480,6 +670,11 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 	JSStringRelease(str);
 }
 
+
+/**
+ * @brief
+ * @param context
+ */
 void aamp_UnloadJSController(JSGlobalContextRef context)
 {
 	INFO("[AAMP_JSController] aamp_UnloadJSController context=%p\n", context);

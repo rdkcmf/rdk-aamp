@@ -16,11 +16,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #ifndef BASE64_H
 #define BASE64_H
 
 #include <stddef.h>
+
 char *base64_Encode(const unsigned char *src, size_t len);
+
 unsigned char *base64_Decode(const char *src, size_t *len);
 
 #endif // BASE64_H

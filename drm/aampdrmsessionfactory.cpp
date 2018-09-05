@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+* @file aampdrmsessionfactory.cpp
+* @brief Source file for AampDrmSessionFactory
+*/
+
 #include "aampdrmsessionfactory.h"
 #ifdef USE_OPENCDM
 #include "opencdmsession.h"
@@ -23,6 +29,13 @@
 #include "playreadydrmsession.h"
 #endif
 
+/**
+ *  @brief		Creates appropriate DRM systems Session objects based
+ *  			on the requested systemID, like PlayReady or WideVine
+ *
+ *  @param[in]	systemid - DRM systems uuid
+ *  @return		Pointer to DrmSession.
+ */
 AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
 {
 	AampDrmSession* drmSession = NULL;

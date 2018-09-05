@@ -16,11 +16,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #ifndef BASE16_H
 #define BASE16_H
 
 #include <stddef.h>
+
 char *base16_Encode(const unsigned char *src, size_t len);
+
 unsigned char *base16_Decode(const char *srcPtr, size_t srcLen, size_t *len);
 
 #endif // BASE16_H

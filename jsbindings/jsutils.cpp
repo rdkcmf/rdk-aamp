@@ -16,20 +16,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /**
-* @file JavaScript util functions for AAMP
-*/
+ * @file jsutils.cpp
+ * @brief JavaScript util functions for AAMP
+ */
+
 
 #include "jsutils.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-typedef struct _EventTypeMap
+/**
+ * @struct EventTypeMap
+ * @brief Map AAMP events to JS util event strings
+ */
+struct EventTypeMap
 {
 	AAMPEventType eventType;
 	const char* szName;
-} EventTypeMap;
+};
 
 static EventTypeMap aamp_eventTypes[] =
 {
@@ -50,6 +57,13 @@ static EventTypeMap aamp_eventTypes[] =
 	{ (AAMPEventType)0, "" }
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param sz
+ * @retval
+ */
 JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz)
 {
 	JSStringRef str = JSStringCreateWithUTF8CString(sz);
@@ -59,6 +73,14 @@ JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz)
 	return value;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param value
+ * @param exception
+ * @retval
+ */
 char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception)
 {
 	JSStringRef jsstr = JSValueToStringCopy(context, value, exception);
@@ -69,6 +91,13 @@ char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* 
 	return src;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param value
+ * @retval
+ */
 bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value)
 {
 	JSObjectRef global = JSContextGetGlobalObject(context);
@@ -88,6 +117,12 @@ bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value)
 	return false;
 }
 
+/**
+ * @brief
+ * @param context
+ * @param arrayRef
+ * @retval
+ */
 std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef)
 {
     std::vector<std::string> retval;
@@ -147,6 +182,14 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
     return retval;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param error
+ * @param additionalInfo
+ * @retval
+ */
 JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo)
 {
 	const char *str = "Generic Error";
@@ -189,6 +232,12 @@ JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *
 	return retVal;
 }
 
+
+/**
+ * @brief
+ * @param szName
+ * @retval
+ */
 AAMPEventType aamp_getEventTypeFromName(const char* szName)
 {
 	AAMPEventType eventType = AAMP_MAX_NUM_EVENTS;
@@ -206,6 +255,12 @@ AAMPEventType aamp_getEventTypeFromName(const char* szName)
 	return eventType;
 }
 
+
+/**
+ * @brief
+ * @param type
+ * @retval
+ */
 const char* aamp_getNameFromEventType(AAMPEventType type)
 {
 	if (type > 0 && type < AAMP_MAX_NUM_EVENTS)

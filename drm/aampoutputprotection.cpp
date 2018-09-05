@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/* Comcast Output protection management for Aamp
- *
+
+/**
+ * @file aampoutputprotection.cpp
+ * @brief Comcast Output protection management for Aamp
  */
+
 
 #include "aampoutputprotection.h"
 #include "config.h"
@@ -35,6 +38,10 @@
 /* Static local variables */
 AampOutputProtection* s_pAampOP = NULL;
 
+
+/**
+ * @brief AampOutputProtection Constructor
+ */
 AampOutputProtection::AampOutputProtection()
 : m_sourceWidth(0)
 , m_sourceHeight(0)
@@ -60,6 +67,10 @@ AampOutputProtection::AampOutputProtection()
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS, HDMIEventHandler);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE, ResolutionHandler);
 }
+
+/**
+ * @brief AampOutputProtection Destructor
+ */
 AampOutputProtection::~AampOutputProtection()
 {
     DEBUG_FUNC;
@@ -75,6 +86,13 @@ AampOutputProtection::~AampOutputProtection()
     pthread_mutex_destroy(&m_opProtectMutex);
 }
 
+
+/**
+ * @brief Find GstElement with target name
+ * @param element : GstBin in which search is done
+ * @param targetName : Name of element to find
+ * @retval GstElement if found, NULL otherwise
+ */
 GstElement* AampOutputProtection::FindElement(GstElement *element, const char* targetName)
 {
     GstElement *re = NULL;
@@ -128,6 +146,13 @@ GstElement* AampOutputProtection::FindElement(GstElement *element, const char* t
 }
 
 #define TEMP_BUF_LEN 80
+
+/**
+ * @brief Find source dimensions
+ * @param[out] pWidth : Gets updated with width
+ * @param[out] pHeight : Gets updated with height
+ * @retval true, if dimensions are found, otherwise false
+ */
 bool AampOutputProtection::FindSourceDimensions(uint32_t* pWidth, uint32_t* pHeight)
 {
     bool      retVal        = false;
@@ -158,6 +183,11 @@ bool AampOutputProtection::FindSourceDimensions(uint32_t* pWidth, uint32_t* pHei
 
     return retVal;
 }
+
+/**
+ * @brief Check if source is UHD, by checking dimentions from Video decoder
+ * @retval true, if source is UHD, otherwise false
+ */
 bool AampOutputProtection::IsSourceUHD()
 {
     bool retVal = false;
@@ -201,6 +231,10 @@ bool AampOutputProtection::IsSourceUHD()
     return retVal;
 }
 
+
+/**
+ * @brief Set the HDCP status using data from DeviceSettings
+ */
 void AampOutputProtection::SetHDMIStatus()
 {
     bool                    isConnected              = false;
@@ -255,6 +289,12 @@ void AampOutputProtection::SetHDMIStatus()
 
     return;
 }
+
+/**
+ * @brief Set values of resolution member variable
+ * @param width
+ * @param height
+ */
 void AampOutputProtection::SetResolution(int width, int height)
 {
     DEBUG_FUNC;
@@ -265,6 +305,13 @@ void AampOutputProtection::SetResolution(int width, int height)
 
 #ifndef USE_OPENCDM
 // Pleayrady OP Callback
+/**
+ * @brief Pleayrady OP Callback to ensure HDCP compliance
+ * @param f_pvOutputLevelsData : Pointer to licenses output restrictions information
+ * @param f_dwCallbackType : Type of callback
+ * @param data : Pointer passed from Drm_Reader_Bind, m_minOPLevels
+ * @retval DRM_SUCCESS if no errors encountered
+ */
 DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
                                                                 DRM_POLICY_CALLBACK_TYPE f_dwCallbackType,
                                                                 const DRM_VOID *data)
@@ -332,6 +379,14 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 }
 #endif
 
+
+/**
+ * @brief IARM event handler for HDCP and HDMI hot plug events
+ * @param owner
+ * @param eventId
+ * @param data
+ * @param len
+ */
 void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
     DEBUG_FUNC;
@@ -370,6 +425,14 @@ void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t ev
 
     pInstance->Release();
 }
+
+/**
+ * @brief IARM event handler for resolution changes
+ * @param owner
+ * @param eventId
+ * @param data
+ * @param len
+ */
 void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
     DEBUG_FUNC;
@@ -403,6 +466,11 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
     pInstance->Release();
 }
 
+
+/**
+ * @brief Check if  AampOutputProcectionInstance active
+ * @retval true or false
+ */
 bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
 {
     bool retval = false;
@@ -413,7 +481,10 @@ bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
     return retval;
 }
 
-// Singleton for object creation
+/**
+ * @brief Singleton for object creation
+ * @retval AampOutputProtection object
+ */
 AampOutputProtection * AampOutputProtection::GetAampOutputProcectionInstance()
 {
     DEBUG_FUNC;

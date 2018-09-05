@@ -16,6 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #ifndef _AAMP_AES_H_
 #define _AAMP_AES_H_
 
@@ -24,46 +25,18 @@
 #include "drm.h"
 #include "openssl/evp.h"
 
+/**
+ * @class AesDec
+ * @brief Vanilla AES based DRM management
+ */
 class AesDec : public HlsDrmBase
 {
 public:
-
-	/**
-	 * @brief Get static instance
-	 */
 	static AesDec* GetInstance();
-
-	/**
-	 * @brief prepare for decryption - individualization & license acquisition
-	 *
-	 * @param metadata - Ignored
-	 * @param metadataSize length in bytes of data pointed to by metadataPtr
-	 * @param iv 128-bit (16 byte) initialization vector for decryption
-	 * @param encryptedRotationKey (not currently used/present)
-	 */
 	int SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo);
-
-	/**
-	 * @param encryptedDataPtr pointer to encyrpted payload
-	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
-	 */
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
-
-	/**
-	 * @brief Release drm session
-	 */
 	void Release();
-
-	/**
-	 * @brief Cancel timed_wait operation drm_Decrypt
-	 *
-	 */
 	void CancelKeyWait();
-
-	/**
-	 * @brief Restore key state post cleanup of
-	 * audio/video TrackState in case DRM data is persisted
-	 */
 	void RestoreKeyState();
 
 	/*Functions to support internal operations*/

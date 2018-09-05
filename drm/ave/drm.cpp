@@ -17,6 +17,12 @@
  * limitations under the License.
 */
 
+/**
+ * @file drm.cpp
+ * @brief AVE DRM helper definitions
+ */
+
+
 #if 0
 per Doug Adler, following hack(forcing true) allows initialization to complete
 rdk\generic\ave\third_party\drm-public\portingkit\robust\CConstraintEnforcer.cpp
@@ -50,7 +56,7 @@ static PrivateInstanceAAMP *mpAamp;
 static MyFlashAccessAdapter *m_pDrmAdapter; // lazily allocated
 static class TheDRMListener *m_pDrmListner; // lazily allocated
 
-#endif /*AVE_DRM*/
+#endif /*!NO_AVE_DRM*/
 
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -98,15 +104,30 @@ From FlashAccessKeyFormats.pdf:
 - video output protection enforcement
 */
 
+/**
+ * @class TheDRMListener
+ * @brief
+ */
 class TheDRMListener : public MyDRMListener
 {
 public:
+	/**
+	 * @brief TheDRMListener Constructor
+	 */
 	TheDRMListener()
 	{
 	}
+
+	/**
+	 * @brief TheDRMListener Constructor
+	 */
 	~TheDRMListener()
 	{
 	}
+
+	/**
+	 * @brief Callback on key acquired
+	 */
 	void SignalKeyAcquired()
 	{
 		logprintf("aamp:DRM %s drmState:%d moving to KeyAcquired\n", __FUNCTION__, mDrmState);
@@ -117,12 +138,18 @@ public:
 		mpAamp->LogDrmInitComplete();
 	}
 
+	/**
+	 * @brief Callback on initialization success
+	 */
 	void NotifyInitSuccess()
 	{ // callback from successful pDrmAdapter->Initialize
 		//log_current_time("NotifyInitSuccess\n");
 		PrivateInstanceAAMP::AddIdleTask(drmSignalKeyAquired, this);
 	}
 
+	/**
+	 * @brief Callback on drm error
+	 */
 	void NotifyDRMError(uint32_t majorError, uint32_t minorError)//(ErrorCode majorError, DRMMinorError minorError, AVString* errorString, media::DRMMetadata* metadata)
 	{
 		AAMPTuneFailure drmFailure = AAMP_TUNE_UNTRACKED_DRM_ERROR;
@@ -172,10 +199,16 @@ public:
 		{
 			mpAamp->SendErrorEvent(drmFailure);
 		}
+
 		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
 		logprintf("aamp:***TheDRMListener::NotifyDRMError: majorError = %d, minorError = %d drmState:%d\n", (int)majorError, (int)minorError,mDrmState );
 	}
 
+
+
+	/**
+	 * @brief Signal drm error
+	 */
 	void SignalDrmError()
 	{
 		pthread_mutex_lock(&mutex);
@@ -184,6 +217,11 @@ public:
 		pthread_mutex_unlock(&mutex);
 	}
 
+
+
+	/**
+	 * @brief Callback on drm status change
+	 */
 	void NotifyDRMStatus()//media::DRMMetadata* metadata, const DRMLicenseInfo* licenseInfo)
 	{ // license available
 		logprintf("aamp:***TheDRMListener::NotifyDRMStatus drmState:%d\n",mDrmState);
@@ -191,9 +229,19 @@ public:
 };
 
 namespace FlashAccess {
+
+	/**
+	 * @brief Caches drm resources
+	 */
 	void CacheDRMResources();
 }
 
+
+/**
+ * @brief Signal key acquired to listener
+ * @param arg drm status listener
+ * @retval 0
+ */
 static int drmSignalKeyAquired(void * arg)
 {
 	TheDRMListener * drmListener = (TheDRMListener*)arg;
@@ -201,6 +249,12 @@ static int drmSignalKeyAquired(void * arg)
 	return 0;
 }
 
+
+/**
+ * @brief Signal drm error to listener
+ * @param arg drm status listener
+ * @retval 0
+ */
 static int drmSignalError(void * arg)
 {
 	TheDRMListener * drmListener = (TheDRMListener*)arg;
@@ -208,16 +262,13 @@ static int drmSignalError(void * arg)
 	return 0;
 }
 
-void drm_SetSurfaceInfo(const MySurfaceInfo& si)
-{ // NEW - TODO?
-	m_pDrmAdapter->SetSurfaceInfo(si);
-};
-
-void drm_NotifyVideoDims( TimeStamp pts, int32_t width, int32_t height )
-{ // NEW - TODO?
-	m_pDrmAdapter->SetVideoDimsInfo(width, height);
-};
-
+/**
+ * @brief prepare for decryption - individualization & license acquisition
+ *
+ * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
+ * @param[in] metadata pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+ * @param[in] drmInfo DRM information required to decrypt
+ */
 int AveDrm::SetContext( class PrivateInstanceAAMP *aamp, void *metadata, const struct DrmInfo *drmInfo )
 {
 	const DrmMetadata *drmMetadata = ( DrmMetadata *)metadata;
@@ -248,6 +299,14 @@ int AveDrm::SetContext( class PrivateInstanceAAMP *aamp, void *metadata, const s
 	return err;
 }
 
+
+/**
+ * @brief Decrypts an encrypted buffer
+ * @param bucketType Type of bucket for profiling
+ * @param encryptedDataPtr pointer to encyrpted payload
+ * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+ * @param timeInMs wait time
+ */
 DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -303,6 +362,10 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	return err;
 }
 
+
+/**
+ * @brief Release drm session
+ */
 void AveDrm::Release()
 {
 	pthread_mutex_lock(&mutex);
@@ -315,6 +378,10 @@ void AveDrm::Release()
 	pthread_mutex_unlock(&mutex);
 }
 
+
+/**
+ * @brief Cancel timed_wait operation drm_Decrypt
+ */
 void AveDrm::CancelKeyWait()
 {
 	pthread_mutex_lock(&mutex);
@@ -326,6 +393,11 @@ void AveDrm::CancelKeyWait()
 	pthread_mutex_unlock(&mutex);
 }
 
+
+/**
+ * @brief Restore key state post cleanup of
+ * audio/video TrackState in case DRM data is persisted
+ */
 void AveDrm::RestoreKeyState()
 {
 	pthread_mutex_lock(&mutex);
@@ -338,20 +410,22 @@ void AveDrm::RestoreKeyState()
 }
 #else
 
-
 int AveDrm::SetContext(class PrivateInstanceAAMP *aamp, void *drmMetadata, const struct DrmInfo *drmInfo)
 {
 	return -1;
 }
+
 
 DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	return eDRM_ERROR;
 }
 
+
 void AveDrm::Release()
 {
 }
+
 
 void AveDrm::CancelKeyWait()
 {
@@ -362,7 +436,13 @@ void AveDrm::RestoreKeyState()
 }
 #endif // !AVE_DRM
 
-AveDrm* AveDrm::mInstance = nullptr;
+AveDrm* AveDrm::mInstance = nullptr; /// Singleton instance
+
+
+/**
+ * @brief Get static instance
+ * @retval pointer to AveDrm object
+ */
 AveDrm* AveDrm::GetInstance()
 {
 	pthread_mutex_lock(&mutex);
@@ -373,4 +453,3 @@ AveDrm* AveDrm::GetInstance()
 	pthread_mutex_unlock(&mutex);
 	return mInstance;
 }
-

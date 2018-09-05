@@ -16,17 +16,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /**
-* @file fragmentcollector_hls.cpp
+* \file fragmentcollector_hls.cpp
 *
-* The client SHOULD NOT choose a segment which starts less than three
-* target durations from the end of the Playlist file.  Doing so can
-* trigger playback stalls.
+* Fragment Collect file includes class implementation for handling
+* HLS streaming of AAMP player. 
+* Various functionality like manifest download , fragment collection,
+* DRM initialization , synchronizing audio / video media of the stream,
+* trick play handling etc are handled in this file .
 *
-* If the Playlist contains the EXT-X-MEDIA-SEQUENCE tag, the client
-* SHOULD assume that each media segment in it will become unavailable
-* at the time that the Playlist file was loaded plus the duration of
-* the Playlist file.
 */
 #include "fragmentcollector_hls.h"
 #include "_base64.h"
@@ -63,8 +62,10 @@
 #define DRM_DECRYPT_RETRY_TIMEOUT 5000
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
+#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
+
 
 //Global variables to persist drm related info for particular tune/vod
 static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
@@ -73,25 +74,26 @@ static DrmInfo gDrmInfo = {eMETHOD_NONE, false, NULL, NULL};
 static HlsDrmBase* gDrm = NULL;
 static bool gDrmContexSet = false;
 static pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-// Single instance of metadata is maintained for ContentMetadata .
-//As per Kyong , there is no multi Metadata planned like Adobe CM.
-ZDrmContextData gZdrmMetadata = {0};
-#endif
-
+/**
+* \struct	FormatMap
+* \brief	FormatMap structure for stream codec/format information 
+*/
 struct FormatMap
 {
 	const char* codec;
 	StreamOutputFormat format;
 };
-
+/**
+* \struct	DrmMetadataNode
+* \brief	DrmMetadataNode structure for DRM Metadata/Hash storage
+*/
 struct DrmMetadataNode
 {
 	DrmMetadata metaData;
 	char* sha1Hash;
 };
 
-#define AAMP_AUDIO_FORMAT_MAP_LEN 6
+/// Variable initialization for various audio formats 
 static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 {
 	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
@@ -102,20 +104,27 @@ static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
 };
 
-#define AAMP_VIDEO_FORMAT_MAP_LEN 3
+/// Variable initialization for various video formats 
 static const FormatMap videoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
 {
 	{ "avc1.", FORMAT_VIDEO_ES_H264 },
-	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
 	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
 };
-
+/// Variable initialization for media profiler buckets 
 static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 	{PROFILE_BUCKET_FRAGMENT_VIDEO, PROFILE_BUCKET_FRAGMENT_AUDIO};
-
+/// Variable initialization for media decrypt buckets
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_TRACK_COUNT] =
 	{PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO};
 
+/***************************************************************************
+* @fn startswith
+* @brief Function to check if string is start of main string
+*        
+* @param pstring[in] Main string   
+* @param prefix[in] Sub string to check
+* @return bool true/false
+***************************************************************************/
 static bool startswith(char **pstring, const char *prefix)
 {
 	char *string = *pstring;
@@ -134,10 +143,14 @@ static bool startswith(char **pstring, const char *prefix)
 	}
 }
 
-/**
-* @param attrnamePtr '=' delimited string
-* @param targetAtrNameCString NUL-terminated C-String
-*/
+/***************************************************************************
+* @fn AttributeNameMatch
+* @brief Function to check if attribute name matches
+*        
+* @param attrNamePtr[in] Attribute Name pointer   
+* @param targetAttrNameCString[in] string to compare
+* @return bool true/false
+***************************************************************************/
 static bool AttributeNameMatch(const char *attrNamePtr, const char *targetAttrNameCString)
 {
 	while (*targetAttrNameCString)
@@ -150,11 +163,15 @@ static bool AttributeNameMatch(const char *attrNamePtr, const char *targetAttrNa
 	return *attrNamePtr == '=';
 }
 
-/**
-* @param srcStart pointer to string start
-* @param srcFin pointer just past string end (such that length = srcFin - srcStart)
-* @param cstring NUL-terminated C-String
-*/
+/***************************************************************************
+* @fn SubStringMatch
+* @brief Function to check if substring present in main string 
+*        
+* @param srcStart[in] Start of string pointer  
+* @param srcFin[in] End of string pointer (length = srcFin - srcStart)
+* @param cstring[in] string to compare
+* @return bool true/false
+***************************************************************************/
 static bool SubStringMatch(const char *srcStart, const char *srcFin, const char *cstring)
 {
 	while (srcStart <= srcFin)
@@ -173,12 +190,14 @@ static bool SubStringMatch(const char *srcStart, const char *srcFin, const char 
 	return false;
 }
 
-/**
-* @brief convert quoted string to NUL-terminated C-string; modifies string in place
-* @param valuePtr points to leading quote
-* @param fin points just past final quote (such that input string, including quotes, is length fin-valuePtr)
-* @retval pointed to first character of NUL-termianted string
-*/
+/***************************************************************************
+* @fn GetAttributeValueString
+* @brief convert quoted string to NUL-terminated C-string; modifies string in place 
+*        
+* @param valuePtr[in] quoted string  
+* @param fin[in] End of string pointer 
+* @return char * pointed to first character of NUL-termianted string
+***************************************************************************/
 static char * GetAttributeValueString(char *valuePtr, char *fin)
 {
 	if (*valuePtr == '\"')
@@ -202,6 +221,16 @@ static char * GetAttributeValueString(char *valuePtr, char *fin)
 	return valuePtr;
 }
 
+/***************************************************************************
+* @fn ParseKeyAttributeCallback
+* @brief Callback function to decode Key and attribute
+*        
+* @param attrName[in] input string  
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] TrackState pointer for storage
+* @return void
+***************************************************************************/
 static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fin, void* arg)
 {
 	TrackState *ts = (TrackState *)arg;
@@ -265,11 +294,21 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 	}
 }
 
+/***************************************************************************
+* @fn ParseStreamInfCallback
+* @brief Callback function to extract stream tag attributes
+*        
+* @param attrName[in] input string  
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] StreamAbstractionAAMP_HLS pointer for storage
+* @return void
+***************************************************************************/
 static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, void* arg)
 {
 	StreamAbstractionAAMP_HLS *context = (StreamAbstractionAAMP_HLS *) arg;
 	char *valuePtr = delimEqual + 1;
-	HlsStreamInfo *streamInfo = &context->streamInfo[context->profileCount];
+	HlsStreamInfo *streamInfo = &context->streamInfo[context->GetProfileCount()];
 	if (AttributeNameMatch(attrName, "URI"))
 	{
 		streamInfo->uri = GetAttributeValueString(valuePtr, fin);
@@ -317,17 +356,16 @@ static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, 
 	}
 }
 
-/**
-The EXT-X-MEDIA tag is used to relate Playlists that contain
-alternative renditions of the same content.
-
-For example, three EXT-X-MEDIA tags can be used to identify audio-only
-Playlists that contain English, French and Spanish renditions of the
-same presentation.
-
-Or two EXT-X-MEDIA tags can be used to identify video -
-only Playlists that show two different camera angles.
-*/
+/***************************************************************************
+* @fn ParseMediaAttributeCallback
+* @brief Callback function to extract media tag attributes
+*		 
+* @param attrName[in] input string	
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] StreamAbstractionAAMP_HLS pointer for storage
+* @return void
+***************************************************************************/
 static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *fin, void *arg)
 {
 	StreamAbstractionAAMP_HLS *context = (StreamAbstractionAAMP_HLS *) arg;
@@ -400,6 +438,13 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 	}
 }
 
+/***************************************************************************
+* @fn mystrpbrk
+* @brief Function to extract string pointer afer LF
+*		 
+* @param ptr[in] input string	
+* @return char * - Next string pointer
+***************************************************************************/
 static char *mystrpbrk(char *ptr)
 { // lines are terminated by either a single LF character or a CR character followed by an LF character
 	char *next = NULL;
@@ -419,6 +464,15 @@ static char *mystrpbrk(char *ptr)
 /**
 * @param attrName pointer to HLS Attribute List, as a NUL-terminated CString
 */
+/***************************************************************************
+* @fn ParseAttrList
+* @brief Function to parse attribute list from tag string 
+*		 
+* @param attrName[in] input string	
+* @param cb[in] callback function to store parsed attributes
+* @param context[in] void pointer context
+* @return void
+***************************************************************************/
 static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim, char *fin, void *context), void *context)
 {
 	while (*attrName)
@@ -471,10 +525,17 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 	}
 }
 
+/***************************************************************************
+* @fn TrackPLDownloader
+* @brief Thread function for download 
+*		 
+* @param arg[in] void ptr , thread arguement
+* @return void ptr
+***************************************************************************/
 static void * TrackPLDownloader(void *arg)
 {
 	TrackState* ts = (TrackState*)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampAudPL"))
+	if(pthread_setname_np(pthread_self(), "aampAudPL"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
 	}
@@ -482,14 +543,16 @@ static void * TrackPLDownloader(void *arg)
 	return NULL;
 }
 
-/**
-* @brief walk main manifest and extract advertised profiles
-*
-* modifies main maniest, inserting NUL-terminators after each referenced URL
-*/
+/***************************************************************************
+* @fn ParseMainManifest
+* @brief Function to parse main manifest 
+*		 
+* @param ptr[in] Manifest file content string	
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 {
-	this->profileCount = 0;
+	mAbrManager.clearProfiles();
 	while (ptr)
 	{
 		char *next = mystrpbrk(ptr);
@@ -499,7 +562,7 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 			{
 				if (startswith(&ptr, "-X-I-FRAME-STREAM-INF:"))
 				{
-					HlsStreamInfo *streamInfo = &this->streamInfo[this->profileCount];
+					HlsStreamInfo *streamInfo = &this->streamInfo[GetProfileCount()];
 					memset(streamInfo, 0, sizeof(*streamInfo));
 					ParseAttrList(ptr, ParseStreamInfCallback, this);
 					if (streamInfo->uri == NULL)
@@ -508,11 +571,16 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						next = mystrpbrk(next);
 					}
 					streamInfo->isIframeTrack = true;
-					this->profileCount++;
+					mAbrManager.addProfile({
+						.isIframeTrack = streamInfo->isIframeTrack,
+						.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond,
+						.width = streamInfo->resolution.width,
+						.height = streamInfo->resolution.height,
+					});
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
-					struct HlsStreamInfo *streamInfo = &this->streamInfo[this->profileCount];
+					struct HlsStreamInfo *streamInfo = &this->streamInfo[GetProfileCount()];
 					memset(streamInfo, 0, sizeof(HlsStreamInfo));
 					ParseAttrList(ptr, ParseStreamInfCallback, this);
 					if (streamInfo->uri == NULL)
@@ -520,7 +588,12 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
-					this->profileCount++;
+					mAbrManager.addProfile({
+						.isIframeTrack = streamInfo->isIframeTrack,
+						.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond,
+						.width = streamInfo->resolution.width,
+						.height = streamInfo->resolution.height,
+					});
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))
 				{
@@ -617,8 +690,12 @@ static char *RewindPlaylist(TrackState *trackState)
 }
 #endif
 
-/* Uses playTarget and direction from rate to fetch the fragment
- * This function assumes direction change/seek doesn't occur in between calls.*/
+/***************************************************************************
+* @fn GetFragmentUriFromIndex
+* @brief Function to get fragment URI from index count
+*		 
+* @return string fragment URI pointer
+***************************************************************************/
 char *TrackState::GetFragmentUriFromIndex()
 {
 	char * uri = NULL;
@@ -755,9 +832,12 @@ char *TrackState::GetFragmentUriFromIndex()
 	return uri;
 }
 
-/**
-* @brief split playlist lines and returns first URL
-*/
+/***************************************************************************
+* @fn GetNextFragmentUriFromPlaylist
+* @brief Function to get next fragment URI from playlist based on playtarget
+*		 
+* @return string fragment URI pointer
+***************************************************************************/
 char *TrackState::GetNextFragmentUriFromPlaylist()
 {
 	char *ptr = fragmentURI;
@@ -873,7 +953,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 //#ifdef TRACE
 							AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %s ==> %ld.%06ld\n",
 									ptr, asctime(&timeinfo),startTimeForPlaylistSync.tv_sec,
-									(long)startTimeForPlaylistSync.tv_usec);
+									startTimeForPlaylistSync.tv_usec);
 //#endif
 						}
 						else
@@ -908,7 +988,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				}
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
-					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
+					logprintf("#EXT-X-DISCONTINUITY\n");
 					discontinuity = true;
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
@@ -1012,9 +1092,12 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 }
 
 
-/**
-* used when switching playlists, or refreshing a live playlist, to quickly resume where we left off
-*/
+/***************************************************************************
+* @fn FindMediaForSequenceNumber
+* @brief Get fragment tag based on media sequence number 
+*		 
+* @return string fragment tag line pointer 
+***************************************************************************/
 char *TrackState::FindMediaForSequenceNumber()
 {
 	char *ptr = playlist.ptr;
@@ -1061,7 +1144,14 @@ char *TrackState::FindMediaForSequenceNumber()
 	}
 	return NULL;
 }
-
+/***************************************************************************
+* @fn FetchFragmentHelper
+* @brief Helper function to download fragment 
+*		 
+* @param http_error[out] http error string 	
+* @param decryption_error[out] decryption error
+* @return bool true on success else false 
+***************************************************************************/
 bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 {
 #ifdef TRACE
@@ -1069,7 +1159,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 				playlistPosition, playTarget, fragmentDurationSeconds, fragmentURI );
 #endif
 		assert (fragmentURI);
-		if (context->trickplayMode && -1 != context->GetIframeTrack())
+		if (context->trickplayMode && ABRManager::INVALID_PROFILE != context->GetIframeTrack())
 		{
 			fragmentURI = GetFragmentUriFromIndex();
 			double delta = context->rate / context->mTrickPlayFPS;
@@ -1237,24 +1327,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 
 			if (cachedFragment->fragment.len && fragmentEncrypted)
 			{
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-				if(gpGlobalConfig->bZeroDRM && context->mZDrmMetadata->bZDrmPlayback)
-				{
-					if(!context->ZDrmDecrypt(cachedFragment , mediaTrackDecryptBucketTypes[type]))
-					{
-						logprintf("FetchFragmentHelper : ZDecrypt failed. fragmentURI %s\n",fragmentURI);
-						aamp_Free(&cachedFragment->fragment.ptr);
-						return false;
-					}
-#ifdef TRACE
-					else
-					{
-						logprintf("aamp: hls -zdecrypt success  with URI %s\n",fragmentURI);
-					}
-#endif
-				}
-				else
-#endif
 				{	
 					bool decrypted = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
 
@@ -1325,7 +1397,12 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 		}
 		return true;
 }
-
+/***************************************************************************
+* @fn FetchFragment
+* @brief Function to fetch fragment  
+*		 
+* @return void
+***************************************************************************/
 void TrackState::FetchFragment()
 {
 	int timeoutMs = -1;
@@ -1409,16 +1486,23 @@ void TrackState::FetchFragment()
 		logprintf("%s:%d %s cachedFragment->fragment.ptr is NULL\n",
 					__FUNCTION__, __LINE__, name);
 	}
-#ifdef AAMP_DEBUG_FETCH_INJECT
-	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
+#ifdef AAMP_DEBUG_INJECT
+	if ((1 << type) & AAMP_DEBUG_INJECT)
 	{
 		strcpy(cachedFragment->uri, fragmentURI);
 	}
 #endif
 	UpdateTSAfterFetch();
 }
-
-void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &stopInjection, bool &fragmentDiscarded)
+/***************************************************************************
+* @fn InjectFragmentInternal
+* @brief Injected decrypted fragment for playback 
+*		 
+* @param cachedFragment[in] CachedFragment structure 	
+* @param fragmentDiscarded[out] bool to indicate fragment successfully injected
+* @return void
+***************************************************************************/
+void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 {
 #ifndef SUPRESS_DECODE
 #ifndef FOG_HAMMER_TEST // support aamp stress-tests of fog without video decoding/presentation
@@ -1428,27 +1512,6 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &st
 				if(!context->mStartTimestampZero)
 				{
 					position = cachedFragment->position;
-				}
-				if (cachedFragment->discontinuity &&  (1.0 == context->rate))
-				{
-					logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
-					cachedFragment->discontinuity = false;
-					bool ret = aamp->Discontinuity((MediaType) type);
-					/*For muxed streams, give discontinuity for audio track as well*/
-					if (!context->trackState[eTRACK_AUDIO]->enabled)
-					{
-						aamp->Discontinuity(eMEDIATYPE_AUDIO);
-					}
-					if (ret)
-					{
-						logprintf("%s:%d - stopping injection\n", __FUNCTION__, __LINE__);
-						stopInjection = true;
-						return;
-					}
-					else
-					{
-						logprintf("%s:%d - continuing injection\n", __FUNCTION__, __LINE__);
-					}
 				}
 				fragmentDiscarded = !playContext->sendSegment(cachedFragment->fragment.ptr, cachedFragment->fragment.len,
 						position, cachedFragment->duration, cachedFragment->discontinuity);
@@ -1462,7 +1525,14 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &st
 #endif
 #endif
 } // InjectFragmentInternal
-
+/***************************************************************************
+* @fn GetCompletionTimeForFragment
+* @brief Function to get end time of fragment
+*		 
+* @param trackState[in] TrackState structure	
+* @param mediaSequenceNumber[in] sequence number 
+* @return double end time 
+***************************************************************************/
 static double GetCompletionTimeForFragment(const TrackState *trackState, long long mediaSequenceNumber)
 {
 	double rc = 0.0;
@@ -1488,6 +1558,13 @@ static double GetCompletionTimeForFragment(const TrackState *trackState, long lo
 }
 
 #ifdef TRACE
+/***************************************************************************
+* @fn DumpIndex
+* @brief Function to log stored media information 
+*		 
+* @param trackState[in] TrackState structure
+* @return void
+***************************************************************************/
 static void DumpIndex(TrackState *trackState)
 {
 	logprintf("index (%d fragments)\n", trackState->indexCount);
@@ -1500,7 +1577,12 @@ static void DumpIndex(TrackState *trackState)
 	}
 }
 #endif
-
+/***************************************************************************
+* @fn FlushIndex
+* @brief Function to flush all stored data before refresh and stop
+*		 
+* @return void
+***************************************************************************/
 void TrackState::FlushIndex()
 {
 	aamp_Free(&index.ptr);
@@ -1535,7 +1617,12 @@ void TrackState::FlushIndex()
 		mDrmMetaDataIndexPosition = 0;
 	}
 }
-
+/***************************************************************************
+* @fn IndexPlaylist
+* @brief Function to parse playlist 
+*		 
+* @return double total duration from playlist
+***************************************************************************/
 double TrackState::IndexPlaylist()
 {
 	double totalDuration = 0.0;
@@ -1570,63 +1657,6 @@ double TrackState::IndexPlaylist()
 			targetDurationSeconds = atof(ptr);
 			AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
 		}
-
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-		// Read only once , not read it again as it remains same for video/audio/iframe
-		// Also dont read receipt if playback already started with adobe drm
-		if(gDrmContexSet==false && gpGlobalConfig->bZeroDRM && context->mZDrmMetadata->bZDrmMetadataRead==false )
-		{
-			size_t recieptdataSize = 0;
-			char * playlistBackup = (char*)malloc(playlist.len);
-			memcpy(playlistBackup, playlist.ptr, playlist.len);
-			ptr = strstr(playlist.ptr, "#EXT-X-XCAL-RECEIPTDATA:");
-			if (ptr)
-			{
-				// Got the Receipt data from IPDVR Recor
-				// check if context already created for this playback session , if not init one
-				if(!context->mZDrmMetadata->mZDrmContext){
-					aamp->mZDrmAdapter->zeroDrmInitialize(context->mZDrmMetadata->mZDrmContext);
-					logprintf("ZeroDrm Initialized with ContextId[%d]\n",context->mZDrmMetadata->mZDrmContext);
-				}
-				ptr += strlen("#EXT-X-XCAL-RECEIPTDATA:");
-				char* delim = strchr(ptr, CHAR_LF);
-				if(delim)
-					*delim = '\0';
-				recieptdataSize = strlen(ptr);
-				// Only one receipt data is supported .If Multi receipt comes in then this logic to be changed
-				if(context->mZDrmMetadata->mZReceiptData != NULL)
-					aamp_Free((char **)&context->mZDrmMetadata->mZReceiptData);
-				context->mZDrmMetadata->mZReceiptData = (unsigned char*)malloc(recieptdataSize);
-				memcpy(context->mZDrmMetadata->mZReceiptData,ptr,recieptdataSize);
-				logprintf("aamp: #EXT-X-XCAL-RECEIPTMETADATA:[%d]\n",recieptdataSize);
-				context->aamp->mZDrmAdapter->zeroDrmSetReceiptMetadata(context->mZDrmMetadata->mZDrmContext,context->mZDrmMetadata->mZReceiptData,recieptdataSize);
-				memcpy(playlist.ptr, playlistBackup, playlist.len);
-			}
-
-			ptr = strstr(playlist.ptr, "#EXT-X-KEY:");
-			if(ptr && recieptdataSize != 0)
-			{
-				// this function will parse X-KEY and store drmInfo in Adapter
-				char* delim = strchr(ptr, CHAR_LF);
-				if(delim)
-					{ *delim = '\0'; }
-				int taglen =strlen(ptr);
-				// only one key data possible .. no rotation logic
-				if(context->mZDrmMetadata->mKeyTagData != NULL)
-					aamp_Free((char **)&context->mZDrmMetadata->mKeyTagData);
-				context->mZDrmMetadata->mKeyTagData = (unsigned char*)malloc(taglen);
-				memcpy(context->mZDrmMetadata->mKeyTagData , ptr , taglen);
-				context->mZDrmMetadata->mKeyTagData[taglen] = '\0';
-				//Not needed for now mZDrmAdapter->zeroDrmGetPlaybackKeyAsync(context->mZDrmMetadata->mZDrmContext,context->mZDrmMetadata->mKeyTagData);
-				context->mZDrmMetadata->bZDrmMetadataRead = true;
-				memcpy(playlist.ptr, playlistBackup, playlist.len);
-			}
-			free(playlistBackup);
-		}
-		// Parsing of FAXS-CM will be still happening ,but it wont be used for license request or decrypt
-		// If Key request fails with receipt , then player will attempt with Faxs-CM if available.
-#endif
-
 
 		DrmMetadataNode drmMetadataNode;
 		playlistBackup = (char*) malloc(playlist.len);
@@ -1816,6 +1846,16 @@ double TrackState::IndexPlaylist()
 }
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
+/***************************************************************************
+* @fn HarvestFile
+* @brief Function to harvest stream contents locally for debugging 
+*		 
+* @param url[in] url string	
+* @param buffer[in] data content
+* @param isFragment[in] flag indicating fragment or not
+* @param prefix[in] prefix string to add to file name 
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix)
 {
 	if (aamp->HarvestFragments(isFragment))
@@ -1855,6 +1895,12 @@ void StreamAbstractionAAMP_HLS::HarvestFile(const char * url, GrowableBuffer* bu
 	}
 }
 #endif
+/***************************************************************************
+* @fn ABRProfileChanged
+* @brief Function to handle Profile change after ABR  
+*		 
+* @return void
+***************************************************************************/
 
 void TrackState::ABRProfileChanged()
 {
@@ -1868,7 +1914,12 @@ void TrackState::ABRProfileChanged()
 	refreshPlaylist = true;
 	pthread_mutex_unlock(&mutex);
 }
-
+/***************************************************************************
+* @fn RefreshPlaylist
+* @brief Function to redownload playlist after refresh interval .
+*		 
+* @return void
+***************************************************************************/
 void TrackState::RefreshPlaylist(void)
 {
 	// use current, not next position to synchronize and detect culling
@@ -1986,7 +2037,14 @@ void TrackState::RefreshPlaylist(void)
 		aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
 	}
 }
-
+/***************************************************************************
+* @fn GetPlaylistURI
+* @brief Function to get playlist URI based on media selection 
+*		 
+* @param trackType[in] Track type 
+* @param format[in] stream output type
+* @return string playlist URI 
+***************************************************************************/
 const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, StreamOutputFormat* format)
 {
 	const char *playlistURI = NULL;
@@ -2076,7 +2134,13 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 	}
 	return playlistURI;
 }
-
+/***************************************************************************
+* @fn GetFormatFromFragmentExtension
+* @brief Function to get media format based on fragment extension
+*		 
+* @param trackState[in] TrackStatr structure pointer
+* @return StreamOutputFormat stream format
+***************************************************************************/
 static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 {
 	const char *ptr = trackState->playlist.ptr;
@@ -2113,6 +2177,12 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	}
 	return format;
 }
+/***************************************************************************
+* @fn SyncVODTracks
+* @brief Function to synchronize time between audio & video for VOD stream
+*		 
+* @return void
+***************************************************************************/
 
 void StreamAbstractionAAMP_HLS::SyncVODTracks()
 {
@@ -2125,6 +2195,7 @@ void StreamAbstractionAAMP_HLS::SyncVODTracks()
 		video->GetNextFragmentPeriodInfo( periodIdx, offsetFromPeriod);
 		if(-1 != periodIdx)
 		{
+			logprintf("%s:%d video periodIdx %d offsetFromPeriod %f\n", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
 			double audioPeriodStart = audio->GetPeriodStartPosition(periodIdx);
 			if (0 != audioPeriodStart )
 			{
@@ -2142,7 +2213,13 @@ void StreamAbstractionAAMP_HLS::SyncVODTracks()
 	}
 	logprintf("%s Exit : audio track start %f, vid track start %f\n", __FUNCTION__, audio->playTarget, video->playTarget );
 }
-
+/***************************************************************************
+* @fn SyncVODTracks
+* @brief Function to synchronize time between audio & video for VOD stream
+*		 
+* @param trackDuration[in] track duration for audio/video 
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 {
 	bool startTimeAvailable = true;
@@ -2264,7 +2341,7 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 			logprintf("%s:%d sync using sequence number. diff %lld A %lld V %lld a-f-uri %s v-f-uri %s\n", __FUNCTION__,
 					__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
 					trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
-			while (diff > 0)
+			while (diff)
 			{
 				laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
 				laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
@@ -2286,7 +2363,13 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 	}
 	logprintf("syncTracks Exit : audio track start %f, vid track start %f\n", trackState[eMEDIATYPE_AUDIO]->playTarget, trackState[eMEDIATYPE_VIDEO]->playTarget );
 }
-
+/***************************************************************************
+* @fn Init
+* @brief Function to initialize member variables,download main manifest and parse 
+*		 
+* @param tuneType[in] Tune type 
+* @return bool true on success 
+***************************************************************************/
 bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 {
 	bool ret = false;
@@ -2307,25 +2390,9 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		pthread_mutex_lock(&gDrmMutex);
 		gDrmContexSet = false;
 		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-		if(gpGlobalConfig->bZeroDRM)
-		{
-			aamp_Free((char **)&gZdrmMetadata.mZContentData);
-			aamp_Free((char **)&gZdrmMetadata.mZReceiptData);
-			aamp_Free((char **)&gZdrmMetadata.mKeyTagData);
-			memset(&gZdrmMetadata, 0, sizeof(ZDrmContextData));
-		}
-#endif
-
 		pthread_mutex_unlock(&gDrmMutex);
 	}
 
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-	if(gpGlobalConfig->bZeroDRM)
-	{
-		this->mZDrmMetadata = &gZdrmMetadata;
-	}
-#endif
 	bool retrievePlaylistFromCache = (!newTune && aamp->mEnableCache);
 	if (!aamp->IsLocalPlayback())
 	{
@@ -2381,7 +2448,16 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 #endif
 
 		ParseMainManifest(this->mainManifest.ptr);
-		this->currentProfileIndex = GetDesiredProfile(false, gpGlobalConfig->defaultBitrate);
+		if (!newTune)
+		{
+			long persistedBandwidth = aamp->GetPersistedBandwidth();
+			//We were tuning to a lesser profile previously, so we use it as starting profile
+			if (persistedBandwidth > 0 && persistedBandwidth < gpGlobalConfig->defaultBitrate)
+			{
+				mAbrManager.setDefaultInitBitrate(persistedBandwidth);
+			}
+		}
+		currentProfileIndex = GetDesiredProfile(false);
 		lastSelectedProfileIndex = currentProfileIndex;
 		aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,trickplayMode,this->currentProfileIndex);
 		aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
@@ -2390,13 +2466,14 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						this->streamInfo[this->currentProfileIndex].resolution.width,
 						this->streamInfo[this->currentProfileIndex].resolution.height, true);
 
-        /* START: Added As Part of DELIA-28363 and DELIA-28247 */
-        logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
-        if(newTune &&
-                (streamInfo[currentProfileIndex].bandwidthBitsPerSecond < GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond)){
-            aamp->IsTuneTypeNew = newTune;
-        }
-        /* END: Added As Part of DELIA-28363 and DELIA-28247 */
+		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
+		logprintf("Selected BitRate: %ld, Max BitRate: %ld\n", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+		if(newTune &&
+			(streamInfo[currentProfileIndex].bandwidthBitsPerSecond < GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
+		{
+			aamp->IsTuneTypeNew = newTune;
+		}
+		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
@@ -2424,7 +2501,14 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if (uri)
 			{
 				aamp_ResolveURL(ts->playlistUrl, aamp->GetManifestUrl(), uri);
-				ts->enabled = true;
+				if(ts->streamOutputFormat != FORMAT_NONE)
+				{
+					ts->enabled = true;
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d %s format could not be determined. codecs %s\n", __FUNCTION__, __LINE__, ts->name, streamInfo[currentProfileIndex].codecs);
+				}
 			}
 		}
 
@@ -2513,11 +2597,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				HarvestFile(ts->playlistUrl, &ts->playlist, false, prefix);
 #endif
 				totalDuration[iTrack] = ts->IndexPlaylist();
-				if (totalDuration[iTrack] == 0.0f)
-				{
-					break;
-				}
-
 				if (newTune && needMetadata)
 				{
 					needMetadata = false;
@@ -2550,7 +2629,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 					int bitrateCount = 0;
 					memset(event.data.metadata.bitrates, 0, MAX_BITRATE_COUNT);
-					for (int i = 0; (i < profileCount && bitrateCount < MAX_BITRATE_COUNT); i++)
+					for (int i = 0; (i < GetProfileCount() && bitrateCount < MAX_BITRATE_COUNT); i++)
 					{
 						if (!streamInfo[i].isIframeTrack)
 						{
@@ -2671,7 +2750,15 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 									}
 								}
 							}
-							demuxOp = eStreamOp_DEMUX_ALL;
+							if(FORMAT_NONE != trackState[eMEDIATYPE_AUDIO]->streamOutputFormat)
+							{
+								demuxOp = eStreamOp_DEMUX_ALL;
+							}
+							else
+							{
+								logprintf("StreamAbstractionAAMP_HLS::%s:%d Demux only video. codecs %s\n", __FUNCTION__, __LINE__, streamInfo[currentProfileIndex].codecs);
+								demuxOp = eStreamOp_DEMUX_VIDEO;
+							}
 						}
 						ts->playContext = new TSProcessor(aamp,demuxOp, eMEDIATYPE_VIDEO, trackState[eMEDIATYPE_AUDIO]->playContext);
 						ts->playContext->setThrottleEnable(this->enableThrottle);
@@ -2745,12 +2832,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
-		if ((video->enabled && totalDuration[eMEDIATYPE_VIDEO] == 0.0f) || (audio->enabled && totalDuration[eMEDIATYPE_AUDIO] == 0.0f))
-		{
-			logprintf("StreamAbstractionAAMP_HLS::%s:%d Track Duration is 0. Cannot play this content\n", __FUNCTION__, __LINE__);
-			return false;
-		}
-
 		if (bSetStatePreparing)
 			aamp->SetState(eSTATE_PREPARING);
 
@@ -2786,7 +2867,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			video->playTarget = 0;
 			aamp->NotifyOnEnteringLive();
 		}
-		else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType)) && (this->rate > 0))
+		else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType)) && (this->rate > 0))
 		{
 			double seekWindowEnd = totalDuration[eMEDIATYPE_VIDEO];
 			if(IsLive())
@@ -2823,12 +2904,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 		}
-		else if (eTUNETYPE_NEW_SEEK == tuneType && playlistType == ePLAYLISTTYPE_UNDEFINED)
-		{
-			liveAdjust = true;
-			audio->playTarget = 0;
-			video->playTarget = 0;
-		}
 
 		if (audio->enabled)
 		{
@@ -2845,27 +2920,43 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		if (liveAdjust)
 		{
 			int offsetFromLive = gpGlobalConfig->liveOffset;
+	
 			if ( totalDuration[eMEDIATYPE_VIDEO] > (offsetFromLive + video->playTargetOffset))
 			{
-				int offsetToLive = totalDuration[eMEDIATYPE_VIDEO] - offsetFromLive - video->playTargetOffset;
-				if(!audio->enabled || (totalDuration[eMEDIATYPE_AUDIO] > (offsetToLive + audio->playTargetOffset)))
-				{
-					video->playTarget += offsetToLive;
-					if (audio->enabled )
-					{
-						audio->playTarget += offsetToLive;
-					}
+				//DELIA-28451
+				// a) Get OffSet to Live for Video and Audio separately. 
+				// b) Set to minimum value among video /audio instead of setting to 0 position
+				int offsetToLiveVideo,offsetToLiveAudio,offsetToLive;
+				offsetToLiveVideo = offsetToLiveAudio = totalDuration[eMEDIATYPE_VIDEO] - offsetFromLive - video->playTargetOffset;
+				if(audio->enabled)
+				{ 
+					offsetToLiveAudio = 0;
+					// if audio is not having enough total duration to adjust , then offset value set to 0
+					if( totalDuration[eMEDIATYPE_AUDIO] > (offsetFromLive + audio->playTargetOffset))
+				   		offsetToLiveAudio = totalDuration[eMEDIATYPE_AUDIO] - offsetFromLive -  audio->playTargetOffset;
+					else
+						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%d] + AplayTargetOffset[%f]) A-target[%f]",		                           totalDuration[eMEDIATYPE_AUDIO],offsetFromLive,audio->playTargetOffset,audio->playTarget);
 				}
-				else
+				// pick the min of video/audio offset
+				offsetToLive = std::min(offsetToLiveVideo,offsetToLiveAudio);
+				video->playTarget += offsetToLive;
+				if (audio->enabled )
 				{
-					logprintf("Couldn't adjust to live. offsetFromLive %d offsetToLive %d \n", offsetFromLive, offsetToLive);
+					audio->playTarget += offsetToLive;
 				}
-				logprintf("aamp: after live adjust - V-target %f A-target %f offsetFromLive %d offsetToLive %d \n",
-				        video->playTarget, audio->playTarget, offsetFromLive, offsetToLive);
+				// Entering live will happen if offset is adjusted , if its 0 playback is starting from beginning 
+				if(offsetToLive)
+					mIsAtLivePoint = true;
+				logprintf("aamp: after live adjust - V-target %f A-target %f offsetFromLive %d offsetToLive %d offsetVideo[%d] offsetAudio[%d] AtLivePoint[%d]\n",
+				        video->playTarget, audio->playTarget, offsetFromLive, offsetToLive,offsetToLiveVideo,offsetToLiveAudio,mIsAtLivePoint);
+			}
+			else
+			{
+				logprintf("aamp: live adjust not possible VTotal[%f] < (VoffsetFromLive[%d] + VplayTargetOffset[%f]) V-target[%f]", 
+					totalDuration[eMEDIATYPE_VIDEO],offsetFromLive,video->playTargetOffset,video->playTarget); 
 			}
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
-			mIsAtLivePoint = true;
 		}
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
@@ -2884,50 +2975,18 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			if (encTs)
 			{
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-				// if ZeroDRM is enabled and ReceiptData is available , then request for key
-				if(gpGlobalConfig->bZeroDRM && mZDrmMetadata->bZDrmMetadataRead )
+				if (!encTs->mCMSha1Hash)
 				{
-					logprintf("%s:%d new tune, initializing Z_DRM\n", __FUNCTION__, __LINE__);
-					// Get the keys with KeyTag
-					if(aamp->mZDrmAdapter->zeroDrmIsContextActive(mZDrmMetadata->mZDrmContext))
-					{
-						aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-						if(aamp->mZDrmAdapter->zeroDrmGetPlaybackKeySync(mZDrmMetadata->mZDrmContext,(const char *)mZDrmMetadata->mKeyTagData))
-						{
-							logprintf("%s:%d new tune,ZDRM Sucessfully got playbackKey \n",__FUNCTION__, __LINE__);
-							encTs->mDrmMetaDataIndexPosition = 0;
-							aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
-							mZDrmMetadata->bZDrmPlayback = true;
-							aamp->setCurrentDrm(eDRM_CONSEC_agnostic);
-						}
-					else
-						{
-							logprintf("%s:%d new tune,ZDRM Failed to get playbackKey \n",__FUNCTION__, __LINE__);
-							aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
-							// Continue attempt getting keys using regular AVE-DRM
-							// freeing receipt memory will be done in stop call
-							mZDrmMetadata->bZDrmPlayback = false;
-						}
-					}
+					logprintf("%s:%d new tune, initializing DRM\n", __FUNCTION__, __LINE__);
+					aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
+					encTs->mDrmMetaDataIndexPosition = 0;
+					pthread_mutex_lock(&gDrmMutex);
+					encTs->SetDrmContextUnlocked();
+					pthread_mutex_unlock(&gDrmMutex);
 				}
-				// if key is received thru ContentMetadata , then no need for AVE DRM to run .
-				if(!gZdrmMetadata.bZDrmPlayback)
-#endif
+				else
 				{
-					if (!encTs->mCMSha1Hash)
-					{
-						logprintf("%s:%d new tune, initializing DRM\n", __FUNCTION__, __LINE__);
-						aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-						encTs->mDrmMetaDataIndexPosition = 0;
-						pthread_mutex_lock(&gDrmMutex);
-						encTs->SetDrmContextUnlocked();
-						pthread_mutex_unlock(&gDrmMutex);
-					}
-					else
-					{
-						logprintf("StreamAbstractionAAMP_HLS::%s:%d : mCMSha1Hash present\n", __FUNCTION__, __LINE__);
-					}
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d : mCMSha1Hash present\n", __FUNCTION__, __LINE__);
 				}
 			}
 			else
@@ -2967,7 +3026,12 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	}
 	return ret;
 }
-
+/***************************************************************************
+* @fn GetFirstPTS
+* @brief Function to return first PTS 
+*		 
+* @return double PTS value 
+***************************************************************************/
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
 	double pts;
@@ -2982,7 +3046,12 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 	return pts;
 }
 
-
+/***************************************************************************
+* @fn RunFetchLoop
+* @brief Fragment collector thread execution function to download fragments 
+*		 
+* @return void
+***************************************************************************/
 void TrackState::RunFetchLoop()
 {
 	for (;;)
@@ -3041,31 +3110,82 @@ void TrackState::RunFetchLoop()
 			// no earlier than 0.5*EXT-TARGETDURATION and no later than 1.5*EXT-TARGETDURATION
 			// relative to previous playlist fetch.
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
-			int minDelayBetweenPlaylistUpdates = (int)(0.5 * 1000 * targetDurationSeconds);
+			int minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+			long bufferAvailable = ((playTarget*1000) -  aamp->GetPositionMs());
+			// If buffer Available is > 2*targetDuration
+			if(bufferAvailable  > (targetDurationSeconds*2*1000) )
+			{
+				// may be 1.0 times also can be set ??? 
+				minDelayBetweenPlaylistUpdates = (int)(1.5 * 1000 * targetDurationSeconds);
+			}
+			// if buffer is between 2*target & targetDuration
+			else if(bufferAvailable  > (targetDurationSeconds*1000))
+			{
+				minDelayBetweenPlaylistUpdates = (int)(0.5 * 1000 * targetDurationSeconds);
+			}
+			// This is to handle the case where target duration is high value(>Max delay)  but buffer is available just above the max update inteval
+			else if(bufferAvailable > (2*MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS))
+			{
+				minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+			}
+			// if buffer < targetDuration && buffer < MaxDelayInterval
+			else
+			{
+				// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze 
+				// need to refresh soon ..
+				if(bufferAvailable)
+					minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ; 
+				else
+					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS; // 500mSec
+				logprintf("Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld)\n",bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,aamp->GetPositionMs());
+			}
+			// adjust with last refreshed time interval
+			minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
+			// restrict to Max delay interval 	
 			if (minDelayBetweenPlaylistUpdates > MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
 			{
 				minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			int milliseconds = minDelayBetweenPlaylistUpdates - timeSinceLastPlaylistDownload;
-			AAMPLOG_INFO("aamp playlist end refresh delay(%d)\n", milliseconds);
-			aamp->InterruptableMsSleep(milliseconds);
+			else if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS) 
+			{
+				// minimum of 500 mSec needed to avoid too frequent download.
+				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+			}
+			AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d)\n", bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates);
+			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
 		RefreshPlaylist();
 	}
 	AAMPLOG_WARN("fragment collector done. track %s\n", name);
 }
+/***************************************************************************
+* @fn FragmentCollector
+* @brief Fragment collector thread function
+*		 
+* @param arg[in] TrackState pointer
+* @return void
+***************************************************************************/
 
 static void *FragmentCollector(void *arg)
 {
 	TrackState *track = (TrackState *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampHLSFetch"))
+	if(pthread_setname_np(pthread_self(), "aampHLSFetch"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
 	}
 	track->RunFetchLoop();
 	return NULL;
 }
-
+/***************************************************************************
+* @fn StreamAbstractionAAMP_HLS
+* @brief Constructor function 
+*		 
+* @param aamp[in] PrivateInstanceAAMP pointer
+* @param seekpos[in] Seek position 
+* @param rate[in] Rate of playback 
+* @param enableThrottle[in] throttle enable/disable flag
+* @return void
+***************************************************************************/
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp)
 {
 #ifndef AVE_DRM
@@ -3092,23 +3212,27 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	playlistType = ePLAYLISTTYPE_UNDEFINED;
 	hasEndListTag = false;
 	//targetDurationSeconds = 0.0;
-	profileCount = 0;
+	mAbrManager.clearProfiles();
 	mediaCount = 0;
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-	mZDrmMetadata = NULL;
-#endif
 	allowsCache = false;
 	newTune = true;
-	skipAudioFetchOnNextIteration = false;
 	segDLFailCount = 0;
-	segDrmDecryptFailCount = 0;
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	mStartTimestampZero = false;
 	mNetworkDownDetected = false;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	lastSelectedProfileIndex = 0;
 }
-
+/***************************************************************************
+* @fn TrackState
+* @brief TrackState Constructor
+*		 
+* @param type[in] Type of the track
+* @param parent[in] StreamAbstractionAAMP_HLS instance 
+* @param aamp[in] PrivateInstanceAAMP pointer 
+* @param name[in] Name of the track 
+* @return void
+***************************************************************************/
 TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name) :
 		MediaTrack(type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
@@ -3137,7 +3261,12 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	parsedLastValidFragmentAt = aamp_GetCurrentTimeMS();
 	mPeriodPositionIndex.clear();
 }
-
+/***************************************************************************
+* @fn ~TrackState
+* @brief Destructor function 
+*		 
+* @return void
+***************************************************************************/
 TrackState::~TrackState()
 {
 	aamp_Free(&playlist.ptr);
@@ -3163,7 +3292,12 @@ TrackState::~TrackState()
 		free(mDrmInfo.uri);
 	}
 }
-
+/***************************************************************************
+* @fn Stop
+* @brief Function to stop track download/playback 
+*		 
+* @return void
+***************************************************************************/
 void TrackState::Stop()
 {
 	AbortWaitForCachedFragment(true);
@@ -3189,7 +3323,12 @@ void TrackState::Stop()
 	}
 	StopInjectLoop();
 }
-
+/***************************************************************************
+* @fn ~StreamAbstractionAAMP_HLS
+* @brief Destructor function for StreamAbstractionAAMP_HLS
+*		 
+* @return void
+***************************************************************************/
 StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 {
 	/*Exit from ongoing  http fetch, drm operation,throttle. Mark fragment collector exit*/
@@ -3208,10 +3347,14 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	aamp->CurlTerm(0, AAMP_TRACK_COUNT);
 	aamp->SyncEnd();
 }
-
+/***************************************************************************
+* @fn Start
+* @brief Function to create threads for track donwload
+*		 
+* @return void
+***************************************************************************/
 void TrackState::Start(void)
 {
-	abort = false;
 	if(playContext)
 	{
 		playContext->reset();
@@ -3227,7 +3370,12 @@ void TrackState::Start(void)
 	}
 	StartInjectLoop();
 }
-
+/***************************************************************************
+* @fn Start
+* @brief Function to start track initiaziation 
+*		 
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::Start(void)
 {
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
@@ -3239,42 +3387,34 @@ void StreamAbstractionAAMP_HLS::Start(void)
 		}
 	}
 }
-
+/***************************************************************************
+* @fn Stop
+* @brief Function to stop the HLS streaming 
+*		 
+* @param clearChannelData[in] flag indicating to full stop or temporary stop	
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack();
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-	bool zPlaybackInProgress = gZdrmMetadata.bZDrmPlayback;
-	if(gpGlobalConfig->bZeroDRM && clearChannelData)
+
+	//To force release gDrmMutex mutex held by drm_Decrypt in case of clearChannelData
+	if(gDrm)
 	{
-		if(gZdrmMetadata.mZDrmContext)
-			aamp->mZDrmAdapter->zeroDrmFinalize(gZdrmMetadata.mZDrmContext);
-		aamp_Free((char **)&gZdrmMetadata.mZContentData);
-		aamp_Free((char **)&gZdrmMetadata.mZReceiptData);
-		aamp_Free((char **)&gZdrmMetadata.mKeyTagData);
-		memset(&gZdrmMetadata, 0, sizeof(ZDrmContextData));
+		gDrm->CancelKeyWait();
 	}
-	if(!zPlaybackInProgress)
-#endif
+
+	if(clearChannelData)
 	{
-		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearChannelData
+		pthread_mutex_lock(&gDrmMutex);
 		if(gDrm)
 		{
-			gDrm->CancelKeyWait();
+			gDrm->Release();
 		}
-
-		if(clearChannelData)
-		{
-			pthread_mutex_lock(&gDrmMutex);
-			if(gDrm)
-			{
-				gDrm->Release();
-			}
-			gDrmContexSet = false;
-			memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
-			pthread_mutex_unlock(&gDrmMutex);
-		}
+		gDrmContexSet = false;
+		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
+		pthread_mutex_unlock(&gDrmMutex);
 	}
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
@@ -3292,12 +3432,18 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		gDrm->RestoreKeyState();
 	}
 }
-
+/***************************************************************************
+* @fn DumpProfiles
+* @brief Function to log debug information on Stream/Media information
+*		 
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 {
-	if (this->profileCount)
+	int profileCount = GetProfileCount();
+	if (profileCount)
 	{
-		for (int i = 0; i < this->profileCount; i++)
+		for (int i = 0; i < profileCount; i++)
 		{
 			struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
 			logprintf("stream[%d]:\n", i);
@@ -3344,18 +3490,37 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 		logprintf("\n");
 	}
 }
-
+/***************************************************************************
+* @fn IsLive
+* @brief Function to check if stream is live or VOD
+*		 
+* @return bool true if live stream
+***************************************************************************/
 bool StreamAbstractionAAMP_HLS::IsLive(void)
 {
 	return !(this->playlistType == ePLAYLISTTYPE_VOD);
 }
-
+/***************************************************************************
+* @fn GetStreamFormat
+* @brief Function to get stream format 
+*		 
+* @param primaryOutputFormat[out] video format 
+* @param audioOutputFormat[out] audio format
+* @return void
+***************************************************************************/
 void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
 	primaryOutputFormat = trackState[eMEDIATYPE_VIDEO]->streamOutputFormat;
 	audioOutputFormat = trackState[eMEDIATYPE_AUDIO]->streamOutputFormat;
 }
-
+/***************************************************************************
+* @fn DrmDecrypt
+* @brief Function to decrypt the fragment for playback
+*		 
+* @param cachedFragment[in] CachedFragment struction pointer 	
+* @param bucketTypeFragmentDecrypt[in] ProfilerBucketType enum
+* @return bool true if successfully decrypted 
+***************************************************************************/
 bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
 {
 		bool ret = true;
@@ -3368,7 +3533,7 @@ bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType
 			pthread_mutex_lock(&gDrmMutex);
 			if (mCMSha1Hash)
 			{
-				logprintf("%s:%d [%s]mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, name, mDrmMetaDataIndex.ptr);
+				traceprintf("%s:%d [%s]mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, name, mDrmMetaDataIndex.ptr);
 				assert(mDrmMetaDataIndexCount);
 				assert(mDrmMetaDataIndexPosition > -1);
 				SetDrmContextUnlocked();
@@ -3407,60 +3572,33 @@ bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType
 		}
 		return ret;
 }
-
-#ifdef AAMP_CONTENT_METADATA_IPDVR_ENABLED
-bool StreamAbstractionAAMP_HLS::ZDrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
-{
-	bool ret = false;
-	aamp->LogDrmDecryptBegin(bucketTypeFragmentDecrypt);
-	if(aamp->mZDrmAdapter->zeroDrmIsContextActive(mZDrmMetadata->mZDrmContext))
-	{
-		ZeroDrmReturn drmReturn =       eZERO_DRM_STATUS_GENERIC_ERROR;
-		int retryCount = 0;
-		while (retryCount < DRM_DECRYPT_RETRY_COUNT && drmReturn != eZERO_DRM_STATUS_SUCCESS && aamp->DownloadsAreEnabled() )
-		{
-			drmReturn = aamp->mZDrmAdapter->zeroDrmDecrypt(mZDrmMetadata->mZDrmContext,(void *)cachedFragment->fragment.ptr,cachedFragment->fragment.len);
-			if(eZERO_DRM_STATUS_SUCCESS != drmReturn)
-			{
-				logprintf("FetchFragmentHelper : ZeroDrmDecrypt failed[%d] \n",drmReturn);
-				if (eZERO_DRM_STATUS_KEY_TIMEOUT == drmReturn)
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s eZERO_DRM_STATUS_KEY_TIMEOUT retryCount %d\n", __FUNCTION__,retryCount);
-					retryCount++;
-					continue;
-				}
-				ret = false;
-				break;
-			}
-			else
-			{
-				aamp->LogDrmDecryptEnd(bucketTypeFragmentDecrypt);
-				ret  = true;
-			}
-		}
-	}
-	else
-	{
-		logprintf("ZDrmDecrypt Failed to find ContextID[%d] for decrypt\n",mZDrmMetadata->mZDrmContext);
-	}
-	if (ret == false)
-	{
-		aamp->profiler.ProfileError(bucketTypeFragmentDecrypt);
-	}
-	return ret;
-}
-#endif
-
+/***************************************************************************
+* @fn GetContext
+* @brief Function to get current StreamAbstractionAAMP instance value 
+*		 
+* @return StreamAbstractionAAMP instance
+***************************************************************************/
 StreamAbstractionAAMP* TrackState::GetContext()
 {
 	return context;
 }
-
+/***************************************************************************
+* @fn GetMediaTrack
+* @brief Function to get Media information for track type
+*		 
+* @param type[in] TrackType input	
+* @return MediaTrack structure pointer
+***************************************************************************/
 MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
 {
 	return trackState[(int)type];
 }
-
+/***************************************************************************
+* @fn SetDrmContextUnlocked
+* @brief Function to set DRM Context value based on DRM Metadata 
+*		 
+* @return void
+***************************************************************************/
 void TrackState::SetDrmContextUnlocked()
 {
 	bool drmContextUpdated = false;
@@ -3471,7 +3609,7 @@ void TrackState::SetDrmContextUnlocked()
 		drmMetadata = &drmMetadataIdx[mDrmMetaDataIndexPosition].metaData;
 		assert(drmMetadata->metadataPtr);
 	}
-	logprintf("TrackState::%s Enter mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__, mCMSha1Hash,
+	traceprintf("TrackState::%s Enter mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__, mCMSha1Hash,
 	        mDrmMetaDataIndexPosition);
 	bool drmChanged = true;
 
@@ -3486,7 +3624,7 @@ void TrackState::SetDrmContextUnlocked()
 				{
 					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
 					{
-						logprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
 						drmChanged = false;
 					}
 					else
@@ -3516,12 +3654,12 @@ void TrackState::SetDrmContextUnlocked()
 				{
 					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
 					{
-						logprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
 						if (gDrmInfo.uri)
 						{
 							if (0 == strcmp(mDrmInfo.uri, gDrmInfo.uri))
 							{
-								logprintf("StreamAbstractionAAMP_HLS::%s:%d URI not changed\n", __FUNCTION__, __LINE__);
+								traceprintf("StreamAbstractionAAMP_HLS::%s:%d URI not changed\n", __FUNCTION__, __LINE__);
 								drmChanged = false;
 							}
 							else
@@ -3576,11 +3714,12 @@ void TrackState::SetDrmContextUnlocked()
 				memcpy(gCMSha1Hash, mCMSha1Hash, DRM_SHA1_HASH_LEN);
 			}
 			aamp->setCurrentDrm(eDRM_Adobe_Access);
+			logprintf("%s:%s Setting DRM mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__,name, mCMSha1Hash,mDrmMetaDataIndexPosition);
 		}
 		else
 		{
 #ifdef AAMP_VANILLA_AES_SUPPORT
-			logprintf("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
+			AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
 			gDrm = AesDec::GetInstance();
 			aamp->setCurrentDrm(eDRM_Vanilla_AES);
 #else
@@ -3594,7 +3733,13 @@ void TrackState::SetDrmContextUnlocked()
 		}
 	}
 }
-
+/***************************************************************************
+* @fn UpdateDrmCMSha1Hash
+* @brief Function to Update SHA1 Id for DRM Metadata 
+*		 
+* @param ptr[in] ShaID string from DRM attribute
+* @return void
+***************************************************************************/
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 {
 	bool drmDataChanged = false;
@@ -3618,12 +3763,12 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 		}
 		else
 		{
-			logprintf("%s:%d Same DRM Metadata\n", __FUNCTION__, __LINE__);
+			AAMPLOG_INFO("%s:%d Same DRM Metadata\n", __FUNCTION__, __LINE__);
 		}
 	}
 	else
 	{
-		logprintf("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
+		AAMPLOG_INFO("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
 		for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
 		{
 			printf("%c", ptr[i]);
@@ -3643,7 +3788,7 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			{
 				if (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
 				{
-					logprintf("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
+					AAMPLOG_INFO("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
 					mDrmMetaDataIndexPosition = i;
 					break;
 				}
@@ -3682,7 +3827,13 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 		}
 	}
 }
-
+/***************************************************************************
+* @fn UpdateDrmIV
+* @brief Function to update IV from DRM 
+*		 
+* @param ptr[in] IV string from DRM attribute
+* @return void
+***************************************************************************/
 void TrackState::UpdateDrmIV(const char *ptr)
 {
 	size_t len;
@@ -3692,12 +3843,14 @@ void TrackState::UpdateDrmIV(const char *ptr)
 	{
 		if(0 != memcmp(mDrmInfo.iv, iv, DRM_IV_LEN))
 		{
-			logprintf("%s:%d Different DRM IV - ", __FUNCTION__, __LINE__);
+			traceprintf("%s:%d Different DRM IV - ", __FUNCTION__, __LINE__);
+#ifdef TRACE
 			for (int i = 0; i< DRM_IV_LEN*2; i++)
 			{
 				printf("%c", ptr[i]);
 			}
 			printf("\n");
+#endif
 		}
 		else
 		{
@@ -3708,6 +3861,12 @@ void TrackState::UpdateDrmIV(const char *ptr)
 	mDrmInfo.iv = iv;
 	traceprintf("%s:%d [%s] Exit mDrmInfo.iv %p\n", __FUNCTION__, __LINE__, name, mDrmInfo.iv);
 }
+/***************************************************************************
+* @fn FetchPlaylist
+* @brief Function to fetch playlist file
+*		 
+* @return void
+***************************************************************************/
 
 void TrackState::FetchPlaylist()
 {
@@ -3735,6 +3894,40 @@ void TrackState::FetchPlaylist()
 	}
 }
 
+
+/***************************************************************************
+* @fn GetBWIndex
+* @brief Function to get bandwidth index corresponding to bitrate
+*
+* @param bitrate Bitrate in bits per second
+* @return bandwidth index
+***************************************************************************/
+int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
+{
+	int topBWIndex = 0;
+	int profileCount = GetProfileCount();
+	if (profileCount)
+	{
+		for (int i = 0; i < profileCount; i++)
+		{
+			struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
+			if (!streamInfo->isIframeTrack && streamInfo->bandwidthBitsPerSecond > bitrate)
+			{
+				--topBWIndex;
+			}
+		}
+	}
+	return topBWIndex;
+}
+
+/***************************************************************************
+* @fn GetNextFragmentPeriodInfo
+* @brief Function to get next playback position from start, to handle discontinuity 
+*		 
+* @param periodIdx[out] Period Index 	
+* @param offsetFromPeriodStart[out] Offset value
+* @return void
+***************************************************************************/
 void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart)
 {
 	const IndexNode *index = (IndexNode *) this->index.ptr;
@@ -3764,13 +3957,12 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 			std::map<int, double>::iterator it = mPeriodPositionIndex.begin();
 			while (it != mPeriodPositionIndex.end())
 			{
-				traceprintf("TrackState::%s [%s] Loop discItr %d first %d second %f\n", __FUNCTION__, name, periodItr,
+				traceprintf("TrackState::%s [%s] Loop periodItr %d idx %d first %d second %f\n", __FUNCTION__, name, periodItr, idx,
 				        it->first, it->second);
 				if (it->first > idx)
 				{
 					logprintf("TrackState::%s [%s] Found periodItr %d idx %d first %d offsetFromPeriodStart %f\n",
 					        __FUNCTION__, name, periodItr, idx, it->first, periodStartPosition);
-					offsetFromPeriodStart -= periodStartPosition;
 					break;
 				}
 				periodIdx = periodItr;
@@ -3778,6 +3970,7 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 				periodStartPosition = it->second;
 				it++;
 			}
+			offsetFromPeriodStart -= periodStartPosition;
 		}
 		logprintf("TrackState::%s [%s] periodIdx %d offsetFromPeriodStart %f\n", __FUNCTION__, name, periodIdx,
 		        offsetFromPeriodStart);
@@ -3787,7 +3980,13 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 		logprintf("TrackState::%s [%s] idxNode NULL\n", __FUNCTION__, name);
 	}
 }
-
+/***************************************************************************
+* @fn GetPeriodStartPosition
+* @brief Function to get Period start position for given period index,to handle discontinuity
+*		 
+* @param periodIdx[in] Period Index 
+* @return void
+***************************************************************************/
 double TrackState::GetPeriodStartPosition(int periodIdx)
 {
 	double offset = 0;
@@ -3818,7 +4017,12 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 	}
 	return offset;
 }
-
+/***************************************************************************
+* @fn GetNumberOfPeriods
+* @brief Function to return number of periods stored in playlist
+*		 
+* @return int number of periods
+***************************************************************************/
 int TrackState::GetNumberOfPeriods()
 {
 	return (int)mPeriodPositionIndex.size();

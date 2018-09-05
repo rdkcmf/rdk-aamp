@@ -16,6 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /* Comcast Playready Session management
  *
  */
@@ -55,7 +56,12 @@ static inline uint64_t GetCurrentTimeStampInMSec()
 #ifdef LOG_DECRYPT_STATS
 #define MAX_THREADS 10
 #define INTERVAL 120
-typedef struct DecryptStats_s
+
+/**
+ * @struct DecryptStats
+ * @brief Holds decryption profile stats
+ */
+struct DecryptStats
 {
     uint64_t    nBytesInterval;
     uint64_t    nTimeInterval;
@@ -64,7 +70,7 @@ typedef struct DecryptStats_s
     uint64_t    nCallsTotal;
     pthread_t   threadID;
 
-} DecryptStats;
+};
 #endif // LOG_DECRYPT_STATS
 #define SEC_SIZE size_t
 void LogPerformanceExt(const char* strFunc, uint64_t msStart, uint64_t msEnd, SEC_SIZE nDataSize)
@@ -143,6 +149,7 @@ struct Rpc_Secbuf_Info {
 #define USE_NEW_OPENCDM 1
 
 OpenCDMSession::OpenCDMSession(string& keySystem) :
+		AampDrmSession(keySystem),
 		m_eKeyState(KEY_INIT), 
 		m_pOutputProtection(NULL),
 		m_pOpencdm(NULL),
@@ -151,7 +158,6 @@ OpenCDMSession::OpenCDMSession(string& keySystem) :
 	logprintf("OpenCDMSession :: enter \n");
 	pthread_mutex_init(&decryptMutex,NULL);
 
-	m_keySystem = keySystem;
 	initAampDRMSession();
 
 	// Get output protection pointer
@@ -187,7 +193,7 @@ void OpenCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 OpenCDMSession::~OpenCDMSession()
 {
-	logprintf("[HHH]Playready destructor called! \n");
+	logprintf("[HHH]OCDMSession destructor called! keySystem %s\n", m_keySystem.c_str());
 	pthread_mutex_destroy(&decryptMutex);
 #if USE_NEW_OPENCDM
 	if(m_pOpencdmDecrypt)

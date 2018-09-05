@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /**
-* @file JavaScript bindings for AAMP
-*/
+ * @file jsbindings.cpp
+ * @brief JavaScript bindings for AAMP
+ */
+
 
 #include <JavaScriptCore/JavaScript.h>
 #include <stdlib.h>
@@ -30,19 +33,44 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.2"
+#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.3"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 extern "C"
 {
+
+	/**
+	 * @brief
+	 * @param 
+	 * @retval
+	 */
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 
+
+	/**
+	 * @brief
+	 * @param context
+	 * @retval
+	 */
 	JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context);
+
+	/**
+	 * @brief
+	 * @param context
+	 * @param timeMS
+	 * @param szName
+	 * @param szContent
+	 * @retval
+	 */
 	JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent);
 }
 
+/**
+ * @struct AAMP_JS
+ * @brief
+ */
 struct AAMP_JS
 {
 	JSGlobalContextRef _ctx;
@@ -53,12 +81,31 @@ struct AAMP_JS
 	JSObjectRef _subscribedTags;
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param constructor
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSObjectRef AAMP_class_constructor(JSContextRef context, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	*exception = aamp_GetException(context, AAMPJS_GENERIC_ERROR, "Cannot create an object of AAMP");
 	return NULL;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -72,6 +119,16 @@ static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JS
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -85,6 +142,15 @@ static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObject
 	return true;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -98,6 +164,16 @@ static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObj
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -111,6 +187,15 @@ static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef
 	return true;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -124,6 +209,16 @@ static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObje
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -137,6 +232,15 @@ static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef 
 	return true;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -150,6 +254,15 @@ static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef t
 	return pAAMP->_eventType;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -171,6 +284,15 @@ static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef t
 	}
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -185,6 +307,15 @@ static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thi
 	return aamp_CStringToJSValue(context, GLOBAL_AAMP_NATIVEBINDING_VERSION);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -200,6 +331,15 @@ static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectR
 	return aamp_CStringToJSValue(context, language);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -235,6 +375,16 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 	return prop;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -250,6 +400,16 @@ static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef th
 	return true;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param value
+ * @param exception
+ * @retval
+ */
 static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -265,6 +425,21 @@ static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef this
 	return true;
 }
 
+static bool AAMP_setProperty_reportInterval(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (pAAMP == NULL)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
+		return false;
+	}
+
+	pAAMP->_aamp->SetReportInterval(JSValueToNumber(context, value, exception));
+	return true;
+}
+
 static const JSStaticValue AAMP_static_values[] =
 {
 	{"closedCaptionEnabled", AAMP_getProperty_closedCaptionEnabled, AAMP_setProperty_closedCaptionEnabled, kJSPropertyAttributeDontDelete },
@@ -277,9 +452,19 @@ static const JSStaticValue AAMP_static_values[] =
 	{"timedMetadata", AAMP_getProperty_timedMetadata, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"stallErrorCode", NULL, AAMP_setProperty_stallErrorCode, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{"reportInterval", NULL, AAMP_setProperty_reportInterval, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{NULL, NULL, NULL, 0}
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef Event_getProperty_type(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -304,11 +489,22 @@ static const JSStaticFunction Event_staticfunctions[] =
 	{ NULL, NULL, 0 }
 };
 
+
+/**
+ * @brief
+ * @param ctx
+ * @param thisObject
+ */
 static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 {
 	//LOG("[AAMP_JS] %s()", __FUNCTION__);
 }
 
+
+/**
+ * @brief
+ * @param thisObject
+ */
 static void Event_finalize(JSObjectRef thisObject)
 {
 	//noisy - large (>400) burst of logging seen during garbage collection
@@ -318,8 +514,23 @@ static void Event_finalize(JSObjectRef thisObject)
 	JSObjectSetPrivate(thisObject, NULL);
 }
 
+
+/**
+ * @brief
+ * @retval
+ */
 static JSClassRef Event_class_ref();
 
+
+/**
+ * @brief
+ * @param ctx
+ * @param constructor
+ * @param argumentCount
+ * @param arguments[]
+ * @param execption
+ * @retval
+ */
 static JSObjectRef Event_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* execption)
 {
 	//LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -347,6 +558,11 @@ static const JSClassDefinition Event_object_def =
 	NULL
 };
 
+
+/**
+ * @brief
+ * @retval
+ */
 static JSClassRef Event_class_ref() {
 	static JSClassRef _classRef = NULL;
 	if (!_classRef) {
@@ -355,10 +571,28 @@ static JSClassRef Event_class_ref() {
 	return _classRef;
 }
 
+/**
+ * @class AAMP_JSListener
+ * @brief
+ */
 class AAMP_JSListener : public AAMPEventListener
 {
 public:
+
+	/**
+	 * @brief
+	 * @param aamp
+	 * @param type
+	 * @param jsCallback
+	 */
 	static void AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback);
+
+	/**
+	 * @brief
+	 * @param aamp
+	 * @param type
+	 * @param jsCallback
+	 */
 	static void RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback);
 
 	AAMP_JSListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
@@ -371,12 +605,22 @@ public:
 		JSValueProtect(_aamp->_ctx, _jsCallback);
 	}
 
+
+	/**
+	 * @brief
+	 * @retval
+	 */
 	virtual ~AAMP_JSListener()
 	{
 		LOG("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, _type, _jsCallback);
 		JSValueUnprotect(_aamp->_ctx, _jsCallback);
 	}
 
+
+	/**
+	 * @brief
+	 * @param e
+	 */
 	void Event(const AAMPEvent& e)
 	{
 		if(e.type != AAMP_EVENT_PROGRESS)//log all events except progress which spams
@@ -391,6 +635,13 @@ public:
 		JSValueUnprotect(_aamp->_ctx, eventObj);
 	}
 
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	virtual void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 	}
@@ -402,12 +653,30 @@ public:
 	AAMP_JSListener*	_pNext;
 };
 
+/**
+ * @class AAMP_JSListener_Progress
+ * @brief
+ */
 class AAMP_JSListener_Progress : public AAMP_JSListener
 {
 public:
+
+	/**
+	 * @brief AAMP_JSListener_Progress Constructor
+	 * @param aamp
+	 * @param type
+	 * @param jsCallback
+	 */
 	AAMP_JSListener_Progress(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -434,12 +703,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_BitRateChanged
+ * @brief
+ */
 class AAMP_JSListener_BitRateChanged : public AAMP_JSListener
 {
 public:
+
+	/**
+	 * @brief AAMP_JSListener_BitRateChanged Constructor
+	 * @param aamp
+	 * @param type
+	 * @param jsCallback
+	 */
 	AAMP_JSListener_BitRateChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -466,12 +753,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_SpeedChanged
+ * @brief
+ */
 class AAMP_JSListener_SpeedChanged : public AAMP_JSListener
 {
 public:
+
+        /**
+         * @brief AAMP_JSListener_SpeedChanged Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
 	AAMP_JSListener_SpeedChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -486,12 +791,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_TuneFailed
+ * @brief
+ */
 class AAMP_JSListener_TuneFailed : public AAMP_JSListener
 {
 public:
+
+        /**
+         * @brief AAMP_JSListener_TuneFailed Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
 	AAMP_JSListener_TuneFailed(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -512,12 +835,23 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_CCHandleReceived
+ * @brief
+ */
 class AAMP_JSListener_CCHandleReceived : public AAMP_JSListener
 {
 public:
 	AAMP_JSListener_CCHandleReceived(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -528,12 +862,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_VideoMetadata
+ * @brief
+ */
 class AAMP_JSListener_VideoMetadata : public AAMP_JSListener
 {
 public:
+
+        /**
+         * @brief AAMP_JSListener_VideoMetadata Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
 	AAMP_JSListener_VideoMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef name;
@@ -581,12 +933,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_TimedMetadata
+ * @brief
+ */
 class AAMP_JSListener_TimedMetadata : public AAMP_JSListener
 {
 public:
+
+        /**
+         * @brief AAMP_JSListener_TimedMetadata Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
 	AAMP_JSListener_TimedMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSObjectRef timedMetadata = AAMP_JS_CreateTimedMetadata(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent);
@@ -598,12 +968,30 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_StatusChanged
+ * @brief
+ */
 class AAMP_JSListener_StatusChanged : public AAMP_JSListener
 {
 public:
+
+        /**
+         * @brief AAMP_JSListener_StatusChanged Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
 	AAMP_JSListener_StatusChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
+
+	/**
+	 * @brief
+	 * @param e
+	 * @param context
+	 * @param eventObj
+	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSStringRef prop;
@@ -615,6 +1003,17 @@ public:
 	}
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -659,6 +1058,13 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param aamp
+ * @param type
+ * @param jsCallback
+ */
 void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
 	LOG("[AAMP_JS] %s(%p, %d, %p)", __FUNCTION__, aamp, type, jsCallback);
@@ -707,6 +1113,17 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	aamp->_aamp->AddEventListener(type, pListener);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -731,6 +1148,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
+
 				AAMP_JSListener::RemoveEventListener(pAAMP, eventType, callbackObj);
 			}
 
@@ -751,6 +1169,13 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param aamp
+ * @param type
+ * @param jsCallback
+ */
 void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
 	LOG("[AAMP_JS] %s(%p, %d, %p)", __FUNCTION__, aamp, type, jsCallback);
@@ -770,18 +1195,51 @@ void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSO
 	}
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -793,20 +1251,43 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 		return JSValueMakeUndefined(context);
 	}
 
-	if (argumentCount != 1)
+	char* contentType = NULL;
+	switch(argumentCount)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.tune' - 1 argument required");
-	}
-	else
-	{
-		char* url = aamp_JSValueToCString(context, arguments[0], exception);
-		pAAMP->_aamp->Tune(url);
-		delete [] url;
+		case 2:
+			{
+				contentType = aamp_JSValueToCString(context, arguments[1], exception);
+			}
+		case 1:
+			{
+				char* url = aamp_JSValueToCString(context, arguments[0], exception);
+				pAAMP->_aamp->Tune(url, contentType);
+				delete [] url;
+			}
+			if(NULL != contentType)
+			{
+				delete [] contentType;
+			}
+			break;
+		default:
+			ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.tune' - 1 argument required");
+			break;
 	}
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -821,6 +1302,17 @@ static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObject
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -852,6 +1344,17 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -878,6 +1381,17 @@ static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObject
 }
 
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -892,6 +1406,17 @@ static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JS
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -919,6 +1444,17 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__); 
@@ -943,6 +1479,17 @@ static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, 
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -967,6 +1514,17 @@ static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1002,6 +1560,17 @@ static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObj
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1027,6 +1596,17 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
 	return JSValueMakeUndefined(context);
 }
  
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1065,6 +1645,17 @@ static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef functi
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1114,6 +1705,17 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1141,61 +1743,137 @@ static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef 
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getAudioTrackList(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setClosedCaptionTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return JSValueMakeUndefined(context);
 }
 
-static JSValueRef AAMP_setLicenceServerURL(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
+static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
 		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLicenceServerURL on instances of AAMP");
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLicenseServerURL on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
 		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLicenceServerURL' - 1 argument required");
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLicenseServerURL' - 1 argument required");
 	}
 	else
 	{
 		char *url = aamp_JSValueToCString(context, arguments[0], exception);
-		pAAMP->_aamp->SetLicenceServerURL(url);
+		pAAMP->_aamp->SetLicenseServerURL(url);
 		delete [] url;
 	}
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1220,6 +1898,17 @@ static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef fun
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
         LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1244,6 +1933,17 @@ static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef func
         return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param function
+ * @param thisObject
+ * @param argumentCount
+ * @param arguments[]
+ * @param exception
+ * @retval
+ */
 static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
         LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1293,7 +1993,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setAudioVolume", AAMP_setAudioVolume, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "addCustomHTTPHeader", AAMP_addCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "removeCustomHTTPHeader", AAMP_removeCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "setLicenceServerURL", AAMP_setLicenceServerURL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setLicenseServerURL", AAMP_setLicenseServerURL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAnonymousRequest", AAMP_setAnonymousRequest, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 
 	{ "setVODTrickplayFPS", AAMP_setVODTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
@@ -1302,6 +2002,11 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ NULL, NULL, 0 }
 };
 
+
+/**
+ * @brief
+ * @param thisObject
+ */
 static void AAMP_finalize(JSObjectRef thisObject)
 {
 	LOG("[AAMP_JS] %s(): object=%p", __FUNCTION__, thisObject);
@@ -1318,6 +2023,7 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	{
 		AAMPEventType eventType = pAAMP->_listeners->_type;
 		JSObjectRef   jsCallback  = pAAMP->_listeners->_jsCallback;
+
 		AAMP_JSListener::RemoveEventListener(pAAMP, eventType, jsCallback);
 	}
 
@@ -1360,6 +2066,11 @@ static const JSClassDefinition AAMP_class_def =
 	NULL
 };
 
+
+/**
+ * @brief
+ * @retval
+ */
 static JSClassRef AAMP_class_ref() {
 	static JSClassRef _classRef = NULL;
 	if (!_classRef) {
@@ -1368,60 +2079,150 @@ static JSClassRef AAMP_class_ref() {
 	return _classRef;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_STARTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "adPlaybackStarted");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_COMPLETED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "adPlaybackCompleted");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_INTERRUPTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "adPlaybackInterrupted");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_BUFFERING_BEGIN(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "bufferingBegin");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_BUFFERING_END(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "bufferingEnd");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_DECODER_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "decoderAvailable");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "drmMetadataInfoAvailable");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_ENTERING_LIVE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "enteringLive");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_MEDIA_OPENED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "mediaOpened");
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param thisObject
+ * @param propertyName
+ * @param exception
+ * @retval
+ */
 static JSValueRef EventType_getproperty_MEDIA_STOPPED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1443,11 +2244,22 @@ static const JSStaticValue EventType_staticprops[] =
 	{ NULL, NULL, NULL, 0 }
 };
 
+
+/**
+ * @brief
+ * @param ctx
+ * @param thisObject
+ */
 static void EventType_init(JSContextRef ctx, JSObjectRef thisObject)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 }
 
+
+/**
+ * @brief
+ * @param thisObject
+ */
 static void EventType_finalize(JSObjectRef thisObject)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -1474,6 +2286,11 @@ static const JSClassDefinition EventType_object_def =
 	NULL
 };
 
+
+/**
+ * @brief
+ * @retval
+ */
 static JSClassRef EventType_class_ref() {
 	static JSClassRef _classRef = NULL;
 	if (!_classRef) {
@@ -1482,6 +2299,12 @@ static JSClassRef EventType_class_ref() {
 	return _classRef;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @retval
+ */
 JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 {
 	LOG("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
@@ -1491,6 +2314,15 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 	return obj;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param timeMS
+ * @param szName
+ * @param szContent
+ * @retval
+ */
 JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent)
 {
 	JSStringRef name;
@@ -1614,6 +2446,12 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 	return timedMetadata;
 }
 
+
+/**
+ * @brief
+ * @param context
+ * @param playerInstanceAAMP
+ */
 void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 {
 	INFO("[AAMP_JS] %s() context=%p, aamp=%p", __FUNCTION__, context, playerInstanceAAMP);
@@ -1656,6 +2494,11 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 	JSStringRelease(str);
 }
 
+
+/**
+ * @brief
+ * @param context
+ */
 void aamp_UnloadJS(void* context)
 {
 	INFO("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
@@ -1690,6 +2533,10 @@ void aamp_UnloadJS(void* context)
 }
 
 #ifdef __GNUC__
+
+/**
+ * @brief
+ */
 void __attribute__ ((destructor(101))) _aamp_term()
 {
 	LOG("[AAMP_JS] %s:%d\n", __FUNCTION__, __LINE__);

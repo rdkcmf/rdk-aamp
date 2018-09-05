@@ -16,6 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /* Comcast DRM Session management for Aamp
  *
  */
@@ -28,6 +29,10 @@
 #include <open_cdm.h>
 using namespace std;
 
+/**
+ * @class OpenCDMSession
+ * @brief Open CDM DRM session
+ */
 class OpenCDMSession : public AampDrmSession
 {
 
@@ -39,7 +44,6 @@ private:
 	media::OpenCdm* m_pOpencdm;
 	media::OpenCdm* m_pOpencdmDecrypt;
 	string m_sessionID;
-    string m_keySystem;
 	void initAampDRMSession();
 
 public:

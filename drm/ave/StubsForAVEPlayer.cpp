@@ -17,6 +17,12 @@
  * limitations under the License.
 */
 
+/**
+ * @file StubsForAVEPlayer.cpp
+ * @brief Various stubs required to compile AVE drm
+ * @note To be removed once avedrm is used instead of aveplayer
+ */
+
 #ifdef AAMP_STUBS_FOR_JS
 
 /*Stubs to link with libAVEPlayer.so*/

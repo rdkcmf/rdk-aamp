@@ -16,15 +16,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/* Comcast DRM Session management for Aamp
- *
- */
 
+
+/**
+* @file AampDRMSessionManager.h
+* @brief Header file for DRM session manager
+*/
 #ifndef AampDRMSessionManager_h
 #define AampDRMSessionManager_h
 
-//#define MAX_DRM_SESSIONS 3
+#include "aampdrmsessionfactory.h"
 #include "AampDrmSession.h"
+#include "AampDRMutils.h"
 #include "main_aamp.h"
 #include <string>
 #include <curl/curl.h>
@@ -39,20 +42,33 @@
 #define KEYID_TAG_START "<KID>"
 #define KEYID_TAG_END "</KID>"
 
-typedef struct _drmSessionContext
+/**
+ *  @struct	DrmSessionContext
+ *  @brief	To store drmSession and keyId data.
+ */
+struct DrmSessionContext
 {
 	size_t dataLength;
 	unsigned char* data;
 	AampDrmSession * drmSession;
-}DrmSessionContext;
+};
 
-typedef struct _keyId
+/**
+ *  @struct	KeyID
+ *  @brief	Structure to hold, keyId and session creation time for
+ *  		keyId
+ */
+struct KeyID
 {
 	size_t len;
 	unsigned char* data;
 	long long creationTime;
-}KeyID;
+};
 
+/**
+ *  @class	AampDRMSessionManager
+ *  @brief	Controller for managing DRM sessions.
+ */
 class AampDRMSessionManager
 {
 
@@ -60,8 +76,6 @@ private:
 
 	static DrmSessionContext drmSessionContexts[MAX_DRM_SESSIONS];
 	static KeyID cachedKeyIDs[MAX_DRM_SESSIONS];
-	static KeyID failedKeyId;
-	static long failedErrorCode;
 	static size_t write_callback(char *ptr, size_t size, size_t nmemb,
 			void *userdata);
 	static char* accessToken;
@@ -69,16 +83,23 @@ private:
 public:
 
 	void initializeDrmSessions();
+
 	AampDRMSessionManager();
+
 	~AampDRMSessionManager();
+
 	AampDrmSession * createDrmSession(const char* systemId,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code = NULL);
 	AampDrmSession * createDrmSession(const char* systemId,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
 			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code = NULL);
+
 	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false);
+
 	static void clearSessionData();
+
 	static void clearAccessToken();
+
 	static const char* getAccessToken(int *tokenLength);
 };
 

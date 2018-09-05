@@ -17,11 +17,21 @@
  * limitations under the License.
 */
 
+/**
+ * @file HlsDrmBase.h
+ * @brief Declaration common to various HLS DRM implementations
+ */
+
+
 #ifndef _DRM_HLSDRMBASE_H_
 #define _DRM_HLSDRMBASE_H_
 
 #include "priv_aamp.h"
 
+/**
+ * @enum DrmReturn
+ * @brief Return values of various functions
+ */
 enum DrmReturn
 {
 	eDRM_SUCCESS,
@@ -29,6 +39,10 @@ enum DrmReturn
 	eDRM_KEY_ACQUSITION_TIMEOUT
 };
 
+/**
+ * @enum DRMState
+ * @brief States of DRM object
+ */
 enum DRMState
 {
 	eDRM_INITIALIZED,
@@ -38,6 +52,10 @@ enum DRMState
 	eDRM_KEY_FLUSH
 };
 
+/**
+ * @class HlsDrmBase
+ * @brief Base class of HLS DRM implementations
+ */
 class HlsDrmBase
 {
 public:
@@ -45,16 +63,20 @@ public:
 	/**
 	 * @brief prepare for decryption - individualization & license acquisition
 	 *
+	 * @param aamp AAMP instance to be associated with this decryptor
 	 * @param metadata DRM specific metadata
-	 * @param metadataSize length in bytes of data pointed to by metadataPtr
-	 * @param iv 128-bit (16 byte) initialization vector for decryption
-	 * @param encryptedRotationKey (not currently used/present)
+	 * @param drmInfo Drm information
+	 * @retval 0 on success
 	 */
 	virtual int SetContext( class PrivateInstanceAAMP *aamp, void* metadata, const struct DrmInfo *drmInfo) = 0;
 
 	/**
+	 * @brief Decrypts an encrypted buffer
+	 * @param bucketType Type of bucket for profiling
 	 * @param encryptedDataPtr pointer to encyrpted payload
 	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+	 * @param timeInMs wait time
+	 * @retval eDRM_SUCCESS on success
 	 */
 	virtual DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs = 3000) = 0;
 
@@ -65,7 +87,6 @@ public:
 
 	/**
 	 * @brief Cancel timed_wait operation drm_Decrypt
-	 *
 	 */
 	virtual void CancelKeyWait() = 0;
 
@@ -76,7 +97,7 @@ public:
 	virtual void RestoreKeyState() = 0;
 
 	/**
-	 * @brief Destructor
+	 * @brief HlsDrmBase Destructor
 	 */
 	virtual ~HlsDrmBase(){};
 

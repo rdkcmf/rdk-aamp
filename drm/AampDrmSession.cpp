@@ -18,24 +18,33 @@
 */
 
 /**
-* @file aampdrmsessionfactory.h
-* @brief Header file for AampDrmSessionFactory
+* @file AampDrmSession.cpp
+* @brief Source file for AampDrmSession.
 */
-
-#ifndef AampDrmSessionFactory_h
-#define AampDrmSessionFactory_h
 
 #include "AampDrmSession.h"
 
 /**
- * @class AampDrmSessionFactory
- * @brief Factory class to create DRM sessions based on
- *        requested system ID
+ *  @brief	AampDrmSession constructor.
  */
-class AampDrmSessionFactory
+AampDrmSession::AampDrmSession(const string &keySystem)
 {
-public:
+	m_keySystem = keySystem;
+}
 
-	static AampDrmSession* GetDrmSession(const char* systemId);
-};
-#endif
+/**
+ *  @brief	AampDrmSession destructor.
+ */
+AampDrmSession::~AampDrmSession()
+{
+}
+
+/**
+ *  @brief	Getter function for DRM key system.
+ *
+ *  @return	keySystem, com.microsoft.playready or com.widevine.alpha
+ */
+string AampDrmSession::getKeySystem()
+{
+	return m_keySystem;
+}

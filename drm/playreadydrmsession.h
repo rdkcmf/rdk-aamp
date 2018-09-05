@@ -16,8 +16,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/* Comcast DRM Session management for Aamp
- *
+
+/**
+ * @file playreadydrmsession.h
+ * @brief Comcast Playready Session management
  */
 
 #ifndef PlayReadyDrmSession_h
@@ -39,6 +41,10 @@ using namespace std;
     ChkBOOL((a) <= (b), DRM_E_FAIL); \
 } while(FALSE)
 
+/**
+ * @class PlayReadyDRMSession
+ * @brief Class for PlayReady DRM operations
+ */
 class PlayReadyDRMSession : public AampDrmSession
 {
 
@@ -64,27 +70,33 @@ private:
 
 	AampOutputProtection* m_pOutputProtection;
 
+
 	void initAampDRMSession();
 
-	// Retrieve PRO from init data.
 	int _GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 			DRM_DWORD f_cbInitData, DRM_DWORD *f_pibPRO, DRM_DWORD *f_pcbPRO);
 
-	// Parse init data to retrieve PRO from it.
 	int _ParseInitData(const uint8_t *f_pbInitData, uint32_t f_cbInitData);
 
 
 public:
 
 	PlayReadyDRMSession();
+
 	~PlayReadyDRMSession();
+
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
 			uint32_t f_cbInitData);
+
 	DrmData * aampGenerateKeyRequest(string& destinationURL);
+
 	int aampDRMProcessKey(DrmData* key);
+
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
+
 	KeyState getState();
+
 	void clearDecryptContext();
 
 };

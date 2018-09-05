@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/* Comcast Playready Session management
- *
+
+/**
+ * @file playreadydrmsession.cpp
+ * @brief Comcast Playready Session management
  */
+
 #include "config.h"
 #include "playreadydrmsession.h"
 #include <gst/gst.h>
@@ -66,6 +69,15 @@ const DRM_CONST_STRING *g_rgpdstrRights[1] =
 // The following function is missing from the official PK 2.5 release but
 // will be available in the next PK release.
 // It should be removed if the source is building with the next PK release.
+/**
+ * @brief Read UUID from init data
+ * @param pbData : Pointer to initdata
+ * @param cbData : size of init data
+ * @param ibGuidOffset : offset to uuid
+ * @param pDrmGuid : Gets updated with uuid
+ * @retval DRM_SUCCESS if no errors encountered
+ */
+
 DRM_API DRM_RESULT DRM_CALL DRM_UTL_ReadNetworkBytesToNativeGUID(
 		const DRM_BYTE *pbData, const DRM_DWORD cbData, DRM_DWORD ibGuidOffset,
 		DRM_GUID *pDrmGuid)
@@ -95,12 +107,13 @@ DRM_API DRM_RESULT DRM_CALL DRM_UTL_ReadNetworkBytesToNativeGUID(
 	ErrorExit: return dr;
 }
 
-
+/**
+ * @brief PlayReadyDRMSession Constructor
+ */
 PlayReadyDRMSession::PlayReadyDRMSession() :
-		m_poAppContext(NULL), m_pbOpaqueBuffer(NULL), m_cbOpaqueBuffer(0), m_pbRevocationBuffer(
-		NULL), m_eKeyState(KEY_INIT), m_fCommit(FALSE), m_pbChallenge(
-		NULL), m_cbChallenge(0), m_pchSilentURL(NULL), m_pbPRO(NULL), m_cbPRO(0),
-		m_pOutputProtection(NULL)
+		AampDrmSession(PLAYREADY_KEY_SYSTEM_STRING), m_poAppContext(NULL), m_pbOpaqueBuffer(NULL),
+		m_cbOpaqueBuffer(0), m_pbRevocationBuffer(NULL), m_eKeyState(KEY_INIT), m_fCommit(FALSE),
+		m_pbChallenge(NULL), m_cbChallenge(0), m_pchSilentURL(NULL), m_pbPRO(NULL), m_cbPRO(0)
 {
 	pthread_mutex_init(&decryptMutex,NULL);
 	initAampDRMSession();
@@ -109,6 +122,11 @@ PlayReadyDRMSession::PlayReadyDRMSession() :
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
 }
 
+
+/**
+ * @brief Initialize PR DRM session, state will be set as KEY_INIT
+ *        on success KEY_ERROR if failure.
+ */
 void PlayReadyDRMSession::initAampDRMSession()
 {
 
@@ -177,6 +195,12 @@ void PlayReadyDRMSession::initAampDRMSession()
 	m_eKeyState = KEY_ERROR;
 }
 
+/**
+ * @brief Create drm session with given init data
+ *        state will be KEY_INIT on success KEY_ERROR if failed
+ * @param f_pbInitData pointer to initdata
+ * @param f_cbInitData init data size
+ */
 void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
@@ -184,10 +208,6 @@ void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 	if (f_pbInitData != NULL)
 	{
-		//envParseInitData = getenv("PRCDMI_PARSE_INITDATA");
-		//if ((envParseInitData != NULL)
-	//			&& strcasecmp(envParseInitData, "true") == 0)
-		//{
 #ifdef TRACE_LOG
 		cout << "parseinitdata..." << endl;
 #endif
@@ -231,6 +251,10 @@ void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 	m_eKeyState = KEY_ERROR;
 }
 
+
+/**
+ * @brief PlayReadyDRMSession Destructor
+ */
 PlayReadyDRMSession::~PlayReadyDRMSession()
 {
 	pthread_mutex_destroy(&decryptMutex);
@@ -264,7 +288,14 @@ static DRM_ID PSSH_BOX_GUID =
 { 0x18, 0x4f, 0x8a, 0xd0, 0xf3, 0x10, 0x82, 0x4a, 0xb6, 0xc8, 0x32, 0xd8, 0xab,
 		0xa1, 0x83, 0xd3 };
 
-// Retrieve PRO from init data.
+/**
+ * @brief Retrieve PlayReady Object(PRO) from init data
+ * @param f_pbInitData : Pointer to initdata
+ * @param f_cbInitData : size of initdata
+ * @param f_pibPRO : Gets updated with PRO
+ * @param f_pcbPRO : size of PRO
+ * @retval DRM_SUCCESS if no errors encountered
+ */
 int PlayReadyDRMSession::_GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 		DRM_DWORD f_cbInitData, DRM_DWORD *f_pibPRO, DRM_DWORD *f_pcbPRO)
 {
@@ -412,7 +443,12 @@ int PlayReadyDRMSession::_GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 	ErrorExit: return dr;
 }
 
-// Parse init data to retrieve PRO from it.
+/**
+ * @brief Parse init data to retrieve PRO from it
+ * @param f_pbInitData : Pointer to initdata
+ * @param f_cbInitData : size of init data
+ * @retval DRM_SUCCESS if no errors encountered
+ */
 int PlayReadyDRMSession::_ParseInitData(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
@@ -443,7 +479,12 @@ int PlayReadyDRMSession::_ParseInitData(const uint8_t *f_pbInitData,
 	return dr;
 }
 
-
+/**
+ * @brief Generate key request from DRM session
+ *        Caller function should free the returned memory.
+ * @param destinationURL : gets updated with license server url
+ * @retval Pointer to DrmData containing license request, NULL if failure.
+ */
 DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
 {
 
@@ -517,7 +558,11 @@ DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
 	return NULL;
 }
 
-
+/**
+ * @brief Updates the received key to DRM session
+ * @param key : License key from license server.
+ * @retval DRM_SUCCESS if no errors encountered
+ */
 int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
 {
 #ifdef TRACE_LOG
@@ -551,7 +596,7 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
 					NO_OF(g_rgpdstrRights), m_pOutputProtection->PR_OP_Callback,
 					m_pOutputProtection->getPlayReadyLevels(), &m_oDecryptContext);
 #ifdef TRACE_LOG
-	logprintf("aampDRMProcessKey :: Printing bind result : %08x \n", dr);
+	printf("aampDRMProcessKey :: Printing bind result : %08x \n", dr);
 #endif
     ChkDR(dr);
 	m_eKeyState = KEY_READY;
@@ -569,6 +614,15 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
 
 }
 
+/**
+ * @brief Function to decrypt stream  buffer.
+ * @param f_pbIV : Initialization vector.
+ * @param f_cbIV : Initialization vector length.
+ * @param payloadData : Data to decrypt.
+ * @param payloadDataSize : Size of data.
+ * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
+ * @retval Returns 1 on success 0 on failure.
+ */
 int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
 {
@@ -665,11 +719,20 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 }
 
+
+/**
+ * @brief Get the current state of DRM Session.
+ * @retval KeyState
+ */
 KeyState PlayReadyDRMSession::getState()
 {
 	return m_eKeyState;
 }
 
+/**
+ * @brief Clear the current session context
+ *        So that new init data can be bound.
+ */
 void PlayReadyDRMSession:: clearDecryptContext()
 {
 	Drm_Reader_Close(&m_oDecryptContext);

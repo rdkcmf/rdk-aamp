@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file aamp_aes.cpp
+ * @brief HLS AES drm decryptor
+ */
+
 
 #include "aamp_aes.h"
 
@@ -31,6 +36,12 @@
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+
+/**
+ * @brief Signal key acquired to listener
+ * @param arg drm status listener
+ * @retval 0
+ */
 static int drmSignalKeyAquired(void * arg)
 {
 	AesDec * aesDec = (AesDec*)arg;
@@ -38,6 +49,12 @@ static int drmSignalKeyAquired(void * arg)
 	return 0;
 }
 
+
+/**
+ * @brief Signal drm error to listener
+ * @param arg drm status listener
+ * @retval 0
+ */
 static int drmSignalError(void * arg)
 {
 	AesDec * aesDec = (AesDec*)arg;
@@ -45,6 +62,11 @@ static int drmSignalError(void * arg)
 	return 0;
 }
 
+/**
+ * @brief key acquistion thread
+ * @param arg AesDec pointer
+ * @retval NULL
+ */
 static void * acquire_key(void* arg)
 {
 	AesDec *aesDec = (AesDec *)arg;
@@ -52,6 +74,10 @@ static void * acquire_key(void* arg)
 	return NULL;
 }
 
+/**
+ * @brief Notify drm error
+ * @param drmFailure drm error type
+ */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
 
@@ -69,10 +95,15 @@ void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 	{
 		mpAamp->SendErrorEvent(drmFailure);
 	}
+
 	PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
 	logprintf("AesDec::NotifyDRMError: drmState:%d\n", mDrmState );
 }
 
+
+/**
+ * @brief Signal drm error
+ */
 void AesDec::SignalDrmError()
 {
 	pthread_mutex_lock(&mMutex);
@@ -81,6 +112,10 @@ void AesDec::SignalDrmError()
 	pthread_mutex_unlock(&mMutex);
 }
 
+
+/**
+ * @brief Signal key acquired event
+ */
 void AesDec::SignalKeyAcquired()
 {
 	logprintf("aamp:AesDRMListener %s drmState:%d moving to KeyAcquired\n", __FUNCTION__, mDrmState);
@@ -91,6 +126,10 @@ void AesDec::SignalKeyAcquired()
 	mpAamp->LogDrmInitComplete();
 }
 
+
+/**
+ * @brief Acquire drm key from URI
+ */
 void AesDec::AcquireKey()
 {
 	char tempEffectiveUrl[MAX_URI_LENGTH];
@@ -105,13 +144,14 @@ void AesDec::AcquireKey()
 	{
 		if (AES_128_KEY_LEN_BYTES == mAesKeyBuf.len)
 		{
-			logprintf("%s:%d: Key fetch success\n", __FUNCTION__, __LINE__, mAesKeyBuf.len);
+			logprintf("%s:%d: Key fetch success len = %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
 			mDrmState = eDRM_KEY_ACQUIRED;
+
 			PrivateInstanceAAMP::AddIdleTask(drmSignalKeyAquired, this);
 		}
 		else
 		{
-			logprintf("%s:%d: Error Key fetch - size %d\n", __FUNCTION__, __LINE__, mAesKeyBuf.len);
+			logprintf("%s:%d: Error Key fetch - size %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
 			mDrmState = eDRM_KEY_FAILED;
 			aamp_Free(&mAesKeyBuf.ptr);
 		}
@@ -128,6 +168,14 @@ void AesDec::AcquireKey()
 	}
 }
 
+
+/**
+ * @brief prepare for decryption - individualization & license acquisition
+ *
+ * @param aamp AAMP instance to be associated with this decryptor
+ * @param metadata - Ignored
+ * @param drmInfo DRM information
+ */
 int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -135,7 +183,7 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 	pthread_mutex_lock(&mMutex);
 	if (mDrmState == eDRM_ACQUIRING_KEY )
 	{
-		logprintf("AesDec::%s:%d acquiring key in progress\n",__FUNCTION__, __LINE__, mDrmUrl);
+		logprintf("AesDec::%s:%d acquiring key in progress\n",__FUNCTION__, __LINE__);
 		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
 	}
 	mpAamp = aamp;
@@ -174,15 +222,21 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 		}
 	}
 	pthread_mutex_unlock(&mMutex);
-	logprintf("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
+	AAMPLOG_INFO("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
 	return ret;
 }
 
+
+/**
+ * @brief Wait for key acquisition completion
+ * @param[in] timeInMs timeout
+ * @param[out] err error on failure
+ */
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
 	struct timespec ts;
 	struct timeval tv;
-	logprintf( "aamp:waiting for key acquisition to complete,wait time:%d\n",timeInMs );
+	AAMPLOG_INFO( "aamp:waiting for key acquisition to complete,wait time:%d\n",timeInMs );
 	gettimeofday(&tv, NULL);
 	ts.tv_sec = time(NULL) + timeInMs / 1000;
 	ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
@@ -196,6 +250,14 @@ void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 	}
 }
 
+
+/**
+ * @brief Decrypts an encrypted buffer
+ * @param bucketType Type of bucket for profiling
+ * @param encryptedDataPtr pointer to encyrpted payload
+ * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+ * @param timeInMs wait time
+ */
 DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -207,7 +269,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	if (mDrmState == eDRM_KEY_ACQUIRED)
 	{
-		logprintf("AesDec::%s:%d Starting decrypt\n", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("AesDec::%s:%d Starting decrypt\n", __FUNCTION__, __LINE__);
 		unsigned char *decryptedDataBuf = (unsigned char *)malloc(encryptedDataLen);
 		int decryptedDataLen = 0;
 		if (decryptedDataBuf)
@@ -230,7 +292,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 				{
 					decryptedDataLen = decLen;
 					decLen = 0;
-					logprintf("AesDec::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d\n", __FUNCTION__, __LINE__, (int) decryptedDataLen, encryptedDataLen);
+					AAMPLOG_INFO("AesDec::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d\n", __FUNCTION__, __LINE__, (int) decryptedDataLen, (int)encryptedDataLen);
 					if (!EVP_DecryptFinal_ex(&mOpensslCtx, decryptedDataBuf + decryptedDataLen, &decLen))
 					{
 						logprintf("AesDec::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d\n", __FUNCTION__, __LINE__,
@@ -239,7 +301,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 					else
 					{
 						decryptedDataLen += decLen;
-						logprintf("AesDec::%s:%d decrypt success\n", __FUNCTION__, __LINE__);
+						AAMPLOG_INFO("AesDec::%s:%d decrypt success\n", __FUNCTION__, __LINE__);
 						err = eDRM_SUCCESS;
 					}
 				}
@@ -258,6 +320,10 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	return err;
 }
 
+
+/**
+ * @brief Release drm session
+ */
 void AesDec::Release()
 {
 	DrmReturn err = eDRM_ERROR;
@@ -270,6 +336,11 @@ void AesDec::Release()
 	pthread_mutex_unlock(&mMutex);
 }
 
+
+/**
+ * @brief Cancel timed_wait operation drm_Decrypt
+ *
+ */
 void AesDec::CancelKeyWait()
 {
 	pthread_mutex_lock(&mMutex);
@@ -281,6 +352,11 @@ void AesDec::CancelKeyWait()
 	pthread_mutex_unlock(&mMutex);
 }
 
+
+/**
+ * @brief Restore key state post cleanup of
+ * audio/video TrackState in case DRM data is persisted
+ */
 void AesDec::RestoreKeyState()
 {
 	pthread_mutex_lock(&mMutex);
@@ -295,6 +371,11 @@ void AesDec::RestoreKeyState()
 
 AesDec* AesDec::mInstance = nullptr;
 
+
+
+/**
+ * @brief Get singleton instance
+ */
 AesDec* AesDec::GetInstance()
 {
 	pthread_mutex_lock(&mutex);
@@ -306,6 +387,10 @@ AesDec* AesDec::GetInstance()
 	return mInstance;
 }
 
+/**
+ * @brief AesDec Constructor
+ * @retval
+ */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(nullptr)
 {
@@ -316,6 +401,10 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 	mCurlInstance = -1;
 }
 
+
+/**
+ * @brief AesDec Destructor
+ */
 AesDec::~AesDec()
 {
 	if (mpAamp && (-1 != mCurlInstance))

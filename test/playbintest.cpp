@@ -23,8 +23,8 @@
 #include <string.h>
 
 
-#define DEFAULT_URI "http://tungsten.aaplimg.com/VOD/bipbop_adv_example_v2/master.m3u8"
-#define DEFAULT_URI2 "http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8"
+#define DEFAULT_URI "aamps://tungsten.aaplimg.com/VOD/bipbop_adv_example_v2/master.m3u8"
+#define DEFAULT_URI2 "aamp://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8"
 #define DEFAULT_VIDEO_RECT "0,0,1280,720"
 
 #define PLAYBINTEST_NUMBER_OF_VID 1

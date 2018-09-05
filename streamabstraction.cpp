@@ -18,111 +18,25 @@
 */
 
 /**
-* @file mediatrack.cpp
-* Definition of common class functions used by fragment collectors.
-*/
+ * @file streamabstraction.cpp
+ * @brief Definition of common class functions used by fragment collectors.
+ */
 
 #include "StreamAbstractionAAMP.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
 #include <iterator>
-#include <sys/time.h>
+
 #define AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC (512*1024/8)
 #define AAMP_STALL_CHECK_TOLERANCE 2
-#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 6 //3 fragments for Comcast linear streams.
 
 using namespace std;
-struct IframeTrackInfo
-{
-    long bandwidth;
-    int idx;
-};
 
-static gboolean BufferHealthMonitor(gpointer user_data)
-{
-	MediaTrack* mediaTrack = (MediaTrack*) user_data;
-	mediaTrack->MonitorBufferHealth();
-	return G_SOURCE_CONTINUE;
-}
 
-static gboolean BufferHealthMonitorSchedule(gpointer user_data)
-{
-	MediaTrack* mediaTrack = (MediaTrack*) user_data;
-	mediaTrack->ScheduleBufferHealthMonitor();
-	return G_SOURCE_REMOVE;
-}
-
-const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
-{
-	const char* ret;
-	switch (status)
-	{
-		default:
-		case BUFFER_STATUS_GREEN:
-			ret = "GREEN";
-			break;
-		case BUFFER_STATUS_YELLOW:
-			ret = "YELLOW";
-			break;
-		case BUFFER_STATUS_RED:
-			ret = "RED";
-			break;
-	}
-	return ret;
-}
-
-void MediaTrack::ScheduleBufferHealthMonitor()
-{
-	pthread_mutex_lock(&mutex);
-	if (!abort)
-	{
-		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(gpGlobalConfig->bufferHealthMonitorInterval, BufferHealthMonitor, this);
-	}
-	pthread_mutex_unlock(&mutex);
-}
-
-void MediaTrack::MonitorBufferHealth()
-{
-	pthread_mutex_lock(&mutex);
-#ifdef BUFFER_MONITOR_USE_SINK_CACHE_QUERY
-	if (BUFFER_STATUS_YELLOW == bufferStatus)
-	{
-		if (aamp->IsSinkCacheEmpty((MediaType) type) )
-		{
-			bufferStatus = BUFFER_STATUS_RED;
-		}
-	}
-#else
-	double bufferedTime = cacheDurationSeconds - GetContext()->GetElapsedTime();
-	traceprintf("%s:%d [%s] bufferedTime %f current time-stamp %lld\n", __FUNCTION__, __LINE__, name, bufferedTime, aamp_GetCurrentTimeMS());
-	if (bufferedTime <= 0)
-	{
-		bufferStatus = BUFFER_STATUS_RED;
-	}
-	else if (bufferedTime > AAMP_BUFFER_MONITOR_GREEN_THRESHOLD)
-	{
-		bufferStatus = BUFFER_STATUS_GREEN;
-	}
-	else
-	{
-		bufferStatus = BUFFER_STATUS_YELLOW;
-	}
-#endif
-	if (bufferStatus != prevBufferStatus)
-	{
-		logprintf("aamp: track[%s] buffering %s->%s\n", name, GetBufferHealthStatusString(prevBufferStatus),
-		        GetBufferHealthStatusString(bufferStatus));
-		prevBufferStatus = bufferStatus;
-	}
-	else
-	{
-		traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
-		        GetBufferHealthStatusString(bufferStatus));
-	}
-	pthread_mutex_unlock(&mutex);
-}
-
+/**
+ * @brief Updates internal state after a fragment inject
+ */
 void MediaTrack::UpdateTSAfterInject()
 {
 	pthread_mutex_lock(&mutex);
@@ -134,14 +48,6 @@ void MediaTrack::UpdateTSAfterInject()
 		fragmentIdxToInject = 0;
 	}
 	numberOfFragmentsCached--;
-
-#ifdef BUFFER_MONITOR_USE_SINK_CACHE_QUERY
-	if (0 == numberOfFragmentsCached)
-	{
-		bufferStatus = BUFFER_STATUS_YELLOW;
-	}
-#endif
-
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -153,6 +59,10 @@ void MediaTrack::UpdateTSAfterInject()
 	pthread_mutex_unlock(&mutex);
 }
 
+
+/**
+ * @brief Updates internal state after a fragment fetch
+ */
 void MediaTrack::UpdateTSAfterFetch()
 {
 	bool notifyCacheCompleted = false;
@@ -161,16 +71,16 @@ void MediaTrack::UpdateTSAfterFetch()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] before update fragmentIdxToFetch = %d numberOfFragmentsCached %d uri %s\n",
-		        __FUNCTION__, __LINE__, name, fragmentIdxToFetch, numberOfFragmentsCached,
-		        cachedFragment[fragmentIdxToFetch].uri);
+		logprintf("%s:%d [%s] before update fragmentIdxToFetch = %d numberOfFragmentsCached %d\n",
+		        __FUNCTION__, __LINE__, name, fragmentIdxToFetch, numberOfFragmentsCached);
 	}
 #endif
-	cacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
+	totalFetchedDuration += cachedFragment[fragmentIdxToFetch].duration;
 	if((eTRACK_VIDEO == type) && aamp->IsFragmentBufferingRequired())
 	{
 		if(!notifiedCachingComplete)
 		{
+			cacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
 			if(cacheDurationSeconds >= gpGlobalConfig->minVODCacheSeconds)
 			{
 				logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minVODCacheSeconds %d##\n", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
@@ -198,14 +108,6 @@ void MediaTrack::UpdateTSAfterFetch()
 #endif
 	numberOfFragmentsCached++;
 	assert(numberOfFragmentsCached <= MAX_CACHED_FRAGMENTS_PER_TRACK);
-
-#ifdef BUFFER_MONITOR_USE_SINK_CACHE_QUERY
-	if (MAX_CACHED_FRAGMENTS_PER_TRACK == numberOfFragmentsCached)
-	{
-		bufferStatus = BUFFER_STATUS_GREEN;
-	}
-#endif
-
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -224,6 +126,12 @@ void MediaTrack::UpdateTSAfterFetch()
 }
 
 
+/**
+ * @brief Wait until a free fragment is available.
+ * @note To be called before fragment fetch by subclasses
+ * @param timeoutMs - timeout in milliseconds. -1 for infinite wait
+ * @retval true if fragment available, false on abort.
+ */
 bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 {
 	bool ret = true;
@@ -302,6 +210,10 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 	return ret;
 }
 
+/**
+ * @brief Wait until a cached fragment is available.
+ * @retval true if fragment available, false on abort.
+ */
 bool MediaTrack::WaitForCachedFragmentAvailable()
 {
 	bool ret;
@@ -331,6 +243,11 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 	return ret;
 }
 
+
+/**
+ * @brief Aborts wait for fragment.
+ * @param[in] immediate Indicates immediate abort as in a seek/ stop
+ */
 void MediaTrack::AbortWaitForCachedFragment( bool immediate)
 {
 	pthread_mutex_lock(&mutex);
@@ -350,8 +267,13 @@ void MediaTrack::AbortWaitForCachedFragment( bool immediate)
 }
 
 
+
+/**
+ * @brief Inject next cached fragment
+ */
 bool MediaTrack::InjectFragment()
 {
+	bool ret = true;
 	aamp->BlockUntilGstreamerWantsData(NULL, 0, type);
 
 	if (WaitForCachedFragmentAvailable())
@@ -365,23 +287,68 @@ bool MediaTrack::InjectFragment()
 #endif
 		if (cachedFragment->fragment.ptr)
 		{
+			StreamAbstractionAAMP*  context = GetContext();
+			if (cachedFragment->discontinuity &&  (1.0 == context->aamp->rate))
+			{
+				logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
+				cachedFragment->discontinuity = false;
+				stopInjection = aamp->Discontinuity((MediaType) type);
+				/*For muxed streams, give discontinuity for audio track as well*/
+				if (!context->GetMediaTrack(eTRACK_AUDIO)->enabled)
+				{
+					aamp->Discontinuity(eMEDIATYPE_AUDIO);
+				}
+				if (stopInjection)
+				{
+					ret = false;
+					logprintf("%s:%d - stopping injection\n", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					logprintf("%s:%d - continuing injection\n", __FUNCTION__, __LINE__);
+				}
+			}
+			if (!stopInjection)
+			{
+#ifdef AAMP_DEBUG_INJECT
+				if ((1 << type) & AAMP_DEBUG_INJECT)
+				{
+					logprintf("%s:%d [%s] Inject uri %s\n", __FUNCTION__, __LINE__, name, cachedFragment->uri);
+				}
+#endif
 #ifndef SUPRESS_DECODE
 #ifndef FOG_HAMMER_TEST // support aamp stress-tests of fog without video decoding/presentation
-			InjectFragmentInternal(cachedFragment, stopInjection, fragmentDiscarded);
-			if (GetContext()->mIsFirstBuffer && !fragmentDiscarded)
-			{
-				GetContext()->mIsFirstBuffer = false;
-				aamp->NotifyFirstBufferProcessed();
-			}
-			if (stopInjection)
-			{
-				return false;
-			}
+				InjectFragmentInternal(cachedFragment, fragmentDiscarded);
 #endif
 #endif
-			if(eTRACK_VIDEO == type)
-			{
-				GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex);
+				if (GetContext()->mIsFirstBuffer && !fragmentDiscarded)
+				{
+					GetContext()->mIsFirstBuffer = false;
+					aamp->NotifyFirstBufferProcessed();
+				}
+				if (eTRACK_VIDEO == type)
+				{
+					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex);
+				}
+				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f\n", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
+				if (!fragmentDiscarded)
+				{
+					totalInjectedDuration += cachedFragment->duration;
+					mSegInjectFailCount = 0;
+				}
+				else
+				{
+					logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded\n", __FUNCTION__, __LINE__, name);
+					mSegInjectFailCount++;
+					if(MAX_SEG_INJECT_FAIL_COUNT <= mSegInjectFailCount)
+					{
+						ret	= false;
+						logprintf("%s:%d [%s] Reached max inject failure count , stopping playback\n",__FUNCTION__, __LINE__, name);
+						aamp->SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+					}
+					
+				}
+				UpdateTSAfterInject();
 			}
 		}
 		else
@@ -403,18 +370,8 @@ bool MediaTrack::InjectFragment()
 			{
 				logprintf("%s:%d - %s - NULL ptr to inject. fragmentIdxToInject %d\n", __FUNCTION__, __LINE__, name, fragmentIdxToInject);
 			}
-			return false;
+			ret = false;
 		}
-		AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f\n", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
-		if (!fragmentDiscarded)
-		{
-			totalInjectedDuration += cachedFragment->duration;
-		}
-		else
-		{
-			logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded\n", __FUNCTION__, __LINE__, name);
-		}
-		UpdateTSAfterInject();
 	}
 	else
 	{
@@ -432,16 +389,22 @@ bool MediaTrack::InjectFragment()
 				aamp->EndOfStreamReached(eMEDIATYPE_AUDIO);
 			}
 		}
-		return false;
+		ret = false;
 	}
-	return true;
+	return ret;
 } // InjectFragment
 
 
+
+/**
+ * @brief Fragment injector thread
+ * @param arg Pointer to MediaTrack
+ * @retval NULL
+ */
 static void *FragmentInjector(void *arg)
 {
 	MediaTrack *track = (MediaTrack *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampInjector"))
+	if(pthread_setname_np(pthread_self(), "aampInjector"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
 	}
@@ -450,8 +413,13 @@ static void *FragmentInjector(void *arg)
 }
 
 
+
+/**
+ * @brief Starts inject loop of track
+ */
 void MediaTrack::StartInjectLoop()
 {
+	abort = false;
 	assert(!fragmentInjectorThreadStarted);
 	if (0 == pthread_create(&fragmentInjectorThreadID, NULL, &FragmentInjector, this))
 	{
@@ -463,26 +431,18 @@ void MediaTrack::StartInjectLoop()
 	}
 }
 
+
+/**
+ * @brief Injection loop - use internally by injection logic
+ */
 void MediaTrack::RunInjectLoop()
 {
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
-	bool notifyFirstFragment = true;
-	if (1.0 == aamp->rate)
-	{
-		assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
-		guint bufferMontiorSceduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
-		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(bufferMontiorSceduleTime, BufferHealthMonitorSchedule, this);
-	}
 	while (aamp->DownloadsAreEnabled())
 	{
 		if (!InjectFragment())
 		{
 			break;
-		}
-		if (notifyFirstFragment)
-		{
-			notifyFirstFragment = false;
-			GetContext()->NotifyFirstFragmentInjected();
 		}
 		if(isAudioTrack)
 		{
@@ -493,14 +453,13 @@ void MediaTrack::RunInjectLoop()
 			GetContext()->ReassessAndResumeAudioTrack();
 		}
 	}
-	if(bufferHealthMonitorIdleTaskId)
-	{
-		g_source_remove(bufferHealthMonitorIdleTaskId);
-		bufferHealthMonitorIdleTaskId = 0;
-	}
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
 }
 
+
+/**
+ * @brief Stop inject loop of track
+ */
 void MediaTrack::StopInjectLoop()
 {
 	if (fragmentInjectorThreadStarted)
@@ -521,11 +480,22 @@ void MediaTrack::StopInjectLoop()
 	fragmentInjectorThreadStarted = false;
 }
 
+
+/**
+ * @brief Check if a track is enabled
+ * @retval true if enabled, false if disabled
+ */
 bool MediaTrack::Enabled()
 {
 	return enabled;
 }
 
+
+/**
+ * @brief Get buffer to fetch and cache next fragment.
+ * @param[in] initialize true to initialize the fragment.
+ * @retval Pointer to fragment buffer.
+ */
 CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 {
 	/*Make sure fragmentDurationSeconds updated before invoking this*/
@@ -545,23 +515,38 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 	return cachedFragment;
 }
 
+
+/**
+ * @brief Set current bandwidth of track
+ * @param bandwidthBps bandwidth in bits per second
+ */
 void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 {
 	this->bandwidthBytesPerSecond = bandwidthBps/8;
 }
 
+/**
+ * @brief Get current bandwidth of track
+ * @return bandwidth in bytes per second
+ */
 int MediaTrack::GetCurrentBandWidth()
 {
 	return this->bandwidthBytesPerSecond;
 }
 
+
+/**
+ * @brief MediaTrack Constructor
+ * @param type Type of track
+ * @param aamp Pointer to associated aamp instance
+ * @param name Name of the track
+ */
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), totalFragmentsDownloaded(0),
 		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
-		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),
-		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
-		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC)
+		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0)
 {
 	this->type = type;
 	this->aamp = aamp;
@@ -572,6 +557,10 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 	pthread_mutex_init(&mutex, NULL);
 }
 
+
+/**
+ * @brief MediaTrack Destructor
+ */
 MediaTrack::~MediaTrack()
 {
 	for (int j=0; j< MAX_CACHED_FRAGMENTS_PER_TRACK; j++)
@@ -583,6 +572,10 @@ MediaTrack::~MediaTrack()
 	pthread_cond_destroy(&fragmentInjected);
 }
 
+/**
+ *   @brief Unblocks track if caught up with video or downloads are stopped
+ *
+ */
 void StreamAbstractionAAMP::ReassessAndResumeAudioTrack()
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
@@ -604,6 +597,11 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack()
 	}
 }
 
+
+/**
+ *   @brief Waits track injection until caught up with video track.
+ *   Used internally by injection logic
+ */
 void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
@@ -622,12 +620,15 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	pthread_mutex_unlock(&mLock);
 }
 
+
+/**
+ * @brief StreamAbstractionAAMP Constructor
+ * @param[in] aamp pointer to PrivateInstanceAAMP object associated with stream
+ */
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
-		mAbrProfileChgUpCntr(0), mAbrProfileChgDnCntr(0), trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
-		mLastVideoFragCheckedforABR(0), mTsbBandwidth(0),mNwConsistencyBypass(true),
-		desiredIframeProfile(0), lowestIframeProfile(-1), profileIdxForBandwidthNotification(0),
-		hasDrm(false), mIsAtLivePoint(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), mIsFirstBuffer(true)
+		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
+		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
+		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true)
 {
 #ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	mIsPlaybackStalled = false;
@@ -635,9 +636,17 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
+
+	// Set default init bitrate according to the config.
+	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
+
 	this->aamp = aamp;
 }
 
+
+/**
+ * @brief StreamAbstractionAAMP Destructor
+ */
 StreamAbstractionAAMP::~StreamAbstractionAAMP()
 {
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
@@ -647,49 +656,22 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 }
 
 
-int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile, long defaultBitrate)
+/**
+ *   @brief Get the desired profile to start fetching.
+ *
+ *   @param getMidProfile
+ *   @retval profile index to be used for the track.
+ */
+int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 {
 	int desiredProfileIndex;
-	// This function will be called only once during session creation to get default profile
-	// check if any profiles are added (incase), remove it before adding fresh
-	// populate the container with sorted order of BW vs its index
-	if(mSortedBWProfileList.size())
-	{
-		mSortedBWProfileList.erase(mSortedBWProfileList.begin(),mSortedBWProfileList.end());
-	}
-	int profileCount = GetProfileCount();
-	for(int cnt=0;cnt<profileCount;cnt++)
-	{
-		// store all the bandwidth data and its index to map which will sort byitself
-		if (!GetStreamInfo(cnt)->isIframeTrack)
-		{
-			mSortedBWProfileList[GetStreamInfo(cnt)->bandwidthBitsPerSecond] = cnt;
-		}
-	}
-	if (this->trickplayMode && -1 != lowestIframeProfile)
+	if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
 	{
 		desiredProfileIndex = GetIframeTrack();
 	}
-	else if(getMidProfile && profileCount > 1)
-	{
-		// get the mid profile from the sorted list
-		SortedBWProfileListIter iter = mSortedBWProfileList.begin();
-		std::advance(iter,(int)(mSortedBWProfileList.size()/2));
-		desiredProfileIndex = iter->second;
-	}
 	else
 	{
-		SortedBWProfileListIter iter;
-		desiredProfileIndex = mSortedBWProfileList.begin()->second;
-		for(iter = mSortedBWProfileList.begin(); iter != mSortedBWProfileList.end();iter++)
-		{
-			if (iter->first >= defaultBitrate)
-			{
-				logprintf("StreamAbstractionAAMP::%s desiredProfileIndex %d bitrate %ld defaultBitrate %ld\n", __FUNCTION__, desiredProfileIndex, GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond, defaultBitrate);
-				break;
-			}
-			desiredProfileIndex = iter->second;
-		}
+		desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
 	}
 	profileIdxForBandwidthNotification = desiredProfileIndex;
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
@@ -706,22 +688,30 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile, long defaultBit
 	return desiredProfileIndex;
 }
 
+/**
+ *   @brief Notify bitrate updates to application.
+ *   Used internally by injection logic
+ *
+ *   @param[in]  profileIndex - profile index of last injected fragment.
+ */
 void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 {
 	if (profileIndex != aamp->GetPersistedProfileIndex())
 	{
 		StreamInfo* streamInfo = GetStreamInfo(profileIndex);
 
-        bool lGetBWIndex = false;
-        /* START: Added As Part of DELIA-28363 and DELIA-28247 */
-        if(aamp->IsTuneTypeNew &&
-                streamInfo->bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond)){
-            MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-            logprintf("NotifyBitRateUpdate: Max BitRate: %ld,  timetotop: %f", streamInfo->bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
-            aamp->IsTuneTypeNew = false;
-            lGetBWIndex = true;
-        }
-        /* END: Added As Part of DELIA-28363 and DELIA-28247 */
+		bool lGetBWIndex = false;
+		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
+		if(aamp->IsTuneTypeNew &&
+			streamInfo->bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
+		{
+			MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f\n",
+				streamInfo->bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
+			aamp->IsTuneTypeNew = false;
+			lGetBWIndex = true;
+		}
+		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 		// Send bitrate notification
 		aamp->NotifyBitRateChangeEvent(streamInfo->bandwidthBitsPerSecond,
@@ -733,6 +723,10 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 }
 
 
+
+/**
+ * @brief Update profile state based on bandwidth of fragments downloaded
+ */
 void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 {
 	// This function checks for bandwidth change based on the fragment url from FOG
@@ -742,23 +736,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		// a) Check if network bandwidth changed from starting bw
 		// b) Check if netwwork bandwidth is different from persisted bandwidth( needed for first time reporting)
 		// find the profile for the newbandwidth
-		for (int i = 0; i < GetProfileCount(); i++)
-		{
-			StreamInfo* streamInfo = GetStreamInfo(i);
-			if (!streamInfo->isIframeTrack)
-			{
-				if (streamInfo->bandwidthBitsPerSecond == mTsbBandwidth)
-				{
-					// Good case ,most manifest url will have same bandwidth in fragment file with configured profile bandwidth
-					desiredProfileIndex = i;
-				}
-				else if (streamInfo->bandwidthBitsPerSecond < mTsbBandwidth)
-				{
-					// fragment file name bandwidth doesnt match the profile bandwidth, will be always less
-					desiredProfileIndex = (i + 1);
-				}
-			}
-		}
+		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
@@ -766,27 +744,20 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 	}
 }
 
+
+/**
+ * @brief Get desired profile based on cached duration
+ * @retval index of desired profile based on cached duration
+ */
 int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	int desiredProfileIndex = currentProfileIndex;
-	int nwConsistencyCnt = (mNwConsistencyBypass)?1:gpGlobalConfig->abrNwConsistency;
-	// this shouldnt happen , but checking it for safety , ensure list is populated
-        if(!mSortedBWProfileList.size())
-        {
-        	int profileCount = GetProfileCount();
-        	for(int cnt=0;cnt<profileCount;cnt++)
-        	{
-                	// store all the bandwidth data and its index to map which will sort byitself
-                	if (!GetStreamInfo(cnt)->isIframeTrack)
-                        	mSortedBWProfileList[GetStreamInfo(cnt)->bandwidthBitsPerSecond] = cnt;
-        	}
-	}
 
 	if (this->trickplayMode)
 	{
 		int tmpIframeProfile = GetIframeTrack();
-		if(tmpIframeProfile != -1)
+		if(tmpIframeProfile != ABRManager::INVALID_PROFILE)
 			desiredProfileIndex = tmpIframeProfile;
 	}
 	/*In live, fog takes care of ABR, and cache updating is not based only on bandwidth,
@@ -795,101 +766,35 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 	{
 		long currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 		long networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
-		if(networkBandwidth == -1)
-		{
-			logprintf("No network bandwidth info available , not changing profile[%d]\n",currentProfileIndex);
-			mAbrProfileChgUpCntr=0;mAbrProfileChgDnCntr=0;
-		}
-		else {
-		// regular scenario where cache is not empty
-		if(networkBandwidth > currentBandwidth)
-		{
-			// if networkBandwidth > is more than current bandwidth
-			SortedBWProfileListIter iter;
-			SortedBWProfileListIter currIter=mSortedBWProfileList.find(currentBandwidth);
-			SortedBWProfileListIter storedIter=mSortedBWProfileList.end();
-			for(iter = currIter; iter != mSortedBWProfileList.end();iter++)
-				{					
-					// This is sort List 
-					if(networkBandwidth >= iter->first)
-						{
-							desiredProfileIndex = iter->second;
-							storedIter = iter;
-						}
-						else
-							break;
-				}
-
-			// No need to jump one profile for one network bw increase
-			if(storedIter != mSortedBWProfileList.end() && (currIter->first < storedIter->first) &&  std::distance(currIter,storedIter) == 1 )	
-			{
-				mAbrProfileChgUpCntr++;
-				// if same profile holds good for next 3*2 fragments
-				if(mAbrProfileChgUpCntr < nwConsistencyCnt)
-					desiredProfileIndex = currentProfileIndex;
-				else
-					mAbrProfileChgUpCntr=0;
-			}
-			else
-			{
-				mAbrProfileChgUpCntr=0;
-			}
-			mAbrProfileChgDnCntr=0;
-		}
-		else
-		{
-			// if networkBandwidth < than current bandwidth
-			SortedBWProfileListRevIter reviter;
-                        SortedBWProfileListIter currIter=mSortedBWProfileList.find(currentBandwidth);
-                        SortedBWProfileListIter storedIter=mSortedBWProfileList.end();
-                        for(reviter=mSortedBWProfileList.rbegin(); reviter != mSortedBWProfileList.rend();reviter++)
-                                {
-                                        // This is sorted List
-                                        if(networkBandwidth >= reviter->first)
-                                                {
-                                                        desiredProfileIndex = reviter->second;
-							// convert from reviter to fwditer
-                                                        storedIter = reviter.base();
-							storedIter--;
-							break;
-                                                }
-                                }
-	
-			// No need to jump one profile for small  network change
-			if(storedIter != mSortedBWProfileList.end() && (currIter->first > storedIter->first) && std::distance(storedIter,currIter) == 1 )
-			{
-				mAbrProfileChgDnCntr++;
-				// if same profile holds good for next 3*2 fragments
-				if(mAbrProfileChgDnCntr < nwConsistencyCnt)
-					desiredProfileIndex = currentProfileIndex;
-				else
-					mAbrProfileChgDnCntr=0;
-                        }
-			else
-			{
-				mAbrProfileChgDnCntr=0;
-			}
-			mAbrProfileChgUpCntr=0;
-		}
-		}
-
+		int nwConsistencyCnt = (mNwConsistencyBypass)?1:gpGlobalConfig->abrNwConsistency;
+		// Ramp up/down (do ABR)
+		desiredProfileIndex = mAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
+				currentBandwidth, networkBandwidth, nwConsistencyCnt);
 		if(currentProfileIndex != desiredProfileIndex)
+		{
 			logprintf("aamp::GetDesiredProfileBasedOnCache---> currbw[%ld] nwbw[%ld] currProf[%d] desiredProf[%d] vidCache[%d]\n",currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex,video->numberOfFragmentsCached);
+		}
 	}
 	// only for first call, consistency check is ignored
 	mNwConsistencyBypass = false;
+
 	return desiredProfileIndex;
 }
 
+
+/**
+ * @brief Rampdown profile
+ * @retval true on profile change
+ */
 bool StreamAbstractionAAMP::RampDownProfile()
 {
 	bool ret = false;
 	int desiredProfileIndex = currentProfileIndex;
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	mLastVideoFragCheckedforABR = video->GetTotalFragmentsFetched();
 	if (this->trickplayMode)
 	{
 		//We use only second last and lowest profiles for iframes
+		int lowestIframeProfile = mAbrManager.getLowestIframeProfile();
 		if (desiredProfileIndex != lowestIframeProfile)
 		{
 			desiredProfileIndex = lowestIframeProfile;
@@ -897,19 +802,15 @@ bool StreamAbstractionAAMP::RampDownProfile()
 	}
 	else
 	{
-		 long currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
-                 SortedBWProfileListIter Iter=mSortedBWProfileList.find(currentBandwidth);
-		 if(Iter != mSortedBWProfileList.begin() && Iter!= mSortedBWProfileList.end())
-		 {
-			// get the prev profile . This is sorted list , so no worry of getting wrong profile 
-			std::advance(Iter, -1);
-                        desiredProfileIndex = Iter->second;
-		 }
+		desiredProfileIndex = mAbrManager.getRampedDownProfileIndex(currentProfileIndex);
 	}
 	if (desiredProfileIndex != currentProfileIndex)
 	{
 		this->currentProfileIndex = desiredProfileIndex;
+		profileIdxForBandwidthNotification = desiredProfileIndex;
+		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		ret = true;
+		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
 
 		// Send abr notification to XRE
 		video->ABRProfileChanged();
@@ -918,6 +819,12 @@ bool StreamAbstractionAAMP::RampDownProfile()
 	return ret;
 }
 
+/**
+ *   @brief Check for ramdown profile.
+ *
+ *   @param http_error
+ *   @retval true if rampdown needed in the case of fragment not available in higher profile.
+ */
 bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 {
 	bool retValue = false;
@@ -935,7 +842,6 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		//For timeout, rampdown in single steps might not be enough
 		else if (http_error == CURLE_OPERATION_TIMEDOUT)
 		{
-			mLastVideoFragCheckedforABR = GetMediaTrack(eTRACK_VIDEO)->GetTotalFragmentsFetched();
 			UpdateProfileBasedOnFragmentCache();
 		}
 	}
@@ -943,146 +849,86 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 	return retValue;
 }
 
+
+/**
+ *   @brief Checks and update profile based on bandwidth.
+ */
 void StreamAbstractionAAMP::CheckForProfileChange(void)
 {
-	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	// profile change check to be done for every 3rd video fragment or if current fragment is of duration > 5sec
-	// This function is called multiple times for same fragment.Ignore duplicate processing!!!
-	if((mLastVideoFragCheckedforABR != video->GetTotalFragmentsFetched()) && 
-		((video->GetTotalFragmentsFetched()%gpGlobalConfig->abrCheckInterval == 0)
-		||(video->fragmentDurationSeconds >= FRAG_DURATION_SEC_FOR_ABR_CHECK)))
+	// FOG based
+	if(aamp->IsTSBSupported())
 	{
-		// TODO: this is a HACK , need to remove later . This function is gettin called twice for same video fragment .
-		mLastVideoFragCheckedforABR	=	video->GetTotalFragmentsFetched();
-		// FOG based
-		if(aamp->IsTSBSupported())
+		// This is for FOG based download , where bandwidth is calculated based on downloaded fragment file name
+		// No profile change will be done or manifest download triggered based on profilechange
+		UpdateProfileBasedOnFragmentDownloaded();
+	}
+	else
+	{
+		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+		bool checkProfileChange = true;
+		//Avoid doing ABR during initial buffering which will affect tune times adversely
+		if (video->GetTotalFetchedDuration() > 0 && video->GetTotalFetchedDuration() < gpGlobalConfig->abrSkipDuration)
 		{
-			// This is for FOG based download , where bandwidth is calculated based on downloaded fragment file name
-			// No profile change will be done or manifest download triggered based on profilechange
-			UpdateProfileBasedOnFragmentDownloaded();
+			//For initial fragment downloads, check available bw is less than default bw
+			long availBW = aamp->GetCurrentlyAvailableBandwidth();
+			long currBW = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
+
+			//If available BW is less than current selected one, we need ABR
+			if (availBW > 0 && availBW < currBW)
+			{
+				logprintf("%s:%d Changing profile due to low available bandwidth(%ld) than default(%ld)!! \n", __FUNCTION__, __LINE__, availBW, currBW);
+			}
+			else
+			{
+				checkProfileChange = false;
+			}
 		}
-		else
+
+		if (checkProfileChange)
 		{
 			UpdateProfileBasedOnFragmentCache();
 		}
 	}
 }
 
+
+/**
+ *   @brief Get iframe track index.
+ *   This shall be called only after UpdateIframeTracks() is done
+ *
+ *   @retval iframe track index.
+ */
 int StreamAbstractionAAMP::GetIframeTrack()
 {
-	return desiredIframeProfile;
+	return mAbrManager.getDesiredIframeProfile();
 }
 
+
+/**
+ *   @brief Update iframe tracks.
+ *   Subclasses shall invoke this after StreamInfo is populated .
+ */
 void StreamAbstractionAAMP::UpdateIframeTracks()
 {
-	// Find the iframe profiles
-	int profileCount = GetProfileCount();
-	int iframeTrackIdx = -1;
-	struct IframeTrackInfo *iframeTrackInfo = new struct IframeTrackInfo[profileCount];
-	bool is4K = false;
-
-	for (int i = 0; i < GetProfileCount(); i++)
-	{
-		if (GetStreamInfo(i)->isIframeTrack)
-		{
-			iframeTrackIdx++;
-			iframeTrackInfo[iframeTrackIdx].bandwidth = GetStreamInfo(i)->bandwidthBitsPerSecond;
-			iframeTrackInfo[iframeTrackIdx].idx = i;
-		}
-	}
-
-	if(iframeTrackIdx >= 0)
-	{
-		//sort the iframe track array
-		 for (int i = 0; i < iframeTrackIdx; i++)
-		 {
-			 for (int j = 0; j < iframeTrackIdx - i; j++)
-			 {
-					if (iframeTrackInfo[j].bandwidth > iframeTrackInfo[j+1].bandwidth)
-					{
-						struct IframeTrackInfo temp = iframeTrackInfo[j];
-						iframeTrackInfo[j] = iframeTrackInfo[j+1];
-						iframeTrackInfo[j+1] = temp;
-					}
-			 }
-		 }
-
-		int highestProfileIdx = iframeTrackInfo[iframeTrackIdx].idx;
-		if(GetStreamInfo(highestProfileIdx)->resolution.height > 1080
-			|| GetStreamInfo(highestProfileIdx)->resolution.width > 1920)
-		{
-			is4K = true;
-		}
-
-		if(is4K)
-		{
-			// get the default profile of 4k video , apply same bandwidth of video to iframe also
-			int desiredProfileIndexNonIframe 	=  GetProfileCount()/ 2; 
-			int desiredProfileNonIframeBW 		= GetStreamInfo(desiredProfileIndexNonIframe)->bandwidthBitsPerSecond ;
-			desiredIframeProfile	= lowestIframeProfile	= 0;
-			for (int cnt = 0; cnt <= iframeTrackIdx; cnt++)
-				{
-					// if bandwidth matches , apply to both desired and lower ( for all speed of trick)
-					if(iframeTrackInfo[cnt].bandwidth == desiredProfileNonIframeBW)
-						{
-							desiredIframeProfile = lowestIframeProfile = cnt;
-							break;
-						}
-				}
-			// if matching bandwidth not found with video , then pick the middle profile for iframe
-			if((!desiredIframeProfile) && (iframeTrackIdx >= 1))
-				{
-					desiredIframeProfile = (iframeTrackIdx/2) + (iframeTrackIdx%2);
-					lowestIframeProfile = desiredIframeProfile;
-				}
-		}
-		else
-		{
-			//Keeping old logic for non 4K streams
-			for (int i = 0; i < GetProfileCount(); i++)
-			{
-				if (GetStreamInfo(i)->isIframeTrack)
-				{
-					if(lowestIframeProfile == -1)
-					{
-						// first pick the lowest profile available
-						lowestIframeProfile = i;
-						desiredIframeProfile = i;
-						continue;
-					}
-					// if more profiles available , stored second best to desired profile
-					desiredIframeProfile = i;
-					break; // select first-advertised
-				}
-			}
-		}
-	}
-	delete[] iframeTrackInfo;
+	mAbrManager.updateProfile();
 }
 
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
-	mIsPaused = paused;
 	if (paused)
 	{
 		mIsAtLivePoint = false;
-		mLastPausedTimeStamp = aamp_GetCurrentTimeMS();
-	}
-	else
-	{
-		if(-1 != mLastPausedTimeStamp)
-		{
-			mTotalPausedDurationMS += (aamp_GetCurrentTimeMS() - mLastPausedTimeStamp);
-			mLastPausedTimeStamp = -1;
-		}
-		else
-		{
-			logprintf("StreamAbstractionAAMP:%s() mLastPausedTimeStamp -1\n", __FUNCTION__);
-		}
 	}
 }
 
 #ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
+
+/**
+ *   @brief Check if playback is stalled in streamer.
+ *
+ *   @param expectedInjectedDuration
+ *   @retval true if playback stalled, false otherwise.
+ */
 bool StreamAbstractionAAMP::CheckIfPlaybackStalled(double expectedInjectedDuration)
 {
 	// positionMS is currentPosition that will be sent in MediaProgress event
@@ -1094,7 +940,7 @@ bool StreamAbstractionAAMP::CheckIfPlaybackStalled(double expectedInjectedDurati
 	{
 		traceprintf("StreamAbstractionAAMP:%s() expectedInjectedDuration %f injectedDuration %f\n", __FUNCTION__, expectedInjectedDuration, videoTrack->GetTotalInjectedDuration());
 		// Also check if internal cache and gstreamer cache are also empty
-		if (videoTrack->GetBufferHealthStatus() == BUFFER_STATUS_RED && mIsPlaybackStalled)
+		if (videoTrack->numberOfFragmentsCached == 0 && aamp->IsSinkCacheEmpty(eMEDIATYPE_VIDEO) && mIsPlaybackStalled)
 		{
 			logprintf("StreamAbstractionAAMP:%s() Stall detected. Buffer status is RED! expectedInjectedDuration %f injectedDuration %f\n", __FUNCTION__, expectedInjectedDuration, videoTrack->GetTotalInjectedDuration());
 			return true;
@@ -1104,6 +950,12 @@ bool StreamAbstractionAAMP::CheckIfPlaybackStalled(double expectedInjectedDurati
 	return false;
 }
 #else
+
+/**
+ *   @brief Check if player caches are running dry.
+ *
+ *   @return true if player caches are running dry, false otherwise.
+ */
 bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 {
 	MediaTrack *videoTrack = GetMediaTrack(eTRACK_VIDEO);
@@ -1124,51 +976,10 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 }
 #endif
 
-void StreamAbstractionAAMP::NotifyFirstFragmentInjected()
-{
-	pthread_mutex_lock(&mLock);
-	if (-1 == mStartTimeStamp)
-	{
-		mStartTimeStamp = aamp_GetCurrentTimeMS();
-	}
-	pthread_mutex_unlock(&mLock);
-}
 
-double StreamAbstractionAAMP::GetElapsedTime()
-{
-	double elapsedTime = -1;
-	pthread_mutex_lock(&mLock);
-	traceprintf("StreamAbstractionAAMP:%s() mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld\n", __FUNCTION__, mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
-	if (!mIsPaused)
-	{
-		elapsedTime = (double)(aamp_GetCurrentTimeMS() - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
-	}
-	else
-	{
-		elapsedTime = (double)(mLastPausedTimeStamp - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
-	}
-	pthread_mutex_unlock(&mLock);
-	return elapsedTime;
-}
-
-
-/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-int StreamAbstractionAAMP::GetBWIndex(long BitRate)
-{
-    int TopBWIndex = 0;
-
-    SortedBWProfileListRevIter MapBWRevIter;
-    for(MapBWRevIter = mSortedBWProfileList.rbegin(); MapBWRevIter != mSortedBWProfileList.rend(); ++MapBWRevIter){
-        if(MapBWRevIter->first == BitRate){
-            break;
-        }
-        --TopBWIndex;
-    }
-
-    return TopBWIndex;
-}
-/* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
+/**
+ * @brief Update profile state based on cached fragments
+ */
 void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);

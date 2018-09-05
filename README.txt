@@ -1,14 +1,14 @@
 Advanced Adaptive Micro Player (AAMP)
 
-https://gerrit.teamccp.com/#/admin/projects/rdk/components/cpc/aamp/generic
+https://code.rdkcentral.com/r/rdk/components/generic/aamp
 
-git clone https://gerrit.teamccp.com/rdk/components/cpc/aamp/generic && (cd generic && curl -kLo `git rev-parse --git-dir`/hooks/commit-msg https://gerrit.teamccp.com/tools/hooks/commit-msg; chmod +x `git rev-parse --git-dir`/hooks/commit-msg)
+git clone https://code.rdkcentral.com/r/rdk/components/generic/aamp && (cd aamp && gitdir=$(git rev-parse --git-dir); curl -o ${gitdir}/hooks/commit-msg https://code.rdkcentral.com/r/tools/hooks/commit-msg ; chmod +x ${gitdir}/hooks/commit-msg)
 git push origin HEAD:refs/for/master
 
 ========================================================================================
 
 Win32 build:
-prerequisite - install 
+prerequisite - install
 docs.gstreamer.com (0.10); installs to C:\gstreamer-sdk\0.10\x86_64\bin
 	GStreamer SDK 2013.6 (Congo) for Windows 64 bits (Runtime)
 		gstreamer-sdk-x86_64-2013.6.msi
@@ -24,7 +24,7 @@ docs.gstreamer.com (0.10); installs to C:\gstreamer-sdk\0.10\x86_64\bin
 
 	if libcurl.dll error,
 	copy libcurl.dll from AAMP\vs2010\curl-7.46.0-win64\dlls to C:\gstreamer-sdk\0.10\x86_64\bin
-	
+
 	if VCRUNTIME140.dll error, install runtime (required by gstreamer)
 	https://www.microsoft.com/en-us/download/details.aspx?id=48145
 
@@ -40,7 +40,7 @@ RDK Build notes
 2. Enable receiver use of AAMP Video Engine.
 
 2.a) Via RFC rule 'AAMP' in prod or DEV RFC xconf - add eSTB Mac
-- After adding the box mac in the list, reboot the box twice, one for downloading RFC config and next for getting AAMP configuration 
+- After adding the box mac in the list, reboot the box twice, one for downloading RFC config and next for getting AAMP configuration
 
 - or -
 
@@ -112,7 +112,7 @@ demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
 disableEC3=1 // removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.
 			 //In case of MPEG DASH playback this flag makes AAC preferred over ATMOS and DD+
-			 //Default priority of audio selction in DASH is ATMOS, DD+ then AAC 
+			 //Default priority of audio selction in DASH is ATMOS, DD+ then AAC
 disableATMOS=1 //For DASH playback makes DD+ or AAC preferred over ATMOS (EC+3)
 
 live-offset    live offset time in seconds, aamp starts live playback this much time before the live point
@@ -128,22 +128,24 @@ ad-url		url of ad content to be inserted, use together with ad-position
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 min-vod-cache	Vod duration to be cached before playing in seconds.
 fragmentDLTimeout=<download time out> Specify curl fragment download time out in seconds, default is 5 seconds
-licence-anonymous-request If set, makes PlayReady/WideVine licence request without access token
+license-anonymous-request If set, makes PlayReady/WideVine license request without access token
 abr-cache-life=<x in sec> lifetime value for abr cache  for network bandwidth calculation(default 5 sec)
 abr-cache-length=<x>  length of abr cache for network bandwidth calculation (default 3)
 abr-cache-outlier=<x in bytes> Outlier difference which will be ignored from network bandwidth calculation(default 5MB)
-abr-nw-consistency=<x> Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2) 
-abr-chk-interval=<x> abr trigger interval, count of fragment downloaded for abr (default 3) 
-buffer-health-monitor-delay=<x in sec> Override for buffer health monitor start delay after tune/ seek
-buffer-health-monitor-interval=<x in sec> Override for buffer health monitor interval
+abr-nw-consistency=<x> Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2)
+abr-skip-duration=<x> minimum duration of fragment to be downloaded before triggering abr (default 6 sec).
 hls-av-sync-use-start-time=1 Use EXT-X-PROGRAM-DATE to synchronize audio and video playlists. Disabled in default configuration.
 playlists-parallel-fetch=1 Fetch audio and video playlists in parallel. Disabled in default configuration.
 pre-fetch-iframe-playlist=1 Pre-fetch iframe playlist for VOD. Enabled by default.
-licence-server-url=<serverUrl> URL to be used for license requests for encrypted(PR/WV) assets.
+license-server-url=<serverUrl> URL to be used for license requests for encrypted(PR/WV) assets.
 vod-trickplay-fps=<x> Specify the framerate for VOD trickplay (defaults to 4)
 linear-trickplay-fps=<x> Specify the framerate for Linear trickplay (defaults to 8)
 http-proxy=<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy
 http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with Proxy Authentication Credentials. Make sure to encode special characters if present in username or password (URL Encoding)
+mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
+mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
+force-http Allow forcing of HTTP protocol for HTTPS URLs
+
 CLI-specific commands:
 <enter>		dump currently available profiles
 help		show usage notes
@@ -168,3 +170,7 @@ version,build,tuneStartBaseUTCMS,ManifestDownloadStartTime,ManifestDownloadTotal
 
 version#3
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime
+
+version#4
+version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune
+

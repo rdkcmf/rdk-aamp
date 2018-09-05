@@ -16,14 +16,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file aampgstplayer.h
+ * @brief Gstreamer based player for AAMP
+ */
+
 #ifndef AAMPGSTPLAYER_H
 #define AAMPGSTPLAYER_H
 
 #include <stddef.h>
 #include "priv_aamp.h"
 
+/**
+ * @struct AAMPGstPlayerPriv
+ * @brief forward declaration of AAMPGstPlayerPriv
+ */
 struct AAMPGstPlayerPriv;
 
+/**
+ * @class AAMPGstPlayer
+ * @brief Class declaration of Gstreamer based player
+ */
 class AAMPGstPlayer : public StreamSink
 {
 public:

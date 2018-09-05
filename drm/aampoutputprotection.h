@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/* Comcast DRM Session management for Aamp
- *
+
+/**
+ * @file aampoutputprotection.h
+ * @brief Comcast Output protection management for Aamp
  */
+
 #ifndef aampoutputprotection_h
 #define aampoutputprotection_h
 
@@ -57,16 +60,22 @@ using namespace std;
 #define UHD_WITDH   3840
 #define UHD_HEIGHT  2160
 
-
+/**
+ * @class ReferenceCount
+ * @brief Provides reference based memory management
+ */
 class ReferenceCount
 {
 public:
+
     ReferenceCount() : m_refCount(0) {
         pthread_mutex_init(&m_refCountMutex, NULL);
     }
+
     virtual ~ReferenceCount() {
         pthread_mutex_destroy(&m_refCountMutex);
     }
+
 
     uint32_t AddRef() const {
         pthread_mutex_lock(&m_refCountMutex);
@@ -74,6 +83,7 @@ public:
         pthread_mutex_unlock(&m_refCountMutex);
         return m_refCount;
     }
+
 
     void Release() const {
         pthread_mutex_lock(&m_refCountMutex);
@@ -90,6 +100,10 @@ private:
     mutable int                 m_refCount;
 };
 
+/**
+ * @class AampOutputProtection
+ * @brief Class to enforce HDCP authentication
+ */
 class AampOutputProtection : public ReferenceCount
 {
 
@@ -121,37 +135,57 @@ private:
 
 
     void SetHDMIStatus();
+
     void SetResolution(int width, int height);
 
     GstElement* FindElement(GstElement *element, const char* targetName);
+
     bool FindSourceDimensions(uint32_t* pWidth, uint32_t* pHeight);
 
 public:
 
     AampOutputProtection();
+
     virtual ~AampOutputProtection();
 
 #ifndef USE_OPENCDM
+
+    /**
+     * @brief Get PlayRedy OP levels
+     * @retval m_minOPLevels
+     */
     MinOPLevelsplayReady* getPlayReadyLevels() { return & m_minOPLevels; }
 
-    // Pleayrady OP Callback
     static DRM_RESULT DRM_CALL PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
                                               DRM_POLICY_CALLBACK_TYPE f_dwCallbackType,
                                               const DRM_VOID *data);
 #endif
 
     // IARM Callbacks
+
     static void HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+
     static void ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 
     // State functions
+
+    /**
+     * @brief Check if HDCP is 2.2
+     * @retval true if 2.2 false otherwise
+     */
     bool isHDCPConnection2_2() { return m_hdcpCurrentProtocol == dsHDCP_VERSION_2X; }
+
     bool IsSourceUHD();
 
+    /**
+     * @brief Set GstElement
+     * @param element
+     */
     void setGstElement(GstElement *element) { m_gstElement = element;  }
 
     // Singleton for object creation
     static AampOutputProtection * GetAampOutputProcectionInstance();
+
     static bool IsAampOutputProcectionInstanceActive();
 
 };

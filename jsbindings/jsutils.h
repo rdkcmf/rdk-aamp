@@ -16,9 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 /**
-* @file JavaScript util functions for AAMP
-*/
+ * @file jsutils.h
+ * @brief JavaScript util functions for AAMP
+ */
+
 
 #ifndef __AAMP_JSUTILS_H__
 #define __AAMP_JSUTILS_H__
@@ -49,6 +52,10 @@
 #define TRACELOG(...)
 #endif
 
+/**
+ * @enum ErrorCode
+ * @brief
+ */
 enum ErrorCode
 {
 	AAMPJS_INVALID_ARGUMENT = -1,
@@ -56,18 +63,66 @@ enum ErrorCode
 	AAMPJS_GENERIC_ERROR = -3
 };
 
+
+/**
+ * @brief
+ * @param context
+ * @param sz
+ * @retval
+ */
 JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz);
 
+
+/**
+ * @brief
+ * @param context
+ * @param value
+ * @param exception
+ * @retval
+ */
 char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
 
+
+/**
+ * @brief
+ * @param context
+ * @param value
+ * @retval
+ */
 bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value);
 
+/**
+ * @brief
+ * @param context
+ * @param arrayRef
+ * @retval
+ */
 std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef);
 
+
+/**
+ * @brief
+ * @param context
+ * @param error
+ * @param additionalInfo
+ * @retval
+ */
 JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo);
 
+
+/**
+ * @brief
+ * @param szName
+ * @retval
+ */
 AAMPEventType aamp_getEventTypeFromName(const char* szName);
 
+
+/**
+ * @brief
+ * @param type
+ * @retval
+ */
 const char* aamp_getNameFromEventType(AAMPEventType type);
 
 #endif /* __AAMP_JSUTILS_H__ */

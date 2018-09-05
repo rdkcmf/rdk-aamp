@@ -16,22 +16,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-/*
 
- Data structures to manage DRM sessions
 
- */
+/**
+* @file AampDRMutils.h
+* @brief Data structures to help with DRM sessions. 
+*/
 
 #ifndef AampDRMutils_h
 #define AampDRMutils_h
-#define MAX_CHALLENGE_LEN 64000
 
-#include <gst/gst.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * @class DrmData
+ * @brief To hold DRM key, license request etc.
+ */
 class DrmData{
 
 private:
@@ -39,53 +42,17 @@ private:
 	int dataLength;
 public:
 
-	DrmData(){
-		dataLength = 0;
-		data = NULL;
-	}
+	DrmData();
+	DrmData(unsigned char *data, int dataLength);
+	~DrmData();
 
-	DrmData(unsigned char *data, int dataLength){
-		this->data =(unsigned char*) malloc(dataLength + 1);
-		this->dataLength = dataLength;
-		memcpy(this->data,data,dataLength + 1);
-	}
-	~DrmData(){
-		if(data != NULL)
-		{
-			free(data);
-			data = NULL;
-		}
-		//printf(" \n\n Releasing data object of length : %d\n\n", dataLength);
-	}
+	unsigned char * getData();
 
-	unsigned char * getData(){
-		return data;
-	}
+	int getDataLength();
 
-	int getDataLength(){
-		return dataLength;
-	}
+	void setData(unsigned char * data, int dataLength);
 
-	void setData(unsigned char * data, int dataLength){
-		if(this->data != NULL){
-			free(data);
-		}
-		this->data =  (unsigned char*) malloc(dataLength + 1);
-		this->dataLength = dataLength;
-		memcpy(this->data,data,dataLength + 1);
-	}
-
-	void addData(unsigned char * data, int dataLength){
-		if(NULL == this->data){
-			this->setData(data,dataLength);
-		}
-		else{
-			this->data = (unsigned char*) realloc(this->data, this->dataLength + dataLength + 1);
-			assert(this->data);
-			memcpy(&(this->data[this->dataLength]),data,dataLength + 1);
-			this->dataLength = this->dataLength + dataLength;
-		}
-	}
+	void addData(unsigned char * data, int dataLength);
 
 };
 

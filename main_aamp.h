@@ -18,9 +18,10 @@
 */
 
 /**
-* @file main_aamp.h
-* public API for AAMP
-*/
+ * @file main_aamp.h
+ * @brief public API for AAMP
+ */
+
 #ifndef MAINAAMP_H
 #define MAINAAMP_H
 
@@ -28,6 +29,14 @@
 #include <string>
 
 #include <stddef.h>
+
+/*! \mainpage
+ *
+ * \section intro_sec Introduction
+ *
+ * See PlayerInstanceAAMP for libaamp public C++ API's
+ *
+ */
 
 #ifndef STANDALONE_AAMP
 extern "C"
@@ -37,7 +46,6 @@ extern "C"
 	 *
 	 *   @param[in]  context - JS Core context.
 	 *   @param[in]  playerInstanceAAMP - AAMP instance. NULL creates new aamp instance.
-	 *   @return void
 	 */
     void aamp_LoadJS(void* context, void* playerInstanceAAMP);
 
@@ -45,12 +53,15 @@ extern "C"
 	 *   @brief  Unload aamp JS bindings.
 	 *
 	 *   @param[in]  context - JS Core context.
-	 *   @return void
 	 */
     void aamp_UnloadJS(void* context);
 }
 #endif
 
+/**
+ * @enum AAMPEventType 
+ * @brief
+ */
 typedef enum
 {
 	AAMP_EVENT_TUNED = 1, /** Tune success*/
@@ -69,12 +80,17 @@ typedef enum
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
+/**
+ * @enum AAMPTuneFailure
+ * @brief
+ */
 typedef enum
 {
 	AAMP_TUNE_INIT_FAILED, /** Tune failure due to initialization error*/
 	AAMP_TUNE_MANIFEST_REQ_FAILED, /** Tune failure caused by manifest fetch failure*/
 	AAMP_TUNE_AUTHORISATION_FAILURE, /** Not authorised to view the content*/
 	AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, /**  When fragment download fails for 5 consecutive fragments*/
+	AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, /** Unable to download init fragment*/
 	AAMP_TUNE_UNTRACKED_DRM_ERROR, /**  DRM error*/
 	AAMP_TUNE_DRM_INIT_FAILED, /** DRM initialization failure */
 	AAMP_TUNE_DRM_DATA_BIND_FAILED, /** InitData binding with DRM failed */
@@ -92,19 +108,26 @@ typedef enum
 	AAMP_TUNE_PLAYBACK_STALLED, /** Playback was stalled due to valid fragments not available in playlist */
 #endif
 	AAMP_TUNE_CONTENT_NOT_FOUND, /** The resource was not found at the URL provided (HTTP 404) */
+	AAMP_TUNE_DRM_KEY_UPDATE_FAILED, /**Failed to process DRM key, see the error code returned from Update() for more info */
 	AAMP_TUNE_FAILURE_UNKNOWN /**  Unknown failure */
 }AAMPTuneFailure;
 
-typedef struct _TuneFailureMap
+/**
+ * @struct TuneFailureMap 
+ * @brief Holds aamp tune failure code and corresponding application error code and description
+ */
+struct TuneFailureMap
 {
         AAMPTuneFailure tuneFailure;
         int code;
         const char* description;
-} TuneFailureMap;
+};
 
-/*
- * Mapping all required status codes based on JS player requirement. These requirements may be forced by psdk player
- * AAMP may not use all the statuses mentioned below
+/**
+ * @enum PrivAAMPState
+ 
+ * @brief  Mapping all required status codes based on JS player requirement. These requirements may be
+ * forced by psdk player.AAMP may not use all the statuses mentioned below:
  * Mainly required statuses - idle, initializing, initialized, preparing, prepared, playing, paused, seek, complete and error
  */
 typedef enum
@@ -144,12 +167,20 @@ typedef enum
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
 #define MAX_BITRATE_COUNT 10
 
+/**
+ * @struct AAMPEvent
+ * @brief Event structure
+ */
 struct AAMPEvent
 {
 	AAMPEventType type;
 
 	union
 	{
+		/**
+		 * @struct progress
+		 * @brief holds progress state
+		 */
 		struct
 		{
 			double durationMiliseconds; // current size of time shift buffer
@@ -159,11 +190,19 @@ struct AAMPEvent
 			double endMiliseconds;  // time shift buffer end position (relative to tune time - starts at zero)
 		} progress;
 
+		/**
+		 * @struct speedChanged
+		 * @brief holds speed state
+		 */
 		struct
 		{
 			float rate;
 		} speedChanged;
 
+		/**
+		 * @struct bitrateChanged
+		 * @brief holds bitrate information
+		 */
 		struct
 		{
 			int time;
@@ -173,6 +212,10 @@ struct AAMPEvent
 			int height;
 		} bitrateChanged;
 
+		/**
+		 * @struct metadata
+		 * @brief stream metadata information
+		 */
 		struct
 		{
 			long durationMiliseconds;
@@ -185,11 +228,19 @@ struct AAMPEvent
 			bool hasDrm;
 		} metadata;
 
+		/**
+		 * @struct ccHandle
+		 * @brief contains cc handle
+		 */
 		struct
 		{
 			unsigned long handle;
 		} ccHandle;
 
+		/**
+		 * @struct timedMetadata
+		 * @brief holds timed meta data
+		 */
 		struct
 		{
 			const char* szName;
@@ -197,12 +248,20 @@ struct AAMPEvent
 			const char* szContent;
 		} timedMetadata;
 
+		/**
+		 * @struct jsEvent
+		 * @brief custom js event
+		 */
 		struct
 		{
 			const char* szEventType;
 			void*  jsObject;
 		} jsEvent;
 
+		/**
+		 * @struct mediaError
+		 * @brief Media error event
+		 */
 		struct
 		{
 			AAMPTuneFailure failure;
@@ -210,6 +269,10 @@ struct AAMPEvent
 			char description[MAX_ERROR_DESCRIPTION_LENGTH];
 		} mediaError;
 
+		/**
+		 * @struct stateChanged
+		 * @brief state changed event, holds new state
+		 */
 		struct
 		{
 			PrivAAMPState state;
@@ -217,30 +280,58 @@ struct AAMPEvent
 
 	} data;
 
+	/**
+	 * @brief AAMPEvent Constructor
+	 */
 	AAMPEvent()
 	{
 	}
+
+	/**
+	 * @brief AAMPEvent Constructor
+	 */
 	AAMPEvent(AAMPEventType t) : type(t)
 	{
 	}
 };
 
+/**
+ * @class AAMPEventListener
+ * @brief Listener for AAMP events
+ */
 class AAMPEventListener
 {
 public:
+
+	/**
+	 * @brief Invoked on event
+	 * @param event AAMP event
+	 */
 	virtual void Event(const AAMPEvent& event) = 0;
+
+	/**
+	 * @brief Destructor
+	 */
 	virtual ~AAMPEventListener(){};
 };
 
-typedef enum
+/**
+ * @enum MediaType 
+ * @brief Media types
+ */
+enum MediaType
 {
 	eMEDIATYPE_VIDEO,
 	eMEDIATYPE_AUDIO,
 	eMEDIATYPE_MANIFEST,
 	eMEDIATYPE_LICENCE
-} MediaType;
+};
 
-typedef enum output_format_e
+/**
+ * @enum StreamOutputFormat
+ * @brief Output stream format
+ */
+enum StreamOutputFormat
 {
 	FORMAT_INVALID,
 	FORMAT_MPEGTS,
@@ -249,76 +340,212 @@ typedef enum output_format_e
 	FORMAT_AUDIO_ES_AC3,
 	FORMAT_AUDIO_ES_EC3,
 	FORMAT_VIDEO_ES_H264,
-	FORMAT_VIDEO_ES_HEVC,
 	FORMAT_VIDEO_ES_MPEG2,
 	FORMAT_NONE
-}StreamOutputFormat;
+};
 
-typedef enum
+/**
+ * @enum VideoZoomMode 
+ * @brief Modes of video zoom
+ */
+enum VideoZoomMode
 {
 	VIDEO_ZOOM_FULL, /** Zoom to full screen*/
 	VIDEO_ZOOM_NONE /** Reset zoom*/
-} VideoZoomMode;
+};
 
+/**
+ * @class StreamSink
+ * @brief GStreamer Abstraction - with implementations in AAMPGstPlayer and gstaamp plugin
+ */
 class StreamSink
-{ // GStreamer Abstraction - with implementations in AAMPGstPlayer and gstaamp plugin
+{
 public:
+
+	/**
+	 * @brief Configure output formats
+	 * @param format Main/video output format
+	 * @param audioFormat Secondary/audio output format
+	 */
 	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat)=0;
+
+	/**
+	 * @brief Gives data to sink.
+	 * @param mediaType type of media
+	 * @param ptr buffer - caller responsible of freeing memory
+	 * @param len buffer length
+	 * @param fpts pts in seconds
+	 * @param fdts dts in seconds
+	 * @param duration duration of buffer
+	 */
 	virtual void Send( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration)= 0;
+
+	/**
+	 * @brief Gives data to sink.
+	 * @param mediaType type of media
+	 * @param buffer - data - ownership is taken by the sink.
+	 * @param fpts pts in seconds
+	 * @param fdts dts in seconds
+	 * @param duration duration of buffer
+	 */
 	virtual void Send( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration)= 0;
+
+	/**
+	 * @brief Notifies EOS to sink
+	 * @param mediaType Type of media
+	 */
 	virtual void EndOfStreamReached(MediaType mediaType){}
+
+	/**
+	 * @brief Starts streaming
+	 */
 	virtual void Stream(void){}
+
+	/**
+	 * @brief Stop streaming
+	 * @param keepLastFrame true to keep last frame on stop
+	 */
 	virtual void Stop(bool keepLastFrame){}
+
+	/**
+	 * @brief Dump sink status for debugging purpose
+	 */
 	virtual void DumpStatus(void){}
+
+	/**
+	 * @brief Flushes sink
+	 * @param position new seek position
+	 * @param rate playback rate
+	 */
 	virtual void Flush(double position = 0, float rate = 1.0){}
+
+	/**
+	 * @brief Selects audio in case of multiple audio
+	 * @param index index of audio to be selected
+	 */
 	virtual void SelectAudio(int index){}
+
+	/**
+	 * @brief Pause the sink
+	 * @param pause true to pause, false to resume
+	 */
 	virtual void Pause(bool pause){}
+
+	/**
+	 * @brief Get sink position in milliseconds
+	 * @retval sink position
+	 */
 	virtual long GetPositionMilliseconds(void){ return 0; };
+
+	/**
+	 * @brief Get decoder handle of the sink
+	 * @retval decoder handle
+	 */
 	virtual unsigned long getCCDecoderHandle(void) { return 0; };
+
+	/**
+	 * @brief Set video display rectangle co-ordinates
+	 * @param[in] x x co-ordinate of display rectangle
+	 * @param[in] y y co-ordinate of display rectangle
+	 * @param[in] w width of display rectangle
+	 * @param[in] h height of display rectangle
+	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h){};
+
+	/**
+	 * @brief Set video zoom
+	 * @param[in] zoom zoom setting to be set
+	 */
 	virtual void SetVideoZoom(VideoZoomMode zoom){};
+
+	/**
+	 * @brief Set video mute
+	 * @param[in] muted true to mute video otherwise false
+	 */
 	virtual void SetVideoMute(bool muted){};
+
+	/**
+	 * @brief Set audio volume
+	 * @param[in] volume audio volume value (0-100)
+	 */
 	virtual void SetAudioVolume(int volume){};
+
+	/**
+	 * @brief Destructor
+	 */
 	virtual ~StreamSink(){};
+
+	/**
+	 * @brief Process discontinuity for a stream type
+	 * @param mediaType stream type
+	 * @retval true if discontinuity processed
+	 */
 	virtual bool Discontinuity( MediaType mediaType) = 0;
+
+
+	/**
+	 * @brief Check if cache empty for a media type
+	 * @param[in] mediaType stream type
+	 * @retval true if cache empty
+	 */
 	virtual bool IsCacheEmpty(MediaType mediaType){ return true; };
+
+	/**
+	 * @brief Notify sink on completing fragment caching
+	 */
 	virtual void NotifyFragmentCachingComplete(){};
+
+	/**
+	 * @brief Get video display's width and height
+	 * @param[out] w video width
+	 * @param[out] h video height
+	 */
 	virtual void GetVideoSize(int &w, int &h){};
+
+	/**
+	 * @brief Queue protection event in sink
+	 * @param[in] protSystemId Protection system ID
+	 * @param[in] ptr protection data
+	 * @param[in] len length of protection data
+	 */
 	virtual void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len) {};
+
+	/**
+	 * @brief Clear protection event in sink
+	 */
 	virtual void ClearProtectionEvent() {};
 };
 
 
+/**
+ * @class PlayerInstanceAAMP
+ * @brief Public interface of AAMP library
+ */
 class PlayerInstanceAAMP
-{ // new public API
+{
 public:
 	/**
 	 *   @brief Constructor.
 	 *
 	 *   @param  streamSink - custom stream sink, NULL for default.
-	 *   @return None
 	 */
 	PlayerInstanceAAMP(StreamSink* streamSink = NULL);
 
 	/**
 	 *   @brief Destructor.
-	 *
-	 *   @return None
 	 */
 	~PlayerInstanceAAMP();
 
 	/**
 	 *   @brief Tune to a URL.
 	 *
-	 *   @param  url - HTTP/HTTPS url to be played.
-	 *   @return void
+	 *   @param  mainManifestUrl - HTTP/HTTPS url to be played.
 	 */
-	void Tune(const char *url);
+	void Tune(const char *mainManifestUrl, const char *contentType=NULL);
 
 	/**
 	 *   @brief Stop playback and release resources.
 	 *
-	 *   @return void
 	 */
 	void Stop(void);
 
@@ -326,24 +553,21 @@ public:
 	 *   @brief Set playback rate.
 	 *
 	 *   @param  rate - Rate of playback.
-	 *   @param  overshoot - overshoot correction in milliseconds.
-	 *   @return void
+	 *   @param  overshootcorrection - overshoot correction in milliseconds.
 	 */
-	void SetRate(float rate, int overshoot=0);
+	void SetRate(float rate, int overshootcorrection=0);
 
 	/**
 	 *   @brief Seek to a time.
 	 *
 	 *   @param  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
-	 *   @return void
 	 */
 	void Seek(double secondsRelativeToTuneTime);
 
 	/**
 	 *   @brief Seek to live point.
 	 *
-	 *   @return void
 	 */
 	void SeekToLive(void);
 
@@ -353,7 +577,6 @@ public:
 	 *   @param  rate - Rate of playback.
 	 *   @param  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
-	 *   @return void
 	 */
 	void SetRateAndSeek(float rate, double secondsRelativeToTuneTime);
 
@@ -361,7 +584,6 @@ public:
 	 *   @brief Register event handler.
 	 *
 	 *   @param  eventListener - pointer to implementation of AAMPEventListener to receive events.
-	 *   @return void
 	 */
 	void RegisterEvents(AAMPEventListener* eventListener);
 
@@ -372,7 +594,6 @@ public:
 	 *   @param  y - vertical start position.
 	 *   @param  w - width.
 	 *   @param  h - height.
-	 *   @return void
 	 */
 	void SetVideoRectangle(int x, int y, int w, int h);
 
@@ -380,7 +601,6 @@ public:
 	 *   @brief Set video zoom.
 	 *
 	 *   @param  zoom - zoom mode.
-	 *   @return void
 	 */
 	void SetVideoZoom(VideoZoomMode zoom);
 
@@ -388,7 +608,6 @@ public:
 	 *   @brief Enable/ Disable Video.
 	 *
 	 *   @param  muted - true to disable video, false to enable video.
-	 *   @return void
 	 */
 	void SetVideoMute(bool muted);
 
@@ -396,7 +615,6 @@ public:
 	 *   @brief Set Audio Volume.
 	 *
 	 *   @param  volume - Minimum 0, maximum 100.
-	 *   @return void
 	 */
 	void SetAudioVolume(int volume);
 
@@ -404,7 +622,6 @@ public:
 	 *   @brief Set Audio language.
 	 *
 	 *   @param  language - Language of audio track.
-	 *   @return void
 	 */
 	void SetLanguage(const char* language);
 
@@ -412,7 +629,6 @@ public:
 	 *   @brief Set array of subscribed tags.
 	 *
 	 *   @param  subscribedTags - Array of subscribed tags.
-	 *   @return void
 	 */
 	void SetSubscribedTags(std::vector<std::string> subscribedTags);
 
@@ -421,7 +637,6 @@ public:
 	 *   @brief Load AAMP JS object in the specified JS context.
 	 *
 	 *   @param  context - JS context.
-	 *   @return void
 	 */
 	void LoadJS(void* context);
 
@@ -429,7 +644,6 @@ public:
 	 *   @brief Load AAMP JS object in the specified JS context.
 	 *
 	 *   @param  context - JS context.
-	 *   @return void
 	 */
 	void UnloadJS(void* context);
 
@@ -440,7 +654,6 @@ public:
 	 *
 	 *   @param  eventType - type of event.
 	 *   @param  eventListener - listener for the eventType.
-	 *   @return void
 	 */
 	void AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
 
@@ -449,14 +662,12 @@ public:
 	 *
 	 *   @param  eventType - type of event.
 	 *   @param  eventListener - listener to be removed for the eventType.
-	 *   @return void
 	 */
 	void RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
 
 	/**
 	 *   @brief To check playlist type.
 	 *
-	 *   @param  void
 	 *   @return bool - True if live content, false otherwise
 	 */
 	bool IsLive();
@@ -468,14 +679,12 @@ public:
 	 *
 	 *   @param  url - HTTP/HTTPS url of the ad
 	 *   @param  positionSeconds - position at which ad shall be inserted
-	 *   @return void
 	 */
 	void InsertAd(const char *url, double positionSeconds);
 
 	/**
 	 *   @brief Get current audio language.
 	 *
-	 *   @param  void
 	 *   @return char* - current audio language
 	 */
 	char* GetCurrentAudioLanguage();
@@ -484,24 +693,21 @@ public:
 	 *   @brief Add/Remove a custom HTTP header and value.
 	 *
 	 *   @param  headerName - Name of custom HTTP header
-	 *   @param  subscribedTags - Value to be pased along with HTTP header.
-	 *   @return void
+	 *   @param  headerValue - Value to be pased along with HTTP header.
 	 */
 	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue);
 
 	/**
-	 *   @brief Set Licence Server URL.
+	 *   @brief Set License Server URL.
 	 *
 	 *   @param  url - URL of the server to be used for license requests
-	 *   @return void
 	 */
-	void SetLicenceServerURL(char *url);
+	void SetLicenseServerURL(char *url);
 
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
 	 *   @param  isAnonymous - True if session token should be blank and false otherwise.
-	 *   @return void
 	 */
 	void SetAnonymousRequest(bool isAnonymous);
 
@@ -509,7 +715,6 @@ public:
 	 *   @brief Set VOD Trickplay FPS.
 	 *
 	 *   @param  vodTrickplayFPS - FPS to be used for VOD Trickplay
-	 *   @return void
 	 */
 	void SetVODTrickplayFPS(int vodTrickplayFPS);
 
@@ -517,7 +722,6 @@ public:
 	 *   @brief Set Linear Trickplay FPS.
 	 *
 	 *   @param  linearTrickplayFPS - FPS to be used for Linear Trickplay
-	 *   @return void
 	 */
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
 
@@ -525,7 +729,6 @@ public:
 	 *   @brief To set the error code to be used for playback stalled error.
 	 *
 	 *   @param  errorCode - error code for playback stall errors.
-	 *   @return void
 	 */
 	void SetStallErrorCode(int errorCode);
 
@@ -533,11 +736,17 @@ public:
 	 *   @brief To set the timeout value to be used for playback stall detection.
 	 *
 	 *   @param  timeoutMS - timeout in milliseconds for playback stall detection.
-	 *   @return void
 	 */
 	void SetStallTimeout(int timeoutMS);
 
-	class PrivateInstanceAAMP *aamp;
+	/**
+	 *   @brief To set the Playback Position reporting interval.
+	 *
+	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
+	 */
+	void SetReportInterval(int reportIntervalMS);
+
+	class PrivateInstanceAAMP *aamp; ///private aamp instance associated with this
 private:
 	StreamSink* mInternalStreamSink;
 	void* mJSBinding_DL;

@@ -33,10 +33,10 @@
 #define MAX_PIDS (8) //PMT Parsing
 
 /**
-* @enum _RecordingComponent
-* @brief Defines the parameters required for components.
+* @struct RecordingComponent
+* @brief Stores information of a audio/video component.
 */
-typedef struct _RecordingComponent
+struct RecordingComponent
 {
 	/** Service information type such as PAT, PMT, NIT, SDT, BAT, etc */
 	int siType;
@@ -48,7 +48,7 @@ typedef struct _RecordingComponent
 	char *associatedLanguage;
 	/** Descriptor tags, each byte value will represent one descriptor tag up to max MAX_DESCRIPTOR (4)*/
 	unsigned int descriptorTags;
-} RecordingComponent;
+};
 
 /**
 * @enum _PlayMode
@@ -80,28 +80,44 @@ typedef enum _PlayMode
 
 class Demuxer;
 
+/**
+ * @enum StreamOperation
+ * @brief Operation done by TSProcessor
+ */
 typedef enum
 {
+	/** Normal operation when no demuxing is required. Used with playersinkbin */
 	eStreamOp_NONE,
+	/** Demux and inject audio only*/
 	eStreamOp_DEMUX_AUDIO,
+	/** Demux and inject video only*/
 	eStreamOp_DEMUX_VIDEO,
+	/** Demux and inject audio and video*/
 	eStreamOp_DEMUX_ALL,
+	/** When video contains PAT/PMT, audio needs to be queued until video is processed
+	 * used with playersinkbin*/
 	eStreamOp_QUEUE_AUDIO,
+	/** Send queued audio after video*/
 	eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO
 }StreamOperation;
 
+/**
+ * @enum TrackToDemux
+ * @brief Track to demux
+ */
 typedef enum
 {
+	/** Demux and send video only*/
 	ePC_Track_Video,
+	/** Demux and send audio only*/
 	ePC_Track_Audio,
+	/** Demux and send audio and video*/
 	ePC_Track_Both
 }TrackToDemux;
 
 /**
 * @class TSProcessor
-* @brief Defines the parameters required for Player.
-* It is responsible for managing player context at the time of playing a recording.
-* @ingroup dvrsourceclass
+* @brief MPEG TS Processor. Supports software Demuxer/ PTS re-stamping for trickmode.
 */
 class TSProcessor
 {
@@ -111,16 +127,21 @@ class TSProcessor
       bool sendSegment( char *segment, size_t& size, double position, double duration, bool discontinuous);
       void setRate(double rate, PlayMode mode);
       void setThrottleEnable(bool enable);
+
+      /**
+       * @brief Set frame rate for trick mode
+       * @param[in] frameRate rate per second
+       */
       void setFrameRateForTM( int frameRate)
       {
          m_apparentFrameRate = frameRate;
       }
       void abort();
       void reset();
+      void flush();
 
    protected:
       void getAudioComponents(const RecordingComponent** audioComponentsPtr, int &count);
-      void setAudioTSProcessor(TSProcessor* tsProcessor);
       void sendQueuedSegment(long long basepts = 0, double updatedStartPositon = -1);
       void setBasePTS(double position, long long pts);
 
@@ -220,7 +241,11 @@ class TSProcessor
       int m_emulationPreventionOffset;
       unsigned char * m_emulationPrevention;
       bool m_scanSkipPacketsEnabled;
-      
+
+      /**
+       * @struct H264SPS
+       * @brief Holds SPS parameters
+       */
       typedef struct _H264SPS
       {
          int picOrderCountType;
@@ -231,6 +256,10 @@ class TSProcessor
          int frameMBSOnlyFlag;
       } H264SPS;
 
+      /**
+       * @struct H264PPS
+       * @brief Holds PPS parameters
+       */
       typedef struct _H264PPS
       {
          int spsId;
@@ -242,19 +271,11 @@ class TSProcessor
       int m_picOrderCount;
       bool m_updatePicOrderCount;
 
-      typedef struct _VLCode
-      {
-         int numBits;
-         int value;
-      } VLCode;
-
-
       bool processBuffer(unsigned char *buffer, int size, bool &insPatPmt);
       long long getCurrentTime();
-      bool throttle(); /*return true if aborted*/
+      bool throttle(); 
       void sendDiscontinuity(double position);
       void setupThrottle(int segmentDurationMs);
-      /*Return false if discarded, true if processed*/
       bool demuxAndSend(const void *ptr, size_t len, double fTimestamp, double fDuration, bool discontinuous, TrackToDemux trackToDemux = ePC_Track_Both);
       bool msleep(long long throttleDiff);
 

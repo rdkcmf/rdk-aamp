@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file drm.h
+ * @brief AVE DRM helper declarations
+ */
+
 #ifndef DRM_H
 #define DRM_H
 
@@ -25,18 +31,30 @@
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
+/**
+ * @enum DrmMethod
+ * @brief AVE drm method
+ */
 typedef enum
 {
 	eMETHOD_NONE,
-	eMETHOD_AES_128, // encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding
+	eMETHOD_AES_128, /// encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding
 } DrmMethod;
 
+/**
+ * @struct DrmMetadata
+ * @brief AVE drm metadata extracted from EXT-X-FAXS-CM
+ */
 struct DrmMetadata
 { // from EXT-X-FAXS-CM
 	unsigned char * metadataPtr;
 	size_t metadataSize;
 };
 
+/**
+ * @struct DrmInfo
+ * @brief DRM information required to decrypt
+ */
 struct DrmInfo
 { // from EXT-X-KEY
 	DrmMethod method;
@@ -49,50 +67,25 @@ struct DrmInfo
 #endif /*AVE_DRM*/
 
 
+/**
+ * @class AveDrm
+ * @brief Adobe AVE DRM management
+ */
 class AveDrm : public HlsDrmBase
 {
 public:
-
-	/**
-	 * @brief Get static instance
-	 */
 	static AveDrm* GetInstance();
-
-	/**
-	 * @brief prepare for decryption - individualization & license acquisition
-	 *
-	 * @param metadata pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
-	 * @param metadataSize length in bytes of data pointed to by metadataPtr
-	 * @param iv 128-bit (16 byte) initialization vector for decryption
-	 * @param encryptedRotationKey (not currently used/present)
-	 */
 	int SetContext( class PrivateInstanceAAMP *aamp, void* metadata, const struct DrmInfo *drmInfo);
-
-	/**
-	 * @param encryptedDataPtr pointer to encyrpted payload
-	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
-	 */
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
-
-	/**
-	 * @brief Release drm session
-	 */
 	void Release();
-
-	/**
-	 * @brief Cancel timed_wait operation drm_Decrypt
-	 *
-	 */
 	void CancelKeyWait();
-
-	/**
-	 * @brief Restore key state post cleanup of
-	 * audio/video TrackState in case DRM data is persisted
-	 */
 	void RestoreKeyState();
-
 private:
+	/**
+	 * @brief AveDrm private Constructor
+	 */
 	AveDrm(){};
+
 	static AveDrm *mInstance;
 };
 

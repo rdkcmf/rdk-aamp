@@ -16,17 +16,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file fragmentcollector_mpd.h
+ * @brief Fragment collector MPEG DASH declarations
+ */
+
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
 
+/**
+ * @class StreamAbstractionAAMP_MPD
+ * @brief Fragment collector for MPEG DASH
+ */
 class StreamAbstractionAAMP_MPD : public StreamAbstractionAAMP
 {
 public:
 	StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	~StreamAbstractionAAMP_MPD();
 	void DumpProfiles(void);
-	//void SetRate(float rate, double seek_pos);
 	void SetEndPos(double endPosition);
 	void Start();
 	void Stop(bool clearChannelData);
@@ -36,9 +45,9 @@ public:
 	double GetStreamPosition();
 	MediaTrack* GetMediaTrack(TrackType type);
 	double GetFirstPTS();
+	int GetBWIndex(long bitrate);
 	bool checkForRampdown;
 protected:
-	int GetProfileCount();
 	StreamInfo* GetStreamInfo(int idx);
 private:
 	class PrivateStreamAbstractionMPD* mPriv;
