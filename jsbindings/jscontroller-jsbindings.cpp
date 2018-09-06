@@ -35,42 +35,20 @@
 extern "C"
 {
 
-	/**
-	 * @brief
-	 * @param context
-	 */
 	void aamp_LoadJSController(JSGlobalContextRef context);
 
-	/**
-	 * @brief
-	 * @param context
-	 */
 	void aamp_UnloadJSController(JSGlobalContextRef context);
 
-
-	/**
-	 * @brief
-	 * @param *
-	 * @param int
-	 */
 	void setAAMPPlayerInstance(PlayerInstanceAAMP *, int);
 
-	/**
-	 * @brief
-	 * @param *
-	 */
 	void unsetAAMPPlayerInstance(PlayerInstanceAAMP *);
 }
 
-/**
- * @class AAMPJSCEventListener;
- * @brief
- */
 class AAMPJSCEventListener;
 
 /**
  * @struct AAMP_JSController
- * @brief
+ * @brief Data structure of AAMP_JSController object
  */
 struct AAMP_JSController
 {
@@ -83,6 +61,9 @@ struct AAMP_JSController
 	AAMPJSCEventListener *_eventListeners;
 };
 
+/**
+ * @brief Global AAMP_JSController object
+ */
 AAMP_JSController* _globalController = NULL;
 
 #ifdef AAMP_CC_ENABLED
@@ -90,8 +71,8 @@ AAMP_JSController* _globalController = NULL;
 //AAMP_JSController is invoked earlier than gstaamp. Whereas gstaamp loads aamp.cfg
 
 /**
- * @brief
- * @retval
+ * @brief Get the CC config option
+ * @retval true if CC is enabled
  */
 static bool aamp_getClosedCaptionConfig()
 {
@@ -100,9 +81,9 @@ static bool aamp_getClosedCaptionConfig()
 
 
 /**
- * @brief
- * @param obj
- * @param status
+ * @brief Set the CC status for a AAMP_JSController instance
+ * @param[in] obj instance of AAMP_JSController
+ * @param[in] status status of CC (visible/hidden)
  */
 static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 {
@@ -129,12 +110,11 @@ static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 namespace AAMPJSController
 {
 
-
 /**
- * @brief
- * @param context
- * @param callback
- * @param event
+ * @brief To dispatch a JS event
+ * @param[in] context JS execution context
+ * @param[in] callback function to which event has to be dispatched as an arg
+ * @param[in] event the JS event to be dispatched
  */
 static void dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event)
 {
@@ -149,39 +129,23 @@ static void dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObje
 
 /**
  * @class AAMPJSCEventListener
- * @brief
+ * @brief Event listener impl for AAMP events
  */
 class AAMPJSCEventListener : public AAMPEventListener
 {
 public:
 
-	/**
-	 * @brief
-	 * @param jsObj
-	 * @param type
-	 * @param jsCallback
-	 */
 	static void AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
 
-	/**
-	 * @brief
-	 * @param jsObj
-	 * @param type
-	 * @param jsCallback
-	 */
 	static void RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
 
-	/**
-	 * @brief
-	 * @param jsObj
-	 */
 	static void RemoveAllEventListener(AAMP_JSController *jsObj);
 
 	/**
 	 * @brief AAMPJSCEventListener Constructor
-	 * @param obj
-	 * @param type
-	 * @param jsCallback
+	 * @param[in] obj instance of AAMP_JSController
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback for the event type
 	 */
 	AAMPJSCEventListener(AAMP_JSController* obj, AAMPEventType type, JSObjectRef jsCallback)
 		: p_aamp(obj)
@@ -202,8 +166,8 @@ public:
 
 
 	/**
-	 * @brief
-	 * @param e
+	 * @brief Callback invoked for dispatching event
+	 * @param[in] e event object
 	 */
 	void Event(const AAMPEvent& e)
 	{
@@ -222,18 +186,18 @@ public:
 	}
 
 public:
-	AAMP_JSController *p_aamp;
-	AAMPEventType p_type;
-	JSObjectRef p_jsCallback;
-	AAMPJSCEventListener *p_next;
+	AAMP_JSController *p_aamp;  /** instance of AAMP_JSController **/
+	AAMPEventType p_type;  /** event type **/
+	JSObjectRef p_jsCallback;  /** callback registered for event **/
+	AAMPJSCEventListener *p_next;  /** next element in the linkedlist **/
 };
 
 
 /**
- * @brief
- * @param jsObj
- * @param type
- * @param jsCallback
+ * @brief Adds a JS function as listener for a particular event
+ * @param[in] jsObj instance of AAMP_JSController
+ * @param[in] type event type
+ * @param[in] jsCallback callback to be registered as listener
  */
 void AAMPJSCEventListener::AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
 {
@@ -249,10 +213,10 @@ void AAMPJSCEventListener::AddEventListener(AAMP_JSController *jsObj, AAMPEventT
 
 
 /**
- * @brief
- * @param jsObj
- * @param type
- * @param jsCallback
+ * @brief Removes a JS listener for a particular event
+ * @param[in] jsObj instance of AAMP_JSController
+ * @param[in] type event type
+ * @param[in] jsCallback callback to be removed as listener
  */
 void AAMPJSCEventListener::RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
 {
@@ -287,8 +251,8 @@ void AAMPJSCEventListener::RemoveEventListener(AAMP_JSController *jsObj, AAMPEve
 
 
 /**
- * @brief
- * @param jsObj
+ * @brief Remove all JS listeners registered
+ * @param[in] jsObj instance of AAMP_JSController
  */
 void AAMPJSCEventListener::RemoveAllEventListener(AAMP_JSController *jsObj)
 {
@@ -309,9 +273,9 @@ void AAMPJSCEventListener::RemoveAllEventListener(AAMP_JSController *jsObj)
 
 
 /**
- * @brief
- * @param aamp
- * @param sessionID
+ * @brief Set the instance of PlayerInstanceAAMP and session id
+ * @param[in] aamp instance of PlayerInstanceAAMP
+ * @param[in] sessionID session id
  */
 void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 {
@@ -349,8 +313,8 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 
 
 /**
- * @brief
- * @param aamp
+ * @brief Remove the PlayerInstanceAAMP stored earlier
+ * @param[in] aamp instance of PlayerInstanceAAMP to be removed
  */
 void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
 {
@@ -374,12 +338,12 @@ void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
 
 
 /**
- * @brief
- * @param context
- * @param thisObject
- * @param propertyName
- * @param exception
- * @retval
+ * @brief Callback invoked from JS to get the CC enabled property
+ * @param[in] context JS execution context
+ * @param[in] thisObject JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -397,13 +361,13 @@ static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context,
 
 
 /**
- * @brief
- * @param context
- * @param thisObject
- * @param propertyName
- * @param value
- * @param exception
- * @retval
+ * @brief Callback invoked from JS to set the CC enabled property
+ * @param[in] context JS exception context
+ * @param[in] thisObject JSObject on which to set the property's value
+ * @param[in] propertyName JSString containing the name of the property to set
+ * @param[in] value JSValue to use as the property's value
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval true if the property was set, otherwise false
  */
 static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
@@ -434,12 +398,12 @@ static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObj
 
 
 /**
- * @brief
- * @param context
- * @param thisObject
- * @param propertyName
- * @param exception
- * @retval
+ * @brief Callback invoked from JS to get the session id property
+ * @param[in] context JS execution context
+ * @param[in] thisObject JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSC_getProperty_aampSessionID(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -460,6 +424,10 @@ static JSValueRef AAMPJSC_getProperty_aampSessionID(JSContextRef context, JSObje
 	return JSValueMakeNumber(context, aampObj->_aampSessionID);
 }
 
+
+/**
+ * @brief Array containing the AAMP_JSController's statically declared value properties
+ */
 static const JSStaticValue AAMP_JSController_static_values[] =
 {
 	{"closedCaptionEnabled", AAMPJSC_getProperty_closedCaptionEnabled, AAMPJSC_setProperty_closedCaptionEnabled, kJSPropertyAttributeDontDelete },
@@ -469,14 +437,14 @@ static const JSStaticValue AAMP_JSController_static_values[] =
 
 
 /**
- * @brief
- * @param context
- * @param function
- * @param thisObject
- * @param argumentCount
- * @param arguments[]
- * @param exception
- * @retval
+ * @brief Callback invoked from JS to add an event listener
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
@@ -517,14 +485,14 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 
 
 /**
- * @brief
- * @param context
- * @param function
- * @param thisObject
- * @param argumentCount
- * @param arguments[]
- * @param exception
- * @retval
+ * @brief Callback from JS to remove an event listener
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
@@ -572,6 +540,10 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief Array containing the AAMP_JSController's statically declared functions
+ */
 static const JSStaticFunction AAMP_JSController_static_methods[] =
 {
 	{"addEventListener", AAMPJSC_addEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
@@ -581,8 +553,8 @@ static const JSStaticFunction AAMP_JSController_static_methods[] =
 
 
 /**
- * @brief
- * @param thisObj
+ * @brief Callback invoked when an object of AAMP_JSController is finalized
+ * @param[in] thisObj JSObject being finalized
  */
 void AAMP_JSController_finalize(JSObjectRef thisObj)
 {
@@ -608,13 +580,13 @@ void AAMP_JSController_finalize(JSObjectRef thisObj)
 
 
 /**
- * @brief
- * @param context
- * @param constructor
- * @param argumentCount
- * @param arguments[]
- * @param exception
- * @retval
+ * @brief callback invoked when an AAMP_JSController is used along with 'new'
+ * @param[in] context JS execution context
+ * @param[in] constructor JSObject that is the constructor being called
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSObject that is the constructor's return value
  */
 static JSObjectRef AAMP_JSController_class_constructor(JSContextRef context, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
@@ -622,6 +594,9 @@ static JSObjectRef AAMP_JSController_class_constructor(JSContextRef context, JSO
 	return NULL;
 }
 
+/**
+ * @brief Structure contains properties and callbacks of AAMP_JSController object
+ */
 static const JSClassDefinition AAMP_JSController_class_def =
 {
 	0,
@@ -645,8 +620,8 @@ static const JSClassDefinition AAMP_JSController_class_def =
 
 
 /**
- * @brief
- * @param context
+ * @brief Loads AAMP_JSController JS object into JS execution context
+ * @param[in] context JS execution context
  */
 void aamp_LoadJSController(JSGlobalContextRef context)
 {
@@ -672,8 +647,8 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 
 
 /**
- * @brief
- * @param context
+ * @brief Removes the AAMP_JSController instance from JS context
+ * @param[in] context JS execution context
  */
 void aamp_UnloadJSController(JSGlobalContextRef context)
 {

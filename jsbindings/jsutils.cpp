@@ -16,7 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-
 /**
  * @file jsutils.cpp
  * @brief JavaScript util functions for AAMP
@@ -30,7 +29,7 @@
 
 /**
  * @struct EventTypeMap
- * @brief Map AAMP events to JS util event strings
+ * @brief Struct to map names of AAMP events and JS events
  */
 struct EventTypeMap
 {
@@ -38,6 +37,9 @@ struct EventTypeMap
 	const char* szName;
 };
 
+/**
+ * @brief Map AAMP events to its corresponding JS event strings
+ */
 static EventTypeMap aamp_eventTypes[] =
 {
 	{ (AAMPEventType)0, "onEvent"},
@@ -57,12 +59,11 @@ static EventTypeMap aamp_eventTypes[] =
 	{ (AAMPEventType)0, "" }
 };
 
-
 /**
- * @brief
- * @param context
- * @param sz
- * @retval
+ * @brief Convert C string to JSString
+ * @param[in] context JS execution context
+ * @param[in] sz C string
+ * @retval JSValue that is the converted JSString
  */
 JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz)
 {
@@ -73,13 +74,12 @@ JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz)
 	return value;
 }
 
-
 /**
- * @brief
- * @param context
- * @param value
- * @param exception
- * @retval
+ * @brief Convert JSString to C string
+ * @param[in] context JS execution context
+ * @param[in] value JSValue of JSString to be converted
+ * @param[out] exception pointer to a JSValueRef in which to store an exception, if any
+ * @retval converted C string
  */
 char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception)
 {
@@ -91,12 +91,11 @@ char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* 
 	return src;
 }
 
-
 /**
- * @brief
- * @param context
- * @param value
- * @retval
+ * @brief Check if a JSValue object is array or not
+ * @param[in] context JS exception context
+ * @param[in] value JSValue to check if array or not
+ * @retval true if JSValue is an array
  */
 bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value)
 {
@@ -118,10 +117,10 @@ bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value)
 }
 
 /**
- * @brief
- * @param context
- * @param arrayRef
- * @retval
+ * @brief Convert an array of JSString to an array of C strings
+ * @param[in] context JS execution context
+ * @param[in] arrayRef JSValue of an array of JSString
+ * @retval converted array of C strings
  */
 std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef)
 {
@@ -184,11 +183,11 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
 
 
 /**
- * @brief
- * @param context
- * @param error
- * @param additionalInfo
- * @retval
+ * @brief Generate a JSValue object with the exception details
+ * @param[in] context JS exception context
+ * @param[in] error error/exception code
+ * @param[in] additionalInfo additional error description
+ * @retval JSValue object with exception details
  */
 JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo)
 {
@@ -234,9 +233,9 @@ JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *
 
 
 /**
- * @brief
- * @param szName
- * @retval
+ * @brief Convert JS event name to AAMP event type
+ * @param[in] szName JS event name
+ * @retval AAMPEventType of corresponding AAMP event
  */
 AAMPEventType aamp_getEventTypeFromName(const char* szName)
 {
@@ -257,9 +256,9 @@ AAMPEventType aamp_getEventTypeFromName(const char* szName)
 
 
 /**
- * @brief
- * @param type
- * @retval
+ * @brief Convert AAMP event type to JS event string
+ * @param[in] szName AAMP event type
+ * @retval JS event name corresponding to AAMP event
  */
 const char* aamp_getNameFromEventType(AAMPEventType type)
 {

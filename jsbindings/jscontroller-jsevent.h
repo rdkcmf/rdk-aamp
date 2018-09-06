@@ -22,7 +22,6 @@
  * @brief JavaScript Event Impl for AAMP_JSController
  */
 
-
 #ifndef __JSCONTROLLER_JSEVENT_H__
 #define __JSCONTROLLER_JSEVENT_H__
 
@@ -30,110 +29,87 @@
 
 /**
  * @enum EventPhase
- * @brief
+ * @brief Phase of the event flow that is currently being evaluated.
  */
 enum EventPhase
 {
 	pNone = 0,
-	pCapturingPhase,
-	pAtTarget,
-	pBubblingPhase
+	pCapturingPhase,  /** Event flow is in capturing phase **/
+	pAtTarget,  /** Event flow is in target phase **/
+	pBubblingPhase  /** Event flow is in bubbling phase **/
 };
 
 /**
  * @class AAMPJSCEvent
- * @brief
+ * @brief Class represents the native object for a JS Event of AAMP_JSController
  */
 class AAMPJSCEvent
 {
 
 public:
 
-	/**
-	 * @brief AAMPJSCEvent Constructor
-	 */
 	AAMPJSCEvent();
-
-	/**
-	 * @brief AAMPJSCEvent Constructor
-	 * @param type
-	 * @param bubble
-	 * @param cancelable
-	 */
 	AAMPJSCEvent(const char *type, bool bubble, bool cancelable);
-
-	/**
-	 * @brief AAMPJSCEvent Destructor
-	 */
 	~AAMPJSCEvent();
 
-
-	/**
-	 * @brief Initialize JS event
-	 * @param type
-	 * @param bubble
-	 * @param cancelable
-	 */
 	void initEvent(const char *type, bool bubble, bool cancelable);
 
-
 	/**
-	 * @brief Get event type
+	 * @brief Returns the name of the event
 	 * @retval event type
 	 */
 	const char* getType() 	{ return _typeName; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns whether or not a specific event is a bubbling event
+	 * @retval true if event is a bubbling event
 	 */
 	bool getBubbles()       { return _bubbles; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns whether or not an event can have its default action prevented
+	 * @retval true if default action of event can be prevented
 	 */
 	bool getCancelable()    { return _cancelable; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns the element that triggered the event
+	 * @retval instance of the element
 	 */
 	JSObjectRef getTarget() { return _target; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns the element whose event listeners triggered the event
+	 * @retval instance of the element
 	 */
 	JSObjectRef getCurrentTarget()  { return _currentTarget; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns which phase of the event flow is currently being evaluated
+	 * @retval event phase
 	 */
 	EventPhase getEventPhase()  { return _phase; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns whether or not the preventDefault() method was called for the event
+	 * @retval true if default was prevented
 	 */
 	bool getIsDefaultPrevented()  { return _canceled; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns whether or not an event is trusted
+	 * @retval true if event is trusted
 	 */
 	bool getIsTrusted()           { return _isTrusted; }
 
 	/**
-	 * @brief
-	 * @retval
+	 * @brief Returns the time (in milliseconds relative to the epoch) at which the event was created
+	 * @retval timestamp
 	 */
 	double getTimestamp()       { return _timestamp; }
 
-
 	/**
-	 * @brief
+	 * @brief Cancels the event if it is cancelable
 	 */
 	void preventDefault()
 	{
@@ -142,7 +118,7 @@ public:
 	}
 
 	/**
-	 * @brief
+	 * @brief Prevents other listeners of the same event from being called
 	 */
 	void stopImmediatePropagation()
 	{
@@ -150,18 +126,17 @@ public:
 	}
 
 	/**
-	 * @brief
+	 * @brief Prevents further propagation of an event during event flow
 	 */
 	void stopPropagation()
 	{
 		_stopPropagation = true;
 	}
 
-
 	/**
-	 * @brief
-	 * @param context
-	 * @param obj
+	 * @brief Set the target instance
+	 * @param[in] context JS execution context
+	 * @param[in] obj target instance
 	 */
 	void setTarget(JSContextRef context, JSObjectRef obj)
 	{
@@ -177,11 +152,10 @@ public:
 		JSValueProtect(_ctx, _target);
 	}
 
-
 	/**
-	 * @brief
-	 * @param context
-	 * @param obj
+	 * @brief Set the current target instance
+	 * @param[in] context JS execution context
+	 * @param[in] obj current target instance
 	 */
 	void setCurrentTarget(JSContextRef context, JSObjectRef obj)
 	{
@@ -198,32 +172,24 @@ public:
 	}
 
 private:
-	bool _bubbles;
-	bool _cancelable;
-	bool _canceled;
-	JSObjectRef _currentTarget;
+	bool _bubbles;  /** denotes if event is a bubbling event **/
+	bool _cancelable;  /** denotes if event default operation can be cancelled **/
+	bool _canceled;  /** denotes if event default operation was cancelled **/
+	JSObjectRef _currentTarget;  /** element whose event listeners triggered the event **/
 	bool _defaultPrevented;
-	EventPhase _phase;
-	JSObjectRef _target;
-	double _timestamp;
-	const char * _typeName;
-	bool _isTrusted;
+	EventPhase _phase;  /** phase of the event flow is currently being evaluated **/
+	JSObjectRef _target;  /** element that triggered the event **/
+	double _timestamp;  /** event timestamp **/
+	const char * _typeName;  /** event type name **/
+	bool _isTrusted;  /** denotes if event is trusted or not **/
 
-	bool _stopImmediatePropagation;
-	bool _stopPropagation;
+	bool _stopImmediatePropagation;  /** denotes if other listeners need not be called **/
+	bool _stopPropagation;  /** denotes if further propagation of an event to be prevented **/
 
-	JSContextRef _ctx;
+	JSContextRef _ctx;  /** JS execution context **/
 };
 
 
-/**
- * @brief
- * @param ctx
- * @param type
- * @param bubbles
- * @param cancelable
- * @retval
- */
 JSObjectRef createNewJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
 
 #endif //__JSCONTROLLER_JSEVENT_H__
