@@ -596,7 +596,7 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
 					NO_OF(g_rgpdstrRights), m_pOutputProtection->PR_OP_Callback,
 					m_pOutputProtection->getPlayReadyLevels(), &m_oDecryptContext);
 #ifdef TRACE_LOG
-	printf("aampDRMProcessKey :: Printing bind result : %08x \n", dr);
+	logprintf("aampDRMProcessKey :: Printing bind result : %08x \n", dr);
 #endif
     ChkDR(dr);
 	m_eKeyState = KEY_READY;

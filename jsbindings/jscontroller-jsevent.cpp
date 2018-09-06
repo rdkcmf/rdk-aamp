@@ -30,7 +30,7 @@
 //#define _DEBUG
 
 #ifdef _DEBUG
-#define LOG(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+#define LOG(...)  logprintf(__VA_ARGS__);fflush(stdout);
 #else
 #define LOG(...)
 #endif

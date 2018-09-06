@@ -958,6 +958,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		switch (streamType)
 		{
 		case 0x02: // MPEG2 Video
+		case 0x24: // HEVC video
 		case 0x80: // ATSC Video
 			if (videoComponentCount < MAX_PIDS)
 			{
@@ -1476,7 +1477,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	if (!((packet[0] == 0x47) && ((size%m_packetSize) == 0)))
 	{
 		FATAL("Error: data buffer not TS packet aligned\n");
-		printf("packet=%p size=%d m_packetSize=%d\n", packet, size, m_packetSize);
+		logprintf("packet=%p size=%d m_packetSize=%d\n", packet, size, m_packetSize);
 		dumpPacket(packet, m_packetSize);
 		assert(false);
 	}
@@ -2508,7 +2509,7 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 					newBuff = (unsigned char *)malloc(newSize*sizeof(char));
 					if (!newBuff)
 					{
-						printf("Error: unable to allocate emulation prevention buffer\n");
+						logprintf("Error: unable to allocate emulation prevention buffer\n");
 						break;
 					}
 					if (m_emulationPrevention)

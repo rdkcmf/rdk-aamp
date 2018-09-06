@@ -45,20 +45,6 @@ extern void logprintf(const char *format, ...);
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
 #endif
 
-#ifndef WIN32
-#ifndef STANDALONE_AAMP
-#define logprintf printf
-#else
-#include <sys/time.h>
-#define logprintf(fmt...) { \
-        struct timeval t; \
-        gettimeofday(&t, NULL); \
-        printf("%ld:%3ld : ", t.tv_sec, t.tv_usec/1000); \
-        printf (fmt); \
-}
-#endif
-#endif
-
 #ifdef TRACE
 #define traceprintf logprintf
 #else
@@ -1115,14 +1101,6 @@ public:
 	void NotifyFragmentCachingComplete();
 	bool SendTunedEvent();
 	bool IsFragmentBufferingRequired();
-
-
-	/**
-	 * @brief Set seek in progress state variable
-	 * @param status true if seek in progress, false to reset
-	 */
-	void SetSeekInProgress(bool status) { mSeekOperationInProgress = status; }
-
 	void GetPlayerVideoSize(int &w, int &h);
 	void SetCallbackAsPending(gint id);
 	void SetCallbackAsDispatched(gint id);

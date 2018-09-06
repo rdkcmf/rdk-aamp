@@ -818,7 +818,7 @@ static void WriteFile(char* fileName, const char* data, int len)
 	FILE *fp = fopen(fileName, "wb");
 	if (NULL == fp)
 	{
-		printf("File open failed. outfile = %s \n", fileName);
+		logprintf("File open failed. outfile = %s \n", fileName);
 		return;
 	}
 	fwrite(data, len, 1, fp);
@@ -1015,7 +1015,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 	if (ret)
 	{
 		GetFilePath(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, media );
-		printf("%s:%d filePath %s\n", __FUNCTION__, __LINE__, fragmentUrl);
+		logprintf("%s:%d filePath %s\n", __FUNCTION__, __LINE__, fragmentUrl);
 		WriteFile(fragmentUrl, cachedFragment.fragment.ptr, cachedFragment.fragment.len);
 	}
 	pMediaStreamContext->fragmentTime += fragmentDuration;
