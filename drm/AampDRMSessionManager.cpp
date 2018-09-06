@@ -857,17 +857,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			GrowableBuffer comChallenge = {0,0,0};
 			const char * availableFields = "{\"keySystem\":\"playReady\",\"mediaUsage\":\"stream\",\"licenseRequest\":\"";
 			aamp_AppendBytes(&comChallenge, availableFields, strlen(availableFields));
-			char *licenseRequest = NULL;
-			if (isWidevine)
-			{
-				//Widevine, license request is already base64 encoded, simply copy data, null terminated
-				licenseRequest = (char*)calloc(licenceChallenge->getDataLength()+1, sizeof(char));
-				memcpy(licenseRequest, licenceChallenge->getData(), licenceChallenge->getDataLength());
-			}
-			else
-			{
-				licenseRequest = base64_Encode(licenceChallenge->getData(),licenceChallenge->getDataLength());
-			}
+
+			char *licenseRequest = base64_Encode(licenceChallenge->getData(),licenceChallenge->getDataLength());
 			delete licenceChallenge;
 			aamp_AppendBytes(&comChallenge, licenseRequest, strlen(licenseRequest));
 			aamp_AppendBytes(&comChallenge,"\",\"contentMetadata\":\"", strlen("\",\"contentMetadata\":\""));
