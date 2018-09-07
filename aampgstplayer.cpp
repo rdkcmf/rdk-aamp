@@ -72,6 +72,11 @@ typedef enum {
 
 #define USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 
+#ifdef INTELCE
+#define INPUT_GAIN_DB_MUTE  (gdouble)-145
+#define INPUT_GAIN_DB_UNMUTE  (gdouble)0
+#endif
+
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -2246,7 +2251,17 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 	if (0 == privateContext->audioVolume)
 	{
 		logprintf("AAMPGstPlayer::%s() %d > Audio Muted\n", __FUNCTION__, __LINE__);
-		g_object_set(gSource, propertyName, true, NULL);
+#ifdef INTELCE
+		if (!stream->using_playersinkbin)
+		{
+			logprintf("AAMPGstPlayer::%s() %d > Setting input-gain to %f\n", __FUNCTION__, __LINE__, INPUT_GAIN_DB_MUTE);
+			g_object_set(privateContext->audio_sink, "input-gain", INPUT_GAIN_DB_MUTE, NULL);
+		}
+		else
+#endif
+		{
+			g_object_set(gSource, propertyName, true, NULL);
+		}
 		privateContext->audioMuted = true;
 	}
 	else
@@ -2254,7 +2269,17 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		if (privateContext->audioMuted)
 		{
 			logprintf("AAMPGstPlayer::%s() %d > Audio Unmuted after a Mute\n", __FUNCTION__, __LINE__);
-			g_object_set(gSource, propertyName, false, NULL);
+#ifdef INTELCE
+			if (!stream->using_playersinkbin)
+			{
+				logprintf("AAMPGstPlayer::%s() %d > Setting input-gain to %f\n", __FUNCTION__, __LINE__, INPUT_GAIN_DB_UNMUTE);
+				g_object_set(privateContext->audio_sink, "input-gain", INPUT_GAIN_DB_UNMUTE, NULL);
+			}
+			else
+#endif
+			{
+				g_object_set(gSource, propertyName, false, NULL);
+			}
 			privateContext->audioMuted = false;
 		}
 		
