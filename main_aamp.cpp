@@ -100,6 +100,18 @@ int getch(void)
 }
 #endif
 
+#ifndef WIN32
+#ifdef USE_SYSLOG_HELPER_PRINT
+#include "syslog_helper_ifc.h"
+#endif
+#include <stdarg.h>
+#ifdef USE_SYSTEMD_JOURNAL_PRINT
+#include <systemd/sd-journal.h>
+#endif
+#endif
+
+#define MAX_DEBUG_LOG_BUFF_SIZE 1024
+
 #define ARRAY_SIZE(A) ((int)(sizeof(A)/sizeof(A[0])))
 
 /**
@@ -2944,7 +2956,7 @@ int main(int argc, char **argv)
 			exit(0);
 			break;
 		case AAMP_EVENT_TIMED_METADATA:
-			printf("AAMP_EVENT_TIMED_METADATA\n");
+			logprintf("AAMP_EVENT_TIMED_METADATA\n");
 			break;
 		}
 		char buf[32];
@@ -2993,28 +3005,28 @@ public:
 		switch (e.type)
 		{
 		case AAMP_EVENT_TUNED:
-			printf("AAMP_EVENT_TUNED\n");
+			logprintf("AAMP_EVENT_TUNED\n");
 			break;
 		case AAMP_EVENT_TUNE_FAILED:
-			printf("AAMP_EVENT_TUNE_FAILED\n");
+			logprintf("AAMP_EVENT_TUNE_FAILED\n");
 			break;
 		case AAMP_EVENT_SPEED_CHANGED:
-			printf("AAMP_EVENT_SPEED_CHANGED\n");
+			logprintf("AAMP_EVENT_SPEED_CHANGED\n");
 			break;
 		case AAMP_EVENT_EOS:
-			printf("AAMP_EVENT_EOS\n");
+			logprintf("AAMP_EVENT_EOS\n");
 			break;
 		case AAMP_EVENT_PLAYLIST_INDEXED:
-			printf("AAMP_EVENT_PLAYLIST_INDEXED\n");
+			logprintf("AAMP_EVENT_PLAYLIST_INDEXED\n");
 			break;
 		case AAMP_EVENT_PROGRESS:
-			//			printf("AAMP_EVENT_PROGRESS\n");
+			//			logprintf("AAMP_EVENT_PROGRESS\n");
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
-			printf("AAMP_EVENT_CC_HANDLE_RECEIVED\n");
+			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED\n");
 			break;
 		case AAMP_EVENT_BITRATE_CHANGED:
-			printf("AAMP_EVENT_BITRATE_CHANGED\n");
+			logprintf("AAMP_EVENT_BITRATE_CHANGED\n");
 			break;
 		}
 	}
@@ -3438,6 +3450,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
 	LazilyLoadConfigIfNeeded();
 
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
+	{
+		mSeekOperationInProgress = true;
+	}
+
 	if (eTUNETYPE_LAST == tuneType)
 	{
 		tuneType = lastTuneType;
@@ -3554,9 +3571,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->Stream();
 	}
 
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
+	{
+		mSeekOperationInProgress = false;
+	}
+
 	if (tuneType == eTUNETYPE_SEEK)
 	{
-		this->SetSeekInProgress(false);
 		if (pipeline_paused == true)
 		{
 			mStreamSink->Pause(true);
@@ -4069,7 +4090,6 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
 			aamp->ResumeDownloads();
-			aamp->SetSeekInProgress(true);
 			aamp->TuneHelper(eTUNETYPE_SEEK); // this unpauses pipeline as side effect
 		}
 
@@ -4122,7 +4142,6 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 	}
 	if (aamp->mpStreamAbstractionAAMP)
 	{ // for seek while streaming
-		aamp->SetSeekInProgress(true);
 		aamp->SetState(eSTATE_SEEKING);
 		aamp->TuneHelper(eTUNETYPE_SEEK);
 		if (sentSpeedChangedEv)
@@ -4160,7 +4179,6 @@ void PlayerInstanceAAMP::SeekToLive()
 		aamp->pipeline_paused = false;
 		aamp->ResumeDownloads();
 	}
-	aamp->SetSeekInProgress(true);
 	aamp->SetState(eSTATE_SEEKING);
 	aamp->TuneHelper(eTUNETYPE_SEEKTOLIVE);
 	aamp->SetState(eSTATE_PLAYING);
@@ -4269,7 +4287,6 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 			logprintf("aamp_SetLanguage(%s) retuning\n", language);
 
 			aamp->discardEnteringLiveEvt = true;
-			aamp->SetSeekInProgress(true);
 
 			aamp->seek_pos_seconds = aamp->GetPositionMs()/1000.0;
 			aamp->TeardownStream(false);
@@ -4374,7 +4391,17 @@ void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventL
  */
 bool PlayerInstanceAAMP::IsLive()
 {
-	return aamp->IsLive();
+	PrivAAMPState state;
+	aamp->GetState(state);
+	if (state == eSTATE_ERROR)
+	{
+		logprintf("IsLive is ignored since the player is at eSTATE_ERROR\n");
+		return false;
+	}
+	else
+	{
+		return aamp->IsLive();
+	}
 }
 
 
@@ -4771,7 +4798,7 @@ void PrivateInstanceAAMP::Stop()
 	mPlayingAd = false;
 	ClearPlaylistCache();
 	mEnableCache = true;
-	SetSeekInProgress(false);
+	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 }
 
@@ -4855,7 +4882,7 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
 {
 	if (gpGlobalConfig->harvest)
 	{
-		printf("aamp harvest: %d\n", gpGlobalConfig->harvest);
+		logprintf("aamp harvest: %d\n", gpGlobalConfig->harvest);
 		if(modifyCount)
 		{
 			gpGlobalConfig->harvest--;
@@ -4893,7 +4920,6 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	}
 }
 
-#ifdef WIN32
 
 /**
  * @brief Print logs to console/ log file
@@ -4901,21 +4927,40 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
  */
 void logprintf(const char *format, ...)
 {
-	va_list args;
-	va_start(args, format);
-	static bool init;
-	FILE *f = fopen("c:/tmp/aamp.log", (init ? "a" : "w"));
-	if (f)
-	{
-		init = true;
-		vfprintf(f, format, args);
-		fclose(f);
-	}
-	vprintf(format, args);
-	va_end(args);
-}
+    va_list args;
+    va_start(args, format);
+
+    char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
+    vsnprintf(gDebugPrintBuffer, MAX_DEBUG_LOG_BUFF_SIZE, format, args);
+    gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
+
+    va_end(args);
+
+#if (!defined STANDALONE_AAMP) && defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT)
+#ifdef USE_SYSTEMD_JOURNAL_PRINT
+    sd_journal_print(LOG_NOTICE, "%s \n", gDebugPrintBuffer);
+#else
+    send_logs_to_syslog(gDebugPrintBuffer);
 #endif
 
+#else  //USE_SYSTEMD_JOURNAL_PRINT
+#ifdef WIN32
+    static bool init;
+    FILE *f = fopen("d:/tmp/aamp.log", (init ? "a" : "w"));
+    if (f)
+    {
+        init = true;
+        fprintf(f, "%s", gDebugPrintBuffer);
+        fclose(f);
+    }
+    printf("%s", gDebugPrintBuffer);
+#else
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    printf("%ld:%3ld : %s", t.tv_sec, t.tv_usec / 1000, gDebugPrintBuffer);
+#endif
+#endif
+}
 
 /**
  * @brief Signal discontinuity of track.

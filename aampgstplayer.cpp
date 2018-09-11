@@ -355,6 +355,9 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 		case FORMAT_VIDEO_ES_H264:
 			caps = gst_caps_new_simple ("video/x-h264", NULL, NULL);
 			break;
+		case FORMAT_VIDEO_ES_HEVC:
+			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
+			break;
 		case FORMAT_VIDEO_ES_MPEG2:
 			caps = gst_caps_new_simple ("video/mpeg",
 					"mpegversion", G_TYPE_INT, 2,
@@ -936,7 +939,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		break;
 
 	default:
-		g_print("msg type: %s\n", gst_message_type_get_name(msg->type));
+		logprintf("msg type: %s\n", gst_message_type_get_name(msg->type));
 		break;
 	}
 	return TRUE;
@@ -1248,7 +1251,7 @@ static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, StreamOutputFor
 	source = gst_element_factory_make("appsrc", NULL);
 	if (NULL == source)
 	{
-		printf("AAMPGstPlayer_SetupStream Cannot create source\n");
+		logprintf("AAMPGstPlayer_SetupStream Cannot create source\n");
 		return NULL;
 	}
 	InitializeSource( _this, G_OBJECT(source) );
@@ -1479,15 +1482,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 #ifdef TRACE_VID_PTS
 	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != 1.0)
 	{
-		printf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
+		logprintf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
 		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
 		if (clock)
 		{
 			GstClockTime curr = gst_clock_get_time(clock);
-			printf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
+			logprintf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
 			gst_object_unref(clock);
 		}
-		printf("\n");
+		logprintf("\n");
 	}
 #endif
 
@@ -1569,15 +1572,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 #ifdef TRACE_VID_PTS
 	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != 1.0)
 	{
-		printf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
+		logprintf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
 		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
 		if (clock)
 		{
 			GstClockTime curr = gst_clock_get_time(clock);
-			printf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
+			logprintf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
 			gst_object_unref(clock);
 		}
-		printf("\n");
+		logprintf("\n");
 	}
 #endif
 
@@ -1909,7 +1912,7 @@ void AAMPGstPlayer::DumpStatus(void)
 		gst_element_query_duration(privateContext->pipeline, &format, &len))
 #endif
 	{
-		g_print("Position: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r",
+		logprintf("Position: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r",
 			GST_TIME_ARGS(pos), GST_TIME_ARGS(len));
 	}
 }

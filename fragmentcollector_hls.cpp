@@ -109,6 +109,7 @@ static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 static const FormatMap videoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
 {
 	{ "avc1.", FORMAT_VIDEO_ES_H264 },
+	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
 	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
 };
 /// Variable initialization for media profiler buckets 
@@ -989,7 +990,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				}
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
-					logprintf("#EXT-X-DISCONTINUITY\n");
+					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
 					discontinuity = true;
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
@@ -2342,7 +2343,7 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 			logprintf("%s:%d sync using sequence number. diff %lld A %lld V %lld a-f-uri %s v-f-uri %s\n", __FUNCTION__,
 					__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
 					trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
-			while (diff)
+			while (diff > 0)
 			{
 				laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
 				laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
@@ -2598,6 +2599,11 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				HarvestFile(ts->playlistUrl, &ts->playlist, false, prefix);
 #endif
 				totalDuration[iTrack] = ts->IndexPlaylist();
+				if (totalDuration[iTrack] == 0.0f)
+				{
+					break;
+				}
+
 				if (newTune && needMetadata)
 				{
 					needMetadata = false;
@@ -2831,6 +2837,12 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 				}
 			}
+		}
+
+		if ((video->enabled && totalDuration[eMEDIATYPE_VIDEO] == 0.0f) || (audio->enabled && totalDuration[eMEDIATYPE_AUDIO] == 0.0f))
+		{
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d Track Duration is 0. Cannot play this content\n", __FUNCTION__, __LINE__);
+			return false;
 		}
 
 		if (bSetStatePreparing)
