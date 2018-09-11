@@ -1374,15 +1374,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 #endif
 				if (!context->firstFragmentDecrypted)
 				{
-					TunedEventConfig tunedEventConfig =  context->IsLive() ?
-							gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
-					if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
-					{
-						if (aamp->SendTunedEvent())
-						{
-							logprintf("aamp: hls - sent tune event after first fragment fetch and decrypt\n");
-						}
-					}
+					aamp->NotifyFirstFragmentDecrypted();
 					context->firstFragmentDecrypted = true;
 				}
 			}

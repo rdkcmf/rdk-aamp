@@ -5336,13 +5336,21 @@ void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
  */
 bool PrivateInstanceAAMP::SendTunedEvent()
 {
-	if(mTunedEventPending)
+	bool ret = false;
+
+	// Required for synchronising btw audio and video tracks in case of cdmidecryptor
+	pthread_mutex_lock(&mLock);
+
+	ret = mTunedEventPending;
+	mTunedEventPending = false;
+
+	pthread_mutex_unlock(&mLock);
+
+	if(ret)
 	{
 		SendEventAsync(AAMP_EVENT_TUNED);
-		mTunedEventPending = false;
-		return true;
 	}
-	return false;
+	return ret;
 }
 
 
@@ -5780,4 +5788,23 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 		customHeader.append(moneytracebuf);
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]\n",customHeader.c_str());
+}
+
+
+/**
+ * @brief Send tuned event if configured to sent after decryption
+ */
+void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
+{
+	if(mTunedEventPending)
+	{
+		TunedEventConfig tunedEventConfig =  IsLive() ? gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
+		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
+		{
+			if (SendTunedEvent())
+			{
+				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mIsDash ? "mpd" : "hls");
+			}
+		}
+	}
 }
