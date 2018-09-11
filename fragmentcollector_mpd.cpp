@@ -3864,6 +3864,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 								{
 									logprintf("%s %d Audio type eAUDIO_UNKNOWN\n", __FUNCTION__, __LINE__);
 								}
+								ProcessContentProtection(adaptationSet, (MediaType)i);
 								representation = adaptationSet->GetRepresentation().at(representionIndex);
 								fragmentDescriptor->Bandwidth = representation->GetBandwidth();
 								fragmentDescriptor->baseUrls = &representation->GetBaseURLs();
