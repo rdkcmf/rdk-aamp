@@ -2129,10 +2129,17 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	{
 		g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
 	}
+#ifndef INTELCE
 	else if (privateContext->video_sink)
 	{
 		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
 	}
+#else
+	else if (privateContext->video_pproc)
+	{
+		g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
+	}
+#endif
 	else
 	{
 		logprintf("SetVideoRectangle :: Scaling not possible at this time\n");
