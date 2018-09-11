@@ -30,6 +30,7 @@
 #include "fragmentcollector_hls.h"
 #include "_base64.h"
 #include "base16.h"
+#include <algorithm> // for std::min
 #include <sys/time.h>
 #include <stdio.h>
 #include <assert.h>
@@ -572,10 +573,10 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					}
 					streamInfo->isIframeTrack = true;
 					mAbrManager.addProfile({
-						.isIframeTrack = streamInfo->isIframeTrack,
-						.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond,
-						.width = streamInfo->resolution.width,
-						.height = streamInfo->resolution.height,
+						streamInfo->isIframeTrack,
+						streamInfo->bandwidthBitsPerSecond,
+						streamInfo->resolution.width,
+						streamInfo->resolution.height,
 					});
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
@@ -589,10 +590,10 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						next = mystrpbrk(next);
 					}
 					mAbrManager.addProfile({
-						.isIframeTrack = streamInfo->isIframeTrack,
-						.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond,
-						.width = streamInfo->resolution.width,
-						.height = streamInfo->resolution.height,
+						streamInfo->isIframeTrack,
+						streamInfo->bandwidthBitsPerSecond,
+						streamInfo->resolution.width,
+						streamInfo->resolution.height
 					});
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))

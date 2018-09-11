@@ -3331,10 +3331,10 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool res
 					mStreamInfo[idx].resolution.height = representation->GetHeight();
 					mStreamInfo[idx].resolution.width = representation->GetWidth();
 					mContext->GetABRManager().addProfile({
-						.isIframeTrack = mStreamInfo[idx].isIframeTrack,
-						.bandwidthBitsPerSecond = mStreamInfo[idx].bandwidthBitsPerSecond,
-						.width = mStreamInfo[idx].resolution.width,
-						.height = mStreamInfo[idx].resolution.height,
+						mStreamInfo[idx].isIframeTrack,
+						mStreamInfo[idx].bandwidthBitsPerSecond,
+						mStreamInfo[idx].resolution.width,
+						mStreamInfo[idx].resolution.height,
 					});
 					if(mStreamInfo[idx].resolution.height > 1080
 					|| mStreamInfo[idx].resolution.width > 1920)
