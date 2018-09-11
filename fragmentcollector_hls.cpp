@@ -65,7 +65,7 @@
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
-
+#define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
 
 //Global variables to persist drm related info for particular tune/vod
 static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
@@ -74,6 +74,7 @@ static DrmInfo gDrmInfo = {eMETHOD_NONE, false, NULL, NULL};
 static HlsDrmBase* gDrm = NULL;
 static bool gDrmContexSet = false;
 static pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
+static int gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME; /** max time to wait for license acquisition before report error **/
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -1336,14 +1337,23 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 						logprintf("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d\n", fragmentURI, segDrmDecryptFailCount);
 						if (aamp->DownloadsAreEnabled())
 						{
-							/* Added to send tune error when fragments decryption failed */
-							segDrmDecryptFailCount +=1;
-
-							if(MAX_SEG_DRM_DECRYPT_FAIL_COUNT <= segDrmDecryptFailCount)
+							if (gDrmLicenseAcqWaitTime <= 0)
 							{
 								decryption_error = true;
-								logprintf("FetchFragmentHelper : drm_Decrypt failed for fragments, reached failure threshold sending failure event\n");
-								aamp->SendErrorEvent(AAMP_TUNE_DRM_DECRYPT_FAILED);
+								logprintf("FetchFragmentHelper : drm_Decrypt failed due to license acquisition timeout\n");
+								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT);
+							}
+							else
+							{
+								/* Added to send tune error when fragments decryption failed */
+								segDrmDecryptFailCount +=1;
+
+								if(MAX_SEG_DRM_DECRYPT_FAIL_COUNT <= segDrmDecryptFailCount)
+								{
+									decryption_error = true;
+									logprintf("FetchFragmentHelper : drm_Decrypt failed for fragments, reached failure threshold sending failure event\n");
+									aamp->SendErrorEvent(AAMP_TUNE_DRM_DECRYPT_FAILED);
+								}
 							}
 						}
 						aamp_Free(&cachedFragment->fragment.ptr);
@@ -3544,16 +3554,29 @@ bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType
 			}
 			if(gDrm)
 			{
+				// Max wait time allowed for license acquisition expired
+				if (gDrmLicenseAcqWaitTime <= 0)
+				{
+					ret = false;
+					pthread_mutex_unlock(&gDrmMutex);
+					break;
+				}
+
 				drmReturn = gDrm->Decrypt(bucketTypeFragmentDecrypt, cachedFragment->fragment.ptr,
 						cachedFragment->fragment.len, DRM_DECRYPT_RETRY_TIMEOUT);
+
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+				{
+					gDrmLicenseAcqWaitTime -= DRM_DECRYPT_RETRY_TIMEOUT;
+					logprintf("StreamAbstractionAAMP_HLS::%s eDRM_KEY_ACQUSITION_TIMEOUT retryCount %d, remainingTime %d secs\n",
+						__FUNCTION__, retryCount, (gDrmLicenseAcqWaitTime < 0) ? 0 : gDrmLicenseAcqWaitTime);
+				}
 			}
 			pthread_mutex_unlock(&gDrmMutex);
 			if (drmReturn != eDRM_SUCCESS)
 			{
-				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn && gDrmLicenseAcqWaitTime > 0)
 				{
-					logprintf("StreamAbstractionAAMP_HLS::%s eDRM_KEY_ACQUSITION_TIMEOUT retryCount %d\n", __FUNCTION__,
-					        retryCount);
 					retryCount++;
 					continue;
 				}
@@ -3730,6 +3753,8 @@ void TrackState::SetDrmContextUnlocked()
 		{
 			gDrm->SetContext(aamp, &gDrmMetadata, &gDrmInfo);
 			gDrmContexSet = true;
+			// Reset license acqusition wait time
+			gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME;
 		}
 	}
 }
