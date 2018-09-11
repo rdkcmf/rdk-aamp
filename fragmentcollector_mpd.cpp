@@ -3985,8 +3985,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					}
 					// IsLive = 1 , resetTimeLineIndex = 1
 					// InProgressCdvr (IsLive=1) , resetTimeLineIndex = 1
-					// For Completed CDVR ( IsInProgressCDVR = 1) && periodChanged =1 , resetTimeLineIndex = 1
-					bool resetTimeLineIndex = (mIsLive||(aamp->IsInProgressCDVR() && periodChanged));
+					// Vod/CDVR for PeriodChange , resetTimeLineIndex = 1
+					bool resetTimeLineIndex = (mIsLive|| periodChanged);
 					UpdateTrackInfo(true, resetTimeLineIndex);
 					if(mIsLive)
 					{
@@ -4088,6 +4088,11 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						{
 							mMediaStreamContext[eMEDIATYPE_VIDEO]->eosReached = true;
 							mMediaStreamContext[eMEDIATYPE_VIDEO]->AbortWaitForCachedFragment(false);
+							if(mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled )
+							{
+								mMediaStreamContext[eMEDIATYPE_AUDIO]->eosReached = true;
+								mMediaStreamContext[eMEDIATYPE_AUDIO]->AbortWaitForCachedFragment(false);
+							}
 							logprintf("%s:%d %s EOS - Exit fetch loop\n", __FUNCTION__, __LINE__, mMediaStreamContext[eMEDIATYPE_VIDEO]->name);
 						}
 						break;
