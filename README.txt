@@ -158,6 +158,7 @@ ff		set desired trick speed to 4x
 flush		flush player buffers
 stop		stop streaming
 status		dump gstreamer state
+rect		Set video rectangle. eg. rect 0 0 640 360
 
 To add channelmap for CLI, enter channel entries in below format
 *<Channel Number> <Channel Name> <Channel URL>

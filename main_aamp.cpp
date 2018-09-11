@@ -2449,6 +2449,14 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				mChannelMap.clear();
 				exit(0);
 			}
+			else if (memcmp(cmd, "rect", 4) == 0)
+			{
+				int x, y, w, h;
+				if (sscanf(cmd, "rect %d %d %d %d", &x, &y, &w, &h) == 4)
+				{
+					mSingleton->SetVideoRectangle(x, y, w, h);
+				}
+			}
 			else if (strcmp(cmd, "sap") == 0)
 			{
 				gpGlobalConfig->SAP = !gpGlobalConfig->SAP;
