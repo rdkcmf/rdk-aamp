@@ -1152,6 +1152,7 @@ public:
 	 */
 	bool IsLocalPlayback() { return mIsLocalPlayback; }
 	void GetMoneyTraceString(std::string &);
+	void NotifyFirstFragmentDecrypted();
 private:
 
 	static void LazilyLoadConfigIfNeeded(void);
