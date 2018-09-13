@@ -384,6 +384,8 @@ private:
 	StreamAbstractionAAMP_MPD* mContext;
 	StreamInfo* mStreamInfo;
 	double mPrevStartTimeSeconds;
+	std::string mPrevLastSegurlMedia;
+	long mPrevLastSegurlOffset; //duration offset from beginning of TSB
 	unsigned char *lastProcessedKeyId;
 	int lastProcessedKeyIdLen;
 	uint64_t mPeriodEndTime;
@@ -424,6 +426,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mStreamInfo = NULL;
 	mContext->GetABRManager().clearProfiles();
 	mPrevStartTimeSeconds = 0;
+	mPrevLastSegurlOffset = 0;
 	mPeriodEndTime = 0;
 	mPeriodStartTime = 0;
 	lastProcessedKeyId = NULL;
@@ -1201,7 +1204,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						pMediaStreamContext->timeLineIndex++;
 					}
 #ifdef DEBUG_TIMELINE
-					logprintf("%s:%d Type[%d] After Incr. fragmentDescriptor.Time %" PRIu64 " lastSegmentTime %" PRIu64 " Index=%d fragRep=%d,repMax=%d Number=%lld\n",__FUNCTION__, __LINE__,pMediaStreamContext->type, 
+						logprintf("%s:%d Type[%d] After Incr. fragmentDescriptor.Time %" PRIu64 " lastSegmentTime %" PRIu64 " Index=%d fragRep=%d,repMax=%d Number=%lld\n",__FUNCTION__, __LINE__,pMediaStreamContext->type,
 						pMediaStreamContext->fragmentDescriptor.Time, pMediaStreamContext->lastSegmentTime,pMediaStreamContext->timeLineIndex,
 						pMediaStreamContext->fragmentRepeatCount , repeatCount,pMediaStreamContext->fragmentDescriptor.Number);
 #endif
@@ -1365,7 +1368,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						string startTimestr = segmentURL->GetRawAttributes().at("s");
 						long long duration = stoll(durationStr);
 						long long startTime = stoll(startTimestr);
-						if(startTime >= pMediaStreamContext->lastSegmentTime || 0 == pMediaStreamContext->lastSegmentTime || rate < 0 )
+						if(startTime > pMediaStreamContext->lastSegmentTime || 0 == pMediaStreamContext->lastSegmentTime || rate < 0 )
 						{
 							/*
 								Added to inject appropriate initialization header in 
@@ -1401,11 +1404,6 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								return retval;
 							}
 						}
-						else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO && duration > 0 && ((pMediaStreamContext->lastSegmentTime - startTime) > TIMELINE_START_RESET_DIFF))
-						{
-							logprintf("%s:%d Calling ScheduleRetune to handle start-time reset lastSegmentTime=%" PRIu64 " start-time=%lld duration=%lld\n", __FUNCTION__, __LINE__, pMediaStreamContext->lastSegmentTime, startTime, duration);
-							aamp->ScheduleRetune(eDASH_ERROR_STARTTIME_RESET, pMediaStreamContext->mediaType);
-						}
 						else
 						{
 							int index = pMediaStreamContext->fragmentIndex + 1;
@@ -1432,7 +1430,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								}
 							}
 
-							while(pMediaStreamContext->lastSegmentTime > startTime && index < listSize)
+							while(startTime < pMediaStreamContext->lastSegmentTime && index < listSize)
 							{
 								segmentURL = segmentURLs.at(index);
 								string startTimestr = segmentURL->GetRawAttributes().at("s");
@@ -1440,10 +1438,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								index++;
 							}
 							pMediaStreamContext->fragmentIndex = index - 1;
-#ifdef DEBUG_TIMELINE
-                                                        logprintf("%s:%d skipping. startTime %lld lastSegmentTime %lld index = %d\n", __FUNCTION__, __LINE__, startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
-#endif
-
+							AAMPLOG_TRACE("%s:%d PushNextFragment Exit : startTime %lld lastSegmentTime %lld index = %d\n", __FUNCTION__, __LINE__, startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
 						}
 					}
 					if(rate > 0)
@@ -3470,21 +3465,68 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 				}
 				else
 				{
-					const std::vector<ISegmentURL*>segmentURLs = segmentList->GetSegmentURLs();
-					if(segmentURLs.size() > 0)
+					//Updated logic for culling,
+					vector<IPeriod*> periods =  mpd->GetPeriods();
+					long duration = 0;
+					long prevLastSegUrlOffset = 0;
+					long newOffset = 0;
+					bool offsetFound = false;
+					std::string newMedia;
+					for(int iPeriod = periods.size() - 1 ; iPeriod >= 0; iPeriod--)
 					{
-						ISegmentURL *segmentURL = segmentURLs.at(0);
-						string startTimestr = segmentURL->GetRawAttributes().at("s");
-						long long startTime = stoll(startTimestr) / segmentList->GetTimescale();
-						if (startTime && mPrevStartTimeSeconds)
+						IPeriod* period = periods.at(iPeriod);
+						IAdaptationSet * adaptationSet = period->GetAdaptationSets().at(0);
+						IRepresentation* representation = adaptationSet->GetRepresentation().at(0);
+						ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
+						duration += segmentList->GetDuration();
+						vector<ISegmentURL*> segUrls = segmentList->GetSegmentURLs();
+						for(int iSegurl = segUrls.size() - 1; iSegurl >= 0 && !offsetFound; iSegurl--)
 						{
-							double culled = startTime - mPrevStartTimeSeconds;
-							AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d startTime %lld before %f culled (%f)\n", __FUNCTION__, __LINE__, startTime, mPrevStartTimeSeconds, culled);
-							aamp->UpdateCullingState(culled);
+							std::string media = segUrls.at(iSegurl)->GetMediaURI();
+							std::string offsetStr = segUrls.at(iSegurl)->GetRawAttributes().at("d");
+							uint32_t offset = stol(offsetStr);
+							if(0 == newOffset)
+							{
+								newOffset = offset;
+								newMedia = media;
+							}
+							if(0 == mPrevLastSegurlOffset && !offsetFound)
+							{
+								offsetFound = true;
+								break;
+							}
+							else if(mPrevLastSegurlMedia == media)
+							{
+								offsetFound = true;
+								prevLastSegUrlOffset += offset;
+								break;
+							}
+							else
+							{
+								prevLastSegUrlOffset += offset;
+							}
+						}//End of segurl for loop
+					} //End of Period for loop
+					double culled = 0;
+					long offsetDiff = 0;
+					long currOffset = duration - prevLastSegUrlOffset;
+					if(mPrevLastSegurlOffset)
+					{
+						long timescale = segmentList->GetTimescale();
+						offsetDiff = mPrevLastSegurlOffset - currOffset;
+						if(offsetDiff > 0)
+						{
+							culled = (double)offsetDiff / timescale;
 						}
-						mPrevStartTimeSeconds = startTime;
-						return;
 					}
+					AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d PrevOffset %ld CurrentOffset %ld culled (%f)\n", __FUNCTION__, __LINE__, mPrevLastSegurlOffset, currOffset, culled);
+					mPrevLastSegurlOffset = duration - newOffset;
+					mPrevLastSegurlMedia = newMedia;
+					if(culled)
+					{
+						aamp->UpdateCullingState(culled);
+					}
+					return;
 				}
 			}
 			else
