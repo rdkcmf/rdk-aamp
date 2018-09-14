@@ -2419,6 +2419,21 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 							__FUNCTION__, __LINE__, offsetFromStart, duration, currentPeriodStart);
 				}
 			}
+			else
+			{
+				// Non-live - VOD/CDVR(Completed) - DELIA-30266
+				double seekWindowEnd = (double) durationMs / 1000;
+				if(seekPosition > seekWindowEnd)
+				{
+					for (int i = 0; i < mNumberOfTracks; i++)
+					{
+						mMediaStreamContext[i]->eosReached=true;
+					}
+					logprintf("%s:%d seek target out of range, mark EOS. playTarget:%f End:%f. \n",
+						__FUNCTION__,__LINE__,seekPosition, seekWindowEnd);
+					return true;
+				}
+			}
 
 			SeekInPeriod( offsetFromStart);
 			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
