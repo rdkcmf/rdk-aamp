@@ -133,6 +133,7 @@ struct AAMPGstPlayerPriv
 	GstEvent *protectionEvent; //GstEvent holding the pssi data to be sent downstream.
 	std::atomic<bool> firstFrameCallbackIdleTaskPending; //Set if any first frame callback is pending.
 	bool using_westerossink; //true if westros sink is used as video sink
+	guint busWatchId;
 };
 
 #ifdef STANDALONE_AAMP
@@ -1086,7 +1087,7 @@ bool AAMPGstPlayer::CreatePipeline()
 		privateContext->bus = gst_pipeline_get_bus(GST_PIPELINE(privateContext->pipeline));
 		if (privateContext->bus)
 		{
-			gst_bus_add_watch(privateContext->bus, (GstBusFunc) bus_message, this);
+			privateContext->busWatchId = gst_bus_add_watch(privateContext->bus, (GstBusFunc) bus_message, this);
 #ifdef USE_GST1
 			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this, NULL);
 #else
@@ -1118,11 +1119,17 @@ void AAMPGstPlayer::DestroyPipeline()
 		gst_object_unref(privateContext->pipeline);
 		privateContext->pipeline = NULL;
 	}
+	if (privateContext->busWatchId != 0)
+	{
+		g_source_remove(privateContext->busWatchId);
+		privateContext->busWatchId = 0;
+	}
 	if (privateContext->bus)
 	{
 		gst_object_unref(privateContext->bus);
 		privateContext->bus = NULL;
 	}
+
     //video decoder handle will change with new pipeline
     privateContext->decoderHandleNotified = false;
 
