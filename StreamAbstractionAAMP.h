@@ -155,7 +155,8 @@ private:
 	int fragmentIdxToInject; /**< Write position */
 	int fragmentIdxToFetch; /**< Read position */
 	int bandwidthBytesPerSecond; /** Bandwidth of last selected profile*/
-	double totalFetchedDuration;
+	double totalFetchedDuration; /** Total duration fetched by track*/
+	size_t fetchBufferPreAllocLen; /** Buffer length to pre-allocate for next fetch buffer*/
 };
 
 
