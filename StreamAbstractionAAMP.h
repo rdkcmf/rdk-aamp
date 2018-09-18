@@ -562,9 +562,9 @@ private:
 	/**
 	 * @brief Update profile based on fragment cache.
 	 *
-	 * @return void
+	 * @return bool
 	 */
-	void UpdateProfileBasedOnFragmentCache(void);
+	bool UpdateProfileBasedOnFragmentCache(void);
 
 	pthread_mutex_t mLock;              /**< lock for A/V track catchup logic*/
 	pthread_cond_t mCond;               /**< condition for A/V track catchup logic*/

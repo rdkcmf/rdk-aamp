@@ -851,18 +851,19 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 
 	if (!aamp->IsTSBSupported())
 	{
-		retValue = true;
 		if (http_error == 404 || http_error == 500 || http_error == 503)
 		{
 			if (RampDownProfile())
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP::%s:%d > Condition Rampdown Success\n", __FUNCTION__, __LINE__);
+				retValue = true;
 			}
 		}
 		//For timeout, rampdown in single steps might not be enough
 		else if (http_error == CURLE_OPERATION_TIMEDOUT)
 		{
-			UpdateProfileBasedOnFragmentCache();
+			if(UpdateProfileBasedOnFragmentCache())
+				retValue = true;
 		}
 	}
 
@@ -1000,8 +1001,9 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 /**
  * @brief Update profile state based on cached fragments
  */
-void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
+bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 {
+	bool retVal = false;
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	int desiredProfileIndex = GetDesiredProfileBasedOnCache();
 	if (desiredProfileIndex != currentProfileIndex)
@@ -1015,5 +1017,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		video->ABRProfileChanged();
 		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
+		retVal = true;
 	}
+	return retVal;
 }
