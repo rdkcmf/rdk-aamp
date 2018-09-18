@@ -354,7 +354,15 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
 			break;
 		case FORMAT_VIDEO_ES_H264:
+#ifdef INTELCE
+			caps = gst_caps_new_simple ("video/x-h264",
+					"stream-format", G_TYPE_STRING, "avc",
+					"width", G_TYPE_INT, 1920,
+					"height", G_TYPE_INT, 1080,
+					NULL);
+#else
 			caps = gst_caps_new_simple ("video/x-h264", NULL, NULL);
+#endif
 			break;
 		case FORMAT_VIDEO_ES_HEVC:
 			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
