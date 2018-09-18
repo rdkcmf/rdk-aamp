@@ -4902,9 +4902,9 @@ void logprintf(const char *format, ...)
 
     va_end(args);
 
-#if (!defined STANDALONE_AAMP) && defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT)
+#if (!defined STANDALONE_AAMP) && (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
 #ifdef USE_SYSTEMD_JOURNAL_PRINT
-    sd_journal_print(LOG_NOTICE, "%s \n", gDebugPrintBuffer);
+    sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
 #else
     send_logs_to_syslog(gDebugPrintBuffer);
 #endif
