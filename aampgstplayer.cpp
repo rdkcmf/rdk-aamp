@@ -817,16 +817,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 #else
 			if (new_state == GST_STATE_READY && old_state == GST_STATE_NULL)
 			{
-				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink", 16) == 0)
-				{
-					_this->privateContext->audio_sink = (GstElement *) msg->src;
-
-					logprintf("AAMPGstPlayer setting audiosync\n");
-					g_object_set(msg->src, "sync", TRUE, NULL);
-
-					_this->setVolumeOrMuteUnMute();
-				}
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
+				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
 				{
 					_this->privateContext->video_sink = (GstElement *) msg->src;
 					logprintf("AAMPGstPlayer setting stop-keep-frame\n");
@@ -967,12 +958,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 	switch(GST_MESSAGE_TYPE(msg))
 	{
 	case GST_MESSAGE_STATE_CHANGED:
-#ifndef INTELCE
-		if (AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
+		GstState old_state, new_state;
+		gst_message_parse_state_changed(msg, &old_state, &new_state, NULL);
+		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
 		{
-			GstState old_state, new_state;
-			gst_message_parse_state_changed(msg, &old_state, &new_state, NULL);
-			if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
+#ifndef INTELCE
+			if (AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
@@ -986,27 +977,32 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
-		}
+#else
+			if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink", 16) == 0)
+			{
+				_this->privateContext->audio_sink = (GstElement *) msg->src;
+
+				logprintf("AAMPGstPlayer setting audio-sync\n");
+				g_object_set(msg->src, "sync", TRUE, NULL);
+
+				_this->setVolumeOrMuteUnMute();
+			}
 #endif
-        /*This block is added to share the PrivateInstanceAAMP object
-          with PlayReadyDecryptor Plugin, for tune time profiling
+			/*This block is added to share the PrivateInstanceAAMP object
+			  with PlayReadyDecryptor Plugin, for tune time profiling
 
-          AAMP is added as a property of playready plugin
-        */
-        if(memcmp(GST_OBJECT_NAME(msg->src), GstPluginNamePR, strlen(GstPluginNamePR)) == 0 ||
-           memcmp(GST_OBJECT_NAME(msg->src), GstPluginNameWV, strlen(GstPluginNameWV)) == 0)
-        {
-            GstState old_state, new_state;
-            gst_message_parse_state_changed(msg, &old_state, &new_state, NULL);
-            if(new_state == GST_STATE_READY && old_state == GST_STATE_NULL){
-                logprintf("AAMPGstPlayer setting aamp instance for %s decryptor\n", GST_OBJECT_NAME(msg->src));
-                GValue val = { 0, };
-                g_value_init(&val, G_TYPE_POINTER);
-                g_value_set_pointer(&val, (gpointer) _this->aamp);
-                g_object_set_property(G_OBJECT(msg->src), "aamp",&val);
-            }
-        }
-
+			  AAMP is added as a property of playready plugin
+			*/
+			if(memcmp(GST_OBJECT_NAME(msg->src), GstPluginNamePR, strlen(GstPluginNamePR)) == 0 ||
+			   memcmp(GST_OBJECT_NAME(msg->src), GstPluginNameWV, strlen(GstPluginNameWV)) == 0)
+			{
+				logprintf("AAMPGstPlayer setting aamp instance for %s decryptor\n", GST_OBJECT_NAME(msg->src));
+				GValue val = { 0, };
+				g_value_init(&val, G_TYPE_POINTER);
+				g_value_set_pointer(&val, (gpointer) _this->aamp);
+				g_object_set_property(G_OBJECT(msg->src), "aamp",&val);
+			}
+		}
 		break;
 	case GST_MESSAGE_NEED_CONTEXT:
 		
