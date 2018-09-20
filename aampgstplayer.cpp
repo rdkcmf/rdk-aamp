@@ -90,6 +90,7 @@ struct media_stream
 	bool flush;
 	bool resetPosition;
 	bool bufferUnderrun;
+	bool eosReached;
 };
 
 /**
@@ -634,7 +635,15 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 		type = eMEDIATYPE_AUDIO;
 	}
 	_this->privateContext->stream[type].bufferUnderrun = true;
-	_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
+	if (_this->privateContext->stream[type].eosReached)
+	{
+		_this->aamp->NotifyEOSReached();
+		_this->privateContext->stream[type].eosReached = false;
+	}
+	else
+	{
+		_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
+	}
 }
 
 /**
@@ -1282,6 +1291,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
 	stream->bufferUnderrun = false;
+	stream->eosReached = false;
 	if ((stream->format != FORMAT_INVALID) && (stream->format != FORMAT_NONE))
 	{
 		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d \n", (int)mediaType);
@@ -1702,6 +1712,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			}
 		}
 		stream->resetPosition = true;
+		stream->eosReached = false;
 	}
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -1778,6 +1789,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	logprintf("entering AAMPGstPlayer_EndOfStreamReached type %d\n", (int)type);
 
 	media_stream *stream = &privateContext->stream[type];
+	stream->eosReached = true;
 	if (stream->format != FORMAT_NONE && stream->resetPosition == true && stream->flush == true)
 	{
 		logprintf("%s(): EOS received as first buffer \n", __FUNCTION__);
