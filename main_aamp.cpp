@@ -3642,7 +3642,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "-cdvr-");
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find("169.254.") != std::string::npos);
-	mPersistedProfileIndex	=	0;
+	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
 
 	SetContentType(mainManifestUrl, contentType);

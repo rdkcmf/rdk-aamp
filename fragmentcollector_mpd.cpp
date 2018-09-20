@@ -328,13 +328,7 @@ public:
 	bool FetchFragment(MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance = 0, bool discontinuity = false );
 	uint64_t GetPeriodEndTime();
 	void DoAbr();
-
-	/**
-	 * @brief Gets number of profiles
-	 * @retval number of profiles
-	 */
-	int GetProfileCount() { return mContext->GetProfileCount(); }
-
+	int GetProfileCount();
 	StreamInfo* GetStreamInfo(int idx);
 	MediaTrack* GetMediaTrack(TrackType type);
 	double GetFirstPTS();
@@ -359,7 +353,7 @@ private:
 	void StreamSelection(bool newTune = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
-	void UpdateTrackInfo(bool modifyDefaultBW, bool resetTimeLineIndex=false);
+	void UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
 	double SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType);
@@ -397,6 +391,8 @@ private:
 	std::string mPeriodId;
 	bool mPushEncInitFragment;
 	int mPrevAdaptationSetCount;
+	std::unordered_map<long, int> mBitrateIndexMap;
+	bool mIsFogTSB;
 };
 
 
@@ -437,6 +433,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mMinUpdateDurationMs = DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS;
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 	mPrevAdaptationSetCount = 0;
+	mIsFogTSB = false;
 };
 
 
@@ -1382,11 +1379,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								{
 									pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
 									pMediaStreamContext->profileChanged = true;
+									mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bitrate];
 									FetchAndInjectInitialization();
-									if(!pMediaStreamContext->profileChanged)
-									{
-										aamp->NotifyBitRateChangeEvent(bitrate, "BitrateChanged - Network Adaptation", 0, 0);
-									}
 									return false; //Since we need to check WaitForFreeFragmentCache
 								}
 							}
@@ -2246,6 +2240,11 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		}
 
 		mIsLive = !(mpd->GetType() == "static");
+		map<string, string> mpdAttributes = mpd->GetRawAttributes();
+		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
+		{
+			mIsFogTSB = true;
+		}
 
 		if(mIsLive)
 		{
@@ -2358,7 +2357,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					logprintf("aamp: mpd - sent tune event after indexing playlist\n");
 				}
 			}
-			UpdateTrackInfo(!newTune, true);
+			UpdateTrackInfo(!newTune, true, true);
 
 			if (0 == durationMs)
 			{
@@ -3305,11 +3304,52 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	}
 }
 
+/**
+ * @brief Extract bitrate info from custom mpd
+ * @note Caller function should delete the vector elements after use.
+ * @param adaptationSet : AdaptaionSet from which bitrate info is to be extracted
+ * @param[out] representations : Representation vector gets updated with Available bit rates.
+ */
+static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vector<Representation *>& representations )
+{
+	std::vector<xml::INode *> subNodes = adaptationSet->GetAdditionalSubNodes();
+	for(int i = 0; i < subNodes.size(); i ++)
+	{
+		xml::INode * node = subNodes.at(i);
+		if(node->GetName() == "AvailableBitrates")
+		{
+			std::vector<xml::INode *> reprNodes = node->GetNodes();
+			for(int reprIter = 0; reprIter < reprNodes.size(); reprIter++)
+			{
+				xml::INode * reprNode = reprNodes.at(reprIter);
+				if(reprNode->GetName() == "Representation")
+				{
+					dash::mpd::Representation * repr = new dash::mpd::Representation();
+					if(reprNode->HasAttribute("bandwidth"))
+					{
+						repr->SetBandwidth(stol(reprNode->GetAttributeValue("bandwidth")));
+					}
+					if(reprNode->HasAttribute("height"))
+					{
+						repr->SetHeight(stol(reprNode->GetAttributeValue("height")));
+					}
+					if(reprNode->HasAttribute("width"))
+					{
+						repr->SetWidth(stol(reprNode->GetAttributeValue("width")));
+					}
+					representations.push_back(repr);
+				}
+			}
+			break;
+		}
+	}
+}
+
 
 /**
  * @brief Updates track information based on current state
  */
-void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool resetTimeLineIndex)
+void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
 {
 	long defaultBitrate = gpGlobalConfig->defaultBitrate;
 	for (int i = 0; i < mNumberOfTracks; i++)
@@ -3322,44 +3362,79 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool res
 			/*Populate StreamInfo for ABR Processing*/
 			if (i == eMEDIATYPE_VIDEO)
 			{
-				int representationCount = pMediaStreamContext->adaptationSet->GetRepresentation().size();
-				if ((representationCount != GetProfileCount()) && mStreamInfo)
+				if(mIsFogTSB && periodChanged)
 				{
-					delete[] mStreamInfo;
-					mStreamInfo = NULL;
-				}
-				if (!mStreamInfo)
-				{
-					mStreamInfo = new StreamInfo[representationCount];
-				}
-				mContext->GetABRManager().clearProfiles();
-				for (int idx = 0; idx < representationCount; idx++)
-				{
-					IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
-					mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
-					mStreamInfo[idx].isIframeTrack = !(1.0 == rate);
-					mStreamInfo[idx].resolution.height = representation->GetHeight();
-					mStreamInfo[idx].resolution.width = representation->GetWidth();
-					mContext->GetABRManager().addProfile({
-						mStreamInfo[idx].isIframeTrack,
-						mStreamInfo[idx].bandwidthBitsPerSecond,
-						mStreamInfo[idx].resolution.width,
-						mStreamInfo[idx].resolution.height,
-					});
-					if(mStreamInfo[idx].resolution.height > 1080
-					|| mStreamInfo[idx].resolution.width > 1920)
+					vector<Representation *> representations;
+					GetBitrateInfoFromCustomMpd(pMediaStreamContext->adaptationSet, representations);
+					int representationCount = representations.size();
+					if ((representationCount != mBitrateIndexMap.size()) && mStreamInfo)
 					{
-						defaultBitrate = gpGlobalConfig->defaultBitrate4K;
+						delete[] mStreamInfo;
+						mStreamInfo = NULL;
 					}
-				}
-				if (modifyDefaultBW)
-				{
-					long persistedBandwidth = aamp->GetPersistedBandwidth();
-					if(persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate))
+					if (!mStreamInfo)
 					{
-						defaultBitrate = persistedBandwidth;
+						mStreamInfo = new StreamInfo[representationCount];
 					}
-					mContext->GetABRManager().setDefaultInitBitrate(defaultBitrate);
+					mBitrateIndexMap.clear();
+					for (int idx = 0; idx < representationCount; idx++)
+					{
+						Representation* representation = representations.at(idx);
+						mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
+						mStreamInfo[idx].isIframeTrack = !(1.0 == rate);
+						mStreamInfo[idx].resolution.height = representation->GetHeight();
+						mStreamInfo[idx].resolution.width = representation->GetWidth();
+						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
+						delete representation;
+					}
+					pMediaStreamContext->representationIndex = 0; //Fog custom mpd has a single representation
+					IRepresentation* representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(0);
+					long bandwidth = representation->GetBandwidth();
+					aamp->profiler.SetBandwidthBitsPerSecondVideo(bandwidth);
+					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bandwidth];
+				}
+				else if(!mIsFogTSB)
+				{
+					int representationCount = pMediaStreamContext->adaptationSet->GetRepresentation().size();
+					if ((representationCount != GetProfileCount()) && mStreamInfo)
+					{
+						delete[] mStreamInfo;
+						mStreamInfo = NULL;
+					}
+					if (!mStreamInfo)
+					{
+						mStreamInfo = new StreamInfo[representationCount];
+					}
+					mContext->GetABRManager().clearProfiles();
+					for (int idx = 0; idx < representationCount; idx++)
+					{
+						IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
+						mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
+						mStreamInfo[idx].isIframeTrack = !(1.0 == rate);
+						mStreamInfo[idx].resolution.height = representation->GetHeight();
+						mStreamInfo[idx].resolution.width = representation->GetWidth();
+						mContext->GetABRManager().addProfile({
+							mStreamInfo[idx].isIframeTrack,
+							mStreamInfo[idx].bandwidthBitsPerSecond,
+							mStreamInfo[idx].resolution.width,
+							mStreamInfo[idx].resolution.height,
+						});
+						if(mStreamInfo[idx].resolution.height > 1080
+								|| mStreamInfo[idx].resolution.width > 1920)
+						{
+							defaultBitrate = gpGlobalConfig->defaultBitrate4K;
+						}
+					}
+
+					if (modifyDefaultBW)
+					{
+						long persistedBandwidth = aamp->GetPersistedBandwidth();
+						if(persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate))
+						{
+							defaultBitrate = persistedBandwidth;
+						}
+						mContext->GetABRManager().setDefaultInitBitrate(defaultBitrate);
+					}
 				}
 			}
 
@@ -3384,10 +3459,10 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool res
 					// for the profile selected ,reset the abr values with default bandwidth values
 					aamp->ResetCurrentlyAvailableBandwidth(selectedRepresentation->GetBandwidth(),mContext->trickplayMode,mContext->currentProfileIndex);
 					aamp->profiler.SetBandwidthBitsPerSecondVideo(selectedRepresentation->GetBandwidth());
-					aamp->NotifyBitRateChangeEvent(selectedRepresentation->GetBandwidth(),
-							"BitrateChanged - Network Adaptation",
-							selectedRepresentation->GetWidth(),
-							selectedRepresentation->GetHeight());
+//					aamp->NotifyBitRateChangeEvent(selectedRepresentation->GetBandwidth(),
+//							"BitrateChanged - Network Adaptation",
+//							selectedRepresentation->GetWidth(),
+//							selectedRepresentation->GetHeight());
 				}
 				else
 				{
@@ -4045,7 +4120,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					// InProgressCdvr (IsLive=1) , resetTimeLineIndex = 1
 					// Vod/CDVR for PeriodChange , resetTimeLineIndex = 1
 					bool resetTimeLineIndex = (mIsLive|| periodChanged);
-					UpdateTrackInfo(true, resetTimeLineIndex);
+					UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
 					if(mIsLive)
 					{
 						uint64_t durationMs = GetDurationFromRepresentation();
@@ -4548,6 +4623,23 @@ double StreamAbstractionAAMP_MPD::GetStreamPosition()
 	return mPriv->GetStreamPosition();
 }
 
+/**
+ * @brief Gets number of profiles
+ * @retval number of profiles
+ */
+int PrivateStreamAbstractionMPD::GetProfileCount()
+{
+	int ret = 0;
+	if(mIsFogTSB)
+	{
+		ret = mBitrateIndexMap.size();
+	}
+	else
+	{
+		ret = mContext->GetProfileCount();
+	}
+	return ret;
+}
 
 /**
  *   @brief Get stream information of a profile from subclass.
