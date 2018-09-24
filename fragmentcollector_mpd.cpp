@@ -1088,6 +1088,17 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								pMediaStreamContext->fragmentDescriptor.Number += (repeatCount+1);	
 							}// end of for 
 
+							/*
+							*  Boundary check added to handle the edge case leading to crash,
+							*  reported in DELIA-30316.
+							*/
+							if(index == timelines.size())
+							{
+								index--;
+								startTime = pMediaStreamContext->lastSegmentTime;
+								pMediaStreamContext->fragmentRepeatCount = repeatCount+1;
+							}
+
 #ifdef DEBUG_TIMELINE
 							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%d \n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,index,
@@ -1120,7 +1131,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				}// if fragRepeat == 0
 
 				ITimeline *timeline = timelines.at(pMediaStreamContext->timeLineIndex);
-                                uint32_t repeatCount = timeline->GetRepeatCount();
+				uint32_t repeatCount = timeline->GetRepeatCount();
 				uint32_t duration = timeline->GetDuration();
 #ifdef DEBUG_TIMELINE
 				logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragrep=%d x=%d num=%lld\n",__FUNCTION__, __LINE__, 
