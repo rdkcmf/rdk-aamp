@@ -101,7 +101,7 @@ typedef enum
 	AAMP_TUNE_MANIFEST_REQ_FAILED,          /**< Tune failure caused by manifest fetch failure*/
 	AAMP_TUNE_AUTHORISATION_FAILURE,        /**< Not authorised to view the content*/
 	AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE,    /**<  When fragment download fails for 5 consecutive fragments*/
-	AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, /** Unable to download init fragment*/
+	AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, /**< Unable to download init fragment*/
 	AAMP_TUNE_UNTRACKED_DRM_ERROR,          /**<  DRM error*/
 	AAMP_TUNE_DRM_INIT_FAILED,              /**< DRM initialization failure */
 	AAMP_TUNE_DRM_DATA_BIND_FAILED,         /**< InitData binding with DRM failed */
@@ -119,7 +119,7 @@ typedef enum
 	AAMP_TUNE_PLAYBACK_STALLED,             /**< Playback was stalled due to valid fragments not available in playlist */
 #endif
 	AAMP_TUNE_CONTENT_NOT_FOUND,            /**< The resource was not found at the URL provided (HTTP 404) */
-	AAMP_TUNE_DRM_KEY_UPDATE_FAILED,        /**Failed to process DRM key, see the error code returned from Update() for more info */
+	AAMP_TUNE_DRM_KEY_UPDATE_FAILED,        /**< Failed to process DRM key, see the error code returned from Update() for more info */
 	AAMP_TUNE_FAILURE_UNKNOWN               /**<  Unknown failure */
 }AAMPTuneFailure;
 
