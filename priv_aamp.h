@@ -546,6 +546,19 @@ typedef enum
  }ClassicProfilerBucketType;
 
 /**
+ * @enum AudioType
+ *
+ * @brief Type of audio ES for MPD
+ */
+enum AudioType
+{
+	eAUDIO_UNKNOWN,
+	eAUDIO_AAC,
+	eAUDIO_DDPLUS,
+	eAUDIO_ATMOS
+};
+
+/**
  * @brief Class for AAMP event Profiling
  */
 class ProfileEventAAMP
@@ -1050,6 +1063,7 @@ public:
 
 	ProfileEventAAMP profiler;
 	bool licenceFromManifest;
+	AudioType previousAudioType; /* Used to maintain previous audio type */
 
 	CURL *curl[MAX_CURL_INSTANCE_COUNT];
 

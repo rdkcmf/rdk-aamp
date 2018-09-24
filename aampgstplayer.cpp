@@ -1013,6 +1013,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 		}
 		break;
+#ifdef USE_GST1
 	case GST_MESSAGE_NEED_CONTEXT:
 		
 		/*
@@ -1030,6 +1031,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		}
 
 		break;
+#endif
 
 	default:
 		break;
@@ -1297,6 +1299,12 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d \n", (int)mediaType);
 		if (privateContext->pipeline)
 		{
+			/* set the playbin state to NULL before detach it */
+			if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+			{
+				logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin\n");
+			}
+
 			if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin)))
 			{
 				logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline\n");
@@ -1682,9 +1690,9 @@ void AAMPGstPlayer::Stream()
  * @param[in] format video format
  * @param[in] audioFormat audio format
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)
 {
-	logprintf("AAMPGstPlayer::Configure format %d audioFormat %d \n", format, audioFormat);
+	logprintf("AAMPGstPlayer::%s %d > format %d audioFormat %d\n", __FUNCTION__, __LINE__, format, audioFormat);
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
@@ -1707,10 +1715,19 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		{
 			if ((newFormat[i] != FORMAT_INVALID) && (newFormat[i] != FORMAT_NONE))
 			{
-				logprintf("Closing stream %d old format = %d, new format = %d\n", i, stream->format, newFormat[i]);
+				logprintf("AAMPGstPlayer::%s %d > Closing stream %d old format = %d, new format = %d\n",
+								__FUNCTION__, __LINE__, i, stream->format, newFormat[i]);
 				configureStream = true;
 			}
 		}
+
+		/* Force configure the bin for mid stream audio type change */
+		if (!configureStream && bESChangeStatus && (eMEDIATYPE_AUDIO == i))
+		{
+			logprintf("AAMPGstPlayer::%s %d > AudioType Changed. Force configure pipeline\n", __FUNCTION__, __LINE__);
+			configureStream = true;
+		}
+
 		stream->resetPosition = true;
 		stream->eosReached = false;
 	}
@@ -1725,7 +1742,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	#ifdef USE_PLAYERSINKBIN
 			if (FORMAT_MPEGTS == stream->format )
 			{
-				logprintf("AAMPGstPlayer::Configure - using playersinkbin, track = %d\n", i);
+				logprintf("AAMPGstPlayer::%s %d > - using playersinkbin, track = %d\n", __FUNCTION__, __LINE__, i);
 				stream->using_playersinkbin = TRUE;
 			}
 			else
@@ -1735,7 +1752,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			}
 			if (0 != AAMPGstPlayer_SetupStream(this, (MediaType) i))
 			{
-				logprintf("AAMPGstPlayer::Configure  track %d failed\n", i);
+				logprintf("AAMPGstPlayer::%s %d > track %d failed\n", __FUNCTION__, __LINE__, i);
 				return;
 			}
 		}
@@ -1744,7 +1761,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	{
 		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 		{
-			logprintf("AAMPGstPlayer_Configure GST_STATE_PAUSED failed\n");
+			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PAUSED failed\n", __FUNCTION__, __LINE__);
 		}
 		privateContext->pendingPlayState = true;
 	}
@@ -1752,12 +1769,12 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	{
 		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 		{
-			logprintf("AAMPGstPlayer_Configure GST_STATE_PLAYING failed\n");
+			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PLAYING failed\n", __FUNCTION__, __LINE__);
 		}
 		privateContext->pendingPlayState = false;
 	}
 #ifdef TRACE
-	logprintf("exiting AAMPGstPlayer::Configure\n");
+	logprintf("exiting AAMPGstPlayer::%s\n", __FUNCTION__);
 #endif
 }
 

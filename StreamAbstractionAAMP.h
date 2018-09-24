@@ -393,6 +393,30 @@ public:
 	 */
 	void SetTsbBandwidth(long tsbBandwidth){ mTsbBandwidth = tsbBandwidth;}
 
+	/**
+	 *   @brief Set elementary stream type change status for reconfigure the pipeline.
+	 *
+	 *   @param[in]  None
+	 *   @return void
+	 */
+	void SetESChangeStatus(void){ mESChangeStatus = true;}
+
+	/**
+	 *   @brief Reset elementary stream type change status once the pipeline reconfigured.
+	 *
+	 *   @param[in]  None
+	 *   @return void
+	 */
+	void ResetESChangeStatus(void){ mESChangeStatus = false;}
+
+	/**
+	 *   @brief Get elementary stream type change status for reconfigure the pipeline..
+	 *
+	 *   @param[in]  None
+	 *   @retval mESChangeStatus flag value ( true or false )
+	 */
+	bool GetESChangeStatus(void){ return mESChangeStatus;}
+
 	PrivateInstanceAAMP* aamp;  /**< Pointer to PrivateInstanceAAMP object associated with stream*/
 
 	/**
@@ -574,6 +598,7 @@ private:
 	int mLastVideoFragCheckedforABR;    /**< Last video fragment for which ABR is checked*/
 	long mTsbBandwidth;                 /**< stores bandwidth when TSB is involved*/
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
+	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 };

@@ -867,7 +867,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		mStreamSink->Stop(true);
 #endif
 		mpStreamAbstractionAAMP->GetStreamFormat(mFormat, mAudioFormat);
-		mStreamSink->Configure(mFormat, mAudioFormat);
+		mStreamSink->Configure(mFormat, mAudioFormat, false);
 		mpStreamAbstractionAAMP->Start();
 		mStreamSink->Stream();
 		mProcessingDiscontinuity = false;
@@ -3530,7 +3530,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
-		mStreamSink->Configure(mFormat, mAudioFormat);
+		mStreamSink->Configure(mFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		if( !mPlayingAd && mAdPosition > seek_pos_seconds)
 		{
 			mpStreamAbstractionAAMP->SetEndPos(mAdPosition);
@@ -5187,6 +5188,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
     /* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 	mIsLocalPlayback = false;
+	previousAudioType = eAUDIO_UNKNOWN;
 }
 
 
