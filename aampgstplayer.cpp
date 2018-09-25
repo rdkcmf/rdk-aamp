@@ -637,7 +637,14 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	_this->privateContext->stream[type].bufferUnderrun = true;
 	if (_this->privateContext->stream[type].eosReached)
 	{
-		_this->aamp->NotifyEOSReached();
+		if (_this->privateContext->rate > 0)
+		{
+			_this->aamp->NotifyEOSReached();
+		}
+		else
+		{
+			_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
+		}
 		_this->privateContext->stream[type].eosReached = false;
 	}
 	else
