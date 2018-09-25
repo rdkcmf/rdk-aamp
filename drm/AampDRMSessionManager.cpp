@@ -955,7 +955,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				logprintf("licenseResponse is %s\n", licenseResponse);
 				logprintf("licenseResponse len is %zd\n", licenseResponseLength);
 				logprintf("accessAttributesStatus is %d\n", statusInfo.accessAttributeStatus);
-				logprintf("errorCode is %d\n", statusInfo.errorCode);
+//				logprintf("errorCode is %d\n", statusInfo.errorCode);
 				logprintf("refreshDuration is %d\n", refreshDuration);
 			}
 
