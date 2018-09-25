@@ -3997,34 +3997,55 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
 		}
 
 
+		//DELIA-30274  -- Get the trick play to a closer position 
+		//Logic adapted 
+		// XRE gives fixed overshoot position , not suited for aamp . So ignoring overshoot correction value 
+			// instead use last reported posn vs the time player get play command
+		// a. During trickplay , last XRE reported position is stored in aamp->mReportProgressPosn
+					/// and last reported time is stored in aamp->mReportProgressTime
+		// b. Calculate the time delta  from last reported time
+		// c. Using this diff , calculate the best/nearest match position (works out 70-80%)
+		// d. If time delta is < 100ms ,still last video fragment rendering is not removed ,but position updated very recently
+			// So switch last displayed position - NewPosn -= Posn - ((aamp->rate/4)*1000) 
+		// e. If time delta is > 950ms , possibility of next frame to come by the time play event is processed . 
+			//So go to next fragment which might get displayed
+		// f. If none of above ,maintain the last displayed position .
+		// 
+		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 
-		// new
-                int  timeDeltaFromProgReport = ((aamp_GetCurrentTimeMS() - aamp->mReportProgressTime) * aamp->rate);
-                // Get new progress position --- Last progress report time + Delta + XRE given overshoot correction .
-                long long newProgressPosn = (aamp->mReportProgressPosn + timeDeltaFromProgReport + overshootcorrection);
-                double delta = abs((int)(aamp->mReportProgressPosn - newProgressPosn))/1000;
-                if(delta > aamp->durationSeconds/gpGlobalConfig->reportProgressInterval)
-                {
-                        // if delta of change is big comparated to progress bar display, then pointer will run around.
-                        // For CDVR , duration will be small . hence delta of higher number to be avoid,Switch to last reported progress posn
-                        aamp->seek_pos_seconds = aamp->mReportProgressPosn/1000;
-                }
-                else
-                {       // if last rate was fast fwd ,after overshoot correction , position shouldnt go behind last reported progress posn.
-                        // if last rate was rewind , after overshoot correction , position shouldnt go ahead of last reported progress.
-                        // Safely keep  it to last reported progress position .
-                        if(aamp->rate>0)
-                                aamp->seek_pos_seconds = ((newProgressPosn < aamp->mReportProgressPosn)?aamp->mReportProgressPosn:newProgressPosn)/1000;
-                        else
-                                aamp->seek_pos_seconds = ((newProgressPosn > aamp->mReportProgressPosn)?aamp->mReportProgressPosn:newProgressPosn)/1000;
-                }
+		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
+		// when switching from trick to play mode only 
+		if(aamp->rate && rate==1.0)
+		{
+			if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+			{
+				// increment by 1x trickplay frame , next possible displayed frame
+				aamp->seek_pos_seconds = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+			}
+			else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
+			{
+				// Get the last shown frame itself 
+				aamp->seek_pos_seconds = aamp->mReportProgressPosn/1000;
+			}
+			else
+			{
+				// Go little back to last shown frame 
+				aamp->seek_pos_seconds = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+			}
+		}
+		else
+		{
+			// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
+			// Show the last position 
+			aamp->seek_pos_seconds = aamp->GetPositionMs()/1000;
+		}
 
 		aamp->trickStartUTCMS = -1;
 
 		logprintf("aamp_SetRate(%f)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
-		logprintf("aamp cur position: %f\n", aamp->seek_pos_seconds); // current position relative to tune time
-		logprintf("aamp cur rate: %f\n", aamp->rate);
-		logprintf("aamp cur pipeline: %s\n", aamp->pipeline_paused ? "paused" : "playing");
+		logprintf("aamp_SetRate Adj position: %f\n", aamp->seek_pos_seconds); // current position relative to tune time
+		logprintf("aamp_SetRate rate(%f)->(%f)\n", aamp->rate,rate);
+		logprintf("aamp_SetRate cur pipeline: %s\n", aamp->pipeline_paused ? "paused" : "playing");
 
 		if (rate == aamp->rate)
 		{ // no change in desired play rate
