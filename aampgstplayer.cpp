@@ -1869,9 +1869,16 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	}
 	if (this->privateContext->pipeline)
 	{
-		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
+		if(GST_STATE_CHANGE_FAILURE != gst_element_get_state(privateContext->pipeline,0,0, 0))
+		{
+			gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
+			logprintf("AAMPGstPlayer::%s: Pipeline state set to null\n", __FUNCTION__);
+		}
+		else
+		{
+			logprintf("AAMPGstPlayer::%s: Pipeline state is in FAILURE\n", __FUNCTION__);
+		}
 	}
-	logprintf("AAMPGstPlayer::%s: Pipeline state set to null\n", __FUNCTION__);
 	TearDownStream(eMEDIATYPE_VIDEO);
 	TearDownStream(eMEDIATYPE_AUDIO);
 	DestroyPipeline();
