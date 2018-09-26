@@ -3730,12 +3730,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		} // mpd
 	} // !remap_url
   
-	if( tuneType == eTUNETYPE_NEW_NORMAL && strstr(manifestUrl,"tsb?") )
+	if (strstr(manifestUrl,"tsb?"))
 	{
 		mTSBEnabled = true;
 	}
-
-	mIsFirstRequestToFOG = (tuneType == eTUNETYPE_NEW_NORMAL && mIsLocalPlayback);
+	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 

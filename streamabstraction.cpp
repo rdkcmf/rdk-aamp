@@ -314,6 +314,7 @@ bool MediaTrack::InjectFragment()
 				if (stopInjection)
 				{
 					ret = false;
+					discontinuityProcessed = true;
 					logprintf("%s:%d - stopping injection\n", __FUNCTION__, __LINE__);
 				}
 				else
@@ -433,6 +434,7 @@ static void *FragmentInjector(void *arg)
 void MediaTrack::StartInjectLoop()
 {
 	abort = false;
+	discontinuityProcessed = false;
 	assert(!fragmentInjectorThreadStarted);
 	if (0 == pthread_create(&fragmentInjectorThreadID, NULL, &FragmentInjector, this))
 	{
@@ -451,11 +453,12 @@ void MediaTrack::StartInjectLoop()
 void MediaTrack::RunInjectLoop()
 {
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
-	while (aamp->DownloadsAreEnabled())
+	bool keepInjecting = true;
+	while (aamp->DownloadsAreEnabled() && keepInjecting)
 	{
 		if (!InjectFragment())
 		{
-			break;
+			keepInjecting = false;
 		}
 		if(isAudioTrack)
 		{
@@ -566,7 +569,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), totalFragmentsDownloaded(0),
 		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
-		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0)
+		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0), discontinuityProcessed(false)
 {
 	this->type = type;
 	this->aamp = aamp;
@@ -605,7 +608,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack()
 		pthread_mutex_lock(&mLock);
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
-		if( audioDuration < (videoDuration + (2*video->fragmentDurationSeconds )) || !aamp->DownloadsAreEnabled())
+		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed())
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -626,10 +629,11 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+
 	pthread_mutex_lock(&mLock);
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double videoDuration = video->GetTotalInjectedDuration();
-	if ((audioDuration > (videoDuration +  video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled())
+	if ((audioDuration > (videoDuration +  video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed())
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f\n",

@@ -191,6 +191,7 @@ public:
 	 */
 	int GetCurrentBandWidth();
 	double GetTotalFetchedDuration() { return totalFetchedDuration; };
+	bool IsDiscontinuityProcessed() { return discontinuityProcessed; }
 protected:
 
 	/**
@@ -252,6 +253,7 @@ private:
 	int bandwidthBytesPerSecond;        /**< Bandwidth of last selected profile*/
 	double totalFetchedDuration;        /**< Total fragment fetched duration*/
 	size_t fetchBufferPreAllocLen;      /** Buffer length to pre-allocate for next fetch buffer*/
+	bool discontinuityProcessed;
 };
 
 
