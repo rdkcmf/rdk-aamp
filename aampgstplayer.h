@@ -70,6 +70,7 @@ public:
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp);
 	~AAMPGstPlayer();
 	static void InitializeAAMPGstreamerPlugins();
+	void NotifyEOS();
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);
