@@ -135,6 +135,7 @@ struct AAMPGstPlayerPriv
 	std::atomic<bool> firstFrameCallbackIdleTaskPending; //Set if any first frame callback is pending.
 	bool using_westerossink; //true if westros sink is used as video sink
 	guint busWatchId;
+	std::atomic<bool> eosSignalled; /** Indicates if EOS has signaled */
 };
 
 #ifdef STANDALONE_AAMP
@@ -475,8 +476,9 @@ static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 static gboolean IdleCallbackOnEOS(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	_this->aamp->NotifyEOSReached();
 	_this->privateContext->eosCallbackIdleTaskPending = false;
+	logprintf("%s:%d  eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, _this->privateContext->eosCallbackIdleTaskId);
+	_this->aamp->NotifyEOSReached();
 	_this->privateContext->eosCallbackIdleTaskId = 0;
 	return G_SOURCE_REMOVE;
 }
@@ -639,7 +641,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		if (_this->privateContext->rate > 0)
 		{
-			_this->aamp->NotifyEOSReached();
+			_this->NotifyEOS();
 		}
 		else
 		{
@@ -717,20 +719,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		 * application may perform flushing seek to resume playback
 		 */
 		logprintf("GST_MESSAGE_EOS\n");
-		if (!_this->privateContext->eosCallbackIdleTaskPending)
-		{
-			_this->privateContext->eosCallbackIdleTaskPending = true;
-			_this->privateContext->eosCallbackIdleTaskId = g_idle_add(IdleCallbackOnEOS, _this);
-			if (!_this->privateContext->eosCallbackIdleTaskPending)
-			{
-				logprintf("%s:%d eosCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
-				_this->privateContext->eosCallbackIdleTaskId = 0;
-			}
-		}
-		else
-		{
-			logprintf("%s(): IdleCallbackOnEOS already registered previously, hence skip!\n", __FUNCTION__);
-		}
+		_this->NotifyEOS();
 		break;
 
 	case GST_MESSAGE_STATE_CHANGED:
@@ -1763,6 +1752,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		}
 		privateContext->pendingPlayState = false;
 	}
+	privateContext->eosSignalled = false;
 #ifdef TRACE
 	logprintf("exiting AAMPGstPlayer::Configure\n");
 #endif
@@ -1800,20 +1790,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	if (stream->format != FORMAT_NONE && stream->resetPosition == true && stream->flush == true)
 	{
 		logprintf("%s(): EOS received as first buffer \n", __FUNCTION__);
-		if (!privateContext->eosCallbackIdleTaskPending)
-		{
-			privateContext->eosCallbackIdleTaskPending = true;
-			privateContext->eosCallbackIdleTaskId = g_idle_add(IdleCallbackOnEOS, this);
-			if (!privateContext->eosCallbackIdleTaskPending)
-			{
-				logprintf("%s:%d eosCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
-				privateContext->eosCallbackIdleTaskId = 0;
-			}
-		}
-		else
-		{
-			logprintf("%s(): IdleCallbackOnEOS already registered previously, hence skip!\n", __FUNCTION__);
-		}
+		NotifyEOS();
 	}
 	else
 	{
@@ -2350,6 +2327,7 @@ void AAMPGstPlayer::Flush(double position, float rate)
 
 	if (privateContext->eosCallbackIdleTaskPending)
 	{
+		logprintf("AAMPGstPlayer::%s %d > Remove eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
 		g_source_remove(privateContext->eosCallbackIdleTaskId);
 		privateContext->eosCallbackIdleTaskId = 0;
 		privateContext->eosCallbackIdleTaskPending = false;
@@ -2392,6 +2370,7 @@ void AAMPGstPlayer::Flush(double position, float rate)
 			logprintf("Seek failed\n");
 		}
 	}
+	privateContext->eosSignalled = false;
 }
 
 
@@ -2528,3 +2507,37 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 #endif
 }
 
+
+/**
+ * @brief Notify EOS to core aamp asynchronously if required.
+ * @note Used internally by AAMPGstPlayer
+ */
+void AAMPGstPlayer::NotifyEOS()
+{
+	if (!privateContext->eosSignalled)
+	{
+		if (!privateContext->eosCallbackIdleTaskPending)
+		{
+			privateContext->eosCallbackIdleTaskPending = true;
+			privateContext->eosCallbackIdleTaskId = g_idle_add(IdleCallbackOnEOS, this);
+			if (!privateContext->eosCallbackIdleTaskPending)
+			{
+				logprintf("%s:%d eosCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
+				privateContext->eosCallbackIdleTaskId = 0;
+			}
+			else
+			{
+				logprintf("%s:%d eosCallbackIdleTask scheduled, eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
+			}
+		}
+		else
+		{
+			logprintf("%s()%d: IdleCallbackOnEOS already registered previously, hence skip!\n", __FUNCTION__, __LINE__);
+		}
+		privateContext->eosSignalled = true;
+	}
+	else
+	{
+		logprintf("%s()%d: EOS already signaled, hence skip!\n", __FUNCTION__, __LINE__);
+	}
+}
