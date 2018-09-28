@@ -1148,9 +1148,17 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 					float fragmentDuration = duration/timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
-					if(retval && rate == 1.0)
+					if(retval)
 					{
-						pMediaStreamContext->targetDnldPosition += fragmentDuration;
+						//logprintf("VOD/CDVR Line:%d fragmentDuration:%f target:%f SegTime%f rate:%f\n",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
+						if(rate > 1.0)
+						{
+							pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
+						}
+						else
+						{
+							pMediaStreamContext->targetDnldPosition += fragmentDuration;
+						}
 					}
 					if(mContext->checkForRampdown)
 					{
@@ -1274,6 +1282,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				{
 					pMediaStreamContext->fragmentDescriptor.Number++;
 					pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
+					pMediaStreamContext->targetDnldPosition += fragmentDuration;
+
 				}
 				else
 				{
@@ -1398,9 +1408,17 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							double fragmentDuration = (double)duration / timescale;
 							pMediaStreamContext->lastSegmentTime = startTime;
 							retval = FetchFragment(pMediaStreamContext, segmentURL->GetMediaURI(), fragmentDuration, false, curlInstance);
-							if(retval && rate==1.0)
+							if(retval && rate > 0)
 							{
-								pMediaStreamContext->targetDnldPosition += fragmentDuration;
+								//logprintf("Live update Line:%d fragmentDuration:%f target:%f FragTime%f rate:%f\n",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
+								if(rate > 1.0)
+								{
+									pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
+								}
+								else
+								{
+									pMediaStreamContext->targetDnldPosition += fragmentDuration;
+								}
 							}
 							if(mContext->checkForRampdown)
 							{
@@ -2447,14 +2465,6 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 			SeekInPeriod( offsetFromStart);
 			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
-			// store the target position for handling buffer and refresh interval
-                        for (int i = 0; i < mNumberOfTracks; i++)
-                        {
-				if(mIsLive)
-					mMediaStreamContext[i]->targetDnldPosition=offsetFromStart;
-				else
-					mMediaStreamContext[i]->targetDnldPosition=seekPosition;
-                        }
 			seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
 			if(0 != mCurrentPeriodIdx)
 				seekPosition += currentPeriodStart;
@@ -4306,7 +4316,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			int minDelayBetweenPlaylistUpdates = (int)mMinUpdateDurationMs;	
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-			long bufferAvailable = ((mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition*1000) -  aamp->GetPositionMs());
+			long bufferAvailable = ((long)(mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition*1000) - (long)aamp->GetPositionMs());
 			// If buffer Available is > 2*mMinUpdateDurationMs
 			if(bufferAvailable  > (mMinUpdateDurationMs*2) )
 			{
@@ -4434,6 +4444,9 @@ void PrivateStreamAbstractionMPD::Start(void)
 	fragmentCollectorThreadStarted = true;
 	for (int i=0; i< mNumberOfTracks; i++)
 	{
+		// DELIA-30608 - Right place to update targetDnldPosition. 
+		// Here GetPosition will give updated seek position (for live)
+		mMediaStreamContext[i]->targetDnldPosition= aamp->GetPositionMs()/1000;
 		mMediaStreamContext[i]->StartInjectLoop();
 	}
 }
