@@ -812,15 +812,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				}
 				_this->aamp->NotifyFirstFrameReceived();
 #endif
-				TunedEventConfig tunedEventConfig =  _this->aamp->IsLive() ?
-						gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
-				if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
-				{
-					if (_this->aamp->SendTunedEvent())
-					{
-						logprintf("aamp: - sent tune event on gst-playing\n");
-					}
-				}
 
 				//Pipeline has moved into playing state and no buffering active, reset buffering flag
 				if (_this->privateContext->buffering_enabled && !_this->privateContext->buffering_capable)

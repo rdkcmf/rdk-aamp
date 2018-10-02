@@ -322,9 +322,10 @@ public:
 	{
 		memset(&logging, 0, sizeof(logging) );
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
-		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED; //Changed since VOD-Cache feature 
-									//is deprecated
+		//XRE sends onStreamPlaying & onVideoInfo while receiving onTuned event.
+		//onVideoInfo depends on the metrics received from pipe. Hence, onTuned event should be sent only after the tune completion.
+		tunedEventConfigLive = eTUNED_EVENT_ON_GST_PLAYING;
+		tunedEventConfigVOD = eTUNED_EVENT_ON_GST_PLAYING;
 	}
 
 	/**
@@ -1594,7 +1595,7 @@ public:
 	void BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track);
 
 	/**
-	 *   @brief Log the tune complete event
+	 *   @brief Notify the tune complete event
 	 *
 	 *   @return void
 	 */
