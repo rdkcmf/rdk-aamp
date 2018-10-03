@@ -652,7 +652,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
-		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true)
+		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false)
 {
 #ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	mIsPlaybackStalled = false;

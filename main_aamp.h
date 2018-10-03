@@ -362,9 +362,10 @@ public:
 	 *
 	 *   @param[in]  format - Video output format.
 	 *   @param[in]  audioFormat - Audio output format.
+	 *   @param[in]  bESChangeStatus - Flag to keep force configure the pipeline value
 	 *   @return void
 	 */
-	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat)=0;
+	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)=0;
 
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.

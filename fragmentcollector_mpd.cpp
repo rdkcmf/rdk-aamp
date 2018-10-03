@@ -284,20 +284,6 @@ struct DrmSessionParams
 	unsigned char *contentMetadata;
 };
 
-/**
- * @enum AudioType
- *
- * @brief Type of audio ES
- */
-enum AudioType
-{
-	eAUDIO_UNKNOWN,
-	eAUDIO_AAC,
-	eAUDIO_DDPLUS,
-	eAUDIO_ATMOS
-};
-
-
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
 
 /**
@@ -3215,7 +3201,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-			AAMPLOG_TRACE("Content type [%s] AdapSet [%d] \n",adaptationSet->GetContentType().c_str(),iAdaptationSet);
+			AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s %d > Content type [%s] AdapSet [%d] \n",
+					__FUNCTION__, __LINE__, adaptationSet->GetContentType().c_str(),iAdaptationSet);
 			if (IsContentType(adaptationSet, (MediaType)i ))
 			{
 				if (1.0 == rate)
@@ -3241,7 +3228,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								selRepresentationIndex = desiredCodecIdx;
 								mAudioType = selectedRepType;
 							}
-							logprintf("Got the matching lang[%s] Adap[%d] Rep[%d] Audio[%d]\n", lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
+							logprintf("PrivateStreamAbstractionMPD::%s %d > Got the matching lang[%s] AdapInx[%d] RepIndx[%d] AudioType[%d]\n",
+								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
 						}
 						else if(internalSelRepType == eAUDIO_UNKNOWN || otherLanguageSelected)
 						{
@@ -3256,7 +3244,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								selRepresentationIndex = desiredCodecIdx;
 								mAudioType = selectedRepType;
 							}
-							logprintf("Got a non-matching lang[%s] Adap[%d] Rep[%d] Audio[%d]\n", lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
+							logprintf("PrivateStreamAbstractionMPD::%s %d > Got a non-matching lang[%s] AdapInx[%d] RepIndx[%d] AudioType[%d]\n",
+								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
 						}
 					}
 					else if ( !IsIframeTrack(adaptationSet) )
@@ -3282,7 +3271,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					//iframe track
 					if ( IsIframeTrack(adaptationSet) )
 					{
-						logprintf("Got TrickMode track\n");
+						logprintf("PrivateStreamAbstractionMPD::%s %d > Got TrickMode track\n", __FUNCTION__, __LINE__);
 						pMediaStreamContext->enabled = true;
 						pMediaStreamContext->adaptationSetIdx = iAdaptationSet;
 						mNumberOfTracks = 1;
@@ -3298,30 +3287,52 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			pMediaStreamContext->enabled = true;
 			pMediaStreamContext->adaptationSetIdx = selAdaptationSetIndex;
 			pMediaStreamContext->representationIndex = selRepresentationIndex;
+
 			//preferred audio language was not available, hence selected best audio format
 			if (otherLanguageSelected)
 			{
 				if (mLangList.end() ==  mLangList.find(aamp->language))
 				{
-					logprintf("PrivateStreamAbstractionMPD::%s:%d : update language [%s]->[%s]\n",
-							__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
+					logprintf("PrivateStreamAbstractionMPD::%s %d > update language [%s]->[%s]\n",
+									__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
 					aamp->UpdateAudioLanguageSelection(selectedLanguage.c_str());
 				}
 				else
 				{
-					logprintf("PrivateStreamAbstractionMPD::%s:%d : [%s] not available in period. Select [%s]\n",
-							__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
+					logprintf("PrivateStreamAbstractionMPD::%s %d > [%s] not available in period. Select [%s]\n",
+									__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
 				}
 			}
-			logprintf("Media[%s] adaptation set [%d] RepIdx[%d]\n", mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex );
+
+			/* To solve a no audio issue - Force configure gst audio pipeline/playbin in the case of multi period
+			 * multi audio codec available for current decoding language on stream. For example, first period has AAC no EC3,
+			 * so the player will choose AAC then start decoding, but in the forthcoming periods,
+			 * if the stream has AAC and EC3 for the current decoding language then as per the EC3(default priority)
+			 * the player will choose EC3 but the audio pipeline actually not configured in this case to affect this change.
+			 */
+			if ( aamp->previousAudioType != selectedRepType && eMEDIATYPE_AUDIO == i )
+			{
+				logprintf("PrivateStreamAbstractionMPD::%s %d > AudioType Changed %d -> %d\n",
+						__FUNCTION__, __LINE__, aamp->previousAudioType, selectedRepType);
+				aamp->previousAudioType = selectedRepType;
+				mContext->SetESChangeStatus();
+			}
+
+			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d]\n",
+				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex );
+
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
 		}
+
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
-			logprintf("No valid adaptation set found for Media[%s]\n",mMediaTypeName[i]);
+			logprintf("PrivateStreamAbstractionMPD::%s %d > No valid adaptation set found for Media[%s]\n",
+				__FUNCTION__, __LINE__, mMediaTypeName[i]);
 		}
-		logprintf("PrivateStreamAbstractionMPD::%s:%d : Media[%s] %s\n", __FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
+
+		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
+			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
 	}
 }
 

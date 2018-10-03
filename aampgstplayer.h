@@ -42,7 +42,7 @@ class AAMPGstPlayer : public StreamSink
 {
 public:
 	class PrivateInstanceAAMP *aamp;
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus);
 	void Send(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	void Send(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
 	void EndOfStreamReached(MediaType type);
