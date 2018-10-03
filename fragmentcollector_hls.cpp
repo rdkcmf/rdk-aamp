@@ -1779,8 +1779,11 @@ double TrackState::IndexPlaylist()
 				}
 				else if (strncmp(ptr + 4, "-X-DISCONTINUITY", 16) == 0)
 				{
-					logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] indexCount %d totalDuration %f\n", __FUNCTION__, __LINE__, type, indexCount, totalDuration);
-					mPeriodPositionIndex[indexCount] = totalDuration;
+					if (0 != totalDuration)
+					{
+						logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] indexCount %d periodPosition %f\n", __FUNCTION__, __LINE__, type, indexCount, totalDuration);
+						mPeriodPositionIndex[indexCount] = totalDuration;
+					}
 				}
 				else if (strncmp(ptr + 4, "-X-KEY:", 7) == 0)
 				{
