@@ -65,10 +65,12 @@ void print_nop(const char *format, ...){}
 
 #undef ERROR
 #ifndef LOG_WARNINGS_AND_ERRORS
+#define NOTICE print_nop
 #define WARNING print_nop
 #define ERROR print_nop
 #define FATAL print_nop
 #else
+#define NOTICE logprintf("PC: %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #define WARNING logprintf("PC: WARNING %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #define ERROR logprintf("PC: ERROR %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #define FATAL logprintf("PC: FATAL %s:%d:", __FUNCTION__, __LINE__ ); logprintf
@@ -291,6 +293,7 @@ public:
 	 */
 	void setBasePTS(unsigned long long basePTS, bool final)
 	{
+		NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)final);
 		base_pts = basePTS;
 		finalized_base_pts = final;
 	}
@@ -361,19 +364,25 @@ public:
 									if (-1 == base_pts)
 									{
 										base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
-										WARNING("base_pts not initialized, updated to %llu\n", base_pts);
+										WARNING("Type[%d] base_pts not initialized, updated to %llu\n", type, base_pts);
 									}
 									else
 									{
-										unsigned long long delta = current_pts - base_pts;
+										long long delta = current_pts - base_pts;
 										if (delta > MAX_FIRST_PTS_OFFSET)
 										{
+											unsigned long long orig_base_pts = base_pts;
 											base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
-											WARNING("delta[%llu] > MAX_FIRST_PTS_OFFSET, updated base_pts \n", delta);
+											NOTICE("Type[%d] delta[%lld] > MAX_FIRST_PTS_OFFSET, current_pts[%llu] base_pts[%llu]->[%llu]\n", type, delta, current_pts, orig_base_pts, base_pts);
+										}
+										else if (delta < 0 )
+										{
+											WARNING("Type[%d] delta[%lld] < 0, base_pts[%llu]->[%llu]\n", type, delta, base_pts, current_pts);
+											base_pts = current_pts;
 										}
 										else
 										{
-											WARNING("PTS in range.delta[%llu] <= MAX_FIRST_PTS_OFFSET\n", delta);
+											NOTICE("Type[%d] PTS in range.delta[%lld] <= MAX_FIRST_PTS_OFFSET base_pts[%llu]\n", type, delta, base_pts);
 										}
 									}
 								}
@@ -1914,7 +1923,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 		{
 			if (discontinuous && (1.0 == m_playRate))
 			{
-				WARNING("TSProcessor:%p discontinuous buffer- flushing video demux\n", this);
+				NOTICE("TSProcessor:%p discontinuous buffer- flushing video demux\n", this);
 			}
 			m_vidDemuxer->flush();
 			m_vidDemuxer->init(position, duration, isTrickMode, true);
@@ -1931,7 +1940,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 
 			if(discontinuous)
 			{
-				WARNING("TSProcessor:%p discontinuous buffer- flushing audio demux\n", this);
+				NOTICE("TSProcessor:%p discontinuous buffer- flushing audio demux\n", this);
 			}
 			m_audDemuxer->flush();
 			m_audDemuxer->init(position, duration, isTrickMode, (eStreamOp_DEMUX_AUDIO != m_streamOperation));
@@ -1968,7 +1977,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 				{
 					firstPcr = (unsigned long long) packetStart[6] << 25 | (unsigned long long) packetStart[7] << 17
 						| (unsigned long long) packetStart[8] << 9 | packetStart[9] << 1 | (packetStart[10] & 80) >> 7;
-					INFO("firstPcr %llu\n", firstPcr);
+					NOTICE("firstPcr %llu\n", firstPcr);
 
 					if (m_vidDemuxer)
 					{
@@ -1988,12 +1997,6 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 		{
 			bool ptsError, basePTSUpdated;
 			demuxer->processPacket(packetStart, basePTSUpdated, ptsError);
-			if (ptsError)
-			{
-				WARNING("PTS error, discarding segment\n");
-				ret = false;
-				break;
-			}
 			if(!m_demuxInitialized)
 			{
 				WARNING("PCR not available before ES packet, updating firstPCR\n");
@@ -2019,6 +2022,12 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 					m_peerTSProcessor->setBasePTS( position, demuxer->getBasePTS());
 				}
 				notifyPeerBasePTS = false;
+			}
+			if (ptsError)
+			{
+				WARNING("PTS error, discarding segment\n");
+				ret = false;
+				break;
 			}
 		}
 		else
