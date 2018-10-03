@@ -87,6 +87,8 @@ extern void logprintf(const char *format, ...);
 #define NOW_SYSTEM_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()     /**< Getting current system clock in milliseconds */
 #define NOW_STEADY_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()     /**< Getting current steady clock in milliseconds */
 
+#define AAMP_SEEK_TO_LIVE_POSITION (-1)
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 

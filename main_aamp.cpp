@@ -3543,15 +3543,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
 		mSeekOperationInProgress = false;
-	}
-
-	if (tuneType == eTUNETYPE_SEEK)
-	{
 		if (pipeline_paused == true)
 		{
 			mStreamSink->Pause(true);
 		}
 	}
+
 	if (newTune && !mPlayingAd)
 	{
 		SetState(eSTATE_PREPARED);
@@ -4097,31 +4094,49 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
  */
 void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 {
-	logprintf("aamp_Seek(%f)\n", secondsRelativeToTuneTime);
-	if (aamp->IsLive())
+	bool sentSpeedChangedEv = false;
+	bool isSeekToLive = false;
+	TuneType tuneType = eTUNETYPE_SEEK;
+
+	if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
+	{
+		isSeekToLive = true;
+		tuneType = eTUNETYPE_SEEKTOLIVE;
+	}
+
+	logprintf("aamp_Seek(%f) and seekToLive(%d)\n", secondsRelativeToTuneTime, isSeekToLive);
+
+	if (isSeekToLive && !aamp->IsLive())
+	{
+		logprintf("%s:%d - Not live, skipping seekToLive\n",__FUNCTION__,__LINE__);
+		return;
+	}
+
+	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
 		double currPositionSecs = aamp->GetPositionMs() / 1000.00;
-		if (secondsRelativeToTuneTime >= currPositionSecs && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
+		if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 		{
-			logprintf("%s():Requested position(%f) >= currPosition(%f), so entering live\n",
-				__FUNCTION__, secondsRelativeToTuneTime, currPositionSecs);
+			logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)\n", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
 			aamp->NotifyOnEnteringLive();
 			return;
 		}
 	}
 
-	bool sentSpeedChangedEv = false;
-
 	if (aamp->pipeline_paused)
 	{
 		// resume downloads and clear paused flag. state change will be done
 		// on streamSink configuration.
+		logprintf("%s(): paused state, so resume downloads\n", __FUNCTION__);
 		aamp->pipeline_paused = false;
 		aamp->ResumeDownloads();
 		sentSpeedChangedEv = true;
 	}
 
-	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+	if (tuneType == eTUNETYPE_SEEK)
+	{
+		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+	}
 	if (aamp->rate != 1.0)
 	{
 		aamp->rate = 1.0;
@@ -4130,7 +4145,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 	if (aamp->mpStreamAbstractionAAMP)
 	{ // for seek while streaming
 		aamp->SetState(eSTATE_SEEKING);
-		aamp->TuneHelper(eTUNETYPE_SEEK);
+		aamp->TuneHelper(tuneType);
 		if (sentSpeedChangedEv)
 		{
 			aamp->NotifySpeedChanged(aamp->rate);
@@ -4148,27 +4163,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
  */
 void PlayerInstanceAAMP::SeekToLive()
 {
-	if (!aamp->IsLive())
-	{
-		logprintf("%s:%d - Not live\n",__FUNCTION__,__LINE__);
-		return;
-	}
-
-	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
-	{
-		logprintf("%s(): Already at logical live point, hence skipping operation\n", __FUNCTION__);
-		aamp->NotifyOnEnteringLive();
-		return;
-	}
-	if (aamp->pipeline_paused)
-	{
-		logprintf("%s(): paused state, so resume downloads\n", __FUNCTION__);
-		aamp->pipeline_paused = false;
-		aamp->ResumeDownloads();
-	}
-	aamp->SetState(eSTATE_SEEKING);
-	aamp->TuneHelper(eTUNETYPE_SEEKTOLIVE);
-	aamp->SetState(eSTATE_PLAYING);
+	Seek(AAMP_SEEK_TO_LIVE_POSITION);
 }
 
 
