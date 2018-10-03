@@ -1985,6 +1985,13 @@ public:
 	 *   @return void
 	 */
 	void NotifyFirstFragmentDecrypted();
+
+	/**
+	 *   @brief  Get PTS of first sample.
+	 *
+	 *   @return PTS of first sample
+	 */
+	double GetFirstPTS();
 private:
 
 	/**

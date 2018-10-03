@@ -5794,3 +5794,15 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 		}
 	}
 }
+
+/**
+ *   @brief  Get PTS of first sample.
+ *
+ *   @return PTS of first sample
+ */
+double PrivateInstanceAAMP::GetFirstPTS()
+{
+	assert(NULL != mpStreamAbstractionAAMP);
+	return mpStreamAbstractionAAMP->GetFirstPTS();
+}
+

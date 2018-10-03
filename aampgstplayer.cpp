@@ -1394,7 +1394,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
  * @param[in] mediaType stream type
  * @param[in] pts PTS of next buffer
  */
-void AAMPGstPlayer_SendPendingEvents(AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
+static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
 	GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
@@ -1440,7 +1440,16 @@ void AAMPGstPlayer_SendPendingEvents(AAMPGstPlayerPriv *privateContext, MediaTyp
 #else
 		enableOverride = (privateContext->rate != 1.0);
 #endif
-		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate, NULL))))
+		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate, NULL);
+#ifdef INTELCE
+		if ((privateContext->rate == 1.0))
+		{
+			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
+			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]\n", __FUNCTION__, basePTS);
+			gst_structure_set (eventStruct, "basePTS", G_TYPE_UINT64, basePTS, NULL);
+		}
+#endif
+		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
 		{
 			logprintf("%s: Error on sending rate override event\n", __FUNCTION__);
 		}
@@ -1521,7 +1530,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 #endif
 	if(privateContext->stream[mediaType].resetPosition)
 	{
-		AAMPGstPlayer_SendPendingEvents(privateContext, mediaType, pts);
+		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
 		discontinuity = TRUE;
 	}
 
@@ -1611,7 +1620,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 #endif
 	if(privateContext->stream[mediaType].resetPosition)
 	{
-		AAMPGstPlayer_SendPendingEvents(privateContext, mediaType, pts);
+		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
 		discontinuity = TRUE;
 	}
 
