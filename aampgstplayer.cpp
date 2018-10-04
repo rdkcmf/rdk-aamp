@@ -2510,10 +2510,19 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNamePR);
+		logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available; reloading aamp plugin\n", __FUNCTION__, __LINE__, GstPluginNamePR);
+		GstPlugin * plugin = gst_plugin_load_by_name ("aamp");
+		if(plugin)
+		{
+			gst_object_unref(plugin);
+		}
+		pluginFeature = gst_registry_lookup_feature(registry, GstPluginNamePR);
+		if(pluginFeature == NULL)
+			logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 	}
-	else
+	if(pluginFeature)
 	{
+		logprintf("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
