@@ -2254,6 +2254,11 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - MPD duration str %s val %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, tempString.c_str(), durationMs/1000);
 		}
 
+		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, i);
+		}
+
 		mIsLive = !(mpd->GetType() == "static");
 		map<string, string> mpdAttributes = mpd->GetRawAttributes();
 		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
@@ -2627,14 +2632,7 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 		{
 			gotManifest = true;
 		}
-		if(gpGlobalConfig->fragmentDLTimeout <= 0)
-		{
-			aamp->SetCurlTimeout(CURL_FRAGMENT_DL_TIMEOUT);
-		}
-		else
-		{
-			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout);
-		}
+
 		if (gotManifest)
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED

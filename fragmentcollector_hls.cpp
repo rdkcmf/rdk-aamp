@@ -1285,7 +1285,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 				// HACK: prepend first 376 bytes to get PAT/PMT for Apple's test stream
 				// Multiple ranges in a list means mime separation strings in between
 				// ts packets. So fetch ranges one by one into same buffer.
-				if (!aamp->GetFile(fragmentUrl, &cachedFragment->fragment, effectiveUrl, NULL, "0-375", type, false))
+				if (!aamp->GetFile(fragmentUrl, &cachedFragment->fragment, effectiveUrl, NULL, "0-375", type, false, (MediaType)(type)))
 				{
 					aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
 					logprintf("FetchFragmentHelper aamp_GetFile failed\n");
@@ -1309,7 +1309,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			char tempEffectiveUrl[MAX_URI_LENGTH];
 			traceprintf("%s:%d Calling Getfile . buffer %p avail %d\n", __FUNCTION__, __LINE__, &cachedFragment->fragment, (int)cachedFragment->fragment.avail);
 
-			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_error, range, type, false,(MediaType)(type));
+			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_error, range, type, false, (MediaType)(type));
 			if (!fetched)
 			{
 				//cleanup is done in aamp_GetFile itself
@@ -1934,7 +1934,6 @@ void TrackState::RefreshPlaylist(void)
 	// the before and after playlist
 	long long commonPlayPosition = nextMediaSequenceNumber - 1;
 	double prevSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
-	bool modifyDLTimeout = !aamp->IsLocalPlayback();
 	GrowableBuffer tempBuff;
 	long http_error = 0;
 
@@ -1945,11 +1944,6 @@ void TrackState::RefreshPlaylist(void)
 #ifdef WIN32
 	logprintf("\npre-refresh %fs before %lld\n", prevSecondsBeforePlayPoint, commonPlayPosition);
 #endif
-	// temporarily increase timeout for playlist retrieval - these files (especially for VOD) can be large and slow to download
-	if (modifyDLTimeout)
-	{
-		aamp->SetCurlTimeout(MANIFEST_CURL_TIMEOUT);
-	}
 
 	if(playlist.ptr)
 	{
@@ -1964,12 +1958,6 @@ void TrackState::RefreshPlaylist(void)
 	}
 
 	aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
-
-	//reset timeout value
-	if (modifyDLTimeout)
-	{
-		aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout);
-	}
 
 	if (playlist.len)
 	{ // download successful
@@ -2401,10 +2389,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	}
 
 	bool retrievePlaylistFromCache = (!newTune && aamp->mEnableCache);
-	if (!aamp->IsLocalPlayback())
-	{
-		aamp->SetCurlTimeout(MANIFEST_CURL_TIMEOUT);
-	}
 
 	if (retrievePlaylistFromCache)
 	{
@@ -2587,6 +2571,9 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			TrackState *ts = trackState[iTrack];
+
+			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, iTrack);
+
 			if(ts->enabled)
 			{
 				if(insertPlaylistToCache[iTrack])
@@ -2852,8 +2839,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		if (bSetStatePreparing)
 			aamp->SetState(eSTATE_PREPARING);
-
-		aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout);
 
 		//Currently un-used playlist indexed event, might save some JS overhead
 		if (!gpGlobalConfig->disablePlaylistIndexEvent)
