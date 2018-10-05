@@ -1659,13 +1659,17 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
  * @param fileType media type of the file
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer,MediaType fileType)
+bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType)
 {
 	long http_code = -1;
 	bool ret = false;
 	int downloadAttempt = 0;
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
+
+	// temporarily increase timeout for manifest download - these files (especially for VOD) can be large and slow to download
+	bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
+
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
 	{
@@ -1692,6 +1696,11 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
+
+			if (modifyDownloadTimeout)
+			{
+				curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_MANIFEST_DL_TIMEOUT);
+			}
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
@@ -1776,7 +1785,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				else
 				{
 					logprintf("CURL error: %d\n", res);
-					//Attempt retry for local playback since rampdown will not happen
+					//Attempt retry for local playback since rampdown is disabled for FOG
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback)) && downloadAttempt < 2)
 					{
 						logprintf("Download failed due to curl connect timeout. Retrying!\n");
@@ -1820,6 +1829,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 				break;
 			}
+
+			if (modifyDownloadTimeout)
+			{
+				curl_easy_setopt(curl, CURLOPT_TIMEOUT, gpGlobalConfig->fragmentDLTimeout);
+			}
+
 		}
 
 		if (http_code == 200 || http_code == 206 || http_code == CURLE_OPERATION_TIMEDOUT)
@@ -3834,7 +3849,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
 	profiler.ProfileBegin(bucketType);
 	char effectiveUrl[MAX_URI_LENGTH];
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
-	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, NULL, range,curlInstance,true,fileType))
+	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, NULL, range, curlInstance, true, fileType))
 	{
 		profiler.ProfileError(bucketType);
 	}

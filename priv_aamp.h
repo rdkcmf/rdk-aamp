@@ -58,7 +58,7 @@ extern void logprintf(const char *format, ...);
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define CURL_FRAGMENT_DL_TIMEOUT 5L     /**< Curl timeout for fragment download */
-#define MANIFEST_CURL_TIMEOUT 10L       /**< Curl timeout for manifest download */
+#define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
