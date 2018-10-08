@@ -145,6 +145,7 @@ http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP 
 mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
 mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
 force-http Allow forcing of HTTP protocol for HTTPS URLs
+internal-retune=0 Disable internal reTune logic on underflows/ pts errors
 
 CLI-specific commands:
 <enter>		dump currently available profiles

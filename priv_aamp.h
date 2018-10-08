@@ -264,6 +264,7 @@ public:
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/
 	int abrSkipDuration;                    /**< Initial duration for ABR skip*/
+	bool internalReTune;                    /**< Internal re-tune on underflows/ pts errors*/
 public:
 
 	/**
@@ -287,7 +288,8 @@ public:
 		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
-		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false)
+		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
+		internalReTune(true)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;

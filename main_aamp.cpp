@@ -2796,6 +2796,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				gpGlobalConfig->bForceHttp = !gpGlobalConfig->bForceHttp;
 				logprintf("force-http: %s\n", gpGlobalConfig->bForceHttp ? "on" : "off");
 			}
+			else if (sscanf(cmd, "internal-retune=%d\n", &value) == 1)
+			{
+				gpGlobalConfig->internalReTune = (value != 0);
+				logprintf("internal-retune=%d\n", (int)value);
+			}
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')
@@ -5058,6 +5063,11 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			pthread_mutex_unlock(&mLock);
 
 			logprintf("PrivateInstanceAAMP::%s:%d  Underflow due to discontinuity handled\n", __FUNCTION__, __LINE__);
+			return;
+		}
+		else if (!gpGlobalConfig->internalReTune)
+		{
+			logprintf("PrivateInstanceAAMP::%s : Ignore reTune as disabled in configuration\n", __FUNCTION__);
 			return;
 		}
 		bool activeAAMPFound = false;
