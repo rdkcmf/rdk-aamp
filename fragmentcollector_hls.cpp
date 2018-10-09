@@ -1689,7 +1689,7 @@ double TrackState::IndexPlaylist()
 				{
 					ptr = NULL;
 				}
-				unsigned char hash[SHA_DIGEST_LENGTH];
+				unsigned char hash[SHA_DIGEST_LENGTH] = {0};
 				drmMetadataNode.metaData.metadataPtr =  base64_Decode(drmPtr, &drmMetadataNode.metaData.metadataSize);
 				SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
 				drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
@@ -2506,6 +2506,14 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 		TrackState *video = trackState[eMEDIATYPE_VIDEO];
 
+        if(gpGlobalConfig->bAudioOnlyPlayback){
+            if(audio->enabled){
+                video->enabled = false;
+                video->streamOutputFormat = FORMAT_NONE;
+            }else{
+                trackState[eTRACK_VIDEO]->type = eTRACK_AUDIO;
+            }
+        }
 		aamp->profiler.SetBandwidthBitsPerSecondAudio(audio->GetCurrentBandWidth());
 
 		pthread_t trackPLDownloadThreadID;
@@ -2729,7 +2737,6 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						StreamOperation demuxOp;
 						ts->streamOutputFormat = format;
-						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing\n");
 						if ((trackState[eTRACK_AUDIO]->enabled) || (1.0 != rate))
 						{
 							demuxOp = eStreamOp_DEMUX_VIDEO;
@@ -2750,15 +2757,21 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 								}
 							}
 							if(FORMAT_NONE != trackState[eMEDIATYPE_AUDIO]->streamOutputFormat)
-							{
-								demuxOp = eStreamOp_DEMUX_ALL;
-							}
+                            {
+                                if(!gpGlobalConfig->bAudioOnlyPlayback){
+                                    demuxOp = eStreamOp_DEMUX_ALL;
+                                }else{
+                                    demuxOp = eStreamOp_DEMUX_AUDIO;
+                                    video->streamOutputFormat = FORMAT_NONE;
+                                }
+                            }
 							else
 							{
 								logprintf("StreamAbstractionAAMP_HLS::%s:%d Demux only video. codecs %s\n", __FUNCTION__, __LINE__, streamInfo[currentProfileIndex].codecs);
 								demuxOp = eStreamOp_DEMUX_VIDEO;
 							}
 						}
+                        AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d\n", demuxOp);
 						ts->playContext = new TSProcessor(aamp,demuxOp, eMEDIATYPE_VIDEO, trackState[eMEDIATYPE_AUDIO]->playContext);
 						ts->playContext->setThrottleEnable(this->enableThrottle);
 						if (this->rate == 1.0)
@@ -2916,9 +2929,11 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				SyncVODTracks();
 			}
 			else
-			{
-				SyncTracks(totalDuration);
-			}
+            {
+                if(!gpGlobalConfig->bAudioOnlyPlayback){
+                    SyncTracks(totalDuration);
+                }
+            }
 		}
 		if (liveAdjust)
 		{

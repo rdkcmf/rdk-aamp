@@ -2360,8 +2360,12 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if(1 == mNumberOfTracks && !mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 			{
 				logprintf("PrivateStreamAbstractionMPD::%s:%d Audio only channel\n", __FUNCTION__, __LINE__);
-				memcpy(mMediaStreamContext[eMEDIATYPE_VIDEO], mMediaStreamContext[eMEDIATYPE_AUDIO], sizeof(MediaStreamContext));
+                mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled = mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled;
+                mMediaStreamContext[eMEDIATYPE_VIDEO]->adaptationSetIdx = mMediaStreamContext[eMEDIATYPE_AUDIO]->adaptationSetIdx;
+                mMediaStreamContext[eMEDIATYPE_VIDEO]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUDIO]->representationIndex;
+				//memcpy(mMediaStreamContext[eMEDIATYPE_VIDEO], mMediaStreamContext[eMEDIATYPE_AUDIO], sizeof(MediaStreamContext));
 				mMediaStreamContext[eMEDIATYPE_VIDEO]->mediaType = eMEDIATYPE_VIDEO;
+                mMediaStreamContext[eMEDIATYPE_VIDEO]->type = eTRACK_VIDEO;
 				mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
 			}
 #ifdef AAMP_DISABLE_AUDIO_TRACK
@@ -3246,7 +3250,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
 						}
 					}
-					else if ( !IsIframeTrack(adaptationSet) )
+					else if ((!gpGlobalConfig->bAudioOnlyPlayback) && (!IsIframeTrack(adaptationSet)))
 					{
 						// Got Video , confirmed its not iframe adaptation
 						selAdaptationSetIndex	=	iAdaptationSet;
@@ -3264,7 +3268,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 						break;
 					}
 				}
-				else if (eMEDIATYPE_VIDEO == i)
+				else if ((!gpGlobalConfig->bAudioOnlyPlayback) && (eMEDIATYPE_VIDEO == i))
 				{
 					//iframe track
 					if ( IsIframeTrack(adaptationSet) )
@@ -4193,11 +4197,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					}
 				}
 
-				bool trackDownloadThreadCreated = false;
-
-				pthread_t FragmentDownloadThreadID;
-				struct FragmentDownloadParams *downloadParams = new struct FragmentDownloadParams;
-
 				// playback
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
@@ -4286,13 +4285,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						aamp->InterruptableMsSleep(50);	
 					}
 				}// end of while loop
-				if(trackDownloadThreadCreated)
-				{
-					AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s:%d Waiting for pthread_join FragmentDownloadThread\n", __FUNCTION__, __LINE__);
-					pthread_join(FragmentDownloadThreadID, NULL);
-					AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s:%d Joined FragmentDownloadThread\n", __FUNCTION__, __LINE__);
-				}
-				delete downloadParams;
 				if(liveMPDRefresh)
 				{
 					break;
