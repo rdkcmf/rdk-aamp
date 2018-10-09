@@ -144,9 +144,7 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_CORRUPT_DRM_DATA, 51, "AAMP: DRM failure due to Corrupt DRM files"},
 	{AAMP_TUNE_DRM_DECRYPT_FAILED, 50, "AAMP: DRM Decryption Failed for Fragments"},
 	{AAMP_TUNE_GST_PIPELINE_ERROR, 80, "AAMP: Error from gstreamer pipeline"},
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	{AAMP_TUNE_PLAYBACK_STALLED, 7600, "AAMP: Playback was stalled due to lack of new fragments"},
-#endif
 	{AAMP_TUNE_CONTENT_NOT_FOUND, 20, "AAMP: Resource was not found at the URL(HTTP 404)"},
 	{AAMP_TUNE_DRM_KEY_UPDATE_FAILED, 50, "AAMP: Failed to process DRM key"},
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
@@ -352,18 +350,6 @@ void PrivateInstanceAAMP::ReportProgress(void)
 				// would likely be more accurate, but would need to be tested to accomodate
 				// and compensate for FF/REW play rates
 			}
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
-			if (mpStreamAbstractionAAMP && (1.0 == rate))
-			{
-				double expectedInjectedDuration = (double)eventData.data.progress.positionMiliseconds/1000 - seek_pos_seconds;
-				bool ret = mpStreamAbstractionAAMP->CheckIfPlaybackStalled(expectedInjectedDuration);
-				if (ret)
-				{
-					logprintf("PrivateInstanceAAMP::%s : Playback stalled in streamer\n", __FUNCTION__);
-					return;
-				}
-			}
-#endif
 		}
 		else
 		{
@@ -622,7 +608,14 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		DisableDownloads();
 		if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 		{
-			e.data.mediaError.code = tuneFailureMap[tuneFailure].code;
+			if (tuneFailure == AAMP_TUNE_PLAYBACK_STALLED)
+			{ // allow config override for stall detection error code
+				e.data.mediaError.code = gpGlobalConfig->stallErrorCode;
+			}
+			else
+			{
+				e.data.mediaError.code = tuneFailureMap[tuneFailure].code;
+			}
 			if(description)
 			{
 				errorDescription = description;
@@ -4086,8 +4079,6 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
 			if (!aamp->pipeline_paused)
 			{
 				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMs());
-				aamp->mpStreamAbstractionAAMP->mIsAtLivePoint = false;
-
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				aamp->mStreamSink->Pause(true);
@@ -5681,14 +5672,10 @@ void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
  */
 void PrivateInstanceAAMP::SendStalledErrorEvent()
 {
-	AAMPEvent e;
-
-	e.type = AAMP_EVENT_TUNE_FAILED;
-	e.data.mediaError.code = gpGlobalConfig->stallErrorCode;
-	snprintf(e.data.mediaError.description, MAX_ERROR_DESCRIPTION_LENGTH, "Playback has been stalled for more than %d ms", gpGlobalConfig->stallTimeoutInMS);
-
-	logprintf("Sending stalled error %s \n",e.data.mediaError.description);
-	SendEventAsync(e);
+	char description[MAX_ERROR_DESCRIPTION_LENGTH];
+	memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
+	snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "Playback has been stalled for more than %d ms", gpGlobalConfig->stallTimeoutInMS);
+	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, description);
 }
 
 /**

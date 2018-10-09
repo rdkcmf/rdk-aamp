@@ -225,7 +225,6 @@ private:
 	pthread_t fragmentCollectorThreadID;	/**< Thread Id for Fragment  collector Thread */
 	bool fragmentCollectorThreadStarted;	/**< Flag indicating if fragment collector thread started or not*/
 	int manifestDLFailCount;				/**< Manifest Download fail count for retry*/
-	double parsedLastValidFragmentAt;		/**< Last valid fragment parsed */
 	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
 };
 
@@ -302,7 +301,6 @@ public:
 	void HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix = NULL);
 #endif
 	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */ 
-	bool mNetworkDownDetected;		/**< Network down status indicator */
 protected:
 	/// Function to get StreamInfo stucture based on the index input
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}

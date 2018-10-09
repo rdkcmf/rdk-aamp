@@ -655,11 +655,11 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
-		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false)
+		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
+		mNetworkDownDetected(false)
 {
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	mIsPlaybackStalled = false;
-#endif
+	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
@@ -941,6 +941,12 @@ void StreamAbstractionAAMP::UpdateIframeTracks()
 	mAbrManager.updateProfile();
 }
 
+
+/**
+ *   @brief Function called when playback is paused to update related flags.
+ *
+ *   @param[in] paused - true if playback paused, otherwise false.
+ */
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
 	if (paused)
@@ -949,35 +955,6 @@ void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 	}
 }
 
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
-
-/**
- *   @brief Check if playback is stalled in streamer.
- *
- *   @param expectedInjectedDuration
- *   @retval true if playback stalled, false otherwise.
- */
-bool StreamAbstractionAAMP::CheckIfPlaybackStalled(double expectedInjectedDuration)
-{
-	// positionMS is currentPosition that will be sent in MediaProgress event
-	// make sure that value never exceeds total injected duration
-
-	MediaTrack *videoTrack = GetMediaTrack(eTRACK_VIDEO);
-
-	if (videoTrack && (expectedInjectedDuration > (videoTrack->GetTotalInjectedDuration() + AAMP_STALL_CHECK_TOLERANCE)))
-	{
-		traceprintf("StreamAbstractionAAMP:%s() expectedInjectedDuration %f injectedDuration %f\n", __FUNCTION__, expectedInjectedDuration, videoTrack->GetTotalInjectedDuration());
-		// Also check if internal cache and gstreamer cache are also empty
-		if (videoTrack->numberOfFragmentsCached == 0 && aamp->IsSinkCacheEmpty(eMEDIATYPE_VIDEO) && mIsPlaybackStalled)
-		{
-			logprintf("StreamAbstractionAAMP:%s() Stall detected. Buffer status is RED! expectedInjectedDuration %f injectedDuration %f\n", __FUNCTION__, expectedInjectedDuration, videoTrack->GetTotalInjectedDuration());
-			return true;
-		}
-	}
-
-	return false;
-}
-#else
 
 /**
  *   @brief Check if player caches are running dry.
@@ -1002,11 +979,12 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 	}
 	return false;
 }
-#endif
 
 
 /**
  * @brief Update profile state based on cached fragments
+ *
+ * @return true if profile was changed, false otherwise
  */
 bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 {
@@ -1027,4 +1005,40 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		retVal = true;
 	}
 	return retVal;
+}
+
+
+/**
+ *   @brief Check if playback has stalled and update related flags.
+ *
+ *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+ */
+void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
+{
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	if (fragmentParsed)
+	{
+		mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
+		if (mIsPlaybackStalled)
+		{
+			mIsPlaybackStalled = false;
+		}
+	}
+	else
+	{
+		/** Need to confirm if we are stalled here */
+		double timeElapsedSinceLastFragment = (aamp_GetCurrentTimeMS() - mLastVideoFragParsedTimeMS);
+
+		// We have not received a new fragment for a long time, check for cache empty required for dash
+		if (!mNetworkDownDetected && (timeElapsedSinceLastFragment > gpGlobalConfig->stallTimeoutInMS) && GetMediaTrack(eTRACK_VIDEO)->numberOfFragmentsCached == 0)
+		{
+			AAMPLOG_INFO("StreamAbstractionAAMP::%s() Didn't download a new fragment for a long time(%f) and cache empty!\n", __FUNCTION__, timeElapsedSinceLastFragment);
+			mIsPlaybackStalled = true;
+			if (CheckIfPlayerRunningDry())
+			{
+				logprintf("StreamAbstractionAAMP::%s() Stall detected!. Time elapsed since fragment parsed(%f), caches are all empty!\n", __FUNCTION__, timeElapsedSinceLastFragment);
+				aamp->SendStalledErrorEvent();
+			}
+		}
+	}
 }

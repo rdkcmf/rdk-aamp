@@ -501,18 +501,19 @@ public:
 	 */
 	virtual void NotifyPlaybackPaused(bool paused);
 
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	/**
-	 *   @brief Check if playback is stalled in streamer.
+	 *   @brief Check if player caches are running dry.
 	 *
-	 *   @param expectedInjectedDuration - Expected inject duration
-	 *   @return true if playback stalled, false otherwise.
+	 *   @return true if player caches are dry, false otherwise.
 	 */
-	bool CheckIfPlaybackStalled(double expectedInjectedDuration);
-#else
+	bool CheckIfPlayerRunningDry(void);
 
-	bool CheckIfPlayerRunningDry(void );
-#endif
+	/**
+	 *   @brief Check if playback has stalled and update related flags.
+	 *
+	 *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+	 */
+	void CheckForPlaybackStall(bool fragmentParsed);
 
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
 	int currentProfileIndex;                /**< current profile index of the track*/
@@ -521,10 +522,9 @@ public:
 
 	bool mIsAtLivePoint;                    /**< flag that denotes if playback is at live point*/
 
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	bool mIsPlaybackStalled;                /**< flag that denotes if playback was stalled or not*/
-#endif
 	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
+	bool mNetworkDownDetected;		/**< Network down status indicator */
 
 
 	/**
@@ -601,6 +601,7 @@ private:
 	long mTsbBandwidth;                 /**< stores bandwidth when TSB is involved*/
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
+	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 };

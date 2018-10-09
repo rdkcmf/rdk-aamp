@@ -1201,13 +1201,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 				playTarget = playlistPosition + fragmentDurationSeconds;
 				if (context->IsLive())
 				{
-					parsedLastValidFragmentAt = aamp_GetCurrentTimeMS();
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
-					if (context->mIsPlaybackStalled)
-					{
-						context->mIsPlaybackStalled = false;
-					}
-#endif
+					context->CheckForPlaybackStall(true);
 				}
 			}
 			else
@@ -1217,37 +1211,9 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 					logprintf("aamp play to end. playTarget %f fragmentURI %p hasEndListTag %d\n", playTarget, fragmentURI, context->hasEndListTag);
 					eosReached = true;
 				}
-				if (context->IsLive())
+				else if (context->IsLive() && type == eTRACK_VIDEO)
 				{
-					/** Need to confirm if we are stalled here */
-					double timeElapsedSinceLastFragment = (aamp_GetCurrentTimeMS() - parsedLastValidFragmentAt);
-
-					// We have not received a new fragment for a long time
-					if (!context->mNetworkDownDetected && (timeElapsedSinceLastFragment > gpGlobalConfig->stallTimeoutInMS) && type == eTRACK_VIDEO)
-					{
-						logprintf("TrackState::%s() AAMP didn't download a new fragment for a long time(%f)!!\n", __FUNCTION__, timeElapsedSinceLastFragment);
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
-						PrivAAMPState state;
-						aamp->GetState(state);
-
-						// ReportProgress callback hasn't started yet.
-						// First fragment wasn't downloaded yet
-						if (state == eSTATE_PREPARED && aamp->DownloadsAreEnabled())
-						{
-							aamp->SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED);
-							return false;
-						}
-						else
-						{
-							context->mIsPlaybackStalled = true;
-						}
-#else
-						if (context->CheckIfPlayerRunningDry())
-						{
-							aamp->SendStalledErrorEvent();
-						}
-#endif
-					}
+					context->CheckForPlaybackStall(false);
 				}
 			}
 		}
@@ -3237,7 +3203,6 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	segDLFailCount = 0;
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	mStartTimestampZero = false;
-	mNetworkDownDetected = false;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	lastSelectedProfileIndex = 0;
 }
@@ -3276,7 +3241,6 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	memset(&mDrmMetaDataIndex, 0, sizeof(mDrmMetaDataIndex));
 	memset(&mDrmInfo, 0, sizeof(mDrmInfo));
 	mDrmMetaDataIndexPosition = 0;
-	parsedLastValidFragmentAt = aamp_GetCurrentTimeMS();
 	mPeriodPositionIndex.clear();
 }
 /***************************************************************************

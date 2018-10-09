@@ -115,9 +115,7 @@ typedef enum
 	AAMP_TUNE_CORRUPT_DRM_DATA,             /**< DRM failure due to corrupt drm data, self heal might clear further errors*/
 	AAMP_TUNE_DRM_DECRYPT_FAILED,           /**< DRM Decryption Failed for Fragments */
 	AAMP_TUNE_GST_PIPELINE_ERROR,           /**< Playback failure due to error from GStreamer pipeline or associated plugins */
-#ifdef AAMP_JS_PP_STALL_DETECTOR_ENABLED
 	AAMP_TUNE_PLAYBACK_STALLED,             /**< Playback was stalled due to valid fragments not available in playlist */
-#endif
 	AAMP_TUNE_CONTENT_NOT_FOUND,            /**< The resource was not found at the URL provided (HTTP 404) */
 	AAMP_TUNE_DRM_KEY_UPDATE_FAILED,        /**< Failed to process DRM key, see the error code returned from Update() for more info */
 	AAMP_TUNE_FAILURE_UNKNOWN               /**<  Unknown failure */

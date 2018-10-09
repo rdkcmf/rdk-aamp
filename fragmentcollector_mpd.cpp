@@ -2618,19 +2618,34 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 			memset(&manifest, 0, sizeof(manifest));
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error);
-			if (!gotManifest && aamp->DownloadsAreEnabled())
+			if (gotManifest)
+			{
+				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
+				if (mContext->mNetworkDownDetected)
+				{
+					mContext->mNetworkDownDetected = false;
+				}
+			}
+			else if (aamp->DownloadsAreEnabled())
 			{
 				if(downloadAttempt < 2 && 404 == http_error)
 				{
 					continue;
 				}
+				aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
+				if (this->mpd != NULL && (CURLE_OPERATION_TIMEDOUT == http_error || CURLE_COULDNT_CONNECT == http_error))
+				{
+					//Skip this for first ever update mpd request
+					mContext->mNetworkDownDetected = true;
+					logprintf("PrivateStreamAbstractionMPD::%s Ignore curl timeout\n", __FUNCTION__);
+					ret = true;
+					break;
+				}
 				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 				logprintf("PrivateStreamAbstractionMPD::%s - manifest download failed\n", __FUNCTION__);
-				aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
 				ret = false;
 				break;
 			}
-			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 		}
 		else
 		{
@@ -4218,11 +4233,19 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 									}
 											
 									if(PushNextFragment(pMediaStreamContext,i))
-									{																				
+									{
+										if (mIsLive)
+										{
+											mContext->CheckForPlaybackStall(true);
+										}
 										if(gpGlobalConfig->bEnableABR && (!pMediaStreamContext->mContext->trickplayMode) && !aamp->IsTSBSupported() && (eMEDIATYPE_VIDEO == i))
 										{			
 											DoAbr();
 										}
+									}
+									else if (pMediaStreamContext->eos == true && mIsLive && i == eMEDIATYPE_VIDEO)
+									{
+										mContext->CheckForPlaybackStall(false);
 									}
 								}
 							}
