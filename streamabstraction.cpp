@@ -460,14 +460,17 @@ void MediaTrack::RunInjectLoop()
 		{
 			keepInjecting = false;
 		}
-		if(isAudioTrack)
-		{
-			GetContext()->WaitForVideoTrackCatchup();
-		}
-		else
-		{
-			GetContext()->ReassessAndResumeAudioTrack();
-		}
+        if(!gpGlobalConfig->bAudioOnlyPlayback)
+        {
+            if(isAudioTrack)
+            {
+                GetContext()->WaitForVideoTrackCatchup();
+            }
+            else
+            {
+                GetContext()->ReassessAndResumeAudioTrack();
+            }
+        }
 	}
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
 }

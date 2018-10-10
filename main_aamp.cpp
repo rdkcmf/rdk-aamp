@@ -2801,6 +2801,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				gpGlobalConfig->internalReTune = (value != 0);
 				logprintf("internal-retune=%d\n", (int)value);
 			}
+            else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
+            {
+                gpGlobalConfig->bAudioOnlyPlayback = true;
+                logprintf("aamp-audio-only-playback is %s\n", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
+            }
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')
