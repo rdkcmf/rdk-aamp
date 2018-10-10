@@ -116,6 +116,7 @@ disableEC3=1 // removes "-eac3" before .m3u8 in main manifest url. Useful in com
 disableATMOS=1 //For DASH playback makes DD+ or AAC preferred over ATMOS (EC+3)
 
 live-offset    live offset time in seconds, aamp starts live playback this much time before the live point
+cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playback this much time before the live point
 disablePlaylistIndexEvent=1    disables generation of playlist indexed event by AAMP on tune/trickplay/seek
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
 map-mpd -	remap production linear/vod content to corresponding dash lanes

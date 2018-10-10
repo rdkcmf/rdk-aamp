@@ -2403,7 +2403,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				}
 				else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType || eTUNETYPE_NEW_SEEK == tuneType)) && (rate > 0))
 				{
-					double seekWindowEnd = duration - gpGlobalConfig->liveOffset;
+					double seekWindowEnd = duration - aamp->mLiveOffset; 
 					// check if seek beyond live point
 
 					if (seekPosition > seekWindowEnd)
@@ -2421,7 +2421,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				{
 					if(!aamp->IsInProgressCDVR())
 					{
-						offsetFromStart = duration - gpGlobalConfig->liveOffset;
+						offsetFromStart = duration - aamp->mLiveOffset; 
 					}
 					else
 					{
@@ -2431,7 +2431,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 						std::string tempString = period->GetStart();
 						ParseISO8601Duration( tempString.c_str(), periodStartMs);
 						currentPeriodStart = (double)periodStartMs/1000;
-						offsetFromStart = duration - gpGlobalConfig->liveOffset - currentPeriodStart;
+						offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
 					}
 					if (offsetFromStart < 0)
 					{

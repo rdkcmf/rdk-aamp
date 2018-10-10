@@ -2544,6 +2544,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
                             VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
                             logprintf("live-offset=%d\n", gpGlobalConfig->liveOffset);
 			}
+			else if (sscanf(cmd, "cdvrlive-offset=%d", &gpGlobalConfig->cdvrliveOffset) == 1)
+			{
+				VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
+				logprintf("cdvrlive-offset=%d\n", gpGlobalConfig->cdvrliveOffset);
+			}
 			else if (sscanf(cmd, "ad-position=%d", &gpGlobalConfig->adPositionSec) == 1)
 			{
 				VALIDATE_INT("ad-position", gpGlobalConfig->adPositionSec, 0)
@@ -3663,10 +3668,21 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
-	mIscDVR = strstr(mainManifestUrl, "-cdvr-");
+	mIscDVR = strstr(mainManifestUrl, "cdvr-");
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find("169.254.") != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
+	if(mIscDVR)
+	{
+		// Hack for DELIA-30843 . Only for CDVR , offset is set to higher value 	
+		// will be used only for hot cdvr
+		mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
+	}	
+	else
+	{
+		// will be used only for live 
+		mLiveOffset	=	gpGlobalConfig->liveOffset;
+	}
 
 	SetContentType(mainManifestUrl, contentType);
 
@@ -3758,7 +3774,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mTSBEnabled = true;
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
-
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
 	TuneHelper(tuneType);
@@ -5154,6 +5169,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	mPersistedProfileIndex	= 0;
 	mTSBEnabled     =       false;
 	mIscDVR = false;
+	mLiveOffset = AAMP_LIVE_OFFSET;
 	zoom_mode = VIDEO_ZOOM_FULL;
 	pipeline_paused = false;
 	trickStartUTCMS = -1;
