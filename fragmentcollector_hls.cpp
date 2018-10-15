@@ -3095,7 +3095,11 @@ void TrackState::RunFetchLoop()
 			// relative to previous playlist fetch.
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 			int minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
-			long bufferAvailable = ((playTarget*1000) -  aamp->GetPositionMs());
+			long long currentPlayPosition = aamp->GetPositionMs();
+			long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
+			// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation 
+			// So using the endposition in playlist - Current playing position to get the buffer availability
+			long bufferAvailable = (endPositionAvailable - currentPlayPosition);
 			// If buffer Available is > 2*targetDuration
 			if(bufferAvailable  > (targetDurationSeconds*2*1000) )
 			{
@@ -3118,10 +3122,22 @@ void TrackState::RunFetchLoop()
 				// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze 
 				// need to refresh soon ..
 				if(bufferAvailable)
+				{
 					minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ; 
+				}
 				else
+				{
 					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS; // 500mSec
-				logprintf("Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld)\n",bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,aamp->GetPositionMs());
+				}
+				// limit the logs when buffer is low 
+				{
+					static int bufferlowCnt;
+					if((bufferlowCnt++ & 5) == 0)
+					{ 
+						logprintf("Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
+							bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
+					}
+				}
 			}
 			// adjust with last refreshed time interval
 			minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
@@ -3135,7 +3151,8 @@ void TrackState::RunFetchLoop()
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d)\n", bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates);
+			AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n", bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,
+											endPositionAvailable,currentPlayPosition);
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
 		RefreshPlaylist();

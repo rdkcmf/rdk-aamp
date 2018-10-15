@@ -2438,8 +2438,8 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 						offsetFromStart = 0;
 					}
 					mContext->mIsAtLivePoint = true;
-					logprintf( "PrivateStreamAbstractionMPD::%s:%d - liveAdjust - Updated offSetFromStart[%f] duration [%f] currentPeriodStart[%f] \n",
-							__FUNCTION__, __LINE__, offsetFromStart, duration, currentPeriodStart);
+					logprintf( "PrivateStreamAbstractionMPD::%s:%d - liveAdjust - Updated offSetFromStart[%f] duration [%f] currentPeriodStart[%f] MaxPeriodIdx[%d]\n",
+							__FUNCTION__, __LINE__, offsetFromStart, duration, currentPeriodStart,mCurrentPeriodIdx);
 				}
 			}
 			else
@@ -4340,7 +4340,13 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			int minDelayBetweenPlaylistUpdates = (int)mMinUpdateDurationMs;	
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-			long bufferAvailable = ((long)(mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition*1000) - (long)aamp->GetPositionMs());
+			//long bufferAvailable = ((long)(mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition*1000) - (long)aamp->GetPositionMs());
+			long long currentPlayPosition = aamp->GetPositionMs();
+			long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
+			// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation
+			// So using the endposition in playlist - Current playing position to get the buffer availability
+			long bufferAvailable = (endPositionAvailable - currentPlayPosition);
+
 			// If buffer Available is > 2*mMinUpdateDurationMs
 			if(bufferAvailable  > (mMinUpdateDurationMs*2) )
 			{
@@ -4363,12 +4369,23 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze
 				// need to refresh soon ..
 				if(bufferAvailable)
+				{
 					minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ;
+				}
 				else
+				{
 					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_MPD_UPDATE_MS; // 500mSec
-				logprintf("Buffer is running low(%ld).RefreshInt(%d).Target(%f)PlayPosition(%lld) fragNum(%lld)\n",
-					bufferAvailable,minDelayBetweenPlaylistUpdates,mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition,aamp->GetPositionMs(),
-					mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.Number);
+				}
+				// limit the logs when buffer is low
+				{
+					static int bufferlowCnt;
+					if((bufferlowCnt++ & 5) == 0)
+					{
+						logprintf("Buffer is running low(%ld).Refreshing playlist(%d).PlayPosition(%lld) End(%lld)\n",
+							bufferAvailable,minDelayBetweenPlaylistUpdates,currentPlayPosition,endPositionAvailable);
+					}
+				}
+
 			}
 
 			// adjust with last refreshed time interval
@@ -4383,9 +4400,10 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_MPD_UPDATE_MS;
 			}
-			AAMPLOG_INFO("aamp refresh bufferMs(%ld) target(%f) delay(%d) delta(%d) fragNum(%lld) lastSegTime(%lld) Time: %" PRIu64 "\n",bufferAvailable,
-				mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition,minDelayBetweenPlaylistUpdates,timeSinceLastPlaylistDownload,
-				mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.Number,mMediaStreamContext[eMEDIATYPE_VIDEO]->lastSegmentTime,aamp_GetCurrentTimeMS());
+
+			AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) delay(%d) delta(%d) End(%lld) PlayPosition(%lld)\n", 
+				bufferAvailable,minDelayBetweenPlaylistUpdates,timeSinceLastPlaylistDownload,endPositionAvailable,currentPlayPosition);
+
 			// sleep before next manifest update
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
