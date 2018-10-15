@@ -57,6 +57,7 @@ extern void logprintf(const char *format, ...);
 #define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)    /**< Maximum number of CURL instances */
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
+#define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 #define CURL_FRAGMENT_DL_TIMEOUT 5L     /**< Curl timeout for fragment download */
 #define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
@@ -236,6 +237,7 @@ public:
 	int disableEC3;                         /**< Disable DDPlus*/
 	int disableATMOS;                       /**< Disable Dolby ATMOS*/
 	int liveOffset;                         /**< Current LIVE offset*/
+	int cdvrliveOffset;                     /**< CDVR LIVE offset*/
 	int adPositionSec;                      /**< Ad break position*/
 	const char* adURL;                      /**< Ad URL*/
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
@@ -282,7 +284,7 @@ public:
 		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
 		playlistsParallelFetch(false), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
-		liveOffset(AAMP_LIVE_OFFSET), adPositionSec(0), adURL(0),abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
+		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), adPositionSec(0), adURL(0),abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),fragmentDLTimeout(CURL_FRAGMENT_DL_TIMEOUT),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),aampLoglevel(eLOGLEVEL_WARN),
 		preferredDrm(1), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
@@ -1081,6 +1083,7 @@ public:
 	bool streamerIsActive;
 	bool mTSBEnabled;
 	bool mIscDVR;
+	int mLiveOffset;
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	float rate; // most recent (non-zero) play rate for non-paused content

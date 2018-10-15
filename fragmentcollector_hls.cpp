@@ -709,7 +709,7 @@ char *TrackState::GetFragmentUriFromIndex()
 	{
 
 		const IndexNode *lastIndexNode = &index[indexCount - 1];
-		double seekWindowEnd = lastIndexNode->completionTimeSecondsFromStart - gpGlobalConfig->liveOffset;
+		double seekWindowEnd = lastIndexNode->completionTimeSecondsFromStart - aamp->mLiveOffset; 
 		if (context->IsLive() && playTarget > seekWindowEnd)
 		{
 			logprintf("%s - rate - %f playTarget(%f) > seekWindowEnd(%f), forcing EOS\n",
@@ -2854,7 +2854,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			double seekWindowEnd = totalDuration[eMEDIATYPE_VIDEO];
 			if(IsLive())
 			{
-				seekWindowEnd -= gpGlobalConfig->liveOffset;
+				seekWindowEnd -= aamp->mLiveOffset ; 
 			}
 			// check if seek beyond live point
 
@@ -2903,7 +2903,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (liveAdjust)
 		{
-			int offsetFromLive = gpGlobalConfig->liveOffset;
+			int offsetFromLive = aamp->mLiveOffset ; 
 	
 			if ( totalDuration[eMEDIATYPE_VIDEO] > (offsetFromLive + video->playTargetOffset))
 			{
