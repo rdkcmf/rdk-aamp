@@ -824,7 +824,14 @@ bool StreamAbstractionAAMP::RampDownProfile()
 		int lowestIframeProfile = mAbrManager.getLowestIframeProfile();
 		if (desiredProfileIndex != lowestIframeProfile)
 		{
-			desiredProfileIndex = lowestIframeProfile;
+			if (ABRManager::INVALID_PROFILE != lowestIframeProfile)
+			{
+				desiredProfileIndex = lowestIframeProfile;
+			}
+			else
+			{
+				logprintf("%s:%d lowestIframeProfile Invalid - Stream does not has an iframe track!! \n", __FUNCTION__, __LINE__);
+			}
 		}
 	}
 	else
