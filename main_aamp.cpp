@@ -2799,6 +2799,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				gpGlobalConfig->internalReTune = (value != 0);
 				logprintf("internal-retune=%d\n", (int)value);
 			}
+			else if (sscanf(cmd, "gst-buffering-before-play=%d\n", &value) == 1)
+			{
+				gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
+				logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
+			}
             else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
             {
                 gpGlobalConfig->bAudioOnlyPlayback = true;

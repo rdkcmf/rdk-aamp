@@ -268,6 +268,7 @@ public:
 	int abrSkipDuration;                    /**< Initial duration for ABR skip*/
 	bool internalReTune;                    /**< Internal re-tune on underflows/ pts errors*/
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
+	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
 public:
 
 	/**
@@ -292,7 +293,7 @@ public:
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
-		internalReTune(true), bAudioOnlyPlayback(false)
+		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;

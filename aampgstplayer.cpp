@@ -710,6 +710,7 @@ static gboolean buffering_timeout (gpointer data)
     
         if (!_this->privateContext->buffering_in_progress) {
             _this->privateContext->buffering_enabled = false;
+            logprintf("%s:%d Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
             gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
         }
     }
@@ -940,7 +941,10 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
             if (_this->privateContext->buffering_enabled) {
                 if (!_this->privateContext->buffering_in_progress)
+                {
+                    logprintf("%s:%d Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
                     gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
+                }
                 else
                     g_timeout_add (DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
             }
@@ -1198,7 +1202,7 @@ bool AAMPGstPlayer::CreatePipeline()
 #else
 			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this);
 #endif
-            privateContext->buffering_enabled = (gpGlobalConfig->internalReTune) ? true: false;
+            privateContext->buffering_enabled = gpGlobalConfig->gstreamerBufferingBeforePlay;
             privateContext->buffering_low_percent = DEFAULT_BUFFERING_LOW_PERCENT;
             privateContext->buffering_in_progress = false;
             privateContext->buffering_target_state = GST_STATE_NULL;
@@ -2248,7 +2252,9 @@ void AAMPGstPlayer::Pause( bool pause )
 		logprintf("%s(): Pipeline is NULL\n", __FUNCTION__);
 		return;
 	}
-	gst_element_set_state(this->privateContext->pipeline, pause ? GST_STATE_PAUSED : GST_STATE_PLAYING);
+	GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
+	gst_element_set_state(this->privateContext->pipeline, nextState);
+	privateContext->buffering_target_state = nextState;
 
 #if 0
 	GstStateChangeReturn rc;
