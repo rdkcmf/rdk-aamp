@@ -3234,6 +3234,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
 	if (aamp)
 	{
+		aamp->Stop();
 		delete aamp;
 	}
 	if (mInternalStreamSink)
