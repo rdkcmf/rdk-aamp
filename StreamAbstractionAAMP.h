@@ -28,6 +28,7 @@
 #include "priv_aamp.h"
 #include <map>
 #include <iterator>
+#include <vector>
 
 #include <ABRManager.h>
 #include <glib.h>
@@ -611,6 +612,53 @@ public:
 		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
 	}
 
+	/**
+	 *   @brief Get the bitrate of current video profile selected.
+	 *
+	 *   @return bitrate of current video profile.
+	 */
+	long GetVideoBitrate(void);
+
+	/**
+	 *   @brief Get the bitrate of current audio profile selected.
+	 *
+	 *   @return bitrate of current audio profile.
+	 */
+	long GetAudioBitrate(void);
+
+	/**
+	 *   @brief Set a preferred bitrate for video.
+	 *
+	 *   @param[in] preferred bitrate.
+	 */
+	void SetVideoBitrate(long bitrate);
+
+	/**
+	 *   @brief Check if a preferred bitrate is set and change profile accordingly.
+	 */
+	void CheckUserProfileChangeReq(void);
+
+	/**
+	 *   @brief Check if ABR enabled for this playback session.
+	 *
+	 *   @return true if ABR enabled.
+	 */
+	bool CheckABREnabled(void) { return mABREnabled; }
+
+	/**
+	 *   @brief Get available video bitrates.
+	 *
+	 *   @return available video bitrates.
+	 */
+	virtual std::vector<long> GetVideoBitrates(void) = 0;
+
+	/**
+	 *   @brief Get available audio bitrates.
+	 *
+	 *   @return available audio bitrates.
+	 */
+	virtual std::vector<long> GetAudioBitrates(void) = 0;
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -658,8 +706,11 @@ private:
 	long long mTotalPausedDurationMS;   /**< Total duration for which stream is paused */
 	long long mStartTimeStamp;          /**< stores timestamp at which injection starts */
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
+
+	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
+	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

@@ -218,6 +218,28 @@ public:
 	 */
 	void ABRProfileChanged(void)
 	{
+		if (representationIndex != mContext->currentProfileIndex)
+		{
+			IRepresentation *pNewRepresentation = adaptationSet->GetRepresentation().at(mContext->currentProfileIndex);
+			logprintf("PrivateStreamAbstractionMPD::%s:%d - ABR %dx%d[%d] -> %dx%d[%d]\n", __FUNCTION__, __LINE__,
+					representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth(),
+					pNewRepresentation->GetWidth(), pNewRepresentation->GetHeight(), pNewRepresentation->GetBandwidth());
+			representationIndex = mContext->currentProfileIndex;
+			representation = adaptationSet->GetRepresentation().at(mContext->currentProfileIndex);
+			const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
+			if (baseUrls->size() != 0)
+			{
+				fragmentDescriptor.baseUrls = &representation->GetBaseURLs();
+			}
+			fragmentDescriptor.Bandwidth = representation->GetBandwidth();
+			strcpy(fragmentDescriptor.RepresentationID, representation->GetId().c_str());
+			profileChanged = true;
+		}
+		else
+		{
+			traceprintf("PrivateStreamAbstractionMPD::%s:%d - Not switching ABR %dx%d[%d] \n", __FUNCTION__, __LINE__,
+					representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth());
+		}
 
 	}
 
@@ -313,7 +335,6 @@ public:
 	bool PushNextFragment( MediaStreamContext *pMediaStreamContext, unsigned int curlInstance = 0);
 	bool FetchFragment(MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance = 0, bool discontinuity = false );
 	uint64_t GetPeriodEndTime();
-	void DoAbr();
 	int GetProfileCount();
 	StreamInfo* GetStreamInfo(int idx);
 	MediaTrack* GetMediaTrack(TrackType type);
@@ -326,6 +347,8 @@ public:
 #endif
 
 	int GetBWIndex(long bitrate);
+	std::vector<long> GetVideoBitrates(void);
+	std::vector<long> GetAudioBitrates(void);
 
 private:
 	bool UpdateMPD(bool retrievePlaylistFromCache = false);
@@ -2467,7 +2490,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if (newTune )
 			{
 				AAMPEvent event;
-				event.type = AAMP_EVENT_VIDEO_METADATA;
+				event.type = AAMP_EVENT_MEDIA_METADATA;
 				event.data.metadata.durationMiliseconds = durationMs;
 				int langCount = 0;
 				std::set<std::string>::iterator langiter;
@@ -3929,37 +3952,6 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 
 
 /**
- * @brief Do ABR switching
- */
-void PrivateStreamAbstractionMPD::DoAbr()
-{
-	mContext->CheckForProfileChange();
-	MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
-	if (pMediaStreamContext->representationIndex != mContext->currentProfileIndex)
-	{
-		IRepresentation *pNewRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(mContext->currentProfileIndex);
-		logprintf("PrivateStreamAbstractionMPD::%s:%d - ABR %dx%d[%d] -> %dx%d[%d]\n", __FUNCTION__, __LINE__,
-				pMediaStreamContext->representation->GetWidth(), pMediaStreamContext->representation->GetHeight(), pMediaStreamContext->representation->GetBandwidth(),
-				pNewRepresentation->GetWidth(), pNewRepresentation->GetHeight(), pNewRepresentation->GetBandwidth());
-		pMediaStreamContext->representationIndex = mContext->currentProfileIndex;
-		pMediaStreamContext->representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(mContext->currentProfileIndex);
-		const std::vector<IBaseUrl *>*baseUrls = &pMediaStreamContext->representation->GetBaseURLs();
-		if (baseUrls->size() != 0)
-		{
-			pMediaStreamContext->fragmentDescriptor.baseUrls = &pMediaStreamContext->representation->GetBaseURLs();
-		}
-		pMediaStreamContext->fragmentDescriptor.Bandwidth = pMediaStreamContext->representation->GetBandwidth();
-		strcpy(pMediaStreamContext->fragmentDescriptor.RepresentationID, pMediaStreamContext->representation->GetId().c_str());
-		pMediaStreamContext->profileChanged = true;
-	}
-	else
-	{
-		traceprintf("PrivateStreamAbstractionMPD::%s:%d - Not switching ABR %dx%d[%d] \n", __FUNCTION__, __LINE__,
-				pMediaStreamContext->representation->GetWidth(), pMediaStreamContext->representation->GetHeight(), pMediaStreamContext->representation->GetBandwidth());
-	}
-}
-
-/**
  * @brief Check if current period is clear
  * @retval true if clear period
  */
@@ -4239,9 +4231,16 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 										{
 											mContext->CheckForPlaybackStall(true);
 										}
-										if(gpGlobalConfig->bEnableABR && (!pMediaStreamContext->mContext->trickplayMode) && !aamp->IsTSBSupported() && (eMEDIATYPE_VIDEO == i))
-										{			
-											DoAbr();
+										if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i) && (!aamp->IsTSBSupported()))
+										{
+											if (pMediaStreamContext->mContext->CheckABREnabled())
+											{
+												pMediaStreamContext->mContext->CheckForProfileChange();
+											}
+											else
+											{
+												pMediaStreamContext->mContext->CheckUserProfileChangeReq();
+											}
 										}
 									}
 									else if (pMediaStreamContext->eos == true && mIsLive && i == eMEDIATYPE_VIDEO)
@@ -4787,4 +4786,58 @@ int PrivateStreamAbstractionMPD::GetBWIndex(long bitrate)
 int StreamAbstractionAAMP_MPD::GetBWIndex(long bitrate)
 {
 	return mPriv->GetBWIndex(bitrate);
+}
+
+
+/**
+ * @brief To get the available video bitrates.
+ * @ret available video bitrates
+ */
+std::vector<long> PrivateStreamAbstractionMPD::GetVideoBitrates(void)
+{
+	std::vector<long> bitrates;
+	int profileCount = GetProfileCount();
+	if (profileCount)
+	{
+		for (int i = 0; i < profileCount; i++)
+		{
+			StreamInfo *streamInfo = &mStreamInfo[i];
+			if (!streamInfo->isIframeTrack)
+			{
+				bitrates.push_back(streamInfo->bandwidthBitsPerSecond);
+			}
+		}
+	}
+	return bitrates;
+}
+
+
+/**
+ * @brief To get the available audio bitrates.
+ * @ret available audio bitrates
+ */
+std::vector<long> PrivateStreamAbstractionMPD::GetAudioBitrates(void)
+{
+	//TODO: Impl getter for audio bitrates
+	return std::vector<long>();
+}
+
+
+/**
+ * @brief To get the available video bitrates.
+ * @ret available video bitrates
+ */
+std::vector<long> StreamAbstractionAAMP_MPD::GetVideoBitrates(void)
+{
+	return mPriv->GetVideoBitrates();
+}
+
+
+/**
+ * @brief To get the available audio bitrates.
+ * @ret available audio bitrates
+ */
+std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
+{
+	return mPriv->GetAudioBitrates();
 }

@@ -26,7 +26,7 @@
 #include <JavaScriptCore/JavaScript.h>
 
 #include "priv_aamp.h"
-#include "jscontroller-jsevent.h"
+#include "jsevent.h"
 #include "jsutils.h"
 
 #include <stdio.h>
@@ -111,21 +111,6 @@ static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 namespace AAMPJSController
 {
 
-/**
- * @brief To dispatch a JS event
- * @param[in] context JS execution context
- * @param[in] callback function to which event has to be dispatched as an arg
- * @param[in] event the JS event to be dispatched
- */
-static void dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event)
-{
-	JSValueRef args[1] = { event };
-	if (context != NULL && callback != NULL)
-	{
-		JSObjectCallAsFunction(context, callback, NULL, 1, args, NULL);
-	}
-}
-
 }//namespace
 
 /**
@@ -179,10 +164,10 @@ public:
 			return;
 		}
 
-		JSObjectRef event = createNewJSEvent(p_aamp->_ctx, aamp_getNameFromEventType(e.type), false, false);
+		JSObjectRef event = createNewAAMPJSEvent(p_aamp->_ctx, aamp_getNameFromEventType(e.type), false, false);
 		JSValueProtect(p_aamp->_ctx, event);
 
-		AAMPJSController::dispatchEventToJS(p_aamp->_ctx, p_jsCallback, event);
+		aamp_dispatchEventToJS(p_aamp->_ctx, p_jsCallback, event);
 		JSValueUnprotect(p_aamp->_ctx, event);
 	}
 
@@ -682,6 +667,7 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 	_globalController = aampObj;
 
 	aamp_LoadJS(context, NULL);
+	AAMPPlayer_LoadJS(context);
 
 	JSClassRef classDef = JSClassCreate(&AAMP_JSController_class_def);
 	JSObjectRef classObj = JSObjectMake(context, classDef, aampObj);
@@ -702,6 +688,7 @@ void aamp_UnloadJSController(JSGlobalContextRef context)
 	INFO("[AAMP_JSController] aamp_UnloadJSController context=%p\n", context);
 
 	aamp_UnloadJS(context);
+	AAMPPlayer_UnloadJS(context);
 
 	JSObjectRef globalObj = JSContextGetGlobalObject(context);
 	JSStringRef str = JSStringCreateWithUTF8CString("AAMP_JSController");

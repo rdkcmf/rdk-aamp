@@ -2565,7 +2565,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					needMetadata = false;
 					AAMPEvent event;
-					event.type = AAMP_EVENT_VIDEO_METADATA;
+					event.type = AAMP_EVENT_MEDIA_METADATA;
 					event.data.metadata.durationMiliseconds = totalDuration[iTrack] * 1000.0;
 					int langCount = 0;
 					std::set<std::string> langList;
@@ -3045,8 +3045,16 @@ void TrackState::RunFetchLoop()
 			if((eTRACK_VIDEO == type) && (!context->trickplayMode))
 			{
 				context->lastSelectedProfileIndex = context->currentProfileIndex;
-				context->CheckForProfileChange();
+				if (context->CheckABREnabled())
+				{
+					context->CheckForProfileChange();
+				}
+				else if (!context->aamp->IsTSBSupported())
+				{
+					context->CheckUserProfileChangeReq();
+				}
 			}
+
 			if (ePLAYLISTTYPE_VOD != context->playlistType)
 			{
 				int timeSinceLastPlaylistDownload = (int) (aamp_GetCurrentTimeMS()
@@ -3502,6 +3510,41 @@ void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutpu
 {
 	primaryOutputFormat = trackState[eMEDIATYPE_VIDEO]->streamOutputFormat;
 	audioOutputFormat = trackState[eMEDIATYPE_AUDIO]->streamOutputFormat;
+}
+/***************************************************************************
+* @fn GetVideoBitrates
+* @brief Function to get available video bitrates
+*
+* @return available video bitrates
+***************************************************************************/
+std::vector<long> StreamAbstractionAAMP_HLS::GetVideoBitrates(void)
+{
+	std::vector<long> bitrates;
+	int profileCount = GetProfileCount();
+	if (profileCount)
+	{
+		for (int i = 0; i < profileCount; i++)
+		{
+			struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
+			//Not send iframe bw info, since AAMP has ABR disabled for trickmode
+			if (!streamInfo->isIframeTrack)
+			{
+				bitrates.push_back(streamInfo->bandwidthBitsPerSecond);
+			}
+		}
+	}
+	return bitrates;
+}
+/***************************************************************************
+* @fn GetAudioBitrates
+* @brief Function to get available audio bitrates
+*
+* @return available audio bitrates
+***************************************************************************/
+std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
+{
+	//TODO: Impl audio bitrate getter
+	return std::vector<long>();
 }
 /***************************************************************************
 * @fn DrmDecrypt

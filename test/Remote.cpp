@@ -120,6 +120,9 @@ void RegisterDevice()
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_U);
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_D);
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_S);
+    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_F);
+    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_X);
+    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_Z);
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_UP);
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_DOWN);
     ioctl(uinp_fd, UI_SET_KEYBIT, KEY_LEFT);
@@ -253,6 +256,12 @@ void IRkeyhandler(int KeyType,int KeyCode)
                    break;
         case KED_REPLAY:
                    SendKeyToKernel(KEY_S);
+                   break;
+        case KED_PAGEUP:
+                   SendKeyToKernel(KEY_Z);
+                   break;
+        case KED_PAGEDOWN:
+                   SendKeyToKernel(KEY_X);
                    break;
         default:
                  break;

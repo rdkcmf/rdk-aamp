@@ -1088,7 +1088,7 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	{
 		pListener = new AAMP_JSListener_CCHandleReceived(aamp, type, jsCallback);
 	}
-	else if(type == AAMP_EVENT_VIDEO_METADATA)
+	else if(type == AAMP_EVENT_MEDIA_METADATA)
 	{
 		pListener = new AAMP_JSListener_VideoMetadata(aamp, type, jsCallback);
 	}
@@ -1104,7 +1104,7 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	{
 		pListener = new AAMP_JSListener_TimedMetadata(aamp, type, jsCallback);
 	}
-	else if(type == AAMP_EVENT_STATUS_CHANGED)
+	else if(type == AAMP_EVENT_STATE_CHANGED)
 	{
 		pListener = new AAMP_JSListener_StatusChanged(aamp, type, jsCallback);
 	}

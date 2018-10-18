@@ -37,6 +37,7 @@ struct EventTypeMap
 	const char* szName;
 };
 
+
 /**
  * @brief Map AAMP events to its corresponding JS event strings
  */
@@ -51,13 +52,45 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_PROGRESS, "progress"},
 	{ AAMP_EVENT_CC_HANDLE_RECEIVED, "decoderAvailable"},
 	{ AAMP_EVENT_JS_EVENT, "jsEvent"},
-	{ AAMP_EVENT_VIDEO_METADATA, "metadata"},
+	{ AAMP_EVENT_MEDIA_METADATA, "metadata"},
 	{ AAMP_EVENT_ENTERING_LIVE, "enteringLive"},
 	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
 	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
-	{ AAMP_EVENT_STATUS_CHANGED, "statusChanged"},
+	{ AAMP_EVENT_STATE_CHANGED, "statusChanged"},
 	{ (AAMPEventType)0, "" }
 };
+
+
+/**
+ * @brief Map AAMP events to its corresponding JS event strings (AAMPMediaPlayer)
+ */
+static EventTypeMap aampPlayer_eventTypes[] =
+{
+//TODO: Need separate event list to avoid breaking existing viper impl. Unify later.
+	{ (AAMPEventType)0, "onEvent"},
+	{ AAMP_EVENT_TUNED, "playbackStarted"},
+	{ AAMP_EVENT_TUNE_FAILED, "playbackFailed"},
+	{ AAMP_EVENT_SPEED_CHANGED, "playbackSpeedChanged"},
+	{ AAMP_EVENT_EOS, "playbackCompleted"},
+	{ AAMP_EVENT_PLAYLIST_INDEXED, "playlistIndexed"},
+	{ AAMP_EVENT_PROGRESS, "playbackProgressUpdate"},
+	{ AAMP_EVENT_CC_HANDLE_RECEIVED, "decoderAvailable"},
+	{ AAMP_EVENT_JS_EVENT, "jsEvent"},
+	{ AAMP_EVENT_MEDIA_METADATA, "mediaMetadata"},
+	{ AAMP_EVENT_ENTERING_LIVE, "enteringLive"},
+	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
+	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
+	{ AAMP_EVENT_STATE_CHANGED, "playbackStateChanged"},
+	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
+	{ AAMP_EVENT_DURATION_CHANGED, "durationChanged"},
+	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "currentAudioTrackChanged"},
+	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "currentTextTrackChanged"},
+	{ AAMP_EVENT_AD_BREAKS_CHANGED, "contentBreaksChanged"},
+	{ AAMP_EVENT_AD_STARTED, "contentStarted"},
+	{ AAMP_EVENT_AD_COMPLETED, "contentCompleted"},
+	{ (AAMPEventType)0, "" }
+};
+
 
 /**
  * @brief Convert C string to JSString
@@ -73,6 +106,7 @@ JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz)
 
 	return value;
 }
+
 
 /**
  * @brief Convert JSString to C string
@@ -90,6 +124,7 @@ char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* 
 	JSStringRelease(jsstr);
 	return src;
 }
+
 
 /**
  * @brief Check if a JSValue object is array or not
@@ -115,6 +150,7 @@ bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value)
 
 	return false;
 }
+
 
 /**
  * @brief Convert an array of JSString to an array of C strings
@@ -265,6 +301,65 @@ const char* aamp_getNameFromEventType(AAMPEventType type)
 	if (type > 0 && type < AAMP_MAX_NUM_EVENTS)
 	{
 		return aamp_eventTypes[type].szName;
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+
+/**
+ * @brief To dispatch a JS event
+ * @param[in] context JS execution context
+ * @param[in] callback function to which event has to be dispatched as an arg
+ * @param[in] event the JS event to be dispatched
+ */
+void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event)
+{
+	JSValueRef args[1] = { event };
+	if (context != NULL && callback != NULL)
+	{
+		JSObjectCallAsFunction(context, callback, NULL, 1, args, NULL);
+	}
+}
+
+
+/**
+ * @brief Convert JS event name to AAMP event type (AAMPMediaPlayer)
+ * @param[in] szName JS event name
+ * @retval AAMPEventType of corresponding AAMP event
+ */
+AAMPEventType aampPlayer_getEventTypeFromName(const char* szName)
+{
+//TODO: Need separate event list to avoid breaking existing viper impl. Unify later
+	AAMPEventType eventType = AAMP_MAX_NUM_EVENTS;
+	int numEvents = sizeof(aampPlayer_eventTypes) / sizeof(aampPlayer_eventTypes[0]);
+
+	for (int i=0; i<numEvents; i++)
+	{
+		if (strcmp(aampPlayer_eventTypes[i].szName, szName) == 0)
+		{
+			eventType = aampPlayer_eventTypes[i].eventType;
+			break;
+		}
+	}
+
+	return eventType;
+}
+
+
+/**
+ * @brief Convert AAMP event type to JS event string (AAMPMediaPlayer)
+ * @param[in] szName AAMP event type
+ * @retval JS event name corresponding to AAMP event
+ */
+const char* aampPlayer_getNameFromEventType(AAMPEventType type)
+{
+//TODO: Need separate API to avoid breaking existing viper impl. Unify later.
+	if (type > 0 && type < AAMP_MAX_NUM_EVENTS)
+	{
+		return aampPlayer_eventTypes[type].szName;
 	}
 	else
 	{

@@ -787,7 +787,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1)
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1),
+		mABREnabled(gpGlobalConfig->bEnableABR), mUserRequestedBandwidth(gpGlobalConfig->defaultBitrate)
 {
 	mIsPlaybackStalled = false;
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
@@ -1228,4 +1229,71 @@ double StreamAbstractionAAMP::GetElapsedTime()
 	}
 	pthread_mutex_unlock(&mLock);
 	return elapsedTime;
+}
+
+/**
+ *   @brief Get the bitrate of current video profile selected.
+ *
+ *   @return bitrate of current video profile.
+ */
+long StreamAbstractionAAMP::GetVideoBitrate(void)
+{
+	return (GetMediaTrack(eTRACK_VIDEO)->GetCurrentBandWidth() * 8);
+}
+
+
+/**
+ *   @brief Get the bitrate of current audio profile selected.
+ *
+ *   @return bitrate of current audio profile.
+ */
+long StreamAbstractionAAMP::GetAudioBitrate(void)
+{
+	//TODO: This is a hardcoded value now, need to make it dynamically populated
+	return (GetMediaTrack(eTRACK_AUDIO)->GetCurrentBandWidth() * 8);
+}
+
+
+/**
+ *   @brief Set a preferred bitrate for video.
+ *
+ *   @param[in] preferred bitrate.
+ */
+void StreamAbstractionAAMP::SetVideoBitrate(long bitrate)
+{
+	if (bitrate == 0)
+	{
+		mABREnabled = true;
+	}
+	else
+	{
+		mABREnabled = false;
+		mUserRequestedBandwidth = bitrate;
+	}
+}
+
+
+/**
+ *   @brief Check if a preferred bitrate is set and change profile accordingly.
+ */
+void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
+{
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	//Check if there is an actual change in bitrate
+	if (mUserRequestedBandwidth != gpGlobalConfig->defaultBitrate)
+	{
+		int desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mUserRequestedBandwidth);
+		if (currentProfileIndex != desiredProfileIndex)
+		{
+			logprintf("\n\n**aamp changing profile based on user request: %d->%d [%ld->%ld]\n\n",
+				currentProfileIndex, desiredProfileIndex,
+				GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond,
+				GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond);
+			this->currentProfileIndex = desiredProfileIndex;
+			profileIdxForBandwidthNotification = desiredProfileIndex;
+			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+			video->ABRProfileChanged();
+			video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
+		}
+	}
 }
