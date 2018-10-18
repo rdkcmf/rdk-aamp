@@ -2003,6 +2003,14 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 			logprintf("AAMPGstPlayer::%s: Pipeline state is in FAILURE\n", __FUNCTION__);
 		}
 	}
+#ifdef AAMP_MPD_DRM
+	if(AampOutputProtection::IsAampOutputProcectionInstanceActive())
+	{
+		AampOutputProtection *pInstance = AampOutputProtection::GetAampOutputProcectionInstance();
+		pInstance->setGstElement((GstElement *)(NULL));
+		pInstance->Release();
+	}
+#endif
 	TearDownStream(eMEDIATYPE_VIDEO);
 	TearDownStream(eMEDIATYPE_AUDIO);
 	DestroyPipeline();
