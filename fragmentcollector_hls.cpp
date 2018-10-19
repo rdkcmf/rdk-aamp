@@ -103,6 +103,7 @@ static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 	{ "ac-3", FORMAT_AUDIO_ES_AC3 },
 	{ "mp4a.a5", FORMAT_AUDIO_ES_AC3 },
 	{ "ec-3", FORMAT_AUDIO_ES_EC3 },
+	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
 };
 

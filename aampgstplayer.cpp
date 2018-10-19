@@ -358,6 +358,12 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 		case FORMAT_AUDIO_ES_AC3:
 			caps = gst_caps_new_simple ("audio/ac3", NULL, NULL);
 			break;
+		case FORMAT_AUDIO_ES_ATMOS:
+			// Todo :: a) Test with all platforms if atmos works 
+			//	   b) Test to see if x-eac3 config is enough for atmos stream.
+			//	 	if x-eac3 is enough then both switch cases can be combined
+			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
+                        break;
 		case FORMAT_AUDIO_ES_EC3:
 			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
 			break;
