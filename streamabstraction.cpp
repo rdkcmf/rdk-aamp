@@ -583,17 +583,20 @@ void MediaTrack::RunInjectLoop()
 			notifyFirstFragment = false;
 			GetContext()->NotifyFirstFragmentInjected();
 		}
-        if(!gpGlobalConfig->bAudioOnlyPlayback)
-        {
-            if(isAudioTrack)
-            {
-                GetContext()->WaitForVideoTrackCatchup();
-            }
-            else
-            {
-                GetContext()->ReassessAndResumeAudioTrack();
-            }
-        }
+		// BCOM-2959  -- Disable audio video balancing for CDVR content .. 
+		// CDVR Content includes eac3 audio, the duration of audio doesnt match with video
+		// and hence balancing fetch/inject not needed for CDVR
+		if(!gpGlobalConfig->bAudioOnlyPlayback && !aamp->IsCDVRContent())
+		{
+			if(isAudioTrack)
+			{
+				GetContext()->WaitForVideoTrackCatchup();
+			}
+			else
+			{
+				GetContext()->ReassessAndResumeAudioTrack();
+			}
+		}
 	}
 	if(bufferHealthMonitorIdleTaskId)
 	{

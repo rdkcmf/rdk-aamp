@@ -1113,9 +1113,9 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							}
 
 #ifdef DEBUG_TIMELINE
-							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%d \n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
+							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%d FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,index,
-							pMediaStreamContext->fragmentDescriptor.Number);
+							pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
 #endif		
 							pMediaStreamContext->timeLineIndex = index;
 							// Now we reached the right row , need to traverse the repeat index to reach right node
@@ -1127,9 +1127,9 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								pMediaStreamContext->fragmentRepeatCount++;
 							}
 #ifdef DEBUG_TIMELINE
-							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragRep=%d Index=%d Num=%d \n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
+							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragRep=%d Index=%d Num=%d FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,pMediaStreamContext->fragmentRepeatCount,pMediaStreamContext->timeLineIndex,
-							pMediaStreamContext->fragmentDescriptor.Number);
+							pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
 #endif			
 						}					
 					}// if starttime
@@ -1155,8 +1155,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				if ((pMediaStreamContext->fragmentDescriptor.Time > pMediaStreamContext->lastSegmentTime) || (0 == pMediaStreamContext->lastSegmentTime))
 				{
 #ifdef DEBUG_TIMELINE
-					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) \n",__FUNCTION__, __LINE__,
-					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number);
+					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) FTime(%f) \n",__FUNCTION__, __LINE__,
+					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
 #endif
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 					float fragmentDuration = duration/timeScale;
@@ -1308,7 +1308,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					|| (mIsLive && ((pMediaStreamContext->fragmentDescriptor.Time >= currentTimeSeconds)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < (availabilityStartTime + mPeriodStartTime)))))
 			{
-				AAMPLOG_INFO("%s %d EOS. fragmentDescriptor.Time=%" PRIu64 " mPeriodEndTime=%f\n", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime);
+				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%" PRIu64 " mPeriodEndTime=%f FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime,pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->eos = true;
 			}
 			else
@@ -3487,8 +3487,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				mContext->SetESChangeStatus();
 			}
 
-			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d]\n",
-				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex );
+			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
+				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
@@ -4451,21 +4451,52 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							break;
 						}
 					}// end of for loop
-					if (mMediaStreamContext[eMEDIATYPE_VIDEO]->eos)
+					// BCOM-2959  -- Exit from fetch loop for period to be done only after audio and video fetch 
+					// While playing CDVR with EAC3 audio , durations doesnt match and only video downloads are seen leaving audio behind
+					// Audio cache is always full and need for data is not received for more fetch.
+					// So after video downloads loop was exiting without audio fetch causing audio drop . 
+					// Now wait for both video and audio to reach EOS before moving to next period or exit.
+					bool vEos = mMediaStreamContext[eMEDIATYPE_VIDEO]->eos;
+					bool audioEnabled = (mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled);
+					bool aEos = (audioEnabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->eos);
+					if (vEos || aEos)
 					{
 						if((!mIsLive || (rate != 1.0)) && ((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)))
 						{
-							mMediaStreamContext[eMEDIATYPE_VIDEO]->eosReached = true;
-							mMediaStreamContext[eMEDIATYPE_VIDEO]->AbortWaitForCachedFragment(false);
-							if(mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled )
+							if(vEos)
 							{
-								mMediaStreamContext[eMEDIATYPE_AUDIO]->eosReached = true;
-								mMediaStreamContext[eMEDIATYPE_AUDIO]->AbortWaitForCachedFragment(false);
+								mMediaStreamContext[eMEDIATYPE_VIDEO]->eosReached = true;
+								mMediaStreamContext[eMEDIATYPE_VIDEO]->AbortWaitForCachedFragment(false);
 							}
-							logprintf("%s:%d %s EOS - Exit fetch loop\n", __FUNCTION__, __LINE__, mMediaStreamContext[eMEDIATYPE_VIDEO]->name);
+							if(audioEnabled)
+							{
+								if(mMediaStreamContext[eMEDIATYPE_AUDIO]->eos)
+								{
+									mMediaStreamContext[eMEDIATYPE_AUDIO]->eosReached = true;
+									mMediaStreamContext[eMEDIATYPE_AUDIO]->AbortWaitForCachedFragment(false);
+								}
+							}
+							else
+							{	// No Audio enabled , fake the flag to true
+								aEos = true;
+							}
 						}
-						break;
+						else
+						{
+							if(!audioEnabled)
+							{
+								aEos = true;
+							}
+						}
+						// If audio and video reached EOS then only break the fetch loop .
+						if(vEos && aEos)
+                                                {
+							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop \n",__FUNCTION__, __LINE__);
+							break;
+                                                }
 					}
+						
+
 					if (mMediaStreamContext[eMEDIATYPE_VIDEO]->endTimeReached)
 					{
 						//TODO : Move this to inject loop to complete playback

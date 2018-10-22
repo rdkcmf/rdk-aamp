@@ -1510,8 +1510,13 @@ public:
 	 *
 	 * @return True or False
 	 */
-	bool IsInProgressCDVR() {return (mContentType==ContentType_CDVR);}
-
+	bool IsInProgressCDVR() {return (IsLive() && IsCDVRContent());}
+	/**
+	* @brief Checking whether CDVR Stream or not
+	*
+	* @return True or False
+	*/
+	bool IsCDVRContent() { return (mContentType==ContentType_CDVR || mIscDVR);}
 	/**
 	 * @brief Report timed metadata
 	 *
