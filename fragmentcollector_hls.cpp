@@ -1677,7 +1677,7 @@ double TrackState::IndexPlaylist()
 		while (ptr);
 		if (mDrmMetaDataIndexCount > 1)
 		{
-			logprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+			traceprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
 		}
 		memcpy(playlist.ptr, playlistBackup, playlist.len);
 
