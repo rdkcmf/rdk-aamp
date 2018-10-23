@@ -30,9 +30,118 @@
 
 #define AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC (256*1024/8)
 #define AAMP_STALL_CHECK_TOLERANCE 2
+#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
 
 using namespace std;
 
+/**
+ * @brief idle task for buffer health monitoring
+ *
+ * @return G_SOURCE_CONTINUE
+ */
+static gboolean BufferHealthMonitor(gpointer user_data)
+{
+	MediaTrack* mediaTrack = (MediaTrack*) user_data;
+	mediaTrack->MonitorBufferHealth();
+	return G_SOURCE_CONTINUE;
+}
+
+/**
+ * @brief idle task to schedule buffer health monitoring
+ *
+ * @return G_SOURCE_REMOVE
+ */
+static gboolean BufferHealthMonitorSchedule(gpointer user_data)
+{
+	MediaTrack* mediaTrack = (MediaTrack*) user_data;
+	mediaTrack->ScheduleBufferHealthMonitor();
+	return G_SOURCE_REMOVE;
+}
+
+/**
+ * @brief Get string corresponding to buffer status.
+ *
+ * @return string representation of buffer status
+ */
+const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
+{
+	const char* ret = NULL;
+	switch (status)
+	{
+		default:
+		case BUFFER_STATUS_GREEN:
+			ret = "GREEN";
+			break;
+		case BUFFER_STATUS_YELLOW:
+			ret = "YELLOW";
+			break;
+		case BUFFER_STATUS_RED:
+			ret = "RED";
+			break;
+	}
+	return ret;
+}
+
+/**
+ * @brief Schedule buffer health monitor
+ */
+void MediaTrack::ScheduleBufferHealthMonitor()
+{
+	pthread_mutex_lock(&mutex);
+	if (!abort)
+	{
+		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(gpGlobalConfig->bufferHealthMonitorInterval, BufferHealthMonitor, this);
+	}
+	pthread_mutex_unlock(&mutex);
+}
+
+/**
+ * @brief Monitors buffer health of track
+ */
+void MediaTrack::MonitorBufferHealth()
+{
+	pthread_mutex_lock(&mutex);
+	if (aamp->DownloadsAreEnabled())
+	{
+		if ( numberOfFragmentsCached > 0)
+		{
+			bufferStatus = BUFFER_STATUS_GREEN;
+		}
+		else
+		{
+			double bufferedTime = totalInjectedDuration - GetContext()->GetElapsedTime();
+			if (bufferedTime > AAMP_BUFFER_MONITOR_GREEN_THRESHOLD)
+			{
+				bufferStatus = BUFFER_STATUS_GREEN;
+			}
+			else
+			{
+				logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f\n",__FUNCTION__, __LINE__,
+						name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
+				if (bufferedTime <= 0)
+				{
+					bufferStatus = BUFFER_STATUS_RED;
+				}
+				else
+				{
+					bufferStatus = BUFFER_STATUS_YELLOW;
+				}
+			}
+		}
+		if (bufferStatus != prevBufferStatus)
+		{
+			logprintf("aamp: track[%s] buffering %s->%s\n", name, GetBufferHealthStatusString(prevBufferStatus),
+					GetBufferHealthStatusString(bufferStatus));
+			prevBufferStatus = bufferStatus;
+		}
+		else
+		{
+			traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
+					GetBufferHealthStatusString(bufferStatus));
+		}
+	}
+	pthread_mutex_unlock(&mutex);
+}
 
 /**
  * @brief Updates internal state after a fragment inject
@@ -453,12 +562,25 @@ void MediaTrack::StartInjectLoop()
 void MediaTrack::RunInjectLoop()
 {
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
+	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
+	if (1.0 == aamp->rate)
+	{
+		assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
+		guint bufferMontiorSceduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
+		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(bufferMontiorSceduleTime, BufferHealthMonitorSchedule, this);
+	}
+	totalInjectedDuration = 0;
 	while (aamp->DownloadsAreEnabled() && keepInjecting)
 	{
 		if (!InjectFragment())
 		{
 			keepInjecting = false;
+		}
+		if (notifyFirstFragment)
+		{
+			notifyFirstFragment = false;
+			GetContext()->NotifyFirstFragmentInjected();
 		}
         if(!gpGlobalConfig->bAudioOnlyPlayback)
         {
@@ -471,6 +593,11 @@ void MediaTrack::RunInjectLoop()
                 GetContext()->ReassessAndResumeAudioTrack();
             }
         }
+	}
+	if(bufferHealthMonitorIdleTaskId)
+	{
+		g_source_remove(bufferHealthMonitorIdleTaskId);
+		bufferHealthMonitorIdleTaskId = 0;
 	}
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
 }
@@ -572,6 +699,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), totalFragmentsDownloaded(0),
 		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0), discontinuityProcessed(false)
 {
 	this->type = type;
@@ -656,7 +784,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
-		mNetworkDownDetected(false)
+		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1)
 {
 	mIsPlaybackStalled = false;
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
@@ -956,9 +1085,23 @@ void StreamAbstractionAAMP::UpdateIframeTracks()
  */
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
+	mIsPaused = paused;
 	if (paused)
 	{
 		mIsAtLivePoint = false;
+		mLastPausedTimeStamp = aamp_GetCurrentTimeMS();
+	}
+	else
+	{
+		if(-1 != mLastPausedTimeStamp)
+		{
+			mTotalPausedDurationMS += (aamp_GetCurrentTimeMS() - mLastPausedTimeStamp);
+			mLastPausedTimeStamp = -1;
+		}
+		else
+		{
+			logprintf("StreamAbstractionAAMP:%s() mLastPausedTimeStamp -1\n", __FUNCTION__);
+		}
 	}
 }
 
@@ -1048,4 +1191,39 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 			}
 		}
 	}
+}
+
+/**
+ *   @brief MediaTracks shall call this to notify first fragment is injected.
+ */
+void StreamAbstractionAAMP::NotifyFirstFragmentInjected()
+{
+	pthread_mutex_lock(&mLock);
+	mIsPaused = false;
+	mLastPausedTimeStamp = -1;
+	mTotalPausedDurationMS = 0;
+	mStartTimeStamp = aamp_GetCurrentTimeMS();
+	pthread_mutex_unlock(&mLock);
+}
+
+/**
+ *   @brief Get elapsed time of play-back.
+ *
+ *   @return elapsed time.
+ */
+double StreamAbstractionAAMP::GetElapsedTime()
+{
+	double elapsedTime;
+	pthread_mutex_lock(&mLock);
+	traceprintf("StreamAbstractionAAMP:%s() mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld\n", __FUNCTION__, mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
+	if (!mIsPaused)
+	{
+		elapsedTime = (double)(aamp_GetCurrentTimeMS() - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
+	}
+	else
+	{
+		elapsedTime = (double)(mLastPausedTimeStamp - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
+	}
+	pthread_mutex_unlock(&mLock);
+	return elapsedTime;
 }
