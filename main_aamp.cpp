@@ -2694,6 +2694,16 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				VALIDATE_INT("min-vod-cache", gpGlobalConfig->minVODCacheSeconds, DEFAULT_MINIMUM_CACHE_VOD_SECONDS)
 				logprintf("min-vod-cache=%d\n", gpGlobalConfig->minVODCacheSeconds);
 			}
+			else if (sscanf(cmd, "buffer-health-monitor-delay=%d", &gpGlobalConfig->bufferHealthMonitorDelay) == 1)
+			{ // override for buffer health monitor delay after tune/ seek
+				VALIDATE_INT("buffer-health-monitor-delay", gpGlobalConfig->bufferHealthMonitorDelay, DEFAULT_BUFFER_HEALTH_MONITOR_DELAY)
+				logprintf("buffer-health-monitor-delay=%d\n", gpGlobalConfig->bufferHealthMonitorDelay);
+			}
+			else if (sscanf(cmd, "buffer-health-monitor-interval=%d", &gpGlobalConfig->bufferHealthMonitorInterval) == 1)
+			{ // override for buffer health monitor interval
+				VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
+				logprintf("buffer-health-monitor-interval=%d\n", gpGlobalConfig->bufferHealthMonitorInterval);
+			}
 			else if (sscanf(cmd, "preferred-drm=%d", &gpGlobalConfig->preferredDrm) == 1)
 			{ // override for buffer health monitor interval
 				if(gpGlobalConfig->preferredDrm <= 0 || gpGlobalConfig->preferredDrm > 2)

@@ -30,6 +30,7 @@
 #include <iterator>
 
 #include <ABRManager.h>
+#include <glib.h>
 
 #define MAX_CACHED_FRAGMENTS_PER_TRACK 3
 
@@ -67,6 +68,16 @@ typedef enum
 	ePLAYLISTTYPE_EVENT,        /**< Playlist may grow via appended lines, but otherwise won't change */
 	ePLAYLISTTYPE_VOD,          /**< Playlist will never change */
 } PlaylistType;
+
+/**
+ * @brief Buffer health status
+ */
+enum BufferHealthStatus
+{
+	BUFFER_STATUS_GREEN,  /**< Healthy state, where buffering is close to being maxed out */
+	BUFFER_STATUS_YELLOW, /**< Danger  state, where buffering is close to being exhausted */
+	BUFFER_STATUS_RED     /**< Failed state, where buffers have run dry, and player experiences underrun/stalled video */
+};
 
 /**
  * @brief Base Class for Media Track
@@ -190,8 +201,31 @@ public:
 	 * @return Bandwidth in bps
 	 */
 	int GetCurrentBandWidth();
+
+	/**
+	 * @brief Get total duration of fetched fragments
+	 *
+	 * @return Total duration in seconds
+	 */
 	double GetTotalFetchedDuration() { return totalFetchedDuration; };
+
+	/**
+	 * @brief Check if discontinuity is being processed
+	 *
+	 * @return true if discontinuity is being processed
+	 */
 	bool IsDiscontinuityProcessed() { return discontinuityProcessed; }
+
+	void MonitorBufferHealth();
+
+	void ScheduleBufferHealthMonitor();
+
+	/**
+	 * @brief Get buffer health status
+	 *
+	 * @return current buffer health status
+	 */
+	BufferHealthStatus GetBufferHealthStatus() { return bufferStatus; };
 protected:
 
 	/**
@@ -224,6 +258,10 @@ protected:
 	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
+
+private:
+	static const char* GetBufferHealthStatusString(BufferHealthStatus status);
+
 public:
 	bool eosReached;                    /**< set to true when a vod asset has been played to completion */
 	bool enabled;                       /**< set to true if track is enabled */
@@ -254,6 +292,10 @@ private:
 	double totalFetchedDuration;        /**< Total fragment fetched duration*/
 	size_t fetchBufferPreAllocLen;      /** Buffer length to pre-allocate for next fetch buffer*/
 	bool discontinuityProcessed;
+
+	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
+	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
+	guint bufferHealthMonitorIdleTaskId; /**< ID of idle task for buffer monitoring*/
 };
 
 
@@ -515,6 +557,10 @@ public:
 	 */
 	void CheckForPlaybackStall(bool fragmentParsed);
 
+	void NotifyFirstFragmentInjected(void);
+
+	double GetElapsedTime();
+
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
 	int currentProfileIndex;                /**< current profile index of the track*/
 	int profileIdxForBandwidthNotification; /**< internal - profile index for bandwidth change notification*/
@@ -602,6 +648,11 @@ private:
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
+
+	bool mIsPaused;                     /**< paused state or not */
+	long long mTotalPausedDurationMS;   /**< Total duration for which stream is paused */
+	long long mStartTimeStamp;          /**< stores timestamp at which injection starts */
+	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 };
