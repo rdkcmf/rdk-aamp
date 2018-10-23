@@ -2015,6 +2015,13 @@ public:
 	 *   @return PTS of first sample
 	 */
 	double GetFirstPTS();
+
+	/**
+	 *   @brief  Check if asset is vod/ivod/cdvr.
+	 *
+	 *   @return true if asset is either vod/ivod/cdvr
+	 */
+	bool IsVodOrCdvrAsset();
 private:
 
 	/**

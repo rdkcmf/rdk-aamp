@@ -5842,3 +5842,12 @@ double PrivateInstanceAAMP::GetFirstPTS()
 	return mpStreamAbstractionAAMP->GetFirstPTS();
 }
 
+/**
+ *   @brief  Check if asset is vod/ivod/cdvr.
+ *
+ *   @return true if asset is either vod/ivod/cdvr
+ */
+bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
+{
+	return (mContentType == ContentType_IVOD || mContentType == ContentType_VOD || mContentType == ContentType_CDVR || mContentType == ContentType_IPDVR);
+}
