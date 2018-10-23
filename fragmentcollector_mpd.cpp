@@ -2394,7 +2394,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if (mIsLive)
 			{
 				double duration = (double) durationMs / 1000;
-				bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType);
+				bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && !(aamp->IsVodOrCdvrAsset());
 				if (eTUNETYPE_SEEKTOLIVE == tuneType)
 				{
 					logprintf("PrivateStreamAbstractionMPD::%s:%d eTUNETYPE_SEEKTOLIVE\n", __FUNCTION__, __LINE__);
