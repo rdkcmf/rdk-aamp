@@ -280,10 +280,12 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	}
 	else
 	{
-		headers = curl_slist_append(headers, "Expect:");
-		headers = curl_slist_append(headers, "Connection: Keep-Alive");
-		headers = curl_slist_append(headers, "Content-Type:");
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE");
+	//	headers = curl_slist_append(headers, "Expect:");
+	//	headers = curl_slist_append(headers, "Connection: Keep-Alive");
+	//	headers = curl_slist_append(headers, "Content-Type:");
+	//	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE");
+		headers = curl_slist_append(headers,
+			"Content-Type: text/xml; charset=utf-8");
 	}
 	strcpy((char*) destURL, destinationURL.c_str());
 
@@ -827,10 +829,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			contentMetaData = (unsigned char *)contentMetadataPtr;
 			contentMetaDataLen = strlen((const char*)contentMetaData);
 			logprintf("%s:%d [HHH]contentMetaData length=%d\n", __FUNCTION__, __LINE__, contentMetaDataLen);
-		} else {
-			if (isWidevine)
-				contentMetaData = _extractWVContentMetadataFromPssh(reinterpret_cast<const char*>(initDataPtr), dataLength, &contentMetaDataLen);
-			else
+		}
+		//For WV _extractWVContentMetadataFromPssh() won't work at this point
+		//Since the content meta data is with Agnostic DRM PSSH.
+		else if (!isWidevine)
+		{
 				contentMetaData = _extractDataFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength,COMCAST_DRM_METADATA_TAG_START, COMCAST_DRM_METADATA_TAG_END, &contentMetaDataLen);
 		}
 
@@ -982,6 +985,10 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		else 
 		{
+			if (gpGlobalConfig->licenseServerURL)
+			{
+				destinationURL = string(gpGlobalConfig->licenseServerURL);
+			}
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 			key = getLicense(licenceChallenge, destinationURL, &httpError,isComcastStream);
