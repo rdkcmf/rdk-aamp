@@ -1306,7 +1306,7 @@ public:
 	 * @param[in] description - Optional description of error
 	 * @return void
 	 */
-	void SendErrorEvent(AAMPTuneFailure tuneFailure,const char *description = NULL);
+	void SendErrorEvent(AAMPTuneFailure tuneFailure, const char *description = NULL, bool isRetryEnabled = true);
 
 	/**
 	 * @brief Handles download errors and sends events to application if required.

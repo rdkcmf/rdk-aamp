@@ -140,8 +140,6 @@ private:
 
     GstElement* FindElement(GstElement *element, const char* targetName);
 
-    bool FindSourceDimensions(uint32_t* pWidth, uint32_t* pHeight);
-
 public:
 
     AampOutputProtection();

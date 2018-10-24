@@ -153,12 +153,16 @@ public:
 	void NotifyDRMError(uint32_t majorError, uint32_t minorError)//(ErrorCode majorError, DRMMinorError minorError, AVString* errorString, media::DRMMetadata* metadata)
 	{
 		AAMPTuneFailure drmFailure = AAMP_TUNE_UNTRACKED_DRM_ERROR;
+		char *description = NULL;
+		bool isRetryEnabled = true;
+
 		switch(majorError)
 		{
 		case 3329:
 			if(12012 == minorError || 12013 == minorError)
 			{
 				drmFailure = AAMP_TUNE_AUTHORISATION_FAILURE;
+				isRetryEnabled = false;
 			}
 			break;
 
@@ -175,13 +179,14 @@ public:
 		mpAamp->DisableDownloads();
 		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
 		{
-			char description[128] = {};
-			sprintf(description, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-			mpAamp->SendErrorEvent(drmFailure, description);
+			description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
+			memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 		}
 		else if(AAMP_TUNE_CORRUPT_DRM_DATA == drmFailure)
 		{
-			char description[128] = {};
+			description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
+			memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
 
 			/*
 			* Creating file "/tmp/DRM_Error" will invoke self heal logic in
@@ -202,14 +207,15 @@ public:
 							__FUNCTION__, __LINE__, errno, strerror(errno));
 			}
 
-			sprintf(description, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-			mpAamp->SendErrorEvent(drmFailure, description);
-		}
-		else
-		{
-			mpAamp->SendErrorEvent(drmFailure);
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 		}
 
+		mpAamp->SendErrorEvent(drmFailure, description, isRetryEnabled);
+
+		if (description)
+		{
+			delete[] description;
+		}
 		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
 		logprintf("aamp:***TheDRMListener::NotifyDRMError: majorError = %d, minorError = %d drmState:%d\n", (int)majorError, (int)minorError,mDrmState );
 	}
