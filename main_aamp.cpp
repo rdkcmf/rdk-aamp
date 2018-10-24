@@ -1641,6 +1641,26 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 }
 
 /**
+ * @brief Get MediaType as String
+ */
+const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
+{
+	switch(fileType)
+	{
+		case eMEDIATYPE_VIDEO:
+			return "VIDEO";
+		case eMEDIATYPE_AUDIO:
+			return "AUDIO";
+		case eMEDIATYPE_MANIFEST:
+			return "MANIFEST";
+		case eMEDIATYPE_LICENCE:
+			return "LICENCE";
+		default:
+			return "";
+	}
+}
+
+/**
  * @brief Fetch a file from CDN
  * @param remoteUrl url of the file
  * @param[out] buffer pointer to buffer abstraction
@@ -1659,6 +1679,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	int downloadAttempt = 0;
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
+	CURLcode res = CURLE_OK;
 
 	// temporarily increase timeout for manifest download - these files (especially for VOD) can be large and slow to download
 	bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
@@ -1755,7 +1776,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 
 				std::chrono::steady_clock::time_point tStartTime = std::chrono::steady_clock::now();
-				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
+				res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 				std::chrono::steady_clock::time_point tEndTime = std::chrono::steady_clock::now();
 				downloadAttempt++;
 				if (res == CURLE_OK)
@@ -1885,6 +1906,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			}
 			else
 			{
+				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->latencyLogging[fileType] == true))
+				{
+					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,GetCurrentlyAvailableBandwidth(),remoteUrl);
+				}
 				ret             =       true;
 			}
 		}
@@ -2813,6 +2838,21 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			{
 				gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
 				logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
+			}
+			else if (strcmp(cmd, "audioLatencyLogging") == 0)
+			{
+				gpGlobalConfig->latencyLogging[eMEDIATYPE_AUDIO]= true;
+				logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
+			}
+			else if (strcmp(cmd, "videoLatencyLogging") == 0)
+			{
+				gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]= true;
+				logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
+			}
+			else if (strcmp(cmd, "manifestLatencyLogging") == 0)
+			{
+				gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]= true;
+				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
 			}
             else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
             {

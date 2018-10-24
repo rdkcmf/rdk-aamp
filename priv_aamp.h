@@ -86,6 +86,7 @@ extern void logprintf(const char *format, ...);
 
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10sec */
+#define FRAGMENT_DOWNLOAD_WARNING_THRESHOLD 2000    /**< MAX Fragment download threshold time in Msec*/
 
 #define DEFAULT_REPORT_PROGRESS_INTERVAL (1000)     /**< Progress event reporting interval: 1sec */
 #define NOW_SYSTEM_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()     /**< Getting current system clock in milliseconds */
@@ -274,6 +275,7 @@ public:
 	bool internalReTune;                    /**< Internal re-tune on underflows/ pts errors*/
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
+	bool latencyLogging[4];			/**< Latency logging for Video, Audio, Manifest download*/
 public:
 
 	/**
@@ -302,6 +304,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true)
 	{
 		memset(&logging, 0, sizeof(logging) );
+		memset(latencyLogging, 0 , sizeof(latencyLogging));
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED; //Changed since VOD-Cache feature 
 									//is deprecated
@@ -1184,6 +1187,13 @@ public:
 	 * @return void
 	 */
 	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_MANIFEST);
+
+	/**
+	 * @brief get Media Type in string
+	 * @param[in] fileType - Type of Media
+	 * @param[out] pointer to Media Type string
+	 */
+	const char* MediaTypeString(MediaType fileType);
 
 	/**
 	 * @brief Download fragment

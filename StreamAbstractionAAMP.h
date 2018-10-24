@@ -606,6 +606,10 @@ public:
 		return mAbrManager.getProfileCount();
 	}
 
+	long GetCurProfIdxBW(){
+		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
+	}
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
