@@ -1227,24 +1227,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			traceprintf("Got next fragment url %s fragmentEncrypted %d\n", fragmentUrl, fragmentEncrypted);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
-			if((eTRACK_VIDEO == type) && (GetTotalFragmentsFetched()%MAX_CACHED_FRAGMENTS_PER_TRACK == 0) && (aamp->IsTSBSupported()))
-			{
-				// check only every 3rd fragment, not to  add any delays for each frag processing
-				// get the bandwidth extracted from the fragment url .. needed when FOG is in use
-				char *bwStr,tmpUrl[MAX_URI_LENGTH];
-				strncpy(tmpUrl,fragmentUrl,MAX_URI_LENGTH);
-				bwStr           =       strstr(tmpUrl,FOG_FRAG_BW_IDENTIFIER);
-				if(bwStr)
-				{
-					bwStr           +=      FOG_FRAG_BW_IDENTIFIER_LEN;
-					bwStr           =       strtok(bwStr,FOG_FRAG_BW_DELIMITER);
-					if(bwStr)
-					{
-						context->SetTsbBandwidth(atol(bwStr));
-					}
-				}
-			}
-
 			const char *range;
 			char rangeStr[128];
 			if (byteRangeLength)
@@ -1292,6 +1274,22 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 				aamp_Free(&cachedFragment->fragment.ptr);
 				return false;
 			}
+
+			if((eTRACK_VIDEO == type)  && (aamp->IsTSBSupported()))
+                        {
+                                char *bwStr;
+                                bwStr           =       strstr(tempEffectiveUrl,FOG_FRAG_BW_IDENTIFIER);
+                                if(bwStr)
+                                {
+                                        bwStr           +=      FOG_FRAG_BW_IDENTIFIER_LEN;
+                                        //  bwStr           =       strtok(bwStr,FOG_FRAG_BW_DELIMITER); this is not required as atol works with - terminated numbers.
+                                        if(bwStr)
+                                        {
+                                                context->SetTsbBandwidth(atol(bwStr));
+                                        }
+                                }
+                        }
+
 			aamp->profiler.ProfileEnd(mediaTrackBucketTypes[type]);
 			segDLFailCount = 0;
 
