@@ -46,7 +46,8 @@
 #define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
-
+#define MAX_LICENSE_REQUEST_ATTEMPTS 2
+#define LICENSE_REQUEST_RETRY_WAIT_TIME 500 //500 Milliseconds
 
 static const char *sessionTypeName[] = {"video", "audio"};
 DrmSessionContext AampDRMSessionManager::drmSessionContexts[MAX_DRM_SESSIONS] = {{dataLength : 0, data : NULL, drmSession : NULL}																		,{dataLength : 0, data : NULL, drmSession : NULL}};
@@ -246,11 +247,26 @@ const char * AampDRMSessionManager::getAccessToken(int * tokenLen)
 }
 
 /**
+ * @brief Sleep for given milliseconds
+ * @param milliseconds Time to sleep
+ */
+static void mssleep(int milliseconds)
+{
+	struct timespec req, rem;
+	if (milliseconds > 0)
+	{
+		req.tv_sec = milliseconds / 1000;
+		req.tv_nsec = (milliseconds % 1000) * 1000000;
+		nanosleep(&req, &rem);
+	}
+}
+
+/**
  *  @brief		Get DRM license key from DRM server.
  *
  *  @param[in]	keyChallenge - Structure holding license request and it's length.
  *  @param[in]	destinationURL - Destination url to which request is send.
- *  @param[out]	httpError - Gets updated with http error; default -1.
+ *  @param[out]	httpCode - Gets updated with http error; default -1.
  *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
  *  			are to be used.
  *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
@@ -258,10 +274,10 @@ const char * AampDRMSessionManager::getAccessToken(int * tokenLen)
  *				should be handled at the caller side.
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpError, bool isComcastStream)
+		string destinationURL, long *httpCode, bool isComcastStream)
 {
 
-	*httpError = -1;
+	*httpCode = -1;
 	CURL *curl;
 	CURLcode res;
 	double totalTime = 0;
@@ -284,8 +300,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	//	headers = curl_slist_append(headers, "Connection: Keep-Alive");
 	//	headers = curl_slist_append(headers, "Content-Type:");
 	//	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE");
-		headers = curl_slist_append(headers,
-			"Content-Type: text/xml; charset=utf-8");
+		headers = curl_slist_append(headers,"Content-Type: text/xml; charset=utf-8");
 	}
 	strcpy((char*) destURL, destinationURL.c_str());
 
@@ -302,24 +317,44 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challegeLength);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS,
-			(uint8_t * )keyChallenge->getData());
-	res = curl_easy_perform(curl);
-	if (res != CURLE_OK)
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )keyChallenge->getData());
+	unsigned int attemptCount = 0;
+	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
-		logprintf("%s:%d curl_easy_perform() failed: %s\n", __FUNCTION__, __LINE__, curl_easy_strerror(res));
-	}
-	else
-	{
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, httpError);
-		curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTime);
-		if (*httpError != 200 && *httpError != 206)
+		attemptCount++;
+		res = curl_easy_perform(curl);
+		if (res != CURLE_OK)
 		{
-			logprintf("%s:%d Licence server http response code: %ld\n", __FUNCTION__, __LINE__, *httpError);
+			logprintf("%s:%d curl_easy_perform() failed: %s\n", __FUNCTION__, __LINE__, curl_easy_strerror(res));
+			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d\n", __FUNCTION__, __LINE__, attemptCount, res);
+			*httpCode = res;
+			break;
 		}
 		else
 		{
-			logprintf("%s:%d DRM Session Manager Received licence data from server; Curl total time  = %.1f\n", __FUNCTION__, __LINE__, totalTime);
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, httpCode);
+			curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTime);
+			if (*httpCode != 200 && *httpCode != 206)
+			{
+				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : http %d\n", __FUNCTION__, __LINE__, attemptCount, *httpCode);
+				if(*httpCode >= 500 && *httpCode < 600 && attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+				{
+					delete keyInfo;
+					keyInfo = new DrmData();
+					curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
+					mssleep(LICENSE_REQUEST_RETRY_WAIT_TIME);
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				logprintf("%s:%d DRM Session Manager Received license data from server; Curl total time  = %.1f\n", __FUNCTION__, __LINE__, totalTime);
+				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : http %d\n",__FUNCTION__, __LINE__, attemptCount, *httpCode);
+				break;
+			}
 		}
 	}
 
@@ -628,7 +663,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code)
 {
 	KeyState code = KEY_CLOSED;
-	long httpError;
+	long responseCode = -1;
 	unsigned char * contentMetaData = NULL;
 	int contentMetaDataLen = 0;
 	unsigned char *keyId = NULL;
@@ -921,7 +956,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			}
 			isComcastStream = true;
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
-
 #ifdef USE_SECCLIENT
 			const char *mediaUsage = "stream";
 
@@ -944,14 +978,28 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			logprintf("keySystem is %s\n", keySystem);
 			//logprintf("mediaUsage is %s\n", mediaUsage);
 			//logprintf("sessionToken is %s\n", sessionToken);
-
-			sec_client_result = SecClient_AcquireLicense(destinationURL.c_str(), 1,
+			unsigned int attemptCount = 0;
+			while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+			{
+				attemptCount++;
+				sec_client_result = SecClient_AcquireLicense(destinationURL.c_str(), 1,
 									requestMetadata, 0, NULL,
 									encodedData,
 									strlen(encodedData),
 									licenseRequest, strlen(licenseRequest), keySystem, mediaUsage,
 									secclientSessionToken,
 									&licenseResponse, &licenseResponseLength, &refreshDuration, &statusInfo);
+				if (sec_client_result >= 500 && sec_client_result < 600 && attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+				{
+					logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d\n", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+					if (licenseResponse) SecClient_FreeResource(licenseResponse);
+					mssleep(LICENSE_REQUEST_RETRY_WAIT_TIME);
+				}
+				else
+				{
+					break;
+				}
+			}
 
 			if (gpGlobalConfig->logging.debug)
 			{
@@ -964,20 +1012,18 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 			if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 			{
-				logprintf("acquireLicense failed, result is %d \n", sec_client_result);
-				if(sec_client_result > 0)
-					httpError = sec_client_result;
+				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d\n", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				responseCode = sec_client_result;
 			}
 			else
 			{
-				logprintf("[HHH]acquireLicense SUCCESS! result is %d , licenseResponse is,\n", sec_client_result);
-				logprintf("%s \n", licenseResponse);
+				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d\n",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
 				key = new DrmData((unsigned char *)licenseResponse, licenseResponseLength);
 			}
 			if (licenseResponse) SecClient_FreeResource(licenseResponse);
 #else
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-			key = getLicense(licenceChallenge, destinationURL, &httpError,isComcastStream);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -991,7 +1037,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			}
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
-			key = getLicense(licenceChallenge, destinationURL, &httpError,isComcastStream);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode ,isComcastStream);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)
@@ -1032,14 +1078,20 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		{
 			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK);
 			logprintf("%s:%d Could not get license from server for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-			if(412 == httpError)
+			if(412 == responseCode)
 			{
 				if(*error_code != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
 					*error_code = AAMP_TUNE_AUTHORISATION_FAILURE;
 				}
 			}
-			else if(-1 == httpError)
+#ifdef USE_SECCLIENT
+			else if(SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TIMEOUT == responseCode)
+			{
+				*error_code = AAMP_TUNE_LICENCE_TIMEOUT;
+			}
+#endif
+			else if(CURLE_OPERATION_TIMEDOUT == responseCode)
 			{
 				*error_code = AAMP_TUNE_LICENCE_TIMEOUT;
 			}
