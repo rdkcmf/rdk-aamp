@@ -1483,7 +1483,7 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fr
 					position = cachedFragment->position;
 				}
 				fragmentDiscarded = !playContext->sendSegment(cachedFragment->fragment.ptr, cachedFragment->fragment.len,
-						position, cachedFragment->duration, cachedFragment->discontinuity);
+						position, cachedFragment->duration, cachedFragment->discontinuity, ptsError);
 			}
 			else
 			{

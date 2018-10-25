@@ -277,6 +277,7 @@ protected:
 	CachedFragment cachedFragment[MAX_CACHED_FRAGMENTS_PER_TRACK]; /**< storage for currently-downloaded fragment */
 	bool abort;                         /**< Abort all operations if flag is set*/
 	pthread_mutex_t mutex;              /**< protection of track variables accessed from multiple threads */
+	bool ptsError;                      /**< flag to indicate if last injected fragment has ptsError */
 private:
 	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/

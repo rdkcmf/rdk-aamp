@@ -124,7 +124,7 @@ class TSProcessor
    public:
       TSProcessor(class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL);
       ~TSProcessor();
-      bool sendSegment( char *segment, size_t& size, double position, double duration, bool discontinuous);
+      bool sendSegment( char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError);
       void setRate(double rate, PlayMode mode);
       void setThrottleEnable(bool enable);
 
