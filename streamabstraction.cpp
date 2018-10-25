@@ -410,10 +410,11 @@ bool MediaTrack::InjectFragment()
 		if (cachedFragment->fragment.ptr)
 		{
 			StreamAbstractionAAMP*  context = GetContext();
-			if (cachedFragment->discontinuity &&  (1.0 == context->aamp->rate))
+			if ((cachedFragment->discontinuity || ptsError) &&  (1.0 == context->aamp->rate))
 			{
 				logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
 				cachedFragment->discontinuity = false;
+				ptsError = false;
 				stopInjection = aamp->Discontinuity((MediaType) type);
 				/*For muxed streams, give discontinuity for audio track as well*/
 				if (!context->GetMediaTrack(eTRACK_AUDIO)->enabled)
@@ -700,7 +701,8 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
-		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0), discontinuityProcessed(false)
+		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0),
+		discontinuityProcessed(false), ptsError(false)
 {
 	this->type = type;
 	this->aamp = aamp;

@@ -293,7 +293,10 @@ public:
 	 */
 	void setBasePTS(unsigned long long basePTS, bool final)
 	{
-		NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)final);
+		if (!trickmode)
+		{
+			NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)final);
+		}
 		base_pts = basePTS;
 		finalized_base_pts = final;
 	}
@@ -1903,7 +1906,7 @@ void TSProcessor::setupThrottle(int segmentDurationMsSigned)
  * @param[in] duration duration of segment in seconds
  * @param[in] discontinuous true if segment is discontinous
  * @param[in] trackToDemux media track to do the operation
- * @retval true on success
+ * @retval true on success, false on PTS error
  */
 bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, double duration, bool discontinuous, TrackToDemux trackToDemux)
 {
@@ -1977,8 +1980,10 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 				{
 					firstPcr = (unsigned long long) packetStart[6] << 25 | (unsigned long long) packetStart[7] << 17
 						| (unsigned long long) packetStart[8] << 9 | packetStart[9] << 1 | (packetStart[10] & 80) >> 7;
-					NOTICE("firstPcr %llu\n", firstPcr);
-
+					if (m_playRate == 1.0)
+					{
+						NOTICE("firstPcr %llu\n", firstPcr);
+					}
 					if (m_vidDemuxer)
 					{
 						m_vidDemuxer->setBasePTS(firstPcr, false);
@@ -2161,14 +2166,16 @@ void TSProcessor::setBasePTS(double position, long long pts)
  * @param[in] position Position of the segment in seconds
  * @param[in] duration Duration of the segment in seconds
  * @param[in] discontinuous true if fragment is discontinuous
+ * @param[out] true on PTS error
  * @retval true on success
  */
-bool TSProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous)
+bool TSProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
 {
 	bool insPatPmt;
 	unsigned char * packetStart;
 	int len = size;
 	bool ret = false;
+	ptsError = false;
 	pthread_mutex_lock(&m_mutex);
 	if (!m_enabled)
 	{
@@ -2281,6 +2288,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 				ret = demuxAndSend(packetStart, len, position, duration, discontinuous, ePC_Track_Audio);
 				ret |= demuxAndSend(packetStart, len, position, duration, discontinuous, ePC_Track_Video);
 			}
+			ptsError = !ret;
 		}
 		else if (eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO == m_streamOperation)
 		{
