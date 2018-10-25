@@ -322,19 +322,18 @@ int OpenCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		return -1;
 	}
 #endif
-/*
+
 	// Verify output protection parameters
 	if(m_pOutputProtection->IsSourceUHD()) {
 		// Source material is UHD
 		if(!m_pOutputProtection->isHDCPConnection2_2()) {
 			// UHD and not HDCP 2.2
 			logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
-			return -1;
+			return HDCP_AUTHENTICATION_FAILURE;
 		}
 	}
-*/	
+
 	pthread_mutex_lock(&decryptMutex);
-	
 	start_decrypt_time = GetCurrentTimeStampInMSec();
 #if USE_NEW_OPENCDM
 	retvalue = m_pOpencdmDecrypt->Decrypt(const_cast<unsigned char*>(payloadData), payloadDataSize, f_pbIV, f_cbIV);

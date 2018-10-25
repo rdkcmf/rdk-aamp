@@ -644,7 +644,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
         if(!m_pOutputProtection->isHDCPConnection2_2()) {
             // UHD and not HDCP 2.2
             logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
-            return -1;
+            return HDCP_AUTHENTICATION_FAILURE;
         }
     }
 
