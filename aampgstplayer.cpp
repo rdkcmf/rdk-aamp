@@ -1407,12 +1407,12 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		if (privateContext->pipeline)
 		{
 			/* set the playbin state to NULL before detach it */
-			if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+			if (stream->sinkbin && (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL)))
 			{
 				logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin\n");
 			}
 
-			if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin)))
+			if (stream->sinkbin && (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin))))
 			{
 				logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline\n");
 			}
