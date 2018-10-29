@@ -80,6 +80,7 @@ extern void logprintf(const char *format, ...);
 #define MAX_SEG_DOWNLOAD_FAIL_COUNT 10              /**< Max segment download failures to identify a playback failure. */
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
+#define DEF_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
@@ -276,6 +277,7 @@ public:
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
 	bool latencyLogging[4];			/**< Latency logging for Video, Audio, Manifest download*/
+	int licenseRetryWaitTime;
 public:
 
 	/**
@@ -301,7 +303,7 @@ public:
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
-		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true)
+		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		memset(latencyLogging, 0 , sizeof(latencyLogging));

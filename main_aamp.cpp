@@ -2859,6 +2859,10 @@ void ProcessCommand(char *cmd, bool usingCLI)
                 gpGlobalConfig->bAudioOnlyPlayback = true;
                 logprintf("aamp-audio-only-playback is %s\n", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
             }
+			else if (sscanf(cmd, "license-retry-wait-time=%d", &gpGlobalConfig->licenseRetryWaitTime) == 1)
+			{
+				logprintf("license-retry-wait-time: %d\n", gpGlobalConfig->licenseRetryWaitTime);
+			}
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')

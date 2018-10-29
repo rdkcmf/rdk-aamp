@@ -47,7 +47,6 @@
 #define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
 #define MAX_LICENSE_REQUEST_ATTEMPTS 2
-#define LICENSE_REQUEST_RETRY_WAIT_TIME 500 //500 Milliseconds
 
 static const char *sessionTypeName[] = {"video", "audio"};
 DrmSessionContext AampDRMSessionManager::drmSessionContexts[MAX_DRM_SESSIONS] = {{dataLength : 0, data : NULL, drmSession : NULL}																		,{dataLength : 0, data : NULL, drmSession : NULL}};
@@ -337,12 +336,14 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 			if (*httpCode != 200 && *httpCode != 206)
 			{
 				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : http %d\n", __FUNCTION__, __LINE__, attemptCount, *httpCode);
-				if(*httpCode >= 500 && *httpCode < 600 && attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+				if(*httpCode >= 500 && *httpCode < 600
+						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
 				{
 					delete keyInfo;
 					keyInfo = new DrmData();
 					curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
-					mssleep(LICENSE_REQUEST_RETRY_WAIT_TIME);
+					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.\n", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
+					mssleep(gpGlobalConfig->licenseRetryWaitTime);
 				}
 				else
 				{
@@ -989,11 +990,13 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 									licenseRequest, strlen(licenseRequest), keySystem, mediaUsage,
 									secclientSessionToken,
 									&licenseResponse, &licenseResponseLength, &refreshDuration, &statusInfo);
-				if (sec_client_result >= 500 && sec_client_result < 600 && attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+				if (sec_client_result >= 500 && sec_client_result < 600
+						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
 				{
 					logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d\n", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
 					if (licenseResponse) SecClient_FreeResource(licenseResponse);
-					mssleep(LICENSE_REQUEST_RETRY_WAIT_TIME);
+					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.\n", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
+					mssleep(gpGlobalConfig->licenseRetryWaitTime);
 				}
 				else
 				{
