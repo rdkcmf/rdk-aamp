@@ -59,6 +59,41 @@ static pthread_mutex_t accessTokenMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t session_mutex[2] = {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER};
 static pthread_mutex_t initDataMutex = PTHREAD_MUTEX_INITIALIZER;
 
+#ifdef USE_SECCLIENT
+/**
+ *  @brief Get formatted URL of license server
+ *
+ *  @param[in] url URL of license server
+ *  @return		formatted url for secclient license acqusition.
+ */
+static string getFormattedLicenseServerURL(string url)
+{
+	size_t startpos = 0;
+	size_t endpos, len;
+	endpos = len = url.size();
+
+	if (memcmp(url.data(), "https://", 8) == 0)
+	{
+		startpos += 8;
+	}
+	else if (memcmp(url.data(), "http://", 7) == 0)
+	{
+		startpos += 7;
+	}
+
+	if (startpos != 0)
+	{
+		endpos = url.find('/', startpos);
+		if (endpos != string::npos)
+		{
+			len = endpos - startpos;
+		}
+	}
+
+	return url.substr(startpos, len);
+}
+#endif
+
 /**
  *  @brief      AampDRMSessionManager constructor.
  */
@@ -938,7 +973,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 			if (gpGlobalConfig->licenseServerURL)
 			{
+#ifdef USE_SECCLIENT
+				destinationURL = getFormattedLicenseServerURL(string(gpGlobalConfig->licenseServerURL));
+#else
 				destinationURL = string(gpGlobalConfig->licenseServerURL);
+#endif
 			}
 			else
 			{

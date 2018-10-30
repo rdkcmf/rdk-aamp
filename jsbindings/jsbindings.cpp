@@ -1871,7 +1871,7 @@ static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef fun
 	}
 	else
 	{
-		char *url = aamp_JSValueToCString(context, arguments[0], exception);
+		const char *url = aamp_JSValueToCString(context, arguments[0], exception);
 		pAAMP->_aamp->SetLicenseServerURL(url);
 		delete [] url;
 	}

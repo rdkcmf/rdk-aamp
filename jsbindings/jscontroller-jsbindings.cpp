@@ -57,6 +57,7 @@ struct AAMP_JSController
 
 	int _aampSessionID;
 	bool _closedCaptionEnabled;
+	std::string _licenseServerUrl;
 
 	AAMPJSCEventListener *_eventListeners;
 };
@@ -309,6 +310,10 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 			iter = iter->p_next;
 		}
 	}
+	if (!_globalController->_licenseServerUrl.empty())
+	{
+		_globalController->_player->SetLicenseServerURL(_globalController->_licenseServerUrl.c_str());
+	}
 }
 
 
@@ -477,7 +482,6 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 	else
 	{
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP_JSController.addEventListener' - 2 arguments required");
-		return JSValueMakeUndefined(context);
 	}
 
 	return JSValueMakeUndefined(context);
@@ -502,7 +506,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 
 	if (aampObj == NULL)
 	{
-		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP_JSController.removeEventListener on instances of AAMP");
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP_JSController.removeEventListener on instances of AAMP_JSController");
 		return JSValueMakeUndefined(context);
 	}
 
@@ -533,8 +537,49 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 	}
 	else
 	{
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP_JSController.addEventListener' - 2 arguments required");
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP_JSController.removeEventListener' - 2 arguments required");
+	}
+
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback from JS to set a license server URL
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPJSC_setLicenseServerUrl(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	AAMP_JSController *aampObj = (AAMP_JSController *)JSObjectGetPrivate(thisObject);
+
+	if (aampObj == NULL)
+	{
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP_JSController.setLicenseServerUrl on instances of AAMP_JSController");
 		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount == 1)
+	{
+		char *url = aamp_JSValueToCString(context, arguments[0], exception);
+		if (strlen(url) > 0)
+		{
+			aampObj->_licenseServerUrl = std::string(url);
+			if (aampObj->_player != NULL)
+			{
+				aampObj->_player->SetLicenseServerURL(aampObj->_licenseServerUrl.c_str());
+			}
+		}
+	}
+	else
+	{
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP_JSController.setLicenseServerURL' - 1 argument required");
 	}
 
 	return JSValueMakeUndefined(context);
@@ -547,7 +592,8 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 static const JSStaticFunction AAMP_JSController_static_methods[] =
 {
 	{"addEventListener", AAMPJSC_addEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
-	{"removeEventListener", AAMPJSC_removeEventListener, kJSPropertyAttributeDontDelete |kJSPropertyAttributeReadOnly },
+	{"removeEventListener", AAMPJSC_removeEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{"setLicenseServerUrl", AAMPJSC_setLicenseServerUrl, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{NULL, NULL, 0}
 };
 
@@ -631,6 +677,7 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 	aampObj->_ctx = context;
 	aampObj->_aampSessionID = 0;
 	aampObj->_eventListeners = NULL;
+	aampObj->_licenseServerUrl = std::string();
 
 	_globalController = aampObj;
 

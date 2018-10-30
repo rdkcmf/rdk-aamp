@@ -4506,7 +4506,7 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
  *
  *   @param  url - URL of the server to be used for license requests
  */
-void PlayerInstanceAAMP::SetLicenseServerURL(char *url)
+void PlayerInstanceAAMP::SetLicenseServerURL(const char *url)
 {
 	aamp->SetLicenseServerURL(url);
 }
@@ -5524,52 +5524,18 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 	}
 }
 
-#ifdef USE_SECCLIENT
-/**
- * @brief Get formatted URL of license server
- * @param[in][out] url URL of license server
- */
-static void getFormattedLicenseServerURL(char **url)
-{
-	int startpos = 0;
-	if (memcmp(*url, "https://", 8) == 0)
-	{
-		startpos = strlen("https://");
-	}
-	else if (memcmp(*url, "http://", 7) == 0)
-	{
-		startpos = strlen("http://");
-	}
-
-	if (startpos != 0)
-	{
-		*url += startpos;
-		char *end = strchr(*url, '/');
-		if (end != NULL)
-		{
-			*end = '\0';
-		}
-	}
-}
-#endif
-
 /**
  *   @brief Set License Server URL.
  *
  *   @param  url - URL of the server to be used for license requests
  */
-void PrivateInstanceAAMP::SetLicenseServerURL(char *url)
+void PrivateInstanceAAMP::SetLicenseServerURL(const char *url)
 {
 	// Local aamp.cfg config trumps JS PP config
 	if (gpGlobalConfig->licenseServerLocalOverride)
 	{
 		return;
 	}
-
-#ifdef USE_SECCLIENT
-	getFormattedLicenseServerURL(&url);
-	logprintf("PrivateInstanceAAMP::%s(), formatted license url: %s\n", __FUNCTION__, url);
-#endif
 
 	if (gpGlobalConfig->licenseServerURL)
 	{

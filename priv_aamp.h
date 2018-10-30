@@ -1879,7 +1879,7 @@ public:
 	 *   @param[in] url - server URL
 	 *   @return void
 	 */
-	void SetLicenseServerURL(char* url);
+	void SetLicenseServerURL(const char* url);
 
 	/**
 	 *   @brief Set anonymous request true or false

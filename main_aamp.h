@@ -750,7 +750,7 @@ public:
 	 *   @param[in]  url - URL of the server to be used for license requests
 	 *   @return void
 	 */
-	void SetLicenseServerURL(char *url);
+	void SetLicenseServerURL(const char *url);
 
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
