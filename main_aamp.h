@@ -264,6 +264,7 @@ struct AAMPEvent
 			AAMPTuneFailure failure;                            /**< Error Type */
 			int code;                                           /**< Error code */
 			char description[MAX_ERROR_DESCRIPTION_LENGTH];     /**< Error description */
+			bool shouldRetry;                                   /**< If recovery on retry is possible */
 		} mediaError;
 
 		/**

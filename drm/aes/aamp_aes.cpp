@@ -88,9 +88,6 @@ void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 		sprintf(description, "AAMP: DRM Failure");
 		mpAamp->SendErrorEvent(drmFailure, description);
 	}
-	else if(AAMP_TUNE_CORRUPT_DRM_DATA == drmFailure)
-	{
-	}
 	else
 	{
 		mpAamp->SendErrorEvent(drmFailure);

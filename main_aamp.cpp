@@ -590,7 +590,7 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
  * @param tuneFailure Reason of error
  * @param description Optional description of error
  */
-void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description)
+void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled)
 {
 	bool sendErrorEvent = false;
 	pthread_mutex_lock(&mLock);
@@ -604,6 +604,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	{
 		AAMPEvent e;
 		e.type = AAMP_EVENT_TUNE_FAILED;
+		e.data.mediaError.shouldRetry = isRetryEnabled;
 		const char *errorDescription = NULL;
 		DisableDownloads();
 		if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)

@@ -147,42 +147,6 @@ GstElement* AampOutputProtection::FindElement(GstElement *element, const char* t
 
 #define TEMP_BUF_LEN 80
 
-/**
- * @brief Find source dimensions
- * @param[out] pWidth : Gets updated with width
- * @param[out] pHeight : Gets updated with height
- * @retval true, if dimensions are found, otherwise false
- */
-bool AampOutputProtection::FindSourceDimensions(uint32_t* pWidth, uint32_t* pHeight)
-{
-    bool      retVal        = false;
-    char*     pCommand      = "cat /proc/brcm/video_decoder | grep Dimensions | awk -F '[: x]' '{ print $6 \"  \" $7 }'";
-    size_t    nRead         = 0;
-    char      strResult[TEMP_BUF_LEN]    = { 0 };
-
-    DEBUG_FUNC;
-
-    FILE* fp = popen(pCommand, "r");
-    if(fp != NULL) {
-        nRead = fread(strResult, 1, TEMP_BUF_LEN, fp);
-        pclose(fp);
-
-        logprintf("FindSourceDimensions popen returned  %s\n", strResult);
-        // Now parse the result for the source dimensions
-        char* pEnd = NULL;
-        *pWidth = strtol (strResult, &pEnd, 10);
-        *pHeight = strtol (pEnd, &pEnd, 10);
-        retVal = true;
-    }
-    else {
-         logprintf("FindSourceDimensions popen failed %d --> %s\n", errno, strerror(errno));
-         *pWidth = 0;
-         *pHeight = 0;
-    }
-    logprintf("FindSourceDimensions found --> %d x %d\n", *pWidth, *pHeight);
-
-    return retVal;
-}
 
 /**
  * @brief Check if source is UHD, by checking dimentions from Video decoder
@@ -211,11 +175,6 @@ bool AampOutputProtection::IsSourceUHD()
         g_object_get(videoDec, "video_height", &sourceHeight, NULL);
         g_object_get(videoDec, "video_width", &sourceWidth, NULL);
     }
-//    static uint32_t nCount          = 1;
-//    if(videoDec == NULL && nCount++ % 500 == 0) {
-//        // Use alternative method
-//        FindSourceDimensions(&sourceWidth, &sourceHeight);
-//    }
 
     if(sourceWidth != m_sourceWidth || sourceHeight != m_sourceHeight) {
         logprintf("%s viddec (%p) --> says width %d, height %d\n", __FUNCTION__, videoDec, sourceWidth, sourceHeight);

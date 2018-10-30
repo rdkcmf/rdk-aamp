@@ -745,7 +745,15 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		memset(errorDesc, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
 		strncpy(errorDesc, "GstPipeline Error:", 18);
 		strncat(errorDesc, error->message, MAX_ERROR_DESCRIPTION_LENGTH - 18 - 1);
-		_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc);
+		if (strstr(error->message, "video decode error") != NULL ||
+			 strstr(error->message, "HDCP Authentication Failure") != NULL)
+		{
+			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc, false);
+		}
+		else
+		{
+			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc);
+		}
 		g_printerr("Debug Info: %s\n", (dbg_info) ? dbg_info : "none");
 		g_clear_error(&error);
 		g_free(dbg_info);

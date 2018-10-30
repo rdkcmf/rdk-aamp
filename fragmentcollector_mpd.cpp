@@ -1975,11 +1975,12 @@ void *CreateDRMSession(void *arg)
 	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
 	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
 	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
-													contentMetadata, sessionParams->aamp, &failure);
+					contentMetadata, sessionParams->aamp, &failure);
 
 	if(NULL == drmSession)
 	{
-		sessionParams->aamp->SendErrorEvent(failure);
+		bool isRetryEnabled = (failure != AAMP_TUNE_AUTHORISATION_FAILURE);
+		sessionParams->aamp->SendErrorEvent(failure, NULL, isRetryEnabled);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
 	}

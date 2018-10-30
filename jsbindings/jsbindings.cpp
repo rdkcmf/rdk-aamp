@@ -817,20 +817,19 @@ public:
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
-		JSStringRef name;
-		/*Keeping playerRecoveryEnabled  as false until we get more info on this*/
-                name = JSStringCreateWithUTF8CString("recoveryEnabled");
-                JSObjectSetProperty(context, eventObj, name, JSValueMakeBoolean(context, false), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(name);
 		int code = e.data.mediaError.code;
 		const char* description = e.data.mediaError.description;
 
-                name = JSStringCreateWithUTF8CString("code");
+                JSStringRef name = JSStringCreateWithUTF8CString("code");
                 JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, code), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(name);
 
                 name = JSStringCreateWithUTF8CString("description");
                 JSObjectSetProperty(context, eventObj, name, aamp_CStringToJSValue(context, description), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+                name = JSStringCreateWithUTF8CString("shouldRetry");
+                JSObjectSetProperty(context, eventObj, name, JSValueMakeBoolean(context, e.data.mediaError.shouldRetry), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(name);
 	}
 };
