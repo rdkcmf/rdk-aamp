@@ -449,9 +449,9 @@ static const JSStaticValue AAMP_static_values[] =
 	{"version", AAMP_getProperty_Version, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"audioLanguage", AAMP_getProperty_AudioLanguage, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"timedMetadata", AAMP_getProperty_timedMetadata, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{"stallErrorCode", NULL, AAMP_setProperty_stallErrorCode, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{"reportInterval", NULL, AAMP_setProperty_reportInterval, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{"stallErrorCode", NULL, AAMP_setProperty_stallErrorCode, kJSPropertyAttributeDontDelete },
+	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete },
+	{"reportInterval", NULL, AAMP_setProperty_reportInterval, kJSPropertyAttributeDontDelete },
 	{NULL, NULL, NULL, 0}
 };
 
