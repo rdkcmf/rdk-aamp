@@ -883,7 +883,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "stop-keep-frame", TRUE, NULL);
 					logprintf("AAMPGstPlayer setting rectangle %s and video mute %d\n",
 							_this->privateContext->videoRectangle, _this->privateContext->videoMuted);
-					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
 					g_object_set(msg->src, "mute", _this->privateContext->videoMuted, NULL);
 				}
 				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec", 17) == 0)
@@ -893,6 +892,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc", 15) == 0)
 				{
 					_this->privateContext->video_pproc = (GstElement *) msg->src;
+					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
 					logprintf("AAMPGstPlayer setting zoom %d\n", _this->privateContext->zoom);
 					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
 				}
