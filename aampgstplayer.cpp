@@ -75,6 +75,9 @@ typedef enum {
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
+#define DEFAULT_VIDEO_RECTANGLE "0,0,0,0"
+#else
+#define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
 #define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
 #define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
@@ -117,7 +120,7 @@ struct AAMPGstPlayerPriv
 	GstElement *video_dec; //Video decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
 	GstElement *audio_sink; //Audio sink used by pipeline.
-#ifdef INTELCE
+#ifdef INTELCE_USE_VIDRENDSINK
 	GstElement *video_pproc; //Video element used by pipeline.(only for Intel).
 #endif
 
@@ -190,7 +193,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 
 	CreatePipeline();
 	privateContext->rate = 1.0;
-	strcpy(privateContext->videoRectangle, "0,0,1280,720");
+	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
 }
 
 
@@ -876,26 +879,36 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 #else
 			if (new_state == GST_STATE_READY && old_state == GST_STATE_NULL)
 			{
+#ifndef INTELCE_USE_VIDRENDSINK
+				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidsink", 14) == 0)
+#else
 				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
+#endif
 				{
 					_this->privateContext->video_sink = (GstElement *) msg->src;
 					logprintf("AAMPGstPlayer setting stop-keep-frame\n");
 					g_object_set(msg->src, "stop-keep-frame", TRUE, NULL);
-					logprintf("AAMPGstPlayer setting rectangle %s and video mute %d\n",
-							_this->privateContext->videoRectangle, _this->privateContext->videoMuted);
+#if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
+					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
+					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+#endif
+					logprintf("AAMPGstPlayer setting video mute %d\n", _this->privateContext->videoMuted);
 					g_object_set(msg->src, "mute", _this->privateContext->videoMuted, NULL);
 				}
 				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec", 17) == 0)
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
 				}
+#ifdef INTELCE_USE_VIDRENDSINK
 				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc", 15) == 0)
 				{
 					_this->privateContext->video_pproc = (GstElement *) msg->src;
+					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
 					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
 					logprintf("AAMPGstPlayer setting zoom %d\n", _this->privateContext->zoom);
 					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
 				}
+#endif
 			}
 #endif
 		}
@@ -1440,7 +1453,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	{
 		privateContext->video_dec = NULL;
 		privateContext->video_sink = NULL;
-#ifdef INTELCE
+#ifdef INTELCE_USE_VIDRENDSINK
 		privateContext->video_pproc = NULL;
 #endif
 	}
@@ -1476,6 +1489,18 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 #else
 		logprintf("AAMPGstPlayer_SetupStream - using playbin2\n");
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
+#endif
+#if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
+		logprintf("%s:%d - using ismd_vidsink\n", __FUNCTION__, __LINE__);
+		GstElement* vidsink = gst_element_factory_make("ismd_vidsink", NULL);
+		if(!vidsink)
+		{
+			logprintf("%s:%d - Could not create ismd_vidsink element\n", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+		}
 #endif
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->sinkbin);
 		gint flags;
@@ -2315,10 +2340,17 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
 	}
 #else
+#if defined(INTELCE_USE_VIDRENDSINK)
 	else if (privateContext->video_pproc)
 	{
 		g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
 	}
+#else
+	else if (privateContext->video_sink)
+	{
+		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+	}
+#endif
 #endif
 	else
 	{
@@ -2348,20 +2380,21 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 	{
 		g_object_set(privateContext->video_sink, "zoom-mode", VIDEO_ZOOM_FULL == zoom ? 0 : 1, NULL);
 	}
-	else
-	{
-		privateContext->gstPropsDirty = true;
-	}
-#else
+#elif defined(INTELCE_USE_VIDRENDSINK)
 	else if (privateContext->video_pproc)
 	{
 		g_object_set(privateContext->video_pproc, "scale-mode", VIDEO_ZOOM_FULL == zoom ? 0 : 3, NULL);
 	}
+#else
+	else if (privateContext->video_sink)
+	{
+		g_object_set(privateContext->video_sink, "scale-mode", VIDEO_ZOOM_FULL == zoom ? 0 : 3, NULL);
+	}
+#endif
 	else
 	{
 		privateContext->gstPropsDirty = true;
 	}
-#endif
 }
 
 
