@@ -2007,15 +2007,14 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	}
 	if (this->privateContext->pipeline)
 	{
-		if(GST_STATE_CHANGE_FAILURE != gst_element_get_state(privateContext->pipeline,0,0, 0))
+		GstState current;
+		GstState pending;
+		if(GST_STATE_CHANGE_FAILURE == gst_element_get_state(privateContext->pipeline, &current, &pending, 0))
 		{
-			gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
-			logprintf("AAMPGstPlayer::%s: Pipeline state set to null\n", __FUNCTION__);
+			logprintf("AAMPGstPlayer::%s: Pipeline is in FAILURE state : current %s  pending %s\n", __FUNCTION__,gst_element_state_get_name(current), gst_element_state_get_name(pending));
 		}
-		else
-		{
-			logprintf("AAMPGstPlayer::%s: Pipeline state is in FAILURE\n", __FUNCTION__);
-		}
+		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
+		logprintf("AAMPGstPlayer::%s: Pipeline state set to null\n", __FUNCTION__);
 	}
 #ifdef AAMP_MPD_DRM
 	if(AampOutputProtection::IsAampOutputProcectionInstanceActive())
