@@ -67,8 +67,6 @@
 #define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
-#define MPEG_PACKET_SIZE 188
-#define MPEG_TS_HDR_SIZE (2*MPEG_PACKET_SIZE)
 
 //Global variables to persist drm related info for particular tune/vod
 static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
@@ -1233,16 +1231,13 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			char rangeStr[128];
 			if (byteRangeLength)
 			{
-				if (byteRangeOffset == MPEG_TS_HDR_SIZE)
-				{ // HACK: prepend first 376 bytes insert PAT/PMT; required for playback of an Apple test stream,
-				  // where iframe track references iframes cut out from normal rate video fragments.
-					sprintf(rangeStr, "0-%d", (byteRangeOffset-1));
-					range = rangeStr;
-					if (!aamp->GetFile(fragmentUrl, &cachedFragment->fragment, effectiveUrl, NULL, range, type, false, (MediaType)(type)))
-					{
-						aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
-						logprintf("FetchFragmentHelper aamp_GetFile failed\n");
-					}
+				// HACK: prepend first 376 bytes to get PAT/PMT for Apple's test stream
+				// Multiple ranges in a list means mime separation strings in between
+				// ts packets. So fetch ranges one by one into same buffer.
+				if (!aamp->GetFile(fragmentUrl, &cachedFragment->fragment, effectiveUrl, NULL, "0-375", type, false, (MediaType)(type)))
+				{
+					aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
+					logprintf("FetchFragmentHelper aamp_GetFile failed\n");
 				}
 
 				int next = byteRangeOffset + byteRangeLength;
