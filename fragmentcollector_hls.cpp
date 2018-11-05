@@ -1231,15 +1231,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			char rangeStr[128];
 			if (byteRangeLength)
 			{
-				// HACK: prepend first 376 bytes to get PAT/PMT for Apple's test stream
-				// Multiple ranges in a list means mime separation strings in between
-				// ts packets. So fetch ranges one by one into same buffer.
-				if (!aamp->GetFile(fragmentUrl, &cachedFragment->fragment, effectiveUrl, NULL, "0-375", type, false, (MediaType)(type)))
-				{
-					aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
-					logprintf("FetchFragmentHelper aamp_GetFile failed\n");
-				}
-
 				int next = byteRangeOffset + byteRangeLength;
 				sprintf(rangeStr, "%d-%d", byteRangeOffset, next - 1);
 				logprintf("FetchFragmentHelper rangeStr %s \n", rangeStr);
@@ -1262,6 +1253,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (!fetched)
 			{
 				//cleanup is done in aamp_GetFile itself
+
 				aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
 				segDLFailCount += 1;
 				logprintf("FetchFragmentHelper aamp_GetFile failed\n");
