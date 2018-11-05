@@ -336,6 +336,7 @@ long long aamp_GetCurrentTimeMS(void)
 void PrivateInstanceAAMP::ReportProgress(void)
 {
 	//if (mPlayerState.durationMilliseconds > 0)
+	if (mDownloadsEnabled)
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_PROGRESS;
