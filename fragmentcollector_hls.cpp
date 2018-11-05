@@ -3260,7 +3260,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 TrackState::~TrackState()
 {
 	aamp_Free(&playlist.ptr);
-	for (int j=0; j< MAX_CACHED_FRAGMENTS_PER_TRACK; j++)
+	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
 	}

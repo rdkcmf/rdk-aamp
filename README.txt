@@ -154,6 +154,7 @@ gst-buffering-before-play=0 Disable pre buffering logic which ensures minimum bu
 audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 manifestLatencyLogging Enable Latency logging for Manifest downloads
+fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 
 CLI-specific commands:
 <enter>		dump currently available profiles

@@ -82,6 +82,7 @@ extern void logprintf(const char *format, ...);
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
 #define DEF_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 
+#define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 
@@ -253,6 +254,7 @@ public:
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
 	int abrCacheLength;                     /**< Adaptive bitrate cache length*/
+	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
@@ -283,7 +285,7 @@ public:
 	/**
 	 * @brief GlobalConfigAAMP Constructor
 	 */
-	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
+	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_CC_ENABLED
 		bEnableCC(true),
 #endif

@@ -152,7 +152,7 @@ void MediaTrack::UpdateTSAfterInject()
 	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment.ptr);
 	memset(&cachedFragment[fragmentIdxToInject], 0, sizeof(CachedFragment));
 	fragmentIdxToInject++;
-	if (fragmentIdxToInject == MAX_CACHED_FRAGMENTS_PER_TRACK)
+	if (fragmentIdxToInject == gpGlobalConfig->maxCachedFragmentsPerTrack)
 	{
 		fragmentIdxToInject = 0;
 	}
@@ -215,7 +215,7 @@ void MediaTrack::UpdateTSAfterFetch()
 		}
 	}
 	fragmentIdxToFetch++;
-	if (fragmentIdxToFetch == MAX_CACHED_FRAGMENTS_PER_TRACK)
+	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
 	{
 		fragmentIdxToFetch = 0;
 	}
@@ -229,7 +229,7 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 #endif
 	numberOfFragmentsCached++;
-	assert(numberOfFragmentsCached <= MAX_CACHED_FRAGMENTS_PER_TRACK);
+	assert(numberOfFragmentsCached <= gpGlobalConfig->maxCachedFragmentsPerTrack);
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -264,7 +264,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 	{
 		ret = false;
 	}
-	else if (numberOfFragmentsCached == MAX_CACHED_FRAGMENTS_PER_TRACK)
+	else if (numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
 	{
 		if (timeoutMs >= 0)
 		{
@@ -702,12 +702,15 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0),
-		discontinuityProcessed(false), ptsError(false)
+		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL)
 {
 	this->type = type;
 	this->aamp = aamp;
 	this->name = name;
-	memset(&cachedFragment[0], 0, sizeof(cachedFragment));
+	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
+	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
+		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
+	}
 	pthread_cond_init(&fragmentFetched, NULL);
 	pthread_cond_init(&fragmentInjected, NULL);
 	pthread_mutex_init(&mutex, NULL);
@@ -719,9 +722,14 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
  */
 MediaTrack::~MediaTrack()
 {
-	for (int j=0; j< MAX_CACHED_FRAGMENTS_PER_TRACK; j++)
+	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
+	}
+	if(cachedFragment)
+	{
+		delete [] cachedFragment;
+		cachedFragment = NULL;
 	}
 	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&fragmentFetched);

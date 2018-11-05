@@ -2865,6 +2865,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			{
 				logprintf("license-retry-wait-time: %d\n", gpGlobalConfig->licenseRetryWaitTime);
 			}
+			else if (sscanf(cmd, "fragment-cache-length=%d", &gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
+			{
+				VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
+				logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
+			}
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')

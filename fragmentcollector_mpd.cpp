@@ -4222,7 +4222,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
 						if (pMediaStreamContext->adaptationSet )
 						{
-							if(pMediaStreamContext->numberOfFragmentsCached != MAX_CACHED_FRAGMENTS_PER_TRACK  && !(pMediaStreamContext->profileChanged))
+							if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
 							{	// profile not changed and Cache not full scenario
 								if (!pMediaStreamContext->eos)
 								{
@@ -4255,7 +4255,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 								FetchAndInjectInitialization();
 							}
 			
-							if(pMediaStreamContext->numberOfFragmentsCached != MAX_CACHED_FRAGMENTS_PER_TRACK)
+							if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
 							{
 								bCacheFullState = false;
 							}
