@@ -1567,7 +1567,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #else
 		enableOverride = (privateContext->rate != 1.0);
 #endif
-		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate, NULL);
+		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate,"aampplayer",G_TYPE_BOOLEAN,TRUE, NULL);
 #ifdef INTELCE
 		if ((privateContext->rate == 1.0))
 		{
