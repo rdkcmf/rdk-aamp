@@ -3590,12 +3590,22 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
 	}
-	if (!mpStreamAbstractionAAMP->Init(tuneType))
+	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	if (retVal != eAAMPSTATUS_OK)
 	{
-		logprintf("mpStreamAbstractionAAMP Init Failed.\n");
-		SendErrorEvent(AAMP_TUNE_INIT_FAILED);
-		//event.data.mediaError.description = "kECFileNotFound (90)";
-		//event.data.mediaError.playerRecoveryEnabled = false;
+		// Check if the seek position is beyond the duration
+		if(retVal == eAAMPSTATUS_SEEK_RANGE_ERROR)
+		{
+			logprintf("mpStreamAbstractionAAMP Init Failed.Seek Position(%f) out of range(%lld)\n",mpStreamAbstractionAAMP->GetStreamPosition(),(GetDurationMs()/1000));
+			NotifyEOSReached();
+		}
+		else
+		{
+			logprintf("mpStreamAbstractionAAMP Init Failed.Error(%d)\n",retVal);
+			SendErrorEvent(AAMP_TUNE_INIT_FAILED);
+			//event.data.mediaError.description = "kECFileNotFound (90)";
+			//event.data.mediaError.playerRecoveryEnabled = false;
+		}
 		return;
 	}
 	else

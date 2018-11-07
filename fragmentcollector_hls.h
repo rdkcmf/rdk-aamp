@@ -256,7 +256,7 @@ public:
 	/// Function to return if stream is Live or VOD 
 	bool IsLive();
 	/// Function to initialize member variables,download main manifest and parse  
-	bool Init(TuneType tuneType);
+	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
 	/// Function to return current playing position of stream 

@@ -350,7 +350,7 @@ public:
 	 *   @param[in]  tuneType - to set type of playback.
 	 *   @return true on success, false failure
 	 */
-	virtual bool Init(TuneType tuneType) = 0;
+	virtual AAMPStatusType Init(TuneType tuneType) = 0;
 
 	/**
 	 *   @brief  Set a position at which stop injection

@@ -2322,9 +2322,9 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 * @param tuneType[in] Tune type 
 * @return bool true on success 
 ***************************************************************************/
-bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
+AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 {
-	bool ret = false;
+	AAMPStatusType retval = eAAMPSTATUS_GENERIC_ERROR;
 	bool needMetadata = true;
 	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
 
@@ -2528,7 +2528,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		if ((video->enabled && !video->playlist.len) || (audio->enabled && !audio->playlist.len))
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d Playlist download failed\n",__FUNCTION__,__LINE__);
-			return false;
+			return eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 
 		bool bSetStatePreparing = false;
@@ -2804,7 +2804,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		if ((video->enabled && totalDuration[eMEDIATYPE_VIDEO] == 0.0f) || (audio->enabled && totalDuration[eMEDIATYPE_AUDIO] == 0.0f))
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d Track Duration is 0. Cannot play this content\n", __FUNCTION__, __LINE__);
-			return false;
+			return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 
 		if (bSetStatePreparing)
@@ -2873,7 +2873,7 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					logprintf("StreamAbstractionAAMP_HLS::%s:%d seek target out of range, mark EOS. playTarget:%f End:%f. \n",
 							__FUNCTION__,__LINE__,video->playTarget, seekWindowEnd);
 
-					return true;
+					return eAAMPSTATUS_SEEK_RANGE_ERROR;
 				}
 			}
 		}
@@ -2997,9 +2997,9 @@ bool StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 		}
-		ret = true;
+		retval = eAAMPSTATUS_OK;
 	}
-	return ret;
+	return retval;
 }
 /***************************************************************************
 * @fn GetFirstPTS
