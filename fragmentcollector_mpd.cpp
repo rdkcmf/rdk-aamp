@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <set>
 #include <iomanip>
+#include <ctime>
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
 //#define DEBUG_TIMELINE
@@ -101,7 +102,7 @@ public:
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), endTimeReached(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
-			lastSegmentTime(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true)
+			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true)
 	{
 		mContext = context;
 		memset(&fragmentDescriptor, 0, sizeof(FragmentDescriptor));
@@ -238,6 +239,7 @@ public:
 	char *index_ptr;
 	size_t index_len;
 	uint64_t lastSegmentTime;
+	uint64_t lastSegmentNumber;
 	int adaptationSetIdx;
 	int representationIndex;
 	StreamAbstractionAAMP_MPD* mContext;
@@ -1232,50 +1234,82 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 #ifdef DEBUG_TIMELINE
 			logprintf("%s:%d segmentTimeline not available\n", __FUNCTION__, __LINE__);
 #endif
-			if(0 == pMediaStreamContext->fragmentDescriptor.Time)
+			string startTimestr = mpd->GetAvailabilityStarttime();
+			std::tm time = { 0 };
+			strptime(startTimestr.c_str(), "%Y-%m-%dT%H:%M:%SZ", &time);
+			double availabilityStartTime = (double)mktime(&time);
+			double currentTimeSeconds = aamp_GetCurrentTimeMS() / 1000;
+			double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
+			if (!fragmentDuration)
 			{
-				if(rate < 0)
+				fragmentDuration = 2; // hack
+			}
+			if (0 == pMediaStreamContext->lastSegmentNumber)
+			{
+				if (mIsLive)
 				{
-					pMediaStreamContext->fragmentDescriptor.Time = mPeriodEndTime;
+					double liveTime = currentTimeSeconds - gpGlobalConfig->liveOffset;
+					pMediaStreamContext->lastSegmentNumber = (long long)((liveTime - availabilityStartTime - mPeriodStartTime) / fragmentDuration) + segmentTemplate->GetStartNumber();
+					pMediaStreamContext->fragmentDescriptor.Time = liveTime;
+					AAMPLOG_INFO("%s %d Printing fragmentDescriptor.Number %" PRIu64 " Time=%" PRIu64 "  \n", __FUNCTION__, __LINE__, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time);
 				}
 				else
 				{
-					pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
+					if (rate < 0)
+					{
+						pMediaStreamContext->fragmentDescriptor.Time = mPeriodEndTime;
+					}
+					else
+					{
+						pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
+					}
 				}
 			}
-			if ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))	|| (rate < 0 && pMediaStreamContext->fragmentDescriptor.Time < 0))
+
+			// Recalculate the fragmentDescriptor.Time after periodic manifest updates
+			if (mIsLive && 0 == pMediaStreamContext->fragmentDescriptor.Time)
 			{
-				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%" PRIu64 " mPeriodEndTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime);
+				pMediaStreamContext->fragmentDescriptor.Time = availabilityStartTime + mPeriodStartTime + ((pMediaStreamContext->lastSegmentNumber - segmentTemplate->GetStartNumber()) * fragmentDuration);
+			}
+
+			/**
+			 *Find out if we reached end/beginning of period.
+			 *First block in this 'if' is for VOD, where boundaries are 0 and PeriodEndTime
+			 *Second block is for LIVE, where boundaries are
+                         * (availabilityStartTime + mPeriodStartTime) and currentTime
+			 */
+			if ((!mIsLive && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))
+							|| (rate < 0 && pMediaStreamContext->fragmentDescriptor.Time < 0)))
+					|| (mIsLive && ((pMediaStreamContext->fragmentDescriptor.Time >= currentTimeSeconds)
+							|| (pMediaStreamContext->fragmentDescriptor.Time < (availabilityStartTime + mPeriodStartTime)))))
+			{
+				AAMPLOG_INFO("%s %d EOS. fragmentDescriptor.Time=%" PRIu64 " mPeriodEndTime=%f\n", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime);
 				pMediaStreamContext->eos = true;
 			}
 			else
 			{
-				double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
-				if(!fragmentDuration)
+				if (mIsLive)
 				{
-					fragmentDuration = 2; // hack
+					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
-				retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance );
-
-				if(mContext->checkForRampdown)
+				FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance);
+				if (mContext->checkForRampdown)
 				{
 					/* NOTE : This case needs to be validated with the segmentTimeline not available stream */
-
 					return retval;
 				}
 
-				if(rate > 0)
+				if (rate > 0)
 				{
 					pMediaStreamContext->fragmentDescriptor.Number++;
 					pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
-					pMediaStreamContext->targetDnldPosition += fragmentDuration;
-
 				}
 				else
 				{
 					pMediaStreamContext->fragmentDescriptor.Number--;
 					pMediaStreamContext->fragmentDescriptor.Time -= fragmentDuration;
 				}
+				pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 			}
 		}
 	}
@@ -2563,6 +2597,11 @@ uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
 						timeLineIndex++;
 					}
 				}
+				else
+				{
+					uint32_t timeScale = segmentTemplate->GetTimescale();
+					durationMs = (segmentTemplate->GetDuration() / timeScale) * 1000;
+				}
 			}
 			else
 			{
@@ -3671,7 +3710,7 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 			}
 			else
 			{
-				logprintf("PrivateStreamAbstractionMPD::%s:%d NULL segmentTemplate and segmentList\n", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTemplate and segmentList\n", __FUNCTION__, __LINE__);
 			}
 		}
 		if (segmentTimeline)
@@ -3701,7 +3740,36 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 		}
 		else
 		{
-			logprintf("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline\n", __FUNCTION__, __LINE__);
+			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline. Hence modifying culling logic based on MPD availabilityStartTime, periodStartTime, fragment number and current time\n", __FUNCTION__, __LINE__);
+			string startTimestr = mpd->GetAvailabilityStarttime();
+			std::tm time = { 0 };
+			strptime(startTimestr.c_str(), "%Y-%m-%dT%H:%M:%SZ", &time);
+			double availabilityStartTime = (double)mktime(&time);
+			double currentTimeSeconds = aamp_GetCurrentTimeMS() / 1000;
+			double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
+			double newStartTimeSeconds = 0;
+			if (0 == pMediaStreamContext->lastSegmentNumber)
+			{
+				newStartTimeSeconds = availabilityStartTime;
+			}
+
+			// Recalculate the newStartTimeSeconds after periodic manifest updates
+			if (mIsLive && 0 == newStartTimeSeconds)
+			{
+				newStartTimeSeconds = availabilityStartTime + mPeriodStartTime + ((pMediaStreamContext->lastSegmentNumber - segmentTemplate->GetStartNumber()) * fragmentDuration);
+			}
+
+			if (newStartTimeSeconds && mPrevStartTimeSeconds)
+			{
+				double culled = newStartTimeSeconds - mPrevStartTimeSeconds;
+				traceprintf("PrivateStreamAbstractionMPD::%s:%d post-refresh %fs before %f (%f)\n\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
+				aamp->UpdateCullingState(culled);
+			}
+			else
+			{
+				logprintf("PrivateStreamAbstractionMPD::%s:%d newStartTimeSeconds %f mPrevStartTimeSeconds %F\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds);
+			}
+			mPrevStartTimeSeconds = newStartTimeSeconds;
 		}
 	}
 	else
