@@ -331,6 +331,7 @@ private:
 	bool UpdateMPD(bool retrievePlaylistFromCache = false);
 	void FindTimedMetadata(MPD* mpd, Node* root);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS);
+	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS);
@@ -2767,6 +2768,8 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 		const std::string& name = node->GetName();
 		if (name == "Period") {
 			std::string AdID;
+			std::string AssetID;
+			std::string ProviderID;
 
 			// Calculate period start time and duration
 			periodStartMS += periodDurationMS;
@@ -2794,6 +2797,10 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 				const std::string& name = child->GetName();
 				if (name == "SupplementalProperty") {
 					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS);
+					continue;
+				}
+				if (name == "AssetIdentifier") {
+					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID);
 					continue;
 				}
 			}
@@ -2830,6 +2837,51 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 			}
 			continue;
 		}
+		if (name == "SupplementalProperty" && node->HasAttribute("schemeIdUri")) {
+			const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
+			if (schemeIdUri == "urn:comcast:dai:2018" && node->HasAttribute("id")) {
+				const std::string& ID = node->GetAttributeValue("id");
+				if (ID == "identityADS" && node->HasAttribute("value")) {
+					const std::string& identityADS = node->GetAttributeValue("value");
+
+					std::ostringstream s;
+					s << "#EXT-X-IDENTITY-ADS:" << identityADS;
+
+					std::string content = s.str();
+					AAMPLOG_INFO("TimedMetadata: @%1.3f %s\n", 0.0f, content.c_str());
+
+					for (int i = 0; i < aamp->subscribedTags.size(); i++)
+					{
+						const std::string& tag = aamp->subscribedTags.at(i);
+						if (tag == "#EXT-X-IDENTITY-ADS") {
+							aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
+							break;
+						}
+					}
+					continue;
+				}
+				if (ID == "messageRef" && node->HasAttribute("value")) {
+					const std::string& messageRef = node->GetAttributeValue("value");
+
+					std::ostringstream s;
+					s << "#EXT-X-MESSAGE-REF:" << messageRef;
+
+					std::string content = s.str();
+					AAMPLOG_INFO("TimedMetadata: @%1.3f %s\n", 0.0f, content.c_str());
+
+					for (int i = 0; i < aamp->subscribedTags.size(); i++)
+					{
+						const std::string& tag = aamp->subscribedTags.at(i);
+						if (tag == "#EXT-X-MESSAGE-REF") {
+							aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
+							break;
+						}
+					}
+					continue;
+				}
+			}
+			continue;
+		}
 	}
 }
 
@@ -2851,23 +2903,6 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 				const std::string& value = node->GetAttributeValue("value");
 				if (!value.empty()) {
 					AdID = value;
-
-#if 0
-					// Extract AdID substring if value string contains "adid="
-					const char* szValue = AdID.c_str();
-					const char* szAdID = strstr(szValue, "adid=");
-					if (szAdID)
-					{
-						const char* fin = strchr(szAdID, '|');
-						if (!fin) {
-							fin = strchr(szAdID, ',');
-							if (!fin) {
-								fin = szAdID + strlen(szAdID);
-							}
-						}
-						AdID = AdID.substr(szAdID - szValue + 5, fin - szAdID - 5);
-					}
-#endif
 
 					// Check if we need to make AdID a quoted-string
 					if (AdID.find(',') != std::string::npos) {
@@ -2914,6 +2949,64 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 				if (name == "StreamRestriction") {
 					ProcessStreamRestriction(child, AdID, startMS);
 					continue;
+				}
+			}
+		}
+	}
+}
+
+
+/**
+ * @brief Process Period AssetIdentifier
+ * @param node AssetIdentifier node
+ * @param startMS start time MS
+ * @param durationMS duration MS
+ * @param AssetID Asset Id
+ * @param ProviderID Provider Id
+ */
+void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID)
+{
+	if (node->HasAttribute("schemeIdUri")) {
+		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
+		if ((schemeIdUri == "urn:cablelabs:md:xsd:content:3.0") && node->HasAttribute("value")) {
+			const std::string& value = node->GetAttributeValue("value");
+			if (!value.empty()) {
+				size_t pos = value.find("/Asset/");
+				if (pos != std::string::npos) {
+					std::string assetID = value.substr(pos+7);
+					std::string providerID = value.substr(0, pos);
+					double duration = durationMS / 1000.0f;
+					double start = startMS / 1000.0f;
+
+					AssetID = assetID;
+					ProviderID = providerID;
+
+					// Check if we need to make assetID a quoted-string
+					if (assetID.find(',') != std::string::npos) {
+						assetID="\"" + assetID + "\"";
+					}
+
+					// Check if we need to make providerID a quoted-string
+					if (providerID.find(',') != std::string::npos) {
+						providerID="\"" + providerID + "\"";
+					}
+
+					std::ostringstream s;
+					s << "#EXT-X-ASSET-ID:ID=" << assetID;
+					s << ",PROVIDER=" << providerID;
+					s << ",DURATION=" << std::fixed << std::setprecision(3) << duration;
+
+					std::string content = s.str();
+					AAMPLOG_INFO("TimedMetadata: @%1.3f %s\n", start, content.c_str());
+
+					for (int i = 0; i < aamp->subscribedTags.size(); i++)
+					{
+						const std::string& tag = aamp->subscribedTags.at(i);
+						if (tag == "#EXT-X-ASSET-ID") {
+							aamp->ReportTimedMetadata(startMS, tag.c_str(), content.c_str(), content.size());
+							break;
+						}
+					}
 				}
 			}
 		}
