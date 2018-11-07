@@ -267,6 +267,10 @@ public:
 	MediaTrack* GetMediaTrack(TrackType type);
 	/// Function to return Bandwidth index for the bitrate value 
 	int GetBWIndex(long bitrate);
+	/// Function to get available video bitrates.
+	std::vector<long> GetVideoBitrates(void);
+	/// Function to get available audio bitrates.
+	std::vector<long> GetAudioBitrates(void);
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

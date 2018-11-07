@@ -18,12 +18,12 @@
 */
 
 /**
- * @file jscontroller-jsevent.h
- * @brief JavaScript Event Impl for AAMP_JSController
+ * @file jsevent.h
+ * @brief JavaScript Event Impl for AAMP_JSController and AAMPMediaPlayer_JS
  */
 
-#ifndef __JSCONTROLLER_JSEVENT_H__
-#define __JSCONTROLLER_JSEVENT_H__
+#ifndef __AAMP_JSEVENT_H__
+#define __AAMP_JSEVENT_H__
 
 #include <JavaScriptCore/JavaScript.h>
 
@@ -40,17 +40,17 @@ enum EventPhase
 };
 
 /**
- * @class AAMPJSCEvent
- * @brief Class represents the native object for a JS Event of AAMP_JSController
+ * @class AAMPJSEvent
+ * @brief Class represents the native object for a AAMP JS Event
  */
-class AAMPJSCEvent
+class AAMPJSEvent
 {
 
 public:
 
-	AAMPJSCEvent();
-	AAMPJSCEvent(const char *type, bool bubble, bool cancelable);
-	~AAMPJSCEvent();
+	AAMPJSEvent();
+	AAMPJSEvent(const char *type, bool bubble, bool cancelable);
+	~AAMPJSEvent();
 
 	void initEvent(const char *type, bool bubble, bool cancelable);
 
@@ -190,6 +190,6 @@ private:
 };
 
 
-JSObjectRef createNewJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
+JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
 
-#endif //__JSCONTROLLER_JSEVENT_H__
+#endif // __AAMP_JSEVENT_H__

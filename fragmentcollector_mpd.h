@@ -47,6 +47,8 @@ public:
 	double GetFirstPTS();
 	int GetBWIndex(long bitrate);
 	bool checkForRampdown;
+	std::vector<long> GetVideoBitrates(void);
+	std::vector<long> GetAudioBitrates(void);
 protected:
 	StreamInfo* GetStreamInfo(int idx);
 private:

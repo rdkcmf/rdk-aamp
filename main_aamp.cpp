@@ -1174,7 +1174,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 	{
 		if (!mDownloadsEnabled)
 		{
-			logprintf("aamp_BlockUntilGstreamerWantsData interrupted\n");
+			logprintf("PrivateInstanceAAMP::%s interrupted\n", __FUNCTION__);
 			break;
 		}
 		if (cb && periodMs)
@@ -4572,6 +4572,7 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 	aamp->SetStallTimeout(timeoutMS);
 }
 
+
 /**
  *   @brief Set report interval duration
  *
@@ -4581,6 +4582,152 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
 	aamp->SetReportInterval(reportIntervalMS);
 }
+
+
+/**
+ *   @brief To get the current playback position.
+ *
+ *   @ret current playback position in seconds
+ */
+double PlayerInstanceAAMP::GetPlaybackPosition()
+{
+	return (aamp->GetPositionMs() / 1000.00);
+}
+
+
+/**
+*   @brief To get the current asset's duration.
+*
+*   @ret duration in seconds
+*/
+double PlayerInstanceAAMP::GetPlaybackDuration()
+{
+	return (aamp->GetDurationMs() / 1000.00);
+}
+
+
+/**
+ *   @brief To get the current AAMP state.
+ *
+ *   @ret current AAMP state
+ */
+PrivAAMPState PlayerInstanceAAMP::GetState(void)
+{
+	PrivAAMPState currentState;
+	aamp->GetState(currentState);
+	return currentState;
+}
+
+
+/**
+ *   @brief To get the bitrate of current video profile.
+ *
+ *   @ret bitrate of video profile
+ */
+long PlayerInstanceAAMP::GetVideoBitrate(void)
+{
+	long bitrate = 0;
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		bitrate = aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
+	}
+	return bitrate;
+}
+
+
+/**
+ *   @brief To set a preferred bitrate for video profile.
+ *
+ *   @param[in] preferred bitrate for video profile
+ */
+void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
+{
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		//Switch off ABR and set bitrate
+		aamp->mpStreamAbstractionAAMP->SetVideoBitrate(bitrate);
+	}
+}
+
+
+/**
+ *   @brief To get the bitrate of current audio profile.
+ *
+ *   @ret bitrate of audio profile
+ */
+long PlayerInstanceAAMP::GetAudioBitrate(void)
+{
+	long bitrate = 0;
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		bitrate = aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
+	}
+	return bitrate;
+}
+
+
+/**
+ *   @brief To set a preferred bitrate for audio profile.
+ *
+ *   @param[in] preferred bitrate for audio profile
+ */
+void PlayerInstanceAAMP::SetAudioBitrate(long bitrate)
+{
+	//no-op for now
+}
+
+
+/**
+ *   @brief To get the current audio volume.
+ *
+ *   @ret audio volume
+ */
+int PlayerInstanceAAMP::GetAudioVolume(void)
+{
+	return aamp->audio_volume;
+}
+
+
+/**
+ *   @brief To get the current playback rate.
+ *
+ *   @ret current playback rate
+ */
+float PlayerInstanceAAMP::GetPlaybackRate(void)
+{
+	return aamp->rate;
+}
+
+
+/**
+ *   @brief To get the available video bitrates.
+ *
+ *   @ret available video bitrates
+ */
+std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
+{
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		return aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
+	}
+	return std::vector<long>();
+}
+
+
+/**
+ *   @brief To get the available audio bitrates.
+ *
+ *   @ret available audio bitrates
+ */
+std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
+{
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		return aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
+	}
+	return std::vector<long>();
+}
+
 
 /**
  *   @brief Set video rectangle.
@@ -5356,18 +5503,18 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 	mState = state;
 	pthread_mutex_unlock(&mLock);
 
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_STATUS_CHANGED])
+	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_STATE_CHANGED])
 	{
 		if (mState == eSTATE_PREPARING)
 		{
 			AAMPEvent eventData;
-			eventData.type = AAMP_EVENT_STATUS_CHANGED;
+			eventData.type = AAMP_EVENT_STATE_CHANGED;
 			eventData.data.stateChanged.state = eSTATE_INITIALIZED;
 			SendEventSync(eventData);
 		}
 
 		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_STATUS_CHANGED;
+		eventData.type = AAMP_EVENT_STATE_CHANGED;
 		eventData.data.stateChanged.state = mState;
 		SendEventSync(eventData);
 	}
@@ -5838,7 +5985,6 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]\n",customHeader.c_str());
 }
-
 
 /**
  * @brief Send tuned event if configured to sent after decryption
