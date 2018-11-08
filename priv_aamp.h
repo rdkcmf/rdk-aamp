@@ -187,6 +187,19 @@ enum AAMP_LogLevel
 	eLOGLEVEL_ERROR     /**< Error level */
 };		 
 
+/**
+ * @brief AAMP Function return values
+*/
+enum AAMPStatusType
+{
+	eAAMPSTATUS_OK,
+	eAAMPSTATUS_GENERIC_ERROR,
+	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
+	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
+	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
+	eAAMPSTATUS_SEEK_RANGE_ERROR
+};
+
 
 /**
  * @brief Http Header Type

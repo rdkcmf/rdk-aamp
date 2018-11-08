@@ -40,7 +40,7 @@ public:
 	void Start();
 	void Stop(bool clearChannelData);
 	bool IsLive();
-	bool Init(TuneType tuneType);
+	AAMPStatusType Init(TuneType tuneType);
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
 	double GetStreamPosition();
 	MediaTrack* GetMediaTrack(TrackType type);

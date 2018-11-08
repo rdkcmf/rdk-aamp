@@ -321,7 +321,7 @@ public:
 	void Start();
 	void Stop();
 	bool IsLive();
-	bool Init(TuneType tuneType);
+	AAMPStatusType Init(TuneType tuneType);
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
 
 	/**
@@ -1893,14 +1893,9 @@ static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
  *   @retval true on success
  *   @retval false on failure
  */
-bool StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
+AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 {
-	bool ret = false;
-	if( mPriv->Init(tuneType))
-	{
-		ret = true;
-	}
-	return ret;
+	return mPriv->Init(tuneType);
 }
 
 
@@ -2253,8 +2248,9 @@ uint64_t PrivateStreamAbstractionMPD::GetPeriodEndTime()
  *   @retval true on success
  *   @retval false on failure
  */
-bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
+AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
+	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	aamp->mStreamSink->ClearProtectionEvent();
 	aamp->licenceFromManifest = false;
@@ -2479,7 +2475,7 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					}
 					logprintf("%s:%d seek target out of range, mark EOS. playTarget:%f End:%f. \n",
 						__FUNCTION__,__LINE__,seekPosition, seekWindowEnd);
-					return true;
+					return eAAMPSTATUS_SEEK_RANGE_ERROR;
 				}
 			}
 
@@ -2536,10 +2532,14 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		else
 		{
 			logprintf("No adaptation sets could be selected\n");
-			ret = false;
+			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 	}
-	return ret;
+	else
+	{
+		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+	}
+	return retval;
 }
 
 
