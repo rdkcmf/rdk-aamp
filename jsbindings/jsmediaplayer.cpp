@@ -27,6 +27,11 @@
 #include "jsutils.h"
 #include "jseventlistener.h"
 
+extern "C"
+{
+	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
+}
+
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.load()
