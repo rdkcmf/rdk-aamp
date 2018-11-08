@@ -54,6 +54,7 @@ KeyID AampDRMSessionManager::cachedKeyIDs[MAX_DRM_SESSIONS] = {{len : 0, data : 
 
 char* AampDRMSessionManager::accessToken = NULL;
 int AampDRMSessionManager::accessTokenLen = 0;
+SessionMgrState AampDRMSessionManager::sessionMgrState = SessionMgrState::eSESSIONMGR_ACTIVE;
 
 static pthread_mutex_t accessTokenMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t session_mutex[2] = {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER};
@@ -131,6 +132,40 @@ void AampDRMSessionManager::clearSessionData()
 			cachedKeyIDs[i].len = 0;
 		}
 	}
+}
+
+/**
+ * @brief	Set Session manager state
+ * @param	state
+ * @return	void.
+ */
+void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
+{
+	pthread_mutex_lock(&initDataMutex);
+	sessionMgrState = state;
+	pthread_mutex_unlock(&initDataMutex);
+}
+
+
+/**
+ * @brief	Clean up the failed keyIds.
+ *
+ * @return	void.
+ */
+void AampDRMSessionManager::clearFailedKeyIds()
+{
+	pthread_mutex_lock(&initDataMutex);
+	for(int i = 0 ; i < MAX_DRM_SESSIONS; i++)
+	{
+		if(cachedKeyIDs[i].data != NULL && cachedKeyIDs[i].isFailedKeyId)
+		{
+			delete cachedKeyIDs[i].data;
+			cachedKeyIDs[i].data = NULL;
+			cachedKeyIDs[i].len = 0;
+			cachedKeyIDs[i].isFailedKeyId = false;
+		}
+	}
+	pthread_mutex_unlock(&initDataMutex);
 }
 
 /**
@@ -769,6 +804,14 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 
 	pthread_mutex_lock(&initDataMutex);
+
+	if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState)
+	{
+		AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
+		free(keyId);
+		pthread_mutex_unlock(&initDataMutex);
+		return NULL;
+	}
 	/*Check if audio/video session for keyid already exists or is in progress of being created
 	*Else clear oldest session and create new one
 	*/
@@ -802,6 +845,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		
 		cachedKeyIDs[sessionType].len = keyIdLen;
+		cachedKeyIDs[sessionType].isFailedKeyId = false;
 		cachedKeyIDs[sessionType].data = new unsigned char[keyIdLen];
 		memcpy(reinterpret_cast<void*>(cachedKeyIDs[sessionType].data),
         reinterpret_cast<const void*>(keyId), keyIdLen);
@@ -842,6 +886,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				AAMPLOG_INFO("%s:%d Aborting session creation for keyId %s: StreamType %s, since previous try failed\n",
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
+				cachedKeyIDs[sessionType].isFailedKeyId = true;
 				pthread_mutex_unlock(&session_mutex[sessionType]);
 				free(keyId);
 				return NULL;
@@ -897,8 +942,10 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		if (contentMetadataPtr)
 		{
-			contentMetaData = (unsigned char *)contentMetadataPtr;
-			contentMetaDataLen = strlen((const char*)contentMetaData);
+			contentMetaDataLen = strlen((const char*)contentMetadataPtr);
+			contentMetaData = (unsigned char *)malloc(contentMetaDataLen + 1);
+			memset(contentMetaData, 0, contentMetaDataLen + 1);
+			strncpy(reinterpret_cast<char*>(contentMetaData), reinterpret_cast<const char*>(contentMetadataPtr), contentMetaDataLen);
 			logprintf("%s:%d [HHH]contentMetaData length=%d\n", __FUNCTION__, __LINE__, contentMetaDataLen);
 		}
 		//For WV _extractWVContentMetadataFromPssh() won't work at this point

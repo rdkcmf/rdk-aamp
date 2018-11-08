@@ -1437,6 +1437,12 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								return retval;
 							}
 						}
+						else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO && duration > 0 && ((pMediaStreamContext->lastSegmentTime - startTime) > TIMELINE_START_RESET_DIFF))
+						{
+							logprintf("%s:%d START-TIME RESET in TSB period, lastSegmentTime=%" PRIu64 " start-time=%lld duration=%lld\n", __FUNCTION__, __LINE__, pMediaStreamContext->lastSegmentTime, startTime, duration);
+							pMediaStreamContext->lastSegmentTime = startTime - 1;
+							return retval;
+						}
 						else
 						{
 							int index = pMediaStreamContext->fragmentIndex + 1;
@@ -2014,6 +2020,8 @@ void *CreateDRMSession(void *arg)
 	}
 	delete sessionManger;
 	free(data);
+	if(contentMetadata != NULL)
+		free(contentMetadata);
 	free(sessionParams);
 	return NULL;
 }
@@ -2257,6 +2265,9 @@ bool PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	aamp->mStreamSink->ClearProtectionEvent();
+  #ifdef AAMP_MPD_DRM
+	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+  #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
 #ifdef AAMP_MPD_DRM
@@ -4637,6 +4648,10 @@ void PrivateStreamAbstractionMPD::Stop()
 		fragmentCollectorThreadStarted = false;
 	}
 	aamp->mStreamSink->ClearProtectionEvent();
+  #ifdef AAMP_MPD_DRM
+	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+	AampDRMSessionManager::clearFailedKeyIds();
+  #endif
 }
 
 
