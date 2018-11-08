@@ -2503,6 +2503,23 @@ void ProcessCommand(char *cmd, bool usingCLI)
 					mSingleton->SetVideoRectangle(x, y, w, h);
 				}
 			}
+			else if (memcmp(cmd, "zoom", 4) == 0)
+			{
+				int zoom;
+				if (sscanf(cmd, "zoom %d", &zoom) == 1)
+				{
+					if (zoom)
+					{
+						logprintf("Set zoom to full\n", zoom);
+						mSingleton->SetVideoZoom(VIDEO_ZOOM_FULL);
+					}
+					else
+					{
+						logprintf("Set zoom to none\n", zoom);
+						mSingleton->SetVideoZoom(VIDEO_ZOOM_NONE);
+					}
+				}
+			}
 			else if (strcmp(cmd, "sap") == 0)
 			{
 				gpGlobalConfig->SAP = !gpGlobalConfig->SAP;

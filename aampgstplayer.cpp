@@ -891,6 +891,8 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 #if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
 					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
 					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+					logprintf("AAMPGstPlayer setting zoom %s\n", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? "FULL" : "NONE");
+					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
 #endif
 					logprintf("AAMPGstPlayer setting video mute %d\n", _this->privateContext->videoMuted);
 					g_object_set(msg->src, "mute", _this->privateContext->videoMuted, NULL);
