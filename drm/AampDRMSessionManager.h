@@ -63,7 +63,18 @@ struct KeyID
 	size_t len;
 	unsigned char* data;
 	long long creationTime;
+	bool isFailedKeyId;
 };
+
+/**
+ *  @brief	Enum to represent session manager state.
+ *  		Session manager would abort any createDrmSession
+ *  		request if in eSESSIONMGR_INACTIVE state.
+ */
+typedef enum{
+	eSESSIONMGR_INACTIVE,
+	eSESSIONMGR_ACTIVE
+}SessionMgrState;
 
 /**
  *  @class	AampDRMSessionManager
@@ -80,6 +91,7 @@ private:
 			void *userdata);
 	static char* accessToken;
 	static int accessTokenLen;
+	static SessionMgrState sessionMgrState;
 public:
 
 	void initializeDrmSessions();
@@ -99,6 +111,10 @@ public:
 	static void clearSessionData();
 
 	static void clearAccessToken();
+
+	static void clearFailedKeyIds();
+
+	static void setSessionMgrState(SessionMgrState state);
 
 	static const char* getAccessToken(int *tokenLength);
 };
