@@ -1525,15 +1525,18 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
 #endif
 #if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
-		logprintf("%s:%d - using ismd_vidsink\n", __FUNCTION__, __LINE__);
-		GstElement* vidsink = gst_element_factory_make("ismd_vidsink", NULL);
-		if(!vidsink)
+		if (eMEDIATYPE_VIDEO == streamId)
 		{
-			logprintf("%s:%d - Could not create ismd_vidsink element\n", __FUNCTION__, __LINE__);
-		}
-		else
-		{
-			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+			logprintf("%s:%d - using ismd_vidsink\n", __FUNCTION__, __LINE__);
+			GstElement* vidsink = gst_element_factory_make("ismd_vidsink", NULL);
+			if(!vidsink)
+			{
+				logprintf("%s:%d - Could not create ismd_vidsink element\n", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+			}
 		}
 #endif
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->sinkbin);
