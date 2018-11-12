@@ -1012,6 +1012,14 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 #endif
 		mTuneCompleted = true;
 		mFirstTune = false;
+		TunedEventConfig tunedEventConfig = IsLive() ? gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
+		if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
+		{
+			if (SendTunedEvent())
+			{
+				logprintf("aamp: - sent TUNED event on Tune Completion.\n");
+			}
+		}
 	}
 	gpGlobalConfig->setLogLevel(eLOGLEVEL_WARN);
 }
