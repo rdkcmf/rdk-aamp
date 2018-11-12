@@ -1956,19 +1956,20 @@ static void ParseISO8601Duration(const char *ptr, uint64_t &durationMs)
 		const char* temp = strchr(ptr, 'H');
 		if (temp)
 		{
-			sscanf(ptr, "%dH%dM%fS", &hour, &minute, &seconds);
+			sscanf(ptr, "%dH", &hour);
+			ptr = temp + 1;
 		}
-		else
+		temp = strchr(ptr, 'M');
+		if (temp)
 		{
-			temp = strchr(ptr, 'M');
-			if (temp)
-			{
-				sscanf(ptr, "%dM%fS", &minute, &seconds);
-			}
-			else
-			{
-				sscanf(ptr, "%fS", &seconds);
-			}
+			sscanf(ptr, "%dM", &minute);
+			ptr = temp + 1;
+		}
+		temp = strchr(ptr, 'S');
+		if (temp)
+		{
+			sscanf(ptr, "%fS", &seconds);
+			ptr = temp + 1;
 		}
 	}
 	else
