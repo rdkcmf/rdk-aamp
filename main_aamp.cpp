@@ -1665,6 +1665,8 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 			return "MANIFEST";
 		case eMEDIATYPE_LICENCE:
 			return "LICENCE";
+		case eMEDIATYPE_IFRAME:
+			return "IFRAME";
 		default:
 			return "";
 	}
@@ -1916,9 +1918,18 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			}
 			else
 			{
+				if(fileType == eMEDIATYPE_MANIFEST)
+				{
+					fileType = (MediaType)curlInstance;
+				}
+				else if ( strstr(remoteUrl,"iframe") )
+					fileType = eMEDIATYPE_IFRAME;
+				}
+
 				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->latencyLogging[fileType] == true))
 				{
-					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,GetCurrentlyAvailableBandwidth(),remoteUrl);
+					long long SequenceNo = GetSeqenceNumberfromURL(RemoteURI);
+					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl);
 				}
 				ret             =       true;
 			}
@@ -2876,10 +2887,10 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]= true;
 				logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
 			}
-			else if (strcmp(cmd, "manifestLatencyLogging") == 0)
+			else if (strcmp(cmd, "iframeLatencyLogging") == 0)
 			{
-				gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]= true;
-				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
+				gpGlobalConfig->latencyLogging[eMEDIATYPE_IFRAME]= true;
+				logprintf("iframeLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_IFRAME]? "enabled" : "disabled");
 			}
             else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
             {
@@ -6058,4 +6069,49 @@ double PrivateInstanceAAMP::GetFirstPTS()
 bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
 {
 	return (mContentType == ContentType_IVOD || mContentType == ContentType_VOD || mContentType == ContentType_CDVR || mContentType == ContentType_IPDVR);
+}
+
+/**
+ *   @brief  Get Sequence Number from URL
+ *
+ *   @param[in] fragmentUrl fragment Url
+ *   @returns Sequence Number if found in fragment Url else 0
+ */
+long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(std::string &URI)
+{
+	std::string Seq;
+	int POS, POS1;
+	long long SeqNo = 0;
+	int fraglen = strlen("-frag-");
+
+	try
+	{
+		if((POS = URI.find(".mp4")) != std::string::npos)
+		{
+			std::string NewURI = URI.substr(0, POS+4);
+			if((POS1= NewURI.rfind("-frag-")) == std::string::npos) return 0;
+			if(POS1 >= POS) return 0;
+			Seq = NewURI.substr(POS1+fraglen, POS-(POS1+fraglen));
+			return stoll(Seq);
+		}else if ((POS= URI.find(".seg")) != std::string::npos ){
+			if(URI.find("-init.seg") != std::string::npos) return 0;
+			std::string NewURI = URI.substr(0, POS+4);
+			if((POS1= NewURI.rfind("/")) == std::string::npos) return 0;
+			if(POS1 >= POS) return 0;
+			Seq = NewURI.substr((POS1+1), POS-(POS1+1));
+			return stoll(Seq);
+		}else if((POS = URI.find(".ts")) != std::string::npos ){
+			std::string NewURI = URI.substr(0, POS+3);
+			if((POS1= NewURI.rfind("-frag-")) == std::string::npos) return 0;
+			Seq = NewURI.substr(POS1+fraglen, POS-(POS1+fraglen));
+			return stoll(Seq);
+		}
+
+		return 0;
+	}
+	catch(...)
+	{
+		logprintf("%s:%d: Exception in parsing URL: %s\n", __FUNCTION__, __LINE__, URI.c_str());
+		return 0;
+	}
 }
