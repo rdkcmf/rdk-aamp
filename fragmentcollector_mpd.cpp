@@ -405,6 +405,7 @@ private:
 	int mPrevAdaptationSetCount;
 	std::unordered_map<long, int> mBitrateIndexMap;
 	bool mIsFogTSB;
+	bool mIsIframeTrackPresent;
 };
 
 
@@ -446,6 +447,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 	mPrevAdaptationSetCount = 0;
 	mIsFogTSB = false;
+	mIsIframeTrackPresent = false;
 };
 
 
@@ -2532,45 +2534,21 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				seekPosition += currentPeriodStart;
 			if (newTune )
 			{
-				AAMPEvent event;
-				event.type = AAMP_EVENT_MEDIA_METADATA;
-				event.data.metadata.durationMiliseconds = durationMs;
-				int langCount = 0;
-				std::set<std::string>::iterator langiter;
-				for(langiter = mLangList.begin(); langiter != mLangList.end() && langCount < MAX_LANGUAGE_COUNT; langiter++ , langCount++)
-				{
-					std::string lang = *langiter;
-					if (!lang.empty())
-                                        {
-						strncpy(event.data.metadata.languages[langCount], lang.c_str(), MAX_LANGUAGE_TAG_LENGTH);
-                                               	event.data.metadata.languages[langCount][MAX_LANGUAGE_TAG_LENGTH - 1] = 0;
-					}
-				} 
-				
-				event.data.metadata.languageCount = langCount;
-				aamp->StoreLanguageList(langCount, event.data.metadata.languages);
+				std::vector<long> bitrateList;
+				bitrateList.reserve(GetProfileCount());
 
-				int bitrateCount = 0;
-				memset(event.data.metadata.bitrates, 0, MAX_BITRATE_COUNT);
-				int streamCount = GetProfileCount();
-				for (int i = 0; (i < streamCount && bitrateCount < MAX_BITRATE_COUNT); i++)
+				for (int i = 0; i < GetProfileCount(); i++)
 				{
 					if (!mStreamInfo[i].isIframeTrack)
 					{
-						event.data.metadata.bitrates[bitrateCount++] = mStreamInfo[i].bandwidthBitsPerSecond;
+						bitrateList.push_back(mStreamInfo[i].bandwidthBitsPerSecond);
 					}
 				}
-				event.data.metadata.bitrateCount = bitrateCount;
 
-				int currentProfileIndex = mMediaStreamContext[eMEDIATYPE_VIDEO]->representationIndex;
-				event.data.metadata.width = 1280;
-				event.data.metadata.height = 720;
-				aamp->GetPlayerVideoSize(event.data.metadata.width, event.data.metadata.height);
-				event.data.metadata.hasDrm = mContext->hasDrm;
 				aamp->SetState(eSTATE_PREPARING);
+				//For DASH, presence of iframe track depends on current period.
+				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, mContext->hasDrm, mIsIframeTrackPresent);
 
-				logprintf("aamp: sending metadata event and duration update %f\n", ((double)durationMs)/1000);
-				aamp->SendEventAsync(event);
 				aamp->UpdateDuration(((double)durationMs)/1000);
 				aamp->UpdateRefreshPlaylistInterval((float)mMinUpdateDurationMs / 1000);
 			}
@@ -3383,6 +3361,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		bool otherLanguageSelected = false;
 		mMediaStreamContext[i]->enabled = false;
 		std::string selectedLanguage;
+		bool isIframeAdaptationAvailable = false;
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -3433,22 +3412,35 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
 						}
 					}
-					else if ((!gpGlobalConfig->bAudioOnlyPlayback) && (!IsIframeTrack(adaptationSet)))
+					else if (!gpGlobalConfig->bAudioOnlyPlayback)
 					{
-						// Got Video , confirmed its not iframe adaptation
-						selAdaptationSetIndex	=	iAdaptationSet;
-						if(!newTune)
+						if (!isIframeAdaptationAvailable || selAdaptationSetIndex == -1)
 						{
-							if(GetProfileCount() == adaptationSet->GetRepresentation().size())
+							if (!IsIframeTrack(adaptationSet))
 							{
-								selRepresentationIndex	=	pMediaStreamContext->representationIndex;
+								// Got Video , confirmed its not iframe adaptation
+								selAdaptationSetIndex =	iAdaptationSet;
+								if(!newTune)
+								{
+									if(GetProfileCount() == adaptationSet->GetRepresentation().size())
+									{
+										selRepresentationIndex = pMediaStreamContext->representationIndex;
+									}
+									else
+									{
+										selRepresentationIndex = -1; // this will be set based on profile selection
+									}
+								}
 							}
 							else
 							{
-								selRepresentationIndex = -1; // this will be set based on profile selection
+								isIframeAdaptationAvailable = true;
 							}
 						}
-						break;
+						else
+						{
+							break;
+						}
 					}
 				}
 				else if ((!gpGlobalConfig->bAudioOnlyPlayback) && (eMEDIATYPE_VIDEO == i))
@@ -3460,6 +3452,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 						pMediaStreamContext->enabled = true;
 						pMediaStreamContext->adaptationSetIdx = iAdaptationSet;
 						mNumberOfTracks = 1;
+						isIframeAdaptationAvailable = true;
 						break;
 					}
 				}
@@ -3518,6 +3511,17 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 
 		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
+
+		//Store the iframe track status in current period if there is any change
+		if (!gpGlobalConfig->bAudioOnlyPlayback && (i == eMEDIATYPE_VIDEO) && (mIsIframeTrackPresent != isIframeAdaptationAvailable))
+		{
+			mIsIframeTrackPresent = isIframeAdaptationAvailable;
+			//Iframe tracks changed mid-stream, sent a playbackspeed changed event
+			if (!newTune)
+			{
+				aamp->SendSupportedSpeedsChangedEvent(mIsIframeTrackPresent);
+			}
+		}
 	}
 }
 
@@ -4974,6 +4978,7 @@ std::vector<long> PrivateStreamAbstractionMPD::GetVideoBitrates(void)
 {
 	std::vector<long> bitrates;
 	int profileCount = GetProfileCount();
+	bitrates.reserve(profileCount);
 	if (profileCount)
 	{
 		for (int i = 0; i < profileCount; i++)

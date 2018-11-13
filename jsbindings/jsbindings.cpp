@@ -924,6 +924,18 @@ public:
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
 
+		array = new JSValueRef[e.data.metadata.supportedSpeedCount];
+		for (int32_t i = 0; i < e.data.metadata.supportedSpeedCount; i++)
+		{
+			array[i] = JSValueMakeNumber(context, e.data.metadata.supportedSpeeds[i]);
+		}
+		prop = JSObjectMakeArray(context, e.data.metadata.supportedSpeedCount, array, NULL);
+		delete [] array;
+
+		name = JSStringCreateWithUTF8CString("playbackSpeeds");
+		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
 		name = JSStringCreateWithUTF8CString("width");
 		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, e.data.metadata.width), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
@@ -1008,6 +1020,46 @@ public:
 	}
 };
 
+
+/**
+ * @class AAMP_JSListener_SpeedsChanged
+ * @brief Event listener impl for SPEEDS_CHANGED AAMP event
+ */
+class AAMP_JSListener_SpeedsChanged : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_SpeedsChanged Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_SpeedsChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSValueRef* array = new JSValueRef[e.data.speedsChanged.supportedSpeedCount];
+		for (int32_t i = 0; i < e.data.speedsChanged.supportedSpeedCount; i++)
+		{
+			array[i] = JSValueMakeNumber(context, e.data.speedsChanged.supportedSpeeds[i]);
+		}
+		JSValueRef prop = JSObjectMakeArray(context, e.data.speedsChanged.supportedSpeedCount, array, NULL);
+		delete [] array;
+
+		JSStringRef name = JSStringCreateWithUTF8CString("playbackSpeeds");
+		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+	}
+};
 
 /**
  * @brief Callback invoked from JS to add an event listener for a particular event
@@ -1107,6 +1159,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_STATE_CHANGED)
 	{
 		pListener = new AAMP_JSListener_StatusChanged(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_SPEEDS_CHANGED)
+	{
+		pListener = new AAMP_JSListener_SpeedsChanged(aamp, type, jsCallback);
 	}
 	else
 	{

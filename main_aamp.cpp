@@ -6059,3 +6059,101 @@ bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
 {
 	return (mContentType == ContentType_IVOD || mContentType == ContentType_VOD || mContentType == ContentType_CDVR || mContentType == ContentType_IPDVR);
 }
+
+/**
+ *   @brief  Generate media metadata event based on args passed.
+ *
+ *   @param[in] durationMs - duration of playlist in milliseconds
+ *   @param[in] langList - list of audio language available in asset
+ *   @param[in] bitrateList - list of video bitrates available in asset
+ *   @param[in] hasDrm - indicates if asset is encrypted/clear
+ *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ */
+void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent)
+{
+	AAMPEvent event;
+	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
+	int langCount = 0;
+	int bitrateCount = 0;
+	int supportedSpeedCount = 0;
+
+	event.type = AAMP_EVENT_MEDIA_METADATA;
+	event.data.metadata.durationMiliseconds = durationMs;
+	memset(event.data.metadata.bitrates, 0, sizeof(event.data.metadata.bitrates));
+	memset(event.data.metadata.supportedSpeeds, 0, sizeof(event.data.metadata.supportedSpeeds));
+
+	for (std::set<std::string>::iterator iter = langList.begin();
+			(iter != langList.end() && langCount < MAX_LANGUAGE_COUNT) ; iter++)
+	{
+		std::string langEntry = *iter;
+		if (!langEntry.empty())
+		{
+			strncpy(event.data.metadata.languages[langCount], langEntry.c_str(), MAX_LANGUAGE_TAG_LENGTH);
+			event.data.metadata.languages[langCount][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
+			langCount++;
+		}
+	}
+	event.data.metadata.languageCount = langCount;
+	StoreLanguageList(langCount, event.data.metadata.languages);
+
+	for (int i = 0; (i < bitrateList.size() && bitrateCount < MAX_BITRATE_COUNT); i++)
+	{
+		event.data.metadata.bitrates[bitrateCount++] = bitrateList[i];
+	}
+	event.data.metadata.bitrateCount = bitrateCount;
+	event.data.metadata.width = 1280;
+	event.data.metadata.height = 720;
+	GetPlayerVideoSize(event.data.metadata.width, event.data.metadata.height);
+	event.data.metadata.hasDrm = hasDrm;
+
+	//Iframe track present and hence playbackRate change is supported
+	if (isIframeTrackPresent)
+	{
+		for(int i = 0; i < supportedPlaybackSpeeds.size() && supportedSpeedCount < MAX_SUPPORTED_SPEED_COUNT; i++)
+		{
+			event.data.metadata.supportedSpeeds[supportedSpeedCount++] = supportedPlaybackSpeeds[i];
+		}
+	}
+	else
+	{
+		//Supports only pause and play
+		event.data.metadata.supportedSpeeds[supportedSpeedCount++] = 0;
+		event.data.metadata.supportedSpeeds[supportedSpeedCount++] = 1;
+	}
+	event.data.metadata.supportedSpeedCount = supportedSpeedCount;
+
+	logprintf("aamp: sending metadata event and duration update %f\n", ((double)durationMs)/1000);
+	SendEventAsync(event);
+}
+
+/**
+ *   @brief  Generate supported speeds changed event based on arg passed.
+ *
+ *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ */
+void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent)
+{
+	AAMPEvent event;
+	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
+	int supportedSpeedCount = 0;
+
+	event.type = AAMP_EVENT_SPEEDS_CHANGED;
+	//Iframe track present and hence playbackRate change is supported
+	if (isIframeTrackPresent)
+	{
+		for(int i = 0; i < supportedPlaybackSpeeds.size() && supportedSpeedCount < MAX_SUPPORTED_SPEED_COUNT; i++)
+		{
+			event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = supportedPlaybackSpeeds[i];
+		}
+	}
+	else
+	{
+		//Supports only pause and play
+		event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = 0;
+		event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = 1;
+	}
+	event.data.speedsChanged.supportedSpeedCount = supportedSpeedCount;
+
+	logprintf("aamp: sending supported speeds changed event with count %d\n", supportedSpeedCount);
+	SendEventAsync(event);
+}

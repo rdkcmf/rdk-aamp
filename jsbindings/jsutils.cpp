@@ -57,6 +57,7 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
 	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
 	{ AAMP_EVENT_STATE_CHANGED, "statusChanged"},
+	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
 	{ (AAMPEventType)0, "" }
 };
 
@@ -81,6 +82,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
 	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
 	{ AAMP_EVENT_STATE_CHANGED, "playbackStateChanged"},
+	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
 	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
 	{ AAMP_EVENT_DURATION_CHANGED, "durationChanged"},
 	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "currentAudioTrackChanged"},
