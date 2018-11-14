@@ -45,7 +45,6 @@
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
-//#define AAMP_DISABLE_AUDIO_TRACK
 //#define HARVEST_MPD
 
 using namespace dash;
@@ -1438,8 +1437,14 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							*/
 							if(eMEDIATYPE_VIDEO == pMediaStreamContext->mediaType)
 							{
-								string bitrateStr = segmentURL->GetRawAttributes().at("bitrate");
-								long long bitrate = stoll(bitrateStr);
+								long long bitrate = 0;
+								std::map<string,string> rawAttributes =  segmentURL->GetRawAttributes();
+								if(rawAttributes.find("bitrate") == rawAttributes.end()){
+									bitrate = pMediaStreamContext->fragmentDescriptor.Bandwidth;
+								}else{
+									string bitrateStr = rawAttributes["bitrate"];
+									bitrate = stoll(bitrateStr);
+								}
 								if(pMediaStreamContext->fragmentDescriptor.Bandwidth != bitrate || pMediaStreamContext->profileChanged)
 								{
 									pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
@@ -3517,9 +3522,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->type = eTRACK_VIDEO;
 		mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
 	}
-#ifdef AAMP_DISABLE_AUDIO_TRACK
-	mNumberOfTracks = 1;
-#endif
 }
 
 /**
