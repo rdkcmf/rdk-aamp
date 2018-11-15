@@ -3651,8 +3651,12 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						{
 							defaultBitrate = persistedBandwidth;
 						}
-						mContext->GetABRManager().setDefaultInitBitrate(defaultBitrate);
 					}
+				}
+
+				if (defaultBitrate != gpGlobalConfig->defaultBitrate)
+				{
+					mContext->GetABRManager().setDefaultInitBitrate(defaultBitrate);
 				}
 			}
 
