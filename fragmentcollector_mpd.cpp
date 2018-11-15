@@ -2424,20 +2424,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		if(mNumberOfTracks)
 		{
-			if(1 == mNumberOfTracks && !mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
-			{
-				logprintf("PrivateStreamAbstractionMPD::%s:%d Audio only channel\n", __FUNCTION__, __LINE__);
-                mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled = mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled;
-                mMediaStreamContext[eMEDIATYPE_VIDEO]->adaptationSetIdx = mMediaStreamContext[eMEDIATYPE_AUDIO]->adaptationSetIdx;
-                mMediaStreamContext[eMEDIATYPE_VIDEO]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUDIO]->representationIndex;
-				//memcpy(mMediaStreamContext[eMEDIATYPE_VIDEO], mMediaStreamContext[eMEDIATYPE_AUDIO], sizeof(MediaStreamContext));
-				mMediaStreamContext[eMEDIATYPE_VIDEO]->mediaType = eMEDIATYPE_VIDEO;
-                mMediaStreamContext[eMEDIATYPE_VIDEO]->type = eTRACK_VIDEO;
-				mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
-			}
-#ifdef AAMP_DISABLE_AUDIO_TRACK
-			mNumberOfTracks = 1;
-#endif
 			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
 			TunedEventConfig tunedEventConfig =  mIsLive ?
 					gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
@@ -3519,6 +3505,21 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
 	}
+
+	if(1 == mNumberOfTracks && !mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+	{
+		if(newTune)
+			logprintf("PrivateStreamAbstractionMPD::%s:%d Audio only period\n", __FUNCTION__, __LINE__);
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled = mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled;
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->adaptationSetIdx = mMediaStreamContext[eMEDIATYPE_AUDIO]->adaptationSetIdx;
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUDIO]->representationIndex;
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->mediaType = eMEDIATYPE_VIDEO;
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->type = eTRACK_VIDEO;
+		mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
+	}
+#ifdef AAMP_DISABLE_AUDIO_TRACK
+	mNumberOfTracks = 1;
+#endif
 }
 
 /**
@@ -3732,7 +3733,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
-	if (mIsLive && !aamp->IsInProgressCDVR())
+	if (mIsLive && !aamp->IsInProgressCDVR() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 	{
 		UpdateCullingState();
 	}
