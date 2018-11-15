@@ -2056,6 +2056,15 @@ public:
 	 *   @return true if asset is either vod/ivod/cdvr
 	 */
 	bool IsVodOrCdvrAsset();
+
+	/**
+	 *   @brief  Get Sequence Number from URL
+	 *
+	 *   @param[in] fragmentUrl fragment Url
+	 *   @returns Sequence Number if found in fragment Url else 0
+	 */
+	long long GetSeqenceNumberfromURL(std::string &fragmentUrl);
+
 private:
 
 	/**
