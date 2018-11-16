@@ -4520,7 +4520,12 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - null mpd\n", __FUNCTION__, __LINE__);
 		}
 
-		if (mLastPlaylistDownloadTimeMs)
+		// If it comes here , two reason a) Reached eos b) Need livempdUpdate
+		// If liveMPDRefresh is true , that means it already reached 6 sec timeout .
+		// 		No more further delay required for mpd update .
+		// If liveMPDRefresh is false, then it hit eos . Here the timeout is calculated based
+		// on the buffer availability.
+		if (!liveMPDRefresh && mLastPlaylistDownloadTimeMs)
 		{
 			int minDelayBetweenPlaylistUpdates = (int)mMinUpdateDurationMs;	
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
@@ -4572,14 +4577,20 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 			}
 
-			// adjust with last refreshed time interval
-			minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
+			// First cap max limit ..
+			// remove already consumed time from last update
+			// if time interval goes negative, limit to min value
+
 			// restrict to Max delay interval
 			if (minDelayBetweenPlaylistUpdates > MAX_DELAY_BETWEEN_MPD_UPDATE_MS)
 			{
 				minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_MPD_UPDATE_MS;	
 			}
-			else if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_MPD_UPDATE_MS)
+
+			// adjust with last refreshed time interval
+			minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
+
+			if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_MPD_UPDATE_MS)
 			{
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_MPD_UPDATE_MS;
