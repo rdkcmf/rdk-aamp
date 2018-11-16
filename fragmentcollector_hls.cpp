@@ -2564,11 +2564,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				if (newTune && needMetadata)
 				{
 					needMetadata = false;
-					AAMPEvent event;
-					event.type = AAMP_EVENT_MEDIA_METADATA;
-					event.data.metadata.durationMiliseconds = totalDuration[iTrack] * 1000.0;
-					int langCount = 0;
 					std::set<std::string> langList;
+					std::vector<long> bitrateList;
+					bool isIframeTrackPresent = false;
 					//To avoid duplicate entries in audioLanguage list
 					for (int iMedia = 0; iMedia < this->mediaCount; iMedia++)
 					{
@@ -2577,36 +2575,20 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							langList.insert(this->mediaInfo[iMedia].language);
 						}
 					}
-					for (std::set<std::string>::iterator iter = langList.begin();
-						(iter != langList.end() && langCount < MAX_LANGUAGE_COUNT) ; iter++)
-					{
-						std::string langEntry = *iter;
-						if (!langEntry.empty())
-						{
-							strncpy(event.data.metadata.languages[langCount], langEntry.c_str(), MAX_LANGUAGE_TAG_LENGTH);
-							event.data.metadata.languages[langCount][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
-							langCount++;
-						}
-					}
-					event.data.metadata.languageCount = langCount;
-					aamp->StoreLanguageList(langCount,event.data.metadata.languages);
 
-					int bitrateCount = 0;
-					memset(event.data.metadata.bitrates, 0, MAX_BITRATE_COUNT);
-					for (int i = 0; (i < GetProfileCount() && bitrateCount < MAX_BITRATE_COUNT); i++)
+					bitrateList.reserve(GetProfileCount());
+					for (int i = 0; i < GetProfileCount(); i++)
 					{
 						if (!streamInfo[i].isIframeTrack)
 						{
-							event.data.metadata.bitrates[bitrateCount++] = streamInfo[i].bandwidthBitsPerSecond;
+							bitrateList.push_back(streamInfo[i].bandwidthBitsPerSecond);
+						}
+						else
+						{
+							isIframeTrackPresent = true;
 						}
 					}
-					event.data.metadata.bitrateCount = bitrateCount;
-					event.data.metadata.width = 1280;
-					event.data.metadata.height = 720;
-					aamp->GetPlayerVideoSize(event.data.metadata.width, event.data.metadata.height);
-					event.data.metadata.hasDrm = hasDrm;
-					logprintf("aamp: sending metadata event\n");
-					aamp->SendEventAsync(event);
+					aamp->SendMediaMetadataEvent((totalDuration[iTrack] * 1000.0), langList, bitrateList, hasDrm, isIframeTrackPresent);
 
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.

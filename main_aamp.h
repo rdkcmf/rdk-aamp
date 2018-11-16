@@ -103,6 +103,7 @@ typedef enum
 	AAMP_EVENT_BITRATE_CHANGED,     /**< Event when bitrate changes */
 	AAMP_EVENT_TIMED_METADATA,      /**< Meta-data of a subscribed tag parsed from manifest*/
 	AAMP_EVENT_STATE_CHANGED,       /**< Event when player state changes */
+	AAMP_EVENT_SPEEDS_CHANGED,      /**< Event when supported playback speeds changes */
 //Unified Video Engine API spec
 	AAMP_EVENT_BUFFERING_CHANGED,   /**< Event when buffering starts/ends btw a playback*/
 	AAMP_EVENT_DURATION_CHANGED,    /**< Event when duration changed */
@@ -194,6 +195,7 @@ typedef enum
 #define MAX_LANGUAGE_TAG_LENGTH 4
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
 #define MAX_BITRATE_COUNT 10
+#define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
 
 /**
  * @brief Structure of the AAMP events.
@@ -249,6 +251,8 @@ struct AAMPEvent
 			int width;                                                      /**< Maximum video width */
 			int height;                                                     /**< Maximum video height */
 			bool hasDrm;                                                    /**< Drm enabled */
+			int supportedSpeedCount;                                        /**< Supported playback speed count */
+			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];                 /**< Supported playback speeds */
 		} metadata;
 
 		/**
@@ -297,10 +301,22 @@ struct AAMPEvent
 			PrivAAMPState state;        /**< Player state */
 		} stateChanged;
 
+		/**
+		 * @brief Structure of the buffering changed event
+		 */
 		struct
 		{
 			bool buffering;            /**< true if buffering started, false otherwise */
 		} bufferingChanged;
+
+		/**
+		 * @brief Structure of the supported speeds changed event
+		 */
+		struct
+		{
+			int supportedSpeedCount;                            /**< Supported playback speed count */
+			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];     /**< Supported playback speeds */
+		} speedsChanged;
 
 	} data;
 

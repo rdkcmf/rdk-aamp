@@ -36,6 +36,7 @@
 #include <unordered_map>
 #include <chrono>
 #include <map>
+#include <set>
 
 extern void logprintf(const char *format, ...);
 
@@ -2056,6 +2057,24 @@ public:
 	 *   @return true if asset is either vod/ivod/cdvr
 	 */
 	bool IsVodOrCdvrAsset();
+
+	/**
+	 *   @brief  Generate media metadata event based on args passed.
+	 *
+	 *   @param[in] durationMs - duration of playlist in milliseconds
+	 *   @param[in] langList - list of audio language available in asset
+	 *   @param[in] bitrateList - list of video bitrates available in asset
+	 *   @param[in] hasDrm - indicates if asset is encrypted/clear
+	 *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+	 */
+	void SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframePresent);
+
+	/**
+	 *   @brief  Generate supported speeds changed event based on arg passed.
+	 *
+	 *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+	 */
+	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 private:
 
 	/**
