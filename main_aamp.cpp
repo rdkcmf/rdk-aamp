@@ -1004,7 +1004,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	if (!mTuneCompleted)
 	{
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
-		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 #ifndef STANDALONE_AAMP
 		SetupPipeSession();
 		SendMessageOverPipe((const char *) classicTuneStr, (int) strlen(classicTuneStr));
@@ -3871,6 +3871,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
+	if(bFirstAttempt)
+	{
+		mfirstTuneFmt = mIsDash?1:0;
+	}
 	TuneHelper(tuneType);
 }
 

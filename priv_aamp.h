@@ -829,7 +829,7 @@ public:
 	 * @param[out] TuneTimeInfoStr - Formatted output string
 	 * @return void
 	 */
-	void GetClassicTuneTimeInfo(bool success, int tuneRetries, long long playerLoadTime, int streamType, bool isLive,unsigned int durationinSec, char *TuneTimeInfoStr)
+	void GetClassicTuneTimeInfo(bool success, int tuneRetries, int firstTuneType, long long playerLoadTime, int streamType, bool isLive,unsigned int durationinSec, char *TuneTimeInfoStr)
 	{
 						// Prepare String for Classic TuneTime data
 						// Note: Certain buckets won't be available; will take the tFinish of the previous bucket as the start & finish those buckets.
@@ -866,11 +866,11 @@ public:
 								"%d,%d,%d,%d,"                                          // licenseTotal,success,durationinMilliSec,isLive
 								"%lld,%lld,%lld,"                                       // TuneTimeBeginLoad,TuneTimePrepareToPlay,TuneTimePlay,
 								"%lld,%lld,%lld,"                                       //TuneTimeDrmReady,TuneTimeStartStream,TuneTimeStreaming
-								"%d,%d",                                             //streamType, tuneRetries
+								"%d,%d,%d",                                             //streamType, tuneRetries
 								networkTime,playerLoadTime, failRetryBucketTime, prepareToPlayBucketTime,playBucketTime,drmReadyBucketTime,decoderStreamingBucketTime,
 								manifestTotal,profilesTotal,(initFragmentTotal + fragmentTotal),fragmentBucketTime, licenseTotal,success,durationinSec*1000,isLive,
 								xreTimeBuckets[TuneTimeBeginLoad],xreTimeBuckets[TuneTimePrepareToPlay],xreTimeBuckets[TuneTimePlay] ,xreTimeBuckets[TuneTimeDrmReady],
-								xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries
+								xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries,firstTuneType
 								);
 #ifdef STANDALONE_AAMP
 						logprintf("AAMP=>XRE: %s\n",TuneTimeInfoStr);
@@ -2105,6 +2105,7 @@ private:
 	int m_fd;
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
+	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)
 	int  mTuneAttempts;			//To distinguish between new tune & retries with redundant over urls.
 	long long mPlayerLoadTime;
 	PrivAAMPState mState;
