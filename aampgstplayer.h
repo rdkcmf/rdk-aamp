@@ -71,6 +71,7 @@ public:
 	~AAMPGstPlayer();
 	static void InitializeAAMPGstreamerPlugins();
 	void NotifyEOS();
+	void NotifyFirstFrame(MediaType type);
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);

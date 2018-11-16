@@ -534,6 +534,47 @@ static gboolean IdleCallback(gpointer user_data)
 #endif
 
 /**
+ * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
+ * @param[in] type media type of the frame which is decoded, either audio or video.
+ */
+void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
+{
+	if(!privateContext->firstFrameReceived)
+	{
+		privateContext->firstFrameReceived = true;
+		aamp->LogFirstFrame();
+		aamp->LogTuneComplete();
+	}
+
+	if (eMEDIATYPE_VIDEO == type)
+	{
+		if (!privateContext->decoderHandleNotified)
+		{
+			privateContext->decoderHandleNotified = true;
+			privateContext->firstFrameCallbackIdleTaskPending = true;
+			privateContext->firstFrameCallbackIdleTaskId = g_idle_add(IdleCallbackOnFirstFrame, this);
+			if (!privateContext->firstFrameCallbackIdleTaskPending)
+			{
+				logprintf("%s:%d firstFrameCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
+				privateContext->firstFrameCallbackIdleTaskId = 0;
+			}
+		}
+#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
+		if (privateContext->firstProgressCallbackIdleTaskId == 0)
+		{
+			privateContext->firstProgressCallbackIdleTaskPending = true;
+			privateContext->firstProgressCallbackIdleTaskId = g_idle_add(IdleCallback, this);
+			if (!privateContext->firstProgressCallbackIdleTaskPending)
+			{
+				logprintf("%s:%d firstProgressCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
+				privateContext->firstProgressCallbackIdleTaskId = 0;
+			}
+		}
+#endif
+	}
+}
+
+/**
  * @brief Callback invoked after first video frame decoded
  * @param[in] object pointer to element raising the callback
  * @param[in] arg0 number of arguments
@@ -541,38 +582,12 @@ static gboolean IdleCallback(gpointer user_data)
  * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder(GstElement* object, guint arg0, gpointer arg1,
-        AAMPGstPlayer * _this)
+	AAMPGstPlayer * _this)
+
 {
 	logprintf("AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder. got First Video Frame\n");
-	if(!_this->privateContext->firstFrameReceived)
-	{
-		_this->privateContext->firstFrameReceived = true;
-		_this->aamp->LogFirstFrame();
-		_this->aamp->LogTuneComplete();
-	}
-	if (!_this->privateContext->decoderHandleNotified)
-	{
-		_this->privateContext->decoderHandleNotified = true;
-		_this->privateContext->firstFrameCallbackIdleTaskPending = true;
-		_this->privateContext->firstFrameCallbackIdleTaskId = g_idle_add(IdleCallbackOnFirstFrame, _this);
-		if (!_this->privateContext->firstFrameCallbackIdleTaskPending)
-		{
-			logprintf("%s:%d firstFrameCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
-			_this->privateContext->firstFrameCallbackIdleTaskId = 0;
-		}
-	}
-#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
-	if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
-	{
-		_this->privateContext->firstProgressCallbackIdleTaskPending = true;
-		_this->privateContext->firstProgressCallbackIdleTaskId = g_idle_add(IdleCallback, _this);
-		if (!_this->privateContext->firstProgressCallbackIdleTaskPending)
-		{
-			logprintf("%s:%d firstProgressCallbackIdleTask already finished, reset id\n", __FUNCTION__, __LINE__);
-			_this->privateContext->firstProgressCallbackIdleTaskId = 0;
-		}
-	}
-#endif
+	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+
 }
 
 /**
@@ -586,12 +601,7 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
         AAMPGstPlayer * _this)
 {
 	logprintf("AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder. got First Audio Frame\n");
-	if(!_this->privateContext->firstFrameReceived)
-	{
-		_this->privateContext->firstFrameReceived = true;
-		_this->aamp->LogFirstFrame();
-		_this->aamp->LogTuneComplete();
-	}
+	_this->NotifyFirstFrame(eMEDIATYPE_AUDIO);
 }
 
 /**
@@ -1383,12 +1393,11 @@ static void AAMPGstPlayer_PlayersinkbinCB(GstElement * playersinkbin, gint statu
 			break;
 		case GSTPLAYERSINKBIN_EVENT_FIRST_VIDEO_FRAME:
 			GST_INFO("got First Video Frame\n");
-			_this->aamp->LogFirstFrame();
-			_this->aamp->NotifyFirstFrameReceived();
+			_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 			break;
 		case GSTPLAYERSINKBIN_EVENT_FIRST_AUDIO_FRAME:
 			GST_INFO("got First Audio Sample\n");
-			_this->aamp->LogTuneComplete();
+			_this->NotifyFirstFrame(eMEDIATYPE_AUDIO);
 			break;
 		case GSTPLAYERSINKBIN_EVENT_ERROR_VIDEO_UNDERFLOW:
 			//TODO - Handle underflow
