@@ -1665,6 +1665,8 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 			return "MANIFEST";
 		case eMEDIATYPE_LICENCE:
 			return "LICENCE";
+		case eMEDIATYPE_IFRAME:
+			return "IFRAME";
 		default:
 			return "";
 	}
@@ -1916,9 +1918,19 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			}
 			else
 			{
+				if(fileType == eMEDIATYPE_MANIFEST)
+				{
+					fileType = (MediaType)curlInstance;
+				}
+				else if (strstr(remoteUrl,"iframe"))
+				{
+					fileType = eMEDIATYPE_IFRAME;
+				}
+
 				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->latencyLogging[fileType] == true))
 				{
-					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,GetCurrentlyAvailableBandwidth(),remoteUrl);
+					long long SequenceNo = GetSeqenceNumberfromURL(remoteUrl);
+					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl);
 				}
 				ret             =       true;
 			}
@@ -6156,4 +6168,47 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 
 	logprintf("aamp: sending supported speeds changed event with count %d\n", supportedSpeedCount);
 	SendEventAsync(event);
+}
+
+
+/**
+ *   @brief  Get Sequence Number from URL
+ *
+ *   @param[in] fragmentUrl fragment Url
+ *   @returns Sequence Number if found in fragment Url else 0
+ */
+long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(const char *fragmentUrl)
+{
+
+	long long seqNumber = 0;
+	const char *pos = strstr(fragmentUrl, "-frag-");
+	const char *ptr;
+	if (pos)
+	{
+		seqNumber = atoll(pos + 6);
+	}
+	else if (ptr = strstr(fragmentUrl, ".seg"))
+	{
+		if( (ptr-fragmentUrl >= 5) && (memcmp(ptr - 5, "-init", 5) == 0))
+		{
+			seqNumber = -1;
+		}
+		else
+		{
+			while (ptr > fragmentUrl)
+			{
+				if (*ptr == '/')
+				{
+					break;
+				}
+				ptr--;
+			}
+			seqNumber = atoll(ptr + 1);
+		}
+	}
+	else if ((strstr(fragmentUrl, ".mpd")) || (strstr(fragmentUrl, ".m3u8")))
+	{
+		seqNumber = -1;
+	}
+	return seqNumber;
 }

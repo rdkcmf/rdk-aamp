@@ -363,7 +363,8 @@ enum MediaType
 	eMEDIATYPE_VIDEO,       /**< Type video */
 	eMEDIATYPE_AUDIO,       /**< Type audio */
 	eMEDIATYPE_MANIFEST,    /**< Type manifest */
-	eMEDIATYPE_LICENCE      /**< Type license */
+	eMEDIATYPE_LICENCE,	/**< Type license */
+	eMEDIATYPE_IFRAME	/**< Type iframe */
 };
 
 /**

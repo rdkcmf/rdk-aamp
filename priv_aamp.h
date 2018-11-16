@@ -2075,6 +2075,15 @@ public:
 	 *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
 	 */
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
+
+
+	/**
+	 *   @brief  Get Sequence Number from URL
+	 *
+	 *   @param[in] fragmentUrl fragment Url
+	 *   @returns Sequence Number if found in fragment Url else 0
+	 */
+	long long GetSeqenceNumberfromURL(const char *fragmentUrl);
 private:
 
 	/**
