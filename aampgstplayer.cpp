@@ -146,6 +146,9 @@ struct AAMPGstPlayerPriv
 	GstState buffering_target_state; // the target state after buffering
 	gint buffering_low_percent; // the low percent of bufferering before starts playing
 	gboolean buffering_capable; // indicates if multiqueue is available in pipeline to perform buffering
+#ifdef INTELCE
+	bool keepLastFrame; //Keep last frame over next pipeline delete/ create cycle
+#endif
 };
 
 #ifdef STANDALONE_AAMP
@@ -893,42 +896,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->privateContext->gstPropsDirty = false;
 				}
 			}
-#else
-			if (new_state == GST_STATE_READY && old_state == GST_STATE_NULL)
-			{
-#ifndef INTELCE_USE_VIDRENDSINK
-				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidsink", 14) == 0)
-#else
-				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
-#endif
-				{
-					_this->privateContext->video_sink = (GstElement *) msg->src;
-					logprintf("AAMPGstPlayer setting stop-keep-frame\n");
-					g_object_set(msg->src, "stop-keep-frame", TRUE, NULL);
-#if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
-					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
-					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
-					logprintf("AAMPGstPlayer setting zoom %s\n", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? "FULL" : "NONE");
-					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
-#endif
-					logprintf("AAMPGstPlayer setting video mute %d\n", _this->privateContext->videoMuted);
-					g_object_set(msg->src, "mute", _this->privateContext->videoMuted, NULL);
-				}
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec", 17) == 0)
-				{
-					_this->privateContext->video_dec = (GstElement *) msg->src;
-				}
-#ifdef INTELCE_USE_VIDRENDSINK
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc", 15) == 0)
-				{
-					_this->privateContext->video_pproc = (GstElement *) msg->src;
-					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
-					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
-					logprintf("AAMPGstPlayer setting zoom %d\n", _this->privateContext->zoom);
-					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
-				}
-#endif
-			}
 #endif
 		}
 		if (AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
@@ -1150,6 +1117,42 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				g_object_set(msg->src, "sync", TRUE, NULL);
 
 				_this->setVolumeOrMuteUnMute();
+			}
+			else
+			{
+#ifndef INTELCE_USE_VIDRENDSINK
+				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidsink", 14) == 0)
+#else
+				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
+#endif
+				{
+					AAMPGstPlayerPriv *privateContext = _this->privateContext;
+					privateContext->video_sink = (GstElement *) msg->src;
+					logprintf("AAMPGstPlayer setting stop-keep-frame %d\n", (int)(privateContext->keepLastFrame));
+					g_object_set(msg->src, "stop-keep-frame", privateContext->keepLastFrame, NULL);
+#if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
+					logprintf("AAMPGstPlayer setting rectangle %s\n", privateContext->videoRectangle);
+					g_object_set(msg->src, "rectangle", privateContext->videoRectangle, NULL);
+					logprintf("AAMPGstPlayer setting zoom %s\n", (VIDEO_ZOOM_FULL == privateContext->zoom) ? "FULL" : "NONE");
+					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == privateContext->zoom) ? 0 : 3, NULL);
+#endif
+					logprintf("AAMPGstPlayer setting video mute %d\n", privateContext->videoMuted);
+					g_object_set(msg->src, "mute", privateContext->videoMuted, NULL);
+				}
+				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec", 17) == 0)
+				{
+					_this->privateContext->video_dec = (GstElement *) msg->src;
+				}
+#ifdef INTELCE_USE_VIDRENDSINK
+				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc", 15) == 0)
+				{
+					_this->privateContext->video_pproc = (GstElement *) msg->src;
+					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
+					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+					logprintf("AAMPGstPlayer setting zoom %d\n", _this->privateContext->zoom);
+					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == _this->privateContext->zoom) ? 0 : 3, NULL);
+				}
+#endif
 			}
 #endif
 			/*This block is added to share the PrivateInstanceAAMP object
@@ -1486,7 +1489,10 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
 		privateContext->video_dec = NULL;
+#if !defined(INTELCE) || defined(INTELCE_USE_VIDRENDSINK)
 		privateContext->video_sink = NULL;
+#endif
+
 #ifdef INTELCE_USE_VIDRENDSINK
 		privateContext->video_pproc = NULL;
 #endif
@@ -1528,15 +1534,25 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		if (eMEDIATYPE_VIDEO == streamId)
 		{
 			logprintf("%s:%d - using ismd_vidsink\n", __FUNCTION__, __LINE__);
-			GstElement* vidsink = gst_element_factory_make("ismd_vidsink", NULL);
-			if(!vidsink)
+			GstElement* vidsink = _this->privateContext->video_sink;
+			if(NULL == vidsink)
 			{
-				logprintf("%s:%d - Could not create ismd_vidsink element\n", __FUNCTION__, __LINE__);
+				vidsink = gst_element_factory_make("ismd_vidsink", NULL);
+				if(!vidsink)
+				{
+					logprintf("%s:%d - Could not create ismd_vidsink element\n", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					_this->privateContext->video_sink = GST_ELEMENT(gst_object_ref( vidsink));
+				}
 			}
 			else
 			{
-				g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+				logprintf("%s:%d Reusing existing vidsink element\n", __FUNCTION__, __LINE__);
 			}
+			logprintf("%s:%d Set video-sink %p to playbin %p\n", __FUNCTION__, __LINE__, vidsink, stream->sinkbin);
+			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
 		}
 #endif
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->sinkbin);
@@ -2034,7 +2050,19 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 #ifdef INTELCE
 	if (privateContext->video_sink)
 	{
+		privateContext->keepLastFrame = keepLastFrame;
 		g_object_set(privateContext->video_sink,  "stop-keep-frame", keepLastFrame, NULL);
+#if !defined(INTELCE_USE_VIDRENDSINK)
+		if  (!keepLastFrame)
+		{
+			gst_object_unref(privateContext->video_sink);
+			privateContext->video_sink = NULL;
+		}
+		else
+		{
+			g_object_set(privateContext->video_sink,  "reuse-vidrend", keepLastFrame, NULL);
+		}
+#endif
 	}
 #endif
 	if(!keepLastFrame)
