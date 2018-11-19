@@ -101,7 +101,8 @@ public:
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), endTimeReached(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
-			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true)
+			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
+			adaptationSetId(0)
 	{
 		mContext = context;
 		memset(&fragmentDescriptor, 0, sizeof(FragmentDescriptor));
@@ -265,6 +266,7 @@ public:
 	int representationIndex;
 	StreamAbstractionAAMP_MPD* mContext;
 	std::string initialization;
+	uint32_t adaptationSetId;
 };
 
 /**
@@ -2709,8 +2711,14 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 			xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
 
 //Enable to harvest MPD file
+//Save the last 3 MPDs
 #ifdef HARVEST_MPD
-			FILE *outputFile = fopen("/opt/logs/ProcessNodeError.txt", "a");
+			static int counter = 0;
+			string fileSuffix = to_string(counter % 3);
+			counter++;
+			string fullPath = "/opt/logs/ProcessNodeError.txt" + fileSuffix;
+			logprintf("Saving manifest to %s\n",fullPath.c_str());
+			FILE *outputFile = fopen(fullPath.c_str(), "w");
 			fwrite(manifest.ptr, manifest.len, 1, outputFile);
 			fprintf(outputFile,"\n\n\nEndofManifest\n\n\n");
 			fclose(outputFile);
@@ -3583,6 +3591,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 		{
 			IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
 			pMediaStreamContext->adaptationSet = period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx);
+			pMediaStreamContext->adaptationSetId = pMediaStreamContext->adaptationSet->GetId();
 			/*Populate StreamInfo for ABR Processing*/
 			if (i == eMEDIATYPE_VIDEO)
 			{
@@ -4314,7 +4323,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					}
 
 					IPeriod * period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-					int adaptationSetCount = period->GetAdaptationSets().size();
+					vector <IAdaptationSet*> adapatationSets = period->GetAdaptationSets();
+					int adaptationSetCount = adapatationSets.size();
 					if(0 == adaptationSetCount)
 					{
 						/*To Handle non fog scenarios where empty periods are
@@ -4336,6 +4346,17 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						logprintf("Change in AdaptationSet count; adaptationSetCount %d  mPrevAdaptationSetCount %d,updating stream selection\n", adaptationSetCount, mPrevAdaptationSetCount);
 						mPrevAdaptationSetCount = adaptationSetCount;
 						requireStreamSelection = true;
+					}
+					else
+					{
+						for (int i = 0; i < mNumberOfTracks; i++)
+						{
+							if(mMediaStreamContext[i]->adaptationSetId != adapatationSets.at(mMediaStreamContext[i]->adaptationSetIdx)->GetId())
+							{
+								logprintf("AdaptationSet index changed; updating stream selection\n");
+								requireStreamSelection = true;
+							}
+						}
 					}
 
 					if(requireStreamSelection)
