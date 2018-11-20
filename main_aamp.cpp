@@ -3779,10 +3779,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find("169.254.") != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
-	if(mIscDVR)
+	if(IsVodOrCdvrAsset())
 	{
-		// Hack for DELIA-30843 . Only for CDVR , offset is set to higher value 	
-		// will be used only for hot cdvr
+		// DELIA-30843/DELIA-31379 . for CDVR/IVod , offset is set to higher value 	
+		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec 
 		mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
 	}	
 	else
