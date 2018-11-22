@@ -2732,6 +2732,10 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 	}
 	if(pluginFeature)
 	{
+		gst_registry_remove_feature (registry, pluginFeature);//Added as a work around to handle DELIA-31716
+		gst_registry_add_feature (registry, pluginFeature);
+
+
 		logprintf("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
