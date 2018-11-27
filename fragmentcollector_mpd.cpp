@@ -4729,6 +4729,9 @@ void StreamAbstractionAAMP_MPD::Start(void)
  */
 void PrivateStreamAbstractionMPD::Start(void)
 {
+#ifdef AAMP_MPD_DRM
+	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+#endif
 	pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
 	fragmentCollectorThreadStarted = true;
 	for (int i=0; i< mNumberOfTracks; i++)
