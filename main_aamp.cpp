@@ -3784,6 +3784,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find("169.254.") != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
+	
+	SetContentType(mainManifestUrl, contentType);
 	if(IsVodOrCdvrAsset())
 	{
 		// DELIA-30843/DELIA-31379 . for CDVR/IVod , offset is set to higher value 	
@@ -3795,8 +3797,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		// will be used only for live 
 		mLiveOffset	=	gpGlobalConfig->liveOffset;
 	}
-
-	SetContentType(mainManifestUrl, contentType);
 
 	if(bFirstAttempt)
 	{
