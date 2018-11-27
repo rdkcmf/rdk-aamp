@@ -82,6 +82,9 @@ typedef enum {
 #define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
 #define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
 
+/* Magic number (random value) used to validate struct AAMPGstPlayerPriv */
+#define AAMP_GST_PLAYER_PRIVATE_MAGIC 0x8C19B86A
+
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -104,6 +107,7 @@ struct media_stream
  */
 struct AAMPGstPlayerPriv
 {
+	uint32_t magicNumber; // magicNumber used to validate that AAMPGstPlayerPriv has not been destroyed
 	bool gstPropsDirty; //Flag used to check if gst props need to be set at start.
 	media_stream stream[AAMP_TRACK_COUNT];
 	GstElement *pipeline; //GstPipeline used for playback.
@@ -185,6 +189,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
+	privateContext->magicNumber = (AAMP_GST_PLAYER_PRIVATE_MAGIC ^ ((uint32_t)privateContext));
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
 	privateContext->using_westerossink = false;
@@ -207,6 +212,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
+	privateContext->magicNumber = 0x0;
 	free(privateContext);
 #ifdef STANDALONE_AAMP
 	Term();
@@ -665,6 +671,16 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
+
+	// Validate that _this->privateContext is valid and has not been freed.
+	if ((_this->privateContext == NULL) ||
+	    (_this->privateContext->magicNumber != (AAMP_GST_PLAYER_PRIVATE_MAGIC ^ ((uint32_t)(_this->privateContext)))))
+	{
+		// Return immediately if the player private context is no longer valid.  Fix crash DELIA-31456
+		logprintf("## %s() : Ignore Underflow, the player context is no longer valid ##\n", __FUNCTION__);
+		return;
+	}
+
 	_this->privateContext->stream[type].bufferUnderrun = true;
 	if (_this->privateContext->stream[type].eosReached)
 	{
