@@ -2895,7 +2895,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%d] + AplayTargetOffset[%f]) A-target[%f]",		                           totalDuration[eMEDIATYPE_AUDIO],offsetFromLive,audio->playTargetOffset,audio->playTarget);
 				}
 				// pick the min of video/audio offset
-				offsetToLive = std::min(offsetToLiveVideo,offsetToLiveAudio);
+				offsetToLive = (std::min)(offsetToLiveVideo,offsetToLiveAudio);
 				video->playTarget += offsetToLive;
 				if (audio->enabled )
 				{

@@ -3933,7 +3933,7 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuity)
 {
 	pthread_t trackDownloadThreadID;
-	HeaderFetchParams *fetchParams;
+	HeaderFetchParams *fetchParams = NULL;
 	bool dlThreadCreated = false;
 	int numberOfTracks = mNumberOfTracks;
 	for (int i = 0; i < numberOfTracks; i++)

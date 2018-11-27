@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <math.h>
 #include <iterator>
+#include <sys/time.h>
 
 #define AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC (256*1024/8)
 #define AAMP_STALL_CHECK_TOLERANCE 2

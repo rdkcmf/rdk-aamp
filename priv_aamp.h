@@ -2037,6 +2037,7 @@ public:
 	 */
 	bool IsLocalPlayback() { return mIsLocalPlayback; }
 
+#ifdef AAMP_MPD_DRM
 	/**
 	 * @brief Extracts / Generates MoneyTrace string
 	 * @param[out] customHeader - Generated moneytrace is stored
@@ -2044,6 +2045,7 @@ public:
 	 * @return void
 	 */
 	void GetMoneyTraceString(std::string &);
+#endif /* AAMP_MPD_DRM */
 
 	/**
 	 *   @brief Notify the decryption completion of the fist fragment.

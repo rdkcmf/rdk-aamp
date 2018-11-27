@@ -110,7 +110,15 @@ int getch(void)
 #endif
 #endif
 
+/**
+ * @brief Max log buffer size
+ */
 #define MAX_DEBUG_LOG_BUFF_SIZE 1024
+
+/**
+ * @brief Log file directory index - To support dynamic directory configuration for aamp logging
+ */
+char gLogDirectory[] = "c:/tmp/aamp.log";
 
 #define ARRAY_SIZE(A) ((int)(sizeof(A)/sizeof(A[0])))
 
@@ -3214,6 +3222,11 @@ int main(int argc, char **argv)
 		logprintf("device::Manager::Initialize() failed\n");
 	}
 #endif
+	ABRManager mAbrManager;
+	char driveName = (*argv)[0];
+	gLogDirectory[0] = driveName;
+	mAbrManager.setLogDirectory(driveName); /* Set log directory path for ABR Manager from AAMP */
+
 	logprintf("**************************************************************************\n");
 	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
 	logprintf("**************************************************************************\n");
@@ -5233,18 +5246,20 @@ void logprintf(const char *format, ...)
 #else  //USE_SYSTEMD_JOURNAL_PRINT
 #ifdef WIN32
     static bool init;
-    FILE *f = fopen("d:/tmp/aamp.log", (init ? "a" : "w"));
-    if (f)
-    {
-        init = true;
-        fprintf(f, "%s", gDebugPrintBuffer);
-        fclose(f);
-    }
+
+	FILE *f = fopen(gLogDirectory, (init ? "a" : "w"));
+	if (f)
+	{
+		init = true;
+		fprintf(f, "%s", gDebugPrintBuffer);
+		fclose(f);
+	}
+
     printf("%s", gDebugPrintBuffer);
 #else
     struct timeval t;
     gettimeofday(&t, NULL);
-    printf("%ld:%3ld : %s", t.tv_sec, t.tv_usec / 1000, gDebugPrintBuffer);
+    printf("%ld:%3ld : %s", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 #endif
 #endif
 }
@@ -5998,6 +6013,7 @@ int PrivateInstanceAAMP::getStreamType()
 	return type;
 }
 
+#ifdef AAMP_MPD_DRM
 /**
  * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string 
  * @param[out] customHeader - Generated moneytrace is stored  
@@ -6052,6 +6068,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]\n",customHeader.c_str());
 }
+#endif /* AAMP_MPD_DRM */
 
 /**
  * @brief Send tuned event if configured to sent after decryption
