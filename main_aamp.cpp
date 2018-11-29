@@ -2905,6 +2905,16 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]= true;
 				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
 			}
+			else if (sscanf(cmd, "iframe-default-bitrate=%ld", &gpGlobalConfig->iframeBitrate) == 1)
+			{
+				VALIDATE_LONG("iframe-default-bitrate",gpGlobalConfig->iframeBitrate, 0)
+				logprintf("aamp iframe-default-bitrate: %ld\n", gpGlobalConfig->iframeBitrate);
+			}
+			else if (sscanf(cmd, "iframe-default-bitrate-4k=%ld", &gpGlobalConfig->iframeBitrate4K) == 1)
+			{
+				VALIDATE_LONG("iframe-default-bitrate-4k",gpGlobalConfig->iframeBitrate4K, 0)
+				logprintf("aamp iframe-default-bitrate-4k: %ld\n", gpGlobalConfig->iframeBitrate4K);
+			}
             else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
             {
                 gpGlobalConfig->bAudioOnlyPlayback = true;

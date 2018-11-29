@@ -810,6 +810,10 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 
 	// Set default init bitrate according to the config.
 	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
+	if (gpGlobalConfig->iframeBitrate > 0)
+	{
+		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
+	}
 
 	this->aamp = aamp;
 }

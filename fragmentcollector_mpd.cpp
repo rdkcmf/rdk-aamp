@@ -3593,6 +3593,7 @@ static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vect
 void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
 {
 	long defaultBitrate = gpGlobalConfig->defaultBitrate;
+	long iframeBitrate = gpGlobalConfig->iframeBitrate;
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
 		struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
@@ -3665,6 +3666,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 								|| mStreamInfo[idx].resolution.width > 1920)
 						{
 							defaultBitrate = gpGlobalConfig->defaultBitrate4K;
+							iframeBitrate = gpGlobalConfig->iframeBitrate4K;
 						}
 					}
 
@@ -3690,6 +3692,10 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 				{
 					if(mContext->trickplayMode)
 					{
+						if (iframeBitrate > 0)
+						{
+							mContext->GetABRManager().setDefaultIframeBitrate(iframeBitrate);
+						}
 						mContext->UpdateIframeTracks();
 					}
 					if (defaultBitrate != DEFAULT_INIT_BITRATE)

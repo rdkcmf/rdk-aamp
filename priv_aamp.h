@@ -294,6 +294,8 @@ public:
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
 	bool latencyLogging[4];			/**< Latency logging for Video, Audio, Manifest download*/
 	int licenseRetryWaitTime;
+	long iframeBitrate;                     /**< Default bitrate for iframe track selection for non-4K assets*/
+	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
 public:
 
 	/**
@@ -319,7 +321,8 @@ public:
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
-		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME)
+		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
+		iframeBitrate(0), iframeBitrate4K(0)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
