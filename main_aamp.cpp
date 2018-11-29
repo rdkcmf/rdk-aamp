@@ -656,6 +656,8 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
 		AsyncEventDescriptor* aed = new AsyncEventDescriptor();
 		aed->event = e;
 		ScheduleEvent(aed);
+		if(e.type != AAMP_EVENT_PROGRESS)
+			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d\n", __FUNCTION__, __LINE__,e.type);
 	}
 }
 
@@ -666,7 +668,8 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
  */
 void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 {
-	//logprintf("[AAMP_JS] %s(type=%d)\n", __FUNCTION__, e.type);
+	if(e.type != AAMP_EVENT_PROGRESS)
+		AAMPLOG_INFO("[AAMP_JS] %s(type=%d)\n", __FUNCTION__, e.type);
 
 	//TODO protect mEventListener
 	if (mEventListener)
@@ -969,7 +972,8 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 {
 	//TODO protect mEventListener
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-
+	if(e->event.type != AAMP_EVENT_PROGRESS)
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d\n", __FUNCTION__, __LINE__,e->event.type);
 	//Get current idle handler's id
 	gint callbackID = g_source_get_id(g_main_current_source());
 	e->aamp->SetCallbackAsDispatched(callbackID);

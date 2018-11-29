@@ -624,7 +624,7 @@ public:
 	void Event(const AAMPEvent& e)
 	{
 		if(e.type != AAMP_EVENT_PROGRESS)//log all events except progress which spams
-			LOG("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, e.type, _jsCallback);
+			ERROR("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, e.type, _jsCallback);
 
 		JSObjectRef eventObj = JSObjectMake(_aamp->_ctx, Event_class_ref(), NULL);
 		JSObjectSetPrivate(eventObj, (void*)&e);
