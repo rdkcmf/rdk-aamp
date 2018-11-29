@@ -4658,13 +4658,15 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			break;
 		}
-		if(liveMPDRefresh)
+		
 		{
-			AAMPLOG_INFO("Live MPD refresh after timeout\n");
-		}
-		else
-		{
-			mCurrentPeriodIdx = 0;
+			// DELIA-31750 - looping of cdvr video - Issue happens with multiperiod content only
+			// When playback is near live position (last period) or after eos in period 
+			// mCurrentPeriodIdx was resetted to 0 . This caused fetch loop to continue from Period 0/fragement 1
+			// Reset of mCurrentPeriodIdx to be done to max period if Period count changes after mpd refresh
+			size_t newPeriods = mpd->GetPeriods().size();
+			if(mCurrentPeriodIdx > (newPeriods - 1))
+				mCurrentPeriodIdx = newPeriods - 1;
 		}
 		mpdChanged = true;
 	}
