@@ -2919,11 +2919,6 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
 				logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
 			}
-			else if (sscanf(cmd, "pts-error-threshold=%d", &gpGlobalConfig->ptsErrorThreshold) == 1)
-			{
-				VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
-					logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
-			}
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')
@@ -5385,7 +5380,6 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 
 					if(eGST_ERROR_PTS == errorType || eGST_ERROR_UNDERFLOW == errorType)
 					{
-						static int numPtsErrors = 0;
 						long long now = aamp_GetCurrentTimeMS();
 						long long lastErrorReportedTimeMs = lastUnderFlowTimeMs[trackType];
 						if (lastErrorReportedTimeMs)
@@ -5393,20 +5387,14 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							long long diffMs = (now - lastErrorReportedTimeMs);
 							if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
 							{
-								numPtsErrors++;
-								if (numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
-								{
-									gActivePrivAAMPs[i].reTune = true;
-									numPtsErrors = 0;
-									logprintf("PrivateInstanceAAMP::%s : Schedule Retune. diffMs %lld\n", __FUNCTION__, diffMs);
-									g_idle_add(PrivateInstanceAAMP_Retune, (gpointer)this);
-								}
+								logprintf("PrivateInstanceAAMP::%s : Schedule Retune. diffMs %lld\n", __FUNCTION__, diffMs);
+								gActivePrivAAMPs[i].reTune = true;
+								g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
 							}
 							else
 							{
-								logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since (diff %lld > threshold %lld) .\n",
+								logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since diff %lld > threshold %lld.\n",
 										__FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
-								numPtsErrors = 0;
 							}
 						}
 						else
