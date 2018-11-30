@@ -38,18 +38,10 @@
 #include <map>
 #include <set>
 
-extern void logprintf(const char *format, ...);
-
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
 #else
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
-#endif
-
-#ifdef TRACE
-#define traceprintf logprintf
-#else
-#define traceprintf (void)
 #endif
 
 #define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
@@ -180,17 +172,6 @@ enum ContentType
 };
 
 /**
- * @brief Log level's of AAMP
- */
-enum AAMP_LogLevel
-{
-	eLOGLEVEL_TRACE,    /**< Trace level */
-	eLOGLEVEL_INFO,     /**< Info level */
-	eLOGLEVEL_WARN,     /**< Warn level */
-	eLOGLEVEL_ERROR     /**< Error level */
-};		 
-
-/**
  * @brief AAMP Function return values
 */
 enum AAMPStatusType
@@ -215,6 +196,168 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
+/*================================== AAMP Log Manager =========================================*/
+
+/**
+ * @brief Direct call for trace printf, can be enabled b defining TRACE here
+ */
+#ifdef TRACE
+#define traceprintf logprintf
+#else
+#define traceprintf (void)
+#endif
+
+/**
+ * @brief Macro for validating the log level to be enabled
+ */
+#define AAMPLOG(LEVEL,FORMAT, ...) \
+		do { if (gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
+				logprintf(FORMAT, ##__VA_ARGS__); \
+		} } while (0)
+
+/**
+ * @brief Macro for Triage Level Logging Support
+ */
+#define AAMP_LOG_NETWORK_LATENCY	gpGlobalConfig->logging.LogNetworkLatency
+#define AAMP_LOG_NETWORK_ERROR		gpGlobalConfig->logging.LogNetworkError
+#define AAMP_LOG_DRM_ERROR			gpGlobalConfig->logging.LogDRMError
+
+/**
+ * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
+ */
+#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(eLOGLEVEL_TRACE, FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
+
+/**
+ * @brief maximum supported mediatype for latency logging
+ */
+#define MAX_SUPPORTED_LATENCY_LOGGING_TYPES	4
+
+/**
+ * @brief Log level's of AAMP
+ */
+enum AAMP_LogLevel
+{
+	eLOGLEVEL_TRACE,    /**< Trace level */
+	eLOGLEVEL_INFO,     /**< Info level */
+	eLOGLEVEL_WARN,     /**< Warn level */
+	eLOGLEVEL_ERROR     /**< Error level */
+};
+
+/**
+ * @brief Log level network error enum
+ */
+enum AAMPNetworkErrorType
+{
+	/* 0 */ AAMPNetworkErrorHttp,
+	/* 1 */ AAMPNetworkErrorTimeout,
+	/* 2 */ AAMPNetworkErrorCurl
+};
+
+/**
+ * @brief AampLogManager Class
+ */
+class AampLogManager
+{
+public:
+
+	bool info;       /**< Info level*/
+	bool debug;      /**< Debug logs*/
+	bool trace;      /**< Trace level*/
+	bool gst;        /**< Gstreamer logs*/
+	bool curl;       /**< Curl logs*/
+	bool progress;   /**< Download progress logs*/
+	bool latencyLogging[MAX_SUPPORTED_LATENCY_LOGGING_TYPES]; /**< Latency logging for Video, Audio, Manifest download - Refer MediaType on main_aamp.h */ 
+
+	/**
+	 * @brief AampLogManager constructor
+	 */
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN)
+	{
+		memset(latencyLogging, 0 , sizeof(latencyLogging));
+	}
+
+	/* ---------- Triage Level Logging Support ---------- */
+
+	/**
+	 * @brief Print the network latency level logging for triage purpose
+	 *
+	 * @param[in] url - content url
+	 * @param[in] downloadTime - download time of the fragment or manifest
+	 * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
+	 * @retuen void
+	 */
+	void LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs);
+
+	/**
+	 * @brief Print the network error level logging for triage purpose
+	 *
+	 * @param[in] url - content url
+	 * @param[in] errorType - it can be http or curl errors
+	 * @param[in] errorCode - it can be http error or curl error code
+	 * @retuen void
+	 */
+	void LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode);
+
+	/**
+	 * @brief To get the issue symptom based on the error type for triage purpose
+	 *
+	 * @param[in] url - content url
+	 * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
+	 * @param[out] location - server location
+	 * @param[out] symptom - issue exhibiting scenario for error case
+	 * @retuen void
+	 */
+	void ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom);
+
+	/**
+	 * @brief Print the DRM error level logging for triage purpose
+	 *
+	 * @param[in] major - drm major error code
+	 * @param[in] minor - drm minor error code
+	 * @retuen void
+	 */
+	void LogDRMError(int major, int minor);
+	/* !---------- Triage Level Logging Support ---------- */
+
+	/**
+	 * @brief To check the given log level is allowed to print mechanism
+	 *
+	 * @param[in] chkLevel - log level
+	 * @retval true if the log level allowed for print mechanism
+	 */
+	bool isLogLevelAllowed(AAMP_LogLevel chkLevel);
+
+	/**
+	 * @brief Set the log level for print mechanism
+	 *
+	 * @param[in] newLevel - log level new value
+	 * @retuen void
+	 */
+	void setLogLevel(AAMP_LogLevel newLevel);
+
+	/**
+	 * @brief Configure the simulator log file directory.
+	 */
+	void setLogDirectory(char driveName);
+
+private:
+	AAMP_LogLevel aampLoglevel;
+};
+
+/* Context-free utility function */
+
+/**
+ * @brief Print logs to console / log file
+ * @param[in] format - printf style string
+ * @retuen void
+ */
+extern void logprintf(const char *format, ...);
+
+/*!================================== AAMP Log Manager =========================================*/
+
 /**
  * @brief Class for AAMP's global configuration
  */
@@ -233,18 +376,7 @@ public:
 	int harvest;                /**< Save decrypted fragments for debugging*/
 #endif
 
-	/**
-	 * @brief Log levels enabled
-	 */
-	struct
-	{
-		bool info;          /**< Info level*/
-		bool trace;         /**< Trace level*/
-		bool gst;           /**< Gstreamer logs*/
-		bool curl;          /**< Curl logs*/
-		bool progress;      /**< Download progress logs*/
-		bool debug;         /**< Debug logs*/
-	} logging;
+	AampLogManager logging;             	/**< Aamp log manager class*/
 	int gPreservePipeline;                  /**< Flush instead of teardown*/
 	int gAampDemuxHLSAudioTsTrack;          /**< Demux Audio track from HLS transport stream*/
 	int gAampDemuxHLSVideoTsTrack;          /**< Demux Video track from HLS transport stream*/
@@ -296,7 +428,6 @@ public:
 	int ptsErrorThreshold;                       /**< Max number of back-to-back PTS errors within designated time*/
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
-	bool latencyLogging[4];			/**< Latency logging for Video, Audio, Manifest download*/
 	int licenseRetryWaitTime;
 	long iframeBitrate;                     /**< Default bitrate for iframe track selection for non-4K assets*/
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
@@ -320,7 +451,7 @@ public:
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), adPositionSec(0), adURL(0),abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),fragmentDLTimeout(CURL_FRAGMENT_DL_TIMEOUT),
-		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),aampLoglevel(eLOGLEVEL_WARN),
+		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
 		preferredDrm(eDRMTYPE_WIDEVINE), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
 		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
@@ -331,8 +462,6 @@ public:
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 	{
-		memset(&logging, 0, sizeof(logging) );
-		memset(latencyLogging, 0 , sizeof(latencyLogging));
 		//XRE sends onStreamPlaying & onVideoInfo while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe. Hence, onTuned event should be sent only after the tune completion.
 		tunedEventConfigLive = eTUNED_EVENT_ON_GST_PLAYING;
@@ -385,45 +514,9 @@ public:
 	{
 		bEnableCC = on;
 	}
-
-
-	/**
-	 * @brief Check if given log level is enabled
-	 *
-	 * @param[in] chkLevel - Log level to be checked
-	 * @return
-	 */
-	bool isLogLevelAllowed(AAMP_LogLevel chkLevel)
-	{
-		return (chkLevel>=aampLoglevel);
-	}
-
-	/**
-	 * @brief Set log level of AAMP
-	 *
-	 * @param[in] newLevel - New log level
-	 * @return void
-	 */
-	void setLogLevel(AAMP_LogLevel newLevel)
-	{
-		if(!logging.info && !logging.debug)
-			aampLoglevel = newLevel;
-	}
-private:
-	AAMP_LogLevel aampLoglevel;
 };
 
 extern GlobalConfigAAMP *gpGlobalConfig;
-
-#define AAMPLOG(LEVEL,FORMAT, ...) \
-	do { if (gpGlobalConfig->isLogLevelAllowed(LEVEL)) { \
-        	logprintf(FORMAT, ##__VA_ARGS__); \
-    } } while (0)
-
-#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(eLOGLEVEL_TRACE, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
 
 // context-free utility functions
 

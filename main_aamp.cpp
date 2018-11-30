@@ -30,7 +30,6 @@
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
-#include <sys/time.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -99,26 +98,6 @@ int getch(void)
 	return ch;
 }
 #endif
-
-#ifndef WIN32
-#ifdef USE_SYSLOG_HELPER_PRINT
-#include "syslog_helper_ifc.h"
-#endif
-#include <stdarg.h>
-#ifdef USE_SYSTEMD_JOURNAL_PRINT
-#include <systemd/sd-journal.h>
-#endif
-#endif
-
-/**
- * @brief Max log buffer size
- */
-#define MAX_DEBUG_LOG_BUFF_SIZE 1024
-
-/**
- * @brief Log file directory index - To support dynamic directory configuration for aamp logging
- */
-char gLogDirectory[] = "c:/tmp/aamp.log";
 
 #define ARRAY_SIZE(A) ((int)(sizeof(A)/sizeof(A[0])))
 
@@ -1057,7 +1036,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 			}
 		}
 	}
-	gpGlobalConfig->setLogLevel(eLOGLEVEL_WARN);
+	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_WARN);
 }
 
 
@@ -1827,12 +1806,19 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 				std::chrono::steady_clock::time_point tEndTime = std::chrono::steady_clock::now();
 				downloadAttempt++;
+
+				downloadTimeMS = static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(tEndTime - tStartTime).count());
+
 				if (res == CURLE_OK)
 				{ // all data collected
 					curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 					if (http_code != 200 && http_code != 206)
 					{
+#if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 						logprintf("HTTP RESPONSE CODE: %ld\n", http_code);
+#else
+						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorHttp, (int)http_code);
+#endif /* 0 */
 						if((500 == http_code || 503 == http_code) && downloadAttempt < 2)
 						{
 							logprintf("Download failed due to Server error. Retrying!\n");
@@ -1855,10 +1841,23 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					        logprintf("NO_TSB_AVAILABLE playing from:%s \n", effectiveUrl);
 					    }
 					}
+
+					/*
+					 * Latency should be printed in the case of successful download which exceeds the download threshold value,
+					 * other than this case is assumed as network error and those will be logged with AAMP_LOG_NETWORK_ERROR.
+					 */
+					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
+					{
+						AAMP_LOG_NETWORK_LATENCY (effectiveUrl, downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD );
+					}
 				}
 				else
 				{
+#if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 					logprintf("CURL error: %d\n", res);
+#else
+					AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
+#endif /* 0 */
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback)) && downloadAttempt < 2)
 					{
@@ -1874,8 +1873,6 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					http_code = res;
 				}
 
-				downloadTimeMS = static_cast<long long>(std::chrono::duration_cast<std::chrono::milliseconds>(tEndTime - tStartTime).count());
-
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
@@ -1885,7 +1882,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				{
 					reqEndLogLevel = eLOGLEVEL_WARN;
 				}
-				if (gpGlobalConfig->isLogLevelAllowed(reqEndLogLevel))
+				if (gpGlobalConfig->logging.isLogLevelAllowed(reqEndLogLevel))
 				{
 					double totalPerformRequest = (double)(std::chrono::duration_cast<std::chrono::microseconds>(tEndTime - tStartTime).count())/1000000;
 					curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
@@ -1975,7 +1972,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					fileType = eMEDIATYPE_IFRAME;
 				}
 
-				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->latencyLogging[fileType] == true))
+				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->logging.latencyLogging[fileType] == true))
 				{
 					long long SequenceNo = GetSeqenceNumberfromURL(remoteUrl);
 					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl);
@@ -2705,7 +2702,7 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			}
 			else if ((strcmp(cmd, "info") == 0) && (!gpGlobalConfig->logging.debug))
 			{
-				gpGlobalConfig->setLogLevel(eLOGLEVEL_INFO);
+				gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 				gpGlobalConfig->logging.info = true;
 				logprintf("info logging %s\n", gpGlobalConfig->logging.info ? "on" : "off");
 			}
@@ -2722,8 +2719,8 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			else if (strcmp(cmd, "debug") == 0)
 			{
 				gpGlobalConfig->logging.info = false;
-				gpGlobalConfig->setLogLevel(eLOGLEVEL_TRACE);
-                                gpGlobalConfig->logging.debug = true;
+				gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
+				gpGlobalConfig->logging.debug = true;
 				logprintf("debug logging %s\n", gpGlobalConfig->logging.debug ? "on" : "off");
 			}
 			else if (strcmp(cmd, "trace") == 0)
@@ -2928,18 +2925,18 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			}
 			else if (strcmp(cmd, "audioLatencyLogging") == 0)
 			{
-				gpGlobalConfig->latencyLogging[eMEDIATYPE_AUDIO]= true;
-				logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
+				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
+				logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
 			}
 			else if (strcmp(cmd, "videoLatencyLogging") == 0)
 			{
-				gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]= true;
-				logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
+				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO] = true;
+				logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
 			}
 			else if (strcmp(cmd, "manifestLatencyLogging") == 0)
 			{
-				gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]= true;
-				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
+				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST] = true;
+				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
 			}
 			else if (sscanf(cmd, "iframe-default-bitrate=%ld", &gpGlobalConfig->iframeBitrate) == 1)
 			{
@@ -3271,10 +3268,13 @@ int main(int argc, char **argv)
 		logprintf("device::Manager::Initialize() failed\n");
 	}
 #endif
-	ABRManager mAbrManager;
 	char driveName = (*argv)[0];
-	gLogDirectory[0] = driveName;
-	mAbrManager.setLogDirectory(driveName); /* Set log directory path for ABR Manager from AAMP */
+	AampLogManager mLogManager;
+	ABRManager mAbrManager;
+
+	/* Set log directory path for AAMP and ABR Manager */
+	mLogManager.setLogDirectory(driveName);
+	mAbrManager.setLogDirectory(driveName);
 
 	logprintf("**************************************************************************\n");
 	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
@@ -3793,7 +3793,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
 
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
-	gpGlobalConfig->setLogLevel(eLOGLEVEL_INFO);
+	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -5340,50 +5340,6 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 		event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
 		SendEventSync(event);
 	}
-}
-
-
-/**
- * @brief Print logs to console/ log file
- * @param format printf style string
- */
-void logprintf(const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-
-    char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-    vsnprintf(gDebugPrintBuffer, MAX_DEBUG_LOG_BUFF_SIZE, format, args);
-    gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
-
-    va_end(args);
-
-#if (!defined STANDALONE_AAMP) && (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
-#ifdef USE_SYSTEMD_JOURNAL_PRINT
-    sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
-#else
-    send_logs_to_syslog(gDebugPrintBuffer);
-#endif
-
-#else  //USE_SYSTEMD_JOURNAL_PRINT
-#ifdef WIN32
-    static bool init;
-
-	FILE *f = fopen(gLogDirectory, (init ? "a" : "w"));
-	if (f)
-	{
-		init = true;
-		fprintf(f, "%s", gDebugPrintBuffer);
-		fclose(f);
-	}
-
-    printf("%s", gDebugPrintBuffer);
-#else
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    printf("%ld:%3ld : %s", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
-#endif
-#endif
 }
 
 /**

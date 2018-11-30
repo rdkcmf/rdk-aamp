@@ -218,6 +218,8 @@ public:
 		}
 		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
 		logprintf("aamp:***TheDRMListener::NotifyDRMError: majorError = %d, minorError = %d drmState:%d\n", (int)majorError, (int)minorError,mDrmState );
+
+		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
 	}
 
 
