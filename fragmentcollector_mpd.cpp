@@ -1109,6 +1109,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							*/
 							if(index == timelines.size())
 							{
+								logprintf("%s:%d Type[%d] Boundary Condition !!! Index(%d) reached Max.Start=%" PRIu64 " Last=%" PRIu64 " \n",__FUNCTION__, __LINE__, 
+									pMediaStreamContext->type,index,startTime,pMediaStreamContext->lastSegmentTime);
 								index--;
 								startTime = pMediaStreamContext->lastSegmentTime;
 								pMediaStreamContext->fragmentRepeatCount = repeatCount+1;
@@ -1137,7 +1139,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					}// if starttime
 					if(0 == pMediaStreamContext->timeLineIndex)
 					{
-						AAMPLOG_INFO("%s:%d update startTime to %" PRIu64 "\n", __FUNCTION__, __LINE__, startTime);
+						AAMPLOG_INFO("%s:%d Type[%d] update startTime to %" PRIu64 "\n", __FUNCTION__, __LINE__,pMediaStreamContext->type, startTime);
 					}
 					pMediaStreamContext->fragmentDescriptor.Time = startTime;
 #ifdef DEBUG_TIMELINE
@@ -1157,8 +1159,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				if ((pMediaStreamContext->fragmentDescriptor.Time > pMediaStreamContext->lastSegmentTime) || (0 == pMediaStreamContext->lastSegmentTime))
 				{
 #ifdef DEBUG_TIMELINE
-					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) FTime(%f) \n",__FUNCTION__, __LINE__,
-					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
+					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) \n",__FUNCTION__, __LINE__,
+					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
 #endif
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 					float fragmentDuration = duration/timeScale;
@@ -1175,9 +1177,16 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							pMediaStreamContext->targetDnldPosition += fragmentDuration;
 						}
 					}
-					if(mContext->checkForRampdown)
+					if(mContext->checkForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
 					{
-						pMediaStreamContext->lastSegmentTime -= pMediaStreamContext->fragmentDescriptor.Time;
+						// DELIA-31780 - On audio fragment download failure (http500), rampdown was attempted .
+						// rampdown is only needed for video fragments not for audio.
+						// second issue : after rampdown lastSegmentTime was going into "0" . When this combined with mpd refresh immediately after rampdown ,
+						// startTime is set to start of Period . This caused audio fragment download from "0" resulting in PTS mismatch and mute
+						// Fix : Only do lastSegmentTime correction for video not for audio
+						//	 lastSegmentTime to be corrected with duration of last segment attempted .	
+						if(pMediaStreamContext->lastSegmentTime)
+							pMediaStreamContext->lastSegmentTime -= duration; 
 						return retval; /* Incase of fragment download fail, no need to increase the fragment number to download next fragment,
 								 * instead check the same fragment in lower profile. */
 					}
