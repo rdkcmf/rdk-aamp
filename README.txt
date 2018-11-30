@@ -155,7 +155,6 @@ audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads
 fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
-pts-error-threshold=<X> aamp maximum number of back-to-back pts errors to be considered for triggering a retune
 
 CLI-specific commands:
 <enter>		dump currently available profiles

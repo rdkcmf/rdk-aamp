@@ -97,8 +97,6 @@ extern void logprintf(const char *format, ...);
 
 #define AAMP_SEEK_TO_LIVE_POSITION (-1)
 
-#define MAX_PTS_ERRORS_THRESHOLD 4                  /**< MAX number of PTS errors within designated time */
-
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -292,7 +290,6 @@ public:
 	bool bForceHttp;                        /**< Force HTTP*/
 	int abrSkipDuration;                    /**< Initial duration for ABR skip*/
 	bool internalReTune;                    /**< Internal re-tune on underflows/ pts errors*/
-	int ptsErrorThreshold;                       /**< Max number of back-to-back PTS errors within designated time*/
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
 	bool latencyLogging[4];			/**< Latency logging for Video, Audio, Manifest download*/
@@ -322,7 +319,7 @@ public:
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
-		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME), ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD)
+		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
