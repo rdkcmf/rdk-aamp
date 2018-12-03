@@ -197,7 +197,8 @@ static struct
 {
 	PrivateInstanceAAMP* pAAMP;
 	bool reTune;
-} gActivePrivAAMPs[AAMP_MAX_SIMULTANEOUS_INSTANCES] = { { NULL, false }, { NULL, false } };
+	int numPtsErrors;
+} gActivePrivAAMPs[AAMP_MAX_SIMULTANEOUS_INSTANCES] = { { NULL, false, 0 }, { NULL, false, 0 } };
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
@@ -2929,6 +2930,11 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
 				logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
 			}
+			else if (sscanf(cmd, "pts-error-threshold=%d", &gpGlobalConfig->ptsErrorThreshold) == 1)
+			{
+				VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
+				logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
+			}
 			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
 			{
 				if (cmd[0] == '*')
@@ -5414,18 +5420,26 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							long long diffMs = (now - lastErrorReportedTimeMs);
 							if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
 							{
-								logprintf("PrivateInstanceAAMP::%s : Schedule Retune. diffMs %lld\n", __FUNCTION__, diffMs);
-								gActivePrivAAMPs[i].reTune = true;
-								g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
+								gActivePrivAAMPs[i].numPtsErrors++;
+								logprintf("PrivateInstanceAAMP::%s : numPtsErrors %lld,  ptsErrorThreshold %lld\n", __FUNCTION__, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+								if (gActivePrivAAMPs[i].numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
+								{
+									gActivePrivAAMPs[i].numPtsErrors = 0;
+									gActivePrivAAMPs[i].reTune = true;
+									logprintf("PrivateInstanceAAMP::%s : Schedule Retune. diffMs %lld < threshold %lld\n", __FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
+									g_idle_add(PrivateInstanceAAMP_Retune, (gpointer)this);
+								}
 							}
 							else
 							{
-								logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since diff %lld > threshold %lld.\n",
-										__FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
+								gActivePrivAAMPs[i].numPtsErrors = 0;
+								logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since (diff %lld > threshold %lld).\n",
+										__FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
 							}
 						}
 						else
 						{
+							gActivePrivAAMPs[i].numPtsErrors = 0;
 							logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since first underflow.\n", __FUNCTION__);
 						}
 						lastUnderFlowTimeMs[trackType] = now;
