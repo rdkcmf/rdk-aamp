@@ -1325,6 +1325,10 @@ public:
 	 */
 	void SendErrorEvent(AAMPTuneFailure tuneFailure, const char *description = NULL, bool isRetryEnabled = true);
 
+	
+
+	void SendDRMMetaData(const AAMPEvent &e);
+
 	/**
 	 * @brief Handles download errors and sends events to application if required.
 	 *

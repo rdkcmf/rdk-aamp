@@ -26,6 +26,7 @@
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
 #include <stdlib.h>
+#include <string.h>
 #include "_base64.h"
 #include "libdash/IMPD.h"
 #include "libdash/INode.h"
@@ -2034,7 +2035,9 @@ void *CreateDRMSession(void *arg)
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
 	AampDRMSessionManager* sessionManger = new AampDRMSessionManager();
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-	AAMPTuneFailure failure = AAMP_TUNE_FAILURE_UNKNOWN;
+	AAMPEvent e;
+	e.type = AAMP_EVENT_DRM_METADATA;
+        e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
 	unsigned char * data = sessionParams->initData;
 	int dataLength = sessionParams->initDataLen;
 
@@ -2053,17 +2056,21 @@ void *CreateDRMSession(void *arg)
 	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
 	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
 	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
-					contentMetadata, sessionParams->aamp, &failure);
-
+					contentMetadata, sessionParams->aamp, &e);
 	if(NULL == drmSession)
 	{
-		bool isRetryEnabled = (failure != AAMP_TUNE_AUTHORISATION_FAILURE);
-		sessionParams->aamp->SendErrorEvent(failure, NULL, isRetryEnabled);
-		sessionParams->aamp->profiler.SetDrmErrorCode((int)failure);
+		bool isRetryEnabled = ((int)e.data.dash_drmmetadata.failure != AAMP_TUNE_AUTHORISATION_FAILURE);
+		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure, NULL, isRetryEnabled);
+		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
 	}
 	else
 	{
+		if(e.data.dash_drmmetadata.accessStatus_value != 3)
+		{
+			AAMPLOG_INFO("Sending DRMMetaData\n");
+			sessionParams->aamp->SendDRMMetaData(e);
+		}
 		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
 	delete sessionManger;

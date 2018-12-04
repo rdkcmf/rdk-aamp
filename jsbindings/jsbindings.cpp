@@ -834,6 +834,52 @@ public:
 	}
 };
 
+
+
+/**
+ * @class AAMP_JSListener_DRMMetaData
+ * @brief
+ */
+class AAMP_JSListener_DRMMetadata : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_DRMMetadata Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
+        AAMP_JSListener_DRMMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+        {
+        }
+
+        /**
+         * @brief
+         * @param e
+         * @param context
+         * @param eventObj
+         * @retval None
+         */
+        void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+        {
+                JSStringRef name;
+
+
+                int code = e.data.dash_drmmetadata.accessStatus_value;
+                const char* description = e.data.dash_drmmetadata.accessStatus;
+
+                ERROR("AAMP_JSListener_DRMMetadata code %d Description %s\n",code,description);
+                name = JSStringCreateWithUTF8CString("code");
+                JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, code), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+                name = JSStringCreateWithUTF8CString("description");
+                JSObjectSetProperty(context, eventObj, name, aamp_CStringToJSValue(context, description), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+        }
+};
+
 /**
  * @class AAMP_JSListener_CCHandleReceived
  * @brief Event listener impl for CC_HANDLE_RECEIVED AAMP event
@@ -1164,6 +1210,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	{
 		pListener = new AAMP_JSListener_SpeedsChanged(aamp, type, jsCallback);
 	}
+	else if(type == AAMP_EVENT_DRM_METADATA)
+        {
+                pListener = new AAMP_JSListener_DRMMetadata(aamp, type, jsCallback);
+        }
 	else
 	{
 		pListener = new AAMP_JSListener(aamp, type, jsCallback);
@@ -2262,6 +2312,26 @@ static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	return aamp_CStringToJSValue(context, "drmMetadataInfoAvailable");
 }
+
+
+
+
+
+/**
+ * @brief Callback invoked from JS to get the DRM_METADATA property value
+ * @param[in] context JS execution context
+ * @param[in] thisObject JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval property's value if object has the property, otherwise NULL
+ */
+static JSValueRef EventType_getproperty_DRM_METADATA(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
+{
+        LOG("[AAMP_JS] %s()", __FUNCTION__);
+        return aamp_CStringToJSValue(context, "drmMetadata");
+}
+
+
 
 
 /**

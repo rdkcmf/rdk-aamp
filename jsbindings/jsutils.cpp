@@ -56,6 +56,7 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_ENTERING_LIVE, "enteringLive"},
 	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
 	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
+	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_STATE_CHANGED, "statusChanged"},
 	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
 	{ (AAMPEventType)0, "" }

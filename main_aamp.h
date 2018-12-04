@@ -112,6 +112,7 @@ typedef enum
 	AAMP_EVENT_AD_BREAKS_CHANGED,   /**< Event when content/ad breaks changes */
 	AAMP_EVENT_AD_STARTED,          /**< Ad playback started */
 	AAMP_EVENT_AD_COMPLETED,        /**< Ad playback completed */
+	AAMP_EVENT_DRM_METADATA,
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -292,6 +293,14 @@ struct AAMPEvent
 			char description[MAX_ERROR_DESCRIPTION_LENGTH];     /**< Error description */
 			bool shouldRetry;                                   /**< If recovery on retry is possible */
 		} mediaError;
+
+		struct
+                {
+			AAMPTuneFailure failure;                            /**< Error Type */
+                        const char *accessStatus;
+                        int accessStatus_value;
+                } dash_drmmetadata;
+
 
 		/**
 		 * @brief Structure of the player state changed event
