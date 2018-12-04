@@ -821,6 +821,14 @@ public:
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
 
 	/**
+	 *   @brief Set Live Offset
+	 *
+	 *   @param[in]  liveoffset- Live Offset
+	 *   @return void
+	 */
+	void SetLiveOffset(int liveoffset);
+
+	/**
 	 *   @brief To set the error code to be used for playback stalled error.
 	 *
 	 *   @param[in]  errorCode - error code for playback stall errors.
