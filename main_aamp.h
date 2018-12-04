@@ -395,6 +395,16 @@ enum VideoZoomMode
 };
 
 /**
+ * @brief DRM Types for external license config
+ */
+enum DRMType
+{
+	eDRMTYPE_GENERIC,      /**< Generic DRM */
+	eDRMTYPE_WIDEVINE,     /**< Widevine DRM */
+	eDRMTYPE_PLAYREADY     /**< Playready DRM */
+};
+
+/**
  * @brief GStreamer Abstraction class for the implementation of AAMPGstPlayer and gstaamp plugin
  */
 class StreamSink
@@ -792,9 +802,10 @@ public:
 	 *   @brief Set License Server URL.
 	 *
 	 *   @param[in]  url - URL of the server to be used for license requests
+	 *   @param[in]  type - DRM Type for which the server URL should be used
 	 *   @return void
 	 */
-	void SetLicenseServerURL(const char *url);
+	void SetLicenseServerURL(const char *url, DRMType type = eDRMTYPE_GENERIC);
 
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
@@ -927,6 +938,34 @@ public:
 	 *   @ret available audio bitrates
 	 */
 	std::vector<long> GetAudioBitrates(void);
+
+	/**
+	 *   @brief To set the initial bitrate value.
+	 *
+	 *   @param[in] initial bitrate to be selected
+	 */
+	void SetInitialBitrate(long bitrate);
+
+	/**
+	 *   @brief To set the initial bitrate value for 4K assets.
+	 *
+	 *   @param[in] initial bitrate to be selected for 4K assets
+	 */
+	void SetInitialBitrate4K(long bitrate4K);
+
+	/**
+	 *   @brief To set the network download timeout value.
+	 *
+	 *   @param[in] preferred timeout value
+	 */
+	void SetNetworkTimeout(int timeout);
+
+	/**
+	 *   @brief To set the download buffer size value
+	 *
+	 *   @param[in] preferred download buffer size
+	 */
+	void SetDownloadBufferSize(int bufferSize);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

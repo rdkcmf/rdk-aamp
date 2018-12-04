@@ -299,6 +299,8 @@ public:
 	int licenseRetryWaitTime;
 	long iframeBitrate;                     /**< Default bitrate for iframe track selection for non-4K assets*/
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
+	char *prLicenseServerURL;               /**< Playready License server URL*/
+	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 public:
 
 	/**
@@ -319,13 +321,14 @@ public:
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),fragmentDLTimeout(CURL_FRAGMENT_DL_TIMEOUT),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),aampLoglevel(eLOGLEVEL_WARN),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
-		preferredDrm(1), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
+		preferredDrm(eDRMTYPE_WIDEVINE), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
 		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
 		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
 		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
-		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD)
+		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
+		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 	{
 		memset(&logging, 0, sizeof(logging) );
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
@@ -1908,7 +1911,7 @@ public:
 	 *   @param[in] url - server URL
 	 *   @return void
 	 */
-	void SetLicenseServerURL(const char* url);
+	void SetLicenseServerURL(const char* url, DRMType drmType = eDRMTYPE_GENERIC);
 
 	/**
 	 *   @brief Set anonymous request true or false
@@ -2099,7 +2102,6 @@ public:
 	 */
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 
-
 	/**
 	 *   @brief  Get Sequence Number from URL
 	 *
@@ -2107,6 +2109,34 @@ public:
 	 *   @returns Sequence Number if found in fragment Url else 0
 	 */
 	long long GetSeqenceNumberfromURL(const char *fragmentUrl);
+
+	/**
+	 *   @brief To set the initial bitrate value.
+	 *
+	 *   @param[in] initial bitrate to be selected
+	 */
+	void SetInitialBitrate(long bitrate);
+
+	/**
+	 *   @brief To set the initial bitrate value for 4K assets.
+	 *
+	 *   @param[in] initial bitrate to be selected for 4K assets
+	 */
+	void SetInitialBitrate4K(long bitrate4K);
+
+	/**
+	 *   @brief To set the network download timeout value.
+	 *
+	 *   @param[in] preferred timeout value
+	 */
+	void SetNetworkTimeout(int timeout);
+
+	/**
+	 *   @brief To set the download buffer size value
+	 *
+	 *   @param[in] preferred download buffer size
+	 */
+	void SetDownloadBufferSize(int bufferSize);
 private:
 
 	/**

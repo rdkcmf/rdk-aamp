@@ -2785,9 +2785,9 @@ void ProcessCommand(char *cmd, bool usingCLI)
 			{ // override for buffer health monitor interval
 				if(gpGlobalConfig->preferredDrm <= 0 || gpGlobalConfig->preferredDrm > 2)
 				{
-					gpGlobalConfig->preferredDrm = 1;
+					gpGlobalConfig->preferredDrm = eDRMTYPE_WIDEVINE;
 				}
-				logprintf("preferred-drm=%s\n", GetDrmSystemName((DRMSystems)gpGlobalConfig->preferredDrm));
+				logprintf("preferred-drm=%s\n", (gpGlobalConfig->preferredDrm == eDRMTYPE_WIDEVINE) ? "widevine" : "playready");
 			}
 			else if (sscanf(cmd, "live-tune-event-playlist-indexed=%d", &value) == 1)
 			{ // default is 0; set 1 for sending tuned event after playlist indexing - for live
@@ -4602,10 +4602,11 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
  *   @brief Set License Server URL.
  *
  *   @param  url - URL of the server to be used for license requests
+ *   @param  type - DRM Type for which the server URL should be used
  */
-void PlayerInstanceAAMP::SetLicenseServerURL(const char *url)
+void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMType type)
 {
-	aamp->SetLicenseServerURL(url);
+	aamp->SetLicenseServerURL(url, type);
 }
 
 
@@ -4827,6 +4828,50 @@ std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 		return aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
 	}
 	return std::vector<long>();
+}
+
+
+/**
+ *   @brief To set the initial bitrate value.
+ *
+ *   @param[in] initial bitrate to be selected
+ */
+void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
+{
+	aamp->SetInitialBitrate(bitrate);
+}
+
+
+/**
+ *   @brief To set the initial bitrate value for 4K assets.
+ *
+ *   @param[in] initial bitrate to be selected for 4K assets
+ */
+void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
+{
+	aamp->SetInitialBitrate4K(bitrate4K);
+}
+
+
+/**
+ *   @brief To set the network download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PlayerInstanceAAMP::SetNetworkTimeout(int timeout)
+{
+	aamp->SetNetworkTimeout(timeout);
+}
+
+
+/**
+ *   @brief To set the download buffer size value
+ *
+ *   @param[in] preferred download buffer size
+ */
+void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
+{
+	aamp->SetDownloadBufferSize(bufferSize);
 }
 
 
@@ -5793,20 +5838,34 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  *   @brief Set License Server URL.
  *
  *   @param  url - URL of the server to be used for license requests
+ *   @param  type - DRM Type for which the server URL should be used
  */
-void PrivateInstanceAAMP::SetLicenseServerURL(const char *url)
+void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMType drmType)
 {
-	// Local aamp.cfg config trumps JS PP config
-	if (gpGlobalConfig->licenseServerLocalOverride)
+	char **serverUrl = &(gpGlobalConfig->licenseServerURL);
+	if (drmType == eDRMTYPE_GENERIC)
 	{
-		return;
+		// Local aamp.cfg config trumps JS PP config
+		if (gpGlobalConfig->licenseServerLocalOverride)
+		{
+			return;
+		}
+	}
+	else if (drmType == eDRMTYPE_PLAYREADY)
+	{
+		serverUrl = &(gpGlobalConfig->prLicenseServerURL);
+	}
+	else if (drmType == eDRMTYPE_WIDEVINE)
+	{
+		serverUrl = &(gpGlobalConfig->wvLicenseServerURL);
 	}
 
-	if (gpGlobalConfig->licenseServerURL)
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d\n", __FUNCTION__, url, drmType);
+	if (*serverUrl != NULL)
 	{
-		free(gpGlobalConfig->licenseServerURL);
+		free(*serverUrl);
 	}
-	gpGlobalConfig->licenseServerURL = strdup(url);
+	*serverUrl = strdup(url);
 }
 
 
@@ -6291,4 +6350,60 @@ long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(const char *fragmentUrl)
 		seqNumber = -1;
 	}
 	return seqNumber;
+}
+
+
+/**
+ *   @brief To set the initial bitrate value.
+ *
+ *   @param[in] initial bitrate to be selected
+ */
+void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
+{
+	if (bitrate > 0)
+	{
+		gpGlobalConfig->defaultBitrate = bitrate;
+	}
+}
+
+
+/**
+ *   @brief To set the initial bitrate value for 4K assets.
+ *
+ *   @param[in] initial bitrate to be selected for 4K assets
+ */
+void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
+{
+	if (bitrate4K > 0)
+	{
+		gpGlobalConfig->defaultBitrate4K = bitrate4K;
+	}
+}
+
+
+/**
+ *   @brief To set the network download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PrivateInstanceAAMP::SetNetworkTimeout(int timeout)
+{
+	if (timeout > 0)
+	{
+		gpGlobalConfig->fragmentDLTimeout = timeout;
+	}
+}
+
+
+/**
+ *   @brief To set the download buffer size value
+ *
+ *   @param[in] preferred download buffer size
+ */
+void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
+{
+	if (bufferSize > 0)
+	{
+		gpGlobalConfig->maxCachedFragmentsPerTrack = bufferSize;
+	}
 }

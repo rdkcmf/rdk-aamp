@@ -957,6 +957,20 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		bool isComcastStream = false;
 
+		char *externLicenseServerURL = NULL;
+		if (gpGlobalConfig->prLicenseServerURL && !isWidevine)
+		{
+			externLicenseServerURL = gpGlobalConfig->prLicenseServerURL;
+		}
+		else if (gpGlobalConfig->wvLicenseServerURL && isWidevine)
+		{
+			externLicenseServerURL = gpGlobalConfig->wvLicenseServerURL;
+		}
+		else if (gpGlobalConfig->licenseServerURL)
+		{
+			externLicenseServerURL = gpGlobalConfig->licenseServerURL;
+		}
+
 
 		if(contentMetaData)
 		{
@@ -1018,12 +1032,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			licenceChallenge = new DrmData(reinterpret_cast<unsigned char*>(comChallenge.ptr),comChallenge.len);
 			aamp_Free(&comChallenge.ptr);
 
-			if (gpGlobalConfig->licenseServerURL)
+			if (externLicenseServerURL)
 			{
 #ifdef USE_SECCLIENT
-				destinationURL = getFormattedLicenseServerURL(string(gpGlobalConfig->licenseServerURL));
+				destinationURL = getFormattedLicenseServerURL(string(externLicenseServerURL));
 #else
-				destinationURL = string(gpGlobalConfig->licenseServerURL);
+				destinationURL = string(externLicenseServerURL);
 #endif
 			}
 			else
@@ -1120,9 +1134,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		else 
 		{
-			if (gpGlobalConfig->licenseServerURL)
+			if (externLicenseServerURL)
 			{
-				destinationURL = string(gpGlobalConfig->licenseServerURL);
+				destinationURL = string(externLicenseServerURL);
 			}
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);

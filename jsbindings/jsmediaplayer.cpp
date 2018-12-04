@@ -106,25 +106,40 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef initialBitrateValue = JSObjectGetProperty(ctx, initConfigObj, initialBitrateStr, NULL);
 		if (JSValueIsNumber(ctx, initialBitrateValue))
 		{
-			int initialBitrate = JSValueToNumber(ctx, initialBitrateValue, NULL);
+			long initialBitrate = (long) JSValueToNumber(ctx, initialBitrateValue, NULL);
 			ERROR("%s(): initBitrate config param received - %d", __FUNCTION__, initialBitrate);
+			privObj->_aamp->SetInitialBitrate(initialBitrate);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - initialBitrate passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - initialBitrate passed", __FUNCTION__);
 		}
 		JSStringRelease(initialBitrateStr);
+
+		JSStringRef initialBitrate4KStr = JSStringCreateWithUTF8CString("initialBitrate4K");
+		JSValueRef initialBitrate4KValue = JSObjectGetProperty(ctx, initConfigObj, initialBitrate4KStr, NULL);
+		if (JSValueIsNumber(ctx, initialBitrate4KValue))
+		{
+			long initialBitrate4K = (long) JSValueToNumber(ctx, initialBitrate4KValue, NULL);
+			ERROR("%s(): initBitrate config param received - %d", __FUNCTION__, initialBitrate4K);
+			privObj->_aamp->SetInitialBitrate4K(initialBitrate4K);
+		}
+		else
+		{
+			LOG("%s(): InvalidProperty - initialBitrate4K passed", __FUNCTION__);
+		}
+		JSStringRelease(initialBitrate4KStr);
 
 		JSStringRef initialBufferStr = JSStringCreateWithUTF8CString("initialBuffer");
 		JSValueRef initialBufferValue = JSObjectGetProperty(ctx, initConfigObj, initialBufferStr, NULL);
 		if (JSValueIsNumber(ctx, initialBufferValue))
 		{
-			int initialBuffer = JSValueToNumber(ctx, initialBufferValue, NULL);
+			int initialBuffer = (int) JSValueToNumber(ctx, initialBufferValue, NULL);
 			ERROR("%s(): initialBuffer config param received - %d", __FUNCTION__, initialBuffer);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - initialBuffer passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - initialBuffer passed", __FUNCTION__);
 		}
 		JSStringRelease(initialBufferStr);
 
@@ -132,12 +147,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef playbackBufferValue = JSObjectGetProperty(ctx, initConfigObj, playbackBufferStr, NULL);
 		if (JSValueIsNumber(ctx, playbackBufferValue))
 		{
-			int playbackBuffer = JSValueToNumber(ctx, playbackBufferValue, NULL);
+			int playbackBuffer = (int) JSValueToNumber(ctx, playbackBufferValue, NULL);
 			ERROR("%s(): playbackBuffer config param received - %d", __FUNCTION__, playbackBuffer);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - playbackBuffer passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - playbackBuffer passed", __FUNCTION__);
 		}
 		JSStringRelease(playbackBufferStr);
 
@@ -145,12 +160,13 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef offsetValue = JSObjectGetProperty(ctx, initConfigObj, offsetStr, NULL);
 		if (JSValueIsNumber(ctx, offsetValue))
 		{
-			int offset = JSValueToNumber(ctx, offsetValue, NULL);
+			int offset = (int) JSValueToNumber(ctx, offsetValue, NULL);
 			ERROR("%s(): offset config param received - %d", __FUNCTION__, offset);
+			privObj->_aamp->Seek(offset);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - offset passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - offset passed", __FUNCTION__);
 		}
 		JSStringRelease(offsetStr);
 
@@ -158,12 +174,13 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef networkTimeoutValue = JSObjectGetProperty(ctx, initConfigObj, networkTimeoutStr, NULL);
 		if (JSValueIsNumber(ctx, networkTimeoutValue))
 		{
-			int networkTimeout = JSValueToNumber(ctx, networkTimeoutValue, NULL);
+			int networkTimeout = (int) JSValueToNumber(ctx, networkTimeoutValue, NULL);
 			ERROR("%s(): networkTimeout config param received - %d", __FUNCTION__, networkTimeout);
+			privObj->_aamp->SetNetworkTimeout(networkTimeout);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - networkTimeout passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - networkTimeout passed", __FUNCTION__);
 		}
 		JSStringRelease(networkTimeoutStr);
 
@@ -171,12 +188,13 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef downloadBufferValue = JSObjectGetProperty(ctx, initConfigObj, downloadBufferStr, NULL);
 		if (JSValueIsNumber(ctx, downloadBufferValue))
 		{
-			int downloadBuffer = JSValueToNumber(ctx, downloadBufferValue, NULL);
+			int downloadBuffer = (int) JSValueToNumber(ctx, downloadBufferValue, NULL);
 			ERROR("%s(): downloadBuffer config param received - %d", __FUNCTION__, downloadBuffer);
+			privObj->_aamp->SetDownloadBufferSize(downloadBuffer);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - downloadBuffer passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - downloadBuffer passed", __FUNCTION__);
 		}
 		JSStringRelease(downloadBufferStr);
 
@@ -184,12 +202,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef minBitrateValue = JSObjectGetProperty(ctx, initConfigObj, minBitrateStr, NULL);
 		if (JSValueIsNumber(ctx, minBitrateValue))
 		{
-			int minBitrate = JSValueToNumber(ctx, minBitrateValue, NULL);
+			long minBitrate = (long) JSValueToNumber(ctx, minBitrateValue, NULL);
 			ERROR("%s(): minBitrate config param received - %d", __FUNCTION__, minBitrate);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - minBitrate passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - minBitrate passed", __FUNCTION__);
 		}
 		JSStringRelease(minBitrateStr);
 
@@ -197,12 +215,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef maxBitrateValue = JSObjectGetProperty(ctx, initConfigObj, maxBitrateStr, NULL);
 		if (JSValueIsNumber(ctx, maxBitrateValue))
 		{
-			int maxBitrate = JSValueToNumber(ctx, maxBitrateValue, NULL);
+			long maxBitrate = (long) JSValueToNumber(ctx, maxBitrateValue, NULL);
 			ERROR("%s(): maxBitrate config param received - %d", __FUNCTION__, maxBitrate);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - maxBitrate passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - maxBitrate passed", __FUNCTION__);
 		}
 		JSStringRelease(maxBitrateStr);
 
@@ -212,11 +230,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		{
 			char *preferredAudioLanguage = aamp_JSValueToCString(ctx, preferredAudioLanguageValue, NULL);
 			ERROR("%s(): preferredAudioLanguage config param received - %s", __FUNCTION__, preferredAudioLanguage);
+			privObj->_aamp->SetLanguage(preferredAudioLanguage);
 			delete[] preferredAudioLanguage;
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - preferredAudioLanguage passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - preferredAudioLanguage passed", __FUNCTION__);
 		}
 		JSStringRelease(preferredAudioLanguageStr);
 
@@ -224,16 +243,85 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef tsbLengthValue = JSObjectGetProperty(ctx, initConfigObj, tsbLengthStr, NULL);
 		if (JSValueIsNumber(ctx, tsbLengthValue))
 		{
-			int tsbLength = JSValueToNumber(ctx, tsbLengthValue, NULL);
+			int tsbLength = (int) JSValueToNumber(ctx, tsbLengthValue, NULL);
 			ERROR("%s(): timeShiftBufferLength config param received - %d", __FUNCTION__, tsbLength);
 		}
 		else
 		{
-			ERROR("%s(): InvalidProperty - timeShiftBufferLength passed", __FUNCTION__);
+			LOG("%s(): InvalidProperty - timeShiftBufferLength passed", __FUNCTION__);
 		}
 		JSStringRelease(tsbLengthStr);
 
-		//TODO: Read DRM config object
+		JSStringRef drmConfigStr = JSStringCreateWithUTF8CString("drmConfig");
+		JSValueRef drmConfigValue = JSObjectGetProperty(ctx, initConfigObj, drmConfigStr, NULL);
+		if (JSValueIsObject(ctx, drmConfigValue))
+		{
+			JSObjectRef drmConfigObj = JSValueToObject(ctx, drmConfigValue, &_exception);
+			if (drmConfigObj != NULL && _exception == NULL)
+			{
+				JSStringRef keyName = JSStringCreateWithUTF8CString("com.microsoft.playready");
+				JSValueRef keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+
+				char *licenceServerUrl = aamp_JSValueToCString(ctx, keyValue, NULL);
+				ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, licenceServerUrl);
+				privObj->_aamp->SetLicenseServerURL(licenceServerUrl, eDRMTYPE_PLAYREADY);
+
+				delete[] licenceServerUrl;
+				JSStringRelease(keyName);
+
+				keyName = JSStringCreateWithUTF8CString("com.widevine.alpha");
+				keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+				licenceServerUrl = aamp_JSValueToCString(ctx, keyValue, NULL);
+
+				ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, licenceServerUrl);
+				privObj->_aamp->SetLicenseServerURL(licenceServerUrl, eDRMTYPE_WIDEVINE);
+
+				delete[] licenceServerUrl;
+				JSStringRelease(keyName);
+
+				keyName = JSStringCreateWithUTF8CString("preferredKeysystem");
+				keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+				char *keySystem = aamp_JSValueToCString(ctx, keyValue, NULL);
+				if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
+				{
+					ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
+				}
+				else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
+				{
+					ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
+				}
+				else
+				{
+					LOG("%s(): InvalidProperty - preferredKeySystem received", __FUNCTION__);
+				}
+				delete[] keySystem;
+				JSStringRelease(keyName);
+			}
+			else
+			{
+				ERROR("%s(): InvalidProperty - drmConfigObj is NULL", __FUNCTION__);
+			}
+		}
+		else
+		{
+			LOG("%s(): InvalidProperty - drmConfig passed", __FUNCTION__);
+		}
+		JSStringRelease(drmConfigStr);
+
+		JSStringRef liveOffsetStr = JSStringCreateWithUTF8CString("liveOffset");
+		JSValueRef liveOffsetValue = JSObjectGetProperty(ctx, initConfigObj, liveOffsetStr, NULL);
+		if (JSValueIsNumber(ctx, liveOffsetValue))
+		{
+			int liveOffset = (int) JSValueToNumber(ctx, liveOffsetValue, NULL);
+			ERROR("%s(): liveOffset config param received - %d", __FUNCTION__, liveOffset);
+			privObj->_aamp->SetLiveOffset(liveOffset);
+		}
+		else
+		{
+			LOG("%s(): InvalidProperty - liveOffset passed", __FUNCTION__);
+		}
+		JSStringRelease(liveOffsetStr);
+
 	}
 	else
 	{
@@ -583,7 +671,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
 	}
 	else
 	{
-		long bitrate = JSValueToNumber(ctx, arguments[0], NULL);
+		long bitrate = (long) JSValueToNumber(ctx, arguments[0], NULL);
 		//bitrate 0 is for ABR
 		if (bitrate >= 0)
 		{
@@ -653,7 +741,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
 	}
 	else
 	{
-		long bitrate = JSValueToNumber(ctx, arguments[0], NULL);
+		long bitrate = (long) JSValueToNumber(ctx, arguments[0], NULL);
 		if (bitrate >= 0)
 		{
 			privObj->_aamp->SetAudioBitrate(bitrate);
@@ -839,7 +927,7 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 
 	if (argumentCount == 1)
 	{
-		int volume = JSValueToNumber(ctx, arguments[0], exception);
+		int volume = (int) JSValueToNumber(ctx, arguments[0], exception);
 		if (volume >= 0)
 		{
 			privObj->_aamp->SetAudioVolume(volume);
@@ -909,10 +997,10 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 	if (argumentCount == 1 || argumentCount == 2)
 	{
 		int overshootCorrection = 0;
-		float rate  = JSValueToNumber(ctx, arguments[0], exception);
+		float rate = (int) JSValueToNumber(ctx, arguments[0], exception);
 		if (argumentCount == 2)
 		{
-			overshootCorrection = (int)JSValueToNumber(ctx, arguments[1], exception);
+			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);
 		}
 		privObj->_aamp->SetRate(rate, overshootCorrection);
 	}
@@ -1366,10 +1454,10 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 
 	if (argumentCount == 4)
 	{
-		int x = JSValueToNumber(ctx, arguments[0], exception);
-		int y = JSValueToNumber(ctx, arguments[1], exception);
-		int w = JSValueToNumber(ctx, arguments[2], exception);
-		int h = JSValueToNumber(ctx, arguments[3], exception);
+		int x = (int) JSValueToNumber(ctx, arguments[0], exception);
+		int y = (int) JSValueToNumber(ctx, arguments[1], exception);
+		int w = (int) JSValueToNumber(ctx, arguments[2], exception);
+		int h = (int) JSValueToNumber(ctx, arguments[3], exception);
 		privObj->_aamp->SetVideoRectangle(x,y,w,h);
 	}
 	else
