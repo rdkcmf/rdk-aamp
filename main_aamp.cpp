@@ -3812,13 +3812,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	{
 		// DELIA-30843/DELIA-31379 . for CDVR/IVod , offset is set to higher value 	
 		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec 
-		mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
+		if(!mNewLiveOffsetflag)
+		{
+			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
+		}
 	}	
 	else
 	{
 		// will be used only for live 
-		mLiveOffset	=	gpGlobalConfig->liveOffset;
+		if(!mNewLiveOffsetflag)
+		{
+			mLiveOffset	=	gpGlobalConfig->liveOffset;
+		}
 	}
+	logprintf("mLiveOffset: %d", mLiveOffset);
 
 	if(bFirstAttempt)
 	{
@@ -4626,6 +4633,16 @@ void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
 	aamp->SetLinearTrickplayFPS(linearTrickplayFPS);
+}
+
+/**
+ *   @brief Set Live Offset.
+ *
+ *   @param  liveoffset- Live Offset
+ */
+void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
+{
+	aamp->SetLiveOffset(liveoffset);
 }
 
 
@@ -5455,6 +5472,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	mTSBEnabled     =       false;
 	mIscDVR = false;
 	mLiveOffset = AAMP_LIVE_OFFSET;
+	mNewLiveOffsetflag = false;
 	zoom_mode = VIDEO_ZOOM_FULL;
 	pipeline_paused = false;
 	trickStartUTCMS = -1;
@@ -5822,6 +5840,19 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 
 	gpGlobalConfig->linearTrickplayFPS = linearTrickplayFPS;
 	logprintf("PrivateInstanceAAMP::%s(), linearTrickplayFPS %d\n", __FUNCTION__, linearTrickplayFPS);
+}
+
+
+/**
+ *   @brief Set live offset [Sec]
+ *
+ *   @param SetLiveOffset - Live Offset
+ */
+void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
+{
+	mLiveOffset = liveoffset;
+	mNewLiveOffsetflag = true;
+	logprintf("PrivateInstanceAAMP::%s(), liveoffset %d\n", __FUNCTION__, liveoffset);
 }
 
 

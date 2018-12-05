@@ -1116,6 +1116,7 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	int mLiveOffset;
+	bool mNewLiveOffsetflag;
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	float rate; // most recent (non-zero) play rate for non-paused content
@@ -1929,6 +1930,15 @@ public:
 	 *   @return void
 	 */
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
+
+	/**
+	 *   @brief Sets live offset [Sec]
+	 *
+	 *   @param[in] SetLiveOffset - Live Offset
+	 *   @return void
+	 */
+
+	void SetLiveOffset(int SetLiveOffset);
 
 	/**
 	 *   @brief Insert playlist into cache

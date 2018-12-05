@@ -2040,6 +2040,31 @@ static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef f
 }
 
 
+static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLiveOffset on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLiveOffset' - 1 argument required");
+	}
+	else
+	{
+		int liveOffset = (int)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetLiveOffset(liveOffset);
+	}
+	return JSValueMakeUndefined(context);
+}
+
+
 /**
  * @brief Array containing the AAMP's statically declared functions
  */
@@ -2074,6 +2099,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setVODTrickplayFPS", AAMP_setVODTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 
 	{ "setLinearTrickplayFPS", AAMP_setLinearTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setLiveOffset", AAMP_setLiveOffset, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
