@@ -629,6 +629,12 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "-X-XCAL-CONTENTMETADATA"))
 				{ // placeholder for new Super8 DRM Agnostic Metadata
 				}
+				else if (startswith(&ptr, "-NOM-I-FRAME-DISTANCE"))
+				{ // placeholder for nominal distance between IFrames
+				}
+				else if (startswith(&ptr, "-X-ADVERTISING"))
+				{ // placeholder for advertising zone for linear (soon to be deprecated)
+				}
 				else 
 				{
 					std::string unknowTag= ptr;
@@ -1054,6 +1060,12 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				}
 				else if (startswith(&ptr, "-X-XCAL-CONTENTMETADATA"))
 				{ // placeholder for new Super8 DRM Agnostic Metadata
+				}
+				else if (startswith(&ptr, "-NOM-I-FRAME-DISTANCE"))
+				{ // placeholder for nominal distance between IFrames
+				}
+				else if (startswith(&ptr, "-X-ADVERTISING"))
+				{ // placeholder for advertising zone for linear (soon to be deprecated)
 				}
 				else 
 				{
