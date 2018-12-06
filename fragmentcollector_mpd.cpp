@@ -2393,7 +2393,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					logprintf("%s:%d - Updated duration %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
 				}
 			}
-			if(offsetFromStart && seekPeriods)
+			if(offsetFromStart >= 0 && seekPeriods)
 			{
 				tempString = period->GetStart();
 				if(!tempString.empty())
