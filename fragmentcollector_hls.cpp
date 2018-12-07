@@ -67,6 +67,7 @@
 #define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
+#define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 
 //Global variables to persist drm related info for particular tune/vod
 static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
@@ -2184,8 +2185,9 @@ void StreamAbstractionAAMP_HLS::SyncVODTracks()
 * @param trackDuration[in] track duration for audio/video 
 * @return void
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
+AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 {
+	AAMPStatusType retval = eAAMPSTATUS_OK;
 	bool startTimeAvailable = true;
 	bool syncUsingStartTime = false;
 	long long mediaSequenceNumber[AAMP_TRACK_COUNT];
@@ -2281,6 +2283,7 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 	}
 	if (!syncUsingStartTime)
 	{
+		MediaType mediaType;
 #ifdef TRACE
 		logprintf("%s:%d sync using sequence number. A %lld V %lld a-f-uri %s v-f-uri %s\n", __FUNCTION__,
 				__LINE__, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
@@ -2292,32 +2295,45 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 		{
 			laggingTS = video;
 			diff = mediaSequenceNumber[eMEDIATYPE_AUDIO] - mediaSequenceNumber[eMEDIATYPE_VIDEO];
+			mediaType = eMEDIATYPE_VIDEO;
 			logprintf("%s:%d video track lag in seqno. diff %lld\n", __FUNCTION__, __LINE__, diff);
 		}
 		else if (mediaSequenceNumber[eMEDIATYPE_VIDEO] > mediaSequenceNumber[eMEDIATYPE_AUDIO])
 		{
 			laggingTS = audio;
 			diff = mediaSequenceNumber[eMEDIATYPE_VIDEO] - mediaSequenceNumber[eMEDIATYPE_AUDIO];
+			mediaType = eMEDIATYPE_AUDIO;
 			logprintf("%s:%d audio track lag in seqno. diff %lld\n", __FUNCTION__, __LINE__, diff);
 		}
 		if (laggingTS)
 		{
-			logprintf("%s:%d sync using sequence number. diff %lld A %lld V %lld a-f-uri %s v-f-uri %s\n", __FUNCTION__,
+			logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
 					__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
 					trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
-			while (diff > 0)
+
+			if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
 			{
-				laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
-				laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
-				if (laggingTS->fragmentURI)
+				while (diff > 0)
 				{
-					laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist();
+					laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
+					laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
+					if (laggingTS->fragmentURI)
+					{
+						laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist();
+					}
+					else
+					{
+						logprintf("%s:%d laggingTS->fragmentURI NULL, seek might be out of window\n", __FUNCTION__, __LINE__);
+					}
+					diff--;
 				}
-				else
-				{
-					logprintf("%s:%d laggingTS->fragmentURI NULL, seek might be out of window\n", __FUNCTION__, __LINE__);
-				}
-				diff--;
+			}
+			else
+			{
+				logprintf("%s:%d [ERROR] ** Lag in '%s' seq no, diff[%lld] > maxValue[%d], cannot play this content.!!\n",
+						__FUNCTION__, __LINE__, ((eMEDIATYPE_VIDEO == mediaType) ? "video" : "audio"), diff, MAX_SEQ_NUMBER_LAG_COUNT);
+
+				retval = eAAMPSTATUS_SEQUENCE_NUMBER_ERROR;
 			}
 		}
 		else
@@ -2326,6 +2342,8 @@ void StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 		}
 	}
 	logprintf("syncTracks Exit : audio track start %f, vid track start %f\n", trackState[eMEDIATYPE_AUDIO]->playTarget, trackState[eMEDIATYPE_VIDEO]->playTarget );
+
+	return retval;
 }
 /***************************************************************************
 * @fn Init
@@ -2390,7 +2408,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		while (MAX_MANIFEST_DOWNLOAD_RETRY > manifestDLFailCount && 404 == http_error);
 	}
-	if (!this->mainManifest.len) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
+	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
 	{
 		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
 		aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
@@ -2882,7 +2900,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			else
             {
                 if(!gpGlobalConfig->bAudioOnlyPlayback){
-                    SyncTracks(totalDuration);
+                    AAMPStatusType retValue = SyncTracks(totalDuration);
+
+                    if (eAAMPSTATUS_OK != retValue)
+                    {
+                        return retValue;
+                    }
                 }
             }
 		}

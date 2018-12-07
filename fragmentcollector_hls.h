@@ -310,7 +310,7 @@ protected:
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
-	void SyncTracks( double trackDuration[]);
+	AAMPStatusType SyncTracks( double trackDuration[]);
 	/// Function to Synchronize timing of Audio /Video for Vod streams 
 	void SyncVODTracks();
 	
