@@ -1914,6 +1914,14 @@ public:
 	void SetLicenseServerURL(const char* url, DRMType drmType = eDRMTYPE_GENERIC);
 
 	/**
+	 *   @brief Set Preferred DRM.
+	 *
+	 *   @param[in] drmType - Preferred DRM type
+	 *   @return void
+	 */
+	void SetPreferredDRM(DRMType drmType);
+
+	/**
 	 *   @brief Set anonymous request true or false
 	 *
 	 *   @param[in] isAnonymous - New status

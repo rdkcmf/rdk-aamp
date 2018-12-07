@@ -4876,6 +4876,17 @@ void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 
 
 /**
+ *   @brief Set preferred DRM.
+ *
+ *   @param[in] drmType - preferred DRM type
+ */
+void PlayerInstanceAAMP::SetPreferredDRM(DRMType drmType)
+{
+	aamp->SetPreferredDRM(drmType);
+}
+
+
+/**
  *   @brief Set video rectangle.
  *
  *   @param  x - horizontal start position.
@@ -6406,4 +6417,16 @@ void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 	{
 		gpGlobalConfig->maxCachedFragmentsPerTrack = bufferSize;
 	}
+}
+
+
+/**
+ *   @brief Set Preferred DRM.
+ *
+ *   @param[in] drmType - Preferred DRM type
+ */
+void PrivateInstanceAAMP::SetPreferredDRM(DRMType drmType)
+{
+	AAMPLOG_INFO("%s:%d set preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
+	gpGlobalConfig->preferredDrm = drmType;
 }

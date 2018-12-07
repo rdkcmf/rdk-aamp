@@ -808,6 +808,14 @@ public:
 	void SetLicenseServerURL(const char *url, DRMType type = eDRMTYPE_GENERIC);
 
 	/**
+	 *   @brief Set Preferred DRM.
+	 *
+	 *   @param[in] drmType - Preferred DRM type
+	 *   @return void
+	 */
+	void SetPreferredDRM(DRMType drmType);
+
+	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
 	 *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.

@@ -285,10 +285,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
 				{
 					ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
+					privObj->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
 				}
 				else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
 				{
 					ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
+					privObj->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
 				}
 				else
 				{

@@ -1936,6 +1936,48 @@ static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef fun
 
 
 /**
+ * @brief Callback invoked from JS to set the preferred DRM
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setPreferredDRM on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setPreferredDRM' - 1 argument required");
+	}
+	else
+	{
+		const char *drm = aamp_JSValueToCString(context, arguments[0], exception);
+		if (strncasecmp(drm, "widevine", 8) == 0)
+		{
+			pAAMP->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
+		}
+		if (strncasecmp(drm, "playready", 9) == 0)
+		{
+			pAAMP->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
+		}
+		delete [] drm;
+	}
+	return JSValueMakeUndefined(context);
+}
+
+/**
  * @brief Callback invoked from JS to en/disable anonymous request
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
@@ -2094,6 +2136,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "addCustomHTTPHeader", AAMP_addCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "removeCustomHTTPHeader", AAMP_removeCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setLicenseServerURL", AAMP_setLicenseServerURL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setPreferredDRM", AAMP_setPreferredDRM, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAnonymousRequest", AAMP_setAnonymousRequest, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 
 	{ "setVODTrickplayFPS", AAMP_setVODTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
