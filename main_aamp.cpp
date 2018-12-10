@@ -177,6 +177,7 @@ static PlayerInstanceAAMP *mSingleton;
 
 GlobalConfigAAMP *gpGlobalConfig;
 
+#define LOCAL_HOST_IP       "127.0.0.1"
 #define STR_PROXY_BUFF_SIZE  64
 #define AAMP_MAX_SIMULTANEOUS_INSTANCES 2
 #define AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS (20*1000LL)
@@ -366,8 +367,20 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			eventData.data.progress.positionMiliseconds = mAdPosition * 1000.0;
 		}
 		eventData.data.progress.durationMiliseconds = durationSeconds*1000.0;
-		eventData.data.progress.startMiliseconds = culledSeconds*1000.0;
-		eventData.data.progress.endMiliseconds = eventData.data.progress.startMiliseconds + eventData.data.progress.durationMiliseconds;
+
+		//If tsb is not available for linear send -1  for start and end
+		// so that xre detect this as tsbless playabck
+		if( mContentType == ContentType_LINEAR && !mTSBEnabled)
+		{
+            eventData.data.progress.startMiliseconds = -1;
+            eventData.data.progress.endMiliseconds = -1;
+		}
+		else
+		{
+		    eventData.data.progress.startMiliseconds = culledSeconds*1000.0;
+		    eventData.data.progress.endMiliseconds = eventData.data.progress.startMiliseconds + eventData.data.progress.durationMiliseconds;
+		}
+
 		eventData.data.progress.playbackSpeed = pipeline_paused ? 0 : rate;
 
 		if (eventData.data.progress.positionMiliseconds > eventData.data.progress.endMiliseconds)
@@ -1820,6 +1833,18 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 					strncpy(effectiveUrl, effectiveUrlPtr, MAX_URI_LENGTH-1);
 					effectiveUrl[MAX_URI_LENGTH-1] = '\0';
+
+					// check if redirected url is pointing to fog / local ip
+					if(mIsFirstRequestToFOG)
+					{
+					    if( strstr(effectiveUrl,LOCAL_HOST_IP) == NULL )
+					    {
+					        // oops, TSB is not working, we got redirected away from fog
+					        mIsLocalPlayback = false;
+					        mTSBEnabled = false;
+					        logprintf("NO_TSB_AVAILABLE playing from:%s \n", effectiveUrl);
+					    }
+					}
 				}
 				else
 				{
@@ -3809,7 +3834,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
-	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find("127.0.0.1") != std::string::npos);
+	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
 	
