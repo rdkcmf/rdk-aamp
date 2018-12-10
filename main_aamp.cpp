@@ -815,6 +815,16 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate)
 }
 
 
+void PrivateInstanceAAMP::SendDRMMetaData(const AAMPEvent &e)
+{
+
+        SendEventSync(e);
+        logprintf("SendDRMMetaData name = %s value = %x\n",e.data.dash_drmmetadata.accessStatus,e.data.dash_drmmetadata.accessStatus_value);
+}
+
+
+
+
 /**
  * @brief
  * @param ptr
@@ -3191,6 +3201,9 @@ public:
 		case AAMP_EVENT_SPEED_CHANGED:
 			logprintf("AAMP_EVENT_SPEED_CHANGED\n");
 			break;
+		case AAMP_EVENT_DRM_METADATA:
+                        logprintf("AAMP_DRM_FAILED\n");
+                        break;
 		case AAMP_EVENT_EOS:
 			logprintf("AAMP_EVENT_EOS\n");
 			break;

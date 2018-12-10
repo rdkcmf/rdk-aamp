@@ -101,10 +101,10 @@ public:
 	~AampDRMSessionManager();
 
 	AampDrmSession * createDrmSession(const char* systemId,
-			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code = NULL);
+			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp, AAMPEvent *e);
 	AampDrmSession * createDrmSession(const char* systemId,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
-			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code = NULL);
+			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e);
 
 	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false);
 

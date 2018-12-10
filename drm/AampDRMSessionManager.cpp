@@ -703,9 +703,9 @@ unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,
  */
 AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const char* systemId, const unsigned char * initDataPtr,
-		uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp,  AAMPTuneFailure *error_code)
+		uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp,  AAMPEvent *e)
 {
-	return createDrmSession(systemId, initDataPtr, dataLength, streamType, NULL, aamp, error_code);
+	return createDrmSession(systemId, initDataPtr, dataLength, streamType, NULL, aamp, e);
 }
 
 /**
@@ -731,7 +731,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const char* systemId, const unsigned char * initDataPtr,
 		uint16_t dataLength, MediaType streamType,
-		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPTuneFailure *error_code)
+		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPEvent *e)
 {
 	KeyState code = KEY_CLOSED;
 	long responseCode = -1;
@@ -751,6 +751,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		cout << endl;
 	}
 	int sessionType = 0;
+	e->data.dash_drmmetadata.accessStatus = "accessAttributeStatus";
+        e->data.dash_drmmetadata.accessStatus_value = 3;
 
 	if(eMEDIATYPE_AUDIO == streamType)
 	{
@@ -762,7 +764,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 	else
 	{
-		*error_code = AAMP_TUNE_UNSUPPORTED_STREAM_TYPE;
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_UNSUPPORTED_STREAM_TYPE;
 		return NULL;
 	}
 
@@ -799,7 +801,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	if (keyId == NULL)
 	{
 		logprintf("%s:%d Key Id not found in initdata\n", __FUNCTION__, __LINE__);
-		*error_code = AAMP_TUNE_FAILED_TO_GET_KEYID;
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_KEYID;
 		return NULL;
 	}
 
@@ -903,7 +905,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		logprintf("%s:%d DRM initialization failed : Key State %d \n", __FUNCTION__, __LINE__, code);
 		pthread_mutex_unlock(&session_mutex[sessionType]);
 		free(keyId);
-		*error_code = AAMP_TUNE_DRM_INIT_FAILED;
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_INIT_FAILED;
 		return NULL;
 	}
 
@@ -915,7 +917,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		logprintf("%s:%d DRM init data binding failed: Key State %d \n", __FUNCTION__, __LINE__, code);
 		pthread_mutex_unlock(&session_mutex[sessionType]);
 		free(keyId);
-		*error_code = AAMP_TUNE_DRM_DATA_BIND_FAILED;
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_DATA_BIND_FAILED;
 		return NULL;
 	}
 
@@ -1017,7 +1019,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				if(NULL == sessionToken)
 				{
-					*error_code = AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN;
+					e->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN;
 				}
 				logprintf("%s:%d Trying to get license without token\n", __FUNCTION__, __LINE__);
 			}
@@ -1109,7 +1111,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				logprintf("licenseResponse is %s\n", licenseResponse);
 				logprintf("licenseResponse len is %zd\n", licenseResponseLength);
 				logprintf("accessAttributesStatus is %d\n", statusInfo.accessAttributeStatus);
-//				logprintf("errorCode is %d\n", statusInfo.errorCode);
 				logprintf("refreshDuration is %d\n", refreshDuration);
 			}
 
@@ -1121,6 +1122,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			else
 			{
 				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d\n",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				e->type = AAMP_EVENT_DRM_METADATA;
+                                e->data.dash_drmmetadata.accessStatus_value = statusInfo.accessAttributeStatus;
 				key = new DrmData((unsigned char *)licenseResponse, licenseResponseLength);
 			}
 			if (licenseResponse) SecClient_FreeResource(licenseResponse);
@@ -1183,24 +1186,24 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			logprintf("%s:%d Could not get license from server for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			if(412 == responseCode)
 			{
-				if(*error_code != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
+				if(e->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
-					*error_code = AAMP_TUNE_AUTHORISATION_FAILURE;
+					e->data.dash_drmmetadata.failure = AAMP_TUNE_AUTHORISATION_FAILURE;
 				}
 			}
 #ifdef USE_SECCLIENT
 			else if(SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TIMEOUT == responseCode)
 			{
-				*error_code = AAMP_TUNE_LICENCE_TIMEOUT;
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
 			}
 #endif
 			else if(CURLE_OPERATION_TIMEDOUT == responseCode)
 			{
-				*error_code = AAMP_TUNE_LICENCE_TIMEOUT;
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
 			}
 			else
 			{
-				*error_code = AAMP_TUNE_LICENCE_REQUEST_FAILED;
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_REQUEST_FAILED;
 			}
 		}
 		delete key;
@@ -1210,7 +1213,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		logprintf("%s:%d Error in getting license challenge for %s stream : Key State %d \n",
 					__FUNCTION__, __LINE__, sessionTypeName[streamType], code);
 		aamp->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC);
-		*error_code = AAMP_TUNE_DRM_CHALLENGE_FAILED;
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_CHALLENGE_FAILED;
 	}
 
 	delete licenceChallenge;
@@ -1233,18 +1236,18 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 	else if (code == KEY_ERROR)
 	{
-		if(AAMP_TUNE_FAILURE_UNKNOWN == *error_code)
+		if(AAMP_TUNE_FAILURE_UNKNOWN == e->data.dash_drmmetadata.failure)
 		{
-			*error_code = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
+			e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
 		}
 	}
 	else if (code == KEY_PENDING)
 	{
 		logprintf("%s:%d Failed to get %s DRM keys for %s stream\n",
 					__FUNCTION__, __LINE__, systemId ,sessionTypeName[streamType]);
-		if(AAMP_TUNE_FAILURE_UNKNOWN == *error_code)
+		if(AAMP_TUNE_FAILURE_UNKNOWN == e->data.dash_drmmetadata.failure)
 		{
-			*error_code = AAMP_TUNE_INVALID_DRM_KEY;
+			e->data.dash_drmmetadata.failure = AAMP_TUNE_INVALID_DRM_KEY;
 		}
 	}
 
