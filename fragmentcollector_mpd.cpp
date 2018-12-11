@@ -1118,7 +1118,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							}
 
 #ifdef DEBUG_TIMELINE
-							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%d FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
+							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%" PRIu64 " FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,index,
 							pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
 #endif		
@@ -1132,7 +1132,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								pMediaStreamContext->fragmentRepeatCount++;
 							}
 #ifdef DEBUG_TIMELINE
-							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragRep=%d Index=%d Num=%d FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
+							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragRep=%d Index=%d Num=%" PRIu64 " FTime=%f\n",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,pMediaStreamContext->fragmentRepeatCount,pMediaStreamContext->timeLineIndex,
 							pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentTime);
 #endif			
@@ -3465,6 +3465,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					{
 						logprintf("PrivateStreamAbstractionMPD::%s %d > Got TrickMode track\n", __FUNCTION__, __LINE__);
 						pMediaStreamContext->enabled = true;
+						pMediaStreamContext->profileChanged = true;
 						pMediaStreamContext->adaptationSetIdx = iAdaptationSet;
 						mNumberOfTracks = 1;
 						isIframeAdaptationAvailable = true;
@@ -3480,7 +3481,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			pMediaStreamContext->enabled = true;
 			pMediaStreamContext->adaptationSetIdx = selAdaptationSetIndex;
 			pMediaStreamContext->representationIndex = selRepresentationIndex;
-
+			pMediaStreamContext->profileChanged = true;
 			//preferred audio language was not available, hence selected best audio format
 			if (otherLanguageSelected)
 			{
@@ -3548,6 +3549,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUDIO]->representationIndex;
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->mediaType = eMEDIATYPE_VIDEO;
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->type = eTRACK_VIDEO;
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->profileChanged = true;
 		mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
 	}
 }
@@ -3761,7 +3763,6 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 			strcpy(pMediaStreamContext->fragmentDescriptor.RepresentationID, pMediaStreamContext->representation->GetId().c_str());
 			pMediaStreamContext->fragmentDescriptor.Time = 0;
-			pMediaStreamContext->profileChanged = true;
 			ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
 			if(!segmentTemplate)
 			{
@@ -4297,6 +4298,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	bool trickPlay = (1.0 != rate);
 	bool mpdChanged = false;
 	double delta = 0;
+	bool lastLiveFlag=false;
 #ifdef AAMP_MPD_DRM
 	if (mPushEncInitFragment && CheckForInitalClearPeriod())
 	{
@@ -4388,13 +4390,14 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					// IsLive = 1 , resetTimeLineIndex = 1
 					// InProgressCdvr (IsLive=1) , resetTimeLineIndex = 1
 					// Vod/CDVR for PeriodChange , resetTimeLineIndex = 1
-					bool resetTimeLineIndex = (mIsLive|| periodChanged);
+					bool resetTimeLineIndex = (mIsLive || lastLiveFlag|| periodChanged);
 					UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
-					if(mIsLive)
+					if(mIsLive || lastLiveFlag)
 					{
 						uint64_t durationMs = GetDurationFromRepresentation();
 						aamp->UpdateDuration(((double)durationMs)/1000);
 					}
+					lastLiveFlag = mIsLive;
 					/*Discontinuity handling on period change*/
 					if ( periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
 							mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled &&
@@ -4476,7 +4479,11 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 									}
 								}
 							}
-							else if(pMediaStreamContext->profileChanged && (eMEDIATYPE_VIDEO == i))
+							// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
+							// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
+							// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop  
+							// DELIA-32017
+							else if(pMediaStreamContext->profileChanged)
 							{	// Profile changed case 
 								FetchAndInjectInitialization();
 							}
@@ -4688,7 +4695,11 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			// Reset of mCurrentPeriodIdx to be done to max period if Period count changes after mpd refresh
 			size_t newPeriods = mpd->GetPeriods().size();
 			if(mCurrentPeriodIdx > (newPeriods - 1))
+			{
+				logprintf("MPD Fragment Collector detected reset in Period(New Size:%d)(currentIdx:%d->%d)\n",
+					newPeriods,mCurrentPeriodIdx,newPeriods - 1); 
 				mCurrentPeriodIdx = newPeriods - 1;
+			}
 		}
 		mpdChanged = true;
 	}
