@@ -627,14 +627,15 @@ public:
 			ERROR("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, e.type, _jsCallback);
 
 		JSObjectRef eventObj = JSObjectMake(_aamp->_ctx, Event_class_ref(), NULL);
-		JSObjectSetPrivate(eventObj, (void*)&e);
-		setEventProperties(e, _aamp->_ctx, eventObj);
-		JSValueProtect(_aamp->_ctx, eventObj);
-		JSValueRef args[1] = { eventObj };
-		JSObjectCallAsFunction(_aamp->_ctx, _jsCallback, NULL, 1, args, NULL);
-		JSValueUnprotect(_aamp->_ctx, eventObj);
-	}
-
+		if (eventObj) {
+                       JSValueProtect(_aamp->_ctx, eventObj);
+                       JSObjectSetPrivate(eventObj, (void*)&e);
+                       setEventProperties(e, _aamp->_ctx, eventObj);
+                       JSValueRef args[1] = { eventObj };
+                       JSObjectCallAsFunction(_aamp->_ctx, _jsCallback, NULL, 1, args, NULL);
+                       JSValueUnprotect(_aamp->_ctx, eventObj);
+               }
+        }
 
 	/**
 	 * @brief Set JS event properties
