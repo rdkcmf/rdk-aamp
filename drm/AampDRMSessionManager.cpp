@@ -1196,6 +1196,10 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
 			}
+			else if(SEC_CLIENT_RESULT_MAC_AUTH_NOT_PROVISIONED == responseCode)
+			{
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
+			}
 #endif
 			else if(CURLE_OPERATION_TIMEDOUT == responseCode)
 			{

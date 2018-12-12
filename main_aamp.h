@@ -142,6 +142,7 @@ typedef enum
 	AAMP_TUNE_PLAYBACK_STALLED,             /**< Playback was stalled due to valid fragments not available in playlist */
 	AAMP_TUNE_CONTENT_NOT_FOUND,            /**< The resource was not found at the URL provided (HTTP 404) */
 	AAMP_TUNE_DRM_KEY_UPDATE_FAILED,        /**< Failed to process DRM key, see the error code returned from Update() for more info */
+	AAMP_TUNE_DEVICE_NOT_PROVISIONED,       /**< STB not provisioned/corrupted; need to re-provision. */
 	AAMP_TUNE_FAILURE_UNKNOWN               /**<  Unknown failure */
 }AAMPTuneFailure;
 

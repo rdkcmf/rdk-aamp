@@ -134,6 +134,7 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_PLAYBACK_STALLED, 7600, "AAMP: Playback was stalled due to lack of new fragments"},
 	{AAMP_TUNE_CONTENT_NOT_FOUND, 20, "AAMP: Resource was not found at the URL(HTTP 404)"},
 	{AAMP_TUNE_DRM_KEY_UPDATE_FAILED, 50, "AAMP: Failed to process DRM key"},
+	{AAMP_TUNE_DEVICE_NOT_PROVISIONED, 52, "AAMP: Device not provisioned"},
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
 };
 
@@ -604,6 +605,10 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	pthread_mutex_unlock(&mLock);
 	if (sendErrorEvent)
 	{
+		if(AAMP_TUNE_AUTHORISATION_FAILURE == tuneFailure || AAMP_TUNE_DEVICE_NOT_PROVISIONED == tuneFailure)
+		{
+			isRetryEnabled = false;
+		}
 		AAMPEvent e;
 		e.type = AAMP_EVENT_TUNE_FAILED;
 		e.data.mediaError.shouldRetry = isRetryEnabled;
