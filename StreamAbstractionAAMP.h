@@ -259,6 +259,9 @@ protected:
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 
+
+	static int GetDeferTimeMs(long maxTimeSeconds);
+
 private:
 	static const char* GetBufferHealthStatusString(BufferHealthStatus status);
 
@@ -571,7 +574,8 @@ public:
 
 	bool mIsPlaybackStalled;                /**< flag that denotes if playback was stalled or not*/
 	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
-	bool mNetworkDownDetected;		/**< Network down status indicator */
+	bool mNetworkDownDetected;              /**< Network down status indicator */
+	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
 
 
 	/**

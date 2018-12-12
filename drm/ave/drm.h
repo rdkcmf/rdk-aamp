@@ -28,6 +28,9 @@
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
 
+#define MAX_DRM_CONTEXT 6
+#define DRM_SHA1_HASH_LEN 40
+
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
@@ -74,19 +77,59 @@ struct DrmInfo
 class AveDrm : public HlsDrmBase
 {
 public:
-	static AveDrm* GetInstance();
-	int SetContext( class PrivateInstanceAAMP *aamp, void* metadata, const struct DrmInfo *drmInfo);
+	AveDrm();
+	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata);
+	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
 	void Release();
 	void CancelKeyWait();
 	void RestoreKeyState();
+	void SetState(DRMState state);
+	DRMState mDrmState;
 private:
-	/**
-	 * @brief AveDrm private Constructor
-	 */
-	AveDrm(){};
+	PrivateInstanceAAMP *mpAamp;
+	class MyFlashAccessAdapter *m_pDrmAdapter;
+	class TheDRMListener *m_pDrmListner;
+	DRMState mPrevDrmState;
+	pthread_cond_t cond;
+	pthread_mutex_t mutex;
+};
 
-	static AveDrm *mInstance;
+/**
+* @struct	DrmMetadataNode
+* @brief	DrmMetadataNode structure for DRM Metadata/Hash storage
+*/
+struct DrmMetadataNode
+{
+	DrmMetadata metaData;
+	char* sha1Hash;
+};
+
+/**
+* @class	AveDrmManager
+* @brief	Manages AveDrm instances and provide functions for license acquisition and rotation.
+* 			Methods are not multi-thread safe. Caller is responsible for synchronization.
+*/
+class AveDrmManager
+{
+public:
+	static void ResetAll();
+	static void CancelKeyWaitAll();
+	static void ReleaseAll();
+	static void RestoreKeyStateAll();
+	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode);
+	static void PrintSha1Hash( char* sha1Hash);
+	static AveDrm* GetAveDrm(char* sha1Hash);
+	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
+private:
+	AveDrmManager();
+	void Reset();
+	char mSha1Hash[DRM_SHA1_HASH_LEN];
+	DrmMetadata mDrmMetadata;
+	AveDrm* mDrm;
+	bool mDrmContexSet;
+	static AveDrmManager sAveDrmManager[MAX_DRM_CONTEXT];
+	static int sAveDrmManagerCount;
 };
 
 #endif // DRM_H
