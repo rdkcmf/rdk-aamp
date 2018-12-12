@@ -34,6 +34,73 @@ extern "C"
 
 
 /**
+ * @brief Helper function to parse DRM config params received from JS
+ * @param[in] ctx JS execution context
+ * @param[in] privObj AAMPMediaPlayer instance to set the drm configuration
+ * @param[in] drmConfigParam parameters received as argument
+ */
+void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSValueRef drmConfigParam)
+{
+	JSValueRef exception = NULL;
+	JSObjectRef drmConfigObj = JSValueToObject(ctx, drmConfigParam, &exception);
+
+	if (drmConfigObj != NULL && exception == NULL)
+	{
+		JSStringRef keyName = JSStringCreateWithUTF8CString("com.microsoft.playready");
+		JSValueRef keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+
+		if (JSValueIsString(ctx, keyValue))
+		{
+			char *prLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
+			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenceServerURL);
+			privObj->_aamp->SetLicenseServerURL(prLicenceServerURL, eDRMTYPE_PLAYREADY);
+
+			delete[] prLicenceServerURL;
+		}
+		JSStringRelease(keyName);
+
+		keyName = JSStringCreateWithUTF8CString("com.widevine.alpha");
+		keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+		if (JSValueIsString(ctx, keyValue))
+		{
+			char *wvLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
+			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenceServerURL);
+			privObj->_aamp->SetLicenseServerURL(wvLicenceServerURL, eDRMTYPE_WIDEVINE);
+
+			delete[] wvLicenceServerURL;
+		}
+		JSStringRelease(keyName);
+
+		keyName = JSStringCreateWithUTF8CString("preferredKeysystem");
+		keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
+		if (JSValueIsString(ctx, keyValue))
+		{
+			char *keySystem = aamp_JSValueToCString(ctx, keyValue, NULL);
+			if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
+			{
+				ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
+				privObj->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
+			}
+			else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
+			{
+				ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
+				privObj->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
+			}
+			else
+			{
+				LOG("%s(): InvalidProperty - preferredKeySystem received", __FUNCTION__);
+			}
+			delete[] keySystem;
+		}
+		JSStringRelease(keyName);
+	}
+	else
+	{
+		ERROR("%s(): InvalidProperty - drmConfigParam is NULL", __FUNCTION__);
+	}
+}
+
+/**
  * @brief API invoked from JS when executing AAMPMediaPlayer.load()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
@@ -256,53 +323,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef drmConfigValue = JSObjectGetProperty(ctx, initConfigObj, drmConfigStr, NULL);
 		if (JSValueIsObject(ctx, drmConfigValue))
 		{
-			JSObjectRef drmConfigObj = JSValueToObject(ctx, drmConfigValue, &_exception);
-			if (drmConfigObj != NULL && _exception == NULL)
-			{
-				JSStringRef keyName = JSStringCreateWithUTF8CString("com.microsoft.playready");
-				JSValueRef keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-
-				char *licenceServerUrl = aamp_JSValueToCString(ctx, keyValue, NULL);
-				ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, licenceServerUrl);
-				privObj->_aamp->SetLicenseServerURL(licenceServerUrl, eDRMTYPE_PLAYREADY);
-
-				delete[] licenceServerUrl;
-				JSStringRelease(keyName);
-
-				keyName = JSStringCreateWithUTF8CString("com.widevine.alpha");
-				keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-				licenceServerUrl = aamp_JSValueToCString(ctx, keyValue, NULL);
-
-				ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, licenceServerUrl);
-				privObj->_aamp->SetLicenseServerURL(licenceServerUrl, eDRMTYPE_WIDEVINE);
-
-				delete[] licenceServerUrl;
-				JSStringRelease(keyName);
-
-				keyName = JSStringCreateWithUTF8CString("preferredKeysystem");
-				keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-				char *keySystem = aamp_JSValueToCString(ctx, keyValue, NULL);
-				if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
-				{
-					ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
-					privObj->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
-				}
-				else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
-				{
-					ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
-					privObj->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
-				}
-				else
-				{
-					LOG("%s(): InvalidProperty - preferredKeySystem received", __FUNCTION__);
-				}
-				delete[] keySystem;
-				JSStringRelease(keyName);
-			}
-			else
-			{
-				ERROR("%s(): InvalidProperty - drmConfigObj is NULL", __FUNCTION__);
-			}
+			parseDRMConfiguration(ctx, privObj, drmConfigValue);
 		}
 		else
 		{
@@ -1300,7 +1321,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 
 
 /**
- * @brief API invoked from JS when executing AAMPMediaPlayer.setDrmConfig()
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setDRMConfig()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
@@ -1309,7 +1330,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value
  */
-JSValueRef AAMPMediaPlayerJS_setDrmConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
@@ -1327,7 +1348,10 @@ JSValueRef AAMPMediaPlayerJS_setDrmConfig (JSContextRef ctx, JSObjectRef functio
 	}
 	else
 	{
-		ERROR("%s(): Invoked setDrmConfig", __FUNCTION__);
+		if (JSValueIsObject(ctx, arguments[0]))
+		{
+			parseDRMConfiguration(ctx, privObj, arguments[0]);
+		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -1571,7 +1595,7 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "updateAlternateContent", AAMPMediaPlayerJS_updateAlternateContent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "addEventListener", AAMPMediaPlayerJS_addEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "removeEventListener", AAMPMediaPlayerJS_removeEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
-	{ "setDrmConfig", AAMPMediaPlayerJS_setDrmConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setDRMConfig", AAMPMediaPlayerJS_setDRMConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 
 	{ "addCustomHTTPHeader", AAMPMediaPlayerJS_addCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "removeCustomHTTPHeader", AAMPMediaPlayerJS_removeCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
