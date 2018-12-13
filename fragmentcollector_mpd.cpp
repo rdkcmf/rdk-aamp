@@ -1421,7 +1421,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				{
 					pMediaStreamContext->eos = true;
 				}
-				else
+				else if(!segmentURLs.empty())
 				{
 					ISegmentURL *segmentURL = segmentURLs.at(pMediaStreamContext->fragmentIndex);
 
@@ -1446,7 +1446,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						if(startTime > pMediaStreamContext->lastSegmentTime || 0 == pMediaStreamContext->lastSegmentTime || rate < 0 )
 						{
 							/*
-								Added to inject appropriate initialization header in 
+								Added to inject appropriate initialization header in
 								the case of fog custom mpd
 							*/
 							if(eMEDIATYPE_VIDEO == pMediaStreamContext->mediaType)
@@ -1541,6 +1541,10 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					{
 						pMediaStreamContext->fragmentIndex--;
 					}
+				}
+				else
+				{
+					logprintf("PrivateStreamAbstractionMPD::%s:%d SegmentUrl is empty\n", __FUNCTION__, __LINE__);
 				}
 			}
 			else
@@ -1778,67 +1782,83 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 			AAMPLOG_INFO("%s:%d Enter : fragmentIndex %d skipTime %f\n", __FUNCTION__, __LINE__,
 					pMediaStreamContext->fragmentIndex, skipTime);
 			const std::vector<ISegmentURL*> segmentURLs = segmentList->GetSegmentURLs();
-			std::map<string,string> rawAttributes = segmentList->GetRawAttributes();
-			uint32_t timescale = segmentList->GetTimescale();
 			double segmentDuration = 0;
-			bool isFogTsb = !(rawAttributes.find("customlist") == rawAttributes.end());
-			if(!isFogTsb)
+			if(!segmentURLs.empty())
 			{
-				segmentDuration = segmentList->GetDuration() / timescale;
-			}
-			else if(pMediaStreamContext->type == eTRACK_AUDIO)
-			{
-				MediaStreamContext *videoContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
-				string videoStartStr = videoContext->representation->GetSegmentList()->GetSegmentURLs().at(0)->GetRawAttributes().at("s");
-				string audioStartStr = segmentURLs.at(0)->GetRawAttributes().at("s");
-				long long videoStart = stoll(videoStartStr);
-				long long audioStart = stoll(audioStartStr);
-				long long diff = audioStart - videoStart;
-				logprintf("Printing diff value for adjusting %lld\n",diff);
-				if(diff > 0)
+				std::map<string,string> rawAttributes = segmentList->GetRawAttributes();
+				uint32_t timescale = segmentList->GetTimescale();
+				bool isFogTsb = !(rawAttributes.find("customlist") == rawAttributes.end());
+				if(!isFogTsb)
 				{
-					double diffSeconds = double(diff) / timescale;
-					skipTime -= diffSeconds;
+					segmentDuration = segmentList->GetDuration() / timescale;
 				}
-			}
-
-			while (skipTime != 0)
-			{
-
-				if ((pMediaStreamContext->fragmentIndex >= segmentURLs.size()) || (pMediaStreamContext->fragmentIndex < 0))
+				else if(pMediaStreamContext->type == eTRACK_AUDIO)
 				{
-					pMediaStreamContext->eos = true;
-					break;
-				}
-				else
-				{
-					//Calculate the individual segment duration for fog tsb
-					if(isFogTsb)
+					MediaStreamContext *videoContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
+					const std::vector<ISegmentURL*> vidSegmentURLs = videoContext->representation->GetSegmentList()->GetSegmentURLs();
+					if(!vidSegmentURLs.empty())
 					{
-						ISegmentURL* segmentURL = segmentURLs.at(pMediaStreamContext->fragmentIndex);
-						string durationStr = segmentURL->GetRawAttributes().at("d");
-						long long duration = stoll(durationStr);
-						segmentDuration = (double) duration / timescale;
-					}
-					if (skipTime >= segmentDuration)
-					{
-						pMediaStreamContext->fragmentIndex++;
-						skipTime -= segmentDuration;
-						pMediaStreamContext->fragmentTime += segmentDuration;
-					}
-					else if (-(skipTime) >= segmentDuration)
-					{
-						pMediaStreamContext->fragmentIndex--;
-						skipTime += segmentDuration;
-						pMediaStreamContext->fragmentTime -= segmentDuration;
+						string videoStartStr = vidSegmentURLs.at(0)->GetRawAttributes().at("s");
+						string audioStartStr = segmentURLs.at(0)->GetRawAttributes().at("s");
+						long long videoStart = stoll(videoStartStr);
+						long long audioStart = stoll(audioStartStr);
+						long long diff = audioStart - videoStart;
+						logprintf("Printing diff value for adjusting %lld\n",diff);
+						if(diff > 0)
+						{
+							double diffSeconds = double(diff) / timescale;
+							skipTime -= diffSeconds;
+						}
 					}
 					else
 					{
-						skipTime = 0;
+						logprintf("PrivateStreamAbstractionMPD::%s:%d Video SegmentUrl is empty\n", __FUNCTION__, __LINE__);
+					}
+				}
+
+				while (skipTime != 0)
+				{
+
+					if ((pMediaStreamContext->fragmentIndex >= segmentURLs.size()) || (pMediaStreamContext->fragmentIndex < 0))
+					{
+						pMediaStreamContext->eos = true;
 						break;
+					}
+					else
+					{
+						//Calculate the individual segment duration for fog tsb
+						if(isFogTsb)
+						{
+							ISegmentURL* segmentURL = segmentURLs.at(pMediaStreamContext->fragmentIndex);
+							string durationStr = segmentURL->GetRawAttributes().at("d");
+							long long duration = stoll(durationStr);
+							segmentDuration = (double) duration / timescale;
+						}
+						if (skipTime >= segmentDuration)
+						{
+							pMediaStreamContext->fragmentIndex++;
+							skipTime -= segmentDuration;
+							pMediaStreamContext->fragmentTime += segmentDuration;
+						}
+						else if (-(skipTime) >= segmentDuration)
+						{
+							pMediaStreamContext->fragmentIndex--;
+							skipTime += segmentDuration;
+							pMediaStreamContext->fragmentTime -= segmentDuration;
+						}
+						else
+						{
+							skipTime = 0;
+							break;
+						}
 					}
 				}
 			}
+			else
+			{
+				logprintf("PrivateStreamAbstractionMPD::%s:%d SegmentUrl is empty\n", __FUNCTION__, __LINE__);
+			}
+
 			AAMPLOG_INFO("%s:%d Exit : fragmentIndex %d segmentDuration %f\n", __FUNCTION__, __LINE__,
 					pMediaStreamContext->fragmentIndex, segmentDuration);
 		}
@@ -3830,32 +3850,35 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 						ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
 						duration += segmentList->GetDuration();
 						vector<ISegmentURL*> segUrls = segmentList->GetSegmentURLs();
-						for(int iSegurl = segUrls.size() - 1; iSegurl >= 0 && !offsetFound; iSegurl--)
+						if(!segUrls.empty())
 						{
-							std::string media = segUrls.at(iSegurl)->GetMediaURI();
-							std::string offsetStr = segUrls.at(iSegurl)->GetRawAttributes().at("d");
-							uint32_t offset = stol(offsetStr);
-							if(0 == newOffset)
+							for(int iSegurl = segUrls.size() - 1; iSegurl >= 0 && !offsetFound; iSegurl--)
 							{
-								newOffset = offset;
-								newMedia = media;
-							}
-							if(0 == mPrevLastSegurlOffset && !offsetFound)
-							{
-								offsetFound = true;
-								break;
-							}
-							else if(mPrevLastSegurlMedia == media)
-							{
-								offsetFound = true;
-								prevLastSegUrlOffset += offset;
-								break;
-							}
-							else
-							{
-								prevLastSegUrlOffset += offset;
-							}
-						}//End of segurl for loop
+								std::string media = segUrls.at(iSegurl)->GetMediaURI();
+								std::string offsetStr = segUrls.at(iSegurl)->GetRawAttributes().at("d");
+								uint32_t offset = stol(offsetStr);
+								if(0 == newOffset)
+								{
+									newOffset = offset;
+									newMedia = media;
+								}
+								if(0 == mPrevLastSegurlOffset && !offsetFound)
+								{
+									offsetFound = true;
+									break;
+								}
+								else if(mPrevLastSegurlMedia == media)
+								{
+									offsetFound = true;
+									prevLastSegUrlOffset += offset;
+									break;
+								}
+								else
+								{
+									prevLastSegUrlOffset += offset;
+								}
+							}//End of segurl for loop
+						}
 					} //End of Period for loop
 					double culled = 0;
 					long offsetDiff = 0;
