@@ -33,7 +33,7 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.4"
+#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.5"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1401,6 +1401,91 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 
 
 /**
+ * @brief Callback invoked from JS to start playback for requested URL
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.load on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount == 1 || argumentCount == 2)
+	{
+		char* contentType = NULL;
+		bool bFinalAttempt = false;
+		bool bFirstAttempt = true;
+		char* sessionUUID = NULL;
+		if (argumentCount == 2 && JSValueIsObject(context, arguments[1]))
+		{
+			JSObjectRef argument = JSValueToObject(context, arguments[1], NULL);
+			JSStringRef paramName = JSStringCreateWithUTF8CString("contentType");
+			JSValueRef paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsString(context, paramValue))
+			{
+				contentType = aamp_JSValueToCString(context, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("isInitialAttempt");
+			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsBoolean(context, paramValue))
+			{
+				bFirstAttempt = JSValueToBoolean(context, paramValue);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("isFinalAttempt");
+			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsBoolean(context, paramValue))
+			{
+				bFinalAttempt = JSValueToBoolean(context, paramValue);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("sessionUUID");
+			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsString(context, paramValue))
+			{
+				sessionUUID = aamp_JSValueToCString(context, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
+		}
+
+		char* url = aamp_JSValueToCString(context, arguments[0], exception);
+		pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt, sessionUUID);
+
+		delete [] url;
+		if (contentType)
+		{
+			delete[] contentType;
+		}
+		if (sessionUUID)
+		{
+			delete[] sessionUUID;
+		}
+	}
+	else
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.load' - 1 or 2 argument required");
+	}
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
  * @brief Callback invoked from JS to stop active playback
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
@@ -2168,6 +2253,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setProperties", AAMP_setProperties, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getProperties", AAMP_getProperties, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "tune", AAMP_tune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "load", AAMP_load, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "stop", AAMP_stop, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setRate", AAMP_setRate, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "seek", AAMP_seek, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },

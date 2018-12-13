@@ -1133,7 +1133,7 @@ public:
 	 * @param[in] bFinalAttempt - Final retry/attempt.
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -2281,6 +2281,7 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
+	char *mSessionUUID; /** unique id for playback session */
 };
 
 #endif // PRIVAAMP_H
