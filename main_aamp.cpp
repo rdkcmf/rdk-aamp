@@ -1709,7 +1709,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	CURLcode res = CURLE_OK;
 
 	// temporarily increase timeout for manifest download - these files (especially for VOD) can be large and slow to download
-	bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
+	//bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
 
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
@@ -1738,10 +1738,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
 
+			/*
 			if (modifyDownloadTimeout)
 			{
 				curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_MANIFEST_DL_TIMEOUT);
 			}
+			*/
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
@@ -1859,7 +1861,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
 #endif /* 0 */
 					//Attempt retry for local playback since rampdown is disabled for FOG
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback)) && downloadAttempt < 2)
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || fileType == eMEDIATYPE_MANIFEST))) && downloadAttempt < 2)
 					{
 						logprintf("Download failed due to curl connect timeout. Retrying!\n");
 						continue;
@@ -1901,10 +1903,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				break;
 			}
 
+			/*
 			if (modifyDownloadTimeout)
 			{
 				curl_easy_setopt(curl, CURLOPT_TIMEOUT, gpGlobalConfig->fragmentDLTimeout);
 			}
+			*/
 
 		}
 
