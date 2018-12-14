@@ -126,20 +126,6 @@ enum PlaybackErrorType
 };
 
 /**
- * @brief DRM system types
- */
-enum DRMSystems
-{
-	eDRM_NONE,              /**< No DRM */
-	eDRM_WideVine,          /**< Widevine */
-	eDRM_PlayReady,         /**< Playready */
-	eDRM_CONSEC_agnostic,   /**< CONSEC Agnostic DRM */
-	eDRM_Adobe_Access,      /**< Adobe Access */
-	eDRM_Vanilla_AES,       /**< Vanilla AES */
-	eDRM_MAX_DRMSystems     /**< Drm system count */
-};
-
-/**
  * @brief Tune Typea
  */
 enum TuneType
@@ -419,7 +405,7 @@ public:
 	int stallTimeoutInMS;                   /**< Stall timeout in milliseconds*/
 	const char* httpProxy;                  /**< HTTP proxy address*/
 	int reportProgressInterval;             /**< Interval of progress reporting*/
-	int preferredDrm;                       /**< Preferred DRM*/
+	DRMSystems preferredDrm;                /**< Preferred DRM*/
 	bool mpdDiscontinuityHandling;          /**< Enable MPD discontinuity handling*/
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/
@@ -2007,9 +1993,10 @@ public:
 	 *   @brief Set license server URL
 	 *
 	 *   @param[in] url - server URL
+	 *   @param[in] drmType - DRM type (PR/WV) for which the URL has to be used, global by default
 	 *   @return void
 	 */
-	void SetLicenseServerURL(const char* url, DRMType drmType = eDRMTYPE_GENERIC);
+	void SetLicenseServerURL(const char* url, DRMSystems drmType = eDRM_MAX_DRMSystems);
 
 	/**
 	 *   @brief Set Preferred DRM.
@@ -2017,7 +2004,7 @@ public:
 	 *   @param[in] drmType - Preferred DRM type
 	 *   @return void
 	 */
-	void SetPreferredDRM(DRMType drmType);
+	void SetPreferredDRM(DRMSystems drmType);
 
 	/**
 	 *   @brief Set anonymous request true or false

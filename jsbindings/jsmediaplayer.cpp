@@ -53,7 +53,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		{
 			char *prLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
 			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenceServerURL);
-			privObj->_aamp->SetLicenseServerURL(prLicenceServerURL, eDRMTYPE_PLAYREADY);
+			privObj->_aamp->SetLicenseServerURL(prLicenceServerURL, eDRM_PlayReady);
 
 			delete[] prLicenceServerURL;
 		}
@@ -65,7 +65,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		{
 			char *wvLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
 			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenceServerURL);
-			privObj->_aamp->SetLicenseServerURL(wvLicenceServerURL, eDRMTYPE_WIDEVINE);
+			privObj->_aamp->SetLicenseServerURL(wvLicenceServerURL, eDRM_WideVine);
 
 			delete[] wvLicenceServerURL;
 		}
@@ -79,12 +79,12 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
 			{
 				ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
-				privObj->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
+				privObj->_aamp->SetPreferredDRM(eDRM_PlayReady);
 			}
 			else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
 			{
 				ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
-				privObj->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
+				privObj->_aamp->SetPreferredDRM(eDRM_WideVine);
 			}
 			else
 			{

@@ -405,13 +405,17 @@ enum VideoZoomMode
 };
 
 /**
- * @brief DRM Types for external license config
+ * @brief DRM system types
  */
-enum DRMType
+enum DRMSystems
 {
-	eDRMTYPE_GENERIC,      /**< Generic DRM */
-	eDRMTYPE_WIDEVINE,     /**< Widevine DRM */
-	eDRMTYPE_PLAYREADY     /**< Playready DRM */
+	eDRM_NONE,              /**< No DRM */
+	eDRM_WideVine,          /**< Widevine */
+	eDRM_PlayReady,         /**< Playready */
+	eDRM_CONSEC_agnostic,   /**< CONSEC Agnostic DRM */
+	eDRM_Adobe_Access,      /**< Adobe Access */
+	eDRM_Vanilla_AES,       /**< Vanilla AES */
+	eDRM_MAX_DRMSystems     /**< Drm system count */
 };
 
 /**
@@ -812,10 +816,10 @@ public:
 	 *   @brief Set License Server URL.
 	 *
 	 *   @param[in]  url - URL of the server to be used for license requests
-	 *   @param[in]  type - DRM Type for which the server URL should be used
+	 *   @param[in]  type - DRM Type(PR/WV) for which the server URL should be used, global by default
 	 *   @return void
 	 */
-	void SetLicenseServerURL(const char *url, DRMType type = eDRMTYPE_GENERIC);
+	void SetLicenseServerURL(const char *url, DRMSystems type = eDRM_MAX_DRMSystems);
 
 	/**
 	 *   @brief Set Preferred DRM.
@@ -823,7 +827,7 @@ public:
 	 *   @param[in] drmType - Preferred DRM type
 	 *   @return void
 	 */
-	void SetPreferredDRM(DRMType drmType);
+	void SetPreferredDRM(DRMSystems drmType);
 
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.

@@ -2017,11 +2017,11 @@ static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef functio
 		const char *drm = aamp_JSValueToCString(context, arguments[0], exception);
 		if (strncasecmp(drm, "widevine", 8) == 0)
 		{
-			pAAMP->_aamp->SetPreferredDRM(eDRMTYPE_WIDEVINE);
+			pAAMP->_aamp->SetPreferredDRM(eDRM_WideVine);
 		}
 		if (strncasecmp(drm, "playready", 9) == 0)
 		{
-			pAAMP->_aamp->SetPreferredDRM(eDRMTYPE_PLAYREADY);
+			pAAMP->_aamp->SetPreferredDRM(eDRM_PlayReady);
 		}
 		delete [] drm;
 	}

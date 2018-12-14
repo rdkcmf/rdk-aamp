@@ -2822,13 +2822,17 @@ void ProcessCommand(char *cmd, bool usingCLI)
 				VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
 				logprintf("buffer-health-monitor-interval=%d\n", gpGlobalConfig->bufferHealthMonitorInterval);
 			}
-			else if (sscanf(cmd, "preferred-drm=%d", &gpGlobalConfig->preferredDrm) == 1)
-			{ // override for buffer health monitor interval
-				if(gpGlobalConfig->preferredDrm <= 0 || gpGlobalConfig->preferredDrm > 2)
+			else if (sscanf(cmd, "preferred-drm=%d", &value) == 1)
+			{ // override for preferred drm value
+				if(value <= eDRM_NONE || value > eDRM_PlayReady)
 				{
-					gpGlobalConfig->preferredDrm = eDRMTYPE_WIDEVINE;
+					logprintf("preferred-drm=%d is unsupported\n", value);
 				}
-				logprintf("preferred-drm=%s\n", (gpGlobalConfig->preferredDrm == eDRMTYPE_WIDEVINE) ? "widevine" : "playready");
+				else
+				{
+					gpGlobalConfig->preferredDrm = (DRMSystems) value;
+				}
+				logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
 			}
 			else if (sscanf(cmd, "live-tune-event-playlist-indexed=%d", &value) == 1)
 			{ // default is 0; set 1 for sending tuned event after playlist indexing - for live
@@ -4649,9 +4653,9 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
  *   @brief Set License Server URL.
  *
  *   @param  url - URL of the server to be used for license requests
- *   @param  type - DRM Type for which the server URL should be used
+ *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
  */
-void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMType type)
+void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
 	aamp->SetLicenseServerURL(url, type);
 }
@@ -4927,7 +4931,7 @@ void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
  *
  *   @param[in] drmType - preferred DRM type
  */
-void PlayerInstanceAAMP::SetPreferredDRM(DRMType drmType)
+void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	aamp->SetPreferredDRM(drmType);
 }
@@ -5852,12 +5856,12 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  *   @brief Set License Server URL.
  *
  *   @param  url - URL of the server to be used for license requests
- *   @param  type - DRM Type for which the server URL should be used
+ *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
  */
-void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMType drmType)
+void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
 	char **serverUrl = &(gpGlobalConfig->licenseServerURL);
-	if (drmType == eDRMTYPE_GENERIC)
+	if (type == eDRM_MAX_DRMSystems)
 	{
 		// Local aamp.cfg config trumps JS PP config
 		if (gpGlobalConfig->licenseServerLocalOverride)
@@ -5865,16 +5869,21 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMType drmType)
 			return;
 		}
 	}
-	else if (drmType == eDRMTYPE_PLAYREADY)
+	else if (type == eDRM_PlayReady)
 	{
 		serverUrl = &(gpGlobalConfig->prLicenseServerURL);
 	}
-	else if (drmType == eDRMTYPE_WIDEVINE)
+	else if (type == eDRM_WideVine)
 	{
 		serverUrl = &(gpGlobalConfig->wvLicenseServerURL);
 	}
+	else
+	{
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type received.\n", __FUNCTION__);
+		return;
+	}
 
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d\n", __FUNCTION__, url, drmType);
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d\n", __FUNCTION__, url, type);
 	if (*serverUrl != NULL)
 	{
 		free(*serverUrl);
@@ -6428,7 +6437,7 @@ void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
  *
  *   @param[in] drmType - Preferred DRM type
  */
-void PrivateInstanceAAMP::SetPreferredDRM(DRMType drmType)
+void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	AAMPLOG_INFO("%s:%d set preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
 	gpGlobalConfig->preferredDrm = drmType;
