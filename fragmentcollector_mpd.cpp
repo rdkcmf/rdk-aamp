@@ -2079,8 +2079,7 @@ void *CreateDRMSession(void *arg)
 					contentMetadata, sessionParams->aamp, &e);
 	if(NULL == drmSession)
 	{
-		bool isRetryEnabled = ((int)e.data.dash_drmmetadata.failure != AAMP_TUNE_AUTHORISATION_FAILURE);
-		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure, NULL, isRetryEnabled);
+		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
 	}
