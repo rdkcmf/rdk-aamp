@@ -274,7 +274,7 @@ public:
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false)
 	{
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
 	}
