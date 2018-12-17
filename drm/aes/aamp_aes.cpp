@@ -167,13 +167,26 @@ void AesDec::AcquireKey()
 
 
 /**
- * @brief prepare for decryption - individualization & license acquisition
+ * @brief Set DRM meta-data. Stub implementation
  *
  * @param aamp AAMP instance to be associated with this decryptor
  * @param metadata - Ignored
- * @param drmInfo DRM information
+ *
+ * @retval eDRM_SUCCESS
  */
-int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo)
+DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata)
+{
+	return eDRM_SUCCESS;
+}
+
+/**
+ * @brief Set information required for decryption
+ *
+ * @param aamp AAMP instance to be associated with this decryptor
+ * @param drmInfo Drm information
+ * @retval eDRM_SUCCESS on success
+ */
+DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_t licenceAcquistionThreadId;
@@ -192,7 +205,7 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 		{
 			logprintf("AesDec::%s:%d same url:%s - not acquiring key\n",__FUNCTION__, __LINE__, mDrmUrl);
 			pthread_mutex_unlock(&mMutex);
-			return 0;
+			return eDRM_SUCCESS;
 		}
 		free(mDrmUrl);
 	}
@@ -217,12 +230,12 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 		{
 			logprintf("AesDec::%s:%d pthread_detach failed for acquire_key with errno = %d, %s\n", __FUNCTION__, __LINE__, errno, strerror(errno));
 		}
+		err = eDRM_SUCCESS;
 	}
 	pthread_mutex_unlock(&mMutex);
 	AAMPLOG_INFO("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
-	return ret;
+	return err;
 }
-
 
 /**
  * @brief Wait for key acquisition completion

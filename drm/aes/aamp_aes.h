@@ -33,7 +33,8 @@ class AesDec : public HlsDrmBase
 {
 public:
 	static AesDec* GetInstance();
-	int SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo);
+	DrmReturn SetMetaData( PrivateInstanceAAMP *aamp, void* metadata);
+	DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
 	void Release();
 	void CancelKeyWait();
