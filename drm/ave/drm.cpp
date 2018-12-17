@@ -153,10 +153,19 @@ public:
 		switch(majorError)
 		{
 		case 3329:
+			/* Disable retry for error codes above 12000 which are listed as 
+			 * Enitilement restriction error codes from license server.
+			 * 12000 is recovering on retry so kept retry logic for that.
+			 * Exclude the known 4xx errors also from retry, not giving
+			 * all 4xx errors since 429 was found to be recovering on retry
+			*/
+			if(minorError > 12000 || (minorError >= 400 && minorError <= 412))
+			{
+				isRetryEnabled = false;
+			}
 			if(12012 == minorError || 12013 == minorError)
 			{
 				drmFailure = AAMP_TUNE_AUTHORISATION_FAILURE;
-				isRetryEnabled = false;
 			}
 			break;
 

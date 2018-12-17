@@ -2057,7 +2057,7 @@ void *CreateDRMSession(void *arg)
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	AAMPEvent e;
 	e.type = AAMP_EVENT_DRM_METADATA;
-        e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
+	e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
 	unsigned char * data = sessionParams->initData;
 	int dataLength = sessionParams->initDataLen;
 
@@ -2079,7 +2079,12 @@ void *CreateDRMSession(void *arg)
 					contentMetadata, sessionParams->aamp, &e);
 	if(NULL == drmSession)
 	{
-		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure);
+		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
+		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
+								&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED);
+		sessionParams->aamp->SendErrorEvent(e.data.dash_drmmetadata.failure, NULL, isRetryEnabled);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL);
 	}

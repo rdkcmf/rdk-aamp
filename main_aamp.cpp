@@ -605,10 +605,6 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	pthread_mutex_unlock(&mLock);
 	if (sendErrorEvent)
 	{
-		if(AAMP_TUNE_AUTHORISATION_FAILURE == tuneFailure || AAMP_TUNE_DEVICE_NOT_PROVISIONED == tuneFailure)
-		{
-			isRetryEnabled = false;
-		}
 		AAMPEvent e;
 		e.type = AAMP_EVENT_TUNE_FAILED;
 		e.data.mediaError.shouldRetry = isRetryEnabled;
