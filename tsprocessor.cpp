@@ -1115,13 +1115,18 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		programInfo += (5 + len);
 	}
 
-	INFO("RecordContext: found %d video (%s), %d audio, and %d data pids in program %d with pcr pid %d video pid %d\n",
-		videoComponentCount, (m_isH264 ? "H264" : "MPEG2"), audioComponentCount, dataComponentCount, m_program, pcrPid, videoComponents[0].pid);
-
 	if (videoComponentCount > 0)
 	{
 		m_videoPid = videoComponents[0].pid;
+		NOTICE( "[%p] found %d video pids in program %d with pcr pid %d video pid %d\n",
+			this, videoComponentCount, m_program, pcrPid, m_videoPid);
 	}
+	if (audioComponentCount > 0)
+	{
+		NOTICE( "[%p] found %d audio pids in program %d with pcr pid %d audio pid %d\n",
+			this, audioComponentCount, m_program, pcrPid, audioComponents[0].pid);
+	}
+
 	if (videoComponentCount == 0)
 	{
 		for (int audioIndex = 0; audioIndex < audioComponentCount; ++audioIndex)
@@ -1541,6 +1546,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 						int current = (version & 0x01);
 						version = ((version >> 1) & 0x1F);
 
+						TRACE4("PAT current version %d existing version %d\n", version, m_versionPAT);
 						if (!m_havePAT || (current && (version != m_versionPAT)))
 						{
 							dumpPacket(packet, m_packetSize);
@@ -1624,6 +1630,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 							int current = (version & 0x01);
 							version = ((version >> 1) & 0x1F);
 
+							TRACE4("PMT current version %d existing version %d\n", version, m_versionPMT);
 							if (!m_havePMT || (current && (version != m_versionPMT)))
 							{
 								dumpPacket(packet, m_packetSize);
@@ -2067,6 +2074,8 @@ void TSProcessor::reset()
 	m_enabled = true;
 	m_demuxInitialized = false;
 	m_basePTSFromPeer = -1;
+	m_havePAT = false;
+	m_havePMT = false;
 	pthread_mutex_unlock(&m_mutex);
 }
 
