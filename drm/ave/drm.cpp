@@ -531,7 +531,6 @@ void AveDrmManager::Reset()
 {
 	mDrmContexSet = false;
 	memset(mSha1Hash, 0, DRM_SHA1_HASH_LEN);
-	memset(&mDrmMetadata, 0, sizeof(mDrmMetadata));
 }
 
 /**
@@ -621,8 +620,11 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		{
 			if (sAveDrmManagerCount < MAX_DRM_CONTEXT)
 			{
-				logprintf("%s:%d: Create new AveDrm object\n", __FUNCTION__, __LINE__);
-				sAveDrmManager[sAveDrmManagerCount].mDrm = new AveDrm();
+				if(!sAveDrmManager[sAveDrmManagerCount].mDrm)
+				{
+					logprintf("%s:%d: Create new AveDrm object\n", __FUNCTION__, __LINE__);
+					sAveDrmManager[sAveDrmManagerCount].mDrm = new AveDrm();
+				}
 				aveDrmManager = &sAveDrmManager[sAveDrmManagerCount];
 				sAveDrmManagerCount++;
 			}

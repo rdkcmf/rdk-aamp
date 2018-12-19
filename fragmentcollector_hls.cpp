@@ -1839,13 +1839,12 @@ double TrackState::IndexPlaylist()
 					pthread_mutex_lock(&gDrmMutex);
 					if (!gDeferredDrmLicTagUnderProcessing )
 					{
-						logprintf("\n\n#############%s:%d  #EXT-X-X1-LIN-CK \n", __FUNCTION__, __LINE__);
 						ptr += 17;
 						char* delim = strchr(ptr, CHAR_LF);
 						if (delim)
 						{
 							long time = strtol(ptr, NULL, 10);
-							logprintf("time %ld\n\n", time);
+							logprintf("%s:%d [%s] #EXT-X-X1-LIN-CK:%d #####\n", __FUNCTION__, __LINE__, name, time);
 							if (time != 0 )
 							{
 								if (mDrmMetaDataIndexCount > 1)

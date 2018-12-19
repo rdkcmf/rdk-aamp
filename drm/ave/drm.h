@@ -125,7 +125,6 @@ private:
 	AveDrmManager();
 	void Reset();
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
-	DrmMetadata mDrmMetadata;
 	AveDrm* mDrm;
 	bool mDrmContexSet;
 	static AveDrmManager sAveDrmManager[MAX_DRM_CONTEXT];
