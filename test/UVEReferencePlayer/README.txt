@@ -51,4 +51,7 @@ Notes:
 - clear/encrypted(Playready/Widevine) DASH supported
 - Refer following URL for UVE specification details
   https://etwiki.sys.comcast.net/pages/viewpage.action?spaceKey=VIDEOARCH&title=Unified+Video+Engine+API+v0.5
-
+- JS code have been split into -
+  UVERefPlayer.js - The main entry point for JS workflow
+  UVEPlayerUI.js - UI code for reference player
+  UVEMediaPlayer.js - AAMP Engine impl for reference player
