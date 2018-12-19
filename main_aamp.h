@@ -646,7 +646,7 @@ public:
 	 *   @param[in]  contentType - Content type of the asset
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, const char *contentType=NULL, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false, const char* sessionUUID = NULL);
 
 	/**
 	 *   @brief Stop playback and release resources.
