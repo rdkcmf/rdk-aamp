@@ -244,16 +244,16 @@ JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *
 			break;
 	}
 
-	char exceptionMsg[1024];
-	memset(exceptionMsg, '\0', 1024);
+	char exceptionMsg[EXCEPTION_ERR_MSG_MAX_LEN];
+	memset(exceptionMsg, '\0', EXCEPTION_ERR_MSG_MAX_LEN);
 
 	if(additionalInfo)
 	{
-		snprintf(exceptionMsg, 1023, "%s: %s", str, additionalInfo);
+		snprintf(exceptionMsg, EXCEPTION_ERR_MSG_MAX_LEN - 1, "%s: %s", str, additionalInfo);
 	}
 	else
 	{
-		snprintf(exceptionMsg, 1023, "%s!!", str);
+		snprintf(exceptionMsg, EXCEPTION_ERR_MSG_MAX_LEN - 1, "%s!!", str);
 	}
 
 	ERROR("[AAMP_JS] %s() Error=%s", __FUNCTION__, exceptionMsg);

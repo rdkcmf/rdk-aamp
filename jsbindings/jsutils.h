@@ -50,6 +50,8 @@
 #define TRACELOG(...)
 #endif
 
+#define EXCEPTION_ERR_MSG_MAX_LEN 1024
+
 /**
  * @enum ErrorCode
  * @brief JavaScript error codes

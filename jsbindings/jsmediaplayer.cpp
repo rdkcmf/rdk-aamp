@@ -1164,7 +1164,7 @@ JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef fu
 	else if (!aamp_JSValueIsArray(ctx, arguments[0]))
 	{
 		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(ctx, arguments[0]));
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setSubscribeTags' - parameter 1 is not an array");
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setSubscribeTags() - parameter 1 is not an array");
 	}
 	else
 	{
@@ -1235,11 +1235,11 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 
 	if (argumentCount >= 2)
 	{
+		char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
 
 		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
 		{
-			char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
 
@@ -1247,19 +1247,22 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 			{
 				AAMP_JSEventListener::AddEventListener(privObj, eventType, callbackObj);
 			}
-
-			delete[] type;
 		}
 		else
 		{
 			ERROR("%s() callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(ctx, callbackObj));
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addEventListener' - parameter 2 is not a function");
+			char errMsg[512];
+			memset(errMsg, '\0', 512);
+			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
+
+		delete[] type;
 	}
 	else
 	{
 		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addEventListener' - 2 arguments required.");
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addEventListener() - 2 arguments required.");
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -1289,11 +1292,11 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 
 	if (argumentCount >= 2)
 	{
+		char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
 
 		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
 		{
-			char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
 
@@ -1301,14 +1304,17 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 			{
 				AAMP_JSEventListener::RemoveEventListener(privObj, eventType, callbackObj);
 			}
-
-			delete[] type;
 		}
 		else
 		{
 			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(ctx, callbackObj));
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.removeEventListener' - parameter 2 is not a function");
+			char errMsg[512];
+			memset(errMsg, '\0', 512);
+			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
+
+		delete[] type;
 	}
 	else
 	{
@@ -1403,7 +1409,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 		if (headerVal.size() == 0)
 		{
 			ERROR("%s() InvalidArgument: Custom header's value is empty", __FUNCTION__, argumentCount);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addCustomHTTPHeader' - 2nd argument should be a string or array of strings");
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addCustomHTTPHeader() - 2nd argument should be a string or array of strings");
 			return JSValueMakeUndefined(ctx);
 		}
 
