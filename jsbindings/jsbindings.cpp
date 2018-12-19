@@ -953,6 +953,7 @@ public:
 			//JSValueRelease(lang);
 		}
 		JSValueRef prop = JSObjectMakeArray(context, e.data.metadata.languageCount, array, NULL);
+
 		delete [] array;
 
 		name = JSStringCreateWithUTF8CString("languages");
@@ -964,7 +965,7 @@ public:
 		{
 			array[i] = JSValueMakeNumber(context, e.data.metadata.bitrates[i]);
 		}
-		prop = JSObjectMakeArray(context, e.data.metadata.bitrateCount, array, NULL);
+		prop = JSObjectMakeArray(context, e.data.metadata.bitrateCount, array, NULL); 
 		delete [] array;
 
 		name = JSStringCreateWithUTF8CString("bitrates");
@@ -1024,10 +1025,12 @@ public:
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
 		JSObjectRef timedMetadata = AAMP_JS_CreateTimedMetadata(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent);
-		if (timedMetadata) {
+        	if (timedMetadata) {
+                	JSValueProtect(context, timedMetadata);
 			JSStringRef name = JSStringCreateWithUTF8CString("timedMetadata");
 			JSObjectSetProperty(context, eventObj, name, timedMetadata, kJSPropertyAttributeReadOnly, NULL);
 			JSStringRelease(name);
+        		JSValueUnprotect(context, timedMetadata);
 		}
 	}
 };
@@ -2555,7 +2558,9 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 	JSStringRef name;
 
 	JSObjectRef timedMetadata = JSObjectMake(context, NULL, NULL);
+	
 	if (timedMetadata) {
+		JSValueProtect(context, timedMetadata);
 		bool bGenerateID = true;
 
 		name = JSStringCreateWithUTF8CString("time");
@@ -2579,6 +2584,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 		// Force metadata as empty object
 		JSObjectRef metadata = JSObjectMake(context, NULL, NULL);
 		if (metadata) {
+                	JSValueProtect(context, metadata);
 			name = JSStringCreateWithUTF8CString("metadata");
 			JSObjectSetProperty(context, timedMetadata, name, metadata, kJSPropertyAttributeReadOnly, NULL);
 			JSStringRelease(name);
@@ -2652,6 +2658,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 				JSObjectSetProperty(context, metadata, name, value, kJSPropertyAttributeReadOnly, NULL);
 				JSStringRelease(name);
 			}
+			JSValueUnprotect(context, metadata);
 		}
 
 		// Generate an ID
@@ -2668,9 +2675,10 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 			JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, buf), kJSPropertyAttributeReadOnly, NULL);
 			JSStringRelease(name);
 		}
+		JSValueUnprotect(context, timedMetadata);
 	}
 
-	return timedMetadata;
+        return timedMetadata;
 }
 
 
