@@ -51,7 +51,7 @@
  *
  */
 
-#ifndef STANDALONE_AAMP
+#ifdef SUPPORT_JS_EVENTS
 extern "C"
 {
 	/**

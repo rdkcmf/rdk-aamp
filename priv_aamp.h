@@ -256,6 +256,7 @@ public:
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
 	bool latencyLogging[MAX_SUPPORTED_LATENCY_LOGGING_TYPES]; /**< Latency logging for Video, Audio, Manifest download - Refer MediaType on main_aamp.h */ 
+	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
@@ -961,7 +962,7 @@ public:
 								xreTimeBuckets[TuneTimeBeginLoad],xreTimeBuckets[TuneTimePrepareToPlay],xreTimeBuckets[TuneTimePlay] ,xreTimeBuckets[TuneTimeDrmReady],
 								xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries,firstTuneType
 								);
-#ifdef STANDALONE_AAMP
+#ifndef CREATE_PIPE_SESSION_TO_XRE
 						logprintf("AAMP=>XRE: %s\n",TuneTimeInfoStr);
 #endif
 

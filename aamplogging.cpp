@@ -44,6 +44,7 @@
 char gLogDirectory[] = "c:/tmp/aamp.log";
 
 /*-----------------------------------------------------------------------------------------------------*/
+bool AampLogManager::disableLogRedirection = false;
 
 /**
  * @brief To check the given log level is allowed to print mechanism
@@ -314,13 +315,19 @@ void logprintf(const char *format, ...)
 
 	va_end(args);
 
-#if (!defined STANDALONE_AAMP) && (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
+#if (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
+	if(!AampLogManager::disableLogRedirection)
+	{
 #ifdef USE_SYSTEMD_JOURNAL_PRINT
-	sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
+		sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
 #else
-	send_logs_to_syslog(gDebugPrintBuffer);
+		send_logs_to_syslog(gDebugPrintBuffer);
 #endif
-
+	}
+	else
+	{
+		printf("%s", gDebugPrintBuffer);
+	}
 #else  //USE_SYSTEMD_JOURNAL_PRINT
 #ifdef WIN32
 	static bool init;

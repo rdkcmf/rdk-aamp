@@ -159,9 +159,6 @@ struct AAMPGstPlayerPriv
 #endif
 };
 
-#ifdef STANDALONE_AAMP
-static GMainLoop *AAMPGstPlayerMainLoop = NULL; //GMainLoop instance for event management in AAMP standalone mode.
-#endif
 
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
 static const char* GstPluginNameWV = "aampwidevinedecryptor";
@@ -200,9 +197,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 	if (getenv("PLAYERSINKBIN_USE_WESTEROSSINK"))
 		privateContext->using_westerossink = true;
 	this->aamp = aamp;
-#ifdef STANDALONE_AAMP
-	Init(0, NULL);
-#endif
 
 	CreatePipeline();
 	privateContext->rate = 1.0;
@@ -218,11 +212,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 	DestroyPipeline();
 	privateContext->magicNumber = 0x0;
 	free(privateContext);
-#ifdef STANDALONE_AAMP
-	Term();
-#endif
 }
-
 
 /**
  * @brief Analyze stream info from the GstPipeline
@@ -844,7 +834,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				gst_element_state_get_name(pending_state));
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
-#if defined(INTELCE) || (defined(STANDALONE_AAMP) && defined(__APPLE__))
+#if defined(INTELCE) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
 					_this->privateContext->firstFrameReceived = true;
@@ -1251,48 +1241,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 	return GST_BUS_PASS;
 }
-
-#ifdef STANDALONE_AAMP
-
-/**
- * @brief Thread to run mainloop (for standalone mode)
- * @param[in] arg user_data
- * @retval void pointer
- */
-static void* AAMPGstPlayer_StreamThread(void *arg);
-bool AAMPGstPlayer::initialized = false;
-GThread *aampMainLoopThread = NULL;
-
-/**
- * @brief To initialize Gstreamer and start mainloop (for standalone mode)
- * @param[in] argc number of arguments
- * @param[in] argv array of arguments
- */
-void AAMPGstPlayer::Init(int argc, char **argv)
-{
-	if (!initialized)
-	{
-		initialized = true;
-		gst_init(&argc, &argv);
-		AAMPGstPlayerMainLoop = g_main_loop_new(NULL, FALSE);
-		aampMainLoopThread = g_thread_new("AAMPGstPlayerLoop", &AAMPGstPlayer_StreamThread, NULL );
-	}
-}
-
-/**
- * @brief Stop mainloop execution (for standalone mode)
- */
-void AAMPGstPlayer::Term()
-{
-	if(AAMPGstPlayerMainLoop)
-	{
-		g_main_loop_quit(AAMPGstPlayerMainLoop);
-		g_thread_join(aampMainLoopThread);
-		gst_deinit ();
-		logprintf("%s(): Exit\n", __FUNCTION__);
-	}
-}
-#endif
 
 
 /**
@@ -1920,26 +1868,6 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	/*Since ownership of buffer is given to gstreamer, reset pBuffer */
 	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
 }
-
-#ifdef STANDALONE_AAMP
-
-/**
- * @brief Thread to run mainloop (for standalone mode)
- * @param[in] arg user_data
- * @retval void pointer
- */
-static void* AAMPGstPlayer_StreamThread(void *arg)
-{
-	if (AAMPGstPlayerMainLoop)
-	{
-		g_main_loop_run(AAMPGstPlayerMainLoop); // blocks
-		logprintf("AAMPGstPlayer_StreamThread: exited main event loop\n");
-	}
-	g_main_loop_unref(AAMPGstPlayerMainLoop);
-	AAMPGstPlayerMainLoop = NULL;
-	return NULL;
-}
-#endif
 
 
 

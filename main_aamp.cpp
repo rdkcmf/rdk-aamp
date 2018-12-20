@@ -144,16 +144,11 @@ static TuneFailureMap tuneFailureMap[] =
  */
 struct ChannelInfo
 {
-	int channelNumber;
 	std::string name;
 	std::string uri;
 };
 
-static std::list<ChannelInfo> mChannelMap;
-
-#ifdef STANDALONE_AAMP
-static PlayerInstanceAAMP *mSingleton;
-#endif
+static std::list<ChannelInfo> mChannelOverrideMap;
 
 GlobalConfigAAMP *gpGlobalConfig;
 
@@ -1029,7 +1024,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	{
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-#ifndef STANDALONE_AAMP
+#ifdef CREATE_PIPE_SESSION_TO_XRE
 		SetupPipeSession();
 		SendMessageOverPipe((const char *) classicTuneStr, (int) strlen(classicTuneStr));
 		ClosePipeSession();
@@ -2263,81 +2258,6 @@ std::string aamp_getHostFromURL(char *url)
     return host;
 }
 
-#ifdef STANDALONE_AAMP
-
-/**
- * @brief Show help menu with aamp command line interface
- */
-static void ShowHelp(void)
-{
-	int i = 0;
-
-	if (!mChannelMap.empty())
-	{
-		logprintf("\nChannel Map from aamp.cfg\n*************************\n");
-
-		for (std::list<ChannelInfo>::iterator it = mChannelMap.begin(); it != mChannelMap.end(); ++it, ++i)
-		{
-			ChannelInfo &pChannelInfo = *it;
-			logprintf("%4d: %s", pChannelInfo.channelNumber, pChannelInfo.name.c_str());
-			if ((i % 4) == 3)
-			{
-				logprintf("\n");
-			}
-			else
-			{
-				logprintf("\t");
-			}
-		}
-	}
-
-	logprintf("\n\nList of Commands\n****************\n");
-	logprintf("<channelNumber> // Play selected channel from guide\n");
-	logprintf("<url> // Play arbitrary stream\n");
-	logprintf("info gst trace curl progress // Logging toggles\n");
-	logprintf("pause play stop status flush // Playback options\n");
-	logprintf("sf, ff<x> rw<y> // Trickmodes (x- 16, 32. y- 4, 8, 16, 32)\n");
-	logprintf("+ - // Change profile\n");
-	logprintf("sap // Use SAP track (if avail)\n");
-	logprintf("seek <seconds> // Specify start time within manifest\n");
-	logprintf("live // Seek to live point\n");
-	logprintf("underflow // Simulate underflow\n");
-	logprintf("help // Show this list again\n");
-	logprintf("exit // Exit from application\n");
-}
-#endif
-
-
-/**
- * @brief
- * @param s
- * @retval
- */
-static bool isNumber(const char *s)
-{
-	if (*s)
-	{
-		if (*s == '-')
-		{ // skip leading minus
-			s++;
-		}
-		for (;;)
-		{
-			if (*s >= '0' && *s <= '9')
-			{
-				s++;
-				continue;
-			}
-			if (*s == 0x00)
-			{
-				return true;
-			}
-			break;
-		}
-	}
-	return false;
-}
-
 #define MAX_OVERRIDE 10
 
 /**
@@ -2347,10 +2267,9 @@ static bool isNumber(const char *s)
  */
 static const char *RemapManifestUrl(const char *mainManifestUrl)
 {
-#ifndef STANDALONE_AAMP
-	if (!mChannelMap.empty())
+	if (!mChannelOverrideMap.empty())
 	{
-		for (std::list<ChannelInfo>::iterator it = mChannelMap.begin(); it != mChannelMap.end(); ++it)
+		for (std::list<ChannelInfo>::iterator it = mChannelOverrideMap.begin(); it != mChannelOverrideMap.end(); ++it)
 		{
 			ChannelInfo &pChannelInfo = *it;
 			if (strstr(mainManifestUrl, pChannelInfo.name.c_str()))
@@ -2360,7 +2279,6 @@ static const char *RemapManifestUrl(const char *mainManifestUrl)
 			}
 		}
 	}
-#endif
 	return NULL;
 }
 
@@ -2462,562 +2380,407 @@ static int ReadConfigStringHelper(const char *bufPtr, const char *prefixPtr, con
 }
 
 /**
- * @brief Process command
- * @param cmd command
- * @param usingCLI true if using aamp command line interface
+ * @brief Process config entries,i and update gpGlobalConfig params
+ *        based on the config setting.
+ * @param cfg config to process
  */
-void ProcessCommand(char *cmd, bool usingCLI)
+static void ProcessConfigEntry(char *cfg)
 {
-	if (cmd[0] != '#')
+	if (cfg[0] != '#')
 	{ // ignore comments
 
 		//Removing unnecessary spaces and newlines
-		trim(&cmd);
+		trim(&cfg);
 
 		double seconds = 0;
-
-#ifdef STANDALONE_AAMP
-	bool done = false;
-	int rate = 0;
-		if (usingCLI)
+		int value;
+		char strValue[1024];
+		if (sscanf(cfg, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
 		{
-			done = true;
-			if (cmd[0] == 0)
+			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
+		}
+		else if (sscanf(cfg, "fog-dash=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->fogSupportsDash = (value != 0);
+			logprintf("fog-dash=%d\n", value);
+		}
+		else if (sscanf(cfg, "fog=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->noFog = (value==0);
+			logprintf("fog=%d\n", value);
+		}
+#ifdef AAMP_HARVEST_SUPPORT_ENABLED
+		else if (sscanf(cfg, "harvest=%d", &gpGlobalConfig->harvest) == 1)
+		{
+			logprintf("harvest=%d\n", gpGlobalConfig->harvest);
+		}
+#endif
+		else if (sscanf(cfg, "forceEC3=%d", &gpGlobalConfig->forceEC3) == 1)
+		{
+			logprintf("forceEC3=%d\n", gpGlobalConfig->forceEC3);
+		}
+		else if (sscanf(cfg, "disableEC3=%d", &gpGlobalConfig->disableEC3) == 1)
+		{
+			logprintf("disableEC3=%d\n", gpGlobalConfig->disableEC3);
+		}
+		else if (sscanf(cfg, "disableATMOS=%d", &gpGlobalConfig->disableATMOS) == 1)
+		{
+			logprintf("disableATMOS=%d\n", gpGlobalConfig->disableATMOS);
+		}
+		else if (sscanf(cfg, "live-offset=%d", &gpGlobalConfig->liveOffset) == 1)
+		{
+			VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
+			logprintf("live-offset=%d\n", gpGlobalConfig->liveOffset);
+		}
+		else if (sscanf(cfg, "cdvrlive-offset=%d", &gpGlobalConfig->cdvrliveOffset) == 1)
+		{
+			VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
+			logprintf("cdvrlive-offset=%d\n", gpGlobalConfig->cdvrliveOffset);
+		}
+		else if (sscanf(cfg, "ad-position=%d", &gpGlobalConfig->adPositionSec) == 1)
+		{
+			VALIDATE_INT("ad-position", gpGlobalConfig->adPositionSec, 0)
+			logprintf("ad-position=%d\n", gpGlobalConfig->adPositionSec);
+		}
+		else if (ReadConfigStringHelper(cfg, "ad-url=", &gpGlobalConfig->adURL))
+		{
+			logprintf("ad-url=%s\n", gpGlobalConfig->adURL);
+		}
+		else if (sscanf(cfg, "disablePlaylistIndexEvent=%d", &gpGlobalConfig->disablePlaylistIndexEvent) == 1)
+		{
+			logprintf("disablePlaylistIndexEvent=%d\n", gpGlobalConfig->disablePlaylistIndexEvent);
+		}
+		else if (strcmp(cfg, "enableSubscribedTags") == 0)
+		{
+			gpGlobalConfig->enableSubscribedTags = true;
+			logprintf("enableSubscribedTags set\n");
+		}
+		else if (strcmp(cfg, "disableSubscribedTags") == 0)
+		{
+			gpGlobalConfig->enableSubscribedTags = false;
+			logprintf("disableSubscribedTags set\n");
+		}
+		else if (sscanf(cfg, "enableSubscribedTags=%d", &gpGlobalConfig->enableSubscribedTags) == 1)
+		{
+			logprintf("enableSubscribedTags=%d\n", gpGlobalConfig->enableSubscribedTags);
+		}
+		else if (sscanf(cfg, "fragmentDLTimeout=%ld", &gpGlobalConfig->fragmentDLTimeout) == 1)
+		{
+			VALIDATE_LONG("fragmentDLTimeout", gpGlobalConfig->fragmentDLTimeout, CURL_FRAGMENT_DL_TIMEOUT)
+			logprintf("fragmentDLTimeout=%ld\n", gpGlobalConfig->fragmentDLTimeout);
+		}
+#ifdef AAMP_CC_ENABLED
+		else if (strcmp(cfg, "cc") == 0)
+		{
+			gpGlobalConfig->bEnableCC = !gpGlobalConfig->bEnableCC;
+			logprintf("CC Status %s\n", gpGlobalConfig->bEnableCC ? "on" : "off");
+		}
+#endif
+		else if (strcmp(cfg, "dash-ignore-base-url-if-slash") == 0)
+		{
+			gpGlobalConfig->dashIgnoreBaseURLIfSlash = true;
+			logprintf("dash-ignore-base-url-if-slash set\n");
+		}
+		else if (strcmp(cfg, "license-anonymous-request") == 0)
+		{
+			gpGlobalConfig->licenseAnonymousRequest = true;
+			logprintf("license-anonymous-request set\n");
+		}
+		else if ((strcmp(cfg, "info") == 0) && (!gpGlobalConfig->logging.debug))
+		{
+			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
+			gpGlobalConfig->logging.info = true;
+			logprintf("info logging %s\n", gpGlobalConfig->logging.info ? "on" : "off");
+		}
+		else if (strcmp(cfg, "gst") == 0)
+		{
+			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
+			logprintf("gst logging %s\n", gpGlobalConfig->logging.gst ? "on" : "off");
+		}
+		else if (strcmp(cfg, "progress") == 0)
+		{
+			gpGlobalConfig->logging.progress = !gpGlobalConfig->logging.progress;
+			logprintf("progress logging %s\n", gpGlobalConfig->logging.progress ? "on" : "off");
+		}
+		else if (strcmp(cfg, "debug") == 0)
+		{
+			gpGlobalConfig->logging.info = false;
+			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
+			gpGlobalConfig->logging.debug = true;
+			logprintf("debug logging %s\n", gpGlobalConfig->logging.debug ? "on" : "off");
+		}
+		else if (strcmp(cfg, "trace") == 0)
+		{
+			gpGlobalConfig->logging.trace = !gpGlobalConfig->logging.trace;
+			logprintf("trace logging %s\n", gpGlobalConfig->logging.trace ? "on" : "off");
+		}
+		else if (strcmp(cfg, "curl") == 0)
+		{
+			gpGlobalConfig->logging.curl = !gpGlobalConfig->logging.curl;
+			logprintf("curl logging %s\n", gpGlobalConfig->logging.curl ? "on" : "off");
+		}
+		else if (sscanf(cfg, "default-bitrate=%ld", &gpGlobalConfig->defaultBitrate) == 1)
+		{
+			VALIDATE_LONG("default-bitrate",gpGlobalConfig->defaultBitrate, DEFAULT_INIT_BITRATE)
+			logprintf("aamp default-bitrate: %ld\n", gpGlobalConfig->defaultBitrate);
+		}
+		else if (sscanf(cfg, "default-bitrate-4k=%ld", &gpGlobalConfig->defaultBitrate4K) == 1)
+		{
+			VALIDATE_LONG("default-bitrate-4k", gpGlobalConfig->defaultBitrate4K, DEFAULT_INIT_BITRATE_4K)
+			logprintf("aamp default-bitrate-4k: %ld\n", gpGlobalConfig->defaultBitrate4K);
+		}
+		else if (strcmp(cfg, "abr") == 0)
+		{
+			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
+			logprintf("abr %s\n", gpGlobalConfig->bEnableABR ? "on" : "off");
+		}
+		else if (sscanf(cfg, "abr-cache-life=%d", &gpGlobalConfig->abrCacheLife) == 1)
+		{
+			gpGlobalConfig->abrCacheLife *= 1000;
+			logprintf("aamp abr cache lifetime: %ldmsec\n", gpGlobalConfig->abrCacheLife);
+		}
+		else if (sscanf(cfg, "abr-cache-length=%ld", &gpGlobalConfig->abrCacheLength) == 1)
+		{
+			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
+			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
+		}
+		else if (sscanf(cfg, "abr-cache-outlier=%ld", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
+		{
+			VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
+			logprintf("aamp abr outlier in bytes: %ld\n", gpGlobalConfig->abrOutlierDiffBytes);
+		}
+		else if (sscanf(cfg, "abr-skip-duration=%ld", &gpGlobalConfig->abrSkipDuration) == 1)
+		{
+			VALIDATE_INT("abr-skip-duration",gpGlobalConfig->abrSkipDuration, DEFAULT_ABR_SKIP_DURATION)
+			logprintf("aamp abr skip duration: %d\n", gpGlobalConfig->abrSkipDuration);
+		}
+		else if (sscanf(cfg, "abr-nw-consistency=%ld", &gpGlobalConfig->abrNwConsistency) == 1)
+		{
+			VALIDATE_LONG("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
+			logprintf("aamp abr NetworkConsistencyCnt: %d\n", gpGlobalConfig->abrNwConsistency);
+		}
+		else if (sscanf(cfg, "flush=%d", &gpGlobalConfig->gPreservePipeline) == 1)
+		{
+			logprintf("aamp flush=%d\n", gpGlobalConfig->gPreservePipeline);
+		}
+		else if (sscanf(cfg, "demux-hls-audio-track=%d", &gpGlobalConfig->gAampDemuxHLSAudioTsTrack) == 1)
+		{ // default 1, set to 0 for hw demux audio ts track
+			logprintf("demux-hls-audio-track=%d\n", gpGlobalConfig->gAampDemuxHLSAudioTsTrack);
+		}
+		else if (sscanf(cfg, "demux-hls-video-track=%d", &gpGlobalConfig->gAampDemuxHLSVideoTsTrack) == 1)
+		{ // default 1, set to 0 for hw demux video ts track
+			logprintf("demux-hls-video-track=%d\n", gpGlobalConfig->gAampDemuxHLSVideoTsTrack);
+		}
+		else if (sscanf(cfg, "demux-hls-video-track-tm=%d", &gpGlobalConfig->demuxHLSVideoTsTrackTM) == 1)
+		{ // default 0, set to 1 to demux video ts track during trickmodes
+			logprintf("demux-hls-video-track-tm=%d\n", gpGlobalConfig->demuxHLSVideoTsTrackTM);
+		}
+		else if (sscanf(cfg, "demuxed-audio-before-video=%d", &gpGlobalConfig->demuxedAudioBeforeVideo) == 1)
+		{ // default 0, set to 1 to send audio es before video in case of s/w demux.
+			logprintf("demuxed-audio-before-video=%d\n", gpGlobalConfig->demuxedAudioBeforeVideo);
+		}
+		else if (sscanf(cfg, "throttle=%d", &gpGlobalConfig->gThrottle) == 1)
+		{ // default is true; used with restamping?
+			logprintf("aamp throttle=%d\n", gpGlobalConfig->gThrottle);
+		}
+		else if (sscanf(cfg, "min-vod-cache=%d", &gpGlobalConfig->minVODCacheSeconds) == 1)
+		{ // override for VOD cache
+			VALIDATE_INT("min-vod-cache", gpGlobalConfig->minVODCacheSeconds, DEFAULT_MINIMUM_CACHE_VOD_SECONDS)
+			logprintf("min-vod-cache=%d\n", gpGlobalConfig->minVODCacheSeconds);
+		}
+		else if (sscanf(cfg, "buffer-health-monitor-delay=%d", &gpGlobalConfig->bufferHealthMonitorDelay) == 1)
+		{ // override for buffer health monitor delay after tune/ seek
+			VALIDATE_INT("buffer-health-monitor-delay", gpGlobalConfig->bufferHealthMonitorDelay, DEFAULT_BUFFER_HEALTH_MONITOR_DELAY)
+			logprintf("buffer-health-monitor-delay=%d\n", gpGlobalConfig->bufferHealthMonitorDelay);
+		}
+		else if (sscanf(cfg, "buffer-health-monitor-interval=%d", &gpGlobalConfig->bufferHealthMonitorInterval) == 1)
+		{ // override for buffer health monitor interval
+			VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
+			logprintf("buffer-health-monitor-interval=%d\n", gpGlobalConfig->bufferHealthMonitorInterval);
+		}
+		else if (sscanf(cfg, "preferred-drm=%d", &value) == 1)
+		{ // override for preferred drm value
+			if(value <= eDRM_NONE || value > eDRM_PlayReady)
 			{
-				if (mSingleton->aamp->mpStreamAbstractionAAMP)
-				{
-					mSingleton->aamp->mpStreamAbstractionAAMP->DumpProfiles();
-				}
-				logprintf("current bitrate ~= %ld\n", mSingleton->aamp->GetCurrentlyAvailableBandwidth());
-			}
-			else if (strcmp(cmd, "help") == 0)
-			{
-				ShowHelp();
-			}
-			else if (memcmp(cmd, "http", 4) == 0)
-			{
-				mSingleton->Tune(cmd);
-			}
-			else if (isNumber(cmd))
-			{
-				int channelNumber = atoi(cmd);
-				logprintf("channel number: %d\n", channelNumber);
-				for (std::list<ChannelInfo>::iterator it = mChannelMap.begin(); it != mChannelMap.end(); ++it)
-				{
-					ChannelInfo &channelInfo = *it;
-					if(channelInfo.channelNumber == channelNumber)
-					{
-						mSingleton->Tune(channelInfo.uri.c_str());
-						break;
-					}
-				}
-			}
-			else if (sscanf(cmd, "seek %lf", &seconds) == 1)
-			{
-				mSingleton->Seek(seconds);
-			}
-			else if (strcmp(cmd, "sf") == 0)
-			{
-				mSingleton->SetRate(0.5);
-			}
-			else if (sscanf(cmd, "ff%d", &rate) == 1)
-			{
-				if (rate != 4 && rate != 16 && rate != 32)
-				{
-					logprintf("Speed not supported.\n");
-				}
-				else
-					mSingleton->SetRate((float)rate);
-			}
-			else if (strcmp(cmd, "play") == 0)
-			{
-				mSingleton->SetRate(1);
-			}
-			else if (strcmp(cmd, "pause") == 0)
-			{
-				mSingleton->SetRate(0);
-			}
-			else if (sscanf(cmd, "rw%d", &rate) == 1)
-			{
-				if ((rate < 4 || rate > 32) || (rate % 4))
-				{
-					logprintf("Speed not supported.\n");
-				}
-				else
-					mSingleton->SetRate((float)(-rate));
-			}
-			else if (strcmp(cmd, "flush") == 0)
-			{
-				mSingleton->aamp->mStreamSink->Flush();
-			}
-			else if (strcmp(cmd, "stop") == 0)
-			{
-				mSingleton->Stop();
-			}
-			else if (strcmp(cmd, "underflow") == 0)
-			{
-				mSingleton->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
-			}
-			else if (strcmp(cmd, "status") == 0)
-			{
-				mSingleton->aamp->mStreamSink->DumpStatus();
-			}
-			else if (strcmp(cmd, "live") == 0)
-			{
-				mSingleton->SeekToLive();
-			}
-			else if (strcmp(cmd, "exit") == 0)
-			{
-				mSingleton->Stop();
-				delete mSingleton;
-				mChannelMap.clear();
-				exit(0);
-			}
-			else if (memcmp(cmd, "rect", 4) == 0)
-			{
-				int x, y, w, h;
-				if (sscanf(cmd, "rect %d %d %d %d", &x, &y, &w, &h) == 4)
-				{
-					mSingleton->SetVideoRectangle(x, y, w, h);
-				}
-			}
-			else if (memcmp(cmd, "zoom", 4) == 0)
-			{
-				int zoom;
-				if (sscanf(cmd, "zoom %d", &zoom) == 1)
-				{
-					if (zoom)
-					{
-						logprintf("Set zoom to full\n", zoom);
-						mSingleton->SetVideoZoom(VIDEO_ZOOM_FULL);
-					}
-					else
-					{
-						logprintf("Set zoom to none\n", zoom);
-						mSingleton->SetVideoZoom(VIDEO_ZOOM_NONE);
-					}
-				}
-			}
-			else if (strcmp(cmd, "sap") == 0)
-			{
-				gpGlobalConfig->SAP = !gpGlobalConfig->SAP;
-				logprintf("SAP %s\n", gpGlobalConfig->SAP ? "on" : "off");
-				if (gpGlobalConfig->SAP)
-				{
-					mSingleton->SetLanguage("es");
-				}
-				else
-				{
-					mSingleton->SetLanguage("en");
-				}
+				logprintf("preferred-drm=%d is unsupported\n", value);
 			}
 			else
 			{
-				done = false;
+				gpGlobalConfig->preferredDrm = (DRMSystems) value;
+			}
+			logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
+		}
+		else if (sscanf(cfg, "live-tune-event-playlist-indexed=%d", &value) == 1)
+		{ // default is 0; set 1 for sending tuned event after playlist indexing - for live
+			logprintf("live-tune-event-playlist-indexed=%d\n", value);
+			if (value)
+			{
+				gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 			}
 		}
-
-		if (!done)
-#endif
+		else if (sscanf(cfg, "live-tune-event-first-fragment-decrypted=%d", &value) == 1)
+		{ // default is 0; set 1 for sending tuned event after first fragment decrypt - for live
+			logprintf("live-tune-event-first-fragment-decrypted=%d\n", value);
+			if (value)
+			{
+				gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
+			}
+		}
+		else if (sscanf(cfg, "vod-tune-event-playlist-indexed=%d", &value) == 1)
+		{ // default is 0; set 1 for sending tuned event after playlist indexing - for vod
+			logprintf("vod-tune-event-playlist-indexed=%d\n", value);
+			if (value)
+			{
+				gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
+			}
+		}
+		else if (sscanf(cfg, "vod-tune-event-first-fragment-decrypted=%d", &value) == 1)
+		{ // default is 0; set 1 for sending tuned event after first fragment decrypt - for vod
+			logprintf("vod-tune-event-first-fragment-decrypted=%d\n", value);
+			if (value)
+			{
+				gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
+			}
+		}
+		else if (sscanf(cfg, "playlists-parallel-fetch=%d\n", &value) == 1)
 		{
-			int value;
-			char strValue[1024];
-			if (sscanf(cmd, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
+			gpGlobalConfig->playlistsParallelFetch = (value != 0);
+			logprintf("playlists-parallel-fetch=%d\n", value);
+		}
+		else if (sscanf(cfg, "pre-fetch-iframe-playlist=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
+			logprintf("pre-fetch-iframe-playlist=%d\n", value);
+		}
+		else if (sscanf(cfg, "hls-av-sync-use-start-time=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->hlsAVTrackSyncUsingStartTime = (value != 0);
+			logprintf("hls-av-sync-use-start-time=%d\n", value);
+		}
+		else if (sscanf(cfg, "mpd-discontinuity-handling=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->mpdDiscontinuityHandling = (value != 0);
+			logprintf("mpd-discontinuity-handling=%d\n", value);
+		}
+		else if (sscanf(cfg, "mpd-discontinuity-handling-cdvr=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
+			logprintf("mpd-discontinuity-handling-cdvr=%d\n", value);
+		}
+		else if(ReadConfigStringHelper(cfg, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
+		{
+			gpGlobalConfig->licenseServerLocalOverride = true;
+			logprintf("license-server-url=%s\n", gpGlobalConfig->licenseServerURL);
+		}
+		else if(sscanf(cfg, "vod-trickplay-fps=%d\n", &gpGlobalConfig->vodTrickplayFPS) == 1)
+		{
+			VALIDATE_INT("vod-trickplay-fps", gpGlobalConfig->vodTrickplayFPS, TRICKPLAY_NETWORK_PLAYBACK_FPS)
+			if(gpGlobalConfig->vodTrickplayFPS != TRICKPLAY_NETWORK_PLAYBACK_FPS)
+				gpGlobalConfig->vodTrickplayFPSLocalOverride = true;
+			logprintf("vod-trickplay-fps=%d\n", gpGlobalConfig->vodTrickplayFPS);
+		}
+		else if(sscanf(cfg, "linear-trickplay-fps=%d\n", &gpGlobalConfig->linearTrickplayFPS) == 1)
+		{
+			VALIDATE_INT("linear-trickplay-fps", gpGlobalConfig->linearTrickplayFPS, TRICKPLAY_TSB_PLAYBACK_FPS)
+			if (gpGlobalConfig->linearTrickplayFPS != TRICKPLAY_TSB_PLAYBACK_FPS)
+				gpGlobalConfig->linearTrickplayFPSLocalOverride = true;
+			logprintf("linear-trickplay-fps=%d\n", gpGlobalConfig->linearTrickplayFPS);
+		}
+		else if (sscanf(cfg, "report-progress-interval=%d\n", &gpGlobalConfig->reportProgressInterval) == 1)
+		{
+			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
+			logprintf("report-progress-interval=%d\n", gpGlobalConfig->reportProgressInterval);
+		}
+		else if (ReadConfigStringHelper(cfg, "http-proxy=", &gpGlobalConfig->httpProxy))
+		{
+			logprintf("http-proxy=%s\n", gpGlobalConfig->httpProxy);
+		}
+		else if (strcmp(cfg, "force-http") == 0)
+		{
+			gpGlobalConfig->bForceHttp = !gpGlobalConfig->bForceHttp;
+			logprintf("force-http: %s\n", gpGlobalConfig->bForceHttp ? "on" : "off");
+		}
+		else if (sscanf(cfg, "internal-retune=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->internalReTune = (value != 0);
+			logprintf("internal-retune=%d\n", (int)value);
+		}
+		else if (sscanf(cfg, "gst-buffering-before-play=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
+			logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
+		}
+		else if (strcmp(cfg, "audioLatencyLogging") == 0)
+		{
+			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
+			logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
+		}
+		else if (strcmp(cfg, "videoLatencyLogging") == 0)
+		{
+			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO] = true;
+			logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
+		}
+		else if (strcmp(cfg, "manifestLatencyLogging") == 0)
+		{
+			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST] = true;
+			logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
+		}
+		else if (sscanf(cfg, "iframe-default-bitrate=%ld", &gpGlobalConfig->iframeBitrate) == 1)
+		{
+			VALIDATE_LONG("iframe-default-bitrate",gpGlobalConfig->iframeBitrate, 0)
+			logprintf("aamp iframe-default-bitrate: %ld\n", gpGlobalConfig->iframeBitrate);
+		}
+		else if (sscanf(cfg, "iframe-default-bitrate-4k=%ld", &gpGlobalConfig->iframeBitrate4K) == 1)
+		{
+			VALIDATE_LONG("iframe-default-bitrate-4k",gpGlobalConfig->iframeBitrate4K, 0)
+			logprintf("aamp iframe-default-bitrate-4k: %ld\n", gpGlobalConfig->iframeBitrate4K);
+		}
+		else if (strcmp(cfg, "aamp-audio-only-playback") == 0)
+		{
+			gpGlobalConfig->bAudioOnlyPlayback = true;
+			logprintf("aamp-audio-only-playback is %s\n", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
+		}
+		else if (sscanf(cfg, "license-retry-wait-time=%d", &gpGlobalConfig->licenseRetryWaitTime) == 1)
+		{
+			logprintf("license-retry-wait-time: %d\n", gpGlobalConfig->licenseRetryWaitTime);
+		}
+		else if (sscanf(cfg, "fragment-cache-length=%d", &gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
+		{
+			VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
+			logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
+		}
+		else if (sscanf(cfg, "pts-error-threshold=%d", &gpGlobalConfig->ptsErrorThreshold) == 1)
+		{
+			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
+			logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
+		}
+		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
+		{
+			if (cfg[0] == '*')
 			{
-				logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
-			}
-			else if (sscanf(cmd, "fog-dash=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->fogSupportsDash = (value != 0);
-				logprintf("fog-dash=%d\n", value);
-			}
-			else if (sscanf(cmd, "fog=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->noFog = (value==0);
-				logprintf("fog=%d\n", value);
-			}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			else if (sscanf(cmd, "harvest=%d", &gpGlobalConfig->harvest) == 1)
-			{
-				logprintf("harvest=%d\n", gpGlobalConfig->harvest);
-			}
-#endif
-			else if (sscanf(cmd, "forceEC3=%d", &gpGlobalConfig->forceEC3) == 1)
-			{
-				logprintf("forceEC3=%d\n", gpGlobalConfig->forceEC3);
-			}
-			else if (sscanf(cmd, "disableEC3=%d", &gpGlobalConfig->disableEC3) == 1)
-			{
-				logprintf("disableEC3=%d\n", gpGlobalConfig->disableEC3);
-			}
-			else if (sscanf(cmd, "disableATMOS=%d", &gpGlobalConfig->disableATMOS) == 1)
-			{
-				logprintf("disableATMOS=%d\n", gpGlobalConfig->disableATMOS);
-			}
-			else if (sscanf(cmd, "live-offset=%d", &gpGlobalConfig->liveOffset) == 1)
-			{
-                            VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
-                            logprintf("live-offset=%d\n", gpGlobalConfig->liveOffset);
-			}
-			else if (sscanf(cmd, "cdvrlive-offset=%d", &gpGlobalConfig->cdvrliveOffset) == 1)
-			{
-				VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
-				logprintf("cdvrlive-offset=%d\n", gpGlobalConfig->cdvrliveOffset);
-			}
-			else if (sscanf(cmd, "ad-position=%d", &gpGlobalConfig->adPositionSec) == 1)
-			{
-				VALIDATE_INT("ad-position", gpGlobalConfig->adPositionSec, 0)
-				logprintf("ad-position=%d\n", gpGlobalConfig->adPositionSec);
-			}
-			else if (ReadConfigStringHelper(cmd, "ad-url=", &gpGlobalConfig->adURL))
-			{
-				logprintf("ad-url=%s\n", gpGlobalConfig->adURL);
-			}
-			else if (sscanf(cmd, "disablePlaylistIndexEvent=%d", &gpGlobalConfig->disablePlaylistIndexEvent) == 1)
-			{
-				logprintf("disablePlaylistIndexEvent=%d\n", gpGlobalConfig->disablePlaylistIndexEvent);
-			}
-			else if (strcmp(cmd, "enableSubscribedTags") == 0)
-			{
-				gpGlobalConfig->enableSubscribedTags = true;
-				logprintf("enableSubscribedTags set\n");
-			}
-			else if (strcmp(cmd, "disableSubscribedTags") == 0)
-			{
-				gpGlobalConfig->enableSubscribedTags = false;
-				logprintf("disableSubscribedTags set\n");
-			}
-			else if (sscanf(cmd, "enableSubscribedTags=%d", &gpGlobalConfig->enableSubscribedTags) == 1)
-			{
-				logprintf("enableSubscribedTags=%d\n", gpGlobalConfig->enableSubscribedTags);
-			}
-			else if (sscanf(cmd, "fragmentDLTimeout=%ld", &gpGlobalConfig->fragmentDLTimeout) == 1)
-			{
-				VALIDATE_LONG("fragmentDLTimeout", gpGlobalConfig->fragmentDLTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-				logprintf("fragmentDLTimeout=%ld\n", gpGlobalConfig->fragmentDLTimeout);
-			}
-#ifdef AAMP_CC_ENABLED
-			else if (strcmp(cmd, "cc") == 0)
-			{
-				gpGlobalConfig->bEnableCC = !gpGlobalConfig->bEnableCC;
-				logprintf("CC Status %s\n", gpGlobalConfig->bEnableCC ? "on" : "off");
-			}
-#endif
-			else if (strcmp(cmd, "dash-ignore-base-url-if-slash") == 0)
-			{
-				gpGlobalConfig->dashIgnoreBaseURLIfSlash = true;
-				logprintf("dash-ignore-base-url-if-slash set\n");
-			}
-			else if (strcmp(cmd, "license-anonymous-request") == 0)
-			{
-				gpGlobalConfig->licenseAnonymousRequest = true;
-				logprintf("license-anonymous-request set\n");
-			}
-			else if ((strcmp(cmd, "info") == 0) && (!gpGlobalConfig->logging.debug))
-			{
-				gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
-				gpGlobalConfig->logging.info = true;
-				logprintf("info logging %s\n", gpGlobalConfig->logging.info ? "on" : "off");
-			}
-			else if (strcmp(cmd, "gst") == 0)
-			{
-				gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
-				logprintf("gst logging %s\n", gpGlobalConfig->logging.gst ? "on" : "off");
-			}
-			else if (strcmp(cmd, "progress") == 0)
-			{
-				gpGlobalConfig->logging.progress = !gpGlobalConfig->logging.progress;
-				logprintf("progress logging %s\n", gpGlobalConfig->logging.progress ? "on" : "off");
-			}
-			else if (strcmp(cmd, "debug") == 0)
-			{
-				gpGlobalConfig->logging.info = false;
-				gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
-				gpGlobalConfig->logging.debug = true;
-				logprintf("debug logging %s\n", gpGlobalConfig->logging.debug ? "on" : "off");
-			}
-			else if (strcmp(cmd, "trace") == 0)
-			{
-				gpGlobalConfig->logging.trace = !gpGlobalConfig->logging.trace;
-				logprintf("trace logging %s\n", gpGlobalConfig->logging.trace ? "on" : "off");
-			}
-			else if (strcmp(cmd, "curl") == 0)
-			{
-				gpGlobalConfig->logging.curl = !gpGlobalConfig->logging.curl;
-				logprintf("curl logging %s\n", gpGlobalConfig->logging.curl ? "on" : "off");
-			}
-			else if (sscanf(cmd, "default-bitrate=%ld", &gpGlobalConfig->defaultBitrate) == 1)
-			{
-				VALIDATE_LONG("default-bitrate",gpGlobalConfig->defaultBitrate, DEFAULT_INIT_BITRATE)
-				logprintf("aamp default-bitrate: %ld\n", gpGlobalConfig->defaultBitrate);
-			}
-			else if (sscanf(cmd, "default-bitrate-4k=%ld", &gpGlobalConfig->defaultBitrate4K) == 1)
-			{
-				VALIDATE_LONG("default-bitrate-4k", gpGlobalConfig->defaultBitrate4K, DEFAULT_INIT_BITRATE_4K)
-				logprintf("aamp default-bitrate-4k: %ld\n", gpGlobalConfig->defaultBitrate4K);
-			}
-			else if (strcmp(cmd, "abr") == 0)
-			{
-				gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
-				logprintf("abr %s\n", gpGlobalConfig->bEnableABR ? "on" : "off");
-			}
-			else if (sscanf(cmd, "abr-cache-life=%d", &gpGlobalConfig->abrCacheLife) == 1)
-			{
-				gpGlobalConfig->abrCacheLife *= 1000;
-				logprintf("aamp abr cache lifetime: %ldmsec\n", gpGlobalConfig->abrCacheLife);
-			}
-			else if (sscanf(cmd, "abr-cache-length=%ld", &gpGlobalConfig->abrCacheLength) == 1)
-                        {
-                                VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
-                                logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
-                        }
-			else if (sscanf(cmd, "abr-cache-outlier=%ld", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
-                        {
-                                VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
-                                logprintf("aamp abr outlier in bytes: %ld\n", gpGlobalConfig->abrOutlierDiffBytes);
-                        }
-			else if (sscanf(cmd, "abr-skip-duration=%ld", &gpGlobalConfig->abrSkipDuration) == 1)
-                        {
-                                VALIDATE_INT("abr-skip-duration",gpGlobalConfig->abrSkipDuration, DEFAULT_ABR_SKIP_DURATION)
-                                logprintf("aamp abr skip duration: %d\n", gpGlobalConfig->abrSkipDuration);
-                        }
-			else if (sscanf(cmd, "abr-nw-consistency=%ld", &gpGlobalConfig->abrNwConsistency) == 1)
-                        {
-                                VALIDATE_LONG("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
-                                logprintf("aamp abr NetworkConsistencyCnt: %d\n", gpGlobalConfig->abrNwConsistency);
-                        }
-			else if (sscanf(cmd, "flush=%d", &gpGlobalConfig->gPreservePipeline) == 1)
-			{
-				logprintf("aamp flush=%d\n", gpGlobalConfig->gPreservePipeline);
-			}
-			else if (sscanf(cmd, "demux-hls-audio-track=%d", &gpGlobalConfig->gAampDemuxHLSAudioTsTrack) == 1)
-			{ // default 1, set to 0 for hw demux audio ts track
-				logprintf("demux-hls-audio-track=%d\n", gpGlobalConfig->gAampDemuxHLSAudioTsTrack);
-			}
-			else if (sscanf(cmd, "demux-hls-video-track=%d", &gpGlobalConfig->gAampDemuxHLSVideoTsTrack) == 1)
-			{ // default 1, set to 0 for hw demux video ts track
-				logprintf("demux-hls-video-track=%d\n", gpGlobalConfig->gAampDemuxHLSVideoTsTrack);
-			}
-			else if (sscanf(cmd, "demux-hls-video-track-tm=%d", &gpGlobalConfig->demuxHLSVideoTsTrackTM) == 1)
-			{ // default 0, set to 1 to demux video ts track during trickmodes
-				logprintf("demux-hls-video-track-tm=%d\n", gpGlobalConfig->demuxHLSVideoTsTrackTM);
-			}
-			else if (sscanf(cmd, "demuxed-audio-before-video=%d", &gpGlobalConfig->demuxedAudioBeforeVideo) == 1)
-			{ // default 0, set to 1 to send audio es before video in case of s/w demux.
-				logprintf("demuxed-audio-before-video=%d\n", gpGlobalConfig->demuxedAudioBeforeVideo);
-			}
-			else if (sscanf(cmd, "throttle=%d", &gpGlobalConfig->gThrottle) == 1)
-			{ // default is true; used with restamping
-				// ?
-				logprintf("aamp throttle=%d\n", gpGlobalConfig->gThrottle);
-			}
-			else if (sscanf(cmd, "min-vod-cache=%d", &gpGlobalConfig->minVODCacheSeconds) == 1)
-			{ // override for VOD cache
-				VALIDATE_INT("min-vod-cache", gpGlobalConfig->minVODCacheSeconds, DEFAULT_MINIMUM_CACHE_VOD_SECONDS)
-				logprintf("min-vod-cache=%d\n", gpGlobalConfig->minVODCacheSeconds);
-			}
-			else if (sscanf(cmd, "buffer-health-monitor-delay=%d", &gpGlobalConfig->bufferHealthMonitorDelay) == 1)
-			{ // override for buffer health monitor delay after tune/ seek
-				VALIDATE_INT("buffer-health-monitor-delay", gpGlobalConfig->bufferHealthMonitorDelay, DEFAULT_BUFFER_HEALTH_MONITOR_DELAY)
-				logprintf("buffer-health-monitor-delay=%d\n", gpGlobalConfig->bufferHealthMonitorDelay);
-			}
-			else if (sscanf(cmd, "buffer-health-monitor-interval=%d", &gpGlobalConfig->bufferHealthMonitorInterval) == 1)
-			{ // override for buffer health monitor interval
-				VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
-				logprintf("buffer-health-monitor-interval=%d\n", gpGlobalConfig->bufferHealthMonitorInterval);
-			}
-			else if (sscanf(cmd, "preferred-drm=%d", &value) == 1)
-			{ // override for preferred drm value
-				if(value <= eDRM_NONE || value > eDRM_PlayReady)
+				char *delim = strchr(cfg, ' ');
+				if (delim)
 				{
-					logprintf("preferred-drm=%d is unsupported\n", value);
-				}
-				else
-				{
-					gpGlobalConfig->preferredDrm = (DRMSystems) value;
-				}
-				logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
-			}
-			else if (sscanf(cmd, "live-tune-event-playlist-indexed=%d", &value) == 1)
-			{ // default is 0; set 1 for sending tuned event after playlist indexing - for live
-				logprintf("live-tune-event-playlist-indexed=%d\n", value);
-				if (value)
-				{
-					gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-				}
-			}
-			else if (sscanf(cmd, "live-tune-event-first-fragment-decrypted=%d", &value) == 1)
-			{ // default is 0; set 1 for sending tuned event after first fragment decrypt - for live
-				logprintf("live-tune-event-first-fragment-decrypted=%d\n", value);
-				if (value)
-				{
-					gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
-				}
-			}
-			else if (sscanf(cmd, "vod-tune-event-playlist-indexed=%d", &value) == 1)
-                        { // default is 0; set 1 for sending tuned event after playlist indexing - for vod
-                                logprintf("vod-tune-event-playlist-indexed=%d\n", value);
-                                if (value)
-                                {
-                                        gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-                                }
-                        }
-                        else if (sscanf(cmd, "vod-tune-event-first-fragment-decrypted=%d", &value) == 1)
-                        { // default is 0; set 1 for sending tuned event after first fragment decrypt - for vod
-                                logprintf("vod-tune-event-first-fragment-decrypted=%d\n", value);
-                                if (value)
-                                {
-                                        gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
-                                }
-                        }
-			else if (sscanf(cmd, "playlists-parallel-fetch=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->playlistsParallelFetch = (value != 0);
-				logprintf("playlists-parallel-fetch=%d\n", value);
-			}
-			else if (sscanf(cmd, "pre-fetch-iframe-playlist=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->prefetchIframePlaylist = (value != 0);
-				logprintf("pre-fetch-iframe-playlist=%d\n", value);
-			}
-			else if (sscanf(cmd, "hls-av-sync-use-start-time=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->hlsAVTrackSyncUsingStartTime = (value != 0);
-				logprintf("hls-av-sync-use-start-time=%d\n", value);
-			}
-			else if (sscanf(cmd, "mpd-discontinuity-handling=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->mpdDiscontinuityHandling = (value != 0);
-				logprintf("mpd-discontinuity-handling=%d\n", value);
-			}
-			else if (sscanf(cmd, "mpd-discontinuity-handling-cdvr=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
-				logprintf("mpd-discontinuity-handling-cdvr=%d\n", value);
-			}
-			else if(ReadConfigStringHelper(cmd, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
-			{
-				gpGlobalConfig->licenseServerLocalOverride = true;
-				logprintf("license-server-url=%s\n", gpGlobalConfig->licenseServerURL);
-			}
-			else if(sscanf(cmd, "vod-trickplay-fps=%d\n", &gpGlobalConfig->vodTrickplayFPS) == 1)
-			{
-				VALIDATE_INT("vod-trickplay-fps", gpGlobalConfig->vodTrickplayFPS, TRICKPLAY_NETWORK_PLAYBACK_FPS)
-				if(gpGlobalConfig->vodTrickplayFPS != TRICKPLAY_NETWORK_PLAYBACK_FPS)
-					gpGlobalConfig->vodTrickplayFPSLocalOverride = true;
-
-				logprintf("vod-trickplay-fps=%d\n", gpGlobalConfig->vodTrickplayFPS);
-			}
-			else if(sscanf(cmd, "linear-trickplay-fps=%d\n", &gpGlobalConfig->linearTrickplayFPS) == 1)
-			{
-				VALIDATE_INT("linear-trickplay-fps", gpGlobalConfig->linearTrickplayFPS, TRICKPLAY_TSB_PLAYBACK_FPS)
-				if (gpGlobalConfig->linearTrickplayFPS != TRICKPLAY_TSB_PLAYBACK_FPS)
-					gpGlobalConfig->linearTrickplayFPSLocalOverride = true;
-
-				logprintf("linear-trickplay-fps=%d\n", gpGlobalConfig->linearTrickplayFPS);
-			}
-			else if (sscanf(cmd, "report-progress-interval=%d\n", &gpGlobalConfig->reportProgressInterval) == 1)
-			{
-				VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
-				logprintf("report-progress-interval=%d\n", gpGlobalConfig->reportProgressInterval);
-			}
-			else if (ReadConfigStringHelper(cmd, "http-proxy=", &gpGlobalConfig->httpProxy))
-			{
-				logprintf("http-proxy=%s\n", gpGlobalConfig->httpProxy);
-			}
-			else if (strcmp(cmd, "force-http") == 0)
-			{
-				gpGlobalConfig->bForceHttp = !gpGlobalConfig->bForceHttp;
-				logprintf("force-http: %s\n", gpGlobalConfig->bForceHttp ? "on" : "off");
-			}
-			else if (sscanf(cmd, "internal-retune=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->internalReTune = (value != 0);
-				logprintf("internal-retune=%d\n", (int)value);
-			}
-			else if (sscanf(cmd, "gst-buffering-before-play=%d\n", &value) == 1)
-			{
-				gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
-				logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
-			}
-			else if (strcmp(cmd, "audioLatencyLogging") == 0)
-			{
-				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
-				logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
-			}
-			else if (strcmp(cmd, "videoLatencyLogging") == 0)
-			{
-				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO] = true;
-				logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
-			}
-			else if (strcmp(cmd, "manifestLatencyLogging") == 0)
-			{
-				gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST] = true;
-				logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
-			}
-			else if (sscanf(cmd, "iframe-default-bitrate=%ld", &gpGlobalConfig->iframeBitrate) == 1)
-			{
-				VALIDATE_LONG("iframe-default-bitrate",gpGlobalConfig->iframeBitrate, 0)
-				logprintf("aamp iframe-default-bitrate: %ld\n", gpGlobalConfig->iframeBitrate);
-			}
-			else if (sscanf(cmd, "iframe-default-bitrate-4k=%ld", &gpGlobalConfig->iframeBitrate4K) == 1)
-			{
-				VALIDATE_LONG("iframe-default-bitrate-4k",gpGlobalConfig->iframeBitrate4K, 0)
-				logprintf("aamp iframe-default-bitrate-4k: %ld\n", gpGlobalConfig->iframeBitrate4K);
-			}
-            else if (strcmp(cmd, "aamp-audio-only-playback") == 0)
-            {
-                gpGlobalConfig->bAudioOnlyPlayback = true;
-                logprintf("aamp-audio-only-playback is %s\n", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
-            }
-			else if (sscanf(cmd, "license-retry-wait-time=%d", &gpGlobalConfig->licenseRetryWaitTime) == 1)
-			{
-				logprintf("license-retry-wait-time: %d\n", gpGlobalConfig->licenseRetryWaitTime);
-			}
-			else if (sscanf(cmd, "fragment-cache-length=%d", &gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
-			{
-				VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
-				logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
-			}
-			else if (sscanf(cmd, "pts-error-threshold=%d", &gpGlobalConfig->ptsErrorThreshold) == 1)
-			{
-				VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
-				logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
-			}
-			else if (mChannelMap.size() < MAX_OVERRIDE && !usingCLI)
-			{
-				if (cmd[0] == '*')
-				{
-					char *delim = strchr(cmd, ' ');
-					if (delim)
+					//Populate channel map from aamp.cfg
+					// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
+					logprintf("aamp override:\n%s\n", cfg);
+					ChannelInfo channelInfo;
+					char *channelStr = &cfg[1];
+					char *token = strtok(channelStr, " ");
+					while (token != NULL)
 					{
-						//Populate channel map from aamp.cfg
-#ifndef STANDALONE_AAMP
-						// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
-						logprintf("aamp override:\n%s\n", cmd);
-#endif
-						ChannelInfo channelInfo;
-						char *channelStr = &cmd[1];
-						char *token = strtok(channelStr, " ");
-						while (token != NULL)
-						{
-							if (isNumber(token))
-								channelInfo.channelNumber = atoi(token);
-							else if (memcmp(token, "http", 4) == 0)
-								channelInfo.uri = token;
-							else
-								channelInfo.name = token;
-
-							token = strtok(NULL, " ");
-						}
-						mChannelMap.push_back(channelInfo);
+						if (memcmp(token, "http", 4) == 0)
+							channelInfo.uri = token;
+						else
+							channelInfo.name = token;
+						token = strtok(NULL, " ");
 					}
+					mChannelOverrideMap.push_back(channelInfo);
 				}
 			}
 		}
 	}
 }
-
 
 /**
  * @brief Load AAMP configuration file
@@ -3054,13 +2817,13 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
                 while (std::getline(iSteam, line)) {
                     if (line.length() > 0)
                     {
-                        //ProcessCommand takes char * and line.c_str() returns const string hence copy of line is created, 
+                        //ProcessConfigEntry takes char * and line.c_str() returns const string hence copy of line is created
                         char * cstrCmd = (char *)malloc(line.length() + 1);
                         if (cstrCmd)
                         {
                             strcpy(cstrCmd, line.c_str());
                             logprintf("LazilyLoadConfigIfNeeded aamp-cmd:[%s]\n", cstrCmd);
-                            ProcessCommand(cstrCmd, false);
+                            ProcessConfigEntry(cstrCmd);
                             free(cstrCmd);
                         }
                     }
@@ -3085,9 +2848,13 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			char buf[MAX_URI_LENGTH * 2];
 			while (fgets(buf, sizeof(buf), f))
 			{
-				ProcessCommand(buf, false);
+				ProcessConfigEntry(buf);
 			}
 			fclose(f);
+		}
+		else
+		{
+			logprintf("Failed to open aamp.cfg\n");
 		}
 
 		const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
@@ -3110,213 +2877,6 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		}
 	}
 }
-
-#ifdef STANDALONE_AAMP
-
-#ifdef FOG_HAMMER_TEST
-
-/**
- * @brief Sleep for given milliseconds
- * @param milliseconds Time to sleep
- */
-static void mssleep(int milliseconds)
-{
-	struct timespec req, rem;
-	if (milliseconds > 0)
-	{
-		req.tv_sec = milliseconds / 1000;
-		req.tv_nsec = (milliseconds % 1000) * 1000000;
-		nanosleep(&req, &rem);
-	}
-}
-
-/**
- * @brief Main function of AAMP command line interface
- * @param argc
- * @param argv
- * @retval 0 on success
- */
-int main(int argc, char **argv)
-{
-	logprintf("%s\n", argv[0]);
-	PlayerInstanceAAMP *playerInstance = new PlayerInstanceAAMP();
-	mSingleton = playerInstance; // HACK
-	ShowHelp();
-	static int chan = 201;
-	for (;;)
-	{
-#if 1
-		unsigned r = (unsigned)rand();
-		int delay = (r % 100) * 20000 / 100; // leave tuned up to 20 seoonds
-		switch (chan)
-		{
-		case 201: chan = 202; break;
-		case 202: chan = 203; break;
-		case 203: chan = 204; break;
-		case 204: chan = 201; break;
-		default:
-			exit(0);
-			break;
-		case AAMP_EVENT_TIMED_METADATA:
-			logprintf("AAMP_EVENT_TIMED_METADATA\n");
-			break;
-		}
-		char buf[32];
-		sprintf(buf,sizeof(buf), "%d\n", chan);
-		logprintf("\n\n***chan=%d*** delay=%dms***", chan, delay);
-		ProcessCommand(buf, 1);
-		mssleep(delay); // hammertest
-#else
-		char buf[32];
-		sprintf(buf, "3\n");
-		ProcessCommand(buf, 1);
-		//aamp_ResumeDownloads();
-
-		//		mssleep(1000);
-		//	sprintf(buf, "3\n");
-		//ProcessCommand(buf, 1);
-		//aamp_ResumeDownloads();
-
-		for (;;)
-		{
-			mssleep(5000); // hammertest
-		}
-#endif
-	}
-}
-#else
-
-//#define LOG_CLI_EVENTS
-#ifdef LOG_CLI_EVENTS
-static class PlayerInstanceAAMP *mpPlayerInstanceAAMP;
-
-/**
- * @class myAAMPEventListener
- * @brief
- */
-class myAAMPEventListener :public AAMPEventListener
-{
-public:
-
-	/**
-	 * @brief Implementation of event callback
-	 * @param e Event
-	 */
-	void Event(const AAMPEvent & e)
-	{
-		switch (e.type)
-		{
-		case AAMP_EVENT_TUNED:
-			logprintf("AAMP_EVENT_TUNED\n");
-			break;
-		case AAMP_EVENT_TUNE_FAILED:
-			logprintf("AAMP_EVENT_TUNE_FAILED\n");
-			break;
-		case AAMP_EVENT_SPEED_CHANGED:
-			logprintf("AAMP_EVENT_SPEED_CHANGED\n");
-			break;
-		case AAMP_EVENT_DRM_METADATA:
-                        logprintf("AAMP_DRM_FAILED\n");
-                        break;
-		case AAMP_EVENT_EOS:
-			logprintf("AAMP_EVENT_EOS\n");
-			break;
-		case AAMP_EVENT_PLAYLIST_INDEXED:
-			logprintf("AAMP_EVENT_PLAYLIST_INDEXED\n");
-			break;
-		case AAMP_EVENT_PROGRESS:
-			//			logprintf("AAMP_EVENT_PROGRESS\n");
-			break;
-		case AAMP_EVENT_CC_HANDLE_RECEIVED:
-			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED\n");
-			break;
-		case AAMP_EVENT_BITRATE_CHANGED:
-			logprintf("AAMP_EVENT_BITRATE_CHANGED\n");
-			break;
-		}
-	}
-}; // myAAMPEventListener 
-
-static class myAAMPEventListener *myEventListener;
-#endif
-
-/**
- * @brief
- * @param arg
- * @retval
- */
-static void * run_commnds(void *arg)
-{
-    char cmd[MAX_URI_LENGTH * 2];
-    char *ret = NULL;
-    ShowHelp();
-    do
-    {
-        logprintf("aamp-cli>");
-        if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
-            ProcessCommand(cmd, true);
-    } while (ret != NULL);
-
-    return NULL;
-}
-
-
-/**
- * @brief
- * @param argc
- * @param argv
- * @retval
- */
-int main(int argc, char **argv)
-{
-
-#ifdef IARM_MGR
-	char Init_Str[] = "aamp-cli";
-	IARM_Bus_Init(Init_Str);
-	IARM_Bus_Connect();
-	try
-	{
-		device::Manager::Initialize();
-		logprintf("device::Manager::Initialize() succeeded\n");
-
-	}
-	catch (...)
-	{
-		logprintf("device::Manager::Initialize() failed\n");
-	}
-#endif
-	char driveName = (*argv)[0];
-	AampLogManager mLogManager;
-	ABRManager mAbrManager;
-
-	/* Set log directory path for AAMP and ABR Manager */
-	mLogManager.setLogDirectory(driveName);
-	mAbrManager.setLogDirectory(driveName);
-
-	logprintf("**************************************************************************\n");
-	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
-	logprintf("**************************************************************************\n");
-	PlayerInstanceAAMP *playerInstance = new PlayerInstanceAAMP();
-	mSingleton = playerInstance; // HACK
-#ifdef LOG_CLI_EVENTS
-	myEventListener = new myAAMPEventListener();
-	playerInstance->RegisterEvents(myEventListener);
-#endif
-
-	ShowHelp();
-
-	char cmd[MAX_URI_LENGTH * 2];
-
-	char *ret = NULL;
-	do
-	{
-		logprintf("aamp-cli> ");
-		if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
-			ProcessCommand(cmd, true);
-	} while (ret != NULL);
-}
-#endif // FOG_HAMMER_TEST
-#endif // STANDALONE_AAMP
 
 
 /**
@@ -3394,12 +2954,11 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink)
 {
-#ifndef STANDALONE_AAMP
+#ifdef SUPPORT_JS_EVENTS 
 	const char* szJSLib = "libaamp.so";
 	mJSBinding_DL = dlopen(szJSLib, RTLD_GLOBAL | RTLD_LAZY);
 	logprintf("[AAMP_JS] dlopen(\"%s\")=%p\n", szJSLib, mJSBinding_DL);
 #endif
-
 	aamp = new PrivateInstanceAAMP();
 	mInternalStreamSink = NULL;
 	if (NULL == streamSink)
@@ -3432,7 +2991,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		delete mInternalStreamSink;
 	}
-#ifndef STANDALONE_AAMP
+#ifdef SUPPORT_JS_EVENTS 
 	if (mJSBinding_DL)
 	{
 		logprintf("[AAMP_JS] dlclose(%p)\n", mJSBinding_DL);
@@ -4547,7 +4106,7 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 	}
 }
 
-#ifndef STANDALONE_AAMP
+#ifdef SUPPORT_JS_EVENTS 
 
 /**
  *   @brief Load AAMP JS object in the specified JS context.

@@ -79,10 +79,6 @@ private:
 	void DestroyPipeline();
 	static bool initialized;
 	void Flush(void);
-#ifdef STANDALONE_AAMP
-	static void Init(int argc, char **argv);
-	static void Term();
-#endif
 };
 
 #endif // AAMPGSTPLAYER_H
