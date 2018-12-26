@@ -2014,7 +2014,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 
 	media_stream *stream = &privateContext->stream[type];
 	stream->eosReached = true;
-	if (stream->format != FORMAT_NONE && stream->resetPosition == true && stream->flush == true)
+	if (stream->format != FORMAT_NONE && stream->resetPosition == true)
 	{
 		logprintf("%s(): EOS received as first buffer \n", __FUNCTION__);
 		NotifyEOS();
