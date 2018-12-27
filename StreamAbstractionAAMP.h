@@ -470,9 +470,10 @@ public:
 	/**
 	 * @brief Rampdown profile
 	 *
+	 * @param[in] http_error
 	 * @return True, if ramp down successful. Else false
 	 */
-	bool RampDownProfile(void);
+	bool RampDownProfile(long http_error);
 
 	/**
 	 *   @brief Check for ramdown profile.

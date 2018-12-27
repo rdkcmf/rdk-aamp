@@ -207,6 +207,7 @@ enum HttpHeaderType
 #define AAMP_LOG_NETWORK_LATENCY	gpGlobalConfig->logging.LogNetworkLatency
 #define AAMP_LOG_NETWORK_ERROR		gpGlobalConfig->logging.LogNetworkError
 #define AAMP_LOG_DRM_ERROR			gpGlobalConfig->logging.LogDRMError
+#define AAMP_LOG_ABR_INFO			gpGlobalConfig->logging.LogABRInfo
 
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
@@ -237,9 +238,36 @@ enum AAMP_LogLevel
  */
 enum AAMPNetworkErrorType
 {
-	/* 0 */ AAMPNetworkErrorHttp,
-	/* 1 */ AAMPNetworkErrorTimeout,
-	/* 2 */ AAMPNetworkErrorCurl
+	/* 0 */ AAMPNetworkErrorNone,
+	/* 1 */ AAMPNetworkErrorHttp,
+	/* 2 */ AAMPNetworkErrorTimeout,
+	/* 3 */ AAMPNetworkErrorCurl
+};
+
+/**
+ * @brief ABR type enum
+ */
+enum AAMPAbrType
+{
+	/* 0 */ AAMPAbrBandwidthUpdate,
+	/* 1 */ AAMPAbrManifestNonexistent,
+	/* 2 */ AAMPAbrFragmentNonexistent,
+	/* 3 */ AAMPAbrUserRequest
+};
+
+/**
+ * @brief ABR info structure
+ */
+struct AAMPAbrInfo
+{
+	AAMPAbrType abrCalledFor;
+	int currentProfileIndex;
+	int desiredProfileIndex;
+	long currentBandwidth;
+	long desiredBandwidth;
+	long networkBandwidth;
+	AAMPNetworkErrorType errorType;
+	int errorCode;
 };
 
 /**
@@ -307,6 +335,14 @@ public:
 	 * @retuen void
 	 */
 	void LogDRMError(int major, int minor);
+
+	/**
+	 * @brief Log ABR info for triage purpose
+	 *
+	 * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
+	 * @retuen void
+	 */
+	void LogABRInfo(AAMPAbrInfo *pstAbrInfo);
 	/* !---------- Triage Level Logging Support ---------- */
 
 	/**
@@ -326,9 +362,19 @@ public:
 	void setLogLevel(AAMP_LogLevel newLevel);
 
 	/**
-	 * @brief Configure the simulator log file directory.
+	 * @brief Set log file and cfg directory index.
 	 */
-	void setLogDirectory(char driveName);
+	void setLogAndCfgDirectory(char driveName);
+
+	/**
+	 * @brief Get aamp cfg directory.
+	 */
+	char* getAampCfgDirectory(void);
+
+	/**
+	 * @brief Get aampcli cfg directory.
+	 */
+	char* getAampCliCfgDirectory(void);
 
 private:
 	AAMP_LogLevel aampLoglevel;

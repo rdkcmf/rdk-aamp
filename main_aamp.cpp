@@ -1862,7 +1862,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 #if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 					logprintf("CURL error: %d\n", res);
 #else
-					AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
+					if (res != CURLE_WRITE_ERROR) /* Curl write error 23 is not a real network error, so no need to log it here */
+					{
+						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
+					}
 #endif /* 0 */
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || fileType == eMEDIATYPE_MANIFEST))) && downloadAttempt < 2)
@@ -2834,7 +2837,8 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 #endif
 
 #ifdef WIN32
-		FILE *f = fopen("c:/tmp/aamp.cfg", "rb");
+		AampLogManager mLogManager;
+		FILE *f = fopen(mLogManager.getAampCfgDirectory(), "rb");
 #elif defined(__APPLE__)
 		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aamp.cfg";
