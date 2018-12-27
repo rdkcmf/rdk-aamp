@@ -196,8 +196,10 @@ public:
 						logprintf("%s:%d Not able to download fragments; reached failure threshold sending tune failed event\n",
 								__FUNCTION__, __LINE__);
 						aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-					}
-					else if (mContext->CheckForRampDownProfile(http_code))
+					} 
+					// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails 
+					// should continue with next fragment,no retry needed .
+					else if ((eTRACK_VIDEO == type) && mContext->CheckForRampDownProfile(http_code))
 					{
 						mContext->checkForRampdown = true;
 						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile\n",

@@ -1386,7 +1386,9 @@ void TrackState::FetchFragment()
 		if (fragmentURI)
 		{
 			context->lastSelectedProfileIndex = context->currentProfileIndex;
-			if (context->CheckForRampDownProfile(http_error))
+			// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
+			// should continue with next fragment,no retry needed .
+			if ((eTRACK_VIDEO == type) && context->CheckForRampDownProfile(http_error))
 			{
 				if (context->rate == 1.0)
 				{
