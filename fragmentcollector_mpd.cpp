@@ -1679,14 +1679,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					uint32_t duration = timeline->GetDuration();
 					float fragmentDuration = ((double)duration)/timeScale;
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
-					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
-					bool skipFlag = true;
-					if ((pMediaStreamContext->type == eTRACK_AUDIO) && (nextPTS>mFirstPTS))
-					{
-						if ((nextPTS - mFirstPTS) >= ((fragmentDuration)/2.0))
-							skipFlag = false;
-						AAMPLOG_INFO("%s:%d [%s] firstPTS %f, nextPTS %f, mFirstPTS %f\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS, mFirstPTS);
-					}
+					bool skipFlag = (pMediaStreamContext->type == eTRACK_VIDEO)?true:(pMediaStreamContext->type == eTRACK_AUDIO)?(nextPTS<=mFirstPTS):true;
 					if (skipTime >= fragmentDuration && skipFlag)
 					{
 						skipTime -= fragmentDuration;
@@ -1720,13 +1713,13 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						if (updateFirstPTS)
 						{
-							AAMPLOG_INFO("%s:%d [%s] newPTS %f, nextPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS);
+							double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
+							AAMPLOG_INFO("%s:%d [%s] newPTS %f\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS);
 							/*Keep the lower PTS */
-							if ( ((mFirstPTS == 0) || (firstPTS < mFirstPTS)) && (pMediaStreamContext->type == eTRACK_VIDEO))
+							if ((mFirstPTS == 0) || ((firstPTS < mFirstPTS) && (pMediaStreamContext->type == eTRACK_VIDEO)))
 							{
-								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f -> %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, firstPTS);
-								mFirstPTS = firstPTS; 
-								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS);
+								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f -> %f\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, firstPTS);
+								mFirstPTS = firstPTS;
 							}
 						}
 						skipTime = 0;
