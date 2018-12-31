@@ -142,7 +142,7 @@ public:
 	/// Function to fetch the Playlist file
 	void FetchPlaylist();
 	/// Process Drm Metadata after indexing
-	void UpdateDrmMetadata();
+	void ProcessDrmMetadata(bool acquireCurrentLicenseOnly);
 	/// Start deferred DRM license acquisition
 	void StartDeferredDrmLicenseAcquisition();
 	/**
@@ -229,6 +229,7 @@ private:
 	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
 	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
 	HlsDrmBase* mDrm;                       /**< DRM decrypt context*/
+	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
 };
 
 class StreamAbstractionAAMP_HLS;

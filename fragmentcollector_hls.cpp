@@ -1581,43 +1581,49 @@ void TrackState::FlushIndex()
 }
 
 /***************************************************************************
-* @fn UpdateDrmMetadata
+* @fn ProcessDrmMetadata
 * @brief Process Drm Metadata after indexing
 ***************************************************************************/
-void TrackState::UpdateDrmMetadata()
+void TrackState::ProcessDrmMetadata(bool acquireCurrentLicenseOnly)
 {
 	traceprintf("%s:%d: mDrmMetaDataIndexCount %d \n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
 	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	bool drmMetaDataIndexPositionUpdated = false;
+	bool foundCurrentMetaDataIndex = false;
 	pthread_mutex_lock(&gDrmMutex);
-	for (int i = 0; i <mDrmMetaDataIndexCount; i++)
+	/* Acquire license if license rotation not enabled (mCMSha1Hash NULL) or
+	 * matches current fragment's meta-data or
+	 * acquireCurrentLicenseOnly flag not set and license is not deferred*/
+	for (int i = 0; i < mDrmMetaDataIndexCount; i++)
 	{
-		if ( gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending && (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
+		if (mCMSha1Hash)
 		{
-			logprintf("%s:%d: Not setting  metadata for index %d as deferred\n", __FUNCTION__, __LINE__, i);
-		}
-		else
-		{
-			traceprintf("%s:%d: Setting  metadata for index %d\n", __FUNCTION__, __LINE__, i);
-			AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
-		}
-	}
-	pthread_mutex_unlock(&gDrmMutex);
-	if (mCMSha1Hash)
-	{
-		for (int i = 0; i < mDrmMetaDataIndexCount; i++)
-		{
-			if (i != mDrmMetaDataIndexPosition)
+			if (!foundCurrentMetaDataIndex && (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
 			{
-				if (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
+				mDrmMetaDataIndexPosition = i;
+				foundCurrentMetaDataIndex = true;
+			}
+			else
+			{
+				if ( acquireCurrentLicenseOnly )
 				{
-					logprintf("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
-					mDrmMetaDataIndexPosition = i;
-					break;
+					printf("%s:%d Not acquiring license for index %d mDrmMetaDataIndexCount %d since it is not the current metadata. sha1Hash - ", __FUNCTION__, __LINE__, i, mDrmMetaDataIndexCount);
+					AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
+					continue;
+				}
+				if ( gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending && (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
+				{
+					logprintf("%s:%d: Not setting  metadata for index %d as deferred\n", __FUNCTION__, __LINE__, i);
+					continue;
 				}
 			}
 		}
+		traceprintf("%s:%d: Setting  metadata for index %d\n", __FUNCTION__, __LINE__, i);
+		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
 	}
+	mDrmLicenseRequestPending = (mCMSha1Hash && acquireCurrentLicenseOnly && (mDrmMetaDataIndexCount >1));
+	assert(!mCMSha1Hash || foundCurrentMetaDataIndex);
+	traceprintf("%s:%d: mDrmLicenseRequestPending %d\n", __FUNCTION__, __LINE__, (int) mDrmLicenseRequestPending);
+	pthread_mutex_unlock(&gDrmMutex);
 }
 
 /***************************************************************************
@@ -1633,7 +1639,7 @@ void TrackState::StartDeferredDrmLicenseAcquisition()
 		{
 			if (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
 			{
-				logprintf("%s:%d: Found matching metadata, index %d\n", __FUNCTION__, __LINE__, i);
+				logprintf("%s:%d: Found matching drmMetadataNode index %d\n", __FUNCTION__, __LINE__, i);
 				AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
 				gDeferredDrmLicRequestPending = false;
 				break;
@@ -1946,9 +1952,9 @@ double TrackState::IndexPlaylist()
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-	if (!firstIndexDone || (NULL != mCMSha1Hash))
+	if (firstIndexDone && (NULL != mCMSha1Hash))
 	{
-		UpdateDrmMetadata();
+		ProcessDrmMetadata(false);
 	}
 	firstIndexDone = true;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
@@ -3083,6 +3089,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
 		}
+
+		if (audio->enabled)
+		{
+			audio->ProcessDrmMetadata(true);
+		}
+		if (video->enabled)
+		{
+			video->ProcessDrmMetadata(true);
+		}
+
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
@@ -3169,6 +3185,12 @@ void TrackState::RunFetchLoop()
 				}
 			}
 			pthread_mutex_unlock(&gDrmMutex);
+
+			if (mDrmLicenseRequestPending)
+			{
+				logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
+				ProcessDrmMetadata(false);
+			}
 
 			/*Check for profile change only for video track*/
 			if((eTRACK_VIDEO == type) && (!context->trickplayMode))
@@ -3371,7 +3393,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
-		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL)
+		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false)
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
