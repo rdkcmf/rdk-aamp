@@ -496,7 +496,7 @@ int main(int argc, char **argv)
 	ABRManager mAbrManager;
 
 	/* Set log directory path for AAMP and ABR Manager */
-	mLogManager.setLogDirectory(driveName);
+	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 
 	logprintf("**************************************************************************\n");
@@ -513,7 +513,7 @@ int main(int argc, char **argv)
 
 #ifdef VIRTUAL_CHANNEL_MAP
 #ifdef WIN32
-	FILE *f = fopen("c:/tmp/aampcli.cfg", "rb");
+	FILE *f = fopen(mLogManager.getAampCliCfgDirectory(), "rb");
 #elif defined(__APPLE__)
 	std::string cfgPath(getenv("HOME"));
 	cfgPath += "/aampcli.cfg";

@@ -23,6 +23,7 @@
  */
 
 #include "priv_aamp.h"
+using namespace std;
 
 #ifndef WIN32
 #ifdef USE_SYSLOG_HELPER_PRINT
@@ -39,9 +40,11 @@
 #define MAX_DEBUG_LOG_BUFF_SIZE 1024
 
 /**
- * @brief Log file directory index - To support dynamic directory configuration for aamp logging
+ * @brief Log file and cfg directory path - To support dynamic directory configuration
  */
 char gLogDirectory[] = "c:/tmp/aamp.log";
+char gAampCfgDirectory[] = "c:/tmp/aamp.cfg";
+char gAampCliCfgDirectory[] = "c:/tmp/aampcli.cfg";
 
 /*-----------------------------------------------------------------------------------------------------*/
 bool AampLogManager::disableLogRedirection = false;
@@ -68,10 +71,29 @@ void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
 }
 
 /**
- * @brief Set the simulator log file directory index.
+ * @brief Set log file and cfg directory index.
  */
-void AampLogManager::setLogDirectory(char driveName) {
-  gLogDirectory[0] = driveName;
+void AampLogManager::setLogAndCfgDirectory(char driveName)
+{
+	gLogDirectory[0] = driveName;
+	gAampCfgDirectory[0] = driveName;
+	gAampCliCfgDirectory[0] = driveName;
+}
+
+/**
+ * @brief Get aamp cfg directory.
+ */
+char* AampLogManager::getAampCfgDirectory(void)
+{
+	return gAampCfgDirectory;
+}
+
+/**
+ * @brief Get aamp cfg directory.
+ */
+char* AampLogManager::getAampCliCfgDirectory(void)
+{
+	return gAampCliCfgDirectory;
 }
 
 /**
@@ -297,6 +319,75 @@ void AampLogManager::LogDRMError(int major, int minor)
 	}
 
 	logprintf("AAMPLogDRMError RDK-10041 error=%d.%d description='%s'\n", major, minor, description.c_str());
+}
+
+/**
+ * @brief Log ABR info for triage purpose
+ * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
+ * @retuen void
+ */
+void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
+{
+	if (pstAbrInfo)
+	{
+		std::string reason = "unknown";
+		std::string profile = "unknown";
+		std::string symptom = "unknown";
+
+		if (pstAbrInfo->desiredProfileIndex > pstAbrInfo->currentProfileIndex)
+		{
+			profile = "higher";
+			symptom = "video quality may increase";
+		}
+		else
+		{
+			profile = "lower";
+			symptom = "video quality may decrease";
+		}
+
+		switch(pstAbrInfo->abrCalledFor)
+		{
+			case AAMPAbrBandwidthUpdate:
+			{
+				reason = (pstAbrInfo->desiredProfileIndex > pstAbrInfo->currentProfileIndex) ? "bandwidth is good enough" : "not enough bandwidth";
+			}
+				break; /* AAMPAbrBandwidthUpdate */
+
+			case AAMPAbrManifestNonexistent:
+			{
+				reason = "manifest download failed'";
+			}
+				break; /* AAMPAbrManifestNonexistent */
+
+			case AAMPAbrFragmentNonexistent:
+			{
+				reason = "fragment download failed'";
+			}
+				break; /* AAMPAbrFragmentNonexistent */
+
+			case AAMPAbrUserRequest:
+			{
+				reason = "changed based on user request";
+			}
+				break; /* AAMPAbrUserRequest */
+		}
+
+		switch(pstAbrInfo->errorType)
+		{
+			case AAMPNetworkErrorHttp:
+			{
+				reason += " error='http error ";
+				reason += to_string(pstAbrInfo->errorCode);
+
+				symptom += " (or) freeze/buffering";
+			}
+				break; /*AAMPNetworkErrorHttp*/
+		}
+
+		logprintf("AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'\n",
+			profile.c_str(), pstAbrInfo->currentProfileIndex, pstAbrInfo->desiredProfileIndex, pstAbrInfo->currentBandwidth,
+			pstAbrInfo->desiredBandwidth, pstAbrInfo->networkBandwidth, reason.c_str(), symptom.c_str());
+	}
 }
 
 /**

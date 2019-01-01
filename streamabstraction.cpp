@@ -963,7 +963,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 				currentBandwidth, networkBandwidth, nwConsistencyCnt);
 		if(currentProfileIndex != desiredProfileIndex)
 		{
-			logprintf("aamp::GetDesiredProfileBasedOnCache---> currbw[%ld] nwbw[%ld] currProf[%d] desiredProf[%d] vidCache[%d]\n",currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex,video->numberOfFragmentsCached);
+			logprintf("aamp::GetDesiredProfileBasedOnCache---> currProf[%d] desiredProf[%d] vidCache[%d]\n",currentProfileIndex,desiredProfileIndex,video->numberOfFragmentsCached);
 		}
 	}
 	// only for first call, consistency check is ignored
@@ -975,9 +975,11 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 
 /**
  * @brief Rampdown profile
+ *
+ * @param[in] http_error
  * @retval true on profile change
  */
-bool StreamAbstractionAAMP::RampDownProfile()
+bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 {
 	bool ret = false;
 	int desiredProfileIndex = currentProfileIndex;
@@ -1004,6 +1006,19 @@ bool StreamAbstractionAAMP::RampDownProfile()
 	}
 	if (desiredProfileIndex != currentProfileIndex)
 	{
+		AAMPAbrInfo stAbrInfo = {};
+
+		stAbrInfo.abrCalledFor = AAMPAbrFragmentNonexistent;
+		stAbrInfo.currentProfileIndex = currentProfileIndex;
+		stAbrInfo.desiredProfileIndex = desiredProfileIndex;
+		stAbrInfo.currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
+		stAbrInfo.desiredBandwidth = GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond;
+		stAbrInfo.networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
+		stAbrInfo.errorType = AAMPNetworkErrorHttp;
+		stAbrInfo.errorCode = (int)http_error;
+
+		AAMP_LOG_ABR_INFO(&stAbrInfo);
+
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
@@ -1031,7 +1046,7 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 	{
 		if (http_error == 404 || http_error == 500 || http_error == 503)
 		{
-			if (RampDownProfile())
+			if (RampDownProfile(http_error))
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP::%s:%d > Condition Rampdown Success\n", __FUNCTION__, __LINE__);
 				retValue = true;
@@ -1178,10 +1193,25 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 	int desiredProfileIndex = GetDesiredProfileBasedOnCache();
 	if (desiredProfileIndex != currentProfileIndex)
 	{
+#if 0 /* Commented since the same is supported via AAMP_LOG_ABR_INFO */
 		logprintf("\n\n**aamp changing profile: %d->%d [%ld->%ld]\n\n",
 			currentProfileIndex, desiredProfileIndex,
 			GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond,
 			GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond);
+#else
+		AAMPAbrInfo stAbrInfo = {};
+
+		stAbrInfo.abrCalledFor = AAMPAbrBandwidthUpdate;
+		stAbrInfo.currentProfileIndex = currentProfileIndex;
+		stAbrInfo.desiredProfileIndex = desiredProfileIndex;
+		stAbrInfo.currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
+		stAbrInfo.desiredBandwidth = GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond;
+		stAbrInfo.networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
+		stAbrInfo.errorType = AAMPNetworkErrorNone;
+
+		AAMP_LOG_ABR_INFO(&stAbrInfo);
+#endif /* 0 */
+
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
@@ -1317,10 +1347,24 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 		int desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mUserRequestedBandwidth);
 		if (currentProfileIndex != desiredProfileIndex)
 		{
+#if 0 /* Commented since the same is supported via AAMP_LOG_ABR_INFO */
 			logprintf("\n\n**aamp changing profile based on user request: %d->%d [%ld->%ld]\n\n",
 				currentProfileIndex, desiredProfileIndex,
 				GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond,
 				GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond);
+#else
+			AAMPAbrInfo stAbrInfo = {};
+
+			stAbrInfo.abrCalledFor = AAMPAbrUserRequest;
+			stAbrInfo.currentProfileIndex = currentProfileIndex;
+			stAbrInfo.desiredProfileIndex = desiredProfileIndex;
+			stAbrInfo.currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
+			stAbrInfo.desiredBandwidth = GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond;
+			stAbrInfo.networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
+			stAbrInfo.errorType = AAMPNetworkErrorNone;
+
+			AAMP_LOG_ABR_INFO(&stAbrInfo);
+#endif /* 0 */
 			this->currentProfileIndex = desiredProfileIndex;
 			profileIdxForBandwidthNotification = desiredProfileIndex;
 			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
