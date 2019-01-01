@@ -26,31 +26,18 @@
 #include <list>
 #include <string.h>
 #include <gst/gst.h>
-#include <ABRManager.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
 #include "../StreamAbstractionAAMP.h"
 
 #define MAX_OVERRIDE 10
 #define VIRTUAL_CHANNEL_MAP
-#define logprintf printf
 
 #ifdef IARM_MGR
 #include "host.hpp"
 #include "manager.hpp"
 #include "libIBus.h"
 #include "libIBusDaemon.h"
-
-#include <hostIf_tr69ReqHandler.h>
-#include <sstream>
-
-/**
- * @brief
- * @param paramName
- * @param iConfigLen
- * @retval
- */
-char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
 static PlayerInstanceAAMP *mSingleton;
@@ -58,17 +45,17 @@ static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 
 #ifdef VIRTUAL_CHANNEL_MAP
 /**
- * @struct ChannelInfo 
- * @brief Holds information of a channel
+ * @struct VirtualChannelInfo
+ * @brief Holds information of a virtual channel
  */
-struct ChannelInfo
+struct VirtualChannelInfo
 {
 	int channelNumber;
 	std::string name;
 	std::string uri;
 };
 
-static std::list<ChannelInfo> mVirtualChannelMap;
+static std::list<VirtualChannelInfo> mVirtualChannelMap;
 #endif
 
 /**
@@ -189,23 +176,24 @@ static void ShowHelp(void)
 	{
 		logprintf("\nChannel Map from aampcli.cfg\n*************************\n");
 
-		for (std::list<ChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
 		{
-			ChannelInfo &pChannelInfo = *it;
-			logprintf("%4d: %s", pChannelInfo.channelNumber, pChannelInfo.name.c_str());
+			VirtualChannelInfo &pChannelInfo = *it;
+			printf("%4d: %s", pChannelInfo.channelNumber, pChannelInfo.name.c_str());
 			if ((i % 4) == 3)
 			{
-				logprintf("\n");
+				printf("\n");
 			}
 			else
 			{
-				logprintf("\t");
+				printf("\t");
 			}
 		}
+		printf("\n");
 	}
 #endif
 
-	logprintf("\n\nList of Commands\n****************\n");
+	logprintf("List of Commands\n****************\n");
 	logprintf("<channelNumber> // Play selected channel from guide\n");
 	logprintf("<url> // Play arbitrary stream\n");
 	logprintf("info gst trace curl progress // Logging toggles\n");
@@ -291,7 +279,8 @@ static void ProcessCLIConfEntry(char *cfg)
 			if (delim)
 			{
 				//Populate channel map from aampcli.cfg
-				ChannelInfo channelInfo;
+				VirtualChannelInfo channelInfo;
+				channelInfo.channelNumber = INT_MIN;
 				char *channelStr = &cfg[1];
 				char *token = strtok(channelStr, " ");
 				while (token != NULL)
@@ -304,7 +293,22 @@ static void ProcessCLIConfEntry(char *cfg)
 						channelInfo.name = token;
 					token = strtok(NULL, " ");
 				}
-				mVirtualChannelMap.push_back(channelInfo);
+				if (!channelInfo.uri.empty())
+				{
+					if (INT_MIN == channelInfo.channelNumber)
+					{
+						channelInfo.channelNumber = mVirtualChannelMap.size() + 1;
+					}
+					if (channelInfo.name.empty())
+					{
+						channelInfo.name = "CH" + std::to_string(channelInfo.channelNumber);
+					}
+					mVirtualChannelMap.push_back(channelInfo);
+				}
+				else
+				{
+					logprintf("%s(): Could not parse uri of %s\n", __FUNCTION__, cfg);
+				}
 			}
 		}
 	}
@@ -340,9 +344,9 @@ static void ProcessCliCommand(char *cmd)
 	{
 		int channelNumber = atoi(cmd);
 		logprintf("channel number: %d\n", channelNumber);
-		for (std::list<ChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
 		{
-			ChannelInfo &channelInfo = *it;
+			VirtualChannelInfo &channelInfo = *it;
 			if(channelInfo.channelNumber == channelNumber)
 			{
 			//	logprintf("Found %d tuning to %s\n",channelInfo.channelNumber, channelInfo.uri.c_str());
@@ -435,12 +439,12 @@ static void ProcessCliCommand(char *cmd)
 		{
 			if (zoom)
 			{
-				logprintf("Set zoom to full\n", zoom);
+				logprintf("Set zoom to full\n");
 				mSingleton->SetVideoZoom(VIDEO_ZOOM_FULL);
 			}
 			else
 			{
-				logprintf("Set zoom to none\n", zoom);
+				logprintf("Set zoom to none\n");
 				mSingleton->SetVideoZoom(VIDEO_ZOOM_NONE);
 			}
 		}
@@ -498,11 +502,13 @@ int main(int argc, char **argv)
 	logprintf("**************************************************************************\n");
 	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
 	logprintf("**************************************************************************\n");
-	PlayerInstanceAAMP *playerInstance = new PlayerInstanceAAMP();
-	mSingleton = playerInstance; // HACK
+
+	InitPlayerLoop(0,NULL);
+
+	mSingleton = new PlayerInstanceAAMP();
 #ifdef LOG_CLI_EVENTS
 	myEventListener = new myAAMPEventListener();
-	playerInstance->RegisterEvents(myEventListener);
+	mSingleton->RegisterEvents(myEventListener);
 #endif
 
 #ifdef VIRTUAL_CHANNEL_MAP
@@ -528,7 +534,6 @@ int main(int argc, char **argv)
 #endif
 
 	ShowHelp();
-	InitPlayerLoop(0,NULL);
 	char cmd[MAX_URI_LENGTH * 2];
 
 	char *ret = NULL;

@@ -326,7 +326,9 @@ void logprintf(const char *format, ...)
 	}
 	else
 	{
-		printf("%s", gDebugPrintBuffer);
+		struct timeval t;
+		gettimeofday(&t, NULL);
+		printf("%ld:%3ld : %s", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 	}
 #else  //USE_SYSTEMD_JOURNAL_PRINT
 #ifdef WIN32
