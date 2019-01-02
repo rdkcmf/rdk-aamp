@@ -3252,6 +3252,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mSeekOperationInProgress = true;
 	}
 
+	if ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType))
+	{
+		mEnableCache = false;
+	}
+
 	if (eTUNETYPE_LAST == tuneType)
 	{
 		tuneType = lastTuneType;
@@ -5010,9 +5015,9 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track)
 
 
 /**
- * @brief
- * @param ptr
- * @retval
+ * @brief Tune again to currently viewing asset. Used for internal error handling
+ * @param ptr pointer to PrivateInstanceAAMP object
+ * @retval G_SOURCE_REMOVE
  */
 static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 {
@@ -5600,13 +5605,7 @@ void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const Gro
 	std::unordered_map<std::string, std::pair<GrowableBuffer*, char*>>::iterator  it = mPlaylistCache.find(url);
 	if (it != mPlaylistCache.end())
 	{
-		std::pair<GrowableBuffer*,char*> p = it->second;
-		buf = p.first;
-		eUrl = p.second;
-		buf->len = 0;
-		aamp_AppendBytes(buf, buffer->ptr, buffer->len );
-		strncpy(eUrl, effectiveUrl, MAX_URI_LENGTH);
-		logprintf("PrivateInstanceAAMP::%s:%d : replaced available entry\n", __FUNCTION__, __LINE__);
+		traceprintf("PrivateInstanceAAMP::%s:%d : playlist %s already present in cache\n", __FUNCTION__, __LINE__, url.c_str());
 	}
 	else
 	{
