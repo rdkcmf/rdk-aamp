@@ -404,7 +404,11 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (strcmp(cmd, "underflow") == 0)
 	{
-		mSingleton->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
+		mSingleton->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, eMEDIATYPE_VIDEO);
+	}
+	else if (strcmp(cmd, "retune") == 0)
+	{
+		mSingleton->aamp->ScheduleRetune(eDASH_ERROR_STARTTIME_RESET, eMEDIATYPE_VIDEO);
 	}
 	else if (strcmp(cmd, "status") == 0)
 	{

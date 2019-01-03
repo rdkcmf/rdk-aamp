@@ -2237,7 +2237,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
 #endif
-	bool ret = UpdateMPD(!newTune && aamp->mEnableCache);
+	bool ret = UpdateMPD(aamp->mEnableCache);
 	if (ret)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();

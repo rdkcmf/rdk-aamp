@@ -1785,6 +1785,12 @@ double TrackState::IndexPlaylist()
 				context->playlistType = ePLAYLISTTYPE_VOD;
 			}
 		}
+		aamp->mEnableCache = (context->playlistType == ePLAYLISTTYPE_VOD);
+		if(aamp->mEnableCache)
+		{
+			logprintf("%s:%d [%s] Insert playlist to cache\n", __FUNCTION__, __LINE__, name);
+			aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl);
+		}
 	}
 
 	{ // build new index
@@ -2081,7 +2087,6 @@ void TrackState::RefreshPlaylist(void)
 		{
 			logprintf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
-
 		IndexPlaylist();
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		const char* prefix = (type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
@@ -2514,9 +2519,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		pthread_mutex_unlock(&gDrmMutex);
 	}
 
-	bool retrievePlaylistFromCache = (!newTune && aamp->mEnableCache);
-
-	if (retrievePlaylistFromCache)
+	if (aamp->mEnableCache)
 	{
 		if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
 		{
@@ -2535,10 +2538,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				if (aamp->mEnableCache)
-				{
-					aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl());
-				}
+				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl());
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -2644,10 +2644,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		pthread_t trackPLDownloadThreadID;
 		bool trackPLDownloadThreadStarted = false;
-		bool insertPlaylistToCache[AAMP_TRACK_COUNT] = {false, false};
 		if (audio->enabled)
 		{
-			if (retrievePlaylistFromCache)
+			if (aamp->mEnableCache)
 			{
 				if (aamp->RetrieveFromPlaylistCache(audio->playlistUrl, &audio->playlist, audio->effectiveUrl))
 				{
@@ -2672,12 +2671,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					audio->FetchPlaylist();
 				}
-				insertPlaylistToCache[eMEDIATYPE_AUDIO] = aamp->mEnableCache;
 			}
 		}
 		if (video->enabled)
 		{
-			if (retrievePlaylistFromCache)
+			if (aamp->mEnableCache)
 			{
 				if (aamp->RetrieveFromPlaylistCache(video->playlistUrl, &video->playlist, video->effectiveUrl))
 				{
@@ -2687,7 +2685,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if(!video->playlist.len)
 			{
 				video->FetchPlaylist();
-				insertPlaylistToCache[eMEDIATYPE_VIDEO] = aamp->mEnableCache;
 			}
 		}
 		if (trackPLDownloadThreadStarted)
@@ -2710,10 +2707,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if(ts->enabled)
 			{
-				if(insertPlaylistToCache[iTrack])
-				{
-					aamp->InsertToPlaylistCache(ts->playlistUrl, &ts->playlist, ts->effectiveUrl);
-				}
 				bool playContextConfigured = false;
 				aamp_AppendNulTerminator(&ts->playlist); // make safe for cstring operations
 				if (gpGlobalConfig->logging.trace  )
@@ -3103,7 +3096,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((rate == 1.0) && ((!audio->enabled) || audio->playContext));
-		aamp->mEnableCache = (ePLAYLISTTYPE_VOD == playlistType);
 		if (!aamp->mEnableCache)
 		{
 			aamp->ClearPlaylistCache();
