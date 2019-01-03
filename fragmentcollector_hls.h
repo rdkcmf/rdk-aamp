@@ -35,6 +35,7 @@
 #ifndef FRAGMENTCOLLECTOR_HLS_H
 #define FRAGMENTCOLLECTOR_HLS_H
 
+#include <memory>
 #include "StreamAbstractionAAMP.h"
 #include "tsprocessor.h"
 #include "drm.h"
@@ -228,7 +229,7 @@ private:
 	int manifestDLFailCount;				/**< Manifest Download fail count for retry*/
 	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
 	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
-	HlsDrmBase* mDrm;                       /**< DRM decrypt context*/
+	std::shared_ptr<HlsDrmBase> mDrm;       /**< DRM decrypt context*/
 	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
 };
 

@@ -27,6 +27,7 @@
 
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
+#include <memory>
 
 #define MAX_DRM_CONTEXT 6
 #define DRM_SHA1_HASH_LEN 40
@@ -119,16 +120,15 @@ public:
 	static void RestoreKeyStateAll();
 	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode);
 	static void PrintSha1Hash( char* sha1Hash);
-	static AveDrm* GetAveDrm(char* sha1Hash);
+	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 private:
 	AveDrmManager();
 	void Reset();
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
-	AveDrm* mDrm;
+	std::shared_ptr<AveDrm> mDrm;
 	bool mDrmContexSet;
-	static AveDrmManager sAveDrmManager[MAX_DRM_CONTEXT];
-	static int sAveDrmManagerCount;
+	static std::vector<AveDrmManager*> sAveDrmManager;
 };
 
 #endif // DRM_H

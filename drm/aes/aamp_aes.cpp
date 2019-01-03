@@ -378,20 +378,17 @@ void AesDec::RestoreKeyState()
 	pthread_mutex_unlock(&mMutex);
 }
 
-
-AesDec* AesDec::mInstance = nullptr;
-
-
+std::shared_ptr<AesDec> AesDec::mInstance = nullptr;
 
 /**
  * @brief Get singleton instance
  */
-AesDec* AesDec::GetInstance()
+std::shared_ptr<AesDec> AesDec::GetInstance()
 {
 	pthread_mutex_lock(&mutex);
 	if (nullptr == mInstance)
 	{
-		mInstance = new AesDec();
+		mInstance = std::make_shared<AesDec>();
 	}
 	pthread_mutex_unlock(&mutex);
 	return mInstance;

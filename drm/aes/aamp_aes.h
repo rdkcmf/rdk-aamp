@@ -24,6 +24,7 @@
 #include "HlsDrmBase.h"
 #include "drm.h"
 #include "openssl/evp.h"
+#include <memory>
 
 /**
  * @class AesDec
@@ -32,7 +33,7 @@
 class AesDec : public HlsDrmBase
 {
 public:
-	static AesDec* GetInstance();
+	static std::shared_ptr<AesDec> GetInstance();
 	DrmReturn SetMetaData( PrivateInstanceAAMP *aamp, void* metadata);
 	DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
@@ -46,12 +47,12 @@ public:
 	void NotifyDRMError(AAMPTuneFailure drmFailure);
 	void SignalDrmError();
 	void WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err);
+	AesDec();
+	~AesDec();
 
 private:
 
-	AesDec();
-	~AesDec();
-	static AesDec *mInstance;
+	static std::shared_ptr<AesDec> mInstance;
 	PrivateInstanceAAMP *mpAamp;
 	pthread_cond_t mCond;
 	pthread_mutex_t mMutex;

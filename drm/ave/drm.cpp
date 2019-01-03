@@ -514,6 +514,7 @@ void AveDrm::SetState(DRMState state)
 AveDrmManager::AveDrmManager() :
 		mDrm(NULL)
 {
+	mDrm = std::make_shared<AveDrm>();
 	Reset();
 }
 
@@ -538,11 +539,10 @@ void AveDrmManager::Reset()
  */
 void AveDrmManager::ResetAll()
 {
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		sAveDrmManager[i].Reset();
+		sAveDrmManager[i]->Reset();
 	}
-	sAveDrmManagerCount = 0;
 }
 
 /**
@@ -550,9 +550,9 @@ void AveDrmManager::ResetAll()
  */
 void AveDrmManager::CancelKeyWaitAll()
 {
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		sAveDrmManager[i].mDrm->CancelKeyWait();
+		sAveDrmManager[i]->mDrm->CancelKeyWait();
 	}
 }
 
@@ -561,9 +561,9 @@ void AveDrmManager::CancelKeyWaitAll()
  */
 void AveDrmManager::ReleaseAll()
 {
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		sAveDrmManager[i].mDrm->Release();
+		sAveDrmManager[i]->mDrm->Release();
 	}
 }
 
@@ -572,9 +572,9 @@ void AveDrmManager::ReleaseAll()
  */
 void AveDrmManager::RestoreKeyStateAll()
 {
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		sAveDrmManager[i].mDrm->RestoreKeyState();
+		sAveDrmManager[i]->mDrm->RestoreKeyState();
 	}
 }
 
@@ -588,12 +588,12 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 {
 	AveDrmManager* aveDrmManager = NULL;
 	bool drmMetaDataSet = false;
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sHlsDrmContextCount = %d\n", __FUNCTION__, __LINE__, sAveDrmManagerCount);
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		if (sAveDrmManager[i].mDrmContexSet)
+		if (sAveDrmManager[i]->mDrmContexSet)
 		{
-			if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i].mSha1Hash, DRM_SHA1_HASH_LEN))
+			if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
 				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d]\n", __FUNCTION__, __LINE__, i);
 				drmMetaDataSet = true;
@@ -603,7 +603,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			{
 #ifdef ENABLE_AVE_DRM_MANGER_DEBUG
 				printf("%s:%d sHlsDrmContext[%d].mSha1Hash -  ", __FUNCTION__, __LINE__, i);
-				PrintSha1Hash(sAveDrmManager[i].mSha1Hash);
+				PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
 				printf("metaDataNode->sha1Hash - ");
 				PrintSha1Hash(metaDataNode->sha1Hash);
 #endif
@@ -611,26 +611,19 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		}
 		else
 		{
-			aveDrmManager = &sAveDrmManager[i];
+			aveDrmManager = sAveDrmManager[i];
 		}
 	}
 	if (!drmMetaDataSet)
 	{
 		if (!aveDrmManager)
 		{
-			if (sAveDrmManagerCount < MAX_DRM_CONTEXT)
+			logprintf("%s:%d: Create new AveDrmManager object\n", __FUNCTION__, __LINE__);
+			aveDrmManager = new AveDrmManager();
+			sAveDrmManager.push_back(aveDrmManager);
+			if (sAveDrmManager.size() > MAX_DRM_CONTEXT)
 			{
-				if(!sAveDrmManager[sAveDrmManagerCount].mDrm)
-				{
-					logprintf("%s:%d: Create new AveDrm object\n", __FUNCTION__, __LINE__);
-					sAveDrmManager[sAveDrmManagerCount].mDrm = new AveDrm();
-				}
-				aveDrmManager = &sAveDrmManager[sAveDrmManagerCount];
-				sAveDrmManagerCount++;
-			}
-			else
-			{
-				logprintf("%s:%d: ERROR - max DRM objects in use\n", __FUNCTION__, __LINE__);
+				logprintf("%s:%d: WARNING - %d AveDrmManager objects allocated\n", __FUNCTION__, __LINE__);
 			}
 		}
 		if (aveDrmManager)
@@ -640,7 +633,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		}
 	}
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sHlsDrmContextCount = %d\n", __FUNCTION__, __LINE__, sAveDrmManagerCount);
+	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sHlsDrmContextCount = %d\n", __FUNCTION__, __LINE__, sAveDrmManager.size());
 }
 
 /**
@@ -664,20 +657,20 @@ void AveDrmManager::PrintSha1Hash(char* sha1Hash)
  * @return AveDrm instance corresponds to sha1Hash
  * @return NULL if AveDrm instance configured with the meta-data is not available
  */
-AveDrm* AveDrmManager::GetAveDrm(char* sha1Hash)
+std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
 {
-	AveDrm* aveDrm = NULL;
+	std::shared_ptr<AveDrm>  aveDrm = nullptr;
 #ifdef ENABLE_AVE_DRM_MANGER_DEBUG
-	printf("%s:%d Enter sHlsDrmContextCount = %d sha1Hash -  ", __FUNCTION__, __LINE__, sAveDrmManagerCount);
+	printf("%s:%d Enter sAveDrmManager.size = %d sha1Hash -  ", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
 	PrintSha1Hash(sha1Hash);
 #endif
-	for (int i = 0; i < sAveDrmManagerCount; i++)
+	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		if (sAveDrmManager[i].mDrmContexSet)
+		if (sAveDrmManager[i]->mDrmContexSet)
 		{
-			if (0 == memcmp(sha1Hash, sAveDrmManager[i].mSha1Hash, DRM_SHA1_HASH_LEN))
+			if (0 == memcmp(sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
-				aveDrm = sAveDrmManager[i].mDrm;
+				aveDrm = sAveDrmManager[i]->mDrm;
 				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] aveDrm[%p]\n", __FUNCTION__, __LINE__, i, aveDrm);
 				break;
 			}
@@ -685,7 +678,7 @@ AveDrm* AveDrmManager::GetAveDrm(char* sha1Hash)
 			{
 #ifdef ENABLE_AVE_DRM_MANGER_DEBUG
 				printf("%s:%d sHlsDrmContext[%d].mSha1Hash -  ", __FUNCTION__, __LINE__, i);
-				PrintSha1Hash(sAveDrmManager[i].mSha1Hash);
+				PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
 #endif
 			}
 		}
@@ -709,9 +702,9 @@ int AveDrmManager::GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmM
 	for (int j = drmMetadataCount - 1; j >= 0; j--)
 	{
 		bool matched = false;
-		for (int i = 0; i < sAveDrmManagerCount; i++)
+		for (int i = 0; i < sAveDrmManager.size(); i++)
 		{
-			if (0 == memcmp(drmMetadataIdx[j].sha1Hash, sAveDrmManager[i].mSha1Hash, DRM_SHA1_HASH_LEN))
+			if (0 == memcmp(drmMetadataIdx[j].sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
 				matched = true;
 				break;
@@ -726,5 +719,4 @@ int AveDrmManager::GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmM
 	return idx;
 }
 
-AveDrmManager AveDrmManager::sAveDrmManager[MAX_DRM_CONTEXT];
-int AveDrmManager::sAveDrmManagerCount = 0;
+std::vector<AveDrmManager*> AveDrmManager::sAveDrmManager;
