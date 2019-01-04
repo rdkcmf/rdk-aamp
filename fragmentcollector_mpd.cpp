@@ -378,7 +378,7 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 
 private:
-	bool UpdateMPD(bool retrievePlaylistFromCache = false);
+	AAMPStatusType UpdateMPD(bool retrievePlaylistFromCache = false);
 	void FindTimedMetadata(MPD* mpd, Node* root);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID);
@@ -2237,8 +2237,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
 #endif
-	bool ret = UpdateMPD(aamp->mEnableCache);
-	if (ret)
+	AAMPStatusType ret = UpdateMPD(aamp->mEnableCache);
+	if (ret == eAAMPSTATUS_OK)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();
 		int numTracks = (rate == 1.0)?AAMP_TRACK_COUNT:1;
@@ -2562,10 +2562,10 @@ uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
  * @param retrievePlaylistFromCache true to try to get from cache
  * @retval true on success
  */
-bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
+AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 {
 	GrowableBuffer manifest;
-	bool ret = true;
+	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
 	int downloadAttempt = 0;
 	char *manifestUrl = aamp->GetManifestUrl();
 	bool gotManifest = false;
@@ -2609,12 +2609,12 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 					//Skip this for first ever update mpd request
 					mContext->mNetworkDownDetected = true;
 					logprintf("PrivateStreamAbstractionMPD::%s Ignore curl timeout\n", __FUNCTION__);
-					ret = true;
+					ret = AAMPStatusType::eAAMPSTATUS_OK;
 					break;
 				}
 				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 				logprintf("PrivateStreamAbstractionMPD::%s - manifest download failed\n", __FUNCTION__);
-				ret = false;
+				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 				break;
 			}
 		}
@@ -2665,13 +2665,17 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 								delete this->mpd;
 							}
 							this->mpd = mpd;
+	                        aamp->mEnableCache = (mpd->GetType() == "static");
+	                        if (aamp->mEnableCache && !retrievedPlaylistFromCache)
+	                        {
+	                            aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl());
+	                        }
+						}
+						else
+						{
+						    ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 						}
 						delete root;
-						aamp->mEnableCache = (mpd->GetType() == "static");
-						if (aamp->mEnableCache && !retrievedPlaylistFromCache)
-						{
-							aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl());
-						}
 					}
 					else
 					{
@@ -2681,7 +2685,7 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 							retrievedPlaylistFromCache = false;
 							continue;
 						}
-						ret = false;
+						ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 					}
 				}
 				xmlFreeTextReader(reader);
@@ -2698,10 +2702,25 @@ bool PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
 		else
 		{
 			logprintf("aamp: error on manifest fetch\n");
-			ret = false;
+			ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 		break;
 	}
+
+	if( ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR || ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
+	{
+	    if(NULL != manifest.ptr && NULL != manifestUrl)
+	    {
+            int tempDataLen = 99;
+            char  temp[tempDataLen+1];
+            strncpy(temp, manifest.ptr, tempDataLen);
+            temp[tempDataLen] = 0x00;
+	        logprintf("ERROR: Invalid Playlist URL: %s ret:%d\n", manifestUrl,ret);
+	        logprintf("ERROR: Invalid Playlist DATA: %s \n", temp);
+	    }
+        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+	}
+
 	return ret;
 }
 
@@ -4590,7 +4609,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			// sleep before next manifest update
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
-		if (!UpdateMPD())
+		if (UpdateMPD() != eAAMPSTATUS_OK)
 		{
 			break;
 		}

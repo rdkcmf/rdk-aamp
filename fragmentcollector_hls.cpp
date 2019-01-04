@@ -1671,6 +1671,21 @@ double TrackState::IndexPlaylist()
 	{
 		char *ptr;
 
+		//ptr = strstr(playlist.ptr, "#EXTM3U");
+
+		if(memcmp(playlist.ptr,"#EXTM3U",7)!=0)
+		{
+		    int tempDataLen = 99;
+		    char  temp[tempDataLen+1];
+		    strncpy(temp, playlist.ptr, tempDataLen);
+		    temp[tempDataLen] = 0x00;
+		    logprintf("ERROR: Invalid Playlist URL:%s \n", playlistUrl);
+		    logprintf("ERROR: Invalid Playlist DATA:%s \n", temp);
+		    aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+
+		    return totalDuration;
+		}
+
 		// TODO: may be more efficient to do the following scans as we walk the file
 
 		ptr = strstr(playlist.ptr, "#EXT-X-MEDIA-SEQUENCE:");
@@ -2087,21 +2102,24 @@ void TrackState::RefreshPlaylist(void)
 		{
 			logprintf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
-		IndexPlaylist();
+		double totalDuration = IndexPlaylist();
+		if( totalDuration > 0.0f )
+		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		const char* prefix = (type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
-		context->HarvestFile(playlistUrl, &playlist, false, prefix);
+		    const char* prefix = (type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
+		    context->HarvestFile(playlistUrl, &playlist, false, prefix);
 #endif
-		if (ePLAYLISTTYPE_VOD != context->playlistType)
-		{
-			fragmentURI = FindMediaForSequenceNumber();
+		    if (ePLAYLISTTYPE_VOD != context->playlistType)
+		    {
+		        fragmentURI = FindMediaForSequenceNumber();
+		    }
+		    else
+		    {
+		        fragmentURI = playlist.ptr;
+		        playlistPosition = -1;
+		    }
+		    manifestDLFailCount = 0;
 		}
-		else
-		{
-			fragmentURI = playlist.ptr;
-			playlistPosition = -1;
-		}
-		manifestDLFailCount = 0;
 	}
 	else
 	{
