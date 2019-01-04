@@ -30,9 +30,6 @@
 #include <main_aamp.h>
 #include "../StreamAbstractionAAMP.h"
 
-#define MAX_OVERRIDE 10
-#define VIRTUAL_CHANNEL_MAP
-
 #ifdef IARM_MGR
 #include "host.hpp"
 #include "manager.hpp"
@@ -43,7 +40,6 @@
 static PlayerInstanceAAMP *mSingleton;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 
-#ifdef VIRTUAL_CHANNEL_MAP
 /**
  * @struct VirtualChannelInfo
  * @brief Holds information of a virtual channel
@@ -56,7 +52,6 @@ struct VirtualChannelInfo
 };
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
-#endif
 
 /**
  * @brief Thread to run mainloop (for standalone mode)
@@ -169,8 +164,6 @@ void TermPlayerLoop()
  */
 static void ShowHelp(void)
 {
-
-#ifdef VIRTUAL_CHANNEL_MAP
 	int i = 0;
 	if (!mVirtualChannelMap.empty())
 	{
@@ -191,7 +184,6 @@ static void ShowHelp(void)
 		}
 		printf("\n");
 	}
-#endif
 
 	logprintf("List of Commands\n****************\n");
 	logprintf("<channelNumber> // Play selected channel from guide\n");
@@ -271,10 +263,8 @@ static class myAAMPEventListener *myEventListener;
 static void ProcessCLIConfEntry(char *cfg)
 {
 	trim(&cfg);
-	if (mVirtualChannelMap.size() < MAX_OVERRIDE)
+	if (cfg[0] == '*')
 	{
-		if (cfg[0] == '*')
-		{
 			char *delim = strchr(cfg, ' ');
 			if (delim)
 			{
@@ -310,7 +300,6 @@ static void ProcessCLIConfEntry(char *cfg)
 					logprintf("%s(): Could not parse uri of %s\n", __FUNCTION__, cfg);
 				}
 			}
-		}
 	}
 }
 
@@ -339,7 +328,6 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Tune(cmd);
 	}
-#ifdef VIRTUAL_CHANNEL_MAP
 	else if (isNumber(cmd))
 	{
 		int channelNumber = atoi(cmd);
@@ -355,7 +343,6 @@ static void ProcessCliCommand(char *cmd)
 			}
 		}
 	}
-#endif
 	else if (sscanf(cmd, "seek %lf", &seconds) == 1)
 	{
 		mSingleton->Seek(seconds);
@@ -422,9 +409,7 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Stop();
 		delete mSingleton;
-#ifdef VIRTUAL_CHANNEL_MAP
 		mVirtualChannelMap.clear();
-#endif
 		TermPlayerLoop();
 		exit(0);
 	}
@@ -515,7 +500,6 @@ int main(int argc, char **argv)
 	mSingleton->RegisterEvents(myEventListener);
 #endif
 
-#ifdef VIRTUAL_CHANNEL_MAP
 #ifdef WIN32
 	FILE *f = fopen(mLogManager.getAampCliCfgDirectory(), "rb");
 #elif defined(__APPLE__)
@@ -535,7 +519,6 @@ int main(int argc, char **argv)
 		}
 		fclose(f);
 	}
-#endif
 
 	ShowHelp();
 	char cmd[MAX_URI_LENGTH * 2];

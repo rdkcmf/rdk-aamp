@@ -174,7 +174,7 @@ status		dump gstreamer state
 rect		Set video rectangle. eg. rect 0 0 640 360
 zoom <val>	Set video zoom mode. mode "none" if val is zero, else mode "full"
 
-To add channelmap for CLI, enter channel entries in below format
+To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
 *<Channel Number> <Channel Name> <Channel URL>
 
 ================================================================================================
