@@ -47,6 +47,12 @@
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
 #endif
 
+#ifdef WIN32
+#define AAMP_PACKED
+#else
+#define AAMP_PACKED __attribute__((__packed__))
+#endif
+
 #define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
@@ -1262,14 +1268,14 @@ class PrivateInstanceAAMP
 	    E_AAMP2Receiver_MsgMAX
 	};
 
-	typedef struct __attribute__((__packed__)) _AAMP2ReceiverMsg
+	typedef struct AAMP_PACKED _AAMP2ReceiverMsg
 	{
 	    unsigned int type;
 	    unsigned int length;
 	    char data[1];
 	}AAMP2ReceiverMsg;
 
-	static constexpr int AAMP2ReceiverMsgHdrSz = sizeof(AAMP2ReceiverMsg)-1;
+	#define AAMP2ReceiverMsgHdrSz (sizeof(AAMP2ReceiverMsg)-1)
 
 public:
 	/**

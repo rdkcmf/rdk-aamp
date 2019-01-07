@@ -2897,11 +2897,8 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
 		if(env_enable_micro_events)
 		{
-			if(std::string(env_enable_micro_events) == "true")
-			{
-				gpGlobalConfig->enableMicroEvents = true;
-			}
-			logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS=%s\n",gpGlobalConfig->enableMicroEvents ? "TRUE":"FALSE");
+			logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.\n");
+			gpGlobalConfig->enableMicroEvents = true;
 		}
 	}
 }
