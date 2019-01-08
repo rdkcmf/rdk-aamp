@@ -3786,18 +3786,31 @@ void TrackState::SetDrmContextUnlocked()
 		if (!mDrm)
 		{
 			logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-			pthread_mutex_lock(&gDrmMutex);
+			printf("%s:%d [%s] sha1hash - ", __FUNCTION__, __LINE__, name);
+			AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
 			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
 			{
 				logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
 				StartDeferredDrmLicenseAcquisition();
 				mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-				if (!mDrm)
+			}
+			if (!mDrm)
+			{
+				if (mDrmLicenseRequestPending)
 				{
-					logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
+					pthread_mutex_unlock(&gDrmMutex);
+					logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
+					ProcessDrmMetadata(false);
+					pthread_mutex_lock(&gDrmMutex);
+					mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
 				}
 			}
-			pthread_mutex_unlock(&gDrmMutex);
+			if (!mDrm)
+			{
+				printf("%s:%d [%s] GetAveDrm failed for sha1hash - ", __FUNCTION__, __LINE__, name);
+				AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
+				AveDrmManager::DumpCachedLicenses();
+			}
 		}
 		aamp->setCurrentDrm(eDRM_Adobe_Access);
 	}
