@@ -120,6 +120,7 @@ public:
 	static void RestoreKeyStateAll();
 	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode);
 	static void PrintSha1Hash( char* sha1Hash);
+	static void DumpCachedLicenses();
 	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 private:
