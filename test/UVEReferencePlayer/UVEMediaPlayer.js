@@ -41,6 +41,10 @@ class AAMPMediaPlayer {
         console.log("Invoked stop");
     }
 
+    release() {
+        console.log("Invoked release");
+    }
+
     seek(timeSec) {
         console.log("Invoked seek");
     }
@@ -177,6 +181,11 @@ class AAMPPlayer {
     }
 
     destroy() {
+
+        if (this.player.getCurrentState() !== playerStatesEnum.idle) {
+            this.player.stop();
+        }
+
         this.player.release();
         this.player = null;
     }
@@ -215,6 +224,8 @@ class AAMPPlayer {
      * Stop playback and free resources
      */
     stop() {
+        // Turn OFF CC
+        XREReceiver.onEvent("onDecoderAvailable", { decoderHandle: null });
         this.player.stop();
     }
 

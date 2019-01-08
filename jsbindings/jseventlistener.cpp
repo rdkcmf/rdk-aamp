@@ -370,6 +370,41 @@ public:
 
 
 /**
+ * @class AAMP_Listener_CCHandleAvailable
+ * @brief Event listener impl for AAMP_EVENT_CC_HANDLE_RECEIVED, event.
+ */
+class AAMP_Listener_CCHandleAvailable : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_CCHandleAvailable Constructor
+         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_CCHandleAvailable(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("decoderHandle");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.ccHandle.handle), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of AAMPMediaPlayer_JS
  * @param[in] type event type
@@ -454,6 +489,9 @@ void AAMP_JSEventListener::AddEventListener(AAMPMediaPlayer_JS* obj, AAMPEventTy
 			break;
 		case AAMP_EVENT_SPEEDS_CHANGED:
 			pListener = new AAMP_Listener_SpeedsChanged(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_CC_HANDLE_RECEIVED:
+			pListener = new AAMP_Listener_CCHandleAvailable(obj, type, jsCallback);
 			break;
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
