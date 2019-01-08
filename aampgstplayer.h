@@ -79,6 +79,7 @@ private:
 	void DestroyPipeline();
 	static bool initialized;
 	void Flush(void);
+	void DisconnectCallbacks();
 };
 
 #endif // AAMPGSTPLAYER_H

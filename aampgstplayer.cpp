@@ -82,9 +82,6 @@ typedef enum {
 #define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
 #define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
 
-/* Magic number (random value) used to validate struct AAMPGstPlayerPriv */
-#define AAMP_GST_PLAYER_PRIVATE_MAGIC 0x8C19B86A
-
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -107,7 +104,6 @@ struct media_stream
  */
 struct AAMPGstPlayerPriv
 {
-	uint32_t magicNumber; // magicNumber used to validate that AAMPGstPlayerPriv has not been destroyed
 	bool gstPropsDirty; //Flag used to check if gst props need to be set at start.
 	media_stream stream[AAMP_TRACK_COUNT];
 	GstElement *pipeline; //GstPipeline used for playback.
@@ -122,6 +118,7 @@ struct AAMPGstPlayerPriv
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
 #endif
 	GstElement *video_dec; //Video decoder used by pipeline.
+	GstElement *audio_dec; //Audio decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
 	GstElement *audio_sink; //Audio sink used by pipeline.
 #ifdef INTELCE_USE_VIDRENDSINK
@@ -186,7 +183,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
-	privateContext->magicNumber = (AAMP_GST_PLAYER_PRIVATE_MAGIC ^ ((uint32_t)privateContext));
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
 	privateContext->using_westerossink = false;
@@ -206,7 +202,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
-	privateContext->magicNumber = 0x0;
 	free(privateContext);
 }
 
@@ -661,16 +656,6 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
-
-	// Validate that _this->privateContext is valid and has not been freed.
-	if ((_this->privateContext == NULL) ||
-	    (_this->privateContext->magicNumber != (AAMP_GST_PLAYER_PRIVATE_MAGIC ^ ((uint32_t)(_this->privateContext)))))
-	{
-		// Return immediately if the player private context is no longer valid.  Fix crash DELIA-31456
-		logprintf("## %s() : Ignore Underflow, the player context is no longer valid ##\n", __FUNCTION__);
-		return;
-	}
-
 	_this->privateContext->stream[type].bufferUnderrun = true;
 	if (_this->privateContext->stream[type].eosReached)
 	{
@@ -1110,6 +1095,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				}
 				else
 				{
+					_this->privateContext->audio_dec = (GstElement *) msg->src;
 					g_signal_connect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
@@ -1463,6 +1449,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	}
 	else if (mediaType == eMEDIATYPE_AUDIO)
 	{
+		privateContext->audio_dec = NULL;
 		privateContext->audio_sink = NULL;
 	}
 	logprintf("AAMPGstPlayer::TearDownStream:  exit mediaType = %d\n", mediaType);
@@ -1983,6 +1970,18 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	}
 }
 
+void AAMPGstPlayer::DisconnectCallbacks()
+{
+	if(privateContext->video_dec)
+	{
+		g_signal_handlers_disconnect_by_data(privateContext->video_dec, this);
+	}
+	if(privateContext->audio_dec)
+	{
+		g_signal_handlers_disconnect_by_data(privateContext->audio_dec, this);
+	}
+}
+
 
 /**
  * @brief Stop playback and any idle handlers active at the time
@@ -2046,6 +2045,9 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	{
 		GstState current;
 		GstState pending;
+#ifndef INTELCE
+		DisconnectCallbacks();
+#endif
 		if(GST_STATE_CHANGE_FAILURE == gst_element_get_state(privateContext->pipeline, &current, &pending, 0))
 		{
 			logprintf("AAMPGstPlayer::%s: Pipeline is in FAILURE state : current %s  pending %s\n", __FUNCTION__,gst_element_state_get_name(current), gst_element_state_get_name(pending));
