@@ -106,6 +106,7 @@ var playerState = playerStatesEnum.idle;
 var playbackRateIndex = playbackSpeeds.indexOf(1);
 var urlIndex = 0;
 var mutedStatus = false;
+var ccStatus = false;
 var playerObj = null;
 
 window.onload = function() {
@@ -113,7 +114,7 @@ window.onload = function() {
     resetPlayer();
     resetUIOnNewAsset();
 
-	loadUrl(urls[urlIndex]);
+    loadUrl(urls[urlIndex]);
 }
 
 function playbackStateChanged(event) {
@@ -230,11 +231,13 @@ function mediaDurationChanged(event) {
     console.log("Duration changed!");
 }
 
+function decoderHandleAvailable(event) {
+    console.log("decoderHandleAvailable " + event.decoderHandle);
+    XREReceiver.onEvent("onDecoderAvailable", { decoderHandle: event.decoderHandle });
+}
+
 // helper functions
 function resetPlayer() {
-    if (playerState !== playerStatesEnum.idle) {
-        playerObj.stop();
-    }
     if (playerObj !== null) {
         playerObj.destroy();
         playerObj = null;
@@ -251,6 +254,7 @@ function resetPlayer() {
     playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
     playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
+    playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
@@ -263,9 +267,9 @@ function loadUrl(urlObject) {
         httpRequest.setRequestHeader('x-vimond-tenant', 'NAB2017');
         httpRequest.send();
         httpRequest.onreadystatechange = function() {
-			if (httpRequest.readyState === 4 && httpRequest.status === 200) {
-			    console.log(httpRequest.responseText);
-			    var obj = JSON.parse(httpRequest.responseText);
+            if (httpRequest.readyState === 4 && httpRequest.status === 200) {
+                console.log(httpRequest.responseText);
+                var obj = JSON.parse(httpRequest.responseText);
                 var drmConfigName = null;
                 var drmName = obj.playback.items.item.license['@name'];
                 if (drmName.indexOf('playready') !== -1) {
@@ -274,8 +278,8 @@ function loadUrl(urlObject) {
                 var licenseUrl = obj.playback.items.item.license['@uri'];
                 console.log("licenseUrl: " + licenseUrl);
                 var drmConfiguration = '{' + '"' + drmConfigName + '"' + ':"' + licenseUrl + '",' + '"preferredKeysystem":"' + drmConfigName + '"' +'}';
-	            console.log("drmConfig: " + drmConfiguration);
-				var initConfiguration = defaultInitConfig;
+                console.log("drmConfig: " + drmConfiguration);
+                var initConfiguration = defaultInitConfig;
                 initConfiguration.drmConfig = JSON.parse(drmConfiguration);
                 playerObj.initConfig(initConfiguration);
                 playerObj.load(urlObject.url);
@@ -285,8 +289,8 @@ function loadUrl(urlObject) {
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {
-		var initConfiguration = defaultInitConfig;
-		initConfiguration.drmConfig = null;
+        var initConfiguration = defaultInitConfig;
+        initConfiguration.drmConfig = null;
         playerObj.load(urlObject.url);
     }
 }

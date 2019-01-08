@@ -50,6 +50,20 @@ function mutePlayer() {
     }
 };
 
+function toggleCC() {
+    if (ccStatus === false) {
+        // CC ON
+        XREReceiver.onEvent("onClosedCaptions", { enable: true });
+        ccStatus = true;
+        document.getElementById("ccIcon").src = "icons/ccOn.png";
+    } else {
+        // CC OFF
+        XREReceiver.onEvent("onClosedCaptions", { enable: false });
+        ccStatus = false;
+        document.getElementById("ccIcon").src = "icons/ccOff.png";
+    }
+};
+
 function skipTime(tValue) {
     //if no video is loaded, this throws an exception
     try {
@@ -179,6 +193,7 @@ var HTML5PlayerControls = function() {
         this.skipFwdButton = document.getElementById("skipForwardButton");
         this.fwdButton = document.getElementById("fastForwardButton");
         this.muteButton = document.getElementById("muteVideoButton");
+        this.ccButton = document.getElementById("ccToggleButton");
         this.setButton = document.getElementById("settingButton");
 
         // Sliders
@@ -189,7 +204,7 @@ var HTML5PlayerControls = function() {
         this.helpContentButton = document.getElementById('helpButton');
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.setButton, this.videoFileList, this.loadVideoButton, this.deleteVideoButton, this.helpContentButton];
+        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.setButton, this.videoFileList, this.loadVideoButton, this.deleteVideoButton, this.helpContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.dropDownBitrateListVisible = false;
@@ -212,6 +227,11 @@ var HTML5PlayerControls = function() {
         // Event listener for the mute button
         this.muteButton.addEventListener("click", function() {
             mutePlayer();
+        });
+
+        // Event listener for the mute button
+        this.ccButton.addEventListener("click", function() {
+            toggleCC();
         });
 
         // Event listener for the rewind button
@@ -285,7 +305,7 @@ var HTML5PlayerControls = function() {
             this.prevVideoSelect();
         } else if (this.dropDownBitrateListVisible) {
             this.prevBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton)) {
+        } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
             this.currentObj = this.setButton;
@@ -394,26 +414,29 @@ var HTML5PlayerControls = function() {
                     mutePlayer();
                     break;
             case 6:
+                    toggleCC();
+                    break;
+            case 7:
                     if (this.dropDownBitrateListVisible == false) {
                         this.showBitrateDropDown();
                     } else {
                         this.hideBitrateDropDown();
                     }
                     break;
-            case 7:
+            case 8:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
                         this.hideDropDown();
                     }
                     break;
-            case 8:
+            case 9:
                     getVideo();
                     break;
-            case 9:
+            case 10:
                     deleteVideo();
                     break;
-            case 10:
+            case 11:
                     showhide();
                     break;
         };
