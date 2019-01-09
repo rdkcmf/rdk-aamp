@@ -1402,11 +1402,11 @@ void TrackState::FetchFragment()
 			}
 			else if (decryption_error)
 			{
-				logprintf("FetchFragment :: Error while decrypting fragments\n");
+				logprintf("FetchFragment :: Error while decrypting fragments. failedCount:%d\n", segDLFailCount);
 			}
 			else
 			{
-				logprintf("FetchFragment :: Error on fetching %s fragment\n", name);
+				logprintf("FetchFragment :: Error on fetching %s fragment. failedCount:%d\n", name, segDLFailCount);
 			}
 		}
 		else
@@ -1675,8 +1675,8 @@ double TrackState::IndexPlaylist()
 
 		if(memcmp(playlist.ptr,"#EXTM3U",7)!=0)
 		{
-		    int tempDataLen = 99;
-		    char  temp[tempDataLen+1];
+		    int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
+		    char temp[MANIFEST_TEMP_DATA_LENGTH];
 		    strncpy(temp, playlist.ptr, tempDataLen);
 		    temp[tempDataLen] = 0x00;
 		    logprintf("ERROR: Invalid Playlist URL:%s \n", playlistUrl);

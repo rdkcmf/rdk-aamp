@@ -100,6 +100,8 @@
 
 #define MAX_PTS_ERRORS_THRESHOLD 4
 
+#define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 

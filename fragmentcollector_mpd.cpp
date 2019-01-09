@@ -206,6 +206,11 @@ public:
 						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile\n",
 								__FUNCTION__, __LINE__, fragmentUrl, segDLFailCount);
 					}
+					else
+					{
+						logprintf("PrivateStreamAbstractionMPD::%s:%d > Error on fetching %s fragment. failedCount:%d\n",
+								__FUNCTION__, __LINE__, name, segDLFailCount);
+					}
 				}
 			}
 		}
@@ -2711,8 +2716,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 	{
 	    if(NULL != manifest.ptr && NULL != manifestUrl)
 	    {
-            int tempDataLen = 99;
-            char  temp[tempDataLen+1];
+            int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
+            char temp[MANIFEST_TEMP_DATA_LENGTH];
             strncpy(temp, manifest.ptr, tempDataLen);
             temp[tempDataLen] = 0x00;
 	        logprintf("ERROR: Invalid Playlist URL: %s ret:%d\n", manifestUrl,ret);
