@@ -82,6 +82,8 @@ typedef enum {
 #define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
 #define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
 
+#define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
+
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -150,6 +152,8 @@ struct AAMPGstPlayerPriv
 #ifdef INTELCE
 	bool keepLastFrame; //Keep last frame over next pipeline delete/ create cycle
 #endif
+	gint64 lastKnownPTS; //To store the PTS of last displayed video
+	long long ptsUpdatedTimeMS; //Timestamp when PTS was last updated
 };
 
 
@@ -1100,6 +1104,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
+
 #else
 			if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink", 16) == 0)
 			{
@@ -2067,6 +2072,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	TearDownStream(eMEDIATYPE_AUDIO);
 	DestroyPipeline();
 	privateContext->rate = 1.0;
+	privateContext->lastKnownPTS = 0;
 	logprintf("exiting AAMPGstPlayer_Stop\n");
 }
 
@@ -2616,28 +2622,71 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
  */
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
-	int ret = true;
+	bool ret = true;
 #ifdef USE_GST1
 	media_stream *stream = &privateContext->stream[mediaType];
 	if (stream->source)
 	{
 		guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
-		if(0 == cacheLevel)
+		if(0 != cacheLevel)
+		{
+			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT "\n", __FUNCTION__, __LINE__, cacheLevel);
+			ret = false;
+		}
+		else
 		{
 			// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
 			// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
 			traceprintf("AAMPGstPlayer::%s():%d Cache level empty\n", __FUNCTION__, __LINE__);
-
-			if (stream->bufferUnderrun == true)
+			if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
+					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
 			{
-				logprintf("AAMPGstPlayer::%s():%d Stream(%d) had received buffer underrun signal previously\n", __FUNCTION__, __LINE__, mediaType);
-				return true;
+				logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously\n",
+					__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
+					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
 			}
-		}
-		else
-		{
-			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT "\n", __FUNCTION__, __LINE__, cacheLevel);
-			ret = false;
+#ifndef INTELCE
+			else
+			{
+				//Check for internal soc(brcm) plugin buffer status
+				gint64 currentPTS = 0;
+				if (privateContext->video_dec)
+				{
+					g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
+				}
+
+				if (currentPTS != 0)
+				{
+					if (currentPTS != privateContext->lastKnownPTS)
+					{
+						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty, but there is an update in PTS prevPTS:%" G_GINT64_FORMAT " newPTS: %" G_GINT64_FORMAT "\n",
+							__FUNCTION__, __LINE__, privateContext->lastKnownPTS, currentPTS);
+						ret = false;
+						privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+						privateContext->lastKnownPTS = currentPTS;
+					}
+					else
+					{
+						long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
+						if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
+						{
+							//Timeout hasn't expired. Need to wait for PTS min update interval to expire
+							ret = false;
+						}
+						else
+						{
+							logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)\n",
+								__FUNCTION__, __LINE__, deltaMS, ret);
+						}
+					}
+				}
+				else
+				{
+					logprintf("AAMPGstPlayer::%s():%d video-pts parsed is: " G_GINT64_FORMAT "\n",
+						__FUNCTION__, __LINE__, currentPTS);
+				}
+			}
+#endif
 		}
 	}
 #endif
