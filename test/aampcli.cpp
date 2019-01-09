@@ -501,7 +501,7 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef WIN32
-	FILE *f = fopen(mLogManager.getAampCliCfgDirectory(), "rb");
+	FILE *f = fopen(mLogManager.getAampCliCfgPath(), "rb");
 #elif defined(__APPLE__)
 	std::string cfgPath(getenv("HOME"));
 	cfgPath += "/aampcli.cfg";

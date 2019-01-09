@@ -42,9 +42,9 @@ using namespace std;
 /**
  * @brief Log file and cfg directory path - To support dynamic directory configuration
  */
-char gLogDirectory[] = "c:/tmp/aamp.log";
-char gAampCfgDirectory[] = "c:/tmp/aamp.cfg";
-char gAampCliCfgDirectory[] = "c:/tmp/aampcli.cfg";
+static char gAampLog[] = "c:/tmp/aamp.log";
+static char gAampCfg[] = "c:/tmp/aamp.cfg";
+static char gAampCliCfg[] = "c:/tmp/aampcli.cfg";
 
 /*-----------------------------------------------------------------------------------------------------*/
 bool AampLogManager::disableLogRedirection = false;
@@ -75,25 +75,25 @@ void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
  */
 void AampLogManager::setLogAndCfgDirectory(char driveName)
 {
-	gLogDirectory[0] = driveName;
-	gAampCfgDirectory[0] = driveName;
-	gAampCliCfgDirectory[0] = driveName;
+	gAampLog[0] = driveName;
+	gAampCfg[0] = driveName;
+	gAampCliCfg[0] = driveName;
 }
 
 /**
  * @brief Get aamp cfg directory.
  */
-char* AampLogManager::getAampCfgDirectory(void)
+const char* AampLogManager::getAampCfgPath(void)
 {
-	return gAampCfgDirectory;
+	return gAampCfg;
 }
 
 /**
  * @brief Get aamp cfg directory.
  */
-char* AampLogManager::getAampCliCfgDirectory(void)
+const char* AampLogManager::getAampCliCfgPath(void)
 {
-	return gAampCliCfgDirectory;
+	return gAampCliCfg;
 }
 
 /**
@@ -330,9 +330,9 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 {
 	if (pstAbrInfo)
 	{
-		std::string reason = "unknown";
-		std::string profile = "unknown";
-		std::string symptom = "unknown";
+		std::string reason;
+		std::string profile;
+		std::string symptom;
 
 		if (pstAbrInfo->desiredProfileIndex > pstAbrInfo->currentProfileIndex)
 		{
@@ -353,21 +353,21 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 			}
 				break; /* AAMPAbrBandwidthUpdate */
 
-			case AAMPAbrManifestNonexistent:
+			case AAMPAbrManifestDownloadFailed:
 			{
 				reason = "manifest download failed'";
 			}
-				break; /* AAMPAbrManifestNonexistent */
+				break; /* AAMPAbrManifestDownloadFailed */
 
-			case AAMPAbrFragmentNonexistent:
+			case AAMPAbrFragmentDownloadFailed:
 			{
 				reason = "fragment download failed'";
 			}
-				break; /* AAMPAbrFragmentNonexistent */
+				break; /* AAMPAbrFragmentDownloadFailed */
 
-			case AAMPAbrUserRequest:
+			case AAMPAbrUnifiedVideoEngine:
 			{
-				reason = "changed based on user request";
+				reason = "changed based on unified video engine user preferred bitrate";
 			}
 				break; /* AAMPAbrUserRequest */
 		}
@@ -425,7 +425,7 @@ void logprintf(const char *format, ...)
 #ifdef WIN32
 	static bool init;
 
-	FILE *f = fopen(gLogDirectory, (init ? "a" : "w"));
+	FILE *f = fopen(gAampLog, (init ? "a" : "w"));
 	if (f)
 	{
 		init = true;

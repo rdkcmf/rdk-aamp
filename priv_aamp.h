@@ -261,9 +261,9 @@ enum AAMPNetworkErrorType
 enum AAMPAbrType
 {
 	/* 0 */ AAMPAbrBandwidthUpdate,
-	/* 1 */ AAMPAbrManifestNonexistent,
-	/* 2 */ AAMPAbrFragmentNonexistent,
-	/* 3 */ AAMPAbrUserRequest
+	/* 1 */ AAMPAbrManifestDownloadFailed,
+	/* 2 */ AAMPAbrFragmentDownloadFailed,
+	/* 3 */ AAMPAbrUnifiedVideoEngine
 };
 
 /**
@@ -380,12 +380,12 @@ public:
 	/**
 	 * @brief Get aamp cfg directory.
 	 */
-	char* getAampCfgDirectory(void);
+	const char* getAampCfgPath(void);
 
 	/**
 	 * @brief Get aampcli cfg directory.
 	 */
-	char* getAampCliCfgDirectory(void);
+	const char* getAampCliCfgPath(void);
 
 private:
 	AAMP_LogLevel aampLoglevel;
