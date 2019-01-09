@@ -663,6 +663,13 @@ public:
 	 */
 	virtual std::vector<long> GetAudioBitrates(void) = 0;
 
+	/**
+	 *   @brief Check if playback stalled in fragment collector side.
+	 *
+	 *   @return true if stalled, false otherwise.
+	 */
+	bool IsStreamerStalled(void) { return mIsPlaybackStalled; }
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
