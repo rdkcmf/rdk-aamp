@@ -2853,7 +2853,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 #ifdef WIN32
 		AampLogManager mLogManager;
-		FILE *f = fopen(mLogManager.getAampCfgDirectory(), "rb");
+		FILE *f = fopen(mLogManager.getAampCfgPath(), "rb");
 #elif defined(__APPLE__)
 		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aamp.cfg";

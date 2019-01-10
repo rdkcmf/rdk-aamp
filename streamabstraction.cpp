@@ -1008,7 +1008,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 	{
 		AAMPAbrInfo stAbrInfo = {};
 
-		stAbrInfo.abrCalledFor = AAMPAbrFragmentNonexistent;
+		stAbrInfo.abrCalledFor = AAMPAbrFragmentDownloadFailed;
 		stAbrInfo.currentProfileIndex = currentProfileIndex;
 		stAbrInfo.desiredProfileIndex = desiredProfileIndex;
 		stAbrInfo.currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
@@ -1355,7 +1355,7 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 #else
 			AAMPAbrInfo stAbrInfo = {};
 
-			stAbrInfo.abrCalledFor = AAMPAbrUserRequest;
+			stAbrInfo.abrCalledFor = AAMPAbrUnifiedVideoEngine;
 			stAbrInfo.currentProfileIndex = currentProfileIndex;
 			stAbrInfo.desiredProfileIndex = desiredProfileIndex;
 			stAbrInfo.currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
