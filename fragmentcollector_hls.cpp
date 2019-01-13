@@ -1578,6 +1578,7 @@ void TrackState::FlushIndex()
 		mDrmMetaDataIndexCount = 0;
 		mDrmMetaDataIndexPosition = 0;
 	}
+	mInitFragmentInfo = NULL;
 }
 
 /***************************************************************************
@@ -1707,6 +1708,13 @@ double TrackState::IndexPlaylist()
 			ptr += 22;
 			targetDurationSeconds = atof(ptr);
 			AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
+		}
+
+		ptr = strstr(playlist.ptr, "#EXT-X-MAP:");
+		if( ptr )
+		{
+			mInitFragmentInfo = ptr + 11;
+			logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
 		}
 
 		DrmMetadataNode drmMetadataNode;
@@ -2049,6 +2057,7 @@ void TrackState::ABRProfileChanged()
 	//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
 	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
 	refreshPlaylist = true;
+	mInjectInitFragment = true;
 	pthread_mutex_unlock(&mutex);
 }
 /***************************************************************************
@@ -2270,36 +2279,39 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 ***************************************************************************/
 static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 {
-	const char *ptr = trackState->playlist.ptr;
-	char ext[4];
 	StreamOutputFormat format = FORMAT_INVALID;
-
-	ptr = strstr(ptr, "#EXTINF:");
-	if (ptr)
+	std::istringstream playlistStream(trackState->playlist.ptr);
+	for (std::string line; std::getline(playlistStream, line); )
 	{
-		const char *fin = strchr(ptr, CHAR_LF);
-		if (fin)
+		if(!line.empty() && (line.c_str()[0] != '#'))
 		{
-			const char *url = fin + 1;
-			fin = strchr(url, CHAR_LF);
-			if (fin)
+			size_t end = line.find("?");
+			if (end != std::string::npos)
 			{
-				while (isspace(fin[-1]) && ptr < fin)
+				line = line.substr(0, end);
+			}
+			size_t extenstionStart = line.find_last_of('.');
+			if (extenstionStart != std::string::npos)
+			{
+				std::string extension = line.substr(extenstionStart);
+				logprintf("%s:%d extension %s\n", __FUNCTION__, __LINE__, extension.c_str());
+
+				if (0 == extension.compare(".ts"))
 				{
-					fin--;
-				}
-				strncpy(ext, fin - 3, 3);
-				ext[3] = '\0';
-				if (0 == strcmp(ext, ".ts"))
-				{
-					logprintf("fragment extension %s - FORMAT_MPEGTS\n", ext);
+					logprintf("%s:%d fragment extension %s - FORMAT_MPEGTS\n", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_MPEGTS;
+				}
+				else if (0 == extension.compare(".mp4"))
+				{
+					logprintf("%s:%d fragment extension %s - FORMAT_ISO_BMFF\n", __FUNCTION__, __LINE__, extension.c_str());
+					format = FORMAT_ISO_BMFF;
 				}
 				else
 				{
-					logprintf("fragment extension %s - Not interested\n", ext);
+					logprintf("%s:%d fragment extension %s\n", __FUNCTION__, __LINE__, extension.c_str());
 				}
 			}
+			break;
 		}
 	}
 	return format;
@@ -2720,7 +2732,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			TrackState *ts = trackState[iTrack];
-
 			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, iTrack);
 
 			if(ts->enabled)
@@ -2786,11 +2797,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 
 				ts->fragmentURI = ts->playlist.ptr;
+				StreamOutputFormat format = GetFormatFromFragmentExtension(ts);
 				if (eMEDIATYPE_AUDIO == iTrack)
 				{
 					if (this->rate == 1.0)
 					{
-						StreamOutputFormat format = GetFormatFromFragmentExtension(ts);
 						if (format == FORMAT_MPEGTS)
 						{
 							if (gpGlobalConfig->gAampDemuxHLSAudioTsTrack)
@@ -2837,9 +2848,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == 1.0))
 						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != 1.0)))
 				{
-					StreamOutputFormat format = FORMAT_INVALID;
 					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
-					if (streamInfo->codecs)
+					if ((FORMAT_ISO_BMFF != format) && (streamInfo->codecs))
 					{
 						for (int j = 0; j < AAMP_VIDEO_FORMAT_MAP_LEN; j++)
 						{
@@ -2852,7 +2862,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							}
 						}
 					}
-					if (FORMAT_INVALID != format)
+					logprintf("StreamAbstractionAAMP_HLS::Init : VideoTrack - streamInfo->codec %s format = %d\n",
+						streamInfo->codecs, (int)format);
+					if ((FORMAT_INVALID != format) && (FORMAT_ISO_BMFF != format))
 					{
 						StreamOperation demuxOp;
 						ts->streamOutputFormat = format;
@@ -2913,6 +2925,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							ts->playContext->setFrameRateForTM(mTrickPlayFPS);
 						}
 						playContextConfigured = true;
+					}
+					else if (FORMAT_ISO_BMFF == format)
+					{
+						logprintf("StreamAbstractionAAMP_HLS::Init : VideoTrack - FORMAT_ISO_BMFF streamInfo->codec %s\n",
+							streamInfo->codecs);
+						ts->streamOutputFormat = FORMAT_ISO_BMFF;
 					}
 					else
 					{
@@ -3177,6 +3195,15 @@ void TrackState::RunFetchLoop()
 	{
 		while (fragmentURI && aamp->DownloadsAreEnabled())
 		{
+			traceprintf("%s:%d mInjectInitFragment %d mInitFragmentInfo %p\n",
+					__FUNCTION__, __LINE__, (int)mInjectInitFragment, mInitFragmentInfo);
+			if (mInjectInitFragment && mInitFragmentInfo)
+			{
+				if(FetchInitFragment())
+				{
+					mInjectInitFragment = false;
+				}
+			}
 			FetchFragment();
 
 			// FetchFragment involves multiple wait operations, so check download status again
@@ -3403,7 +3430,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
-		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false)
+		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
+		mInjectInitFragment(true), mInitFragmentInfo(NULL)
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
@@ -3527,6 +3555,7 @@ void TrackState::Start(void)
 	{
 		logprintf("Failed to create FragmentCollector thread\n");
 	}
+	mInjectInitFragment = true;
 	StartInjectLoop();
 }
 /***************************************************************************
@@ -4123,4 +4152,106 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 int TrackState::GetNumberOfPeriods()
 {
 	return (int)mPeriodPositionIndex.size();
+}
+
+
+/***************************************************************************
+* @brief Fetch init fragment for fragmented mp4 format
+* @return true if success
+***************************************************************************/
+bool TrackState::FetchInitFragment()
+{
+	bool ret = false;
+	traceprintf("%s:%d Enter\n", __FUNCTION__, __LINE__);
+	std::istringstream initFragmentUrlStream(mInitFragmentInfo);
+	std::string line;
+	std::getline(initFragmentUrlStream, line);
+	if (!line.empty())
+	{
+		const char *range = NULL;
+		char rangeStr[128];
+		std::string uri;
+		traceprintf("%s:%d line %s\n", __FUNCTION__, __LINE__, line.c_str());
+		size_t uriTagStart = line.find("URI=");
+		if (uriTagStart != std::string::npos)
+		{
+			std::string uriStart = line.substr(uriTagStart + 5);
+			traceprintf("%s:%d uriStart %s\n", __FUNCTION__, __LINE__, uriStart.c_str());
+			size_t uriTagEnd = uriStart.find("\"");
+			if (uriTagEnd != std::string::npos)
+			{
+				traceprintf("%s:%d uriTagEnd %d\n", __FUNCTION__, __LINE__, (int) uriTagEnd);
+				uri = uriStart.substr(0, uriTagEnd);
+				traceprintf("%s:%d uri %s\n", __FUNCTION__, __LINE__, uri.c_str());
+			}
+			else
+			{
+				logprintf("%s:%d URI parse error. Tag end not found \n", __FUNCTION__, __LINE__);
+			}
+		}
+		else
+		{
+			logprintf("%s:%d URI parse error. URI= not found\n", __FUNCTION__, __LINE__);
+		}
+		size_t byteRangeTagStart = line.find("BYTERANGE=");
+		if (byteRangeTagStart != std::string::npos)
+		{
+			std::string byteRangeStart = line.substr(byteRangeTagStart + 11);
+			size_t byteRangeTagEnd = byteRangeStart.find("\"");
+			if (byteRangeTagEnd != std::string::npos)
+			{
+				std::string byteRange = byteRangeStart.substr(0, byteRangeTagEnd);
+				traceprintf("%s:%d byteRange %s\n", __FUNCTION__, __LINE__, byteRange.c_str());
+				if (!byteRange.empty())
+				{
+					size_t offsetIdx = byteRange.find("@");
+					if (offsetIdx != std::string::npos)
+					{
+						int offsetVal = stoi(byteRange.substr(offsetIdx + 1));
+						int rangeVal = stoi(byteRange.substr(0, offsetIdx));
+						int next = offsetVal + rangeVal;
+						sprintf(rangeStr, "%d-%d", offsetVal, next - 1);
+						logprintf("%s:%d rangeStr %s \n", __FUNCTION__, __LINE__, rangeStr);
+						range = rangeStr;
+					}
+				}
+			}
+			else
+			{
+				logprintf("%s:%d byteRange parse error. Tag end not found byteRangeStart %s\n",
+						__FUNCTION__, __LINE__, byteRangeStart.c_str());
+			}
+		}
+		if (!uri.empty())
+		{
+			long http_error;
+			char fragmentUrl[MAX_URI_LENGTH];
+			aamp_ResolveURL(fragmentUrl, effectiveUrl, uri.c_str());
+			char tempEffectiveUrl[MAX_URI_LENGTH];
+			WaitForFreeFragmentAvailable();
+			CachedFragment* cachedFragment = GetFetchBuffer(true);
+			logprintf("%s:%d fragmentUrl = %s \n", __FUNCTION__, __LINE__, fragmentUrl);
+			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_error, range,
+			        type, false, (MediaType) (type));
+			if (!fetched)
+			{
+				logprintf("%s:%d aamp_GetFile failed\n", __FUNCTION__, __LINE__);
+				aamp_Free(&cachedFragment->fragment.ptr);
+			}
+			else
+			{
+				UpdateTSAfterFetch();
+				ret = true;
+			}
+		}
+		else
+		{
+			logprintf("%s:%d Could not parse URI. line %s\n", __FUNCTION__, __LINE__, line.c_str());
+		}
+	}
+	else
+	{
+		logprintf("%s:%d Parse error\n", __FUNCTION__, __LINE__);
+	}
+	return ret;
 }
