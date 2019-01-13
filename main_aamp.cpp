@@ -5093,6 +5093,11 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d  Underflow due to discontinuity handled\n", __FUNCTION__, __LINE__);
 			return;
 		}
+		else if (mpStreamAbstractionAAMP->IsStreamerStalled())
+		{
+			logprintf("PrivateInstanceAAMP::%s : Ignore reTune due to playback stall\n", __FUNCTION__);
+			return;
+		}
 		else if (!gpGlobalConfig->internalReTune)
 		{
 			logprintf("PrivateInstanceAAMP::%s : Ignore reTune as disabled in configuration\n", __FUNCTION__);
