@@ -1191,7 +1191,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 				}
 				playTarget += delta;
 			}
-			//logprintf("Updated playTarget to %f\n", playTarget);
+			traceprintf("%s:%d : Updated playTarget(%f), playlistPosition(%f) delta %f\n", __FUNCTION__, __LINE__, playTarget, playlistPosition, delta);
+
 		}
 		else
 		{// normal speed
@@ -2931,6 +2932,18 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						logprintf("StreamAbstractionAAMP_HLS::Init : VideoTrack - FORMAT_ISO_BMFF streamInfo->codec %s\n",
 							streamInfo->codecs);
 						ts->streamOutputFormat = FORMAT_ISO_BMFF;
+						if (this->rate != 1.0)
+						{
+							this->trickplayMode = true;
+							if(aamp->IsTSBSupported())
+							{
+								mTrickPlayFPS = gpGlobalConfig->linearTrickplayFPS;
+							}
+							else
+							{
+								mTrickPlayFPS = gpGlobalConfig->vodTrickplayFPS;
+							}
+						}
 					}
 					else
 					{
@@ -3199,9 +3212,19 @@ void TrackState::RunFetchLoop()
 					__FUNCTION__, __LINE__, (int)mInjectInitFragment, mInitFragmentInfo);
 			if (mInjectInitFragment && mInitFragmentInfo)
 			{
-				if(FetchInitFragment())
+				long http_code = -1;
+				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia((MediaType)type, true);
+				aamp->profiler.ProfileBegin(bucketType);
+				if(FetchInitFragment(http_code))
 				{
+					aamp->profiler.ProfileEnd(bucketType);
 					mInjectInitFragment = false;
+				}
+				else
+				{
+					logprintf("%s:%d Init fragment fetch failed\n", __FUNCTION__, __LINE__);
+					aamp->profiler.ProfileError(bucketType);
+					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 				}
 			}
 			FetchFragment();
@@ -4159,7 +4182,7 @@ int TrackState::GetNumberOfPeriods()
 * @brief Fetch init fragment for fragmented mp4 format
 * @return true if success
 ***************************************************************************/
-bool TrackState::FetchInitFragment()
+bool TrackState::FetchInitFragment(long &http_code)
 {
 	bool ret = false;
 	traceprintf("%s:%d Enter\n", __FUNCTION__, __LINE__);
@@ -4224,14 +4247,13 @@ bool TrackState::FetchInitFragment()
 		}
 		if (!uri.empty())
 		{
-			long http_error;
 			char fragmentUrl[MAX_URI_LENGTH];
 			aamp_ResolveURL(fragmentUrl, effectiveUrl, uri.c_str());
 			char tempEffectiveUrl[MAX_URI_LENGTH];
 			WaitForFreeFragmentAvailable();
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			logprintf("%s:%d fragmentUrl = %s \n", __FUNCTION__, __LINE__, fragmentUrl);
-			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_error, range,
+			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false, (MediaType) (type));
 			if (!fetched)
 			{
