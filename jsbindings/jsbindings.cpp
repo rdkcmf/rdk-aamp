@@ -2321,6 +2321,7 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	pthread_mutex_lock(&mutex);
 	if (NULL != _allocated_aamp)
 	{
+		_allocated_aamp->Stop();
 		LOG("[AAMP_JS] %s:%d delete aamp %p\n", __FUNCTION__, __LINE__, _allocated_aamp);
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
