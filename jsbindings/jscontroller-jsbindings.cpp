@@ -26,6 +26,7 @@
 #include <JavaScriptCore/JavaScript.h>
 
 #include "priv_aamp.h"
+#include "jsbindings.h"
 #include "jsevent.h"
 #include "jsutils.h"
 

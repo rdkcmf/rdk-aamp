@@ -63,24 +63,21 @@ enum ErrorCode
 	AAMPJS_GENERIC_ERROR = -3
 };
 
-extern "C"
-{
-	JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz);
-	char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
+JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz);
+char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
 
-	bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value);
+bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value);
 
-	std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef);
+std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef);
 
-	JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo);
+JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo);
 
-	AAMPEventType aamp_getEventTypeFromName(const char* szName);
-	const char* aamp_getNameFromEventType(AAMPEventType type);
+AAMPEventType aamp_getEventTypeFromName(const char* szName);
+const char* aamp_getNameFromEventType(AAMPEventType type);
 
-	void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event);
+void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event);
 
-	AAMPEventType aampPlayer_getEventTypeFromName(const char* szName);
-	const char* aampPlayer_getNameFromEventType(AAMPEventType type);
-}
+AAMPEventType aampPlayer_getEventTypeFromName(const char* szName);
+const char* aampPlayer_getNameFromEventType(AAMPEventType type);
 
 #endif /* __AAMP_JSUTILS_H__ */

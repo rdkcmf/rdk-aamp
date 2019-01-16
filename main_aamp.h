@@ -51,39 +51,6 @@
  *
  */
 
-#ifdef SUPPORT_JS_EVENTS
-extern "C"
-{
-	/**
-	 *   @brief  Load aamp JS bindings.
-	 *
-	 *   @param[in]  context - JS Core context.
-	 *   @param[in]  playerInstanceAAMP - AAMP instance. NULL creates new aamp instance.
-	 */
-	void aamp_LoadJS(void* context, void* playerInstanceAAMP);
-
-	/**
-	 *   @brief  Unload aamp JS bindings.
-	 *
-	 *   @param[in]  context - JS Core context.
-	 */
-	void aamp_UnloadJS(void* context);
-
-	/**
-	 * @brief Loads AAMPMediaPlayer JS constructor into JS context
-	 *
-	 * @param[in] context JS execution context
-	 */
-	void AAMPPlayer_LoadJS(void* context);
-
-	/**
-	 * @brief Removes the AAMPMediaPlayer constructor from JS context
-	 *
-	 * @param[in] context JS execution context
-	 */
-	void AAMPPlayer_UnloadJS(void* context);
-}
-#endif
 
 /**
  * @brief Type of the events sending to the JSPP player.

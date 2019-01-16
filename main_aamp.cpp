@@ -2980,8 +2980,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink)
 {
-#ifdef SUPPORT_JS_EVENTS 
+#ifdef SUPPORT_JS_EVENTS
+#ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
+	const char* szJSLib = "libaampjsbindings.so";
+#else
 	const char* szJSLib = "libaamp.so";
+#endif
 	mJSBinding_DL = dlopen(szJSLib, RTLD_GLOBAL | RTLD_LAZY);
 	logprintf("[AAMP_JS] dlopen(\"%s\")=%p\n", szJSLib, mJSBinding_DL);
 #endif
