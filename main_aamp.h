@@ -810,6 +810,13 @@ public:
 	char* GetCurrentAudioLanguage();
 
 	/**
+	 *   @brief Get current drm
+	 *
+	 *   @return char* - current drm
+	 */
+	const char* GetCurrentDRM();
+
+	/**
 	 *   @brief Add/Remove a custom HTTP header and value.
 	 *
 	 *   @param[in]  headerName - Name of custom HTTP header
