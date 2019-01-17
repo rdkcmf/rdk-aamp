@@ -83,6 +83,7 @@ typedef enum {
 #define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
 
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
+#define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 
 /**
  * @struct media_stream
@@ -154,6 +155,7 @@ struct AAMPGstPlayerPriv
 #endif
 	gint64 lastKnownPTS; //To store the PTS of last displayed video
 	long long ptsUpdatedTimeMS; //Timestamp when PTS was last updated
+	guint ptsCheckForEosOnUnderflowIdleTaskId; //ID of task to ensure video PTS is not moving before notifying EOS on underflow.
 };
 
 
@@ -640,6 +642,36 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 }
 
 /**
+ * @brief Notifies EOS if video decoder pts is stalled
+ * @param[in] user_data pointer to AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
+{
+	AAMPGstPlayer *_this = (AAMPGstPlayer *) user_data;
+	AAMPGstPlayerPriv *privateContext = _this->privateContext;
+#ifndef INTELCE
+	gint64 currentPTS = 0;
+	if (privateContext->video_dec)
+	{
+		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
+	}
+
+	if (currentPTS == privateContext->lastKnownPTS)
+	{
+		logprintf("%s:%d : PTS not changed\n", __FUNCTION__, __LINE__);
+		_this->NotifyEOS();
+	}
+	else
+	{
+		logprintf("%s:%d : Video PTS still moving lastKnownPTS %" G_GUINT64_FORMAT " currentPTS %" G_GUINT64_FORMAT " ##\n", __FUNCTION__, __LINE__, privateContext->lastKnownPTS, currentPTS);
+	}
+#endif
+	privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
+	return G_SOURCE_REMOVE;
+}
+
+/**
  * @brief Callback invoked when facing an underflow
  * @param[in] object pointer to element raising the callback
  * @param[in] arg0 number of arguments
@@ -651,6 +683,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 {
 	//TODO - Handle underflow
 	MediaType type;
+	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 	logprintf("## %s() : Got Underflow message from %s ##\n", __FUNCTION__, GST_ELEMENT_NAME(object));
 	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
 	{
@@ -665,13 +698,29 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		if (_this->privateContext->rate > 0)
 		{
-			_this->NotifyEOS();
+			if (privateContext->video_dec)
+			{
+				if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
+				{
+					g_object_get(privateContext->video_dec, "video-pts", &privateContext->lastKnownPTS, NULL);
+					privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+					privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
+				}
+				else
+				{
+					logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow\n", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+				}
+			}
+			else
+			{
+				logprintf("%s:%d : video_dec not available\n", __FUNCTION__, __LINE__);
+				_this->NotifyEOS();
+			}
 		}
 		else
 		{
 			_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 		}
-		_this->privateContext->stream[type].eosReached = false;
 	}
 	else
 	{
@@ -2031,6 +2080,12 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		g_source_remove(privateContext->periodicProgressCallbackIdleTaskId);
 		privateContext->periodicProgressCallbackIdleTaskId = 0;
 	}
+	if (privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove ptsCheckForEosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+		g_source_remove(privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
+	}
 #endif
 	if (this->privateContext->eosCallbackIdleTaskPending)
 	{
@@ -2549,6 +2604,13 @@ void AAMPGstPlayer::Flush(double position, float rate)
 		privateContext->eosCallbackIdleTaskPending = false;
 	}
 
+	if (privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove ptsCheckForEosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+		g_source_remove(privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
+	}
+
 	if (stream->using_playersinkbin)
 	{
 		Flush();
@@ -2578,6 +2640,7 @@ void AAMPGstPlayer::Flush(double position, float rate)
 		{
 			privateContext->stream[i].resetPosition = true;
 			privateContext->stream[i].flush = true;
+			privateContext->stream[i].eosReached = false;
 		}
 		AAMPLOG_INFO("TestStreamer::%s - pipeline flush seek - start = %f\n", __FUNCTION__, position);
 		if (!gst_element_seek(privateContext->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
