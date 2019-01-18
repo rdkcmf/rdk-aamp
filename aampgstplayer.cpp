@@ -1181,6 +1181,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					g_object_set(msg->src, "rectangle", privateContext->videoRectangle, NULL);
 					logprintf("AAMPGstPlayer setting zoom %s\n", (VIDEO_ZOOM_FULL == privateContext->zoom) ? "FULL" : "NONE");
 					g_object_set(msg->src, "scale-mode", (VIDEO_ZOOM_FULL == privateContext->zoom) ? 0 : 3, NULL);
+					logprintf("AAMPGstPlayer setting crop-lines to FALSE\n");
+					g_object_set(msg->src, "crop-lines", FALSE, NULL);
 #endif
 					logprintf("AAMPGstPlayer setting video mute %d\n", privateContext->videoMuted);
 					g_object_set(msg->src, "mute", privateContext->videoMuted, NULL);
