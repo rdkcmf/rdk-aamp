@@ -4394,7 +4394,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 										}
 										if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i) && (!aamp->IsTSBSupported()))
 										{
-											if (pMediaStreamContext->mContext->CheckABREnabled())
+											if (aamp->CheckABREnabled())
 											{
 												pMediaStreamContext->mContext->CheckForProfileChange();
 											}

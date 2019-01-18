@@ -173,6 +173,13 @@ stop		stop streaming
 status		dump gstreamer state
 rect		Set video rectangle. eg. rect 0 0 640 360
 zoom <val>	Set video zoom mode. mode "none" if val is zero, else mode "full"
+pause       Pause playback
+play        Resume playback
+rw<val>     Rewind with speed <val>
+live        Seek to live point
+exit        Gracefully exit application
+sap         Toggle between default and secondary audio tracks.
+bps <val>   Set video bitrate in bps
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
 *<Channel Number> <Channel Name> <Channel URL>

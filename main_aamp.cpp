@@ -4431,11 +4431,35 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
  */
 void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 {
-	if (aamp->mpStreamAbstractionAAMP)
+	aamp->SetVideoBitrate(bitrate);
+}
+
+/**
+ *   @brief Set a preferred bitrate for video.
+ *
+ *   @param[in] preferred bitrate.
+ */
+void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
+{
+	if (bitrate == 0)
 	{
-		//Switch off ABR and set bitrate
-		aamp->mpStreamAbstractionAAMP->SetVideoBitrate(bitrate);
+		mABREnabled = true;
 	}
+	else
+	{
+		mABREnabled = false;
+		mUserRequestedBandwidth = bitrate;
+	}
+}
+
+/**
+ *   @brief Get preferred bitrate for video.
+ *
+ *   @return preferred bitrate.
+ */
+long PrivateInstanceAAMP::GetVideoBitrate()
+{
+	return mUserRequestedBandwidth;
 }
 
 
@@ -5277,6 +5301,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	mIsLocalPlayback = false;
 	previousAudioType = eAUDIO_UNKNOWN;
 	mSessionUUID = NULL;
+	mABREnabled = gpGlobalConfig->bEnableABR;
+	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 }
 
 

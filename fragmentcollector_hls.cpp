@@ -3256,7 +3256,7 @@ void TrackState::RunFetchLoop()
 			if((eTRACK_VIDEO == type) && (!context->trickplayMode))
 			{
 				context->lastSelectedProfileIndex = context->currentProfileIndex;
-				if (context->CheckABREnabled())
+				if (aamp->CheckABREnabled())
 				{
 					context->CheckForProfileChange();
 				}

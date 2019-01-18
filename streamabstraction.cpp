@@ -815,8 +815,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1),
-		mABREnabled(gpGlobalConfig->bEnableABR), mUserRequestedBandwidth(gpGlobalConfig->defaultBitrate)
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1)
 {
 	mIsPlaybackStalled = false;
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
@@ -1315,26 +1314,6 @@ long StreamAbstractionAAMP::GetAudioBitrate(void)
 	return (GetMediaTrack(eTRACK_AUDIO)->GetCurrentBandWidth() * 8);
 }
 
-
-/**
- *   @brief Set a preferred bitrate for video.
- *
- *   @param[in] preferred bitrate.
- */
-void StreamAbstractionAAMP::SetVideoBitrate(long bitrate)
-{
-	if (bitrate == 0)
-	{
-		mABREnabled = true;
-	}
-	else
-	{
-		mABREnabled = false;
-		mUserRequestedBandwidth = bitrate;
-	}
-}
-
-
 /**
  *   @brief Check if a preferred bitrate is set and change profile accordingly.
  */
@@ -1342,9 +1321,10 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	//Check if there is an actual change in bitrate
-	if (mUserRequestedBandwidth != gpGlobalConfig->defaultBitrate)
+	long userRequestedBandwidth = aamp->GetVideoBitrate();
+	if (userRequestedBandwidth != gpGlobalConfig->defaultBitrate)
 	{
-		int desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mUserRequestedBandwidth);
+		int desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(userRequestedBandwidth);
 		if (currentProfileIndex != desiredProfileIndex)
 		{
 #if 0 /* Commented since the same is supported via AAMP_LOG_ABR_INFO */

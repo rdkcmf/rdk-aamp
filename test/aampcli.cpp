@@ -381,6 +381,11 @@ static void ProcessCliCommand(char *cmd)
 			mSingleton->SetRate((float)(-rate));
 		}
 	}
+	else if (sscanf(cmd, "bps %d", &rate) == 1)
+	{
+		logprintf("Set video bitrate %d.\n", rate);
+		mSingleton->SetVideoBitrate(rate);
+	}
 	else if (strcmp(cmd, "flush") == 0)
 	{
 		mSingleton->aamp->mStreamSink->Flush();
