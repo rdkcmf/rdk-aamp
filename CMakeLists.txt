@@ -122,10 +122,10 @@ if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer")
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
+	set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
 	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
 		set(AAMP_CLI_EXTRA_DEFINES "${AAMP_CLI_EXTRA_DEFINES} -DAAMP_STUBS_FOR_JS")
-		set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	endif()
 endif()
 
