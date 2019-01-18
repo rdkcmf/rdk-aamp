@@ -186,8 +186,6 @@ private:
 	void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded);
 	/// Function to find the media sequence after refresh for continuity
 	char *FindMediaForSequenceNumber();
-	/// Fetch and inject init fragment
-	bool FetchInitFragment();
 
 public:
 	char effectiveUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
@@ -233,8 +231,6 @@ private:
 	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
 	std::shared_ptr<HlsDrmBase> mDrm;       /**< DRM decrypt context*/
 	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
-	bool mInjectInitFragment;               /**< Indicates if init fragment injection is required*/
-	const char* mInitFragmentInfo;          /**< Holds init fragment Information index*/
 };
 
 class StreamAbstractionAAMP_HLS;
