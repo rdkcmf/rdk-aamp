@@ -187,7 +187,7 @@ private:
 	/// Function to find the media sequence after refresh for continuity
 	char *FindMediaForSequenceNumber();
 	/// Fetch and inject init fragment
-	bool FetchInitFragment(long &http_code);
+	bool FetchInitFragment();
 
 public:
 	char effectiveUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
