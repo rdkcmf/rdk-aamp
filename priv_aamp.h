@@ -2340,6 +2340,13 @@ public:
 	std::string getStreamTypeString();
 
 	/**
+	 *   @brief Get current drm
+	 *
+	 *   @return current drm
+	 */
+	const char* GetCurrentDRM();
+
+	/**
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type

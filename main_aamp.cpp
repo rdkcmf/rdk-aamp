@@ -4273,6 +4273,45 @@ char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 	return aamp->language;
 }
 
+/**
+ *   @brief Get current drm
+ *
+ *   @return current drm
+ */
+const char* PlayerInstanceAAMP::GetCurrentDRM(void)
+{
+	return aamp->GetCurrentDRM();
+}
+
+
+/**
+ *   @brief Get current drm
+ *
+ *   @return current drm
+ */
+const char* PrivateInstanceAAMP::GetCurrentDRM(void)
+{
+	switch(mCurrentDrm)
+	{
+		case eDRM_WideVine:
+			return "WideVine";
+			break;
+		case eDRM_CONSEC_agnostic:
+			return "CONSEC_agnostic";
+			break;
+		case eDRM_PlayReady:
+			return "PlayReady";
+			break;
+		case eDRM_Adobe_Access:
+			return "Adobe_Access";
+			break;
+		case eDRM_Vanilla_AES:
+			return "Vanilla_AES";
+			break;
+		default:
+			return "";
+	}
+}
 
 /**
  *   @brief Add/Remove a custom HTTP header and value.

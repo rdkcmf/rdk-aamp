@@ -319,6 +319,30 @@ static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectR
 
 
 /**
+ * @brief Callback invoked from JS to get the currentDRM property value
+ * @param[in] context JS execution context
+ * @param[in] thisObject JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval property's value if object has the property, otherwise NULL
+ */
+static JSValueRef AAMP_getProperty_CurrentDRM(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
+{
+	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (pAAMP == NULL)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.currentDRM on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	const char* drm = pAAMP->_aamp->GetCurrentDRM();
+	return aamp_CStringToJSValue(context, drm);
+}
+
+
+/**
  * @brief Callback invoked from JS to get the timedMetadata property value
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
@@ -448,6 +472,7 @@ static const JSStaticValue AAMP_static_values[] =
 	{"mediaType", AAMP_getProperty_MediaType, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"version", AAMP_getProperty_Version, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"audioLanguage", AAMP_getProperty_AudioLanguage, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{"currentDRM", AAMP_getProperty_CurrentDRM, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"timedMetadata", AAMP_getProperty_timedMetadata, NULL, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{"stallErrorCode", NULL, AAMP_setProperty_stallErrorCode, kJSPropertyAttributeDontDelete },
 	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete },
