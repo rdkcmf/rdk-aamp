@@ -71,6 +71,10 @@ typedef enum {
 #define GSTPLAYERSINKBIN_EVENT_ERROR_AUDIO_PTS 0x09
 
 #define USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
+#define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
+#define DEFAULT_BUFFERING_LOW_BYTES (128 * 1024)  // vidfilter prebuffer in bytes
+#define DEFAULT_BUFFERING_TO_MS 20 // interval to check buffer fullness
+#define BUFFERING_MAX_MS (1000) // max buffering time
 
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
@@ -149,6 +153,9 @@ struct AAMPGstPlayerPriv
 	gboolean buffering_in_progress; // buffering is in progress
 	GstState buffering_target_state; // the target state after buffering
 	gint buffering_low_percent; // the low percent of bufferering before starts playing
+	guint buffering_timeout_id;
+	guint buffering_timeout_cnt;
+	GstElement * buffering_elem;
 	gboolean buffering_capable; // indicates if multiqueue is available in pipeline to perform buffering
 #ifdef INTELCE
 	bool keepLastFrame; //Keep last frame over next pipeline delete/ create cycle
@@ -731,6 +738,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 		else
 		{
 			gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PAUSED);
+			logprintf("%s:%d eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(GST_STATE_PAUSED));                    
 		}
 	}
 }
@@ -767,27 +775,35 @@ static gboolean buffering_timeout (gpointer data)
 	gint64 estimated_total;
 	gint64 position, duration;
 	guint64 play_left;
-
-	if (_this->privateContext->buffering_enabled)
+	guint retry_ms = 0;
+	guint bufferred_bytes = 0;
+	_this->privateContext->buffering_timeout_cnt++;
+	if (_this->privateContext->buffering_enabled) 
 	{
-		query = gst_query_new_buffering (GST_FORMAT_TIME);
-		if (!gst_element_query (_this->privateContext->pipeline, query))
-		{
-			return TRUE;
-		}
-
-		gst_query_parse_buffering_percent (query, &busy, &percent);
-
-		/* we are buffering or the estimated download time is bigger than the
-		 * remaining playback time. We keep buffering.
-		 */
-		_this->privateContext->buffering_in_progress = (busy || percent < _this->privateContext->buffering_low_percent);
-		if (!_this->privateContext->buffering_in_progress)
-		{
+		retry_ms = _this->privateContext->buffering_timeout_cnt * DEFAULT_BUFFERING_TO_MS;
+		if (retry_ms >= BUFFERING_MAX_MS) {
+			_this->privateContext->buffering_in_progress = false;
 			_this->privateContext->buffering_enabled = false;
-			logprintf("%s:%d Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
+			logprintf("%s:%d eBuffering tried %d ms, stop buffering\n", __FUNCTION__, __LINE__, retry_ms);
+			logprintf("%s:%d eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
+			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
+			return _this->privateContext->buffering_in_progress;
+		}
+		if (!_this->privateContext->buffering_elem)
+		{
+			return true;
+		}
+		g_object_get(_this->privateContext->buffering_elem, "buffered_bytes", &bufferred_bytes, NULL);
+		_this->privateContext->buffering_in_progress = (bufferred_bytes < DEFAULT_BUFFERING_LOW_BYTES)? true : false;
+		if (!_this->privateContext->buffering_in_progress) {
+			_this->privateContext->buffering_enabled = false;
+			logprintf("%s:%d eBuffering %u >= %d bytes, retry %d ms, stop buffering\n", __FUNCTION__, __LINE__, bufferred_bytes, DEFAULT_BUFFERING_LOW_BYTES, retry_ms);
+			logprintf("%s:%d eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
 			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 		}
+
+	} else {
+		_this->privateContext->buffering_in_progress = false;
 	}
 	return _this->privateContext->buffering_in_progress;
 }
@@ -966,29 +982,43 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
 			}
 		}
-
-		if (_this->privateContext->buffering_enabled)
+        
+		if ((_this->privateContext->buffering_elem == NULL) && (memcmp(GST_OBJECT_NAME(msg->src), "brcmvidfilter", 13) == 0))
 		{
+			_this->privateContext->buffering_elem =(GstElement *) (msg->src);
+			logprintf("%s:%d  eBuffering buffering_elem %s \n", __FUNCTION__, __LINE__, GST_OBJECT_NAME(_this->privateContext->buffering_elem));
+		}
+        
+		if (_this->privateContext->buffering_enabled) {
 			if (memcmp(GST_OBJECT_NAME(msg->src), "multiqueue", 10) == 0)
 			{
 				GstElement * parent = NULL;
 				parent = (GstElement *)gst_element_get_parent(msg->src);
+				if (!parent) break;
 				parent = (GstElement *)gst_element_get_parent(parent);
+				if (!parent) break;
 				parent = (GstElement *)gst_element_get_parent(parent); // playerbin
-				char *n1 = GST_OBJECT_NAME(parent);
-				char *n2 = GST_OBJECT_NAME(_this->privateContext->stream[eMEDIATYPE_VIDEO].sinkbin);
-
-				if (memcmp(n1, n2, strlen(n1)) == 0)
-				{
+				if (!parent) break;
+                
+				if (memcmp(GST_OBJECT_NAME(parent), GST_OBJECT_NAME(_this->privateContext->stream[eMEDIATYPE_VIDEO].sinkbin), strlen(GST_OBJECT_NAME(parent))) == 0) {
 					gboolean b_use_buffering;
 					g_object_get(msg->src, "use-buffering", &b_use_buffering, NULL);
-
-					if (b_use_buffering == 0)
-					{
-						logprintf("%s set use-buffering to 1, old/new state %d/%d, \n", GST_ELEMENT_NAME(msg->src),
-								old_state, new_state);
+                    
+					if (b_use_buffering == 0) {
+						logprintf("%s  eBuffering set use-buffering to 1, old/new state %s/%s, \n", GST_ELEMENT_NAME(msg->src),
+						gst_element_state_get_name(old_state), gst_element_state_get_name(new_state));
 						g_object_set(msg->src, "use-buffering", 1, NULL);
-						_this->privateContext->buffering_capable = true;
+						if (_this->privateContext->buffering_target_state == GST_STATE_PLAYING) {
+							/* we were not buffering but PLAYING, PAUSE  the pipeline. */
+							gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PAUSED);
+						}
+						if (_this->privateContext->buffering_timeout_id <= 0) {
+							/* logprintf("%s:%d  eBuffering do nothing\n", __FUNCTION__, __LINE__); */
+							logprintf("%s:%d  eBuffering Add buffering timer\n", __FUNCTION__, __LINE__);
+							_this->privateContext->buffering_timeout_id = g_timeout_add (DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+							_this->privateContext->buffering_in_progress = true;
+							_this->privateContext->buffering_capable = true;
+						}
 					}
 				}
 			}
@@ -996,52 +1026,71 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		break;
 
 	case GST_MESSAGE_ASYNC_DONE:
-		{
+	{
+		// posted by toplevel pipeline when async state change complete
+		//logprintf("GST_MESSAGE_ASYNC_DONE\n");
 
-			if (_this->privateContext->buffering_enabled)
+		if (_this->privateContext->buffering_enabled) 
+		{
+			GstState current, pending;
+			gst_element_get_state(_this->privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+			logprintf("%s:%d eBuffering get pipeline state %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current));
+			if (!_this->privateContext->buffering_in_progress)
 			{
-				if (!_this->privateContext->buffering_in_progress)
-				{
-					logprintf("%s:%d Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
-					gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
-				}
-				else
-				{
-					g_timeout_add (DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+				logprintf("%s:%d  eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
+				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
+			}
+			else {
+				logprintf("%s:%d  eBuffering in progress %u \n", __FUNCTION__, __LINE__, _this->privateContext->buffering_in_progress);
+				if (_this->privateContext->buffering_timeout_id <= 0) {
+					/* logprintf("%s:%d  eBuffering do nothing\n", __FUNCTION__, __LINE__); */
+					logprintf("%s:%d  eBuffering Add buffering timer\n", __FUNCTION__, __LINE__);
+					_this->privateContext->buffering_timeout_id = g_timeout_add (DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+					_this->privateContext->buffering_in_progress = true;
 				}
 			}
 		}
-		break;
-
+	}
+	break;
+            
 	case GST_MESSAGE_BUFFERING:
+	{
+		gint percent;
+		gst_message_parse_buffering (msg, &percent);
+		if (_this->privateContext->buffering_enabled) 
 		{
-			gint percent;
-			gst_message_parse_buffering (msg, &percent);
-			if (_this->privateContext->buffering_enabled)
+			if (percent < _this->privateContext->buffering_low_percent) 
 			{
-				if (percent < _this->privateContext->buffering_low_percent)
+				if (!_this->privateContext->buffering_in_progress) 
 				{
-					if (!_this->privateContext->buffering_in_progress)
-					{
-						_this->privateContext->buffering_in_progress = true;
-						if (_this->privateContext->buffering_target_state == GST_STATE_PLAYING)
-						{
-							/* we were not buffering but PLAYING, PAUSE  the pipeline. */
-							gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PAUSED);
+					if (_this->privateContext->buffering_target_state == GST_STATE_PLAYING) {
+						/* we were not buffering but PLAYING, PAUSE  the pipeline. */
+						gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PAUSED);
+						logprintf("%s:%d  eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(GST_STATE_PAUSED));
+						if (_this->privateContext->buffering_timeout_id <= 0) {
+							logprintf("%s:%d  eBuffering Add buffering timer\n", __FUNCTION__, __LINE__);
+							_this->privateContext->buffering_timeout_id = g_timeout_add (DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+							_this->privateContext->buffering_in_progress = true;
 						}
-						logprintf("%s : eBuffering %d percent\n", GST_ELEMENT_NAME(_this->privateContext->pipeline), percent);
 					}
+					/* _this->privateContext->buffering_in_progress = true; */
+					logprintf("%s:%d  eBuffering in progress %u \n", __FUNCTION__, __LINE__, _this->privateContext->buffering_in_progress);
+					logprintf("%s:%d eBuffering %d percent\n", __FUNCTION__, __LINE__, percent);
 				}
-				else
-				{
-					/* stop buffering, to simplify, only do buffering at the beginning of stream*/
-					g_object_set(msg->src, "use-buffering", 0, NULL);
-					_this->privateContext->buffering_enabled = false;
-					gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PLAYING);
-				}
+			} else {
+				/* stop buffering, to simplify, only do buffering at the beginning of stream*/
+				g_object_set(msg->src, "use-buffering", 0, NULL);
+				_this->privateContext->buffering_enabled = false;
+				gst_element_set_state (_this->privateContext->pipeline, GST_STATE_PLAYING);
+				logprintf("%s:%d eBuffering %d >= %d percent, stop buffering\n", __FUNCTION__, __LINE__, percent, _this->privateContext->buffering_low_percent);
+				logprintf("%s:%d eBuffering Set pipeline state to %s\n", __FUNCTION__, __LINE__, gst_element_state_get_name(GST_STATE_PLAYING));
 			}
+		} else {
+			logprintf("%s eBuffering Set use-buffering to 0, buffering_enabled = %u \n", GST_ELEMENT_NAME(msg->src), _this->privateContext->buffering_enabled);
+			g_object_set(msg->src, "use-buffering", 0, NULL);
 		}
 		break;
+	}
 
 	case GST_MESSAGE_TAG:
 #ifdef DEBUG_GST_MESSAGE_TAG
@@ -1276,10 +1325,12 @@ bool AAMPGstPlayer::CreatePipeline()
 			privateContext->buffering_low_percent = DEFAULT_BUFFERING_LOW_PERCENT;
 			privateContext->buffering_in_progress = false;
 			privateContext->buffering_target_state = GST_STATE_NULL;
+			privateContext->buffering_timeout_id = 0;
+			privateContext->buffering_timeout_cnt = 0;
+			privateContext->buffering_elem = NULL;
+			logprintf("%s  eBuffering buffering_enabled %u, low percent %d, buffering_in_progress %u\n", GST_ELEMENT_NAME(privateContext->pipeline),
+				privateContext->buffering_enabled, privateContext->buffering_low_percent, privateContext->buffering_in_progress);
 			privateContext->buffering_capable = false;
-			logprintf("%s buffering_enabled %u, low percent %d\n", GST_ELEMENT_NAME(privateContext->pipeline),
-					privateContext->buffering_enabled, privateContext->buffering_low_percent);
-
 			ret = true;
 		}
 		else
@@ -1301,6 +1352,14 @@ bool AAMPGstPlayer::CreatePipeline()
  */
 void AAMPGstPlayer::DestroyPipeline()
 {
+	if (privateContext->buffering_enabled)
+	{
+		if (privateContext->buffering_timeout_id) {
+			g_source_remove(privateContext->buffering_timeout_id);
+			privateContext->buffering_timeout_id = 0;
+			privateContext->buffering_timeout_cnt = 0;
+		}
+	}
 	if (privateContext->pipeline)
 	{
 		gst_object_unref(privateContext->pipeline);
