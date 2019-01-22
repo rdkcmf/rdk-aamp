@@ -27,7 +27,7 @@
 #define __AAMP_JSEVENTLISTENER__H__
 
 
-#include "jsmediaplayer.h"
+#include "jsbindings.h"
 
 
 /**
@@ -38,12 +38,12 @@ class AAMP_JSEventListener : public AAMPEventListener
 {
 public:
 
-	static void AddEventListener(AAMPMediaPlayer_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
-	static void RemoveEventListener(AAMPMediaPlayer_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	static void AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	static void RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
 
-	static void RemoveAllEventListener(AAMPMediaPlayer_JS* obj);
+	static void RemoveAllEventListener(PrivAAMPStruct_JS* obj);
 
-	AAMP_JSEventListener(AAMPMediaPlayer_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	AAMP_JSEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
 	~AAMP_JSEventListener();
 
 	void Event(const AAMPEvent& e);
@@ -53,7 +53,7 @@ public:
 	}
 
 public:
-	AAMPMediaPlayer_JS* p_obj;  /** JS execution context to use **/
+	PrivAAMPStruct_JS* p_obj;  /** JS execution context to use **/
 	AAMPEventType p_type;       /** event type **/
 	JSObjectRef p_jsCallback;   /** callback registered for event **/
 };

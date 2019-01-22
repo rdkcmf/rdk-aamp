@@ -2344,7 +2344,7 @@ public:
 	 *
 	 *   @return current drm
 	 */
-	const char* GetCurrentDRM();
+	DRMSystems GetCurrentDRM();
 
 	/**
 	 *   @brief Set DRM type
@@ -2352,7 +2352,7 @@ public:
 	 *   @param[in] drm - New DRM type
 	 *   @return void
 	 */
-	void setCurrentDrm(DRMSystems drm){mCurrentDrm = drm;}
+	void setCurrentDrm(DRMSystems drm) { mCurrentDrm = drm; }
 
 	/**
 	 *   @brief Check if current  playback is from local TSB

@@ -343,6 +343,14 @@ void AesDec::Release()
 		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
 	}
 	pthread_cond_broadcast(&mCond);
+	if (-1 != mCurlInstance)
+	{
+		if (mpAamp)
+		{
+			mpAamp->CurlTerm(mCurlInstance, 1);
+		}
+		mCurlInstance = -1;
+	}
 	pthread_mutex_unlock(&mMutex);
 }
 

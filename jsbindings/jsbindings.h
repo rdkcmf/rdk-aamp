@@ -20,10 +20,24 @@
 #ifndef __JSBINDINGS_H__
 #define __JSBINDINGS_H__
 
+#include <JavaScriptCore/JavaScript.h>
+#include "main_aamp.h"
+#include <map>
 /*
  * @file jsbindings.h
  * @brief APIs exposed by the AAMP JS to inject different bindings.
  */
+
+/**
+ * @struct PrivAAMPStruct_JS
+ * @brief Private data structure for JS binding object
+ */
+typedef struct PrivAAMPStruct_JS {
+	JSGlobalContextRef _ctx;
+	PlayerInstanceAAMP* _aamp;
+
+	std::multimap<AAMPEventType, void*> _listeners;
+}PrivAAMPStruct_JS;
 
 /**
  *   @brief  Load aamp JS bindings.

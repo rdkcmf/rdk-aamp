@@ -23,9 +23,17 @@
  */
 
 
-#include "jsmediaplayer.h"
+#include "jsbindings.h"
 #include "jsutils.h"
 #include "jseventlistener.h"
+
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "0.5"
+
+/**
+ * @struct AAMPMediaPlayer_JS
+ * @brief Private data structure of AAMPMediaPlayer JS object
+ */
+typedef PrivAAMPStruct_JS AAMPMediaPlayer_JS;
 
 extern "C"
 {

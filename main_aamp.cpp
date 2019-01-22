@@ -4280,7 +4280,29 @@ char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
  */
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
-	return aamp->GetCurrentDRM();
+	DRMSystems currentDRM = aamp->GetCurrentDRM();
+	const char *drmName = "";
+	switch(currentDRM)
+	{
+		case eDRM_WideVine:
+			drmName = "WideVine";
+			break;
+		case eDRM_CONSEC_agnostic:
+			drmName = "CONSEC_agnostic";
+			break;
+		case eDRM_PlayReady:
+			drmName = "PlayReady";
+			break;
+		case eDRM_Adobe_Access:
+			drmName = "Adobe_Access";
+			break;
+		case eDRM_Vanilla_AES:
+			drmName = "Vanilla_AES";
+			break;
+		default:
+			break;
+	}
+	return drmName;
 }
 
 
@@ -4289,28 +4311,9 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
  *
  *   @return current drm
  */
-const char* PrivateInstanceAAMP::GetCurrentDRM(void)
+DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
 {
-	switch(mCurrentDrm)
-	{
-		case eDRM_WideVine:
-			return "WideVine";
-			break;
-		case eDRM_CONSEC_agnostic:
-			return "CONSEC_agnostic";
-			break;
-		case eDRM_PlayReady:
-			return "PlayReady";
-			break;
-		case eDRM_Adobe_Access:
-			return "Adobe_Access";
-			break;
-		case eDRM_Vanilla_AES:
-			return "Vanilla_AES";
-			break;
-		default:
-			return "";
-	}
+	return mCurrentDrm;
 }
 
 /**
