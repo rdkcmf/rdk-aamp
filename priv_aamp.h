@@ -2452,6 +2452,28 @@ public:
 	 *   @return true, if tune completed.
 	 */
 	bool IsTuneCompleted();
+
+	/**
+	 *   @brief Check if ABR enabled for this playback session.
+	 *
+	 *   @return true if ABR enabled.
+	 */
+	bool CheckABREnabled(void) { return mABREnabled; }
+
+	/**
+	 *   @brief Set a preferred bitrate for video.
+	 *
+	 *   @param[in] preferred bitrate.
+	 */
+	void SetVideoBitrate(long bitrate);
+
+	/**
+	 *   @brief Get preferred bitrate for video.
+	 *
+	 *   @return preferred bitrate.
+	 */
+	long GetVideoBitrate();
+
 private:
 
 	/**
@@ -2504,6 +2526,8 @@ private:
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
 	char *mSessionUUID; /** unique id for playback session */
+	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
+	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 };
 
 #endif // PRIVAAMP_H

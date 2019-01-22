@@ -643,13 +643,6 @@ public:
 	void CheckUserProfileChangeReq(void);
 
 	/**
-	 *   @brief Check if ABR enabled for this playback session.
-	 *
-	 *   @return true if ABR enabled.
-	 */
-	bool CheckABREnabled(void) { return mABREnabled; }
-
-	/**
 	 *   @brief Get available video bitrates.
 	 *
 	 *   @return available video bitrates.
@@ -717,11 +710,8 @@ private:
 	long long mTotalPausedDurationMS;   /**< Total duration for which stream is paused */
 	long long mStartTimeStamp;          /**< stores timestamp at which injection starts */
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
-
-	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
-	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H
