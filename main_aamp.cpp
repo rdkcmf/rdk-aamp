@@ -1454,7 +1454,7 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
-			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, "AAMP/1.0.0");
+			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, "AAMP/2.0.0");
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			if (gpGlobalConfig->httpProxy)
 			{
