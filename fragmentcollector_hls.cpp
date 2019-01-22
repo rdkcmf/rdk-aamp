@@ -3483,11 +3483,26 @@ TrackState::~TrackState()
 * @fn Stop
 * @brief Function to stop track download/playback 
 *		 
+* @param clearDRM[in] flag indicating if DRM resources to be freed or not
 * @return void
 ***************************************************************************/
-void TrackState::Stop()
+void TrackState::Stop(bool clearDRM)
 {
 	AbortWaitForCachedFragment(true);
+
+	if (mDrm)
+	{
+		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
+		mDrm->CancelKeyWait();
+
+		if(clearDRM)
+		{
+			pthread_mutex_lock(&gDrmMutex);
+			mDrm->Release();
+			pthread_mutex_unlock(&gDrmMutex);
+		}
+	}
+
 	if (playContext)
 	{
 		playContext->abort();
@@ -3509,6 +3524,12 @@ void TrackState::Stop()
 		fragmentCollectorThreadStarted = false;
 	}
 	StopInjectLoop();
+
+	if (!clearDRM && mDrm)
+	{
+		//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
+		mDrm->RestoreKeyState();
+	}
 }
 /***************************************************************************
 * @fn ~StreamAbstractionAAMP_HLS
@@ -3586,32 +3607,27 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack();
 
-	//To force release gDrmMutex mutex held by drm_Decrypt in case of clearChannelData
-	AveDrmManager::CancelKeyWaitAll();
-	if(clearChannelData)
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		TrackState *track = trackState[iTrack];
+		if(track && track->Enabled())
+		{
+			track->Stop(clearChannelData);
+		}
+	}
+
+	if (clearChannelData && aamp->GetCurrentDRM() == eDRM_Adobe_Access)
 	{
 		pthread_mutex_lock(&gDrmMutex);
+		AveDrmManager::CancelKeyWaitAll();
 		AveDrmManager::ReleaseAll();
 		AveDrmManager::ResetAll();
 		gDeferredDrmLicRequestPending = false;
 		gDeferredDrmLicTagUnderProcessing = false;
 		pthread_mutex_unlock(&gDrmMutex);
 	}
-	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
-	{
-		TrackState *track = trackState[iTrack];
-		if(track && track->Enabled())
-		{
-			track->Stop();
-		}
-	}
-	aamp->EnableDownloads();
 
-	//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
-	if (!clearChannelData)
-	{
-		AveDrmManager::RestoreKeyStateAll();
-	}
+	aamp->EnableDownloads();
 }
 /***************************************************************************
 * @fn DumpProfiles

@@ -802,6 +802,14 @@ public:
 	 */
 	void InsertAd(const char *url, double positionSeconds);
 
+        /**
+         *   @brief Get current drm
+         *
+         *   @return char* - current drm
+         */
+        const char* GetCurrentDRM();
+
+
 	/**
 	 *   @brief Get current audio language.
 	 *

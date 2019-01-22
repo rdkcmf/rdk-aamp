@@ -19,7 +19,7 @@
 
 /**
  * @file jseventlistener.cpp
- * @brief Event Listner impl for AAMPMediaPlayer_JS object
+ * @brief Event Listner impl for PrivAAMPStruct_JS object
  */
 
 
@@ -37,11 +37,11 @@ class AAMP_Listener_PlaybackStateChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_PlaybackStateChanged Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_PlaybackStateChanged(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_PlaybackStateChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -57,7 +57,7 @@ public:
 
 		prop = JSStringCreateWithUTF8CString("state");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.stateChanged.state), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		JSStringRelease(prop);
 	}
 
 };
@@ -72,11 +72,11 @@ class AAMP_Listener_MediaEndReached : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_MediaEndReached Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_MediaEndReached(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_MediaEndReached(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -92,11 +92,11 @@ class AAMP_Listener_ProgressUpdate : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_ProgressUpdate Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_ProgressUpdate(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_ProgressUpdate(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -142,11 +142,11 @@ class AAMP_Listener_SpeedChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_SpeedChanged Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_SpeedChanged(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_SpeedChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -180,11 +180,11 @@ class AAMP_Listener_BufferingChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_BufferingChanged Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_BufferingChanged(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_BufferingChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -214,11 +214,11 @@ class AAMP_Listener_PlaybackFailed : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_PlaybackFailed Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_PlaybackFailed(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_PlaybackFailed(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -256,11 +256,11 @@ class AAMP_Listener_MediaMetadata : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_MediaMetadata Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_MediaMetadata(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_MediaMetadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -338,11 +338,11 @@ class AAMP_Listener_SpeedsChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_SpeedsChanged Constructor
-         * @param[in] aamp instance of AAMPMediaPlayer_JS
+         * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
 	 */
-	AAMP_Listener_SpeedsChanged(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+	AAMP_Listener_SpeedsChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 		: AAMP_JSEventListener(obj, type, jsCallback)
 	{
 	}
@@ -370,12 +370,47 @@ public:
 
 
 /**
+ * @class AAMP_Listener_CCHandleAvailable
+ * @brief Event listener impl for AAMP_EVENT_CC_HANDLE_RECEIVED, event.
+ */
+class AAMP_Listener_CCHandleAvailable : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_CCHandleAvailable Constructor
+         * @param[in] aamp instance of PrivAAMPStruct_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_CCHandleAvailable(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("decoderHandle");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.ccHandle.handle), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
- * @param[in] obj instance of AAMPMediaPlayer_JS
+ * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
  * @param[in] jsCallback callback for the event type
  */
-AAMP_JSEventListener::AAMP_JSEventListener(AAMPMediaPlayer_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+AAMP_JSEventListener::AAMP_JSEventListener(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
 	: p_obj(obj)
 	, p_type(type)
 	, p_jsCallback(jsCallback)
@@ -419,11 +454,11 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 
 /**
  * @brief Adds a JS function as listener for a particular event
- * @param[in] jsObj instance of AAMPMediaPlayer_JS
+ * @param[in] jsObj instance of PrivAAMPStruct_JS
  * @param[in] type event type
  * @param[in] jsCallback callback to be registered as listener
  */
-void AAMP_JSEventListener::AddEventListener(AAMPMediaPlayer_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
+void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
 {
 	LOG("AAMP_JSEventListener::%s (%p, %d, %p)", __FUNCTION__, obj, type, jsCallback);
 
@@ -460,18 +495,22 @@ void AAMP_JSEventListener::AddEventListener(AAMPMediaPlayer_JS* obj, AAMPEventTy
 			break;
 	}
 
-	obj->_aamp->AddEventListener(type, pListener);
+	if (obj->_aamp != NULL)
+	{
+		obj->_aamp->AddEventListener(type, pListener);
+	}
+
 	obj->_listeners.insert({type, (void *)pListener});
 }
 
 
 /**
  * @brief Removes a JS listener for a particular event
- * @param[in] jsObj instance of AAMPMediaPlayer_JS
+ * @param[in] jsObj instance of PrivAAMPStruct_JS
  * @param[in] type event type
  * @param[in] jsCallback callback to be removed as listener
  */
-void AAMP_JSEventListener::RemoveEventListener(AAMPMediaPlayer_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
+void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
 {
 	LOG("AAMP_JSEventListener::%s (%p, %d, %p)", __FUNCTION__, obj, type, jsCallback);
 
@@ -485,7 +524,10 @@ void AAMP_JSEventListener::RemoveEventListener(AAMPMediaPlayer_JS* obj, AAMPEven
 			if (iter->second == jsCallback)
 			{
 				AAMP_JSEventListener *listener = (AAMP_JSEventListener *)iter->second;
-				obj->_aamp->RemoveEventListener(iter->first, listener);
+				if (obj->_aamp != NULL)
+				{
+					obj->_aamp->RemoveEventListener(iter->first, listener);
+				}
 				obj->_listeners.erase(iter);
 				delete listener;
 			}
@@ -496,9 +538,9 @@ void AAMP_JSEventListener::RemoveEventListener(AAMPMediaPlayer_JS* obj, AAMPEven
 
 /**
  * @brief Remove all JS listeners registered
- * @param[in] jsObj instance of AAMPMediaPlayer_JS
+ * @param[in] jsObj instance of PrivAAMPStruct_JS
  */
-void AAMP_JSEventListener::RemoveAllEventListener(AAMPMediaPlayer_JS * obj)
+void AAMP_JSEventListener::RemoveAllEventListener(PrivAAMPStruct_JS * obj)
 {
 	LOG("AAMP_JSEventListener::%s obj(%p) listeners remaining(%d)", __FUNCTION__, obj, obj->_listeners.size());
 	std::multimap<AAMPEventType, void*>::iterator listenerIter;
@@ -506,7 +548,10 @@ void AAMP_JSEventListener::RemoveAllEventListener(AAMPMediaPlayer_JS * obj)
 	for (listenerIter = obj->_listeners.begin(); listenerIter != obj->_listeners.end();)
 	{
 		AAMP_JSEventListener *listener = (AAMP_JSEventListener *)listenerIter->second;
-		obj->_aamp->RemoveEventListener(listenerIter->first, listener);
+		if (obj->_aamp != NULL)
+		{
+			obj->_aamp->RemoveEventListener(listenerIter->first, listener);
+		}
 		listenerIter = obj->_listeners.erase(listenerIter);
 		delete listener;
 	}

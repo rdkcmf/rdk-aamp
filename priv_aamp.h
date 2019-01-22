@@ -2340,12 +2340,19 @@ public:
 	std::string getStreamTypeString();
 
 	/**
+	 *   @brief Get current drm
+	 *
+	 *   @return current drm
+	 */
+	DRMSystems GetCurrentDRM();
+
+	/**
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type
 	 *   @return void
 	 */
-	void setCurrentDrm(DRMSystems drm){mCurrentDrm = drm;}
+	void setCurrentDrm(DRMSystems drm) { mCurrentDrm = drm; }
 
 	/**
 	 *   @brief Check if current  playback is from local TSB

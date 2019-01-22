@@ -25,9 +25,10 @@
 
 #include <JavaScriptCore/JavaScript.h>
 
-#include "priv_aamp.h"
-#include "jsevent.h"
+#include "jsbindings.h"
+#include "jseventlistener.h"
 #include "jsutils.h"
+#include "priv_aamp.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -44,22 +45,16 @@ extern "C"
 	void unsetAAMPPlayerInstance(PlayerInstanceAAMP *);
 }
 
-class AAMPJSCEventListener;
 
 /**
  * @struct AAMP_JSController
- * @brief Data structure of AAMP_JSController object
+ * @brief Data structure of AAMP_JSController JS object
  */
-struct AAMP_JSController
+struct AAMP_JSController : public PrivAAMPStruct_JS
 {
-	JSGlobalContextRef _ctx;
-	PlayerInstanceAAMP *_player;
-
 	int _aampSessionID;
 	bool _closedCaptionEnabled;
 	std::string _licenseServerUrl;
-
-	AAMPJSCEventListener *_eventListeners;
 };
 
 /**
@@ -108,155 +103,6 @@ static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
 }
 #endif
 
-namespace AAMPJSController
-{
-
-}//namespace
-
-/**
- * @class AAMPJSCEventListener
- * @brief Event listener impl for AAMP events
- */
-class AAMPJSCEventListener : public AAMPEventListener
-{
-public:
-
-	static void AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
-
-	static void RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback);
-
-	static void RemoveAllEventListener(AAMP_JSController *jsObj);
-
-	/**
-	 * @brief AAMPJSCEventListener Constructor
-	 * @param[in] obj instance of AAMP_JSController
-	 * @param[in] type event type
-	 * @param[in] jsCallback callback for the event type
-	 */
-	AAMPJSCEventListener(AAMP_JSController* obj, AAMPEventType type, JSObjectRef jsCallback)
-		: p_aamp(obj)
-		, p_type(type)
-		, p_jsCallback(jsCallback)
-		, p_next(NULL)
-	{
-		JSValueProtect(p_aamp->_ctx, p_jsCallback);
-	}
-
-	/**
-	 * @brief AAMPJSCEventListener Destructor
-	 */
-	~AAMPJSCEventListener()
-	{
-		JSValueUnprotect(p_aamp->_ctx, p_jsCallback);
-	}
-
-
-	/**
-	 * @brief Callback invoked for dispatching event
-	 * @param[in] e event object
-	 */
-	void Event(const AAMPEvent& e)
-	{
-		LOG("[AAMP_JSController] %s() type=%d, jsCallback=%p", __FUNCTION__, e.type, p_jsCallback);
-
-		if (p_aamp->_ctx == NULL || e.type >= AAMP_MAX_NUM_EVENTS)
-		{
-			return;
-		}
-
-		JSObjectRef event = createNewAAMPJSEvent(p_aamp->_ctx, aamp_getNameFromEventType(e.type), false, false);
-		JSValueProtect(p_aamp->_ctx, event);
-
-		aamp_dispatchEventToJS(p_aamp->_ctx, p_jsCallback, event);
-		JSValueUnprotect(p_aamp->_ctx, event);
-	}
-
-public:
-	AAMP_JSController *p_aamp;  /** instance of AAMP_JSController **/
-	AAMPEventType p_type;  /** event type **/
-	JSObjectRef p_jsCallback;  /** callback registered for event **/
-	AAMPJSCEventListener *p_next;  /** next element in the linkedlist **/
-};
-
-
-/**
- * @brief Adds a JS function as listener for a particular event
- * @param[in] jsObj instance of AAMP_JSController
- * @param[in] type event type
- * @param[in] jsCallback callback to be registered as listener
- */
-void AAMPJSCEventListener::AddEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
-{
-	AAMPJSCEventListener *newListener = new AAMPJSCEventListener(jsObj, type, jsCallback);
-	LOG("[AAMP_JSController] AAMPJSCEventListener::AddEventListener (%d, %p, %p)", type, jsCallback, newListener);
-	newListener->p_next = jsObj->_eventListeners;
-	jsObj->_eventListeners = newListener;
-	if (jsObj->_player != NULL)
-	{
-		jsObj->_player->AddEventListener(type, newListener);
-	}
-}
-
-
-/**
- * @brief Removes a JS listener for a particular event
- * @param[in] jsObj instance of AAMP_JSController
- * @param[in] type event type
- * @param[in] jsCallback callback to be removed as listener
- */
-void AAMPJSCEventListener::RemoveEventListener(AAMP_JSController *jsObj, AAMPEventType type, JSObjectRef jsCallback)
-{
-	LOG("[AAMP_JSController] AAMPJSCEventListener::RemoveEventListener (%d, %p)", type, jsCallback);
-	AAMPJSCEventListener *prev = jsObj->_eventListeners;
-	AAMPJSCEventListener *curr = prev;
-
-	while (curr != NULL)
-	{
-		if ((curr->p_type == type) && (curr->p_jsCallback == jsCallback))
-		{
-			if (curr == jsObj->_eventListeners)
-			{
-				jsObj->_eventListeners = curr->p_next;
-			}
-			else
-			{
-				prev->p_next = curr->p_next;
-			}
-
-			if (jsObj->_player != NULL)
-			{
-				jsObj->_player->RemoveEventListener(type, curr);
-			}
-			delete curr;
-			break;
-		}
-		prev = curr;
-		curr = curr->p_next;
-	}
-}
-
-
-/**
- * @brief Remove all JS listeners registered
- * @param[in] jsObj instance of AAMP_JSController
- */
-void AAMPJSCEventListener::RemoveAllEventListener(AAMP_JSController *jsObj)
-{
-	AAMPJSCEventListener *iter = jsObj->_eventListeners;
-	while (iter != NULL)
-	{
-		AAMPJSCEventListener *tmp = iter;
-		iter = iter->p_next;
-		if(jsObj->_player != NULL)
-		{
-			jsObj->_player->RemoveEventListener(iter->p_type, iter);
-		}
-		delete tmp;
-	}
-
-	jsObj->_eventListeners = NULL;
-}
-
 
 /**
  * @brief Set the instance of PlayerInstanceAAMP and session id
@@ -271,7 +117,7 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 		return;
 	}
 
-	_globalController->_player = aamp;
+	_globalController->_aamp = aamp;
 	_globalController->_aampSessionID = sessionID;
 
 #ifdef AAMP_CC_ENABLED
@@ -285,19 +131,19 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 		_globalController->_closedCaptionEnabled = false;
 	}
 #endif
-	if (_globalController->_eventListeners != NULL)
+	if (_globalController->_listeners.size() > 0)
 	{
-		AAMPJSCEventListener *iter = _globalController->_eventListeners;
-		while (iter != NULL)
+		std::multimap<AAMPEventType, void*>::iterator listenerIter;
+
+		for (listenerIter = _globalController->_listeners.begin(); listenerIter != _globalController->_listeners.end(); listenerIter++)
 		{
-			LOG("[AAMP_JSController] Adding _eventListener(%p) for type(%d) to player ", iter, iter->p_type);
-			_globalController->_player->AddEventListener(iter->p_type, iter);
-			iter = iter->p_next;
+			AAMP_JSEventListener *listener = (AAMP_JSEventListener *)listenerIter->second;
+			_globalController->_aamp->AddEventListener(listenerIter->first, listener);
 		}
 	}
 	if (!_globalController->_licenseServerUrl.empty())
 	{
-		_globalController->_player->SetLicenseServerURL(_globalController->_licenseServerUrl.c_str());
+		_globalController->_aamp->SetLicenseServerURL(_globalController->_licenseServerUrl.c_str());
 	}
 }
 
@@ -308,21 +154,25 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
  */
 void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
 {
-        if (_globalController == NULL || _globalController->_player != aamp)
+        if (_globalController == NULL || _globalController->_aamp != aamp)
         {
                 return;
         }
 
-        if (_globalController->_eventListeners != NULL)
+        if (_globalController->_listeners.size() > 0)
         {
-                AAMPJSCEventListener *iter = _globalController->_eventListeners;
-                while (iter != NULL)
-                {
-                        _globalController->_player->RemoveEventListener(iter->p_type, iter);
-                        iter = iter->p_next;
-                }
+		std::multimap<AAMPEventType, void*>::iterator listenerIter;
+
+		for (listenerIter = _globalController->_listeners.begin(); listenerIter != _globalController->_listeners.end(); listenerIter++)
+		{
+			AAMP_JSEventListener *listener = (AAMP_JSEventListener *)listenerIter->second;
+			if (_globalController->_aamp)
+			{
+				_globalController->_aamp->RemoveEventListener(listenerIter->first, listener);
+			}
+		}
         }
-        _globalController->_player = NULL;
+        _globalController->_aamp = NULL;
 }
 
 
@@ -449,20 +299,29 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 
 	if (argumentCount >= 2)
 	{
+		char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 		JSObjectRef callbackFunc = JSValueToObject(context, arguments[1], NULL);
 
 		if (callbackFunc != NULL && JSObjectIsFunction(context, callbackFunc))
 		{
-			char* type = aamp_JSValueToCString(context, arguments[0], NULL);
-			AAMPEventType eventType = aamp_getEventTypeFromName(type);
+			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
+			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
-				AAMPJSCEventListener::AddEventListener(aampObj, eventType, callbackFunc);
+				AAMP_JSEventListener::AddEventListener(aampObj, eventType, callbackFunc);
 			}
-
-			delete[] type;
 		}
+		else
+		{
+			ERROR("%s() callbackFunc=%p, JSObjectIsFunction(context, callbackFunc)=%d", __FUNCTION__, callbackFunc, JSObjectIsFunction(context, callbackFunc));
+			char errMsg[512];
+			memset(errMsg, '\0', 512);
+			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
+		}
+
+		delete[] type;
 	}
 	else
 	{
@@ -495,30 +354,31 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 		return JSValueMakeUndefined(context);
 	}
 
-	if (aampObj->_eventListeners == NULL)
-	{
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "No event listener registered previously");
-		return JSValueMakeUndefined(context);
-	}
-
 	if (argumentCount >= 2)
 	{
+		char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 		JSObjectRef callbackFunc = JSValueToObject(context, arguments[1], NULL);
 
 		if (callbackFunc != NULL && JSObjectIsFunction(context, callbackFunc))
 		{
-                        char* type = aamp_JSValueToCString(context, arguments[0], NULL);
-                        AAMPEventType eventType = aamp_getEventTypeFromName(type);
+			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
+			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
 
-                        if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
-                        {
-
-                                AAMPJSCEventListener::RemoveEventListener(aampObj, eventType, callbackFunc);
-                        }
-
-                        delete[] type;
-
+			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
+			{
+				AAMP_JSEventListener::RemoveEventListener(aampObj, eventType, callbackFunc);
+			}
 		}
+		else
+		{
+			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackFunc, JSObjectIsFunction(context, callbackFunc));
+			char errMsg[512];
+			memset(errMsg, '\0', 512);
+			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
+		}
+
+		delete[] type;
 	}
 	else
 	{
@@ -556,11 +416,12 @@ static JSValueRef AAMPJSC_setLicenseServerUrl(JSContextRef context, JSObjectRef 
 		if (strlen(url) > 0)
 		{
 			aampObj->_licenseServerUrl = std::string(url);
-			if (aampObj->_player != NULL)
+			if (aampObj->_aamp != NULL)
 			{
-				aampObj->_player->SetLicenseServerURL(aampObj->_licenseServerUrl.c_str());
+				aampObj->_aamp->SetLicenseServerURL(aampObj->_licenseServerUrl.c_str());
 			}
 		}
+		delete[] url;
 	}
 	else
 	{
@@ -597,10 +458,9 @@ void AAMP_JSController_finalize(JSObjectRef thisObj)
 
 	if (aampObj->_ctx != NULL)
 	{
-		if (aampObj->_eventListeners != NULL)
+		if (aampObj->_listeners.size() > 0)
 		{
-
-			AAMPJSCEventListener::RemoveAllEventListener(aampObj);
+			AAMP_JSEventListener::RemoveAllEventListener(aampObj);
 		}
 	}
 
@@ -661,7 +521,7 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 	AAMP_JSController* aampObj = new AAMP_JSController();
 	aampObj->_ctx = context;
 	aampObj->_aampSessionID = 0;
-	aampObj->_eventListeners = NULL;
+	aampObj->_listeners.clear();
 	aampObj->_licenseServerUrl = std::string();
 
 	_globalController = aampObj;
