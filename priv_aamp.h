@@ -231,7 +231,7 @@ enum HttpHeaderType
 /**
  * @brief maximum supported mediatype for latency logging
  */
-#define MAX_SUPPORTED_LATENCY_LOGGING_TYPES	4
+#define MAX_SUPPORTED_LATENCY_LOGGING_TYPES	(eMEDIATYPE_IFRAME+1)
 
 /**
  * @brief Log level's of AAMP
