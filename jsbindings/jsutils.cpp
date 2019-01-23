@@ -59,6 +59,7 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_STATE_CHANGED, "statusChanged"},
 	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
+	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
 	{ (AAMPEventType)0, "" }
 };
 

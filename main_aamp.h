@@ -80,8 +80,19 @@ typedef enum
 	AAMP_EVENT_AD_STARTED,          /**< Ad playback started */
 	AAMP_EVENT_AD_COMPLETED,        /**< Ad playback completed */
 	AAMP_EVENT_DRM_METADATA,
+	AAMP_EVENT_REPORT_ANOMALY,       /**< Playback Anomaly reporting */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
+
+/**
+ * @brief AAMP anomaly message types
+ */
+typedef enum
+{
+	ANOMALY_ERROR,
+	ANOMALY_WARNING,
+	ANOMALY_TRACE
+} AAMPAnomalyMessageType;
 
 /**
  * @brief AAMP playback error codes
@@ -167,6 +178,7 @@ typedef enum
 #define MAX_BITRATE_COUNT 10
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
 #define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
+#define MAX_ANOMALY_BUFF_SIZE   256
 
 
 /**
@@ -178,6 +190,12 @@ struct AAMPEvent
 
 	union
 	{
+		struct
+		{
+			int severity; /**< informative number indicates severity of msg, e.g Warning, Error, Trace etc */
+			char msg[MAX_ANOMALY_BUFF_SIZE];
+		} anomalyReport;
+
 		/**
 		 * @brief Structure of the progress event data
 		 */
