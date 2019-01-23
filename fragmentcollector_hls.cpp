@@ -232,15 +232,22 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		{ // used by DAI
 			if(ts->fragmentEncrypted)
 			{
-				logprintf("Track %s encrypted to clear \n", ts->name);
+				if (!ts->mIndexingInProgress)
+				{
+					logprintf("Track %s encrypted to clear \n", ts->name);
+				}
 				ts->fragmentEncrypted = false;
+				ts->UpdateDrmCMSha1Hash(NULL);
 			}
 		}
 		else if (SubStringMatch(valuePtr, fin, "AES-128"))
 		{
 			if(!ts->fragmentEncrypted)
 			{
-				AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
+				if (!ts->mIndexingInProgress)
+				{
+					AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
+				}
 				ts->fragmentEncrypted = true;
 			}
 			ts->mDrmInfo.method = eMETHOD_AES_128;
@@ -1129,7 +1136,7 @@ char *TrackState::FindMediaForSequenceNumber()
 			{ // URI
 				if (seq >= mediaSequenceNumber)
 				{
-					if (mCMSha1Hash && key)
+					if ((mDrmKeyTagCount >1) && key)
 					{
 						ParseAttrList(key, ParseKeyAttributeCallback, this);
 					}
@@ -1553,6 +1560,7 @@ void TrackState::FlushIndex()
 	index.len = 0;
 	index.avail = 0;
 	currentIdx = -1;
+	mDrmKeyTagCount = 0;
 	mPeriodPositionIndex.clear();
 	if (mDrmMetaDataIndexCount)
 	{
@@ -1621,7 +1629,24 @@ void TrackState::ProcessDrmMetadata(bool acquireCurrentLicenseOnly)
 		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
 	}
 	mDrmLicenseRequestPending = (mCMSha1Hash && acquireCurrentLicenseOnly && (mDrmMetaDataIndexCount >1));
-	assert(!mCMSha1Hash || foundCurrentMetaDataIndex);
+	if(mCMSha1Hash && !foundCurrentMetaDataIndex)
+	{
+		printf("%s:%d ERROR Could not find matching metadata for hash - ", __FUNCTION__, __LINE__);
+		AveDrmManager::PrintSha1Hash(mCMSha1Hash);
+		printf("%d Metadata available\n", mDrmMetaDataIndexCount);
+		for (int i = 0; i < mDrmMetaDataIndexCount; i++)
+		{
+			printf("sha1Hash of drmMetadataNode[%d]", i);
+			AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
+		}
+		printf("\n\nTrack [%s] playlist length %d\n", name, (int)playlist.len);
+		for (int i = 0; i < playlist.len; i++)
+		{
+			printf("%c", playlist.ptr[i]);
+		}
+		printf("\n\nTrack [%s] playlist end\n", name);
+		aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
+	}
 	traceprintf("%s:%d: mDrmLicenseRequestPending %d\n", __FUNCTION__, __LINE__, (int) mDrmLicenseRequestPending);
 	pthread_mutex_unlock(&gDrmMutex);
 }
@@ -1666,7 +1691,7 @@ double TrackState::IndexPlaylist()
 	traceprintf("%s:%d Enter \n", __FUNCTION__, __LINE__);
 
 	FlushIndex();
-
+	mIndexingInProgress = true;
 	if (playlist.ptr )
 	{
 		char *ptr;
@@ -1856,8 +1881,9 @@ double TrackState::IndexPlaylist()
 					if(!fragmentEncrypted)
 					{
 						drmMetadataIdx = -1;
-						logprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
+						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
 					}
+					mDrmKeyTagCount++;
 				}
 				else if ( context->IsLive() && (1.0 == context->rate)
 					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
@@ -1978,6 +2004,7 @@ double TrackState::IndexPlaylist()
 		ProcessDrmMetadata(false);
 	}
 	firstIndexDone = true;
+	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
 	return totalDuration;
 }
@@ -3403,7 +3430,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
-		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false)
+		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
+                mDrmKeyTagCount(0), mIndexingInProgress(false)
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
@@ -3826,21 +3854,32 @@ void TrackState::SetDrmContextUnlocked()
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 {
 	bool drmDataChanged = false;
-	if (mCMSha1Hash)
+	if (NULL == ptr)
+	{
+		if (mCMSha1Hash)
+		{
+			free(mCMSha1Hash);
+			mCMSha1Hash = NULL;
+		}
+	}
+	else if (mCMSha1Hash)
 	{
 		if (0 != memcmp(ptr, (char*) mCMSha1Hash, DRM_SHA1_HASH_LEN))
 		{
-			printf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
-			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+			if (!mIndexingInProgress)
 			{
-				printf("%c", mCMSha1Hash[i]);
+				printf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
+				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+				{
+					printf("%c", mCMSha1Hash[i]);
+				}
+				printf(" new - ");
+				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+				{
+					printf("%c", ptr[i]);
+				}
+				printf("\n");
 			}
-			printf(" new - ");
-			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
-			{
-				printf("%c", ptr[i]);
-			}
-			printf("\n");
 			drmDataChanged = true;
 			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		}
@@ -3851,12 +3890,15 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 	}
 	else
 	{
-		printf("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
-		for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+		if (!mIndexingInProgress)
 		{
-			printf("%c", ptr[i]);
+			printf("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
+			for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
+			{
+				printf("%c", ptr[i]);
+			}
+			printf("\n");
 		}
-		printf("\n");
 		mCMSha1Hash = (char*)malloc(DRM_SHA1_HASH_LEN);
 		memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		drmDataChanged = true;

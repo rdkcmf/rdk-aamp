@@ -609,7 +609,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 #endif
 			}
 		}
-		else
+		else if (!aveDrmManager)
 		{
 			aveDrmManager = sAveDrmManager[i];
 		}
