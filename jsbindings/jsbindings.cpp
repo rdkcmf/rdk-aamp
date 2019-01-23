@@ -909,6 +909,50 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_AnomalyReport
+ * @brief
+ */
+class AAMP_JSListener_AnomalyReport : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_DRMMetadata Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
+        AAMP_JSListener_AnomalyReport(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+        {
+        }
+
+        /**
+         * @brief
+         * @param e
+         * @param context
+         * @param eventObj
+         * @retval None
+         */
+        void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+        {
+                JSStringRef name;
+
+
+                int severity = e.data.anomalyReport.severity;
+                const char* description = e.data.anomalyReport.msg;
+
+                ERROR("AAMP_JSListener_AnomalyReport severity %d Description %s\n",severity,description);
+                name = JSStringCreateWithUTF8CString("severity");
+                JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, severity), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+                name = JSStringCreateWithUTF8CString("description");
+                JSObjectSetProperty(context, eventObj, name, aamp_CStringToJSValue(context, description), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+        }
+};
+
+/**
  * @class AAMP_JSListener_CCHandleReceived
  * @brief Event listener impl for CC_HANDLE_RECEIVED AAMP event
  */
@@ -1241,10 +1285,14 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	{
 		pListener = new AAMP_JSListener_SpeedsChanged(aamp, type, jsCallback);
 	}
-	else if(type == AAMP_EVENT_DRM_METADATA)
-        {
-                pListener = new AAMP_JSListener_DRMMetadata(aamp, type, jsCallback);
-        }
+	else if (type == AAMP_EVENT_REPORT_ANOMALY)
+	{
+		pListener = new AAMP_JSListener_AnomalyReport(aamp, type, jsCallback);
+	}
+	else if (type == AAMP_EVENT_DRM_METADATA)
+	{
+		pListener = new AAMP_JSListener_DRMMetadata(aamp, type, jsCallback);
+	}
 	else
 	{
 		pListener = new AAMP_JSListener(aamp, type, jsCallback);

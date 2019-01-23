@@ -191,6 +191,7 @@ enum HttpHeaderType
 {
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
+	eHTTPHEADERTYPE_FOG_REASON,    /**< X-Reason Header */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -1666,6 +1667,16 @@ public:
 	void SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,long error_code);
 
 	/**
+	 * @brief Sends Anomaly Error/warning messages
+	 *
+	 * @param[in] type - severity of message
+	 * @param[in] format - format string
+	 * args [in]  - multiple arguments based on format
+	 * @return void
+	 */
+	void SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...);
+
+	/**
 	 * @brief Send events synchronously
 	 *
 	 * @param[in] e - Event object
@@ -2535,6 +2546,14 @@ private:
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
+
+    /**
+     *   @brief Set Content Type
+     *
+     *   @return string
+     */
+	std::string GetContentTypString();
+
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType lastTuneType;
 	int m_fd;
