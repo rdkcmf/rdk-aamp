@@ -1400,6 +1400,8 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 	(void)userp;
 	(void)size;
 
+	if(type == CURLINFO_TEXT || type == CURLINFO_HEADER_IN)
+	{
 	//remove unwanted trailing line feeds from log
 	for(int i = (int)size-1; i >= 0; i--)
 	{
@@ -1419,6 +1421,7 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 		break;
 	    default:
 		break;
+	}
 	}
 	return 0;
 }
