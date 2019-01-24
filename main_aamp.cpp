@@ -5138,8 +5138,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		GetState(state);
 		if (state != eSTATE_PLAYING || mSeekOperationInProgress)
 		{
-			logprintf("PrivateInstanceAAMP::%s : Not processing reTune since state = %d, mSeekOperationInProgress = %d\n",
-						__FUNCTION__, state, mSeekOperationInProgress);
+			logprintf("PrivateInstanceAAMP::%s:%d: Not processing reTune since state = %d, mSeekOperationInProgress = %d\n",
+						__FUNCTION__, __LINE__, state, mSeekOperationInProgress);
 			return;
 		}
 
@@ -5150,24 +5150,24 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			if (mDiscontinuityTuneOperationId != 0 || mDiscontinuityTuneOperationInProgress)
 			{
 				pthread_mutex_unlock(&mLock);
-				logprintf("PrivateInstanceAAMP::%s:%d Discontinuity Tune handler already spawned(%d) or inprogress(%d)\n",
+				logprintf("PrivateInstanceAAMP::%s:%d: Discontinuity Tune handler already spawned(%d) or inprogress(%d)\n",
 					__FUNCTION__, __LINE__, mDiscontinuityTuneOperationId, mDiscontinuityTuneOperationInProgress);
 				return;
 			}
 			mDiscontinuityTuneOperationId = g_idle_add(PrivateInstanceAAMP_ProcessDiscontinuity, (gpointer) this);
 			pthread_mutex_unlock(&mLock);
 
-			logprintf("PrivateInstanceAAMP::%s:%d  Underflow due to discontinuity handled\n", __FUNCTION__, __LINE__);
+			logprintf("PrivateInstanceAAMP::%s:%d: Underflow due to discontinuity handled\n", __FUNCTION__, __LINE__);
 			return;
 		}
 		else if (mpStreamAbstractionAAMP->IsStreamerStalled())
 		{
-			logprintf("PrivateInstanceAAMP::%s : Ignore reTune due to playback stall\n", __FUNCTION__);
+			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall\n", __FUNCTION__, __LINE__);
 			return;
 		}
 		else if (!gpGlobalConfig->internalReTune)
 		{
-			logprintf("PrivateInstanceAAMP::%s : Ignore reTune as disabled in configuration\n", __FUNCTION__);
+			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration\n", __FUNCTION__, __LINE__);
 			return;
 		}
 		bool activeAAMPFound = false;
@@ -5178,7 +5178,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			{
 				if (gActivePrivAAMPs[i].reTune)
 				{
-					logprintf("PrivateInstanceAAMP::%s : Already scheduled\n", __FUNCTION__);
+					logprintf("PrivateInstanceAAMP::%s:%d: Already scheduled\n", __FUNCTION__, __LINE__);
 				}
 				else
 				{
@@ -5193,32 +5193,35 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
 							{
 								gActivePrivAAMPs[i].numPtsErrors++;
-								logprintf("PrivateInstanceAAMP::%s : numPtsErrors %lld,  ptsErrorThreshold %lld\n", __FUNCTION__, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+								logprintf("PrivateInstanceAAMP::%s:%d: numPtsErrors %d, ptsErrorThreshold %d\n",
+									__FUNCTION__, __LINE__, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
 								if (gActivePrivAAMPs[i].numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
 								{
 									gActivePrivAAMPs[i].numPtsErrors = 0;
 									gActivePrivAAMPs[i].reTune = true;
-									logprintf("PrivateInstanceAAMP::%s : Schedule Retune. diffMs %lld < threshold %lld\n", __FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
+									logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune. diffMs %lld < threshold %lld\n",
+										__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
 									g_idle_add(PrivateInstanceAAMP_Retune, (gpointer)this);
 								}
 							}
 							else
 							{
 								gActivePrivAAMPs[i].numPtsErrors = 0;
-								logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since (diff %lld > threshold %lld).\n",
-										__FUNCTION__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+								logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since (diff %lld > threshold %lld) numPtsErrors %d, ptsErrorThreshold %d.\n",
+									__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
+									gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
 							}
 						}
 						else
 						{
 							gActivePrivAAMPs[i].numPtsErrors = 0;
-							logprintf("PrivateInstanceAAMP::%s : Not scheduling reTune since first underflow.\n", __FUNCTION__);
+							logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since first underflow.\n", __FUNCTION__, __LINE__);
 						}
 						lastUnderFlowTimeMs[trackType] = now;
 					}
 					else if(eDASH_ERROR_STARTTIME_RESET == errorType)
 					{
-						logprintf("PrivateInstanceAAMP::%s : Schedule Retune to handle start time reset.\n", __FUNCTION__);
+						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune to handle start time reset.\n", __FUNCTION__, __LINE__);
 						gActivePrivAAMPs[i].reTune = true;
 						g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
 					}
@@ -5230,7 +5233,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		pthread_mutex_unlock(&gMutex);
 		if (!activeAAMPFound)
 		{
-			logprintf("PrivateInstanceAAMP::%s : %p not in Active AAMP list\n", __FUNCTION__, this);
+			logprintf("PrivateInstanceAAMP::%s:%d: %p not in Active AAMP list\n", __FUNCTION__, __LINE__, this);
 		}
 	}
 }
