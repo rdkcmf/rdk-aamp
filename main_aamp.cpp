@@ -70,6 +70,9 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
+#ifdef AAMP_CPC
+#define AAMP_CHECKPOINT    "#2:DELIA-32493 + PATCH:"
+#endif
 
 /**
  * @brief
@@ -2811,6 +2814,9 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 	if (!gpGlobalConfig)
 	{
 		gpGlobalConfig = new GlobalConfigAAMP();
+#ifdef AAMP_CPC
+		logprintf("AAMP_CHECKPOINT(%s)",AAMP_CHECKPOINT);
+#endif
 #ifdef IARM_MGR 
         logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  \n");
         size_t iConfigLen = 0;
