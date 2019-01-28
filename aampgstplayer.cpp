@@ -1588,6 +1588,9 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		{
 			logprintf("AAMPGstPlayer_SetupStream - using westerossink\n");
 			GstElement* vidsink = gst_element_factory_make("westerossink", NULL);
+#ifdef USE_SAGE_SVP
+			g_object_set(vidsink, "secure-video", TRUE, NULL);
+#endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
         }
 #else
