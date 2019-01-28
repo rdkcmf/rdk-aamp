@@ -224,6 +224,8 @@ public:
 	int mDrmMetaDataIndexPosition;	/**< Variable to store Drm Meta data Index position*/
 	GrowableBuffer mDrmMetaDataIndex;  /**< DrmMetadata records for associated playlist */
 	int mDrmMetaDataIndexCount; /**< number of DrmMetadata records in currently indexed playlist */
+	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
+	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
 	pthread_t fragmentCollectorThreadID;	/**< Thread Id for Fragment  collector Thread */
