@@ -1,0 +1,15 @@
+Replace obsolete:
+live-tune-event-playlist-indexed=1 // to report tuning once playlist acquired for live
+live-tune-event-first-fragment-decrypted=1 // to report tuning once first fragment decrypted for live
+vod-tune-event-playlist-indexed=1 // // to report tuning once playlist acquired for vod
+vod-tune-event-first-fragment-decrypted=1 // to report tuning once first fragment decrypted for vod
+
+with the below options
+live-tune-event=0 // send streamplaying when playlist acquired (default)
+live-tune-event=1 // send streamplaying when first fragment decrypted
+live-tune-event=2 // send streamplaying when first frame visible
+
+vod-tune-event=0 // send streamplaying when playlist acquired (default)
+vod-tune-event=1 // send streamplaying when first fragment 
+vod-tune-event=2 // send streamplaying when first frame visible
+
