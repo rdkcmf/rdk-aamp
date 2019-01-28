@@ -2513,6 +2513,11 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->logging.info = true;
 			logprintf("info logging %s\n", gpGlobalConfig->logging.info ? "on" : "off");
 		}
+		else if (strcmp(cfg, "failover") == 0)
+		{
+			gpGlobalConfig->logging.failover = true;
+			logprintf("failover logging %s\n", gpGlobalConfig->logging.failover ? "on" : "off");
+		}
 		else if (strcmp(cfg, "gst") == 0)
 		{
 			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
@@ -5220,8 +5225,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 						}
 						else
 						{
+							const char* errorString = (errorType == eGST_ERROR_UNDERFLOW) ? "underflow" : "pts error";
 							gActivePrivAAMPs[i].numPtsErrors = 0;
-							logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since first underflow.\n", __FUNCTION__, __LINE__);
+							logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since first %s.\n", __FUNCTION__, __LINE__, errorString);
 						}
 						lastUnderFlowTimeMs[trackType] = now;
 					}

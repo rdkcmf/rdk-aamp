@@ -228,6 +228,11 @@ enum HttpHeaderType
 #define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
 #define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
 
+#define AAMPLOG_FAILOVER(FORMAT, ...) \
+		if (gpGlobalConfig->logging.failover) { \
+				logprintf(FORMAT, ##__VA_ARGS__); \
+		}
+
 /**
  * @brief maximum supported mediatype for latency logging
  */
@@ -294,13 +299,14 @@ public:
 	bool gst;        /**< Gstreamer logs*/
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
+	bool failover;	 /**< server fail over logs*/
 	bool latencyLogging[MAX_SUPPORTED_LATENCY_LOGGING_TYPES]; /**< Latency logging for Video, Audio, Manifest download - Refer MediaType on main_aamp.h */ 
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false)
 	{
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
 	}

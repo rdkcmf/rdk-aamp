@@ -1387,7 +1387,7 @@ void TrackState::FetchFragment()
 	{
 		return;
 	}
-	AAMPLOG_INFO("%s-", name);
+	AAMPLOG_INFO("%s:%d: %s\n", __FUNCTION__, __LINE__, name);
 	if (false == FetchFragmentHelper(http_error, decryption_error))
 	{
 		if (fragmentURI)
@@ -1405,22 +1405,22 @@ void TrackState::FetchFragment()
 				{
 					playTarget -= context->rate / context->mTrickPlayFPS;
 				}
-				logprintf("FetchFragment :: Error while fetching fragment:%s, failedCount:%d. decrementing profile\n", name, segDLFailCount);
+				logprintf("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile\n", __FUNCTION__, __LINE__, name, segDLFailCount);
 			}
 			else if (decryption_error)
 			{
-				logprintf("FetchFragment :: Error while decrypting fragments. failedCount:%d\n", segDLFailCount);
+				logprintf("%s:%d: Error while decrypting fragments. failedCount:%d\n", __FUNCTION__, __LINE__, segDLFailCount);
 			}
 			else
 			{
-				logprintf("FetchFragment :: Error on fetching %s fragment. failedCount:%d\n", name, segDLFailCount);
+				logprintf("%s:%d: Error on fetching %s fragment. failedCount:%d\n", __FUNCTION__, __LINE__, name, segDLFailCount);
 			}
 		}
 		else
 		{
 			// technically not an error - live manifest may simply not have updated yet
 			// if real problem exists, underflow will eventually be detected/reported
-			AAMPLOG_TRACE("%s - NULL fragmentURI for %s track \n", __FUNCTION__, name);
+			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track \n", __FUNCTION__, __LINE__, name);
 			fflush(stdout); // needed?
 			//abort();
 		}
@@ -1440,7 +1440,7 @@ void TrackState::FetchFragment()
 		{
 			position -= context->rate / context->mTrickPlayFPS;
 			cachedFragment->discontinuity = true;
-			traceprintf("%s:%d - rate %f position %f\n",__FUNCTION__, __LINE__, context->rate, position);
+			traceprintf("%s:%d: rate %f position %f\n",__FUNCTION__, __LINE__, context->rate, position);
 		}
 
 		if (context->trickplayMode && (0 != context->rate))
@@ -1452,8 +1452,7 @@ void TrackState::FetchFragment()
 	}
 	else
 	{
-		logprintf("%s:%d %s cachedFragment->fragment.ptr is NULL\n",
-					__FUNCTION__, __LINE__, name);
+		logprintf("%s:%d: %s cachedFragment->fragment.ptr is NULL\n", __FUNCTION__, __LINE__, name);
 	}
 #ifdef AAMP_DEBUG_INJECT
 	if ((1 << type) & AAMP_DEBUG_INJECT)
@@ -2134,7 +2133,7 @@ void TrackState::RefreshPlaylist(void)
 		}
 		aamp_Free(&tempBuff.ptr);
 		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operationsaamp_AppendNulTerminator(&this->mainManifest); // make safe for cstring operations
-		if (gpGlobalConfig->logging.trace )
+		if (gpGlobalConfig->logging.trace)
 		{
 			logprintf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
@@ -3301,13 +3300,13 @@ void TrackState::RunFetchLoop()
 				        - lastPlaylistDownloadTimeMS);
 				if (context->maxIntervalBtwPlaylistUpdateMs <= timeSinceLastPlaylistDownload)
 				{
-					AAMPLOG_INFO("Refreshing playlist as maximum refresh delay exceeded\n");
+					AAMPLOG_INFO("%s:%d: Refreshing playlist as maximum refresh delay exceeded\n", __FUNCTION__, __LINE__);
 					RefreshPlaylist();
 				}
 #ifdef TRACE
 				else
 				{
-					logprintf("Not refreshing timeSinceLastPlaylistDownload = %d\n", timeSinceLastPlaylistDownload);
+					logprintf("%s:%d: Not refreshing timeSinceLastPlaylistDownload = %d\n", __FUNCTION__, __LINE__, timeSinceLastPlaylistDownload);
 				}
 #endif
 			}
@@ -3373,8 +3372,8 @@ void TrackState::RunFetchLoop()
 					static int bufferlowCnt;
 					if((bufferlowCnt++ & 5) == 0)
 					{ 
-						logprintf("Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
-							bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
+						logprintf("%s:%d: Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
+							__FUNCTION__, __LINE__, bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
 					}
 				}
 			}
@@ -3390,13 +3389,24 @@ void TrackState::RunFetchLoop()
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n", bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,
-											endPositionAvailable,currentPlayPosition);
+			AAMPLOG_INFO("%s:%d: aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n",
+					__FUNCTION__, __LINE__, bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
 		RefreshPlaylist();
+
+		AAMPLOG_FAILOVER("%s:%d: fragmentURI [%s] timeElapsedSinceLastFragment [%f]\n",
+			__FUNCTION__, __LINE__, fragmentURI, (aamp_GetCurrentTimeMS() - context->LastVideoFragParsedTimeMS()));
+
+		/* Added to handle an edge case for cdn failover, where we found valid sub-manifest but no valid fragments.
+		 * In this case we have to stall the playback here. */
+		if( fragmentURI == NULL && context->IsLive() && type == eTRACK_VIDEO)
+		{
+			AAMPLOG_FAILOVER("%s:%d: fragmentURI is NULL, playback may stall in few seconds..\n", __FUNCTION__, __LINE__);
+			context->CheckForPlaybackStall(false);
+		}
 	}
-	AAMPLOG_WARN("fragment collector done. track %s\n", name);
+	AAMPLOG_WARN("%s:%d: fragment collector done. track %s\n", __FUNCTION__, __LINE__, name);
 }
 /***************************************************************************
 * @fn FragmentCollector
