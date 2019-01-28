@@ -506,10 +506,12 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false)
 	{
-		//XRE sends onStreamPlaying & onVideoInfo while receiving onTuned event.
-		//onVideoInfo depends on the metrics received from pipe. Hence, onTuned event should be sent only after the tune completion.
-		tunedEventConfigLive = eTUNED_EVENT_ON_GST_PLAYING;
-		tunedEventConfigVOD = eTUNED_EVENT_ON_GST_PLAYING;
+		//XRE sends onStreamPlaying while receiving onTuned event.
+		//onVideoInfo depends on the metrics received from pipe.
+                // considering round trip delay to remove overlay
+                // onStreamPlaying is sent optimistically in advance
+		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
+		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 	}
 
 	/**
