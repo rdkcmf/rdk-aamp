@@ -21,7 +21,7 @@
  * @file StreamAbstractionAAMP.h
  * @brief Base classes of HLS/MPD collectors. Implements common caching/injection logic.
  */
- 
+
 #ifndef STREAMABSTRACTIONAAMP_H
 #define STREAMABSTRACTIONAAMP_H
 
@@ -428,7 +428,7 @@ public:
 
 	/**
 	 *   @brief Unblock track if caught up with video or downloads are stopped
-	 *   
+	 *
 	 *   @return void
 	 */
 	void ReassessAndResumeAudioTrack();
@@ -508,6 +508,14 @@ public:
 	 *   @return void
 	 */
 	void UpdateIframeTracks();
+
+	/**
+	 *   @brief Get the last video fragment parsed time.
+	 *
+	 *   @param None
+	 *   @return Last video fragment parsed time.
+	 */
+	double LastVideoFragParsedTimeMS(void);
 
 	/**
 	 *   @brief Get the desired profile to start fetching.

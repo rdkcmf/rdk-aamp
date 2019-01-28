@@ -845,6 +845,16 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 	AAMPLOG_INFO("Exit StreamAbstractionAAMP::%s\n", __FUNCTION__);
 }
 
+/**
+ * @brief Get the last video fragment parsed time.
+ *
+ *	 @param None
+ *	 @return Last video fragment parsed time.
+ */
+double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
+{
+	return mLastVideoFragParsedTimeMS;
+}
 
 /**
  *   @brief Get the desired profile to start fetching.
