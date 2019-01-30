@@ -1427,6 +1427,26 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 }
 
 /**
+ * @brief
+ * @param curl ptr to CURL instance
+ * @param ssl_ctx SSL context used by CURL
+ * @param user_ptr data pointer set as param to CURLOPT_SSL_CTX_DATA
+ * @retval CURLcode CURLE_OK if no errors, otherwise corresponding CURL code
+ */
+CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
+{
+	PrivateInstanceAAMP *context = (PrivateInstanceAAMP *)user_ptr;
+	CURLcode rc = CURLE_OK;
+	pthread_mutex_lock(&context->mLock);
+	if (!context->mDownloadsEnabled)
+	{
+		rc = CURLE_ABORTED_BY_CALLBACK ; // CURLE_ABORTED_BY_CALLBACK
+	}
+	pthread_mutex_unlock(&context->mLock);
+	return rc;
+}
+
+/**
  * @brief Initialize curl instances
  * @param startIdx start index
  * @param instanceCount count of instances
@@ -1459,6 +1479,8 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
 			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, "AAMP/2.0.0");
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
+			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
+			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
 			if (gpGlobalConfig->httpProxy)
 			{
 				char proxyStr[STR_PROXY_BUFF_SIZE];

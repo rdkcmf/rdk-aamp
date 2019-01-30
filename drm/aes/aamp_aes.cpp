@@ -189,7 +189,6 @@ DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata)
 DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
 {
 	DrmReturn err = eDRM_ERROR;
-	pthread_t licenceAcquistionThreadId;
 	pthread_mutex_lock(&mMutex);
 	if (mDrmState == eDRM_ACQUIRING_KEY )
 	{
@@ -217,20 +216,27 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 		aamp->CurlInit(mCurlInstance, 1);
 	}
 
-	int ret = pthread_create(&licenceAcquistionThreadId, NULL, acquire_key, this);
+	if (licenseAcquisitionThreadStarted)
+	{
+		int ret = pthread_join(licenseAcquisitionThreadId, NULL);
+		if (ret != 0)
+		{
+			logprintf("AesDec::%s:%d pthread_join failed for license acquisition thread: %d\n", __FUNCTION__, __LINE__, licenseAcquisitionThreadId);
+		}
+		licenseAcquisitionThreadStarted = false;
+	}
+
+	int ret = pthread_create(&licenseAcquisitionThreadId, NULL, acquire_key, this);
 	if(ret != 0)
 	{
 		logprintf("AesDec::%s:%d pthread_create failed for acquire_key with errno = %d, %s\n", __FUNCTION__, __LINE__, errno, strerror(errno));
 		mDrmState = eDRM_KEY_FAILED;
+		licenseAcquisitionThreadStarted = false;
 	}
 	else
 	{
-		ret = pthread_detach(licenceAcquistionThreadId);
-		if(ret != 0)
-		{
-			logprintf("AesDec::%s:%d pthread_detach failed for acquire_key with errno = %d, %s\n", __FUNCTION__, __LINE__, errno, strerror(errno));
-		}
 		err = eDRM_SUCCESS;
+		licenseAcquisitionThreadStarted = true;
 	}
 	pthread_mutex_unlock(&mMutex);
 	AAMPLOG_INFO("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
@@ -342,12 +348,23 @@ void AesDec::Release()
 	{
 		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
 	}
+	if (licenseAcquisitionThreadStarted)
+	{
+		int ret = pthread_join(licenseAcquisitionThreadId, NULL);
+		if (ret != 0)
+		{
+			logprintf("AesDec::%s:%d pthread_join failed for license acquisition thread: %d\n", __FUNCTION__, __LINE__, licenseAcquisitionThreadId);
+		}
+		licenseAcquisitionThreadStarted = false;
+	}
 	pthread_cond_broadcast(&mCond);
 	if (-1 != mCurlInstance)
 	{
 		if (mpAamp)
 		{
+			mpAamp->SyncBegin();
 			mpAamp->CurlTerm(mCurlInstance, 1);
+			mpAamp->SyncEnd();
 		}
 		mCurlInstance = -1;
 	}
@@ -414,6 +431,7 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 	EVP_CIPHER_CTX_init(&mOpensslCtx);
 	memset( &mDrmInfo, 0 , sizeof(DrmInfo));
 	mCurlInstance = -1;
+	licenseAcquisitionThreadStarted = false;
 }
 
 
@@ -422,10 +440,8 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
  */
 AesDec::~AesDec()
 {
-	if (mpAamp && (-1 != mCurlInstance))
-	{
-		mpAamp->CurlTerm(mCurlInstance, 1);
-	}
+	CancelKeyWait();
+	Release();
 	pthread_mutex_destroy(&mMutex);
 	pthread_cond_destroy(&mCond);
 	EVP_CIPHER_CTX_cleanup(&mOpensslCtx);

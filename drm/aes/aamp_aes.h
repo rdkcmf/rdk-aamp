@@ -63,6 +63,8 @@ private:
 	DRMState mPrevDrmState;
 	char* mDrmUrl;
 	int mCurlInstance;
+	pthread_t licenseAcquisitionThreadId;
+	bool licenseAcquisitionThreadStarted;
 };
 
 #endif // _AAMP_AES_H_
