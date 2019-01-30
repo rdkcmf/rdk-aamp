@@ -380,6 +380,26 @@ window.onload = function() {
         video.play();
     });
 
+
+   function onTunedEvent(event) {
+        console.log("onTuned event received:" + JSON.stringify(event));
+    }
+    
+    function onTuneFailedEvent(event) {
+        console.log("onTuneFailed event received: " + JSON.stringify(event));
+    }
+    
+    function onStatusChangedEvent(event) {
+        console.log("statusChanged event received: " + JSON.stringify(event) );
+    }
+    
+    if (typeof(window.AAMP_JSController) !== "undefined") {
+        console.log("Registering event listeners to AAMP_JSController");
+        window.AAMP_JSController.addEventListener("playbackStarted", onTunedEvent);
+        window.AAMP_JSController.addEventListener("playbackFailed", onTuneFailedEvent);
+        window.AAMP_JSController.addEventListener("playbackStateChanged", onStatusChangedEvent);
+    }
+
     //  load video file from input field
     function getVideotxt() {
         var fileURLContent = document.getElementById("userEnteredVideoURL").value; // get input field
