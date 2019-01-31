@@ -294,7 +294,6 @@ private:
 	int fragmentIdxToFetch;             /**< Read position */
 	int bandwidthBytesPerSecond;        /**< Bandwidth of last selected profile*/
 	double totalFetchedDuration;        /**< Total fragment fetched duration*/
-	size_t fetchBufferPreAllocLen;      /** Buffer length to pre-allocate for next fetch buffer*/
 	bool discontinuityProcessed;
 
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/

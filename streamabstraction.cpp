@@ -202,18 +202,6 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 #endif
 	totalFetchedDuration += cachedFragment[fragmentIdxToFetch].duration;
-	size_t fragmentLen = cachedFragment[fragmentIdxToFetch].fragment.len;
-	if (fetchBufferPreAllocLen < fragmentLen)
-	{
-		logprintf("%s:%d [%s] Update fetchBufferPreAllocLen[%u]->[%u]\n", __FUNCTION__, __LINE__,
-		        name, fetchBufferPreAllocLen, fragmentLen);
-		fetchBufferPreAllocLen = fragmentLen;
-	}
-	else
-	{
-		traceprintf("%s:%d [%s] fetchBufferPreAllocLen[%u] fragment.len[%u] diff %u\n", __FUNCTION__, __LINE__,
-		        name, fetchBufferPreAllocLen, fragmentLen, (fetchBufferPreAllocLen - fragmentLen));
-	}
 
 	if((eTRACK_VIDEO == type) && aamp->IsFragmentBufferingRequired())
 	{
@@ -674,17 +662,6 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 			logprintf("%s:%d fragment.ptr already set - possible memory leak\n", __FUNCTION__, __LINE__);
 		}
 		memset(&cachedFragment->fragment, 0x00, sizeof(GrowableBuffer));
-		double duration = (0 == fragmentDurationSeconds)?(2.0):fragmentDurationSeconds;
-		size_t estimatedFragmentSizeFromBW = bandwidthBytesPerSecond * duration * 1.5;
-		if (estimatedFragmentSizeFromBW > fetchBufferPreAllocLen)
-		{
-			logprintf("%s:%d [%s] Update fetchBufferPreAllocLen[%u]->[%u]\n", __FUNCTION__, __LINE__,
-			        name, fetchBufferPreAllocLen, estimatedFragmentSizeFromBW);
-			fetchBufferPreAllocLen = estimatedFragmentSizeFromBW;
-		}
-		traceprintf ("%s:%d [%s] bandwidthBytesPerSecond %d fragmentDurationSeconds %f fetchBufferPreAllocLen %d, estimatedFragmentSizeFromBW %d\n",
-				__FUNCTION__, __LINE__, name, bandwidthBytesPerSecond, fragmentDurationSeconds, fetchBufferPreAllocLen, estimatedFragmentSizeFromBW);
-		aamp_Malloc(&cachedFragment->fragment, fetchBufferPreAllocLen);
 	}
 	return cachedFragment;
 }
@@ -721,7 +698,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
-		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0), fetchBufferPreAllocLen(0),
+		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL)
 {
 	this->type = type;
