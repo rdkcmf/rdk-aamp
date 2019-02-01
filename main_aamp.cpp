@@ -1046,7 +1046,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		{
 			if (SendTunedEvent())
 			{
-				logprintf("aamp: - sent TUNED event on Tune Completion.\n");
+				logprintf("aamp: - sent tune event on Tune Completion.\n");
 			}
 		}
 	}
@@ -2685,38 +2685,22 @@ static void ProcessConfigEntry(char *cfg)
 			}
 			logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
 		}
-		else if (sscanf(cfg, "live-tune-event-playlist-indexed=%d", &value) == 1)
-		{ // default is 0; set 1 for sending tuned event after playlist indexing - for live
-			logprintf("live-tune-event-playlist-indexed=%d\n", value);
-			if (value)
-			{
-				gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-			}
-		}
-		else if (sscanf(cfg, "live-tune-event-first-fragment-decrypted=%d", &value) == 1)
-		{ // default is 0; set 1 for sending tuned event after first fragment decrypt - for live
-			logprintf("live-tune-event-first-fragment-decrypted=%d\n", value);
-			if (value)
-			{
-				gpGlobalConfig->tunedEventConfigLive = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
-			}
-		}
-		else if (sscanf(cfg, "vod-tune-event-playlist-indexed=%d", &value) == 1)
-		{ // default is 0; set 1 for sending tuned event after playlist indexing - for vod
-			logprintf("vod-tune-event-playlist-indexed=%d\n", value);
-			if (value)
-			{
-				gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-			}
-		}
-		else if (sscanf(cfg, "vod-tune-event-first-fragment-decrypted=%d", &value) == 1)
-		{ // default is 0; set 1 for sending tuned event after first fragment decrypt - for vod
-			logprintf("vod-tune-event-first-fragment-decrypted=%d\n", value);
-			if (value)
-			{
-				gpGlobalConfig->tunedEventConfigVOD = eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED;
-			}
-		}
+		else if (sscanf(cfg, "live-tune-event = %d", &value) == 1)
+                { // default is 0; set 1 for sending tuned for live
+                        logprintf("live-tune-event = %d\n", value);
+                        if (value >= 0 && value < eTUNED_EVENT_MAX)
+                        {
+                                gpGlobalConfig->tunedEventConfigLive = (TunedEventConfig)(value);
+                        }
+                }
+                else if (sscanf(cfg, "vod-tune-event = %d", &value) == 1)
+                { // default is 0; set 1 for sending tuned event for vod
+                        logprintf("vod-tune-event = %d\n", value);
+                        if (value >= 0 && value < eTUNED_EVENT_MAX)
+                        {
+                                gpGlobalConfig->tunedEventConfigVOD = (TunedEventConfig)(value);
+                        }
+                }
 		else if (sscanf(cfg, "playlists-parallel-fetch=%d\n", &value) == 1)
 		{
 			gpGlobalConfig->playlistsParallelFetch = (value != 0);

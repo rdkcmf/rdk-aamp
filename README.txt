@@ -104,10 +104,14 @@ flush		if zero, preserve pipeline during channel changes (default=1)
 demux-hls-audio-track=1 // use software demux for audio
 demux-hls-video-track=1 // use software demux for video
 demux-hls-video-track-tm=1 // use software demux for trickmodes
-live-tune-event-playlist-indexed=1 // to report tuning once playlist acquired for live
-live-tune-event-first-fragment-decrypted=1 // to report tuning once first fragment decrypted for live
-vod-tune-event-playlist-indexed=1 // // to report tuning once playlist acquired for vod
-vod-tune-event-first-fragment-decrypted=1 // to report tuning once first fragment decrypted for vod
+live-tune-event=0 // send streamplaying when playlist acquired (default)
+live-tune-event=1 // send streamplaying when first fragment decrypted
+live-tune-event=2 // send streamplaying when first frame visible
+
+vod-tune-event=0 // send streamplaying when playlist acquired (default)
+vod-tune-event=1 // send streamplaying when first fragment 
+vod-tune-event=2 // send streamplaying when first frame visible
+
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
 disableEC3=1 // removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.

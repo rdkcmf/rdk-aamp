@@ -121,9 +121,10 @@ struct GrowableBuffer
  */
 enum TunedEventConfig
 {
-	eTUNED_EVENT_ON_GST_PLAYING,                /**< Send TUNED event on gstreamer's playing event*/
 	eTUNED_EVENT_ON_PLAYLIST_INDEXED,           /**< Send TUNED event after playlist indexed*/
-	eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED    /**< Send TUNED event after first fragment decryption*/
+	eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED,    /**< Send TUNED event after first fragment decryption*/
+	eTUNED_EVENT_ON_GST_PLAYING,                /**< Send TUNED event on gstreamer's playing event*/
+        eTUNED_EVENT_MAX
 };
 
 /**
