@@ -3632,42 +3632,50 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 
 			if(-1 == pMediaStreamContext->representationIndex)
 			{
-				if(i == eMEDIATYPE_VIDEO)
+				if(!mIsFogTSB)
 				{
-					if(mContext->trickplayMode)
+					if(i == eMEDIATYPE_VIDEO)
 					{
-						if (iframeBitrate > 0)
+						if(mContext->trickplayMode)
 						{
-							mContext->GetABRManager().setDefaultIframeBitrate(iframeBitrate);
+							if (iframeBitrate > 0)
+							{
+								mContext->GetABRManager().setDefaultIframeBitrate(iframeBitrate);
+							}
+							mContext->UpdateIframeTracks();
 						}
-						mContext->UpdateIframeTracks();
-					}
-					if (defaultBitrate != DEFAULT_INIT_BITRATE)
-					{
-						mContext->currentProfileIndex = mContext->GetDesiredProfile(false);
+						if (defaultBitrate != DEFAULT_INIT_BITRATE)
+						{
+							mContext->currentProfileIndex = mContext->GetDesiredProfile(false);
+						}
+						else
+						{
+							mContext->currentProfileIndex = mContext->GetDesiredProfile(true);
+						}
+						pMediaStreamContext->representationIndex = mContext->currentProfileIndex;
+						IRepresentation *selectedRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
+						// for the profile selected ,reset the abr values with default bandwidth values
+						aamp->ResetCurrentlyAvailableBandwidth(selectedRepresentation->GetBandwidth(),mContext->trickplayMode,mContext->currentProfileIndex);
+						aamp->profiler.SetBandwidthBitsPerSecondVideo(selectedRepresentation->GetBandwidth());
+	//					aamp->NotifyBitRateChangeEvent(selectedRepresentation->GetBandwidth(),
+	//							"BitrateChanged - Network Adaptation",
+	//							selectedRepresentation->GetWidth(),
+	//							selectedRepresentation->GetHeight());
 					}
 					else
 					{
-						mContext->currentProfileIndex = mContext->GetDesiredProfile(true);
+						pMediaStreamContext->representationIndex = pMediaStreamContext->adaptationSet->GetRepresentation().size() / 2; //Select the medium profile on start
+						if(i == eMEDIATYPE_AUDIO)
+						{
+							IRepresentation *selectedRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
+							aamp->profiler.SetBandwidthBitsPerSecondAudio(selectedRepresentation->GetBandwidth());
+						}
 					}
-					pMediaStreamContext->representationIndex = mContext->currentProfileIndex;
-					IRepresentation *selectedRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
-					// for the profile selected ,reset the abr values with default bandwidth values
-					aamp->ResetCurrentlyAvailableBandwidth(selectedRepresentation->GetBandwidth(),mContext->trickplayMode,mContext->currentProfileIndex);
-					aamp->profiler.SetBandwidthBitsPerSecondVideo(selectedRepresentation->GetBandwidth());
-//					aamp->NotifyBitRateChangeEvent(selectedRepresentation->GetBandwidth(),
-//							"BitrateChanged - Network Adaptation",
-//							selectedRepresentation->GetWidth(),
-//							selectedRepresentation->GetHeight());
 				}
 				else
 				{
-					pMediaStreamContext->representationIndex = pMediaStreamContext->adaptationSet->GetRepresentation().size() / 2; //Select the medium profile on start
-					if(i == eMEDIATYPE_AUDIO)
-					{
-						IRepresentation *selectedRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
-						aamp->profiler.SetBandwidthBitsPerSecondAudio(selectedRepresentation->GetBandwidth());
-					}
+					logprintf("%s:%d: [WARN] !! representationIndex is '-1' override with '0' since Custom MPD has single representation\n", __FUNCTION__, __LINE__);
+					pMediaStreamContext->representationIndex = 0; //Fog custom mpd has single representation
 				}
 			}
 			pMediaStreamContext->representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
