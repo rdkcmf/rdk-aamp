@@ -1020,7 +1020,7 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 {
 	std::stringstream eventsJSON;
-	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),manifestUrl,success);
+	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
 	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.str().c_str());
 }
 
@@ -3619,6 +3619,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
+
+	if(mTSBEnabled)
+	{
+		SetTunedManifestUrl(true);
+	}
 
 	if(bFirstAttempt)
 	{
@@ -6248,4 +6253,43 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 			break;
 	}
 	return pbt;
+}
+
+
+/**
+ *   @brief Sets Recorded URL from Manifest received form XRE.
+ *   @param[in] isrecordedUrl - flag to check for recordedurl in Manifest
+ */
+void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
+{
+	strncpy(tunedManifestUrl, manifestUrl, MAX_URI_LENGTH-1);
+	tunedManifestUrl[MAX_URI_LENGTH-1] = 0;
+
+	if(isrecordedUrl)
+	{
+		DeFog(tunedManifestUrl);
+	}
+
+	char *streamPtr = strchr(tunedManifestUrl, '?');
+	if(streamPtr)
+	{
+		*streamPtr = 0x0;
+	}
+
+	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
+}
+
+/**
+ *   @brief Gets Recorded URL from Manifest received form XRE.
+ *   @param[out] manifestUrl - for VOD and recordedUrl for FOG enabled
+ */
+const char* PrivateInstanceAAMP::GetTunedManifestUrl()
+{
+	if(!IsTSBSupported())
+	{
+		SetTunedManifestUrl(); /* Redirect URL in case on VOD */
+	}
+
+	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
+	return tunedManifestUrl;
 }

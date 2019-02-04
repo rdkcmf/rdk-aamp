@@ -1406,6 +1406,7 @@ public:
 	httpRespHeaderData httpRespHeaders[MAX_CURL_INSTANCE_COUNT];
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
 	char manifestUrl[MAX_URI_LENGTH];
+	char tunedManifestUrl[MAX_URI_LENGTH];
 
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -1456,6 +1457,18 @@ public:
 	 * @return void
 	 */
 	void CurlInit(int startIdx, unsigned int instanceCount);
+
+	/**
+	 *   @brief Sets Recorded URL from Manifest received form XRE.
+	 *   @param[in] isrecordedUrl - flag to check for recordedurl in Manifest
+	 */
+	void SetTunedManifestUrl(bool isrecordedUrl = false);
+
+	/**
+	 *   @brief Gets Recorded URL from Manifest received form XRE.
+	 *   @param[out] manifestUrl - for VOD and recordedUrl for FOG enabled
+	 */
+	const char *GetTunedManifestUrl();
 
 	/**
 	 * @brief Set curl timeout
