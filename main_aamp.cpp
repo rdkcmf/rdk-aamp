@@ -1363,12 +1363,8 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 			std::string contentLengthStr = header.substr(contentLengthStartPosition);
 			int contentLength = std::stoi(contentLengthStr);
 			traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, header.c_str(), contentLengthStr.c_str(), contentLength);
-			/*contentLength can be zero for redirects*/
-			if (contentLength > 0)
-			{
-				/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
-				aamp_Malloc(context->buffer, contentLength + 2);
-			}
+			/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
+			aamp_Malloc(context->buffer, contentLength+2);
 		}
 	}
 
