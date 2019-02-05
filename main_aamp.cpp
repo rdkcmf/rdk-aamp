@@ -80,6 +80,9 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
+#ifdef AAMP_CPC
+#define AAMP_CHECKPOINT    "#2:RDK-23418+PATCH:BCOM-3057,DELIA-32557,BCOM-3088,BCOM-3173,DELIA-32778,DELIA-32888,DELIA-32835,DELIA-32832"
+#endif
 
 /**
  * @brief get a character for console
@@ -2833,6 +2836,9 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 	if (!gpGlobalConfig)
 	{
 		gpGlobalConfig = new GlobalConfigAAMP();
+#ifdef AAMP_CPC
+		logprintf("AAMP_CHECKPOINT(%s)",AAMP_CHECKPOINT);
+#endif
 #ifdef IARM_MGR 
         logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  \n");
         size_t iConfigLen = 0;
