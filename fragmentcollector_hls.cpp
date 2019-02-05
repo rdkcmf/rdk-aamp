@@ -2010,6 +2010,17 @@ double TrackState::IndexPlaylist()
 	{
 		ProcessDrmMetadata(false);
 	}
+	if (mDrmKeyTagCount > 0)
+	{
+		if (mDrmMetaDataIndexCount > 0)
+		{
+			aamp->setCurrentDrm(eDRM_Adobe_Access);
+		}
+		else
+		{
+			aamp->setCurrentDrm(eDRM_Vanilla_AES);
+		}
+	}
 	firstIndexDone = true;
 	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
@@ -3919,14 +3930,12 @@ void TrackState::SetDrmContextUnlocked()
 				AveDrmManager::DumpCachedLicenses();
 			}
 		}
-		aamp->setCurrentDrm(eDRM_Adobe_Access);
 	}
 	else
 	{
 #ifdef AAMP_VANILLA_AES_SUPPORT
 		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
 		mDrm = AesDec::GetInstance();
-		aamp->setCurrentDrm(eDRM_Vanilla_AES);
 #else
 		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
 #endif
