@@ -26,6 +26,7 @@
 #include "jsbindings.h"
 #include "jsutils.h"
 #include "jseventlistener.h"
+#include <vector>
 
 #define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "0.5"
 
@@ -33,13 +34,44 @@
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
  */
-typedef PrivAAMPStruct_JS AAMPMediaPlayer_JS;
+struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
+{
+	static std::vector<AAMPMediaPlayer_JS *> _jsMediaPlayerInstances;
+};
 
 extern "C"
 {
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
+std::vector<AAMPMediaPlayer_JS *> AAMPMediaPlayer_JS::_jsMediaPlayerInstances = std::vector<AAMPMediaPlayer_JS *>();
+
+static pthread_mutex_t jsMediaPlayerCacheMutex = PTHREAD_MUTEX_INITIALIZER;
+
+/**
+ * @brief API to release internal resources of an AAMPMediaPlayerJS object
+ * @param[in] object AAMPMediaPlayerJS object being released
+ */
+void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
+{
+	if (privObj != NULL)
+	{
+		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p \n", __FUNCTION__, privObj);
+		if (privObj->_aamp != NULL)
+		{
+			privObj->_aamp->Stop();
+			if (privObj->_listeners.size() > 0)
+			{
+				AAMP_JSEventListener::RemoveAllEventListener(privObj);
+			}
+			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p\n", __FUNCTION__, privObj->_aamp);
+			delete privObj->_aamp;
+			privObj->_aamp = NULL;
+		}
+
+		delete privObj;
+	}
+}
 
 /**
  * @brief Helper function to parse DRM config params received from JS
@@ -1569,7 +1601,8 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
-	// Release resources
+	//Release all resources
+
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1657,27 +1690,35 @@ static const JSStaticValue AAMPMediaPlayer_JS_static_values[] = {
  */
 void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	ERROR("Enter %s()", __FUNCTION__);
 
-	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(object);
-	JSObjectSetPrivate(object, NULL);
+	bool isFound = false;
+	AAMPMediaPlayer_JS *privObj = (AAMPMediaPlayer_JS *) JSObjectGetPrivate(object);
 
-	if (privObj != NULL)
+	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
+	//Remove this instance from global cache
+	for (std::vector<AAMPMediaPlayer_JS *>::iterator iter = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.begin(); iter != AAMPMediaPlayer_JS::_jsMediaPlayerInstances.end(); iter++)
 	{
-		if (privObj->_aamp != NULL)
+		if (privObj == *iter)
 		{
-			if (privObj->_listeners.size() > 0)
-			{
-				AAMP_JSEventListener::RemoveAllEventListener(privObj);
-			}
-			delete privObj->_aamp;
-			privObj->_aamp = NULL;
+			AAMPMediaPlayer_JS::_jsMediaPlayerInstances.erase(iter);
+			isFound = true;
+			break;
 		}
-
-		delete privObj;
-		privObj = NULL;
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
+
+	if (isFound)
+	{
+		//Release private resources
+		AAMPMediaPlayer_JS_release(privObj);
+	}
+	else
+	{
+		ERROR("%s:%d [WARN]Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!\n", __FUNCTION__, __LINE__, privObj);
+	}
+	JSObjectSetPrivate(object, NULL);
+	ERROR("Exit %s()", __FUNCTION__);
 }
 
 
@@ -1741,6 +1782,10 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 
 	JSObjectRef newObj = JSObjectMake(ctx, AAMPMediaPlayer_object_ref(), privObj);
 
+	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
+	AAMPMediaPlayer_JS::_jsMediaPlayerInstances.push_back(privObj);
+	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
+
 	// Required for viper-player
 	JSStringRef fName = JSStringCreateWithUTF8CString("toString");
 	JSStringRef fString = JSStringCreateWithUTF8CString("return \"[object __AAMPMediaPlayer]\";");
@@ -1781,6 +1826,23 @@ static JSClassDefinition AAMPMediaPlayer_JS_class_def {
 
 
 /**
+ * @brief Clear any remaining/active AAMPPlayer instances
+ */
+void ClearAAMPPlayerInstances(void)
+{
+	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
+	ERROR("Number of active jsmediaplayer instances: %d\n", AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size());
+	while(AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size() > 0)
+	{
+		AAMPMediaPlayer_JS *obj = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.back();
+		AAMPMediaPlayer_JS_release(obj);
+		AAMPMediaPlayer_JS::_jsMediaPlayerInstances.pop_back();
+	}
+	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
+}
+
+
+/**
  * @brief Loads AAMPMediaPlayer JS constructor into JS context
  * @param[in] context JS execution context
  */
@@ -1811,10 +1873,13 @@ void AAMPPlayer_LoadJS(void* context)
  */
 void AAMPPlayer_UnloadJS(void* context)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	INFO("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
 
 	JSValueRef exception = NULL;
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
+
+	//Clear all active js mediaplayer instances and its resources
+	ClearAAMPPlayerInstances();
 
 	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);
 	JSStringRef str = JSStringCreateWithUTF8CString("AAMPMediaPlayer");
