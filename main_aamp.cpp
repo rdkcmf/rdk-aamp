@@ -1255,7 +1255,7 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 	{
 		if(buffer->avail > (128*1024))
 		{
-			AAMPLOG_INFO("%s:%d realloc. buf %p avail %d required %d\n", __FUNCTION__, __LINE__, buffer, (int)buffer->avail, (int)required);
+			logprintf("%s:%d WARNING - realloc. buf %p avail %d required %d\n", __FUNCTION__, __LINE__, buffer, (int)buffer->avail, (int)required);
 		}
 		buffer->avail = required * 2; // grow generously to minimize realloc overhead
 		char *ptr = (char *)g_realloc(buffer->ptr, buffer->avail);
@@ -1276,13 +1276,14 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 }
 
 /**
- * @struct WriteContext
- * @brief context during curl write callback
+ * @struct CurlCallbackContext
+ * @brief context during curl callbacks
  */
-struct WriteContext
+struct CurlCallbackContext
 {
 	PrivateInstanceAAMP *aamp;
 	GrowableBuffer *buffer;
+	httpRespHeaderData *responseHeaderData;
 };
 
 /**
@@ -1290,13 +1291,13 @@ struct WriteContext
  * @param ptr pointer to buffer containing the data
  * @param size size of the buffer
  * @param nmemb number of bytes
- * @param userdata WriteContext pointer
+ * @param userdata CurlCallbackContext pointer
  * @retval size consumed or 0 if interrupted
  */
 static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
 {
 	size_t ret = 0;
-	struct WriteContext *context = (struct WriteContext *)userdata;
+	CurlCallbackContext *context = (CurlCallbackContext *)userdata;
 	pthread_mutex_lock(&context->aamp->mLock);
 	if (context->aamp->mDownloadsEnabled)
 	{
@@ -1314,17 +1315,18 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 
 
 /**
- * @brief
- * @param ptr
- * @param size
- * @param nmemb
- * @param user_data
+ * @brief callback invoked on http header by curl
+ * @param ptr pointer to buffer containing the data
+ * @param size size of the buffer
+ * @param nmemb number of bytes
+ * @param user_data  CurlCallbackContext pointer
  * @retval
  */
 static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_data)
 {
 	//std::string *httpHeaders = static_cast<std::string *>(user_data);
-	httpRespHeaderData *httpHeader = static_cast<httpRespHeaderData *>(user_data);
+	CurlCallbackContext *context = static_cast<CurlCallbackContext *>(user_data);
+	httpRespHeaderData *httpHeader = context->responseHeaderData;
 	size_t len = nmemb * size;
 	int startPos = 0;
 	int endPos = 0;
@@ -1343,6 +1345,31 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		httpHeader->type = eHTTPHEADERTYPE_COOKIE;
 		startPos = header.find("Set-Cookie:") + strlen("Set-Cookie:");
 		endPos = header.length() - 1;
+	}
+	else if (0 == context->buffer->avail)
+	{
+		size_t headerStart = header.find("Content-Length:");
+		if (std::string::npos != headerStart )
+		{
+			int contentLengthStartPosition = headerStart + (sizeof("Content-Length:")-1);
+			while (isspace(header[contentLengthStartPosition]) && (contentLengthStartPosition <= header.length()))
+			{
+				contentLengthStartPosition++;
+			}
+			while(isspace(header.back()))
+			{
+				header.pop_back();
+			}
+			std::string contentLengthStr = header.substr(contentLengthStartPosition);
+			int contentLength = std::stoi(contentLengthStr);
+			traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, header.c_str(), contentLengthStr.c_str(), contentLength);
+			/*contentLength can be zero for redirects*/
+			if (contentLength > 0)
+			{
+				/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
+				aamp_Malloc(context->buffer, contentLength + 2);
+			}
+		}
 	}
 
 	if((startPos > 0) && (endPos > 0))
@@ -1469,8 +1496,6 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_PROGRESSDATA, this);
 			curl_easy_setopt(curl[i], CURLOPT_PROGRESSFUNCTION, progress_callback);
 			curl_easy_setopt(curl[i], CURLOPT_HEADERFUNCTION, header_callback);
-			//curl_easy_setopt(curl[i], CURLOPT_HEADERDATA, &cookieHeaders[i]);
-			curl_easy_setopt(curl[i], CURLOPT_HEADERDATA, &httpRespHeaders[i]);
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
 			curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 			curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
@@ -1768,10 +1793,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl);
-			struct WriteContext context;
+			CurlCallbackContext context;
 			context.aamp = this;
 			context.buffer = buffer;
+			context.responseHeaderData = &httpRespHeaders[curlInstance];
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
+			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 
 			// note: win32 curl lib doesn't support multi-part range
