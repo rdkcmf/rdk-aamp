@@ -38,6 +38,8 @@
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
+extern void ClearAAMPPlayerInstances();
+
 extern "C"
 {
 
@@ -2899,5 +2901,8 @@ void __attribute__ ((destructor(101))) _aamp_term()
 		LOG("[AAMP_JS] %s:%d stopped aamp\n", __FUNCTION__, __LINE__);
 	}
 	pthread_mutex_unlock(&mutex);
+
+	//Clear any active js mediaplayer instances on term
+	ClearAAMPPlayerInstances();
 }
 #endif
