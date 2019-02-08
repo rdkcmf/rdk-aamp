@@ -3263,14 +3263,24 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
 
 /**
  * @brief Update language list state variables
+ * @brief  Ignores the periods with no AdaptationSets and updates mCurrentPeriodIdx with current period if valid AdaptationSets are found
  */
 void PrivateStreamAbstractionMPD::UpdateLanguageList()
 {
+	bool foundPeriodwithAdaptSets = false;
 	size_t numPeriods = mpd->GetPeriods().size();
 	for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 	{
 		IPeriod *period = mpd->GetPeriods().at(iPeriod);
 		size_t numAdaptationSets = period->GetAdaptationSets().size();
+
+		if( numAdaptationSets && !foundPeriodwithAdaptSets )
+		{
+			mCurrentPeriodIdx = iPeriod;
+			foundPeriodwithAdaptSets = true;
+			traceprintf("%s:%d selected initial mCurrentPeriodIdx: %lu with valid AdaptationSets\n", __FUNCTION__, __LINE__, mCurrentPeriodIdx);
+		}
+
 		for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
