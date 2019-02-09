@@ -565,11 +565,15 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 
 		if (codecValue == "ec+3")
 		{
+#ifndef __APPLE__
 			audioType = eAUDIO_ATMOS;
+#endif
 		}
 		else if (codecValue == "ec-3")
 		{
+#ifndef __APPLE__
 			audioType = eAUDIO_DDPLUS;
+#endif
 		}
 		else // if( codecValue == "aac" || codecValue.find("mp4") != std::string::npos ) // needed?
 		{
@@ -1989,9 +1993,9 @@ static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string
  */
 void *CreateDRMSession(void *arg)
 {
-	if(pthread_setname_np(pthread_self(), "aampDRM"))
+	if(aamp_pthread_setname(pthread_self(), "aampDRM"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
 	AampDRMSessionManager* sessionManger = new AampDRMSessionManager();
@@ -3303,9 +3307,9 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 void * TrackDownloader(void *arg)
 {
 	struct HeaderFetchParams* fetchParms = (struct HeaderFetchParams*)arg;
-	if(pthread_setname_np(pthread_self(), "aampFetchInit"))
+	if(aamp_pthread_setname(pthread_self(), "aampFetchInit"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	//Calling WaitForFreeFragmentAvailable timeout as 0 since waiting for one tracks
 	//init header fetch can slow down fragment downloads for other track
@@ -3330,9 +3334,9 @@ void * TrackDownloader(void *arg)
 void * FragmentDownloader(void *arg)
 {
 	struct FragmentDownloadParams* downloadParams = (struct FragmentDownloadParams*) arg;
-	if(pthread_setname_np(pthread_self(), "aampFragDown"))
+	if(aamp_pthread_setname(pthread_self(), "aampFragDown"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	if (downloadParams->pMediaStreamContext->adaptationSet)
 	{
@@ -3381,9 +3385,9 @@ void * FragmentDownloader(void *arg)
 static void * FragmentCollector(void *arg)
 {
 	PrivateStreamAbstractionMPD *context = (PrivateStreamAbstractionMPD *)arg;
-	if(pthread_setname_np(pthread_self(), "aampMPDFetch"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDFetch"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	context->FetcherLoop();
 	return NULL;
