@@ -543,9 +543,9 @@ bool MediaTrack::InjectFragment()
 static void *FragmentInjector(void *arg)
 {
 	MediaTrack *track = (MediaTrack *)arg;
-	if(pthread_setname_np(pthread_self(), "aampInjector"))
+	if(aamp_pthread_setname(pthread_self(), "aampInjector"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	track->RunInjectLoop();
 	return NULL;
