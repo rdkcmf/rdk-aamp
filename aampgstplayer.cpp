@@ -34,6 +34,11 @@
 #include <pthread.h>
 #include <atomic>
 
+#ifdef __APPLE__
+#include "gst/video/videooverlay.h"
+#import "cocoa_window.h"
+#endif
+
 #ifdef AAMP_MPD_DRM
 #include "aampoutputprotection.h"
 #endif
@@ -1238,7 +1243,16 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 		break;
 #endif
-
+#ifdef __APPLE__
+    case GST_MESSAGE_ELEMENT:
+        if (gst_is_video_overlay_prepare_window_handle_message(msg))
+        {
+            logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu\n",getWindowContentView());
+            gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), getWindowContentView());
+            gst_message_unref (msg);
+        }
+        break;
+#endif
 	default:
 		break;
 	}
