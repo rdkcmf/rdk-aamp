@@ -37,6 +37,10 @@
 #include "libIBusDaemon.h"
 #endif
 
+#ifdef __APPLE__
+#import <cocoa_window.h>
+#endif
+
 static PlayerInstanceAAMP *mSingleton;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 
@@ -461,7 +465,19 @@ static void ProcessCliCommand(char *cmd)
 	}
 }
 
-
+static void * run_commnds(void *arg)
+{
+    char cmd[MAX_URI_LENGTH * 2];
+    ShowHelp();
+    char *ret = NULL;
+    do
+    {
+        logprintf("aamp-cli> ");
+        if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
+            ProcessCliCommand(cmd);
+    } while (ret != NULL);
+    return NULL;
+}
 
 /**
  * @brief
@@ -528,14 +544,13 @@ int main(int argc, char **argv)
 		fclose(f);
 	}
 
-	ShowHelp();
-	char cmd[MAX_URI_LENGTH * 2];
-
-	char *ret = NULL;
-	do
-	{
-		logprintf("aamp-cli> ");
-		if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
-			ProcessCliCommand(cmd);
-	} while (ret != NULL);
+#ifdef __APPLE__
+    pthread_t cmdThreadId;
+    pthread_create(&cmdThreadId,NULL,run_commnds,NULL);
+    createAndRunCocoaWindow();
+    mSingleton->Stop();
+    delete mSingleton;
+#else
+    run_commnds(NULL);
+#endif
 }
