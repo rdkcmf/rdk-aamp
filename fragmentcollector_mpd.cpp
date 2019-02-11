@@ -1049,7 +1049,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
 #endif
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
-					float fragmentDuration = duration/timeScale;
+					double fragmentDuration = (double)duration/timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 					if(retval)
 					{
@@ -1083,7 +1083,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					logprintf("%s:%d Type[%d] presenting %" PRIu64 "\n", __FUNCTION__, __LINE__,pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time);
 #endif
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
-					float fragmentDuration = duration/timeScale;
+					double fragmentDuration = (double)duration/timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 				}
 				else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
@@ -1563,7 +1563,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						}
 					}
 					uint32_t duration = timeline->GetDuration();
-					float fragmentDuration = ((double)duration)/timeScale;
+					double fragmentDuration = ((double)duration)/timeScale;
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
 					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
 					bool skipFlag = true;
