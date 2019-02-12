@@ -73,7 +73,7 @@ typedef enum {
 #define USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 #define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
 #define DEFAULT_BUFFERING_LOW_BYTES (128 * 1024)  // vidfilter prebuffer in bytes
-#define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
+#define DEFAULT_BUFFERING_TO_MS 20 // interval to check buffer fullness
 #define BUFFERING_MAX_MS (1000) // max buffering time
 
 #ifdef INTELCE
@@ -83,6 +83,8 @@ typedef enum {
 #else
 #define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
+#define DEFAULT_BUFFERING_LOW_PERCENT 2 // for 2M buffer, 2Mbps bitrate, 2% is around 160ms
+#define DEFAULT_BUFFERING_TO_MS 10 // interval to check buffer fullness
 
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
