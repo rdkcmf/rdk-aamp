@@ -3284,7 +3284,26 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
 	int numTracks = (rate == 1.0)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
-	IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+
+	IPeriod *period = NULL;
+	bool periodAdaptSetfound = true;
+	size_t numPeriods = mpd->GetPeriods().size();
+
+	do
+	{
+		period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+		periodAdaptSetfound = !(period->GetAdaptationSets().size() == 0);
+		if(periodAdaptSetfound)
+			break;
+		logprintf("%s:%d Adaptation Sets not found for periodIdx: %lu\n", __FUNCTION__, __LINE__, mCurrentPeriodIdx);
+	}while(++mCurrentPeriodIdx < numPeriods);
+
+	if(!periodAdaptSetfound)
+	{
+		logprintf("%s:%d No Valid Adaptation Sets found, total periods: %lu\n", __FUNCTION__, __LINE__, numPeriods);
+		return;
+	}
+
 	uint64_t  periodStartMs = 0;
 	mPeriodEndTime = GetPeriodEndTime();
 	string statTimeStr = period->GetStart();
