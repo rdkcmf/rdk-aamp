@@ -2546,6 +2546,28 @@ public:
 	 */
 	long GetVideoBitrate();
 
+	/**
+	 *   @brief To set the network proxy
+	 *
+	 *   @param[in] network proxy to use
+	 */
+	void SetNetworkProxy(const char * proxy);
+
+	/**
+	 *   @brief To set the proxy for license request
+	 *
+	 *   @param[in] proxy to use for license request
+	 */
+	void SetLicenseReqProxy(const char * licenseProxy);
+
+	/**
+	 *   @brief To get the proxy for license request
+	 *
+	 *   @return proxy to use for license request
+	 */
+	char * GetLicenseReqProxy() { return mLicenseProxy; };
+
+
 private:
 
 	/**
@@ -2607,6 +2629,8 @@ private:
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
 	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
+	char *mNetworkProxy;                /**< proxy for download requests */
+	char *mLicenseProxy;                /**< proxy for license acquisition */
 };
 
 #endif // PRIVAAMP_H
