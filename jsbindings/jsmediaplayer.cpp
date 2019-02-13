@@ -30,6 +30,11 @@
 
 #define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "0.5"
 
+extern "C"
+{
+	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
+}
+
 /**
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
@@ -39,14 +44,156 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 	static std::vector<AAMPMediaPlayer_JS *> _jsMediaPlayerInstances;
 };
 
-extern "C"
+/**
+ * @enum ConfigParamType
+ */
+enum ConfigParamType
 {
-	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
-}
+	ePARAM_INITIALBITRATE = 0,
+	ePARAM_INITIALBITRATE4K,
+	ePARAM_INITIALBUFFER,
+	ePARAM_PLAYBACKBUFFER,
+	ePARAM_PLAYBACKOFFSET,
+	ePARAM_NETWORKTIMEOUT,
+	ePARAM_DOWNLOADBUFFER,
+	ePARAM_MINBITRATE,
+	ePARAM_MAXBITRATE,
+	ePARAM_AUDIOLANGUAGE,
+	ePARAM_TSBLENGTH,
+	ePARAM_DRMCONFIG,
+	ePARAM_LIVEOFFSET,
+	ePARAM_NETWORKPROXY,
+	ePARAM_LICENSEREQPROXY,
+	ePARAM_MAX_COUNT
+};
+
+/**
+ * @struct ConfigParamMap
+ * @brief Data structure to map ConfigParamType and its string equivalent
+ */
+struct ConfigParamMap
+{
+	ConfigParamType paramType;
+	const char* paramName;
+};
+
+/**
+ * @brief Map ConfigParamType and its string equivalent
+ */
+static ConfigParamMap initialConfigParamNames[] =
+{
+	{ ePARAM_INITIALBITRATE, "initialBitrate" },
+	{ ePARAM_INITIALBITRATE4K, "initialBitrate4K" },
+	{ ePARAM_INITIALBUFFER, "initialBuffer" },
+	{ ePARAM_PLAYBACKBUFFER, "playbackBuffer" },
+	{ ePARAM_PLAYBACKOFFSET, "offset" },
+	{ ePARAM_NETWORKTIMEOUT, "networkTimeout" },
+	{ ePARAM_DOWNLOADBUFFER, "downloadBuffer" },
+	{ ePARAM_MINBITRATE, "minBitrate" },
+	{ ePARAM_MAXBITRATE, "maxBitrate" },
+	{ ePARAM_AUDIOLANGUAGE, "preferredAudioLanguage" },
+	{ ePARAM_TSBLENGTH, "timeShiftBufferLength" },
+	{ ePARAM_DRMCONFIG, "drmConfig" },
+	{ ePARAM_LIVEOFFSET, "liveOffset" },
+	{ ePARAM_NETWORKPROXY, "networkProxy" },
+	{ ePARAM_LICENSEREQPROXY, "licenseProxy" },
+	{ ePARAM_MAX_COUNT, "" }
+};
 
 std::vector<AAMPMediaPlayer_JS *> AAMPMediaPlayer_JS::_jsMediaPlayerInstances = std::vector<AAMPMediaPlayer_JS *>();
 
+/**
+ * @brief Mutex for global cache of AAMPMediaPlayer_JS instances
+ */
 static pthread_mutex_t jsMediaPlayerCacheMutex = PTHREAD_MUTEX_INITIALIZER;
+
+
+/**
+ * @brief Helper function to parse a JS property value as number
+ * @param[in] ctx JS execution context
+ * @param[in] jsObject JS object whose property has to be parsed
+ * @param[in] prop property name
+ * @param[out] value to store parsed number
+ * return true if value was parsed sucessfully, false otherwise
+ */
+bool ParseJSPropAsNumber(JSContextRef ctx, JSObjectRef jsObject, const char *prop, double &value)
+{
+	bool ret = false;
+	JSStringRef propName = JSStringCreateWithUTF8CString(prop);
+	JSValueRef propValue = JSObjectGetProperty(ctx, jsObject, propName, NULL);
+	if (JSValueIsNumber(ctx, propValue))
+	{
+		value = JSValueToNumber(ctx, propValue, NULL);
+		INFO("[AAMP_JS]: Parsed value for property %s - %f", prop, value);
+		ret = true;
+	}
+	else
+	{
+		TRACELOG("%s(): Invalid value for property %s passed", __FUNCTION__, prop);
+	}
+
+	JSStringRelease(propName);
+	return ret;
+}
+
+
+/**
+ * @brief Helper function to parse a JS property value as string
+ * @param[in] ctx JS execution context
+ * @param[in] jsObject JS object whose property has to be parsed
+ * @param[in] prop property name
+ * @param[out] value to store parsed string
+ * return true if value was parsed sucessfully, false otherwise
+ */
+bool ParseJSPropAsString(JSContextRef ctx, JSObjectRef jsObject, const char *prop, char * &value)
+{
+	bool ret = false;
+	JSStringRef propName = JSStringCreateWithUTF8CString(prop);
+	JSValueRef propValue = JSObjectGetProperty(ctx, jsObject, propName, NULL);
+	if (JSValueIsString(ctx, propValue))
+	{
+		value = aamp_JSValueToCString(ctx, propValue, NULL);
+		INFO("[AAMP_JS]: Parsed value for property %s - %s", prop, value);
+		ret = true;
+	}
+	else
+	{
+		TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+	}
+
+	JSStringRelease(propName);
+	return ret;
+}
+
+
+/**
+ * @brief Helper function to parse a JS property value as object
+ * @param[in] ctx JS execution context
+ * @param[in] jsObject JS object whose property has to be parsed
+ * @param[in] prop property name
+ * @param[out] value to store parsed value
+ * return true if value was parsed sucessfully, false otherwise
+ */
+bool ParseJSPropAsObject(JSContextRef ctx, JSObjectRef jsObject, const char *prop, JSValueRef &value)
+{
+	bool ret = false;
+	JSStringRef propName = JSStringCreateWithUTF8CString(prop);
+	JSValueRef propValue = JSObjectGetProperty(ctx, jsObject, propName, NULL);
+	if (JSValueIsObject(ctx, propValue))
+	{
+		value = propValue;
+		INFO("[AAMP_JS]: Parsed object as value for property %s", prop);
+		ret = true;
+	}
+	else
+	{
+		TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+	}
+
+	JSStringRelease(propName);
+	return ret;
+}
+
 
 /**
  * @brief API to release internal resources of an AAMPMediaPlayerJS object
@@ -73,6 +220,7 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 	}
 }
 
+
 /**
  * @brief Helper function to parse DRM config params received from JS
  * @param[in] ctx JS execution context
@@ -86,36 +234,31 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 
 	if (drmConfigObj != NULL && exception == NULL)
 	{
-		JSStringRef keyName = JSStringCreateWithUTF8CString("com.microsoft.playready");
-		JSValueRef keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-
-		if (JSValueIsString(ctx, keyValue))
+		char *prLicenseServerURL = NULL;
+		char *wvLicenseServerURL = NULL;
+		char *keySystem = NULL;
+		bool ret = false;
+		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.microsoft.playready", prLicenseServerURL);
+		if (ret)
 		{
-			char *prLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
-			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenceServerURL);
-			privObj->_aamp->SetLicenseServerURL(prLicenceServerURL, eDRM_PlayReady);
+			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenseServerURL);
+			privObj->_aamp->SetLicenseServerURL(prLicenseServerURL, eDRM_PlayReady);
 
-			delete[] prLicenceServerURL;
+			delete[] prLicenseServerURL;
 		}
-		JSStringRelease(keyName);
 
-		keyName = JSStringCreateWithUTF8CString("com.widevine.alpha");
-		keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-		if (JSValueIsString(ctx, keyValue))
+		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.widevine.alpha", wvLicenseServerURL);
+		if (ret)
 		{
-			char *wvLicenceServerURL = aamp_JSValueToCString(ctx, keyValue, NULL);
-			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenceServerURL);
-			privObj->_aamp->SetLicenseServerURL(wvLicenceServerURL, eDRM_WideVine);
+			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenseServerURL);
+			privObj->_aamp->SetLicenseServerURL(wvLicenseServerURL, eDRM_WideVine);
 
-			delete[] wvLicenceServerURL;
+			delete[] wvLicenseServerURL;
 		}
-		JSStringRelease(keyName);
 
-		keyName = JSStringCreateWithUTF8CString("preferredKeysystem");
-		keyValue = JSObjectGetProperty(ctx, drmConfigObj, keyName, NULL);
-		if (JSValueIsString(ctx, keyValue))
+		ret = ParseJSPropAsString(ctx, drmConfigObj, "preferredKeysystem", keySystem);
+		if (ret)
 		{
-			char *keySystem = aamp_JSValueToCString(ctx, keyValue, NULL);
 			if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
 			{
 				ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
@@ -128,17 +271,17 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			}
 			else
 			{
-				LOG("%s(): InvalidProperty - preferredKeySystem received", __FUNCTION__);
+				LOG("%s(): Value passed preferredKeySystem(%s) not supported", __FUNCTION__, keySystem);
 			}
 			delete[] keySystem;
 		}
-		JSStringRelease(keyName);
 	}
 	else
 	{
 		ERROR("%s(): InvalidProperty - drmConfigParam is NULL", __FUNCTION__);
 	}
 }
+
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.load()
@@ -201,6 +344,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 	if (argumentCount == 1 && JSValueIsObject(ctx, arguments[0]))
 	{
 		JSValueRef _exception = NULL;
+		bool ret = false;
+		double valueAsNumber = 0;
+		char *valueAsString = NULL;
+		JSValueRef valueAsObject = NULL;
+		int numConfigParams = sizeof(initialConfigParamNames)/sizeof(initialConfigParamNames[0]);
+
 		JSObjectRef initConfigObj = JSValueToObject(ctx, arguments[0], &_exception);
 		if (initConfigObj == NULL || _exception != NULL)
 		{
@@ -209,182 +358,86 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			return JSValueMakeUndefined(ctx);
 		}
 
-		JSStringRef initialBitrateStr = JSStringCreateWithUTF8CString("initialBitrate");
-		JSValueRef initialBitrateValue = JSObjectGetProperty(ctx, initConfigObj, initialBitrateStr, NULL);
-		if (JSValueIsNumber(ctx, initialBitrateValue))
+		for (int iter = 0; iter < numConfigParams; iter++)
 		{
-			long initialBitrate = (long) JSValueToNumber(ctx, initialBitrateValue, NULL);
-			ERROR("%s(): initBitrate config param received - %d", __FUNCTION__, initialBitrate);
-			privObj->_aamp->SetInitialBitrate(initialBitrate);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - initialBitrate passed", __FUNCTION__);
-		}
-		JSStringRelease(initialBitrateStr);
+			ret = false;
+			switch(initialConfigParamNames[iter].paramType)
+			{
+			case ePARAM_INITIALBITRATE:
+			case ePARAM_INITIALBITRATE4K:
+			case ePARAM_INITIALBUFFER:
+			case ePARAM_PLAYBACKBUFFER:
+			case ePARAM_PLAYBACKOFFSET:
+			case ePARAM_NETWORKTIMEOUT:
+			case ePARAM_DOWNLOADBUFFER:
+			case ePARAM_MINBITRATE:
+			case ePARAM_MAXBITRATE:
+			case ePARAM_TSBLENGTH:
+			case ePARAM_LIVEOFFSET:
+				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
+				break;
+			case ePARAM_AUDIOLANGUAGE:
+			case ePARAM_NETWORKPROXY:
+			case ePARAM_LICENSEREQPROXY:
+				ret = ParseJSPropAsString(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsString);
+				break;
+			case ePARAM_DRMCONFIG:
+				ret = ParseJSPropAsObject(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsObject);
+				break;
+			default: //ePARAM_MAX_COUNT
+				ret = false;
+				break;
+			}
 
-		JSStringRef initialBitrate4KStr = JSStringCreateWithUTF8CString("initialBitrate4K");
-		JSValueRef initialBitrate4KValue = JSObjectGetProperty(ctx, initConfigObj, initialBitrate4KStr, NULL);
-		if (JSValueIsNumber(ctx, initialBitrate4KValue))
-		{
-			long initialBitrate4K = (long) JSValueToNumber(ctx, initialBitrate4KValue, NULL);
-			ERROR("%s(): initBitrate config param received - %d", __FUNCTION__, initialBitrate4K);
-			privObj->_aamp->SetInitialBitrate4K(initialBitrate4K);
+			if(ret)
+			{
+				switch(initialConfigParamNames[iter].paramType)
+				{
+				case ePARAM_INITIALBITRATE:
+					privObj->_aamp->SetInitialBitrate((long) valueAsNumber);
+					break;
+				case ePARAM_INITIALBITRATE4K:
+					privObj->_aamp->SetInitialBitrate4K((long) valueAsNumber);
+					break;
+				case ePARAM_PLAYBACKOFFSET:
+					privObj->_aamp->Seek(valueAsNumber);
+					break;
+				case ePARAM_NETWORKTIMEOUT:
+					privObj->_aamp->SetNetworkTimeout((int) valueAsNumber);
+					break;
+				case ePARAM_DOWNLOADBUFFER:
+					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);
+					break;
+				case ePARAM_AUDIOLANGUAGE:
+					privObj->_aamp->SetLanguage(valueAsString);
+					delete[] valueAsString;
+					break;
+				case ePARAM_DRMCONFIG:
+					parseDRMConfiguration(ctx, privObj, valueAsObject);
+					break;
+				case ePARAM_LIVEOFFSET:
+					privObj->_aamp->SetLiveOffset((int) valueAsNumber);
+					break;
+				case ePARAM_NETWORKPROXY:
+					privObj->_aamp->SetNetworkProxy(valueAsString);
+					delete[] valueAsString;
+					break;
+				case ePARAM_LICENSEREQPROXY:
+					privObj->_aamp->SetLicenseReqProxy(valueAsString);
+					delete[] valueAsString;
+					break;
+				case ePARAM_INITIALBUFFER:
+				case ePARAM_PLAYBACKBUFFER:
+				case ePARAM_MINBITRATE:
+				case ePARAM_MAXBITRATE:
+				case ePARAM_TSBLENGTH:
+					//TODO: Support these config params
+					break;
+				default: //ePARAM_MAX_COUNT
+					break;
+				}
+			}
 		}
-		else
-		{
-			LOG("%s(): InvalidProperty - initialBitrate4K passed", __FUNCTION__);
-		}
-		JSStringRelease(initialBitrate4KStr);
-
-		JSStringRef initialBufferStr = JSStringCreateWithUTF8CString("initialBuffer");
-		JSValueRef initialBufferValue = JSObjectGetProperty(ctx, initConfigObj, initialBufferStr, NULL);
-		if (JSValueIsNumber(ctx, initialBufferValue))
-		{
-			int initialBuffer = (int) JSValueToNumber(ctx, initialBufferValue, NULL);
-			ERROR("%s(): initialBuffer config param received - %d", __FUNCTION__, initialBuffer);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - initialBuffer passed", __FUNCTION__);
-		}
-		JSStringRelease(initialBufferStr);
-
-		JSStringRef playbackBufferStr = JSStringCreateWithUTF8CString("playbackBuffer");
-		JSValueRef playbackBufferValue = JSObjectGetProperty(ctx, initConfigObj, playbackBufferStr, NULL);
-		if (JSValueIsNumber(ctx, playbackBufferValue))
-		{
-			int playbackBuffer = (int) JSValueToNumber(ctx, playbackBufferValue, NULL);
-			ERROR("%s(): playbackBuffer config param received - %d", __FUNCTION__, playbackBuffer);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - playbackBuffer passed", __FUNCTION__);
-		}
-		JSStringRelease(playbackBufferStr);
-
-		JSStringRef offsetStr = JSStringCreateWithUTF8CString("offset");
-		JSValueRef offsetValue = JSObjectGetProperty(ctx, initConfigObj, offsetStr, NULL);
-		if (JSValueIsNumber(ctx, offsetValue))
-		{
-			int offset = (int) JSValueToNumber(ctx, offsetValue, NULL);
-			ERROR("%s(): offset config param received - %d", __FUNCTION__, offset);
-			privObj->_aamp->Seek(offset);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - offset passed", __FUNCTION__);
-		}
-		JSStringRelease(offsetStr);
-
-		JSStringRef networkTimeoutStr = JSStringCreateWithUTF8CString("networkTimeout");
-		JSValueRef networkTimeoutValue = JSObjectGetProperty(ctx, initConfigObj, networkTimeoutStr, NULL);
-		if (JSValueIsNumber(ctx, networkTimeoutValue))
-		{
-			int networkTimeout = (int) JSValueToNumber(ctx, networkTimeoutValue, NULL);
-			ERROR("%s(): networkTimeout config param received - %d", __FUNCTION__, networkTimeout);
-			privObj->_aamp->SetNetworkTimeout(networkTimeout);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - networkTimeout passed", __FUNCTION__);
-		}
-		JSStringRelease(networkTimeoutStr);
-
-		JSStringRef downloadBufferStr = JSStringCreateWithUTF8CString("downloadBuffer");
-		JSValueRef downloadBufferValue = JSObjectGetProperty(ctx, initConfigObj, downloadBufferStr, NULL);
-		if (JSValueIsNumber(ctx, downloadBufferValue))
-		{
-			int downloadBuffer = (int) JSValueToNumber(ctx, downloadBufferValue, NULL);
-			ERROR("%s(): downloadBuffer config param received - %d", __FUNCTION__, downloadBuffer);
-			privObj->_aamp->SetDownloadBufferSize(downloadBuffer);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - downloadBuffer passed", __FUNCTION__);
-		}
-		JSStringRelease(downloadBufferStr);
-
-		JSStringRef minBitrateStr = JSStringCreateWithUTF8CString("minBitrate");
-		JSValueRef minBitrateValue = JSObjectGetProperty(ctx, initConfigObj, minBitrateStr, NULL);
-		if (JSValueIsNumber(ctx, minBitrateValue))
-		{
-			long minBitrate = (long) JSValueToNumber(ctx, minBitrateValue, NULL);
-			ERROR("%s(): minBitrate config param received - %d", __FUNCTION__, minBitrate);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - minBitrate passed", __FUNCTION__);
-		}
-		JSStringRelease(minBitrateStr);
-
-		JSStringRef maxBitrateStr = JSStringCreateWithUTF8CString("maxBitrate");
-		JSValueRef maxBitrateValue = JSObjectGetProperty(ctx, initConfigObj, maxBitrateStr, NULL);
-		if (JSValueIsNumber(ctx, maxBitrateValue))
-		{
-			long maxBitrate = (long) JSValueToNumber(ctx, maxBitrateValue, NULL);
-			ERROR("%s(): maxBitrate config param received - %d", __FUNCTION__, maxBitrate);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - maxBitrate passed", __FUNCTION__);
-		}
-		JSStringRelease(maxBitrateStr);
-
-		JSStringRef preferredAudioLanguageStr = JSStringCreateWithUTF8CString("preferredAudioLanguage");
-		JSValueRef preferredAudioLanguageValue = JSObjectGetProperty(ctx, initConfigObj, preferredAudioLanguageStr, NULL);
-		if (JSValueIsString(ctx, preferredAudioLanguageValue))
-		{
-			char *preferredAudioLanguage = aamp_JSValueToCString(ctx, preferredAudioLanguageValue, NULL);
-			ERROR("%s(): preferredAudioLanguage config param received - %s", __FUNCTION__, preferredAudioLanguage);
-			privObj->_aamp->SetLanguage(preferredAudioLanguage);
-			delete[] preferredAudioLanguage;
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - preferredAudioLanguage passed", __FUNCTION__);
-		}
-		JSStringRelease(preferredAudioLanguageStr);
-
-		JSStringRef tsbLengthStr = JSStringCreateWithUTF8CString("timeShiftBufferLength");
-		JSValueRef tsbLengthValue = JSObjectGetProperty(ctx, initConfigObj, tsbLengthStr, NULL);
-		if (JSValueIsNumber(ctx, tsbLengthValue))
-		{
-			int tsbLength = (int) JSValueToNumber(ctx, tsbLengthValue, NULL);
-			ERROR("%s(): timeShiftBufferLength config param received - %d", __FUNCTION__, tsbLength);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - timeShiftBufferLength passed", __FUNCTION__);
-		}
-		JSStringRelease(tsbLengthStr);
-
-		JSStringRef drmConfigStr = JSStringCreateWithUTF8CString("drmConfig");
-		JSValueRef drmConfigValue = JSObjectGetProperty(ctx, initConfigObj, drmConfigStr, NULL);
-		if (JSValueIsObject(ctx, drmConfigValue))
-		{
-			parseDRMConfiguration(ctx, privObj, drmConfigValue);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - drmConfig passed", __FUNCTION__);
-		}
-		JSStringRelease(drmConfigStr);
-
-		JSStringRef liveOffsetStr = JSStringCreateWithUTF8CString("liveOffset");
-		JSValueRef liveOffsetValue = JSObjectGetProperty(ctx, initConfigObj, liveOffsetStr, NULL);
-		if (JSValueIsNumber(ctx, liveOffsetValue))
-		{
-			int liveOffset = (int) JSValueToNumber(ctx, liveOffsetValue, NULL);
-			ERROR("%s(): liveOffset config param received - %d", __FUNCTION__, liveOffset);
-			privObj->_aamp->SetLiveOffset(liveOffset);
-		}
-		else
-		{
-			LOG("%s(): InvalidProperty - liveOffset passed", __FUNCTION__);
-		}
-		JSStringRelease(liveOffsetStr);
-
 	}
 	else
 	{
