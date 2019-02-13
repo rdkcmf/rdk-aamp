@@ -338,12 +338,13 @@ static void mssleep(int milliseconds)
  *  @param[out]	httpCode - Gets updated with http error; default -1.
  *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
  *  			are to be used.
+ *  @param[in]	licenseProxy - Proxy to use for license requests.
  *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
  *  @note		Memory for license key is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream)
+		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy)
 {
 
 	*httpCode = -1;
@@ -387,6 +388,12 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challegeLength);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )keyChallenge->getData());
+	if (licenseProxy)
+	{
+		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy);
+		/* allow whatever auth the proxy speaks */
+		curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+	}
 	unsigned int attemptCount = 0;
 	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
@@ -1129,7 +1136,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			if (licenseResponse) SecClient_FreeResource(licenseResponse);
 #else
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream);
+			char *licenseProxy = aamp->GetLicenseReqProxy();
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -1143,7 +1151,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			}
 			logprintf("%s:%d License request ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
-			key = getLicense(licenceChallenge, destinationURL, &responseCode ,isComcastStream);
+			char *licenseProxy = aamp->GetLicenseReqProxy();
+			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)

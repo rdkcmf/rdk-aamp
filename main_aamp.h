@@ -969,6 +969,20 @@ public:
 	 */
 	void SetDownloadBufferSize(int bufferSize);
 
+	/**
+	 *   @brief To set the network proxy
+	 *
+	 *   @param[in] network proxy to use
+	 */
+	void SetNetworkProxy(const char * proxy);
+
+	/**
+	 *   @brief To set the proxy for license request
+	 *
+	 *   @param[in] proxy to use for license request
+	 */
+	void SetLicenseReqProxy(const char * licenseProxy);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
