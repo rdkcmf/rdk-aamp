@@ -1089,7 +1089,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
 						((pMediaStreamContext->lastSegmentTime - pMediaStreamContext->fragmentDescriptor.Time) > TIMELINE_START_RESET_DIFF))
 				{
-					if(!mIsLive || aamp->IsInProgressCDVR())
+					if(!mIsLive || aamp->IsVodOrCdvrAsset())
 					{
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time - 1;
 						return false;
@@ -2410,7 +2410,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				}
 				if (liveAdjust)
 				{
-					if(!aamp->IsInProgressCDVR())
+					if(!aamp->IsVodOrCdvrAsset())
 					{
 						offsetFromStart = duration - aamp->mLiveOffset;
 					}
@@ -3730,7 +3730,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
-	if (mIsLive && !aamp->IsInProgressCDVR() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+	if (mIsLive && !aamp->IsVodOrCdvrAsset() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 	{
 		UpdateCullingState();
 	}
@@ -4295,7 +4295,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						//for VOD and cDVR
 						logprintf("%s:%d Period(%d/%d) IsLive(%d) IsCdvr(%d) \n",__FUNCTION__,__LINE__,
 							mCurrentPeriodIdx,numPeriods,mIsLive,aamp->IsInProgressCDVR());
-						if(!mIsLive || aamp->IsInProgressCDVR())
+						if(!mIsLive || aamp->IsVodOrCdvrAsset())
 						{
 							for (int i = 0; i < mNumberOfTracks; i++)
 							{
