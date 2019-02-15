@@ -634,7 +634,7 @@ public:
 	 *   @param[in]  overshoot - overshoot correction in milliseconds.
 	 *   @return void
 	 */
-	void SetRate(float rate, int overshootcorrection=0);
+	void SetRate(int rate, int overshootcorrection=0);
 
 	/**
 	 *   @brief Seek to a time.
@@ -657,7 +657,7 @@ public:
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
 	 */
-	void SetRateAndSeek(float rate, double secondsRelativeToTuneTime);
+	void SetRateAndSeek(int rate, double secondsRelativeToTuneTime);
 
 	/**
 	 *   @brief Register event handler.
@@ -925,7 +925,7 @@ public:
 	 *
 	 *   @ret current playback rate
 	 */
-	float GetPlaybackRate(void);
+	int GetPlaybackRate(void);
 
 	/**
 	 *   @brief To get the available video bitrates.
