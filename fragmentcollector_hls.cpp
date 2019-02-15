@@ -1388,6 +1388,8 @@ void TrackState::FetchFragment()
 		return;
 	}
 	AAMPLOG_INFO("%s:%d: %s\n", __FUNCTION__, __LINE__, name);
+	//DELIA-33346 -- always set the rampdown flag to false .
+	context->mCheckForRampdown = false;
 	if (false == FetchFragmentHelper(http_error, decryption_error))
 	{
 		if (fragmentURI)
@@ -1406,6 +1408,8 @@ void TrackState::FetchFragment()
 					playTarget -= context->rate / context->mTrickPlayFPS;
 				}
 				logprintf("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile\n", __FUNCTION__, __LINE__, name, segDLFailCount);
+				//DELIA-33346 -- if rampdown attempted , then set the flag so that abr is not attempted . 
+				context->mCheckForRampdown = true;
 			}
 			else if (decryption_error)
 			{
@@ -3295,13 +3299,18 @@ void TrackState::RunFetchLoop()
 			if((eTRACK_VIDEO == type) && (!context->trickplayMode))
 			{
 				context->lastSelectedProfileIndex = context->currentProfileIndex;
-				if (aamp->CheckABREnabled())
+				//DELIA-33346 -- if rampdown is attempted to any failure , no abr change to be attempted . 
+				// else profile be resetted to top one leading to looping of bad fragment 
+				if(!context->mCheckForRampdown)
 				{
-					context->CheckForProfileChange();
-				}
-				else if (!context->aamp->IsTSBSupported())
-				{
-					context->CheckUserProfileChangeReq();
+					if (aamp->CheckABREnabled())
+					{
+						context->CheckForProfileChange();
+					}
+					else if (!context->aamp->IsTSBSupported())
+					{
+						context->CheckUserProfileChangeReq();
+					}
 				}
 			}
 

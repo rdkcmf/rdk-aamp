@@ -176,7 +176,7 @@ public:
 		ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
 			        range, actualType, &http_code);
 
-		mContext->checkForRampdown = false;
+		mContext->mCheckForRampdown = false;
 
 		if (!ret)
 		{
@@ -202,7 +202,7 @@ public:
 					// should continue with next fragment,no retry needed .
 					else if ((eTRACK_VIDEO == type) && mContext->CheckForRampDownProfile(http_code))
 					{
-						mContext->checkForRampdown = true;
+						mContext->mCheckForRampdown = true;
 						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile\n",
 								__FUNCTION__, __LINE__, fragmentUrl, segDLFailCount);
 					}
@@ -1063,7 +1063,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							pMediaStreamContext->targetDnldPosition += fragmentDuration;
 						}
 					}
-					if(mContext->checkForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
+					if(mContext->mCheckForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
 					{
 						// DELIA-31780 - On audio fragment download failure (http500), rampdown was attempted .
 						// rampdown is only needed for video fragments not for audio.
@@ -1215,7 +1215,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
 				FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance);
-				if (mContext->checkForRampdown)
+				if (mContext->mCheckForRampdown)
 				{
 					/* NOTE : This case needs to be validated with the segmentTimeline not available stream */
 					return retval;
@@ -1369,7 +1369,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 									pMediaStreamContext->targetDnldPosition += fragmentDuration;
 								}
 							}
-							if(mContext->checkForRampdown)
+							if(mContext->mCheckForRampdown)
 							{
 								/* This case needs to be validated with the segmentList available stream */
 
