@@ -469,7 +469,7 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
+	privObj->_aamp->SetRate(1.0);
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1113,7 +1113,7 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 	if (argumentCount == 1 || argumentCount == 2)
 	{
 		int overshootCorrection = 0;
-		int rate = (int) JSValueToNumber(ctx, arguments[0], exception);
+		float rate = (int) JSValueToNumber(ctx, arguments[0], exception);
 		if (argumentCount == 2)
 		{
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);

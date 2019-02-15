@@ -101,7 +101,6 @@
 #define MAX_PTS_ERRORS_THRESHOLD 4
 
 #define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
-#define AAMP_NORMAL_PLAY_RATE 1
 
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
@@ -1417,7 +1416,7 @@ public:
 	bool mNewLiveOffsetflag;
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
-	int rate; // most recent (non-zero) play rate for non-paused content
+	float rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
 	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
@@ -1666,7 +1665,7 @@ public:
 	 * @param[in] rate - New speed
 	 * @return void
 	 */
-	void NotifySpeedChanged(int rate);
+	void NotifySpeedChanged(float rate);
 
 	/**
 	 * @brief Notify bit rate change

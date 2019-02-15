@@ -1569,13 +1569,13 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 	else
 	{
 		int overshoot = 0;
-		int rate = (int)JSValueToNumber(context, arguments[0], exception);
+		float rate = (float)JSValueToNumber(context, arguments[0], exception);
 		// present JS doesnt support overshoot , check for arguement count and store.
 		if(argumentCount > 1)
 		{
 			overshoot = (int)JSValueToNumber(context, arguments[1], exception);
 		}
-		LOG("[AAMP_JS] %s () rate=%d, overshoot=%d", __FUNCTION__, rate, overshoot);
+		LOG("[AAMP_JS] %s () rate=%f, overshoot=%d", __FUNCTION__, rate, overshoot);
 		pAAMP->_aamp->SetRate(rate,overshoot);
 	}
 	return JSValueMakeUndefined(context);
