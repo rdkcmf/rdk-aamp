@@ -415,7 +415,7 @@ bool MediaTrack::InjectFragment()
 		if (cachedFragment->fragment.ptr)
 		{
 			StreamAbstractionAAMP*  context = GetContext();
-			if ((cachedFragment->discontinuity || ptsError) &&  (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
+			if ((cachedFragment->discontinuity || ptsError) &&  (1.0 == context->aamp->rate))
 			{
 				logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
 				cachedFragment->discontinuity = false;
@@ -485,12 +485,12 @@ bool MediaTrack::InjectFragment()
 			if (eosReached)
 			{
 				//Save the playback rate prior to sending EOS
-				int rate = GetContext()->aamp->rate;
+				double rate = GetContext()->aamp->rate;
 				aamp->EndOfStreamReached((MediaType)type);
 				/*For muxed streams, provide EOS for audio track as well since
 				 * no separate MediaTrack for audio is present*/
 				MediaTrack* audio = GetContext()->GetMediaTrack(eTRACK_AUDIO);
-				if (audio && !audio->enabled && rate == AAMP_NORMAL_PLAY_RATE)
+				if (audio && !audio->enabled && rate == 1.0)
 				{
 					aamp->EndOfStreamReached(eMEDIATYPE_AUDIO);
 				}
@@ -508,12 +508,12 @@ bool MediaTrack::InjectFragment()
 		if (eosReached)
 		{
 			//Save the playback rate prior to sending EOS
-			int rate = GetContext()->aamp->rate;
+			double rate = GetContext()->aamp->rate;
 			aamp->EndOfStreamReached((MediaType)type);
 			/*For muxed streams, provide EOS for audio track as well since
 			 * no separate MediaTrack for audio is present*/
 			MediaTrack* audio = GetContext()->GetMediaTrack(eTRACK_AUDIO);
-			if (audio && !audio->enabled && rate == AAMP_NORMAL_PLAY_RATE)
+			if (audio && !audio->enabled && rate == 1.0)
 			{
 				aamp->EndOfStreamReached(eMEDIATYPE_AUDIO);
 			}
@@ -570,7 +570,7 @@ void MediaTrack::RunInjectLoop()
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
 	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
-	if (AAMP_NORMAL_PLAY_RATE == aamp->rate)
+	if (1.0 == aamp->rate)
 	{
 		assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
 		guint bufferMontiorSceduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
