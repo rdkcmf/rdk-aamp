@@ -1411,7 +1411,7 @@ void TrackState::FetchFragment()
 			// should continue with next fragment,no retry needed .
 			if ((eTRACK_VIDEO == type) && context->CheckForRampDownProfile(http_error))
 			{
-				if (context->rate == 1.0)
+				if (context->rate == AAMP_NORMAL_PLAY_RATE)
 				{
 					playTarget -= fragmentDurationSeconds;
 				}
@@ -1447,7 +1447,7 @@ void TrackState::FetchFragment()
 	{
 		double duration = fragmentDurationSeconds;
 		double position = playTarget - playTargetOffset;
-		if (context->rate == 1.0)
+		if (context->rate == AAMP_NORMAL_PLAY_RATE)
 		{
 			position -= fragmentDurationSeconds;
 			cachedFragment->discontinuity = discontinuity;
@@ -1917,7 +1917,7 @@ double TrackState::IndexPlaylist()
 					}
 					mDrmKeyTagCount++;
 				}
-				else if ( context->IsLive() && (1.0 == context->rate)
+				else if ( context->IsLive() && (AAMP_NORMAL_PLAY_RATE == context->rate)
 					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
 					&& (strncmp(ptr + 4, "-X-X1-LIN-CK:", 13) == 0))
 				{
@@ -2704,7 +2704,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					trackName = "video";
 				}
-				else if (rate != 1.0)
+				else if (rate != AAMP_NORMAL_PLAY_RATE)
 				{
 					trackName = "iframe";
 				}
@@ -2802,7 +2802,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		bool bSetStatePreparing = false;
 
-		if (rate != 1.0)
+		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
 			trickplayMode = true;
 			if(aamp->IsTSBSupported())
@@ -2896,7 +2896,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 				if (eMEDIATYPE_AUDIO == iTrack)
 				{
-					if (this->rate == 1.0)
+					if (this->rate == AAMP_NORMAL_PLAY_RATE)
 					{
 						if (format == FORMAT_MPEGTS)
 						{
@@ -2941,8 +2941,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						ts->enabled = false;
 					}
 				}
-				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == 1.0))
-						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != 1.0)))
+				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == AAMP_NORMAL_PLAY_RATE))
+						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != AAMP_NORMAL_PLAY_RATE)))
 				{
 					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 					/*Populate format from codec data*/
@@ -2964,7 +2964,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						StreamOperation demuxOp;
 						ts->streamOutputFormat = format;
-						if ((trackState[eTRACK_AUDIO]->enabled) || (1.0 != rate))
+						if ((trackState[eTRACK_AUDIO]->enabled) || (AAMP_NORMAL_PLAY_RATE != rate))
 						{
 							demuxOp = eStreamOp_DEMUX_VIDEO;
 						}
@@ -3001,7 +3001,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
                         AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d\n", demuxOp);
 						ts->playContext = new TSProcessor(aamp,demuxOp, eMEDIATYPE_VIDEO, trackState[eMEDIATYPE_AUDIO]->playContext);
 						ts->playContext->setThrottleEnable(this->enableThrottle);
-						if (this->rate == 1.0)
+						if (this->rate == AAMP_NORMAL_PLAY_RATE)
 						{
 							ts->playContext->setRate(this->rate, PlayMode_normal);
 						}
@@ -3038,7 +3038,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					logprintf("StreamAbstractionAAMP_HLS::Init : track %p context configuring for eStreamOp_NONE\n", ts);
 					ts->playContext = new TSProcessor(aamp, eStreamOp_NONE, iTrack);
 					ts->playContext->setThrottleEnable(this->enableThrottle);
-					if (this->rate == 1.0)
+					if (this->rate == AAMP_NORMAL_PLAY_RATE)
 					{
 						this->trickplayMode = false;
 						ts->playContext->setRate(this->rate, PlayMode_normal);
@@ -3211,7 +3211,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
-		mStartTimestampZero = ((rate == 1.0) && ((!audio->enabled) || audio->playContext));
+		mStartTimestampZero = ((rate == AAMP_NORMAL_PLAY_RATE) && ((!audio->enabled) || audio->playContext));
 		if (!aamp->mEnableCache)
 		{
 			aamp->ClearPlaylistCache();
@@ -3492,7 +3492,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	this->seekPosition = seekpos;
 	logprintf("hls fragment collector seekpos = %f\n", seekpos);
 	this->rate = rate;
-	if (rate == 1.0)
+	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
 		this->trickplayMode = false;
 	}

@@ -900,7 +900,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 	}
 
 	float duration = fragmentDuration;
-	if(rate > 1.0)
+	if(rate > AAMP_NORMAL_PLAY_RATE)
 	{
 		position = position/rate;
 		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d rate %f pMediaStreamContext->fragmentTime %f updated position %f\n",
@@ -1054,7 +1054,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					if(retval)
 					{
 						//logprintf("VOD/CDVR Line:%d fragmentDuration:%f target:%f SegTime%f rate:%f\n",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
-						if(rate > 1.0)
+						if(rate > AAMP_NORMAL_PLAY_RATE)
 						{
 							pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
 						}
@@ -1360,7 +1360,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							if(retval && rate > 0)
 							{
 								//logprintf("Live update Line:%d fragmentDuration:%f target:%f FragTime%f rate:%f\n",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
-								if(rate > 1.0)
+								if(rate > AAMP_NORMAL_PLAY_RATE)
 								{
 									pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
 								}
@@ -2246,7 +2246,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	if (ret == eAAMPSTATUS_OK)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();
-		int numTracks = (rate == 1.0)?AAMP_TRACK_COUNT:1;
+		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -3282,7 +3282,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
  */
 void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
-	int numTracks = (rate == 1.0)?AAMP_TRACK_COUNT:1;
+	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
 
 	IPeriod *period = NULL;
@@ -3331,7 +3331,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					__FUNCTION__, __LINE__, adaptationSet->GetContentType().c_str(),iAdaptationSet);
 			if (IsContentType(adaptationSet, (MediaType)i ))
 			{
-				if (1.0 == rate)
+				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
 					if (eMEDIATYPE_AUDIO == i)
 					{
@@ -3423,7 +3423,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		}
 
 		// end of adaptation loop
-		if ((1.0 == rate) && (pMediaStreamContext->enabled == false) && selAdaptationSetIndex >= 0)
+		if ((AAMP_NORMAL_PLAY_RATE == rate) && (pMediaStreamContext->enabled == false) && selAdaptationSetIndex >= 0)
 		{
 			pMediaStreamContext->enabled = true;
 			pMediaStreamContext->adaptationSetIdx = selAdaptationSetIndex;
@@ -3580,7 +3580,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					{
 						Representation* representation = representations.at(idx);
 						mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
-						mStreamInfo[idx].isIframeTrack = !(1.0 == rate);
+						mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
 						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
@@ -3609,7 +3609,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					{
 						IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
 						mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
-						mStreamInfo[idx].isIframeTrack = !(1.0 == rate);
+						mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
 						mContext->GetABRManager().addProfile({
@@ -4253,7 +4253,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 void PrivateStreamAbstractionMPD::FetcherLoop()
 {
 	bool exitFetchLoop = false;
-	bool trickPlay = (1.0 != rate);
+	bool trickPlay = (AAMP_NORMAL_PLAY_RATE != rate);
 	bool mpdChanged = false;
 	double delta = 0;
 	bool lastLiveFlag=false;
@@ -4469,7 +4469,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					bool aEos = (audioEnabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->eos);
 					if (vEos || aEos)
 					{
-						if((!mIsLive || (rate != 1.0)) && ((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)))
+						if((!mIsLive || (rate != AAMP_NORMAL_PLAY_RATE)) && ((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)))
 						{
 							if(vEos)
 							{
@@ -4545,7 +4545,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				}
 			}
 
-			if ((rate < 1.0 && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
+			if ((rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
 			{
 				break;
 			}
@@ -4675,7 +4675,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp)
 {
 	mPriv = new PrivateStreamAbstractionMPD( this, aamp, seek_pos, rate);
-	trickplayMode = (rate != 1.0);
+	trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
 }
 
 

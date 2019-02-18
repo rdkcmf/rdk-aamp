@@ -1422,7 +1422,7 @@ public:
 	bool mNewLiveOffsetflag;
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
-	float rate; // most recent (non-zero) play rate for non-paused content
+	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
 	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
@@ -1679,7 +1679,7 @@ public:
 	 * @param[in] rate - New speed
 	 * @return void
 	 */
-	void NotifySpeedChanged(float rate);
+	void NotifySpeedChanged(int rate);
 
 	/**
 	 * @brief Notify bit rate change

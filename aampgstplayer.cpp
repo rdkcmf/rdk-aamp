@@ -128,7 +128,7 @@ struct AAMPGstPlayerPriv
 	GstElement *video_pproc; //Video element used by pipeline.(only for Intel).
 #endif
 
-	float rate; //Current playback rate.
+	int rate; //Current playback rate.
 	VideoZoomMode zoom; //Video-zoom setting.
 	bool videoMuted; //Video mute status.
 	bool audioMuted; //Audio mute status.
@@ -197,7 +197,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 	this->aamp = aamp;
 
 	CreatePipeline();
-	privateContext->rate = 1.0;
+	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
 }
 
@@ -1635,9 +1635,9 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	gst_segment_init(&segment, GST_FORMAT_TIME);
 	segment.start = pts;
 	segment.position = 0;
-	segment.rate = 1.0;
+	segment.rate = AAMP_NORMAL_PLAY_RATE;
 #ifdef INTELCE
-	segment.applied_rate = 1.0;
+	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
 #else
 	segment.applied_rate = privateContext->rate;
 #endif
@@ -1657,11 +1657,11 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #ifdef INTELCE
 		enableOverride = TRUE;
 #else
-		enableOverride = (privateContext->rate != 1.0);
+		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
-		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate,"aampplayer",G_TYPE_BOOLEAN,TRUE, NULL);
+		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
 #ifdef INTELCE
-		if ((privateContext->rate == 1.0))
+		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
 			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]\n", __FUNCTION__, basePTS);
@@ -1725,9 +1725,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		maxBytes = MAX_BYTES_TO_SEND;
 	}
 #ifdef TRACE_VID_PTS
-	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != 1.0)
+	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
 	{
-		logprintf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
+		logprintf("AAMPGstPlayer %s : rate %d fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
 		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
 		if (clock)
 		{
@@ -1815,9 +1815,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	gboolean discontinuity = FALSE;
 
 #ifdef TRACE_VID_PTS
-	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != 1.0)
+	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
 	{
-		logprintf("AAMPGstPlayer %s : rate %f fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
+		logprintf("AAMPGstPlayer %s : rate %d fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
 		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
 		if (clock)
 		{
@@ -2026,7 +2026,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 		NotifyFragmentCachingComplete();
 		AAMPGstPlayer_SignalEOS(stream->source);
 		/*For trickmodes, give EOS to audio source*/
-		if (1.0 != privateContext->rate)
+		if (AAMP_NORMAL_PLAY_RATE != privateContext->rate)
 		{
 			AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_AUDIO].source);
 		}
@@ -2135,7 +2135,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	TearDownStream(eMEDIATYPE_VIDEO);
 	TearDownStream(eMEDIATYPE_AUDIO);
 	DestroyPipeline();
-	privateContext->rate = 1.0;
+	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	privateContext->lastKnownPTS = 0;
 	logprintf("exiting AAMPGstPlayer_Stop\n");
 }
@@ -2598,7 +2598,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
  * @param[in] position playback seek position
  * @param[in] rate playback rate
  */
-void AAMPGstPlayer::Flush(double position, float rate)
+void AAMPGstPlayer::Flush(double position, int rate)
 {
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
 	privateContext->rate = rate;
