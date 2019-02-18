@@ -416,14 +416,14 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	aamp->NotifyFirstBufferProcessed();
 	if (aamp->pipeline_paused)
 	{
-		if (aamp->rate == 1.0)
+		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
 		{
 			aamp->mStreamSink->Pause(false);
 			aamp->pipeline_paused = false;
 		}
 		else
 		{
-			aamp->rate = 1.0;
+			aamp->rate = AAMP_NORMAL_PLAY_RATE;
 			aamp->pipeline_paused = false;
 			aamp->TuneHelper(eTUNETYPE_SEEK);
 		}
@@ -778,13 +778,13 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
  * @brief Notify rate change event to listeners
  * @param rate new speed
  */
-void PrivateInstanceAAMP::NotifySpeedChanged(float rate)
+void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
 {
 	if (rate == 0)
 	{
 		SetState(eSTATE_PAUSED);
 	}
-	else if (rate == 1.0)
+	else if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
 		SetState(eSTATE_PLAYING);
 	}
@@ -939,12 +939,12 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		{
 			seek_pos_seconds = culledSeconds;
 			logprintf("%s:%d Updated seek_pos_seconds %f \n", __FUNCTION__,__LINE__, seek_pos_seconds);
-			rate = 1.0;
+			rate = AAMP_NORMAL_PLAY_RATE;
 			TuneHelper(eTUNETYPE_SEEK);
 		}
 		else
 		{
-			rate = 1.0;
+			rate = AAMP_NORMAL_PLAY_RATE;
 			TuneHelper(eTUNETYPE_SEEKTOLIVE);
 		}
 
@@ -3350,7 +3350,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 		culledSeconds = 0;
 		durationSeconds = 60 * 60; // 1 hour
-		rate = 1.0;
+		rate = AAMP_NORMAL_PLAY_RATE;
 		playStartUTCMS = aamp_GetCurrentTimeMS();
 		StoreLanguageList(0,NULL);
 		mTunedEventPending = true;
@@ -3929,11 +3929,11 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  *   @param  rate - Rate of playback.
  *   @param  overshootcorrection - overshoot correction in milliseconds.
  */
-void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
+void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
 	if (aamp->mpStreamAbstractionAAMP)
 	{
-		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >=1.0)
+		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
 			logprintf("%s(): Already at logical live point, hence skipping operation\n", __FUNCTION__);
 			aamp->NotifyOnEnteringLive();
@@ -3959,7 +3959,7 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
 
 		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
 		// when switching from trick to play mode only 
-		if(aamp->rate && rate==1.0)
+		if(aamp->rate && rate== AAMP_NORMAL_PLAY_RATE)
 		{
 			if(timeDeltaFromProgReport > 950) // diff > 950 mSec
 			{
@@ -3986,9 +3986,9 @@ void PlayerInstanceAAMP::SetRate(float rate ,int overshootcorrection)
 
 		aamp->trickStartUTCMS = -1;
 
-		logprintf("aamp_SetRate(%f)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
+		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
 		logprintf("aamp_SetRate Adj position: %f\n", aamp->seek_pos_seconds); // current position relative to tune time
-		logprintf("aamp_SetRate rate(%f)->(%f)\n", aamp->rate,rate);
+		logprintf("aamp_SetRate rate(%d)->(%d)\n", aamp->rate,rate);
 		logprintf("aamp_SetRate cur pipeline: %s\n", aamp->pipeline_paused ? "paused" : "playing");
 
 		if (rate == aamp->rate)
@@ -4082,9 +4082,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 	{
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 	}
-	if (aamp->rate != 1.0)
+	if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 	{
-		aamp->rate = 1.0;
+		aamp->rate = AAMP_NORMAL_PLAY_RATE;
 		sentSpeedChangedEv = true;
 	}
 	if (aamp->mpStreamAbstractionAAMP)
@@ -4119,9 +4119,9 @@ void PlayerInstanceAAMP::SeekToLive()
  *   @param  secondsRelativeToTuneTime - Seek position for VOD,
  *           relative position from first tune command.
  */
-void PlayerInstanceAAMP::SetRateAndSeek(float rate, double secondsRelativeToTuneTime)
+void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
 {
-	logprintf("aamp_SetRateAndSeek(%f)(%f)\n", rate, secondsRelativeToTuneTime);
+	logprintf("aamp_SetRateAndSeek(%d)(%f)\n", rate, secondsRelativeToTuneTime);
 	aamp->TeardownStream(false);
 	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 	aamp->rate = rate;
@@ -4617,7 +4617,7 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
  *
  *   @ret current playback rate
  */
-float PlayerInstanceAAMP::GetPlaybackRate(void)
+int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
 	return aamp->rate;
 }
@@ -5138,7 +5138,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	SetState(eSTATE_PLAYING);
 #ifdef AAMP_STOP_SINK_ON_SEEK
 	/*Do not send event on trickplay as CC is not enabled*/
-	if (1.0 != rate)
+	if (AAMP_NORMAL_PLAY_RATE != rate)
 	{
 		logprintf("PrivateInstanceAAMP::%s:%d : not sending cc handle as rate = %f\n", __FUNCTION__, __LINE__, rate);
 		return;
@@ -5226,7 +5226,7 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
  */
 void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType trackType)
 {
-	if (1.0 == rate && ContentType_EAS != mContentType)
+	if (AAMP_NORMAL_PLAY_RATE == rate && ContentType_EAS != mContentType)
 	{
 		PrivAAMPState state;
 		GetState(state);

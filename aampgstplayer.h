@@ -49,7 +49,7 @@ public:
 	void Stream(void);
 	void Stop(bool keepLastFrame);
 	void DumpStatus(void);
-	void Flush(double position, float rate);
+	void Flush(double position, int rate);
 	void SelectAudio(int index);
 	void Pause(bool pause);
 	long GetPositionMilliseconds(void);

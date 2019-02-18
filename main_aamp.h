@@ -166,6 +166,8 @@ typedef enum
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
 #define MAX_BITRATE_COUNT 10
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
+#define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
+
 
 /**
  * @brief Structure of the AAMP events.
@@ -193,7 +195,7 @@ struct AAMPEvent
 		 */
 		struct
 		{
-			float rate; /**< Playback rate */
+			int rate; /**< Playback rate */
 		} speedChanged;
 
 		/**
@@ -470,7 +472,7 @@ public:
 	 *   @param[in]  rate - Speed
 	 *   @return void
 	 */
-	virtual void Flush(double position = 0, float rate = 1.0){}
+	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE){}
 
 	/**
 	 *   @brief Select audio track
@@ -634,7 +636,7 @@ public:
 	 *   @param[in]  overshoot - overshoot correction in milliseconds.
 	 *   @return void
 	 */
-	void SetRate(float rate, int overshootcorrection=0);
+	void SetRate(int rate, int overshootcorrection=0);
 
 	/**
 	 *   @brief Seek to a time.
@@ -657,7 +659,7 @@ public:
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
 	 */
-	void SetRateAndSeek(float rate, double secondsRelativeToTuneTime);
+	void SetRateAndSeek(int rate, double secondsRelativeToTuneTime);
 
 	/**
 	 *   @brief Register event handler.
@@ -925,7 +927,7 @@ public:
 	 *
 	 *   @ret current playback rate
 	 */
-	float GetPlaybackRate(void);
+	int GetPlaybackRate(void);
 
 	/**
 	 *   @brief To get the available video bitrates.
