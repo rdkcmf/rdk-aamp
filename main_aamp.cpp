@@ -6312,11 +6312,16 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 	if(isrecordedUrl)
 	{
 		DeFog(tunedManifestUrl);
+		// replace leading http:// or https:// with _fog:// or _fogs://
+		tunedManifestUrl[0] = '_';
+		tunedManifestUrl[1] = 'f';
+		tunedManifestUrl[2] = 'o';
+		tunedManifestUrl[3] = 'g';
 	}
 
 	char *streamPtr = strchr(tunedManifestUrl, '?');
 	if(streamPtr)
-	{
+	{ // strip URI params for more compact URI in microevent logging
 		*streamPtr = 0x0;
 	}
 
