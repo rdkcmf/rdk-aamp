@@ -3652,6 +3652,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
 
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
+	mIsVSS = (strstr(mainManifestUrl, "?sz=") || strstr(mainManifestUrl, "\%3Fsz\%3D"));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");

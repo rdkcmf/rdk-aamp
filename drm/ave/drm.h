@@ -79,6 +79,7 @@ class AveDrm : public HlsDrmBase
 {
 public:
 	AveDrm();
+	~AveDrm();
 	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata);
 	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
@@ -118,9 +119,11 @@ public:
 	static void CancelKeyWaitAll();
 	static void ReleaseAll();
 	static void RestoreKeyStateAll();
-	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode);
+	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType);
 	static void PrintSha1Hash( char* sha1Hash);
 	static void DumpCachedLicenses();
+	static void FlushAfterIndexList(const char* trackname,int trackType);
+	static void UpdateBeforeIndexList(const char* trackname,int trackType);
 	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 private:
@@ -129,6 +132,9 @@ private:
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
 	std::shared_ptr<AveDrm> mDrm;
 	bool mDrmContexSet;
+	bool mHasBeenUsed;
+	int mUserCount;
+	int mTrackType;
 	static std::vector<AveDrmManager*> sAveDrmManager;
 };
 

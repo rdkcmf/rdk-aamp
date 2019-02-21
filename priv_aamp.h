@@ -180,7 +180,7 @@ enum AAMPStatusType
 	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
 	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
 	eAAMPSTATUS_SEEK_RANGE_ERROR,
-	eAAMPSTATUS_SEQUENCE_NUMBER_ERROR
+	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR
 };
 
 
@@ -1455,6 +1455,7 @@ public:
 	bool mEnableCache;
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
+	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 
 	/**
 	 * @brief Curl initialization function
