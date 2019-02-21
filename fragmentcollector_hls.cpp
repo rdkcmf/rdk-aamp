@@ -3174,7 +3174,73 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
 		}
+		/*Adjust for discontinuity*/
+		if ((audio->enabled) && (ePLAYLISTTYPE_VOD != playlistType) && !gpGlobalConfig->bAudioOnlyPlayback)
+		{
+			std::map<int, double> &videoPeriodPositionIndex = video->mPeriodPositionIndex;
+			std::map<int, double> &audioPeriodPositionIndex = audio->mPeriodPositionIndex;
 
+			if (videoPeriodPositionIndex.size() > 0)
+			{
+				if (videoPeriodPositionIndex.size() == audioPeriodPositionIndex.size())
+				{
+					std::map<int, double>::iterator videoPeriodPositionIndexItr = videoPeriodPositionIndex.begin();
+					std::map<int, double>::iterator audioPeriodPositionIndexItr = audioPeriodPositionIndex.begin();
+					float videoPrevDiscontinuity = 0;
+					float audioPrevDiscontinuity = 0;
+					float videoNextDiscontinuity;
+					float audioNextDiscontinuity;
+					for (int i = 0; i <= videoPeriodPositionIndex.size(); i++)
+					{
+						if (i < videoPeriodPositionIndex.size())
+						{
+							videoNextDiscontinuity = videoPeriodPositionIndexItr->second;
+							audioNextDiscontinuity = audioPeriodPositionIndexItr->second;
+						}
+						else
+						{
+							videoNextDiscontinuity = aamp->GetDurationMs() / 1000;
+							audioNextDiscontinuity = videoNextDiscontinuity;
+						}
+						if ((videoNextDiscontinuity > (video->playTarget + 5))
+						        && (audioNextDiscontinuity > (audio->playTarget + 5)))
+						{
+
+							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : video->playTarget %f videoPrevDiscontinuity %f videoNextDiscontinuity %f\n",
+									__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity, videoNextDiscontinuity);
+							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : audio->playTarget %f audioPrevDiscontinuity %f audioNextDiscontinuity %f\n",
+									__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity, audioNextDiscontinuity);
+							if (video->playTarget < videoPrevDiscontinuity)
+							{
+								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [video] playTarget(%f) advance to discontinuity(%f)\n",
+										__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity);
+								video->playTarget = videoPrevDiscontinuity;
+							}
+							if (audio->playTarget < audioPrevDiscontinuity)
+							{
+								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [audio] playTarget(%f) advance to discontinuity(%f)\n",
+										__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity);
+								audio->playTarget = audioPrevDiscontinuity;
+							}
+							break;
+						}
+						videoPrevDiscontinuity = videoNextDiscontinuity;
+						audioPrevDiscontinuity = audioNextDiscontinuity;
+						videoPeriodPositionIndexItr++;
+						audioPeriodPositionIndexItr++;
+					}
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size %d audioPeriodPositionIndex.size %d\n",
+							__FUNCTION__, __LINE__, (int) videoPeriodPositionIndex.size(), (int) audioPeriodPositionIndex.size());
+				}
+			}
+			else
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0\n", __FUNCTION__, __LINE__);
+			}
+		}
 		if (audio->enabled)
 		{
 			audio->ProcessDrmMetadata(true);
