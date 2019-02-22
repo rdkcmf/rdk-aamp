@@ -226,12 +226,13 @@ public:
 	int mDrmMetaDataIndexCount; /**< number of DrmMetadata records in currently indexed playlist */
 	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
 	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
+	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
+
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
 	pthread_t fragmentCollectorThreadID;	/**< Thread Id for Fragment  collector Thread */
 	bool fragmentCollectorThreadStarted;	/**< Flag indicating if fragment collector thread started or not*/
 	int manifestDLFailCount;				/**< Manifest Download fail count for retry*/
-	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
 	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
 	std::shared_ptr<HlsDrmBase> mDrm;       /**< DRM decrypt context*/
 	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
