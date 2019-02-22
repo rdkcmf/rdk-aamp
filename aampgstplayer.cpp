@@ -1641,7 +1641,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #else
 	segment.applied_rate = privateContext->rate;
 #endif
-	logprintf("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %d applied_rate %d\n", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
+	logprintf("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f\n", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
 	GstEvent* event = gst_event_new_segment (&segment);
 #else
 	GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
@@ -1659,7 +1659,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
-		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, privateContext->rate,"aampplayer",G_TYPE_BOOLEAN,TRUE, NULL);
+		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
 #ifdef INTELCE
 		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
 		{
