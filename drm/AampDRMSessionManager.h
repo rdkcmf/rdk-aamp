@@ -106,7 +106,7 @@ public:
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
 			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e);
 
-	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
+	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false);
 
 	static void clearSessionData();
 

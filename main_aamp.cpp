@@ -1506,26 +1506,14 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
-			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
+			if (gpGlobalConfig->httpProxy)
 			{
-				const char *proxy = NULL;
-				if (mNetworkProxy || mLicenseProxy)
-				{
-					if (i < AAMP_TRACK_COUNT)
-					{
-						proxy = mNetworkProxy;
-					}
-					else
-					{
-						proxy = mLicenseProxy;
-					}
-				}
-				else
-				{
-					proxy = gpGlobalConfig->httpProxy;
-				}
+				char proxyStr[STR_PROXY_BUFF_SIZE];
+				memset((void*)proxyStr, 0, STR_PROXY_BUFF_SIZE);
+				snprintf(proxyStr, (STR_PROXY_BUFF_SIZE - 1), "http://%s", gpGlobalConfig->httpProxy);
+
 				/* use this proxy */
-				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
+				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxyStr);
 				/* allow whatever auth the proxy speaks */
 				curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 			}
@@ -4709,28 +4697,6 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 
 
 /**
- *   @brief To set the network proxy
- *
- *   @param[in] network proxy to use
- */
-void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
-{
-	aamp->SetNetworkProxy(proxy);
-}
-
-
-/**
- *   @brief To set the proxy for license request
- *
- *   @param[in] proxy to use for license request
- */
-void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
-{
-	aamp->SetLicenseReqProxy(licenseProxy);
-}
-
-
-/**
  *   @brief Set video rectangle.
  *
  *   @param  x - horizontal start position.
@@ -5440,8 +5406,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	mSessionUUID = NULL;
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-	mNetworkProxy = NULL;
-	mLicenseProxy = NULL;
 }
 
 
@@ -5469,17 +5433,6 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 			delete pListener;
 		}
 	}
-
-	if (mNetworkProxy)
-	{
-		free(mNetworkProxy);
-	}
-
-	if (mLicenseProxy)
-	{
-		free(mLicenseProxy);
-	}
-
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_mutex_destroy(&mLock);
@@ -6377,32 +6330,4 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 
 	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
 	return tunedManifestUrl;
-}
-
-/**
- *   @brief To set the network proxy
- *
- *   @param[in] network proxy to use
- */
-void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
-{
-	if(mNetworkProxy)
-	{
-		free(mNetworkProxy);
-	}
-	mNetworkProxy = strdup(proxy);
-}
-
-/**
- *   @brief To set the proxy for license request
- *
- *   @param[in] proxy to use for license request
- */
-void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
-{
-	if(mLicenseProxy)
-	{
-		free(mLicenseProxy);
-	}
-	mLicenseProxy = strdup(licenseProxy);
 }
