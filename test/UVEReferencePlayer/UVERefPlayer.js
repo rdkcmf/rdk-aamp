@@ -88,21 +88,11 @@ var defaultInitConfig = {
      */
     liveOffset: 15,
 
-    /**
+	/**
      * drmConfig for the playback
      */
 
     drmConfig: defaultDrmConfig //For sample structure defaultDrmConfig
-
-    /**
-     *  network proxy to use
-     */
-    //networkProxy: string;
-
-    /**
-     *  network proxy to use for license requests
-     */
-    //licenseProxy: string;
 };
 
 var urls = [
@@ -299,6 +289,8 @@ function loadUrl(urlObject) {
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {
+        var initConfiguration = defaultInitConfig;
+        initConfiguration.drmConfig = null;
         playerObj.load(urlObject.url);
     }
 }

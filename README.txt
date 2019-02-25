@@ -148,7 +148,7 @@ license-server-url=<serverUrl> URL to be used for license requests for encrypted
 license-retry-wait-time=<x in milli seconds> Wait time before retrying again for DRM license, having value <=0 would disable retry.
 vod-trickplay-fps=<x> Specify the framerate for VOD trickplay (defaults to 4)
 linear-trickplay-fps=<x> Specify the framerate for Linear trickplay (defaults to 8)
-http-proxy=<SCHEME>://<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with schemes such as http, sock, https etc
+http-proxy=<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy
 http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with Proxy Authentication Credentials. Make sure to encode special characters if present in username or password (URL Encoding)
 mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
 mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
