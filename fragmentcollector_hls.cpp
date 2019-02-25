@@ -533,9 +533,9 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 static void * TrackPLDownloader(void *arg)
 {
 	TrackState* ts = (TrackState*)arg;
-	if(pthread_setname_np(pthread_self(), "aampAudPL"))
+	if(aamp_pthread_setname(pthread_self(), "aampAudPL"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	ts->FetchPlaylist();
 	return NULL;
@@ -957,7 +957,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 //#ifdef TRACE
 							AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %s ==> %ld.%06ld\n",
 									ptr, asctime(&timeinfo),startTimeForPlaylistSync.tv_sec,
-									startTimeForPlaylistSync.tv_usec);
+									(long)startTimeForPlaylistSync.tv_usec);
 //#endif
 						}
 						else
@@ -3505,9 +3505,9 @@ void TrackState::RunFetchLoop()
 static void *FragmentCollector(void *arg)
 {
 	TrackState *track = (TrackState *)arg;
-	if(pthread_setname_np(pthread_self(), "aampHLSFetch"))
+	if(aamp_pthread_setname(pthread_self(), "aampHLSFetch"))
 	{
-		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	track->RunFetchLoop();
 	return NULL;

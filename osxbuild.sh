@@ -17,4 +17,4 @@
 # limitations under the License.
 
 mkdir -p build
-cd build && PKG_CONFIG_PATH=/usr/local/ssl/lib/pkgconfig:$PKG_CONFIG_PATH /Applications/CMake.app/Contents/bin/cmake .. && make
+cd build && PKG_CONFIG_PATH=/usr/local/ssl/lib/pkgconfig:$PKG_CONFIG_PATH /Applications/CMake.app/Contents/bin/cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" .. && make
