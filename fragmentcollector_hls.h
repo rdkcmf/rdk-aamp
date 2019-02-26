@@ -216,6 +216,7 @@ public:
 	struct timeval startTimeForPlaylistSync; /**< used for time-based track synchronization when switching between playlists */
 	double playTargetOffset; /**< For correcting timestamps of streams with audio and video tracks */
 	bool discontinuity; /**< Set when discontinuity is found in track*/
+	bool discontinuity_sequence_flag;
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
 	bool fragmentEncrypted; /**< In DAI, ad fragments can be clear. Set if current fragment is encrypted*/
 	struct DrmInfo mDrmInfo;	/**< Structure variable to hold Drm Information */
@@ -317,12 +318,13 @@ public:
 	void HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix = NULL);
 #endif
 	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */ 
+	
+	/// Function to Synchronize timing of Audio /Video for live streams 
+	AAMPStatusType SyncTracks( double trackDuration[]);
 protected:
 	/// Function to get StreamInfo stucture based on the index input
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
 private:
-	/// Function to Synchronize timing of Audio /Video for live streams 
-	AAMPStatusType SyncTracks( double trackDuration[]);
 	/// Function to Synchronize timing of Audio /Video for Vod streams 
 	void SyncVODTracks();
 	
