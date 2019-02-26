@@ -1082,12 +1082,6 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 					this->byteRangeOffset = byteRangeOffset;
 					this->byteRangeLength = byteRangeLength;
 					this->discontinuity = discontinuity;
-					if(discontinuity && type == 1)
-                                        {
-                                                logprintf("discontinuity_sequence_flag is set when only audio discontinuity %x\n",type);
-                                                this->discontinuity_sequence_flag = true;
-                                        }
-
 					rc = ptr;
 					break;
 				}
@@ -3660,9 +3654,8 @@ TrackState::~TrackState()
 ***************************************************************************/
 void TrackState::Stop(bool clearDRM)
 {
-	double totalDuration[AAMP_TRACK_COUNT] = { 0, 0 };
 	AbortWaitForCachedFragment(true);
-	
+
 	if (mDrm)
 	{
 		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
@@ -3680,12 +3673,6 @@ void TrackState::Stop(bool clearDRM)
 	{
 		playContext->abort();
 	}
-	if (discontinuity_sequence_flag)
-        {
-                context->SyncTracks(totalDuration);
-                logprintf("AUDIO LOSS AFTER context->SyncTracks\n");
-        }
-
 	if (fragmentCollectorThreadStarted)
 	{
 		void *value_ptr = NULL;
