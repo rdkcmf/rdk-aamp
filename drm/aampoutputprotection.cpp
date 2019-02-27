@@ -238,7 +238,7 @@ void AampOutputProtection::SetHDMIStatus()
         logprintf("%s : detected HDCP version %s\n", __FUNCTION__, m_hdcpCurrentProtocol == dsHDCP_VERSION_2X ? "2.x" : "1.4");
     }
     else {
-        logprintf("%s : DeviceSettings HDCP is not enabled %s\n", __FUNCTION__);
+        logprintf("%s : DeviceSettings HDCP is not enabled\n", __FUNCTION__);
     }
 
     if(!isConnected) {
