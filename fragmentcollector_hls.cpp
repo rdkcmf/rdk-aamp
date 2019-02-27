@@ -2372,7 +2372,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 * @return void
 ***************************************************************************/
 
-void StreamAbstractionAAMP_HLS::SyncVODTracks()
+void StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
@@ -3137,7 +3137,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if ( ePLAYLISTTYPE_VOD == playlistType )
 			{
-				SyncVODTracks();
+				SyncTracksForDiscontinuity();
 			}
 			else
             {
@@ -3197,11 +3197,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			std::map<int, double> &videoPeriodPositionIndex = video->mPeriodPositionIndex;
 			std::map<int, double> &audioPeriodPositionIndex = audio->mPeriodPositionIndex;
-
 			if (videoPeriodPositionIndex.size() > 0)
 			{
 				if (videoPeriodPositionIndex.size() == audioPeriodPositionIndex.size())
 				{
+					SyncTracksForDiscontinuity();
 					std::map<int, double>::iterator videoPeriodPositionIndexItr = videoPeriodPositionIndex.begin();
 					std::map<int, double>::iterator audioPeriodPositionIndexItr = audioPeriodPositionIndex.begin();
 					float videoPrevDiscontinuity = 0;
