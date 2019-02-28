@@ -993,7 +993,11 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
 					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
-					discontinuity = true;
+					if(type == 0)
+					{
+						logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
+						discontinuity = true;
+					}
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
 				{
