@@ -65,6 +65,7 @@
 #define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
+#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**Sha1 hash of meta-data for deferred DRM license acquisition*/
@@ -994,6 +995,14 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				{
 					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
 					discontinuity = true;
+
+					TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
+					TrackState *other = context->trackState[otherType];
+					if (other->enabled && !other->HasDiscontinuityAroundPosition(playTarget))
+					{
+						logprintf("Ignoring discontinuity as %s track does not have discontinuity\n", other->name);
+						discontinuity = false;
+					}
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
 				{
@@ -4191,3 +4200,38 @@ int TrackState::GetNumberOfPeriods()
 {
 	return (int)mPeriodPositionIndex.size();
 }
+
+/***************************************************************************
+* @fn HasDiscontinuityAroundPosition
+* @brief Check if discontinuity present around given position
+* @param[in] position Position to check for discontinuity
+* @return true if discontinuity present around given position
+***************************************************************************/
+bool TrackState::HasDiscontinuityAroundPosition(double position)
+{
+	bool discontinuityPending = false;
+	pthread_mutex_lock(&mutex);
+	if (0 != mPeriodPositionIndex.size())
+	{
+		double low = position - DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
+		double high = position + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
+		std::map<int, double>::iterator it = mPeriodPositionIndex.begin();
+		while (it != mPeriodPositionIndex.end())
+		{
+			traceprintf("%s:%d low %f high %f position %f discontinuity %f\n", __FUNCTION__, __LINE__, low, high, position, it->second);
+			if ( low < it->second && high > it->second )
+			{
+				discontinuityPending = true;
+				break;
+			}
+			it++;
+		}
+		if (!discontinuityPending)
+		{
+			logprintf("%s:%d Discontinuity not found in window low %f high %f position %f\n", __FUNCTION__, __LINE__, low, high, position);
+		}
+	}
+	pthread_mutex_unlock(&mutex);
+	return discontinuityPending;
+}
+
