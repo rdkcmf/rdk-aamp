@@ -302,12 +302,12 @@ struct AAMPEvent
 		} mediaError;
 
 		struct
-                {
+		{
 			AAMPTuneFailure failure;                            /**< Error Type */
-                        const char *accessStatus;
-                        int accessStatus_value;
-                } dash_drmmetadata;
-
+			const char *accessStatus;
+			int accessStatus_value;
+			long responseCode;
+		} dash_drmmetadata;
 
 		/**
 		 * @brief Structure of the player state changed event
@@ -432,6 +432,14 @@ enum DRMSystems
 	eDRM_Adobe_Access,      /**< Adobe Access */
 	eDRM_Vanilla_AES,       /**< Vanilla AES */
 	eDRM_MAX_DRMSystems     /**< Drm system count */
+};
+
+/**
+ *  @brief Auth Token Failure codes
+ */
+enum AuthTokenErrors {
+	eAUTHTOKEN_TOKEN_PARSE_ERROR = -1,
+	eAUTHTOKEN_INVALID_STATUS_CODE = -2
 };
 
 /**

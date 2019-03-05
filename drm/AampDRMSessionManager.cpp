@@ -248,7 +248,7 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
  *  @note		AccessToken memory is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
-const char * AampDRMSessionManager::getAccessToken(int * tokenLen)
+const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code)
 {
 	if(accessToken == NULL)
 	{
@@ -294,27 +294,31 @@ const char * AampDRMSessionManager::getAccessToken(int * tokenLen)
 					else
 					{
 						logprintf("%s:%d Could not get access token from session token reply\n", __FUNCTION__, __LINE__);
+						error_code = (long)eAUTHTOKEN_TOKEN_PARSE_ERROR;
 					}
 				}
 				else
 				{
 					logprintf("%s:%d Missing or invalid status code in session token reply\n", __FUNCTION__, __LINE__);
+					error_code = (long)eAUTHTOKEN_INVALID_STATUS_CODE;
 				}
 			}
 			else
 			{
 				logprintf("%s:%d Get Session token call failed with http error %d\n", __FUNCTION__, __LINE__, httpCode);
+				error_code = httpCode;
 			}
 		}
 		else
 		{
 			logprintf("%s:%d Get Session token call failed with curl error %d\n", __FUNCTION__, __LINE__, res);
+			error_code = res;
 		}
 		delete tokenReply;
 		curl_easy_cleanup(curl);
 	}
 
-	*tokenLen = accessTokenLen;
+	tokenLen = accessTokenLen;
 	return accessToken;
 }
 
@@ -762,7 +766,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 	int sessionType = 0;
 	e->data.dash_drmmetadata.accessStatus = "accessAttributeStatus";
-        e->data.dash_drmmetadata.accessStatus_value = 3;
+	e->data.dash_drmmetadata.accessStatus_value = 3;
+	e->data.dash_drmmetadata.responseCode = 0;
 
 	if(eMEDIATYPE_AUDIO == streamType)
 	{
@@ -1015,7 +1020,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 			pthread_mutex_lock(&accessTokenMutex);
 			int tokenLen = 0;
-			const char * sessionToken = getAccessToken(&tokenLen);
+			long tokenError = 0;
+			const char * sessionToken = getAccessToken(tokenLen, tokenError);
 			const char * secclientSessionToken = NULL;
 			pthread_mutex_unlock(&accessTokenMutex);
 			if(sessionToken != NULL && !gpGlobalConfig->licenseAnonymousRequest)
@@ -1030,6 +1036,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				if(NULL == sessionToken)
 				{
 					e->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN;
+					e->data.dash_drmmetadata.responseCode = tokenError;
 				}
 				logprintf("%s:%d Trying to get license without token\n", __FUNCTION__, __LINE__);
 			}
@@ -1196,6 +1203,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		{
 			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, responseCode);
 			logprintf("%s:%d Could not get license from server for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
+
 			if(412 == responseCode)
 			{
 				if(e->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
@@ -1211,6 +1219,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			else if(SEC_CLIENT_RESULT_MAC_AUTH_NOT_PROVISIONED == responseCode)
 			{
 				e->data.dash_drmmetadata.failure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
+				e->data.dash_drmmetadata.responseCode = responseCode;
 			}
 #endif
 			else if(CURLE_OPERATION_TIMEDOUT == responseCode)
@@ -1220,6 +1229,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			else
 			{
 				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_REQUEST_FAILED;
+				e->data.dash_drmmetadata.responseCode = responseCode;
 			}
 		}
 		delete key;
