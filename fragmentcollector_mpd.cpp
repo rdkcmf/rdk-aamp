@@ -2601,7 +2601,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 	char *manifestUrl = aamp->GetManifestUrl();
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
-
+	bool harvestManifest = (gpGlobalConfig->mpdHarvestLimit && strstr(manifestUrl, "ccr.mm-"));
 	if (retrievePlaylistFromCache)
 	{
 		memset(&manifest, 0, sizeof(manifest));
@@ -2665,19 +2665,27 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 			// parse xml
 			xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
 
-//Enable to harvest MPD file
-//Save the last 3 MPDs
-#ifdef HARVEST_MPD
-			static int counter = 0;
-			string fileSuffix = to_string(counter % 3);
-			counter++;
-			string fullPath = "/opt/logs/ProcessNodeError.txt" + fileSuffix;
-			logprintf("Saving manifest to %s\n",fullPath.c_str());
-			FILE *outputFile = fopen(fullPath.c_str(), "w");
-			fwrite(manifest.ptr, manifest.len, 1, outputFile);
-			fprintf(outputFile,"\n\n\nEndofManifest\n\n\n");
-			fclose(outputFile);
+			//Dump the DAI vod manifest to /opt/logs if mpdHarvestLimit is set
+			//mpds will be save with a numeric suffix, which would be going from 1 to mpdHarvestLimit
+			//old mpds will get overwritten after a cycle
+			if(harvestManifest)
+			{
+				static unsigned int counter = 0;
+				string fileSuffix = to_string((counter % gpGlobalConfig->mpdHarvestLimit) + 1);
+				counter++;
+#ifdef WIN32
+				string fullPath = "c:/tmp";
+#elif defined(__APPLE__)
+				string fullPath = getenv("HOME");
+#else
+				string fullPath = "/opt/logs";
 #endif
+				fullPath = fullPath + "/HarvestedMPD.txt" + fileSuffix;
+				logprintf("Saving manifest to %s\n",fullPath.c_str());
+				FILE *outputFile = fopen(fullPath.c_str(), "w");
+				fwrite(manifest.ptr, manifest.len, 1, outputFile);
+				fclose(outputFile);
+			}
 			if (reader != NULL)
 			{
 				if (xmlTextReaderRead(reader))

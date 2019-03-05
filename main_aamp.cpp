@@ -2825,6 +2825,11 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
 		}
+		else if (sscanf(cfg, "mpd-harvest-limit=%d", &gpGlobalConfig->mpdHarvestLimit) == 1)
+		{
+			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->mpdHarvestLimit, 0);
+			logprintf("aamp mpd-harvest-limit: %d\n", gpGlobalConfig->mpdHarvestLimit);
+		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{
 			if (cfg[0] == '*')
