@@ -1740,6 +1740,13 @@ public:
 	void SendDRMMetaData(const AAMPEvent &e);
 
 	/**
+	 * @brief Handles DRM errors and sends events to application if required.
+	 * @param[in] tuneFailure Reason of error
+	 * @param[in] error_code Drm error code (http, curl or secclient)
+	 */
+	void SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled = true);
+
+	/**
 	 * @brief Handles download errors and sends events to application if required.
 	 *
 	 * @param[in] tuneFailure - Reason of error

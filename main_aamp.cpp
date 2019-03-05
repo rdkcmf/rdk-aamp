@@ -560,6 +560,52 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 
 
 /**
+ * @brief Handles DRM errors and sends events to application if required.
+ * @param tuneFailure Reason of error
+ * @param error_code Drm error code (http, curl or secclient)
+ */
+void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled)
+{
+
+	if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
+	{
+		char description[128] = {};
+
+		if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+		{
+#ifdef USE_SECCLIENT
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+#else
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+#endif
+		}
+		else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
+		{
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Access Token Parse Error", tuneFailureMap[tuneFailure].description);
+		}
+		else if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_INVALID_STATUS_CODE == (AuthTokenErrors)error_code)
+		{
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Invalid status code", tuneFailureMap[tuneFailure].description);
+		}
+		else
+		{
+			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+		}
+		SendErrorEvent(tuneFailure, description, isRetryEnabled);
+	}
+	else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
+	{
+		SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
+	}
+	else
+	{
+		logprintf("%s:%d : Received unknown error event %d\n", __FUNCTION__, __LINE__, tuneFailure);
+		SendErrorEvent(AAMP_TUNE_FAILURE_UNKNOWN);
+	}
+}
+
+
+/**
  * @brief Handles download errors and sends events to application if required.
  * @param tuneFailure Reason of error
  * @param error_code HTTP error code/ CURLcode
