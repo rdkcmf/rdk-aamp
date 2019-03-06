@@ -10,20 +10,20 @@ This document contains the instructions to setup and debug stand alone AAMP (aam
 
 **2. Install XCode Command Line Tools**
 
-```c
+```
 xcode-select --install
 sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_<version>.pkg -target /
 ```
 **3. Install GStreamer packages**
 
 Install Homebrew, if not available in your Mac:
-```c
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"$
+```
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 ```
 
 Install gst packages:
-```c
-brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly
+```
+brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav
 ```
 
 You can find help [here](https://wesleyli.co/2016/10/running-gstreamer-on-mac-os-x).
@@ -31,32 +31,43 @@ More details about packages available at [freedesktop.org](https://gstreamer.fre
 
 **4. Install [Cmake](https://cmake.org/download/)**
 
+Set link for CMake command line.
+``` ln -s /Applications/CMake.app/Contents/bin/cmake /usr/local/bin```
+
 **5. Install OpenSsl**
 
-```c
+```
 brew install openssl
 sudo ln -s /usr/local/Cellar/openssl/<version> /usr/local/ssl
 ```
 **6. Install libXML2**
 
-```c
+```
 brew install libxml2
 ```
 **7. Install libdash**
 
 ***Build***:
 
-```c
+```
 git clone git://github.com/bitmovin/libdash.git
 cd libdash/libdash
+git checkout stable_3_0
+```
+
+Apply patches downloaded from (**patch -p1 < file.patch**):
+```https://gerrit.teamccp.com/plugins/gitiles/rdk/yocto_oe/layers/meta-rdk-ext/+/refs/heads/1903_sprint/recipes-multimedia/libdash/libdash/```
+
+```
 mkdir build
 cd build
 cmake ..
 make
 ```
+
 ***Install***:
 
-```c
+```
 cp bin/libdash.dylib /usr/local/lib/
 mkdir /usr/local/include
 mkdir /usr/local/include/libdash
@@ -78,12 +89,12 @@ echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \
 ```
 **8. Install libuuid**
 
-```c
+```
 brew install ossp-uuid
 ```
 **9. Install aampabr**
 
-```c
+```
 git clone https://code.rdkcentral.com/r/rdk/components/generic/aampabr aampabr
 cd aampabr
 mkdir build
@@ -97,18 +108,18 @@ make install
 
 **2. Build the code**
 
-```c
+```
 	Product -> Build
 ```
 **3. Select target to execute**
 
-```c
+```
 	Product -> Scheme -> Edit scheme
 	Run page-> Info
 	Select Executable -> Other and open the ‘aamp-cli’ image name from {AAMP_PATH}/build/aamp_cli
 ```
 **4. Execute**
 
-```c
+```
 Product -> Run
 ```

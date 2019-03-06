@@ -403,14 +403,6 @@ public:
 	virtual AAMPStatusType Init(TuneType tuneType) = 0;
 
 	/**
-	 *   @brief  Set a position at which stop injection
-	 *
-	 *   @param[in]  endPosition - playback end position.
-	 *   @return void
-	 */
-	virtual void SetEndPos(double endPosition){};
-
-	/**
 	 *   @brief  Start streaming.
 	 *
  	 *   @return void
@@ -769,6 +761,12 @@ public:
 	 */
 	void AbortWaitForAudioTrackCatchup(void);
 
+	/**
+	 *   @brief Set Client Side DAI object instance
+	 *
+	 *   @param[in] cdaiObj - Pointer to Client Side DAI object.
+	 */
+	virtual void SetCDAIObject(CDAIObject *cdaiObj) {};
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

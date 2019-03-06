@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #ifndef DISABLE_DASH
 #include "fragmentcollector_mpd.h"
+#include "admanager_mpd.h"
 #endif
 #include "fragmentcollector_hls.h"
 #include "_base64.h"
@@ -193,6 +194,19 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
 };
 
+
+static constexpr const char *ADEVENT_STR[] =
+{
+	(const char *)"AAMP_EVENT_AD_RESERVATION_START",
+	(const char *)"AAMP_EVENT_AD_RESERVATION_END",
+	(const char *)"AAMP_EVENT_AD_PLACEMENT_START",
+	(const char *)"AAMP_EVENT_AD_PLACEMENT_END",
+	(const char *)"AAMP_EVENT_AD_PLACEMENT_ERROR",
+	(const char *)"AAMP_EVENT_AD_PLACEMENT_PROGRESS"
+};
+
+#define ADEVENT2STRING(id) ADEVENT_STR[id - AAMP_EVENT_AD_RESERVATION_START]
+
 /**
  * @struct ChannelInfo 
  * @brief Holds information of a channel
@@ -301,23 +315,19 @@ void PrivateInstanceAAMP::ReportProgress(void)
 	//if (mPlayerState.durationMilliseconds > 0)
 	if (mDownloadsEnabled)
 	{
+		ReportAdProgress();
+
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_PROGRESS;
-		if (!mPlayingAd)
+
+		eventData.data.progress.positionMiliseconds = (seek_pos_seconds) * 1000.0;
+		if (!pipeline_paused && trickStartUTCMS >= 0)
 		{
-			eventData.data.progress.positionMiliseconds = (seek_pos_seconds) * 1000.0;
-			if (!pipeline_paused && trickStartUTCMS >= 0)
-			{
-				long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
-				eventData.data.progress.positionMiliseconds += elapsedTime * rate;
-				// note, using StreamSink::GetPositionMilliseconds() instead of elapsedTime
-				// would likely be more accurate, but would need to be tested to accomodate
-				// and compensate for FF/REW play rates
-			}
-		}
-		else
-		{
-			eventData.data.progress.positionMiliseconds = mAdPosition * 1000.0;
+			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
+			eventData.data.progress.positionMiliseconds += elapsedTime * rate;
+			// note, using StreamSink::GetPositionMilliseconds() instead of elapsedTime
+			// would likely be more accurate, but would need to be tested to accomodate
+			// and compensate for FF/REW play rates
 		}
 		eventData.data.progress.durationMiliseconds = durationSeconds*1000.0;
 
@@ -364,21 +374,43 @@ void PrivateInstanceAAMP::ReportProgress(void)
 	}
 }
 
-/**
-* @brief called from fragmentcollector_hls::IndexPlaylist to update TSB duration
-*/
+ /*
+ * @brief Report Ad progress event to listeners
+ *
+ * Sending Ad progress percentage to JSPP
+ */
+void PrivateInstanceAAMP::ReportAdProgress(void)
+{
+	if (mDownloadsEnabled && !mAdProgressId.empty())
+	{
+		long long curTime = NOW_STEADY_TS_MS;
+		if (!pipeline_paused)
+		{
+			//Update the percentage only if the pipeline is in playing.
+			mAdCurOffset += (uint32_t)(curTime - mAdPrevProgressTime);
+			if(mAdCurOffset > mAdDuration) mAdCurOffset = mAdDuration;
+		}
+		mAdPrevProgressTime = curTime;
+
+		AAMPEvent eventData;
+		eventData.type = AAMP_EVENT_AD_PLACEMENT_PROGRESS;
+		strncpy(eventData.data.adPlacement.adId, mAdProgressId.c_str(), AD_ID_LENGTH);
+		eventData.data.adPlacement.position = (uint32_t)(mAdCurOffset*100)/mAdDuration;
+		SendEventSync(eventData);
+	}
+}
 
 /**
- * @brief Update duration of stream
- * @param seconds duration in seconds
+ * @brief Update duration of stream.
+ *
+ * Called from fragmentcollector_hls::IndexPlaylist to update TSB duration
+ *
+ * @param[in] seconds Duration in seconds
  */
 void PrivateInstanceAAMP::UpdateDuration(double seconds)
 {
-	if(!mPlayingAd)
-	{
-		AAMPLOG_INFO("aamp_UpdateDuration(%f)\n", seconds);
-		durationSeconds = seconds;
-	}
+	AAMPLOG_INFO("aamp_UpdateDuration(%f)\n", seconds);
+	durationSeconds = seconds;
 }
 
 
@@ -851,7 +883,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
 void PrivateInstanceAAMP::SendDRMMetaData(const AAMPEvent &e)
 {
 
-        SendEventSync(e);
+        SendEventAsync(e);
         logprintf("SendDRMMetaData name = %s value = %x\n",e.data.dash_drmmetadata.accessStatus,e.data.dash_drmmetadata.accessStatus_value);
 }
 
@@ -886,12 +918,7 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
  */
 bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
-	bool ret = false;
-	if (mProcessingDiscontinuity || mProcessingAdInsertion || mPlayingAd)
-	{
-		ret = true;
-	}
-	return ret;
+	return mProcessingDiscontinuity;
 }
 
 
@@ -909,7 +936,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	}
 	SyncEnd();
 
-	if (!(mProcessingDiscontinuity || mProcessingAdInsertion || mPlayingAd))
+	if (!mProcessingDiscontinuity)
 	{
 		return;
 	}
@@ -935,31 +962,6 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		mStreamSink->Stream();
 		mProcessingDiscontinuity = false;
 	}
-	else
-	{
-		if (mProcessingAdInsertion)
-		{
-			logprintf("PrivateInstanceAAMP::%s:%d mProcessingAdInsertion set\n", __FUNCTION__, __LINE__);
-			mProcessingAdInsertion = false;
-			if(mAdUrl[0])
-			{
-				mPlayingAd = true;
-				logprintf("PrivateInstanceAAMP::%s:%d  Play ad from start\n", __FUNCTION__, __LINE__);
-				TuneHelper(eTUNETYPE_NEW_NORMAL);
-			}
-			else
-			{
-				logprintf("PrivateInstanceAAMP::%s:%d  invalid ad url\n", __FUNCTION__, __LINE__);
-			}
-		}
-		else if (mPlayingAd)
-		{
-			logprintf("PrivateInstanceAAMP::%s:%d  Completed ad playback - seek to ad-position\n", __FUNCTION__, __LINE__);
-			mPlayingAd = false;
-			seek_pos_seconds = mAdPosition;
-			TuneHelper(eTUNETYPE_NEW_SEEK);
-		}
-	}
 
 	SyncBegin();
 	mDiscontinuityTuneOperationInProgress = false;
@@ -972,7 +974,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 void PrivateInstanceAAMP::NotifyEOSReached()
 {
 	logprintf("%s: Enter . processingDiscontinuity %d\n",__FUNCTION__, mProcessingDiscontinuity);
-	if (!IsLive() && rate > 0 && (!mProcessingDiscontinuity) && (!mProcessingAdInsertion) &&(!mPlayingAd))
+	if (!IsLive() && rate > 0 && (!mProcessingDiscontinuity))
 	{
 		SetState(eSTATE_COMPLETE);
 		SendEventAsync(AAMP_EVENT_EOS);
@@ -1003,6 +1005,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 	else
 	{
 		ProcessPendingDiscontinuity();
+		DeliverAdEvents();
 		logprintf("PrivateInstanceAAMP::%s:%d  EOS due to discontinuity handled\n", __FUNCTION__, __LINE__);
 	}
 }
@@ -1472,6 +1475,13 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		startPos = header.find("Set-Cookie:") + strlen("Set-Cookie:");
 		endPos = header.length() - 1;
 	}
+	else if (std::string::npos != header.find("Location:"))
+	{
+		httpHeader->type = eHTTPHEADERTYPE_EFF_LOCATION;
+		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+		startPos = header.find("Location:") + strlen("Location:");
+		endPos = header.length() - 1;
+	}
 	else if (0 == context->buffer->avail)
 	{
 		size_t headerStart = header.find("Content-Length:");
@@ -1527,17 +1537,20 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		else
 		{
 			httpHeader->data = header.substr(startPos, (endPos - startPos + 1));
-			//Append a delimiter ";"
-			httpHeader->data += ';';
-		}
+			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
+			{
+				//Append a delimiter ";"
+				httpHeader->data += ';';
+			}
 
-		if(gpGlobalConfig->logging.trace)
-		{
-			// due to \r Journal print logger is not printing the log instead it prints
-			// blob data print e.g "43B blob data"
-			// hence replacing it,
-			replace( header.begin(), header.end(), '\r', ' ' );
-			traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+			if(gpGlobalConfig->logging.trace)
+			{
+				// due to \r Journal print logger is not printing the log instead it prints
+				// blob data print e.g "43B blob data"
+				// hence replacing it,
+				replace( header.begin(), header.end(), '\r', ' ' );
+				traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+			}
 		}
 	}
 	return len;
@@ -2163,7 +2176,8 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				if (res == CURLE_OK)
 				{ // all data collected
 					curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-					if (http_code != 200 && http_code != 206)
+					char *effectiveUrlPtr = NULL;
+					if (http_code != 200 && http_code != 204 && http_code != 206)
 					{
 #if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 						logprintf("HTTP RESPONSE CODE: %ld\n", http_code);
@@ -2177,8 +2191,18 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 							loopAgain = true;
 						}
 					}
-					char *effectiveUrlPtr = NULL;
-					res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
+					if(http_code == 204)
+					{
+						if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_EFF_LOCATION) && (httpRespHeaders[curlInstance].data.length() > 0) )
+						{
+							logprintf("%s:%d Received Location header: '%s'\n",__FUNCTION__,__LINE__, httpRespHeaders[curlInstance].data.c_str());
+							effectiveUrlPtr =  const_cast<char *>(httpRespHeaders[curlInstance].data.c_str());
+						}
+					}
+					else
+					{
+						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
+					}
 					strncpy(effectiveUrl, effectiveUrlPtr, MAX_URI_LENGTH-1);
 					effectiveUrl[MAX_URI_LENGTH-1] = '\0';
 
@@ -2371,7 +2395,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 			// dont generate anomaly reports for write and aborted errors
 			// these are generated after trick play options,
-			if( !(http_code == CURLE_ABORTED_BY_CALLBACK || http_code == CURLE_WRITE_ERROR))
+			if( !(http_code == CURLE_ABORTED_BY_CALLBACK || http_code == CURLE_WRITE_ERROR || http_code == 204))
 			{
 				SendAnomalyEvent(ANOMALY_WARNING, "%s:%s,%s-%d url:%s", (mTSBEnabled ? "FOG" : "CDN"),
 					MediaTypeString(fileType), (http_code < 100) ? "Curl" : "HTTP", http_code, remoteUrl);
@@ -2862,15 +2886,6 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
 			logprintf("cdvrlive-offset=%d\n", gpGlobalConfig->cdvrliveOffset);
 		}
-		else if (sscanf(cfg, "ad-position=%d", &gpGlobalConfig->adPositionSec) == 1)
-		{
-			VALIDATE_INT("ad-position", gpGlobalConfig->adPositionSec, 0)
-			logprintf("ad-position=%d\n", gpGlobalConfig->adPositionSec);
-		}
-		else if (ReadConfigStringHelper(cfg, "ad-url=", &gpGlobalConfig->adURL))
-		{
-			logprintf("ad-url=%s\n", gpGlobalConfig->adURL);
-		}
 		else if (sscanf(cfg, "disablePlaylistIndexEvent=%d", &gpGlobalConfig->disablePlaylistIndexEvent) == 1)
 		{
 			logprintf("disablePlaylistIndexEvent=%d\n", gpGlobalConfig->disablePlaylistIndexEvent);
@@ -3228,6 +3243,16 @@ static void ProcessConfigEntry(char *cfg)
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld\n", gpGlobalConfig->curlDownloadStartTimeout);
 		}
+		else if (sscanf(cfg, "client-dai=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->enableClientDai = (value == 1);
+			logprintf("Client side DAI: %s\n", gpGlobalConfig->enableClientDai ? "ON" : "OFF");
+		}
+		else if (sscanf(cfg, "ad-from-cdn-only=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->playAdFromCDN = (value == 1);
+			logprintf("Ad playback from CDN only: %s\n", gpGlobalConfig->playAdFromCDN ? "ON" : "OFF");
+		}
 		else if(ReadConfigStringHelper(cfg, "subtitle-language=", (const char**)&tmpValue))
 		{
 			if(tmpValue)
@@ -3383,6 +3408,13 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.\n");
 			gpGlobalConfig->enableMicroEvents = true;
 		}
+
+		const char *env_enable_cdai = getenv("CLIENT_SIDE_DAI");
+		if(env_enable_cdai)
+		{
+			logprintf("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.\n");
+			gpGlobalConfig->enableClientDai = true;
+		}
 	}
 }
 
@@ -3409,7 +3441,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 	}
 	//reset discontinuity related flags
-	mProcessingDiscontinuity = mProcessingAdInsertion = mPlayingAd = false;
+	mProcessingDiscontinuity = false;
 	pthread_mutex_unlock(&mLock);
 
 	if (mpStreamAbstractionAAMP)
@@ -3452,13 +3484,19 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		streamerIsActive = true;
 	}
+	mAdProgressId = "";
+	std::queue<AAMPEvent> emptyEvQ;
+	{
+		std::lock_guard<std::mutex> lock(mAdEventQMtx);
+		std::swap( mAdEventsQ, emptyEvQ );
+	}
 }
 
 
 /**
  *   @brief Constructor.
  *
- *   @param  streamSink - custom stream sink, NULL for default.
+ *   @param[in]  streamSink - custom stream sink, NULL for default.
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
@@ -3479,12 +3517,6 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink) : aamp(NULL), mIn
 	}
 	aamp->SetStreamSink(streamSink);
 
-	/*Test ad insertion*/
-	if(gpGlobalConfig->adURL)
-	{
-		logprintf("Schedule ad insertion. url %s pos %d\n", gpGlobalConfig->adURL, gpGlobalConfig->adPositionSec);
-		InsertAd(gpGlobalConfig->adURL, gpGlobalConfig->adPositionSec);
-	}
 }
 
 
@@ -3703,6 +3735,43 @@ static void DeFog(char *dst)
 	}
 }
 
+/**
+ * @brief Encode URL
+ *
+ * @param[in] inSrc - Input URL
+ * @param[out] outStr - Encoded URL
+ * @return Encoding status
+ */
+bool UrlEncode(const char *inSrc, std::string &outStr)
+{
+	const char HEX[] = "0123456789ABCDEF";
+	const int SRC_LEN = strlen(inSrc);
+	uint8_t * pSrc = (uint8_t *)inSrc;
+	uint8_t * SRC_END = pSrc + SRC_LEN;
+	std::vector<uint8_t> tmp(SRC_LEN*3,0);	//Allocating max possible
+	uint8_t * pDst = tmp.data();
+
+	for (; pSrc < SRC_END; ++pSrc)
+	{
+		if ((*pSrc >= '0' && *pSrc >= '9')
+			|| (*pSrc >= 'A' && *pSrc >= 'Z')
+			|| (*pSrc >= 'a' && *pSrc >= 'z')
+			|| *pSrc == '-' || *pSrc == '_'
+			|| *pSrc == '.' || *pSrc == '~')
+		{
+			*pDst++ = *pSrc;
+		}
+		else
+		{
+			*pDst++ = '%';
+			*pDst++ = HEX[*pSrc >> 4];
+			*pDst++ = HEX[*pSrc & 0x0F];
+		}
+	}
+
+	outStr = std::string((char *)tmp.data(), (char *)pDst);
+	return true;
+}
 
 /**
  * @brief
@@ -3767,12 +3836,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		SendVideoEndEvent();
 
-
 		// initialize defaults
-		if (!mPlayingAd)
-		{
-			SetState(eSTATE_INITIALIZING);
-		}
+		SetState(eSTATE_INITIALIZING);
 		culledSeconds = 0;
 		durationSeconds = 60 * 60; // 1 hour
 		rate = AAMP_NORMAL_PLAY_RATE;
@@ -3800,6 +3865,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
         return;
 #else
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
+		if(NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObjectMPD(this);
+		}
+		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 #endif
 	}
 	else
@@ -3872,10 +3942,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->SetAudioVolume(audio_volume);
 		mStreamSink->Configure(mFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
-		if( !mPlayingAd && mAdPosition > seek_pos_seconds)
-		{
-			mpStreamAbstractionAAMP->SetEndPos(mAdPosition);
-		}
 		mpStreamAbstractionAAMP->Start();
 		mStreamSink->Stream();
 	}
@@ -3889,7 +3955,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 	}
 
-	if (newTune && !mPlayingAd)
+	if (newTune)
 	{
 		PrivAAMPState state;
 		GetState(state);
@@ -4110,6 +4176,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	{
 		mfirstTuneFmt = mIsDash?1:0;
 	}
+	mCdaiObject = NULL;
 	TuneHelper(tuneType);
 	// do not change location of this set, it should be done after sending perviouse VideoEnd data which
 	// is done in TuneHelper->SendVideoEndEvent function.
@@ -4421,52 +4488,6 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 		mStreamSink->EndOfStreamReached(mediaType);
 		SyncEnd();
 	}
-}
-
-
-/**
- * @brief Notifies EndTime to sink, used for client DAI
- * @param mediaType Type of media
- */
-void PrivateInstanceAAMP::EndTimeReached(MediaType mediaType)
-{
-	SyncBegin();
-	mProcessingAdInsertion = true;
-	mStreamSink->EndOfStreamReached(mediaType);
-	SyncEnd();
-}
-
-
-/**
- * @brief Insert ad at position
- * @param url URL of ad asset
- * @param positionSeconds position at which ad to be inserted
- */
-void PrivateInstanceAAMP::InsertAd(const char *url, double positionSeconds)
-{
-	if (url)
-	{
-		strncpy(mAdUrl, url, MAX_URI_LENGTH - 1);
-		mAdUrl[MAX_URI_LENGTH - 1] = 0;
-		mAdPosition = positionSeconds;
-	}
-	else
-	{
-		mAdUrl[0] = 0;
-		mAdPosition = 0;
-	}
-}
-
-
-/**
- *   @brief Schedule insertion of ad at given position.
- *
- *   @param  url - HTTP/HTTPS url of the ad
- *   @param  positionSeconds - position at which ad shall be inserted
- */
-void PlayerInstanceAAMP::InsertAd(const char *url, double positionSeconds)
-{
-	aamp->InsertAd(url, positionSeconds);
 }
 
 
@@ -5270,6 +5291,17 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 	aamp->SetPreferredDRM(drmType);
 }
 
+/**
+ *   @brief Setting the alternate contents' (Ads/blackouts) URL.
+ *
+ *   @param[in] Adbreak's unique identifier.
+ *   @param[in] Individual Ad's id
+ *   @param[in] Ad URL
+ */
+void PlayerInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
+{
+	aamp->SetAlternateContents(adBreakId, adId, url);
+}
 
 /**
  *   @brief To set the network proxy
@@ -5612,10 +5644,15 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	mPlayingAd = false;
 	AampCacheHandler::GetInstance()->StopPlaylistCache();
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
+
+	if(NULL != mCdaiObject)
+	{
+		delete mCdaiObject;
+		mCdaiObject = NULL;
+	}
 }
 
 
@@ -5625,9 +5662,11 @@ void PrivateInstanceAAMP::Stop()
  * @param timeMilliseconds time in milliseconds
  * @param szName name of metadata
  * @param szContent  metadata content
+ * @param id - Identifier of the TimedMetadata
+ * @param durationMS - Duration in milliseconds
  * @param nb unused
  */
-void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const char* szName, const char* szContent, int nb)
+void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
 	bool bFireEvent = false;
@@ -5656,7 +5695,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 		if (i->_timeMS > timeMilliseconds)
 		{
 			//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) INSERT\n", (long)timeMilliseconds, szName, content.data(), nb);
-			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content));
+			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 			bFireEvent = true;
 			break;
 		}
@@ -5665,7 +5704,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 	if (i == timedMetadata.end())
 	{
 		//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) APPEND\n", (long)timeMilliseconds, szName, content.data(), nb);
-		timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content));
+		timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 		bFireEvent = true;
 	}
 
@@ -5674,6 +5713,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_TIMED_METADATA;
 		eventData.data.timedMetadata.timeMilliseconds = timeMilliseconds;
+		eventData.data.timedMetadata.id = (id == NULL) ? "" : id;
+		eventData.data.timedMetadata.durationMilliSeconds = durationMS;
 		eventData.data.timedMetadata.szName = (szName == NULL) ? "" : szName;
 		eventData.data.timedMetadata.szContent = content.data();
 
@@ -5683,7 +5724,14 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 				(long)(eventData.data.timedMetadata.timeMilliseconds),
 				eventData.data.timedMetadata.szContent);
 		}
-		SendEventSync(eventData);
+		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35"))
+		{
+			SendEventAsync(eventData);
+		}
+		else
+		{
+			SendEventSync(eventData);
+		}
 	}
 }
 
@@ -5932,15 +5980,19 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
 	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
-	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
-	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
+	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
+	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
-	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
+	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
         mServiceZone(),
 	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
+	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
+#ifdef PLACEMENT_EMULATION
+	,mNumAds2Place(0), sampleAdBreakId("")
+#endif
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -5976,7 +6028,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	gActivePrivAAMP_t gAAMPInstance = { this, false, 0 };
 	gActivePrivAAMPs.push_back(gAAMPInstance);
 	pthread_mutex_unlock(&gMutex);
-	mAdUrl[0] = 0;
+	discardEnteringLiveEvt = false;
+	licenceFromManifest = false;
+	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
 	// Add Connection: Keep-Alive custom header - DELIA-26832
@@ -5985,6 +6039,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
+	mNetworkProxy = NULL;
+	mLicenseProxy = NULL;
+	mCdaiObject = NULL;
+	mAdPrevProgressTime = 0;
+	mAdProgressId = "";
 }
 
 
@@ -7115,6 +7174,197 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
         AAMPLOG_INFO("%s:%d set Preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
         gpGlobalConfig->preferredDrm = drmType;
     }
+}
+
+#ifdef PLACEMENT_EMULATION
+	static int sampleAdIdx = 0;
+	static const std::string sampleAds[] = {"http://ccr.ip-ads.xcr.comcast.net/omg04/354092102255/nbcuni.comNBCU2019012500009006/HD_VOD_DAI_XFS09004000H_0125_LVLH03.mpd",
+											"http://ccr.ip-ads.xcr.comcast.net/omg07/346241094255/nbcuni.comNBCU2019010200010506/HD_VOD_DAI_QAOA5052100H_0102_LVLH06.mpd"
+											};
+#endif
+
+/**
+ *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
+ *
+ *   @param[in] Adbreak's unique identifier.
+ *   @param[in] Break start time in milli seconds.
+ *   @param[in] Break duration in milli seconds
+ *   @param[in] SCTE35 binary object.
+ */
+void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35)
+{
+	if(gpGlobalConfig->enableClientDai && !adBreakId.empty())
+	{
+//		gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
+		AAMPLOG_WARN("%s:%d [CDAI] Found Adbreak on period[%s] Duration[%d]\n", __FUNCTION__, __LINE__, adBreakId.c_str(), breakdur);
+		std::string adId("");
+		std::string url("");
+
+		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
+#ifdef PLACEMENT_EMULATION
+		mNumAds2Place = (breakdur /1000)/30;
+		if(mNumAds2Place > 0)
+		{
+			sampleAdBreakId = adBreakId;
+			mNumAds2Place--;
+			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
+			std::string url = sampleAds[sampleAdIdx];
+			sampleAdIdx = 1 - sampleAdIdx;
+			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
+		}
+#else
+		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
+#endif
+	}
+}
+
+/**
+ *   @brief Setting the alternate contents' (Ads/blackouts) URLs
+ *
+ *   @param[in] Adbreak's unique identifier.
+ *   @param[in] Individual Ad's id
+ *   @param[in] Ad URL
+ */
+void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
+{
+	mCdaiObject->SetAlternateContents(adBreakId, adId, url);
+}
+
+/**
+ *   @brief Send status of Ad manifest downloading & parsing
+ *
+ *   @param[in] Ad's unique identifier.
+ *   @param[in] Manifest status (success/Failure)
+ *   @param[in] Ad playback start time in milliseconds
+ *   @param[in] Ad's duration in milliseconds
+ */
+void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool status, uint64_t startMS, uint64_t durationMs)
+{
+	AAMPEvent e;
+	if (mDownloadsEnabled)	//Send it, only if Stop not called
+	{
+#ifdef PLACEMENT_EMULATION
+		if(mNumAds2Place > 0)
+		{
+			mNumAds2Place--;
+			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
+			std::string url = sampleAds[sampleAdIdx];
+			sampleAdIdx = 1 - sampleAdIdx;
+			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
+		}
+#else
+		e.type = AAMP_EVENT_AD_RESOLVED;
+		e.data.adResolved.adId = adId.c_str();
+		e.data.adResolved.resolveStatus = status;
+		e.data.adResolved.startMS = startMS;
+		e.data.adResolved.durationMs = durationMs;
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status of adId[%s]=%d\n", __FUNCTION__, __LINE__, adId.c_str(), e.data.adResolved.resolveStatus);
+		SendEventAsync(e);
+#endif
+	}
+}
+
+/**
+ *   @brief Deliver pending Ad events to JSPP
+ */
+void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
+{
+	std::lock_guard<std::mutex> lock(mAdEventQMtx);
+	while (!mAdEventsQ.empty())
+	{
+		AAMPEvent &e = mAdEventsQ.front();
+		if(immediate)
+		{
+			SendEventAsync(e); 	//Need to send all events from gst idle thread.
+		}
+		else
+		{
+			SendEventSync(e);	//Already from gst idle thread
+		}
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Delivered AdEvent[%s] to JSPP.\n", __FUNCTION__, __LINE__, ADEVENT2STRING(e.type));
+		if(AAMP_EVENT_AD_PLACEMENT_START == e.type)
+		{
+			mAdProgressId = e.data.adPlacement.adId;
+			mAdPrevProgressTime = NOW_STEADY_TS_MS;
+			mAdCurOffset        = e.data.adPlacement.offset;
+			mAdDuration         = e.data.adPlacement.duration;
+		}
+		else if(AAMP_EVENT_AD_PLACEMENT_END == e.type || AAMP_EVENT_AD_PLACEMENT_ERROR == e.type)
+		{
+			mAdProgressId = "";
+		}
+		mAdEventsQ.pop();
+	}
+}
+
+/**
+ *   @brief Send Ad reservation event
+ *
+ *   @param[in] type - Event type
+ *   @param[in] adBreakId - Reservation Id
+ *   @param[in] position - Event position in terms of channel's timeline
+ *   @param[in] immediate - Send it immediate or not
+ */
+void PrivateInstanceAAMP::SendAdReservationEvent(AAMPEventType type, const std::string &adBreakId, uint64_t position, bool immediate)
+{
+	if(AAMP_EVENT_AD_RESERVATION_START == type || AAMP_EVENT_AD_RESERVATION_END == type)
+	{
+		AAMPEvent e;
+		e.type = type;
+		strncpy(e.data.adReservation.adBreakId, adBreakId.c_str(), AD_ID_LENGTH);
+		e.data.adReservation.position = position;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d, [CDAI] Pushed [%s] of adBreakId[%s] to Queue.\n", __FUNCTION__, __LINE__, ADEVENT2STRING(type), adBreakId.c_str());
+
+		{
+			{
+				std::lock_guard<std::mutex> lock(mAdEventQMtx);
+				mAdEventsQ.push(e);
+			}
+			if(immediate)
+			{
+				//Despatch all ad events now
+				DeliverAdEvents(true);
+			}
+		}
+	}
+}
+
+/**
+ *   @brief Send Ad placement event
+ *
+ *   @param[in] type - Event type
+ *   @param[in] adId - Placement Id
+ *   @param[in] position - Event position wrt to the corresponding adbreak start
+ *   @param[in] adOffset - Offset point of the current ad
+ *   @param[in] adDuration - Duration of the current ad
+ *   @param[in] immediate - Send it immediate or not
+ *   @param[in] error_code - Error code (in case of placment error)
+ */
+void PrivateInstanceAAMP::SendAdPlacementEvent(AAMPEventType type, const std::string &adId, uint32_t position, uint32_t adOffset, uint32_t adDuration, bool immediate, long error_code)
+{
+	if(AAMP_EVENT_AD_PLACEMENT_START <= type && AAMP_EVENT_AD_PLACEMENT_ERROR >= type)
+	{
+		AAMPEvent e;
+		e.type = type;
+		strncpy(e.data.adPlacement.adId, adId.c_str(), AD_ID_LENGTH);
+		e.data.adPlacement.position = position;
+		e.data.adPlacement.offset = adOffset * 1000; //To MS
+		e.data.adPlacement.duration = adDuration;
+		e.data.adPlacement.errorCode = error_code;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d, [CDAI] Pushed [%s] of adId[%s] to Queue.\n", __FUNCTION__, __LINE__, ADEVENT2STRING(type), adId.c_str());
+
+		{
+			{
+				std::lock_guard<std::mutex> lock(mAdEventQMtx);
+				mAdEventsQ.push(e);
+			}
+			if(immediate)
+			{
+				//Despatch all ad events now
+				DeliverAdEvents(true);
+			}
+		}
+	}
 }
 
 std::string PrivateInstanceAAMP::getStreamTypeString()
