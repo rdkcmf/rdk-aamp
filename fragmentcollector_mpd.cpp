@@ -45,6 +45,7 @@
 #include <libxml/xmlreader.h>
 #include <math.h>
 #include "AampCacheHandler.h"
+#include <algorithm>
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -55,6 +56,213 @@ using namespace std;
 using namespace dash::mpd;
 using namespace dash::xml;
 using namespace dash::helpers;
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
+
+/**
+ * @brief Ad playback states
+ */
+enum class AdState
+{
+	OUTSIDE_ADBREAK,		//Not in adbreak, wait for period change
+	IN_ADBREAK_AD_NOT_PLAYING,	//Base period in adbreak: But Ad not found/playing
+	IN_ADBREAK_AD_PLAYING,		//Ad playing
+	IN_ADBREAK_AD_READY2PLAY,	//Ready to play next Ad
+	IN_ADBREAK_WAIT2CATCHUP		//Waiting for base period to catchup
+};
+
+static constexpr const char *ADSTATE_STR[] =
+{
+	(const char *)"OUTSIDE_ADBREAK",
+	(const char *)"IN_ADBREAK_AD_NOT_PLAYING",
+	(const char *)"IN_ADBREAK_AD_PLAYING",
+	(const char *)"IN_ADBREAK_AD_READY2PLAY",
+	(const char *)"IN_ADBREAK_WAIT2CATCHUP"
+};
+
+/**
+ * @brief Ad event types
+ */
+enum class AdEvent
+{
+	INIT,
+	BASE_OFFSET_CHANGE,
+	AD_FINISHED,
+	AD_FAILED,
+	PERIOD_CHANGE,
+	DEFAULT = PERIOD_CHANGE
+};
+
+#define OFFSET_ALIGN_FACTOR 2000 //Observed minor slacks in the ad durations. Align factor used to place the ads correctly.
+
+/**
+ * @struct AdNode
+ * @brief Individual Ad's meta info
+ */
+struct AdNode {
+	bool invalid;		//Failed to play first time.
+	bool placed;  		//Ad completely placed on the period
+	std::string adId;
+	std::string url;
+	uint64_t duration;
+	std::string basePeriodId;
+	int basePeriodOffset;
+	MPD* mpd;
+
+	AdNode() : invalid(false), placed(false), adId(), url(), duration(0), basePeriodId(), basePeriodOffset(0), mpd(nullptr)
+	{
+	
+	}
+
+	AdNode(bool invalid, bool placed, std::string adId, std::string url, uint64_t duration,
+									std::string basePeriodId, int basePeriodOffset, MPD* mpd)
+	: invalid(invalid), placed(placed), adId(adId), url(url), duration(duration), basePeriodId(basePeriodId),
+		basePeriodOffset(basePeriodOffset), mpd(mpd)
+	{
+
+	}
+
+	AdNode(const AdNode& adNode) : invalid(adNode.invalid), placed(adNode.placed), adId(adNode.adId),
+									url(adNode.url), duration(adNode.duration), basePeriodId(adNode.basePeriodId),
+									basePeriodOffset(adNode.basePeriodOffset), mpd(adNode.mpd)
+	{
+	}
+
+	AdNode& operator=(const AdNode&) = delete;
+};
+
+/**
+ * @struct AdBreakObject
+ * @brief AdBreak's metadata
+ */
+struct AdBreakObject{
+	uint32_t duration;
+	std::shared_ptr<std::vector<AdNode>> ads;
+	std::string endPeriodId;
+	uint64_t endPeriodOffset;	//Last ad's end position stretches till here
+
+	AdBreakObject() : duration(0), ads(), endPeriodId(), endPeriodOffset(0)
+	{
+	}
+
+	AdBreakObject(uint32_t duration, std::shared_ptr<std::vector<AdNode>> ads, std::string endPeriodId, 
+	uint64_t endPeriodOffset)
+	: duration(duration), ads(ads), endPeriodId(endPeriodId), endPeriodOffset(endPeriodOffset)
+	{
+	}
+};
+
+/**
+ * @struct AdOnPeriod
+ * @brief Individual Ad's object falling in each period
+ */
+struct AdOnPeriod 
+{
+	int32_t adIdx;
+	uint32_t adStartOffset;
+};
+
+/**
+ * @struct Period2AdData
+ * @brief Meta info corresponding to each period.
+ */
+struct Period2AdData {
+	bool filled;				//Period filled with ads or not
+	std::string adBreakId;		//Parent Adbreak
+	uint64_t duration;			//Period Duration
+	std::map<int, AdOnPeriod> offset2Ad;
+
+	Period2AdData() : filled(false), adBreakId(), duration(0), offset2Ad()
+	{
+	}
+};
+
+/**
+ * @struct AdFulfillObj
+ * @brief Temporary object representing current fulfilling ad.
+ */
+struct AdFulfillObj {
+	std::string periodId;
+	std::string adId;
+	std::string url;
+
+	AdFulfillObj() : periodId(), adId(), url()
+	{
+
+	}
+};
+
+/**
+ * @struct PlacementObj
+ * @brief Current placing Ad's object
+ */
+struct PlacementObj {
+	std::string pendingAdbrkId;			//Only one Adbreak will be pending for replacement
+	std::string openPeriodId;			//The period in the adbreak that is progressing
+	uint64_t 	curEndNumber;			//Current periods last fragment number
+	int			curAdIdx;				//Currently placing ad, during MPD progression
+	uint32_t 	adNextOffset;			//Current periods last fragment number
+
+	PlacementObj(): pendingAdbrkId(), openPeriodId(), curEndNumber(0), curAdIdx(-1), adNextOffset(0)
+	{
+
+	}
+};	//Keeping current placement status. Not used for playback
+
+/**
+ * @class PrivateCDAIObjectMPD
+ * @brief Private Client Side DAI object for DASH
+ */
+class PrivateCDAIObjectMPD
+{
+public:
+	PrivateInstanceAAMP* mAamp;
+	std::mutex mDaiMtx;				/**< Mutex protecting DAI critical section */
+	bool 	mIsFogTSB;				/**< Channel playing from TSB or not */
+	std::unordered_map<std::string, AdBreakObject> mAdBreaks;
+	std::unordered_map<std::string, Period2AdData> mPeriodMap;	//periodId -> (periodClosed, vector<<Ad, FragStartIdx, FragEndIdx>>)
+	std::string mCurPlayingBreakId;
+	pthread_t mAdObjThreadID;
+	bool mAdFailed;
+	std::shared_ptr<std::vector<AdNode>> mCurAds;
+	int mCurAdIdx;
+	AdFulfillObj mAdFulfillObj;
+	PlacementObj mPlacementObj;
+	double mContentSeekOffset;
+	AdState mAdState;
+
+	PrivateCDAIObjectMPD(PrivateInstanceAAMP* aamp);	//Ctor
+	~PrivateCDAIObjectMPD();	//Dtor
+
+	PrivateCDAIObjectMPD(const PrivateCDAIObjectMPD&) = delete;
+	PrivateCDAIObjectMPD& operator= (const PrivateCDAIObjectMPD&) = delete;
+
+	void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS);
+	void FulFillAdObject();
+	MPD*  GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
+	void InsertToPeriodMap(IPeriod *period);
+	inline bool isPeriodExist(const std::string &periodId);
+	inline bool isAdBreakObjectExist(const std::string &adBrkId);
+	void PrunePeriodMaps(std::vector<std::string> &newPeriodIds);
+	void ResetState();
+	void ClearMaps();
+	void  PlaceAds(dash::mpd::IMPD *mpd);
+	int CheckForAdStart(bool continuePlay, const std::string &periodId, double offSet, std::string &breakId, double &adOffset);
+	inline bool isPeriodInAdbreak(const std::string &periodId);
+};
+
+CDAIObjectMPD::CDAIObjectMPD(PrivateInstanceAAMP* aamp): CDAIObject(aamp), mPrivObj(new PrivateCDAIObjectMPD(aamp))
+{
+
+}
+
+CDAIObjectMPD::~CDAIObjectMPD()
+{
+	delete mPrivObj;
+}
 
 #define MAX_ID_SIZE 1024
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
@@ -110,6 +318,9 @@ static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor 
 static void WriteFile(char* fileName, const char* data, int len);
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
 
+uint64_t GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
+uint64_t GetPeriodDuration(IPeriod * period);
+
 /**
  * @class MediaStreamContext
  * @brief MPD media track
@@ -129,7 +340,7 @@ public:
 			MediaTrack(type, aamp, name),
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-			eos(false), endTimeReached(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
+			eos(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment()
 	{
@@ -199,6 +410,7 @@ public:
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		, std::string media = 0
 #endif
+		, bool playingAd = false
 	)
 	{
 		bool ret = false;
@@ -258,10 +470,14 @@ public:
 			if( aamp->DownloadsAreEnabled())
 			{
 				logprintf("%s:%d LoadFragment failed\n", __FUNCTION__, __LINE__);
+
 				if (initSegment)
 				{
 					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s\n", __FUNCTION__, __LINE__, fragmentUrl);
-					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+					if(!playingAd)
+					{
+						aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+					}
 				}
 				else
 				{
@@ -270,7 +486,10 @@ public:
 					{
 						logprintf("%s:%d Not able to download fragments; reached failure threshold sending tune failed event\n",
 								__FUNCTION__, __LINE__);
-						aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+						if(!playingAd)	//If playingAd, we are invalidating the current Ad in onAdEvent().
+						{
+							aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+						}
 					} 
 					// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails 
 					// should continue with next fragment,no retry needed .
@@ -368,7 +587,6 @@ public:
 	int fragmentRepeatCount;
 	int fragmentOffset;
 	bool eos;
-	bool endTimeReached;
 	bool profileChanged;
 	GrowableBuffer mDownloadedFragment;
 
@@ -433,6 +651,307 @@ struct DrmSessionParams
 
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
 
+
+PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(PrivateInstanceAAMP* aamp) : mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
+					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj() 
+{
+	mAamp->CurlInit(AAMP_DAI_CURL_IDX, 1);
+}
+
+PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
+{
+	if(mAdObjThreadID)
+	{
+		int rc = pthread_join(mAdObjThreadID, NULL);
+		if (rc != 0)
+		{
+			logprintf("%s:%d ***pthread_join failed, returned %d\n", __FUNCTION__, __LINE__, rc);
+		}
+		mAdObjThreadID = 0;
+	}
+	mAamp->CurlTerm(AAMP_DAI_CURL_IDX, 1);
+}
+
+void PrivateCDAIObjectMPD::InsertToPeriodMap(IPeriod * period)
+{
+	const std::string &prdId = period->GetId();
+	if(!isPeriodExist(prdId))
+	{
+		mPeriodMap[prdId] = Period2AdData();
+	}
+}
+
+inline bool PrivateCDAIObjectMPD::isPeriodExist(const std::string &periodId)
+{
+	return (mPeriodMap.end() != mPeriodMap.find(periodId))?true:false;
+}
+
+inline bool PrivateCDAIObjectMPD::isAdBreakObjectExist(const std::string &adBrkId)
+{
+	return (mAdBreaks.end() != mAdBreaks.find(adBrkId))?true:false;
+}
+
+
+void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodIds)
+{
+	//Erase all adbreaks other than new adbreaks
+	for (auto it = mAdBreaks.begin(); it != mAdBreaks.end();) {
+		if ((mPlacementObj.pendingAdbrkId != it->first) && (mCurPlayingBreakId != it->first) &&//We should not remove the pending/playing adbreakObj
+				(newPeriodIds.end() == std::find(newPeriodIds.begin(), newPeriodIds.end(), it->first))) {
+			auto &adBrkObj = *it;
+			logprintf("%s:%d [CDAI] Removing the period[%s] from mAdBreaks.\n", __FUNCTION__, __LINE__, adBrkObj.first.c_str());
+			auto adNodes = adBrkObj.second.ads;
+			for(AdNode &ad: *adNodes)
+			{
+				if(ad.mpd)
+				{
+					delete ad.mpd;
+				}
+			}
+			it = mAdBreaks.erase(it);
+		} else {
+			++it;
+		}
+	}
+
+	//Erase all periods other than new periods
+	for (auto it = mPeriodMap.begin(); it != mPeriodMap.end();) {
+		if (newPeriodIds.end() == std::find(newPeriodIds.begin(), newPeriodIds.end(), it->first)) {
+			it = mPeriodMap.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+void PrivateCDAIObjectMPD::ResetState()
+{
+	 //TODO: Vinod, maybe we can move these playback state variables to PrivateStreamAbstractionMPD
+	 mIsFogTSB = false;
+	 mCurPlayingBreakId = "";
+	 mAdFailed = false;
+	 mCurAds = nullptr;
+	 mCurAdIdx = -1;
+	 mContentSeekOffset = 0;
+	 mAdState = AdState::OUTSIDE_ADBREAK;
+}
+
+void PrivateCDAIObjectMPD::ClearMaps()
+{
+	std::unordered_map<std::string, AdBreakObject> tmpMap;
+	std::swap(mAdBreaks,tmpMap);
+	for(auto &adBrkObj: tmpMap)
+	{
+		auto adNodes = adBrkObj.second.ads;
+		for(AdNode &ad: *adNodes)
+		{
+			if(ad.mpd)
+			{
+				delete ad.mpd;
+			}
+		}
+	}
+
+	mPeriodMap.clear();
+}
+
+void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
+{
+	bool placed = false;
+	//Populate the map to specify the period boundaries
+	if(mpd && (-1 != mPlacementObj.curAdIdx) && "" != mPlacementObj.pendingAdbrkId && isAdBreakObjectExist(mPlacementObj.pendingAdbrkId)) //Some Ad is still waiting for the placement
+	{
+		bool openPrdFound = false;
+
+		AdBreakObject &abObj = mAdBreaks[mPlacementObj.pendingAdbrkId];
+		vector<IPeriod *> periods = mpd->GetPeriods();
+		for(auto period: periods)
+		{
+			const std::string &periodId = period->GetId();
+			//We need to check, open period is available in the manifest. Else, something wrong
+			if(mPlacementObj.openPeriodId == periodId)
+			{
+				openPrdFound = true;
+			}
+			else if(openPrdFound)
+			{
+				if(GetPeriodDuration(period) > 0)
+				{
+					//Previous openPeriod ended. New period in the adbreak will be the new open period
+					mPeriodMap[mPlacementObj.openPeriodId].filled = true;
+					mPlacementObj.openPeriodId = periodId;
+					mPlacementObj.curEndNumber = 0;
+				}
+				else
+				{
+					continue;		//Empty period may come early; excluding them
+				}
+			}
+
+			if(openPrdFound && -1 != mPlacementObj.curAdIdx)
+			{
+				uint64_t periodDelta = GetPeriodNewContentDuration(period, mPlacementObj.curEndNumber);
+				Period2AdData& p2AdData = mPeriodMap[periodId];
+
+				if("" == p2AdData.adBreakId)
+				{
+					//New period opened
+					p2AdData.adBreakId = mPlacementObj.pendingAdbrkId;
+					p2AdData.offset2Ad[0] = AdOnPeriod{mPlacementObj.curAdIdx,mPlacementObj.adNextOffset};
+				}
+
+				p2AdData.duration += periodDelta;
+
+				while(periodDelta > 0)
+				{
+					AdNode &curAd = abObj.ads->at(mPlacementObj.curAdIdx);
+					if("" == curAd.basePeriodId)
+					{
+						//Next ad started placing
+						curAd.basePeriodId = periodId;
+						curAd.basePeriodOffset = p2AdData.duration - periodDelta;
+						int offsetKey = curAd.basePeriodOffset;
+						offsetKey = offsetKey - (offsetKey%OFFSET_ALIGN_FACTOR);
+						p2AdData.offset2Ad[offsetKey] = AdOnPeriod{mPlacementObj.curAdIdx,0};	//At offsetKey of the period, new Ad starts
+					}
+					if(periodDelta < (curAd.duration - mPlacementObj.adNextOffset))
+					{
+						mPlacementObj.adNextOffset += periodDelta;
+						periodDelta = 0;
+					}
+					else
+					{
+						//Current Ad completely placed. But more space available in the current period for next Ad
+						curAd.placed = true;
+						periodDelta -= (curAd.duration - mPlacementObj.adNextOffset);
+						mPlacementObj.curAdIdx++;
+						if(mPlacementObj.curAdIdx < abObj.ads->size())
+						{
+							mPlacementObj.adNextOffset = 0; //New Ad's offset
+						}
+						else
+						{
+							mPlacementObj.curAdIdx = -1;
+							//Place the end markers of adbreak
+							abObj.endPeriodId = periodId;	//If it is the exact period boundary, end period will be the next one
+							abObj.endPeriodOffset = p2AdData.duration - periodDelta;
+							if(abObj.endPeriodOffset < 5000)
+							{
+								abObj.endPeriodOffset = 0;//Aligning the last period
+								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
+							}
+							//TODO: else We need to calculate duration of the end period in the Adbreak
+
+							//Printing the placement positions
+							std::stringstream ss;
+							ss<<"{AdbreakId: "<<mPlacementObj.pendingAdbrkId;
+							ss<<", duration: "<<abObj.duration;
+							ss<<", endPeriodId: "<<abObj.endPeriodId;
+							ss<<", endPeriodOffset: "<<abObj.endPeriodOffset;
+							ss<<", #Ads: "<<abObj.ads->size() << ",[";
+							for(int k=0;k<abObj.ads->size();k++)
+							{
+								AdNode &ad = abObj.ads->at(k);
+								ss<<"\n{AdIdx:"<<k <<",AdId:"<<ad.adId<<",duration:"<<ad.duration<<",basePeriodId:"<<ad.basePeriodId<<", basePeriodOffset:"<<ad.basePeriodOffset<<"},";
+							}
+							ss<<"],\nUnderlyingPeriods:[ ";
+							for(auto it = mPeriodMap.begin();it != mPeriodMap.end();it++)
+							{
+								if(it->second.adBreakId == mPlacementObj.pendingAdbrkId)
+								{
+									ss<<"\n{PeriodId:"<<it->first<<", duration:"<<it->second.duration;
+									for(auto pit = it->second.offset2Ad.begin(); pit != it->second.offset2Ad.end() ;pit++)
+									{
+										ss<<", offset["<<pit->first<<"]=> Ad["<<pit->second.adIdx<<"@"<<pit->second.adStartOffset<<"]";
+									}
+								}
+							}
+							ss<<"]}";
+							logprintf("%s:%d [CDAI] Placement Done: %s.\n", __FUNCTION__, __LINE__, ss.str().c_str());
+							break;
+						}
+					}
+				}
+			}
+		}
+		if(-1 == mPlacementObj.curAdIdx)
+		{
+			mPlacementObj.pendingAdbrkId = "";
+			mPlacementObj.openPeriodId = "";
+			mPlacementObj.curEndNumber = 0;
+			mPlacementObj.adNextOffset = 0;
+		}
+	}
+}
+
+int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &periodId, double offSet, std::string &breakId, double &adOffset)
+{
+	int adIdx = -1;
+	auto pit = mPeriodMap.find(periodId);
+	if(mPeriodMap.end() != pit && !(pit->second.adBreakId.empty()))
+	{
+		//mBasePeriodId belongs to an Adbreak. Now we need to any Ad is placed in the offset.
+		Period2AdData &curP2Ad = pit->second;
+		breakId = curP2Ad.adBreakId;
+		if(isAdBreakObjectExist(breakId))
+		{
+			if(continuePlay)
+			{
+				int floorKey = (int)(offSet * 1000);
+				floorKey = floorKey - (floorKey%OFFSET_ALIGN_FACTOR);
+				auto adIt = curP2Ad.offset2Ad.find(floorKey);
+				if(curP2Ad.offset2Ad.end() == adIt)
+				{
+					//Considering only Ad start
+					int ceilKey = floorKey + OFFSET_ALIGN_FACTOR;
+					adIt = curP2Ad.offset2Ad.find(ceilKey);
+				}
+
+				if((curP2Ad.offset2Ad.end() != adIt) && (0 == adIt->second.adStartOffset))
+				{
+					//Considering only Ad start
+					adIdx = adIt->second.adIdx;
+					adOffset = 0;
+				}
+			}
+			else	//Discrete playback
+			{
+				AdBreakObject &abObj = mAdBreaks[breakId];
+				uint64_t key = (uint64_t)(offSet * 1000);
+				uint64_t start = 0;
+				uint64_t end = curP2Ad.duration;
+				if(periodId ==  abObj.endPeriodId)
+				{
+					end = abObj.endPeriodOffset;	//No need to look beyond the adbreakEnd
+				}
+
+				if(key >= start && key <= end)
+				{
+					//Yes, Key is in Adbreak. Find which Ad.
+					for(auto it = curP2Ad.offset2Ad.begin(); it != curP2Ad.offset2Ad.end(); it++)
+					{
+						if(key >= it->first)
+						{
+							adIdx = it->second.adIdx;
+							adOffset = (double)((key - it->first)/1000);
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return adIdx;
+}
+
+bool PrivateCDAIObjectMPD::isPeriodInAdbreak(const std::string &periodId)
+{
+	return !(mPeriodMap[periodId].adBreakId.empty());
+}
+
 /**
  * @class PrivateStreamAbstractionMPD
  * @brief Private implementation of MPD fragment collector
@@ -473,12 +992,18 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	void StopInjection();
 	void StartInjection();
-
+	static Node* ProcessNode(xmlTextReaderPtr *reader, const char *url, bool isAd = false);
+	static uint64_t GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
+	void SetCDAIObject(CDAIObject *cdaiObj);
+	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
+	bool onAdEvent(AdEvent evt);
+	bool onAdEvent(AdEvent evt, double &adOffset);
 private:
-	AAMPStatusType UpdateMPD();
-	void FindTimedMetadata(MPD* mpd, Node* root);
+	AAMPStatusType UpdateMPD(bool init = false);
+	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID);
+	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS);
@@ -492,9 +1017,9 @@ private:
 	void SkipToEnd( MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType);
 	void SeekInPeriod( double seekPositionSeconds);
-	uint64_t GetDurationFromRepresentation();
-	void UpdateCullingState();
+	double GetCulledSeconds();
 	void UpdateLanguageList();
+	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, const char* manifestUrl, bool init = false);
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -522,13 +1047,20 @@ private:
 	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
 	AudioType mAudioType;
-	std::string mPeriodId;
 	bool mPushEncInitFragment;
 	int mPrevAdaptationSetCount;
 	std::unordered_map<long, int> mBitrateIndexMap;
 	bool mIsFogTSB;
 	bool mIsIframeTrackPresent;
 	vector<PeriodInfo> mMPDPeriodsInfo;
+	IPeriod *mCurrentPeriod;
+	std::string mBasePeriodId;
+	double mBasePeriodOffset;
+	PrivateCDAIObjectMPD *mCdaiObject;
+
+	double mLiveEndPosition;
+	double mCulledSeconds;
+	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
 };
 
 
@@ -544,8 +1076,10 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLive(true), mContext(context),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0), lastProcessedKeyId(NULL),
 	lastProcessedKeyIdLen(0), mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
-	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPeriodId(""), mPushEncInitFragment(false),
-	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo()
+	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
+	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo(),
+	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
+	,mAdPlayingFromCDN(false)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -620,9 +1154,7 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 		}
 		else if (codecValue == "ec-3")
 		{
-#ifndef __APPLE__
 			audioType = eAUDIO_DDPLUS;
-#endif
 		}
 		else if( codecValue == "opus" || codecValue.find("vorbis") != std::string::npos )
 		{
@@ -698,10 +1230,11 @@ static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 		{
 			return true;
 		}
-		const std::vector<IRepresentation *>representation = adaptationSet->GetRepresentation();
+		const std::vector<IRepresentation *> &representation = adaptationSet->GetRepresentation();
 		for (int i = 0; i < representation.size(); i++)
 		{
-			if (IsCompatibleMimeType(representation.at(i)->GetMimeType(), mediaType) )
+			const IRepresentation * rep = representation.at(i);
+			if (IsCompatibleMimeType(rep->GetMimeType(), mediaType) )
 			{
 				return true;
 			}
@@ -897,7 +1430,7 @@ static void GetFragmentUrl( char fragmentUrl[MAX_URI_LENGTH], const FragmentDesc
 	}
 	else
 	{
-		traceprintf("%s:%d BaseURL not available\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d BaseURL not available\n", __FUNCTION__, __LINE__);
 	}
 	constructedUri += media;
 
@@ -1008,18 +1541,57 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 		duration = duration/rate * gpGlobalConfig->vodTrickplayFPS;
 		//aamp->disContinuity();
 	}
-	if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
+	bool fragmentCached = pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		, media
 #endif
-	))
+		,(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING));
+	// Check if we have downloaded the fragment and waiting for init fragment download on
+	// bitrate switching before caching it.
+	bool fragmentSaved = (NULL != pMediaStreamContext->mDownloadedFragment.ptr);
+
+	if (!fragmentCached)
 	{
-		logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+		if(!fragmentSaved)
+		{
+			logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+			if(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING && (isInitializationSegment || pMediaStreamContext->segDLFailCount >= MAX_AD_SEG_DOWNLOAD_FAIL_COUNT))
+			{
+				logprintf("PrivateStreamAbstractionMPD::%s:%d [CDAI] Ad fragment not available. Playback failed.\n", __FUNCTION__, __LINE__);
+				mCdaiObject->mAdFailed = true;
+			}
+		}
 		retval = false;
 	}
 	else
 	{
-		pMediaStreamContext->fragmentTime += fragmentDuration;
+		if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
+		{
+			if(rate == 1.0)
+			{
+				mBasePeriodOffset += fragmentDuration;
+			}
+			else
+			{
+				mBasePeriodOffset += (fragmentDuration*rate/gpGlobalConfig->vodTrickplayFPS);
+			}
+		}
+	}
+
+	{
+		if(rate > 0)
+		{
+			pMediaStreamContext->fragmentTime += fragmentDuration;
+		}
+		else
+		{
+			pMediaStreamContext->fragmentTime -= fragmentDuration;
+			if(pMediaStreamContext->fragmentTime < 0)
+			{
+				pMediaStreamContext->fragmentTime = 0;
+			}
+//			if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO) mBasePeriodOffset -= fragmentDuration;
+		}
 	}
 	return retval;
 }
@@ -1053,10 +1625,15 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			uint32_t timeScale = segmentTemplate->GetTimescale();
 			std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 #ifdef DEBUG_TIMELINE
-			logprintf("%s:%d Type[%d] timelineCnt=%d timeLineIndex:%d fragTime=%" PRIu64 " L=%" PRIu64 "\n", __FUNCTION__, __LINE__,
-				pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime);
+			logprintf("%s:%d Type[%d] timelineCnt=%d timeLineIndex:%d fragTime=%" PRIu64 " L=%" PRIu64 " [fragmentTime = %f,  mLiveEndPosition = %f]\n", __FUNCTION__, __LINE__,
+				pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime
+				, pMediaStreamContext->fragmentTime, mLiveEndPosition);
 #endif
-			if ((pMediaStreamContext->timeLineIndex >= timelines.size()) || (pMediaStreamContext->timeLineIndex < 0))
+
+			if ((pMediaStreamContext->timeLineIndex >= timelines.size()) || (pMediaStreamContext->timeLineIndex < 0)
+					||(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState &&
+						((rate > AAMP_NORMAL_PLAY_RATE && pMediaStreamContext->fragmentTime >= mLiveEndPosition)
+						 ||(rate < 0 && pMediaStreamContext->fragmentTime <= 0))))
 			{
 				AAMPLOG_INFO("%s:%d Type[%d] EOS. timeLineIndex[%d] size [%lu]\n",__FUNCTION__, __LINE__,pMediaStreamContext->type, pMediaStreamContext->timeLineIndex, timelines.size());
 				pMediaStreamContext->eos = true;
@@ -1157,7 +1734,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) \n",__FUNCTION__, __LINE__,
 					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
 #endif
-					double fragmentDuration = (double)duration/timeScale;
+					double fragmentDuration = (double)duration/(double)timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 					if(retval)
 					{
@@ -1172,7 +1749,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							pMediaStreamContext->targetDnldPosition += fragmentDuration;
 						}
 					}
-					else if(mIsFogTSB && pMediaStreamContext->mDownloadedFragment.ptr)
+					else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
 					{
 						pMediaStreamContext->profileChanged = true;
 						mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
@@ -1197,8 +1774,15 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					logprintf("%s:%d Type[%d] presenting %" PRIu64 "\n", __FUNCTION__, __LINE__,pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time);
 #endif
 					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
-					double fragmentDuration = (double)duration/timeScale;
+					double fragmentDuration = (double)duration/(double)timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
+					if (!retval && ((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr))
+					{
+						pMediaStreamContext->profileChanged = true;
+						mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
+						FetchAndInjectInitialization();
+						return false;
+					}
 				}
 				else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
 						((pMediaStreamContext->lastSegmentTime - pMediaStreamContext->fragmentDescriptor.Time) > TIMELINE_START_RESET_DIFF))
@@ -1571,10 +2155,6 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 		}
 	}
-	if ((mEndPosition > 0) && pMediaStreamContext->fragmentTime >= mEndPosition)
-	{
-		pMediaStreamContext->endTimeReached = true;
-	}
 	return retval;
 }
 
@@ -1665,8 +2245,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 	}
 	if (segmentTemplate)
 	{
-		 AAMPLOG_INFO("%s:%d Enter : Type[%d] timeLineIndex %d fragmentRepeatCount %d skipTime %f\n", __FUNCTION__, __LINE__,pMediaStreamContext->type,
-                                pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, skipTime);
+		 AAMPLOG_INFO("%s:%d Enter : Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentTime %f skipTime %f\n", __FUNCTION__, __LINE__,pMediaStreamContext->type,
+                                pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentTime, skipTime);
 
 		std::string media = segmentTemplate->Getmedia();
 		const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
@@ -1696,7 +2276,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						}
 					}
 					uint32_t duration = timeline->GetDuration();
-					double fragmentDuration = ((double)duration)/timeScale;
+					double fragmentDuration = ((double)duration)/(double)timeScale;
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
 					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
 					bool skipFlag = true;
@@ -1916,14 +2496,234 @@ static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
 	}
 }
 
+/**
+ * @brief Get libdash xml Node for Ad period
+ * @param[in] manifestUrl url of the Ad
+ * @retval libdash xml Node corresponding to Ad period
+ */
+MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifest, bool tryFog)
+{
+	MPD* adMpd = NULL;
+	GrowableBuffer manifest;
+	int downloadAttempt = 0;
+	bool gotManifest = false;
+	long http_error = 0;
+	char effectiveUrl[MAX_URI_LENGTH];
+
+	while (downloadAttempt < 2)
+	{
+		downloadAttempt++;
+		memset(&manifest, 0, sizeof(manifest));
+		gotManifest = mAamp->GetFile(manifestUrl.c_str(), &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+		if (gotManifest)
+		{
+			break;
+		}
+		else if (mAamp->DownloadsAreEnabled())
+		{
+			if (downloadAttempt < 2 && 404 == http_error)
+			{
+				continue;
+			}
+			logprintf("PrivateStreamAbstractionMPD::%s - manifest download failed\n", __FUNCTION__);
+			break;
+		}
+	}
+
+	if (gotManifest)
+	{
+		finalManifest = true;
+		xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
+		if(tryFog && !(gpGlobalConfig->playAdFromCDN) && reader && mIsFogTSB)	//Main content from FOG. Ad is expected from FOG.
+		{
+			const char *channelUrl = (char *)mAamp->GetManifestUrl();	//TODO: Get FOG URL from channel URL
+			std::string encodedUrl;
+			UrlEncode(effectiveUrl, encodedUrl);
+			int ipend = 0;
+			for(int slashcnt=0; slashcnt < 3 && channelUrl[ipend]; ipend++)
+			{
+				if(channelUrl[ipend] == '/') slashcnt++;
+			}
+
+			strncpy(effectiveUrl, channelUrl, ipend);
+			effectiveUrl[ipend] = '\0';
+			strcat(effectiveUrl, "adrec?clientId=FOG_AAMP&recordedUrl=");
+			strcat(effectiveUrl, encodedUrl.c_str());
+			GrowableBuffer fogManifest;
+			memset(&fogManifest, 0, sizeof(manifest));
+			http_error = 0;
+			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+			if(200 == http_error || 204 == http_error)
+			{
+				manifestUrl = effectiveUrl;
+				if(200 == http_error)
+				{
+					//FOG already has the manifest. Releasing the one from CDN and using FOG's
+					xmlFreeTextReader(reader);
+					reader = xmlReaderForMemory(fogManifest.ptr, (int) fogManifest.len, NULL, NULL, 0);
+					aamp_Free(&manifest.ptr);
+					manifest = fogManifest;
+					fogManifest.ptr = NULL;
+				}
+				else
+				{
+					finalManifest = false;
+				}
+			}
+
+			if(fogManifest.ptr)
+			{
+				aamp_Free(&fogManifest.ptr);
+			}
+		}
+		if (reader != NULL)
+		{
+			if (xmlTextReaderRead(reader))
+			{
+				Node* root = PrivateStreamAbstractionMPD::ProcessNode(&reader, manifestUrl.c_str(), true);
+				if (NULL != root)
+				{
+					std::vector<Node*> children = root->GetSubNodes();
+					for (size_t i = 0; i < children.size(); i++)
+					{
+						Node* child = children.at(i);
+						const std::string& name = child->GetName();
+						logprintf("PrivateStreamAbstractionMPD::%s - child->name %s\n", __FUNCTION__, name.c_str());
+						if (name == "Period")
+						{
+							logprintf("PrivateStreamAbstractionMPD::%s - found period\n", __FUNCTION__);
+							std::vector<Node *> children = child->GetSubNodes();
+							bool hasBaseUrl = false;
+							for (size_t i = 0; i < children.size(); i++)
+							{
+								if (children.at(i)->GetName() == "BaseURL")
+								{
+									hasBaseUrl = true;
+								}
+							}
+							if (!hasBaseUrl)
+							{
+								// BaseUrl not found in the period. Get it from the root and put it in the period
+								children = root->GetSubNodes();
+								for (size_t i = 0; i < children.size(); i++)
+								{
+									if (children.at(i)->GetName() == "BaseURL")
+									{
+										Node* baseUrl = new Node(*children.at(i));
+										child->AddSubNode(baseUrl);
+										hasBaseUrl = true;
+										break;
+									}
+								}
+							}
+							if (!hasBaseUrl)
+							{
+								std::string baseUrlStr = Path::GetDirectoryPath(manifestUrl);
+								Node* baseUrl = new Node();
+								baseUrl->SetName("BaseURL");
+								baseUrl->SetType(Text);
+								baseUrl->SetText(baseUrlStr);
+								logprintf("PrivateStreamAbstractionMPD::%s - manual adding BaseURL Node [%p] text %s\n",
+								        __FUNCTION__, baseUrl, baseUrl->GetText().c_str());
+								child->AddSubNode(baseUrl);
+							}
+							break;
+						}
+					}
+					adMpd = root->ToMPD();
+					delete root;
+				}
+				else
+				{
+					logprintf("%s:%d - Could not create root node\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("%s:%d - xmlTextReaderRead failed\n", __FUNCTION__, __LINE__);
+			}
+			xmlFreeTextReader(reader);
+		}
+		else
+		{
+			logprintf("%s:%d - xmlReaderForMemory failed\n", __FUNCTION__, __LINE__);
+		}
+
+		if (gpGlobalConfig->logging.trace)
+		{
+			aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
+			logprintf("%s:%d - Ad manifest: %s\n", __FUNCTION__, __LINE__, manifest.ptr);
+		}
+		aamp_Free(&manifest.ptr);
+	}
+	else
+	{
+		logprintf("%s:%d - aamp: error on manifest fetch\n", __FUNCTION__, __LINE__);
+	}
+	return adMpd;
+}
 
 /**
  * @brief Get xml node form reader
  * @param reader pointer to reader object
  * @param url manifest url
  * @retval xml node
+*/
+AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, const char* manifestUrl, bool init)
+{
+	AAMPStatusType ret = eAAMPSTATUS_OK;
+	xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
+	if (reader != NULL)
+	{
+		if (xmlTextReaderRead(reader))
+		{
+			Node *root = PrivateStreamAbstractionMPD::ProcessNode(&reader, manifestUrl);
+			if(root != NULL)
+			{
+				uint32_t fetchTime = Time::GetCurrentUTCTimeInSec();
+				mpd = root->ToMPD();
+				if (mpd)
+				{
+					mpd->SetFetchTime(fetchTime);
+#if 1
+					FindTimedMetadata(mpd, root, init);
+#else
+					size_t prevPrdCnt = mCdaiObject->mAdBreaks.size();
+					FindTimedMetadata(mpd, root, init);
+					size_t newPrdCnt = mCdaiObject->mAdBreaks.size();
+					if(prevPrdCnt < newPrdCnt)
+					{
+						static int myctr = 0;
+						std::string filename = "/tmp/manifest.mpd_" + std::to_string(myctr++);
+						WriteFile(filename.c_str(),manifest.ptr, manifest.len);
+					}
+#endif
+				}
+				else
+				{
+				    ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+				}
+				delete root;
+			}
+		}
+		xmlFreeTextReader(reader);
+	}
+	else
+	{
+		ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+	}
+	return ret;
+}
+
+/**
+ * @brief Get xml node form reader
+ *
+ * @param[in] reader Pointer to reader object
+ * @param[in] url    manifest url
+ *
+ * @retval xml node
  */
-static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
+Node* PrivateStreamAbstractionMPD::ProcessNode(xmlTextReaderPtr *reader, const char *url, bool isAd)
 {
 	int type = xmlTextReaderNodeType(*reader);
 
@@ -1939,18 +2739,30 @@ static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
 		node->SetType(type);
 		node->SetMPDPath(Path::GetDirectoryPath(url));
 
-		if (xmlTextReaderConstName(*reader) == NULL)
+		const char *name = (const char *)xmlTextReaderConstName(*reader);
+		if (name == NULL)
 		{
 			delete node;
 			return NULL;
 		}
 
-		std::string name = (const char *)xmlTextReaderConstName(*reader);
 		int         isEmpty = xmlTextReaderIsEmptyElement(*reader);
 
 		node->SetName(name);
 
 		AddAttributesToNode(reader, node);
+
+		if(isAd && !strcmp("Period", name))
+		{
+			//Making period ids unique. It needs for playing same ad back to back.
+			static int UNIQ_PID = 0;
+			std::string periodId = std::to_string(UNIQ_PID++) + "-";
+			if(node->HasAttribute("id"))
+			{
+				periodId += node->GetAttributeValue("id");
+			}
+			node->AddAttribute("id", periodId);
+		}
 
 		if (isEmpty)
 			return node;
@@ -1960,12 +2772,12 @@ static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
 
 		while (ret == 1)
 		{
-			if (!strcmp(name.c_str(), (const char *)xmlTextReaderConstName(*reader)))
+			if (!strcmp(name, (const char *)xmlTextReaderConstName(*reader)))
 			{
 				return node;
 			}
 
-			subnode = ProcessNode(reader, url);
+			subnode = PrivateStreamAbstractionMPD::ProcessNode(reader, url, isAd);
 
 			if (subnode != NULL)
 				node->AddSubNode(subnode);
@@ -2408,6 +3220,53 @@ uint64_t GetPeriodDuration(IPeriod * period)
 	return durationMs;
 }
 
+uint64_t GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber)
+{
+	uint64_t durationMs = 0;
+
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+	if (adaptationSets.size() > 0)
+	{
+		IAdaptationSet * firstAdaptation = adaptationSets.at(0);
+		ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
+		if (!segmentTemplate)
+		{
+			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+			if (representations.size() > 0)
+			{
+				segmentTemplate = representations.at(0)->GetSegmentTemplate();
+			}
+		}
+		if (segmentTemplate)
+		{
+			const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			if (segmentTimeline)
+			{
+				uint32_t timeScale = segmentTemplate->GetTimescale();
+				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+				uint64_t startNumber = segmentTemplate->GetStartNumber();
+				int timeLineIndex = 0;
+				while (timeLineIndex < timelines.size())
+				{
+					ITimeline *timeline = timelines.at(timeLineIndex);
+					uint32_t segmentCount = timeline->GetRepeatCount() + 1;
+					uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+					for(int i=0;i<segmentCount;i++)
+					{
+						if(startNumber > curEndNumber)
+						{
+							durationMs += timelineDurationMs;
+							curEndNumber = startNumber;
+						}
+						startNumber++;
+					}
+					timeLineIndex++;
+				}
+			}
+		}
+	}
+	return durationMs;
+}
 
 /**
  * @brief Get end time of current period
@@ -2418,7 +3277,7 @@ uint64_t PrivateStreamAbstractionMPD::GetPeriodEndTime()
 	uint64_t  periodStartMs = 0;
 	uint64_t periodDurationMs = 0;
 	uint64_t periodEndTime = 0;
-	IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+	IPeriod *period = mCurrentPeriod;
 	string statTimeStr = period->GetStart();
 	string durationStr = period->GetDuration();
 	if(!statTimeStr.empty())
@@ -2455,6 +3314,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
+	mCdaiObject->ResetState();
+
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
 	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
@@ -2473,7 +3334,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
 	}
 
-	AAMPStatusType ret = UpdateMPD();
+	AAMPStatusType ret = UpdateMPD(true);
 	if (ret == eAAMPSTATUS_OK)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();
@@ -2495,6 +3356,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
 		{
 			mIsFogTSB = true;
+			mCdaiObject->mIsFogTSB = true;
 		}
 
 		if(mIsLive)
@@ -2591,7 +3453,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		if (0 == durationMs)
 		{
-			durationMs = GetDurationFromRepresentation();
+			durationMs = PrivateStreamAbstractionMPD::GetDurationFromRepresentation(mpd);
 			logprintf("%s:%d - Duration after GetDurationFromRepresentation %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
 		}
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
@@ -2600,6 +3462,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		if (mIsLive)
 		{
 			double duration = (double) durationMs / 1000;
+			mLiveEndPosition = duration;
 			bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && aamp->IsLiveAdjustRequired();
 			if (eTUNETYPE_SEEKTOLIVE == tuneType)
 			{
@@ -2665,6 +3528,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				return eAAMPSTATUS_SEEK_RANGE_ERROR;
 			}
 		}
+		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
+		mBasePeriodId = mCurrentPeriod->GetId();
+		mBasePeriodOffset = offsetFromStart;
+
+		onAdEvent(AdEvent::INIT, offsetFromStart);
+
 		UpdateLanguageList();
 		StreamSelection(true);
 
@@ -2694,7 +3563,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			SeekInPeriod( offsetFromStart);
 			seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
 			if(0 != mCurrentPeriodIdx)
+			{
 				seekPosition += currentPeriodStart;
+				for (int i = 0; i < mNumberOfTracks; i++)
+				{
+					mMediaStreamContext[i]->fragmentTime = seekPosition;
+				}
+			}
 			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
 			if (newTune )
 			{
@@ -2714,6 +3589,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, mContext->hasDrm, mIsIframeTrackPresent);
 
 				aamp->UpdateDuration(((double)durationMs)/1000);
+				GetCulledSeconds();
 				aamp->UpdateRefreshPlaylistInterval((float)mMinUpdateDurationMs / 1000);
 			}
 		}
@@ -2735,7 +3611,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
  * @brief Get duration though representation iteration
  * @retval duration in milliseconds
  */
-uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
+uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 {
 	uint64_t durationMs = 0;
 	size_t numPeriods = mpd->GetPeriods().size();
@@ -2809,7 +3685,7 @@ uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
  * @param retrievePlaylistFromCache true to try to get from cache
  * @retval true on success
  */
-AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
+AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 {
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
@@ -2873,10 +3749,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 		if (gotManifest)
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		char fileName[1024] = {'\0'};
-		strcat(fileName, HARVEST_BASE_PATH);
-		strcat(fileName, "manifest.mpd");
-		WriteFile( fileName, manifest.ptr, manifest.len);
+			char fileName[1024] = {'\0'};
+			strcat(fileName, HARVEST_BASE_PATH);
+			strcat(fileName, "manifest.mpd");
+			WriteFile( fileName, manifest.ptr, manifest.len);
 #endif
 			// parse xml
 			xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
@@ -2894,57 +3770,32 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 			fprintf(outputFile,"\n\n\nEndofManifest\n\n\n");
 			fclose(outputFile);
 #endif
-			if (reader != NULL)
+
+			MPD* mpd = nullptr;
+			ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
+			logprintf("%s:%d Created MPD[%p]\n", __FUNCTION__, __LINE__, mpd);
+			if (eAAMPSTATUS_OK == ret)
 			{
-				if (xmlTextReaderRead(reader))
+				if (this->mpd)
 				{
-					Node *root = ProcessNode(&reader, manifestUrl);
-					if(root != NULL)
-					{
-						uint32_t fetchTime = Time::GetCurrentUTCTimeInSec();
-						MPD* mpd = root->ToMPD();
-						if (mpd)
-						{
-							mpd->SetFetchTime(fetchTime);
-							FindTimedMetadata(mpd, root);
-							if (this->mpd)
-							{
-								delete this->mpd;
-							}
-							else
-							{
-								if (gpGlobalConfig->logging.trace)
-								{
-									aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-									printf("%s\n", manifest.ptr);
-								}
-							}
-							this->mpd = mpd;
-							mIsLive = !(mpd->GetType() == "static");
-							aamp->SetIsLive(mIsLive);
-							if (!retrievedPlaylistFromCache)
-							{
-								AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(),mIsLive);
-							}
-						}
-						else
-						{
-						    ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
-						}
-						delete root;
-					}
-					else
-					{
-						logprintf("Error while processing MPD, Process Node returned NULL\n");
-						if(downloadAttempt < 2)
-						{
-							retrievedPlaylistFromCache = false;
-							continue;
-						}
-						ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-					}
+					delete this->mpd;
 				}
-				xmlFreeTextReader(reader);
+				this->mpd = mpd;
+				mIsLive = !(mpd->GetType() == "static");
+				aamp->SetIsLive(mIsLive);
+				if (!retrievedPlaylistFromCache)
+				{
+					AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(), mIsLive);
+				}
+			}
+			else
+			{
+				logprintf("%s:%d Error while processing MPD, GetMpdFromManfiest returned %d\n", __FUNCTION__, __LINE__, ret);
+				if(downloadAttempt < 2)
+				{
+					retrievedPlaylistFromCache = false;
+					continue;
+				}
 			}
 
 			aamp_Free(&manifest.ptr);
@@ -2981,14 +3832,16 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
  * @param mpd MPD top level element
  * @param root XML root node
  */
-void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
+void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool init)
 {
 	std::vector<Node*> subNodes = root->GetSubNodes();
 
 	uint64_t periodStartMS = 0;
 	uint64_t periodDurationMS = 0;
 
+	std::vector<std::string> newPeriods;
 	// Iterate through each of the MPD's Period nodes, and ProgrameInformation.
+	int periodCnt = 0;
 	for (size_t i=0; i < subNodes.size(); i++) {
 		Node* node = subNodes.at(i);
 		const std::string& name = node->GetName();
@@ -2996,6 +3849,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 			std::string AdID;
 			std::string AssetID;
 			std::string ProviderID;
+			periodCnt++;
 
 			// Calculate period start time and duration
 			periodStartMS += periodDurationMS;
@@ -3016,10 +3870,13 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 				periodDurationMS = valueMS;
 			}
 
+			IPeriod * period = mpd->GetPeriods().at(periodCnt-1);
+			std::string adBreakId("");
+			const std::string &prdId = period->GetId();
 			// Iterate through children looking for SupplementProperty nodes
 			std::vector<Node*> children = node->GetSubNodes();
-			for (size_t i=0; i < children.size(); i++) {
-				Node* child = children.at(i);
+			for (size_t j=0; j < children.size(); j++) {
+				Node* child = children.at(j);
 				const std::string& name = child->GetName();
 				if (name == "SupplementalProperty") {
 					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS);
@@ -3029,6 +3886,18 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID);
 					continue;
 				}
+				if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
+				   && (!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size())))	//Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
+				{
+					mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
+					ProcessEventStream(periodStartMS, period);
+					continue;
+				}
+			}
+			if("" != prdId)
+			{
+				mCdaiObject->InsertToPeriodMap(period);
+				newPeriods.emplace_back(prdId);
 			}
 			continue;
 		}
@@ -3110,6 +3979,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 			continue;
 		}
 	}
+	mCdaiObject->PrunePeriodMaps(newPeriods);
 }
 
 
@@ -3240,6 +4110,29 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 	}
 }
 
+
+bool PrivateStreamAbstractionMPD::ProcessEventStream(uint64_t startMS, IPeriod * period)
+{
+	bool ret = false;
+	if(!(gpGlobalConfig->enableClientDai))
+	{
+		return ret;
+	}
+	const std::string &prdId = period->GetId();
+	if(!prdId.empty())
+	{
+		uint32_t breakdur = 0;
+		uint64_t startMS1 = 0;
+		std::string scte35;
+		if(isAdbreakStart(period, breakdur, startMS1, scte35))
+		{
+			//Found an Ad break.
+			aamp->FoundSCTE35(prdId, startMS, breakdur, scte35);
+			ret = true;
+		}
+	}
+	return ret;
+}
 
 /**
  * @brief Process Stream restriction list
@@ -3410,12 +4303,6 @@ void * FragmentDownloader(void *arg)
 					AAMPLOG_INFO("%s:%d %s EOS - Exit fetch loop\n", __FUNCTION__, __LINE__, downloadParams->pMediaStreamContext->name);
 					break;
 				}
-				if (downloadParams->pMediaStreamContext->endTimeReached)
-				{
-					AAMPLOG_INFO("%s:%d - endTimeReached\n", __FUNCTION__, __LINE__);
-					downloadParams->context->aamp->EndTimeReached(eMEDIATYPE_AUDIO);
-					break;
-				}
 			}
 			timeoutMs = downloadParams->context->GetMinUpdateDuration() - (int)(aamp_GetCurrentTimeMS() - downloadParams->lastPlaylistUpdateMS);
 			if(timeoutMs <= 0 && downloadParams->context->aamp->IsLive())
@@ -3513,24 +4400,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
 
-	IPeriod *period = NULL;
-	bool periodAdaptSetfound = true;
-	size_t numPeriods = mpd->GetPeriods().size();
-
-	do
-	{
-		period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-		periodAdaptSetfound = !(period->GetAdaptationSets().size() == 0);
-		if(periodAdaptSetfound)
-			break;
-		logprintf("%s:%d Adaptation Sets not found for periodIdx: %lu\n", __FUNCTION__, __LINE__, mCurrentPeriodIdx);
-	}while(++mCurrentPeriodIdx < numPeriods);
-
-	if(!periodAdaptSetfound)
-	{
-		logprintf("%s:%d No Valid Adaptation Sets found, total periods: %lu\n", __FUNCTION__, __LINE__, numPeriods);
-		return;
-	}
+	IPeriod *period = mCurrentPeriod;
 
 	AAMPLOG_INFO("Selected Period index %d, id %s\n", mCurrentPeriodIdx, period->GetId().c_str());
 
@@ -3800,18 +4670,28 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 {
 	long defaultBitrate = gpGlobalConfig->defaultBitrate;
 	long iframeBitrate = gpGlobalConfig->iframeBitrate;
+	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
+
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
 		struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
+		if(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING)
+		{
+			AdNode &adNode = mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx);
+			if(adNode.mpd != NULL)
+			{
+				pMediaStreamContext->fragmentDescriptor.manifestUrl = adNode.url.c_str();
+			}
+		}
 		if(pMediaStreamContext->enabled)
 		{
-			IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+			IPeriod *period = mCurrentPeriod;
 			pMediaStreamContext->adaptationSet = period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx);
 			pMediaStreamContext->adaptationSetId = pMediaStreamContext->adaptationSet->GetId();
 			/*Populate StreamInfo for ABR Processing*/
 			if (i == eMEDIATYPE_VIDEO)
 			{
-				if(mIsFogTSB && periodChanged)
+				if(isFogTsb && periodChanged)
 				{
 					vector<Representation *> representations;
 					GetBitrateInfoFromCustomMpd(pMediaStreamContext->adaptationSet, representations);
@@ -3825,6 +4705,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					{
 						mStreamInfo = new StreamInfo[representationCount];
 					}
+					mContext->GetABRManager().clearProfiles();
 					mBitrateIndexMap.clear();
 					for (int idx = 0; idx < representationCount; idx++)
 					{
@@ -3842,7 +4723,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					aamp->profiler.SetBandwidthBitsPerSecondVideo(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
 				}
-				else if(!mIsFogTSB)
+				else if(!isFogTsb && periodChanged)
 				{
 					int representationCount = pMediaStreamContext->adaptationSet->GetRepresentation().size();
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
@@ -3855,6 +4736,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo = new StreamInfo[representationCount];
 					}
 					mContext->GetABRManager().clearProfiles();
+					mBitrateIndexMap.clear();
 					for (int idx = 0; idx < representationCount; idx++)
 					{
 						IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
@@ -3899,7 +4781,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 
 			if(-1 == pMediaStreamContext->representationIndex)
 			{
-				if(!mIsFogTSB)
+				if(!isFogTsb)
 				{
 					if(i == eMEDIATYPE_VIDEO)
 					{
@@ -3953,7 +4835,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 				pMediaStreamContext->fragmentDescriptor.baseUrls = &pMediaStreamContext->adaptationSet->GetBaseURLs();
 				if (pMediaStreamContext->fragmentDescriptor.baseUrls->size() == 0)
 				{
-					pMediaStreamContext->fragmentDescriptor.baseUrls = &mpd->GetPeriods().at(mCurrentPeriodIdx)->GetBaseURLs();
+					pMediaStreamContext->fragmentDescriptor.baseUrls = &mCurrentPeriod->GetBaseURLs();
 					if (pMediaStreamContext->fragmentDescriptor.baseUrls->size() == 0)
 					{
 						pMediaStreamContext->fragmentDescriptor.baseUrls = &mpd->GetBaseUrls();
@@ -3965,7 +4847,6 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 				pMediaStreamContext->timeLineIndex = 0;
 			pMediaStreamContext->fragmentRepeatCount = 0;
 			pMediaStreamContext->fragmentOffset = 0;
-			pMediaStreamContext->fragmentTime = 0;
 			pMediaStreamContext->eos = false;
 			if(0 == pMediaStreamContext->fragmentDescriptor.Bandwidth || !aamp->IsTSBSupported())
 			{
@@ -3985,10 +4866,6 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
-	if (mIsLive && aamp->IsLiveAdjustRequired() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
-	{
-		UpdateCullingState();
-	}
 }
 
 
@@ -3996,9 +4873,10 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 /**
  * @brief Update culling state for live manifests
  */
-void PrivateStreamAbstractionMPD::UpdateCullingState()
+double PrivateStreamAbstractionMPD::GetCulledSeconds()
 {
 	double newStartTimeSeconds = 0;
+	double culled = 0;
 	traceprintf("PrivateStreamAbstractionMPD::%s:%d Enter\n", __FUNCTION__, __LINE__);
 	MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 	if (pMediaStreamContext->adaptationSet)
@@ -4013,6 +4891,78 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 		if (segmentTemplate)
 		{
 			segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			if (segmentTimeline)
+			{
+				auto periods = mpd->GetPeriods();
+				vector<PeriodInfo> currMPDPeriodDetails;
+				uint32_t timescale = segmentTemplate->GetTimescale();
+				for (auto period : periods)
+				{
+					PeriodInfo periodInfo;
+					periodInfo.periodId = period->GetId();
+					periodInfo.duration = (double)GetPeriodDuration(period)/ 1000;
+					periodInfo.startTime = GetFirstSegmentStartTime(period);
+					currMPDPeriodDetails.push_back(periodInfo);
+				}
+
+				int iter1 = 0;
+				PeriodInfo currFirstPeriodInfo = currMPDPeriodDetails.at(0);
+				while (iter1 < mMPDPeriodsInfo.size())
+				{
+					PeriodInfo prevPeriodInfo = mMPDPeriodsInfo.at(iter1);
+					if(prevPeriodInfo.periodId == currFirstPeriodInfo.periodId)
+					{
+						if(prevPeriodInfo.startTime && currFirstPeriodInfo.startTime)
+						{
+							uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
+							culled += ((double)timeDiff / (double)timescale);
+							logprintf("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f\n", __FUNCTION__, __LINE__,
+												prevPeriodInfo.periodId.c_str(), prevPeriodInfo.startTime, currFirstPeriodInfo.startTime, culled);
+						}
+						break;
+					}
+					else
+					{
+						culled += prevPeriodInfo.duration;
+						iter1++;
+						logprintf("%s:%d PeriodId %s , with last known duration %f seems to have got culled\n", __FUNCTION__, __LINE__,
+										prevPeriodInfo.periodId.c_str(), prevPeriodInfo.duration);
+					}
+				}
+				mMPDPeriodsInfo = currMPDPeriodDetails;
+			}
+			else
+			{
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline. Hence modifying culling logic based on MPD availabilityStartTime, periodStartTime, fragment number and current time\n", __FUNCTION__, __LINE__);
+				string startTimestr = mpd->GetAvailabilityStarttime();
+				std::tm time = { 0 };
+				strptime(startTimestr.c_str(), "%Y-%m-%dT%H:%M:%SZ", &time);
+				double availabilityStartTime = (double)mktime(&time);
+				double currentTimeSeconds = aamp_GetCurrentTimeMS() / 1000;
+				double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
+				double newStartTimeSeconds = 0;
+				if (0 == pMediaStreamContext->lastSegmentNumber)
+				{
+					newStartTimeSeconds = availabilityStartTime;
+				}
+
+				// Recalculate the newStartTimeSeconds after periodic manifest updates
+				if (mIsLive && 0 == newStartTimeSeconds)
+				{
+					newStartTimeSeconds = availabilityStartTime + mPeriodStartTime + ((pMediaStreamContext->lastSegmentNumber - segmentTemplate->GetStartNumber()) * fragmentDuration);
+				}
+
+				if (newStartTimeSeconds && mPrevStartTimeSeconds)
+				{
+					culled = newStartTimeSeconds - mPrevStartTimeSeconds;
+					traceprintf("PrivateStreamAbstractionMPD::%s:%d post-refresh %fs before %f (%f)\n\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
+				}
+				else
+				{
+					logprintf("PrivateStreamAbstractionMPD::%s:%d newStartTimeSeconds %f mPrevStartTimeSeconds %F\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds);
+				}
+				mPrevStartTimeSeconds = newStartTimeSeconds;
+			}
 		}
 		else
 		{
@@ -4090,7 +5040,6 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 							}//End of segurl for loop
 						}
 					} //End of Period for loop
-					double culled = 0;
 					long offsetDiff = 0;
 					long currOffset = duration - prevLastSegUrlOffset;
 					if(mPrevLastSegurlOffset)
@@ -4105,11 +5054,6 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 					AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d PrevOffset %ld CurrentOffset %ld culled (%f)\n", __FUNCTION__, __LINE__, mPrevLastSegurlOffset, currOffset, culled);
 					mPrevLastSegurlOffset = duration - newOffset;
 					mPrevLastSegurlMedia = newMedia;
-					if(culled)
-					{
-						aamp->UpdateCullingState(culled);
-					}
-					return;
 				}
 			}
 			else
@@ -4117,93 +5061,12 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTemplate and segmentList\n", __FUNCTION__, __LINE__);
 			}
 		}
-		if (segmentTimeline)
-		{
-			double culled = 0;
-			auto periods = mpd->GetPeriods();
-			vector<PeriodInfo> currMPDPeriodDetails;
-			uint32_t timescale = segmentTemplate->GetTimescale();
-			for (auto period : periods)
-			{
-				PeriodInfo periodInfo;
-				periodInfo.periodId = period->GetId();
-				periodInfo.duration = (double)GetPeriodDuration(period)/ 1000;
-				periodInfo.startTime = GetFirstSegmentStartTime(period);
-				currMPDPeriodDetails.push_back(periodInfo);
-			}
-
-			int iter1 = 0;
-			PeriodInfo currFirstPeriodInfo = currMPDPeriodDetails.at(0);
-			while (iter1 < mMPDPeriodsInfo.size())
-			{
-				PeriodInfo prevPeriodInfo = mMPDPeriodsInfo.at(iter1);
-				if(prevPeriodInfo.periodId == currFirstPeriodInfo.periodId)
-				{
-					if(prevPeriodInfo.startTime && currFirstPeriodInfo.startTime)
-					{
-						uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
-						culled += ((double)timeDiff / (double)timescale);
-						logprintf("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f\n", __FUNCTION__, __LINE__,
-											prevPeriodInfo.periodId.c_str(), prevPeriodInfo.startTime, currFirstPeriodInfo.startTime, culled);
-					}
-					break;
-				}
-				else
-				{
-					culled += prevPeriodInfo.duration;
-					iter1++;
-					logprintf("%s:%d PeriodId %s , with last known duration %f seems to have got culled\n", __FUNCTION__, __LINE__,
-									prevPeriodInfo.periodId.c_str(), prevPeriodInfo.duration);
-				}
-			}
-
-			mMPDPeriodsInfo = currMPDPeriodDetails;
-
-			if(culled)
-			{
-				logprintf("%s:%d Culled seconds = %f\n", __FUNCTION__, __LINE__, culled);
-				aamp->UpdateCullingState(culled);
-			}
-			return;
-		}
-		else
-		{
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline. Hence modifying culling logic based on MPD availabilityStartTime, periodStartTime, fragment number and current time\n", __FUNCTION__, __LINE__);
-			string startTimestr = mpd->GetAvailabilityStarttime();
-			std::tm time = { 0 };
-			strptime(startTimestr.c_str(), "%Y-%m-%dT%H:%M:%SZ", &time);
-			double availabilityStartTime = (double)mktime(&time);
-			double currentTimeSeconds = aamp_GetCurrentTimeMS() / 1000;
-			double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
-			double newStartTimeSeconds = 0;
-			if (0 == pMediaStreamContext->lastSegmentNumber)
-			{
-				newStartTimeSeconds = availabilityStartTime;
-			}
-
-			// Recalculate the newStartTimeSeconds after periodic manifest updates
-			if (mIsLive && 0 == newStartTimeSeconds)
-			{
-				newStartTimeSeconds = availabilityStartTime + mPeriodStartTime + ((pMediaStreamContext->lastSegmentNumber - segmentTemplate->GetStartNumber()) * fragmentDuration);
-			}
-
-			if (newStartTimeSeconds && mPrevStartTimeSeconds)
-			{
-				double culled = newStartTimeSeconds - mPrevStartTimeSeconds;
-				traceprintf("PrivateStreamAbstractionMPD::%s:%d post-refresh %fs before %f (%f)\n\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
-				aamp->UpdateCullingState(culled);
-			}
-			else
-			{
-				logprintf("PrivateStreamAbstractionMPD::%s:%d newStartTimeSeconds %f mPrevStartTimeSeconds %F\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds);
-			}
-			mPrevStartTimeSeconds = newStartTimeSeconds;
-		}
 	}
 	else
 	{
 		logprintf("PrivateStreamAbstractionMPD::%s:%d NULL adaptationset\n", __FUNCTION__, __LINE__);
 	}
+	return culled;
 }
 
 /**
@@ -4556,7 +5419,13 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	bool trickPlay = (AAMP_NORMAL_PLAY_RATE != rate);
 	bool mpdChanged = false;
 	double delta = 0;
-	bool lastLiveFlag=false;
+	bool lastLiveFlag = false;
+	bool placeNextAd = false;
+
+	int direction = 1;
+	if(rate < 0)
+		direction = -1;
+	bool adStateChange = false;
 #ifdef AAMP_MPD_DRM
 	if (mPushEncInitFragment && CheckForInitalClearPeriod())
 	{
@@ -4567,8 +5436,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments\n", __FUNCTION__, __LINE__);
 	FetchAndInjectInitialization();
-	IPeriod *currPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
-	mPeriodId = currPeriod->GetId();
+	IPeriod *currPeriod = mCurrentPeriod;
+	std::string currentPeriodId = currPeriod->GetId();
 	mPrevAdaptationSetCount = currPeriod->GetAdaptationSets().size();
 	logprintf("aamp: ready to collect fragments. mpd %p\n", mpd);
 	do
@@ -4581,8 +5450,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			logprintf("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);
 			while(iPeriod < numPeriods && iPeriod >= 0 && !exitFetchLoop)
 			{
-				bool periodChanged = (iPeriod != mCurrentPeriodIdx);
-				if (periodChanged || mpdChanged)
+				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
+				if (periodChanged || mpdChanged || adStateChange)
 				{
 					bool discontinuity = false;
 					bool requireStreamSelection = false;
@@ -4590,28 +5459,72 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					mpdChanged = false;
 					if (periodChanged)
 					{
+						IPeriod *oldPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
+						if(AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
+						{
+							mBasePeriodOffset = 0;		//Not considering the delta from previous period's duration.
+						}
+						if(rate > 0)
+						{
+							mBasePeriodOffset -= ((double)mCdaiObject->mPeriodMap[mBasePeriodId].duration)/1000.00;
+						}
+						else
+						{
+							mBasePeriodOffset += ((double)GetPeriodDuration(mpd->GetPeriods().at(iPeriod)))/1000.00;	//Already reached -ve. Subtracting from current period duration
+						}
+
 						mCurrentPeriodIdx = iPeriod;
+						IPeriod *newPeriod = mpd->GetPeriods().at(iPeriod);
+						mBasePeriodId = newPeriod->GetId();
+
+						//We are moving to new period so reset the lastsegment time
 						//for VOD and cDVR
-						logprintf("%s:%d Period(%d/%d) IsLive(%d) IsCdvr(%d) \n",__FUNCTION__,__LINE__,
-							mCurrentPeriodIdx,numPeriods,mIsLive,aamp->IsInProgressCDVR());
-						periodChanged = false;
+						logprintf("%s:%d Period(%s - %d/%d) Offset[%lf] IsLive(%d) IsCdvr(%d) \n",__FUNCTION__,__LINE__,
+							mBasePeriodId.c_str(), mCurrentPeriodIdx,numPeriods, mBasePeriodOffset, mIsLive,aamp->IsInProgressCDVR());
+
+						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
+						int adaptationSetCount = adapatationSets.size();
+						if(0 == adaptationSetCount)
+						{
+							/*To Handle non fog scenarios where empty periods are
+							* present after mpd update causing issues (DELIA-29879)
+							*/
+							iPeriod += direction;
+							continue;
+						}
+						periodChanged = false; //If the playing period changes, it will be detected below [if(currentPeriodId != mCurrentPeriod->GetId())]
 					}
 
-					IPeriod * period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-					vector <IAdaptationSet*> adapatationSets = period->GetAdaptationSets();
-					int adaptationSetCount = adapatationSets.size();
-					if(0 == adaptationSetCount)
+					adStateChange = onAdEvent(AdEvent::DEFAULT);		//TODO: Vinod, We can optimize here.
+
+					if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
 					{
-						/*To Handle non fog scenarios where empty periods are
-						* present after mpd update causing issues (DELIA-29879)
-						*/
-						iPeriod++;
-						continue;
+						goto NEEDFRAGMENTS;
 					}
-					if( mPeriodId != period->GetId())
+					if(adStateChange && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
 					{
-						logprintf("Period ID changed from \'%s\' to \'%s\'\n", mPeriodId.c_str(),period->GetId().c_str());
-						mPeriodId = period->GetId();
+						//Just came out from the Adbreak. Need to search the right period
+						for(iPeriod=0;iPeriod < numPeriods;  iPeriod++)
+						{
+							if(mBasePeriodId == mpd->GetPeriods().at(iPeriod)->GetId())
+							{
+								mCurrentPeriodIdx = iPeriod;
+								logprintf("%s:%d [CDAI] Landed at the periodId[%d] \n",__FUNCTION__,__LINE__,mCurrentPeriodIdx);
+								break;
+							}
+						}
+					}
+					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
+					{
+						mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
+					}
+
+					vector <IAdaptationSet*> adapatationSets = mCurrentPeriod->GetAdaptationSets();
+					int adaptationSetCount = adapatationSets.size();
+					if(currentPeriodId != mCurrentPeriod->GetId())
+					{
+						logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']\n", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
+						currentPeriodId = mCurrentPeriod->GetId();
 						mPrevAdaptationSetCount = adaptationSetCount;
 						logprintf("playing period %d/%d\n", iPeriod, (int)numPeriods);
 						//We are moving to new period so reset the lastsegment time
@@ -4639,21 +5552,47 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							}
 						}
 					}
+					adStateChange = false;
 
 					if(requireStreamSelection)
 					{
 						StreamSelection();
 					}
+
 					// IsLive = 1 , resetTimeLineIndex = 1
 					// InProgressCdvr (IsLive=1) , resetTimeLineIndex = 1
 					// Vod/CDVR for PeriodChange , resetTimeLineIndex = 1
-					bool resetTimeLineIndex = (mIsLive || lastLiveFlag|| periodChanged);
-					UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
+					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState || (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && periodChanged))
+					{
+						bool resetTimeLineIndex = (mIsLive || lastLiveFlag|| periodChanged);
+						UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
+					}
+
+
 					if(mIsLive || lastLiveFlag)
 					{
-						uint64_t durationMs = GetDurationFromRepresentation();
-						aamp->UpdateDuration(((double)durationMs)/1000);
+						double culled = 0;
+						if(aamp->IsLiveAdjustRequired() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+						{
+							culled = GetCulledSeconds();
+						}
+						if(culled > 0)
+						{
+							logprintf("%s:%d Culled seconds = %f\n", __FUNCTION__, __LINE__, culled);
+							aamp->UpdateCullingState(culled);
+							mCulledSeconds += culled;
+						}
+						double duration = ((double)PrivateStreamAbstractionMPD::GetDurationFromRepresentation(mpd)) / 1000;
+						aamp->UpdateDuration(duration);
+						mLiveEndPosition = duration + mCulledSeconds;
+						if(mCdaiObject->mContentSeekOffset)
+						{
+							logprintf("CDAI: Resuming channel playback at PeriodID[%s] at Position[%lf]\n", currentPeriodId.c_str(), mCdaiObject->mContentSeekOffset);
+							SeekInPeriod(mCdaiObject->mContentSeekOffset);
+							mCdaiObject->mContentSeekOffset = 0;
+						}
 					}
+
 					lastLiveFlag = mIsLive;
 					/*Discontinuity handling on period change*/
 					if (periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
@@ -4680,7 +5619,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							}
 							if (segmentTemplate)
 							{
-								uint64_t segmentStartTime = GetFirstSegmentStartTime(period);
+								uint64_t segmentStartTime = GetFirstSegmentStartTime(mCurrentPeriod);
 								if (nextSegmentTime != segmentStartTime)
 								{
 									logprintf("PrivateStreamAbstractionMPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
@@ -4699,12 +5638,19 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 					}
 					FetchAndInjectInitialization(discontinuity);
-					if(rate < 0)
+					if(mCdaiObject->mAdFailed)
+					{
+						adStateChange = onAdEvent(AdEvent::AD_FAILED);
+						mCdaiObject->mAdFailed = false;
+						continue;
+					}
+					if(rate < 0 && periodChanged)
 					{
 						SkipToEnd(mMediaStreamContext[eMEDIATYPE_VIDEO]);
 					}
 				}
 
+				double lastPrdOffset = mBasePeriodOffset;
 				// playback
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
@@ -4718,7 +5664,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							{	// profile not changed and Cache not full scenario
 								if (!pMediaStreamContext->eos)
 								{
-									if(trickPlay)
+									if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
 									{
 										if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
 										{
@@ -4783,7 +5729,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					bool aEos = (audioEnabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->eos);
 					if (vEos || aEos)
 					{
-						if((!mIsLive || (rate != AAMP_NORMAL_PLAY_RATE)) && ((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)))
+						if((!mIsLive || (rate != AAMP_NORMAL_PLAY_RATE))
+							&& ((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)))
 						{
 							if(vEos)
 							{
@@ -4813,18 +5760,31 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						// If audio and video reached EOS then only break the fetch loop .
 						if(vEos && aEos)
 						{
-							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop \n",__FUNCTION__, __LINE__);
+							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop \n", __FUNCTION__, __LINE__);
+							if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
+							{
+								adStateChange = onAdEvent(AdEvent::AD_FINISHED);
+							}
 							break;
 						}
 					}
-
-
-					if (mMediaStreamContext[eMEDIATYPE_VIDEO]->endTimeReached)
+					if (AdState::OUTSIDE_ADBREAK != mCdaiObject->mAdState)
 					{
-						//TODO : Move this to inject loop to complete playback
-						logprintf("%s:%d - endTimeReached\n", __FUNCTION__, __LINE__);
-						aamp->EndTimeReached(eMEDIATYPE_VIDEO);
-						break;
+						Period2AdData &curPeriod = mCdaiObject->mPeriodMap[mBasePeriodId];
+						if((rate < 0 && mBasePeriodOffset <= 0 ) ||
+								(rate > 0 && curPeriod.filled && curPeriod.duration <= (uint64_t)(mBasePeriodOffset * 1000)))
+						{
+							logprintf("%s:%d CDAI: BasePeriod[%s] completed @%lf. Changing to next \n",__FUNCTION__,__LINE__, mBasePeriodId.c_str(),mBasePeriodOffset);
+							break;
+						}
+						else if(lastPrdOffset != mBasePeriodOffset && AdState::IN_ADBREAK_AD_NOT_PLAYING == mCdaiObject->mAdState)
+						{
+							//In adbreak, but somehow Ad is not playing. Need to check whether the position reached the next Ad start.
+							adStateChange = onAdEvent(AdEvent::BASE_OFFSET_CHANGE);
+							if(adStateChange)
+								break;
+						}
+						lastPrdOffset = mBasePeriodOffset;
 					}
 					int timeoutMs =  MAX_DELAY_BETWEEN_MPD_UPDATE_MS - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
 					if(timeoutMs <= 0 && mIsLive && rate > 0)
@@ -4844,10 +5804,14 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						// and refresh interval timeout not reached . To Avoid tight loop adding a min delay
 						aamp->InterruptableMsSleep(50);
 					}
-				}// end of while loop (!exitFetchLoop && !liveMPDRefresh)
+				} // Loop 3: end of while loop (!exitFetchLoop && !liveMPDRefresh)
 				if(liveMPDRefresh)
 				{
 					break;
+				}
+				if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
+				{
+					continue; //Need to finish all the ads in current before period change
 				}
 				if(rate > 0)
 				{
@@ -4857,7 +5821,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				{
 					iPeriod--;
 				}
-			}//End of Period while loop
+			} //Loop 2: End of Period while loop
 
 			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
 			{
@@ -4873,6 +5837,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - null mpd\n", __FUNCTION__, __LINE__);
 		}
 
+NEEDFRAGMENTS:
 		// If it comes here , two reason a) Reached eos b) Need livempdUpdate
 		// If liveMPDRefresh is true , that means it already reached 6 sec timeout .
 		// 		No more further delay required for mpd update .
@@ -4960,6 +5925,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			break;
 		}
 
+		mCdaiObject->PlaceAds(mpd);
+
 		if(mIsFogTSB)
 		{
 			//Periods could be added or removed, So select period based on periodID
@@ -4971,7 +5938,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			mCurrentPeriodIdx = 0;
 			while(iter > 0)
 			{
-				if(mPeriodId == periods.at(iter)->GetId())
+				if(mBasePeriodId == periods.at(iter)->GetId())
 				{
 					mCurrentPeriodIdx = iter;
 					break;
@@ -4994,7 +5961,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			}
 		}
 		mpdChanged = true;
-	}
+	}		//Loop 1
 	while (!exitFetchLoop);
 	logprintf("MPD fragment collector done\n");
 }
@@ -5020,27 +5987,6 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 {
 	delete mPriv;
 }
-
-
-/**
- *   @brief  Set a position at which stop injection .
- *   @param  endPosition - playback end position.
- */
-void StreamAbstractionAAMP_MPD::SetEndPos(double endPosition)
-{
-	mPriv->SetEndPos(endPosition);
-}
-
-
-/**
- *   @brief  Set a position at which stop injection .
- *   @param  endPosition - playback end position.
- */
-void PrivateStreamAbstractionMPD::SetEndPos(double endPosition)
-{
-	mEndPosition = endPosition;
-}
-
 
 /**
  *   @brief  Starts streaming.
@@ -5100,9 +6046,8 @@ void PrivateStreamAbstractionMPD::Stop()
 	}
 	if(drmSessionThreadStarted)
 	{
-		void *value_ptr = NULL;
 		AAMPLOG_INFO("Waiting to join CreateDRMSession thread\n");
-		int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
+		int rc = pthread_join(createDRMSessionThreadID, NULL);
 		if (rc != 0)
 		{
 			logprintf("pthread_join returned %d for createDRMSession Thread\n", rc);
@@ -5112,11 +6057,10 @@ void PrivateStreamAbstractionMPD::Stop()
 	}
 	if(fragmentCollectorThreadStarted)
 	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(fragmentCollectorThreadID, &value_ptr);
+		int rc = pthread_join(fragmentCollectorThreadID, NULL);
 		if (rc != 0)
 		{
-			logprintf("***pthread_join returned %d\n", rc);
+			logprintf("%s:%d ***pthread_join failed, returned %d\n", __FUNCTION__, __LINE__, rc);
 		}
 		fragmentCollectorThreadStarted = false;
 	}
@@ -5253,7 +6197,9 @@ double StreamAbstractionAAMP_MPD::GetStreamPosition()
 int PrivateStreamAbstractionMPD::GetProfileCount()
 {
 	int ret = 0;
-	if(mIsFogTSB)
+	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;
+
+	if(isFogTsb)
 	{
 		ret = mBitrateIndexMap.size();
 	}
@@ -5454,3 +6400,458 @@ void PrivateStreamAbstractionMPD::StartInjection(void)
 		}
 	}
 }
+
+/**
+ * @}
+ */
+void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS)
+{
+	mPrivObj->SetAlternateContents(periodId, adId, url, startMS);
+}
+
+static void *AdFulfillThreadEntry(void *arg)
+{
+	PrivateCDAIObjectMPD *_this = (PrivateCDAIObjectMPD *)arg;
+	if(aamp_pthread_setname(pthread_self(), "AdFulfillThread"))
+	{
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+	}
+	_this->FulFillAdObject();
+	return NULL;
+}
+
+void PrivateCDAIObjectMPD::FulFillAdObject()
+{
+	bool adStatus = false;
+	uint64_t startMS = 0;
+	uint64_t durationMs = 0;
+	bool finalManifest = false;
+	MPD *ad = GetAdMPD(mAdFulfillObj.url, finalManifest, true);
+	if(ad)
+	{
+		std::lock_guard<std::mutex> lock(mDaiMtx);
+		auto periodId = mAdFulfillObj.periodId;
+		if(ad->GetPeriods().size() && isAdBreakObjectExist(periodId))	// Ad has periods && ensuring that the adbreak still exists
+		{
+			auto &adbreakObj = mAdBreaks[periodId];
+			std::shared_ptr<std::vector<AdNode>> adBreakAssets = adbreakObj.ads;
+			durationMs = PrivateStreamAbstractionMPD::GetDurationFromRepresentation(ad);
+
+			startMS = adbreakObj.duration;
+			adbreakObj.duration += durationMs;
+
+			std::string bPeriodId = "";		//BasePeriodId will be filled on placement
+			int bOffset = -1;				//BaseOffset will be filled on placement
+			if(0 == adBreakAssets->size())
+			{
+				//First Ad placement is doing now.
+				if(isPeriodExist(periodId))
+				{
+					mPeriodMap[periodId].offset2Ad[0] = AdOnPeriod{0,0};
+				}
+
+				mPlacementObj.pendingAdbrkId = periodId;
+				mPlacementObj.openPeriodId = periodId;	//May not be available Now.
+				mPlacementObj.curEndNumber = 0;
+				mPlacementObj.curAdIdx = 0;
+				mPlacementObj.adNextOffset = 0;
+				bPeriodId = periodId;
+				bOffset = 0;
+			}
+			if(!finalManifest)
+			{
+				logprintf("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.\n", __FUNCTION__, __LINE__);
+				delete ad;
+				ad = NULL;
+			}
+			adBreakAssets->emplace_back(AdNode{false, false, mAdFulfillObj.adId, mAdFulfillObj.url, durationMs, bPeriodId, bOffset, ad});
+			logprintf("%s:%d: New Ad[Id=%s, url=%s] successfully added.\n", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
+
+			adStatus = true;
+		}
+		else
+		{
+			logprintf("%s:%d: AdBreadkId[%s] not existing. Dropping the Ad.\n", __FUNCTION__, __LINE__, periodId.c_str());
+			delete ad;
+		}
+	}
+	else
+	{
+		logprintf("%s:%d: Failed to get Ad MPD[%s].\n", __FUNCTION__, __LINE__, mAdFulfillObj.url.c_str());
+	}
+	mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, adStatus, startMS, durationMs);
+}
+
+void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS)
+{
+	if("" == adId || "" == url)
+	{
+		std::lock_guard<std::mutex> lock(mDaiMtx);
+		//Putting a place holder
+		if(!(isAdBreakObjectExist(periodId)))
+		{
+			auto adBreakAssets = std::make_shared<std::vector<AdNode>>();
+			mAdBreaks.emplace(periodId, AdBreakObject{0, adBreakAssets, "", 0});	//Fix the duration after getting the Ad
+			Period2AdData &pData = mPeriodMap[periodId];
+			pData.adBreakId = periodId;
+		}
+	}
+	else
+	{
+		if(mAdObjThreadID)
+		{
+			//Clearing the previous thread
+			int rc = pthread_join(mAdObjThreadID, NULL);
+			mAdObjThreadID = 0;
+		}
+		mAdFulfillObj.periodId = periodId;
+		mAdFulfillObj.adId = adId;
+		mAdFulfillObj.url = url;
+		int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
+		if(ret != 0)
+		{
+			logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.\n", __FUNCTION__, __LINE__, errno, strerror(errno));
+			mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, false, 0, 0);
+		}
+	}
+}
+
+void StreamAbstractionAAMP_MPD::SetCDAIObject(CDAIObject *cdaiObj)
+{
+	mPriv->SetCDAIObject(cdaiObj);
+}
+
+void PrivateStreamAbstractionMPD::SetCDAIObject(CDAIObject *cdaiObj)
+{
+	if(cdaiObj)
+	{
+		CDAIObjectMPD *cdaiObjMpd = static_cast<CDAIObjectMPD *>(cdaiObj);
+		mCdaiObject = cdaiObjMpd->GetPrivateCDAIObjectMPD();
+	}
+}
+
+bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35)
+{
+	bool ret = false;
+	std::vector<IEventStream *> eventStreams = period->GetEventStreams();
+	for(int i=0; i<eventStreams.size(); i++)
+	{
+		std::vector<IEvent *> events =  eventStreams.at(i)->GetEvents();
+		for(int j=0; j<events.size(); j++)
+		{
+			IEvent * event = events.at(j);
+			if(event && event->GetDuration())
+			{
+				const vector<INode*> nodes = event->GetAdditionalSubNodes();
+				if(nodes.size() && "scte35:Signal" == nodes[0]->GetName())
+				{
+					uint32_t timeScale = 1;
+					if(eventStreams.at(i)->GetTimescale() > 1)
+					{
+						timeScale = eventStreams.at(i)->GetTimescale();
+					}
+					duration = (event->GetDuration()/timeScale)*1000; //milliseconds
+					scte35 = nodes[0]->GetText();
+					ret = true;
+					break;
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
+{
+	double adOffset;
+	return onAdEvent(evt, adOffset);
+}
+
+bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
+{
+	if(!(gpGlobalConfig->enableClientDai))
+	{
+		return false;
+	}
+	std::lock_guard<std::mutex> lock(mCdaiObject->mDaiMtx);
+	bool stateChanged = false;
+	AdState oldState = mCdaiObject->mAdState;
+	AAMPEventType reservationEvt2Send = AAMP_MAX_NUM_EVENTS; //None
+	std::string adbreakId2Send("");
+	AAMPEventType placementEvt2Send = AAMP_MAX_NUM_EVENTS; //None
+	std::string adId2Send("");
+	uint32_t adPos2Send = 0;
+	bool sendImmediate = false;
+	switch(mCdaiObject->mAdState)
+	{
+		case AdState::OUTSIDE_ADBREAK:
+			if(AdEvent::DEFAULT == evt || AdEvent::INIT == evt)
+			{
+				std::string brkId = "";
+				bool seamLess = (AdEvent::INIT == evt)?false:(AAMP_NORMAL_PLAY_RATE == rate);
+				int adIdx = mCdaiObject->CheckForAdStart(seamLess, mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
+				if(!brkId.empty())
+				{
+					mCdaiObject->mCurPlayingBreakId = brkId;
+					if(-1 != adIdx && mCdaiObject->mAdBreaks[brkId].ads)
+					{
+						if(!(mCdaiObject->mAdBreaks[brkId].ads->at(adIdx).invalid))
+						{
+							logprintf("%s:%d CDAI: ADBREAK STARTING AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, adIdx, mBasePeriodId.c_str());
+							mCdaiObject->mCurAds = mCdaiObject->mAdBreaks[brkId].ads;
+
+							mCdaiObject->mCurAdIdx = adIdx;
+							mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_PLAYING;
+
+							for(int i=0; i<adIdx; i++)
+								adPos2Send += mCdaiObject->mCurAds->at(i).duration;
+						}
+						else
+						{
+							logprintf("%s:%d CDAI: AdIdx[%d] in the AdBreak[%s] is invalid. Skipping.\n",__FUNCTION__,__LINE__, adIdx, brkId.c_str());
+						}
+						reservationEvt2Send = AAMP_EVENT_AD_RESERVATION_START;
+						adbreakId2Send = brkId;
+						if(AdEvent::INIT == evt) sendImmediate = true;
+					}
+
+					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
+					{
+						logprintf("%s:%d CDAI: BasePeriodId[%s] in Adbreak. But Ad not available.\n",__FUNCTION__,__LINE__, mBasePeriodId.c_str());
+						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
+					}
+					stateChanged = true;
+				}
+			}
+			break;
+		case AdState::IN_ADBREAK_AD_NOT_PLAYING:
+			if(AdEvent::BASE_OFFSET_CHANGE == evt || AdEvent::PERIOD_CHANGE == evt)
+			{
+				std::string brkId = "";
+				int adIdx = mCdaiObject->CheckForAdStart((AAMP_NORMAL_PLAY_RATE == rate), mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
+				if(-1 != adIdx && mCdaiObject->mAdBreaks[brkId].ads)
+				{
+					if(!(mCdaiObject->mAdBreaks[brkId].ads->at(adIdx).invalid))
+					{
+						logprintf("%s:%d CDAI: AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, adIdx, mBasePeriodId.c_str());
+						mCdaiObject->mCurAds = mCdaiObject->mAdBreaks[brkId].ads;
+
+						mCdaiObject->mCurAdIdx = adIdx;
+						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_PLAYING;
+
+						for(int i=0; i<adIdx; i++)
+							adPos2Send += mCdaiObject->mCurAds->at(i).duration;
+						stateChanged = true;
+					}
+					if(adIdx == (mCdaiObject->mAdBreaks[brkId].ads->size() -1))	//Rewind case only.
+					{
+						reservationEvt2Send = AAMP_EVENT_AD_RESERVATION_START;
+						adbreakId2Send = brkId;
+					}
+				}
+				else if(brkId.empty())
+				{
+					logprintf("%s:%d CDAI: Adbreak[%s] ENDED. Playing the basePeriod[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str());
+					mCdaiObject->mCurPlayingBreakId = "";
+					mCdaiObject->mCurAds = nullptr;
+					mCdaiObject->mCurAdIdx = -1;
+					//Base content playing already. No need to jump to offset again.
+					mCdaiObject->mAdState = AdState::OUTSIDE_ADBREAK;
+					stateChanged = true;
+				}
+			}
+			break;
+		case AdState::IN_ADBREAK_AD_PLAYING:
+			if(AdEvent::AD_FINISHED == evt)
+			{
+				logprintf("%s:%d CDAI: Ad[idx=%d] finished at Period[%s]. Waiting to catchup the base offset..\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
+				mCdaiObject->mAdState = AdState::IN_ADBREAK_WAIT2CATCHUP;
+
+				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_END;
+				AdNode &adNode =  mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx);
+				adId2Send = adNode.adId;
+				for(int i=0; i <= mCdaiObject->mCurAdIdx; i++)
+					adPos2Send += mCdaiObject->mCurAds->at(i).duration;
+				stateChanged = true;
+			}
+			else if(AdEvent::AD_FAILED == evt)
+			{
+				mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid = true;
+				logprintf("%s:%d CDAI: Ad[idx=%d] Playback failed. Going to the base period[%s] at offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str(), mBasePeriodOffset);
+				mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING; //TODO: Vinod, It should be IN_ADBREAK_WAIT2CATCHUP, But you need to fix the catchup check logic.
+
+				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_ERROR;	//Followed by AAMP_EVENT_AD_PLACEMENT_END
+				AdNode &adNode =  mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx);
+				adId2Send = adNode.adId;
+				sendImmediate = true;
+				adPos2Send = 0; //TODO: Vinod, Fix it
+				stateChanged = true;
+			}
+
+			if(stateChanged)
+			{
+				for (int i = 0; i < mNumberOfTracks; i++)
+				{
+					//Resetting the manifest Url in track contexts
+					mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = aamp->GetManifestUrl();
+				}
+			}
+			break;
+		case AdState::IN_ADBREAK_WAIT2CATCHUP:
+			if(-1 == mCdaiObject->mCurAdIdx)
+			{
+				logprintf("%s:%d CDAI: AdIdx[-1]. BUG! BUG!! BUG!!! We should not come here.\n",__FUNCTION__,__LINE__);
+				mCdaiObject->mCurPlayingBreakId = "";
+				mCdaiObject->mCurAds = nullptr;
+				mCdaiObject->mCurAdIdx = -1;
+				mCdaiObject->mContentSeekOffset = mBasePeriodOffset;
+				mCdaiObject->mAdState = AdState::OUTSIDE_ADBREAK;
+				stateChanged = true;
+				break;
+			}
+			//In every event, we need to check this.But do it only on the begining of the fetcher loop. Hence it is the default event
+			if(AdEvent::DEFAULT == evt)
+			{
+				if(!(mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).placed)) //TODO: Vinod, Need to wait till the base period offset is available. 'placed' won't help in case of rewind.
+				{
+					break;
+				}
+				//Wait till placement of current ad is completed
+				logprintf("%s:%d CDAI: Current Ad placement Completed. Ready to play next Ad.\n",__FUNCTION__,__LINE__);
+				mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_READY2PLAY;
+			}
+		case AdState::IN_ADBREAK_AD_READY2PLAY:
+			if(AdEvent::DEFAULT == evt)
+			{
+				bool curAdFailed = mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid;	//TODO: Vinod, may need to check boundary.
+
+				if(rate >= AAMP_NORMAL_PLAY_RATE)
+					mCdaiObject->mCurAdIdx++;
+				else
+					mCdaiObject->mCurAdIdx--;
+				if(mCdaiObject->mCurAdIdx >= 0 && mCdaiObject->mCurAdIdx < mCdaiObject->mCurAds->size())
+				{
+					if(mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid)
+					{
+						logprintf("%s:%d CDAI: AdIdx[%d] in invalid. Skipping!!.\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx);
+						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
+					}
+					else
+					{
+						logprintf("%s:%d CDAI: Next AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
+						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_PLAYING;
+
+						for(int i=0; i<mCdaiObject->mCurAdIdx; i++)
+							adPos2Send += mCdaiObject->mCurAds->at(i).duration;
+					}
+					stateChanged = true;
+				}
+				else
+				{
+					if(rate > 0)
+					{
+						mBasePeriodId =	mCdaiObject->mAdBreaks[mCdaiObject->mCurPlayingBreakId].endPeriodId;
+						mCdaiObject->mContentSeekOffset = mCdaiObject->mAdBreaks[mCdaiObject->mCurPlayingBreakId].endPeriodOffset;
+					}
+					else
+					{
+						//TODO: Vinod, Need to make sure that the mBasePeriodId reaches just previous period of the adbreak.
+						 mCdaiObject->mContentSeekOffset = 0; //Should continue tricking from the end of the previous period.
+//						mCdaiObject->mContentSeekOffset = mBasePeriodOffset;	//mBasePeriodOffset offset should be the endPeriodOffset. If not, check why?
+					}
+					logprintf("%s:%d CDAI: All Ads in the Adbreak[%s] FINISHED. Playing the basePeriod[%s] at Offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str(), mCdaiObject->mContentSeekOffset);
+					reservationEvt2Send = AAMP_EVENT_AD_RESERVATION_END;
+					adbreakId2Send = mCdaiObject->mCurPlayingBreakId;
+					sendImmediate = curAdFailed;	//Current Ad failed. Hence may not get discontinuity from gstreamer.
+					mCdaiObject->mCurPlayingBreakId = "";
+					mCdaiObject->mCurAds = nullptr;
+					mCdaiObject->mCurAdIdx = -1;
+					mCdaiObject->mAdState = AdState::OUTSIDE_ADBREAK;	//No more offset check needed. Hence, changing to OUTSIDE_ADBREAK
+					stateChanged = true;
+				}
+			}
+			break;
+		default:
+			break;
+	}
+	if(stateChanged)
+	{
+		logprintf("%s:%d [CDAI]: State changed from [%s] => [%s].\n",__FUNCTION__,__LINE__, ADSTATE_STR[static_cast<int>(oldState)],ADSTATE_STR[static_cast<int>(mCdaiObject->mAdState)]);
+
+		mAdPlayingFromCDN = false;
+		if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
+		{
+			AdNode &adNode = mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx);
+			if(NULL == adNode.mpd)
+			{
+				//Need to ensure that mpd is available, if not available, download it (mostly from FOG)
+				bool finalManifest = false;
+				adNode.mpd = mCdaiObject->GetAdMPD(adNode.url, finalManifest, false);
+
+				if(NULL == adNode.mpd)
+				{
+					//TODO: Vinod, if mpd is still NULL we need to revert everything. This is a temporary fix
+					mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
+					return stateChanged;
+				}
+			}
+			mCurrentPeriod = adNode.mpd->GetPeriods().at(0);
+			/* TODO: Fix redundancy from UpdateTrackInfo */
+			for (int i = 0; i < mNumberOfTracks; i++)
+			{
+				mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = adNode.url.c_str();
+			}
+
+			placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_START;
+			adId2Send = adNode.adId;
+
+			map<string, string> mpdAttributes = adNode.mpd->GetRawAttributes();
+			if(mpdAttributes.find("fogtsb") == mpdAttributes.end())
+			{
+				//No attribute 'fogtsb' in MPD. Hence, current ad is from CDN
+				mAdPlayingFromCDN = true;
+			}
+		}
+
+		if(AAMP_NORMAL_PLAY_RATE == rate)
+		{
+			uint64_t resPosMS = 0;
+			if(AAMP_EVENT_AD_RESERVATION_START == reservationEvt2Send || AAMP_EVENT_AD_RESERVATION_END == reservationEvt2Send)
+			{
+				const std::string &startStr = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
+				if(!startStr.empty())
+				{
+					ParseISO8601Duration(startStr.c_str(), resPosMS);
+				}
+				resPosMS += (uint64_t)(mBasePeriodOffset * 1000);
+			}
+
+			if(AAMP_EVENT_AD_RESERVATION_START == reservationEvt2Send)
+			{
+				aamp->SendAdReservationEvent(reservationEvt2Send,adbreakId2Send, resPosMS, sendImmediate);
+			}
+
+			if(AAMP_EVENT_AD_PLACEMENT_START == placementEvt2Send || AAMP_EVENT_AD_PLACEMENT_END == placementEvt2Send || AAMP_EVENT_AD_PLACEMENT_ERROR == placementEvt2Send)
+			{
+				uint32_t adDuration = 30000;
+				if(AAMP_EVENT_AD_PLACEMENT_START == placementEvt2Send)
+				{
+					adDuration = mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).duration;
+					adPos2Send += adOffset;
+				}
+				aamp->SendAdPlacementEvent(placementEvt2Send,adId2Send, adPos2Send, adOffset, adDuration, sendImmediate);
+				if(AAMP_EVENT_AD_PLACEMENT_ERROR == placementEvt2Send)
+				{
+					aamp->SendAdPlacementEvent(AAMP_EVENT_AD_PLACEMENT_END,adId2Send, adPos2Send, adOffset, adDuration, true);	//Ad ended with error
+				}
+			}
+
+			if(AAMP_EVENT_AD_RESERVATION_END == reservationEvt2Send)
+			{
+				aamp->SendAdReservationEvent(reservationEvt2Send,adbreakId2Send, resPosMS, sendImmediate);
+			}
+		}
+	}
+	return stateChanged;
+}
+

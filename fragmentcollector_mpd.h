@@ -37,22 +37,50 @@ public:
 	~StreamAbstractionAAMP_MPD();
 	StreamAbstractionAAMP_MPD(const StreamAbstractionAAMP_MPD&) = delete;
 	StreamAbstractionAAMP_MPD& operator=(const StreamAbstractionAAMP_MPD&) = delete;
-	void DumpProfiles(void);
-	void SetEndPos(double endPosition);
-	void Start();
-	void Stop(bool clearChannelData);
-	AAMPStatusType Init(TuneType tuneType);
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
-	double GetStreamPosition();
-	MediaTrack* GetMediaTrack(TrackType type);
-	double GetFirstPTS();
-	int GetBWIndex(long bitrate);
-	std::vector<long> GetVideoBitrates(void);
-	std::vector<long> GetAudioBitrates(void);
-	void StopInjection(void);
-	void StartInjection(void);
+	void DumpProfiles(void) override;
+	void Start() override;
+	void Stop(bool clearChannelData) override;
+	AAMPStatusType Init(TuneType tuneType) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) override;
+	double GetStreamPosition() override;
+	MediaTrack* GetMediaTrack(TrackType type) override;
+	double GetFirstPTS() override;
+	int GetBWIndex(long bitrate) override;
+	std::vector<long> GetVideoBitrates(void) override;
+	std::vector<long> GetAudioBitrates(void) override;
+	void StopInjection(void) override;
+	void StartInjection(void) override;
+	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
+
 protected:
-	StreamInfo* GetStreamInfo(int idx);
+	StreamInfo* GetStreamInfo(int idx) override;
 private:
 	class PrivateStreamAbstractionMPD* mPriv;
 };
+
+/**
+ * @class CDAIObjectMPD
+ * @brief Client Side DAI object implementation for DASH
+ */
+class CDAIObjectMPD: public CDAIObject
+{
+	class PrivateCDAIObjectMPD* mPrivObj;
+public:
+	CDAIObjectMPD(PrivateInstanceAAMP* aamp);
+	virtual ~CDAIObjectMPD();
+	CDAIObjectMPD(const CDAIObjectMPD&) = delete;
+	CDAIObjectMPD& operator= (const CDAIObjectMPD&) = delete;
+
+	PrivateCDAIObjectMPD* GetPrivateCDAIObjectMPD()
+	{
+		return mPrivObj;
+	}
+
+	virtual void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url, uint64_t startMS=0) override;
+};
+
+/**
+ * @}
+ */
+
+

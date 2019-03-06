@@ -356,6 +356,39 @@ struct StreamInfo
 };
 
 /**
+ * @brief Base class for the client side DAI object
+ */
+class CDAIObject
+{
+public:
+	/**
+	 * @brief CDAIObject constructor.
+	 */
+	CDAIObject(PrivateInstanceAAMP* aamp)
+	{
+
+	}
+
+	/**
+	 * @brief CDAIObject destructor.
+	 */
+	virtual ~CDAIObject()
+	{
+
+	}
+
+	/**
+	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
+	 *
+	 *   @param[in] adBreakId - Adbreak's unique identifier.
+	 *   @param[in] adId - Individual Ad's id
+	 *   @param[in] url - Ad URL
+	 *   @param[in] startMS - Ad start time in milliseconds
+	 */
+	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0){}
+};
+
+/**
  * @brief StreamAbstraction class of AAMP
  */
 class StreamAbstractionAAMP
@@ -397,14 +430,6 @@ public:
 	 *   @return true on success, false failure
 	 */
 	virtual AAMPStatusType Init(TuneType tuneType) = 0;
-
-	/**
-	 *   @brief  Set a position at which stop injection
-	 *
-	 *   @param[in]  endPosition - playback end position.
-	 *   @return void
-	 */
-	virtual void SetEndPos(double endPosition){};
 
 	/**
 	 *   @brief  Start streaming.
@@ -735,6 +760,12 @@ public:
 	 */
 	bool IsMuxedStream();
 
+	/**
+	 *   @brief Set Client Side DAI object instance
+	 *
+	 *   @param[in] cdaiObj - Pointer to Client Side DAI object.
+	 */
+	virtual void SetCDAIObject(CDAIObject *cdaiObj) {};
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

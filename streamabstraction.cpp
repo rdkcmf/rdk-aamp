@@ -648,8 +648,7 @@ void MediaTrack::StopInjectLoop()
 {
 	if (fragmentInjectorThreadStarted)
 	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(fragmentInjectorThreadID, &value_ptr);
+		int rc = pthread_join(fragmentInjectorThreadID, NULL);
 		if (rc != 0)
 		{
 			logprintf("***pthread_join fragmentInjectorThread returned %d(%s)\n", rc, strerror(rc));
@@ -748,8 +747,7 @@ MediaTrack::~MediaTrack()
 {
 	if (bufferMonitorThreadStarted)
 	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(bufferMonitorThreadID, &value_ptr);
+		int rc = pthread_join(bufferMonitorThreadID, NULL);
 		if (rc != 0)
 		{
 			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)\n", rc, strerror(rc));
@@ -958,8 +956,8 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 
 		// Send bitrate notification
 		aamp->NotifyBitRateChangeEvent(streamInfo->bandwidthBitsPerSecond,
-		        "BitrateChanged - Network Adaptation", streamInfo->resolution.width,
-		        streamInfo->resolution.height, lGetBWIndex);
+				"BitrateChanged - Network Adaptation", streamInfo->resolution.width,
+				streamInfo->resolution.height, lGetBWIndex);
 		// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 		aamp->SetPersistedProfileIndex(profileIndex);
 	}

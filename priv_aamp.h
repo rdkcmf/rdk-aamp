@@ -41,6 +41,7 @@
 #include <sstream>
 #include <mutex>
 #include <VideoStat.h>
+#include <queue>
 
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
@@ -57,7 +58,9 @@
 #define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
-#define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)    /**< Maximum number of CURL instances */
+#define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
+#define AAMP_DAI_CURL_IDX (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)                                /**< CURL Index for DAI */
+#define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT + AAMP_DAI_CURL_COUNT)    /**< Maximum number of CURL instances */
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
@@ -80,6 +83,7 @@
 #define DEFAULT_ABR_SKIP_DURATION 6                 /**< Initial skip duration of ABR - 6 sec */
 #define DEFAULT_ABR_NW_CONSISTENCY_CNT 2            /**< ABR network consistency count */
 #define MAX_SEG_DOWNLOAD_FAIL_COUNT 10              /**< Max segment download failures to identify a playback failure. */
+#define MAX_AD_SEG_DOWNLOAD_FAIL_COUNT 2            /**< Max Ad segment download failures to identify as the ad playback failure. */
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
 #define DEF_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
@@ -118,6 +122,7 @@
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
 
+//#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -210,7 +215,8 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
 	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
-	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unknown Header */
+	eHTTPHEADERTYPE_EFF_LOCATION, /**< Effective URL location returned */
+	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
 
@@ -495,8 +501,6 @@ public:
 	int disableATMOS;                       /**< Disable Dolby ATMOS*/
 	int liveOffset;                         /**< Current LIVE offset*/
 	int cdvrliveOffset;                     /**< CDVR LIVE offset*/
-	int adPositionSec;                      /**< Ad break position*/
-	const char* adURL;                      /**< Ad URL*/
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
@@ -545,6 +549,8 @@ public:
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
+	bool enableClientDai;                   /**< Enabling the client side DAI*/
+	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 public:
 
 	/**
@@ -558,7 +564,7 @@ public:
 		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
 		playlistsParallelFetch(false), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
-		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), adPositionSec(0), adURL(0),abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
+		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeout(CURL_FRAGMENT_DL_TIMEOUT),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
@@ -576,6 +582,7 @@ public:
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
+		, enableClientDai(false), playAdFromCDN(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -710,6 +717,24 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
 
+/**
+ * @brief Encode URL
+ * @param[in] inSrc - Input URL
+ * @param[out] outStr - Encoded URL
+ * @return Encoding status
+ *
+ */
+
+bool UrlEncode(const char *inSrc, std::string &outStr);
+
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 /**
  * @brief Bucket types of AAMP profiler
  */
@@ -1243,7 +1268,7 @@ public:
 	/**
 	 * @brief TimedMetadata Constructor
 	 */
-	TimedMetadata() : _timeMS(0), _name(""), _content("") {}
+	TimedMetadata() : _timeMS(0), _name(""), _content(""), _id(""), _durationMS(0) {}
 
 	/**
 	 * @brief TimedMetadata Constructor
@@ -1252,12 +1277,14 @@ public:
 	 * @param[in] name - Metadata name
 	 * @param[in] content - Metadata content
 	 */
-	TimedMetadata(double timeMS, std::string name, std::string content) : _timeMS(timeMS), _name(name), _content(content) {}
+	TimedMetadata(double timeMS, std::string name, std::string content, std::string id, double durMS) : _timeMS(timeMS), _name(name), _content(content), _id(id), _durationMS(durMS) {}
 
 public:
 	double      _timeMS;     /**< Time in milliseconds */
 	std::string _name;       /**< Metadata name */
 	std::string _content;    /**< Metadata content */
+	std::string _id;         /**< Id of the timedMetadata. If not available an Id will bre created */
+	double      _durationMS; /**< Duration in milliseconds */
 };
 
 
@@ -1419,6 +1446,9 @@ public:
 	pthread_mutexattr_t mMutexAttr;
 
 	class StreamAbstractionAAMP *mpStreamAbstractionAAMP; // HLS or MPD collector
+	class CDAIObject *mCdaiObject;      // Client Side DAI Object
+	std::queue<AAMPEvent> mAdEventsQ;   // A Queue of Ad events
+	std::mutex mAdEventQMtx;            // Add events' queue protector
 	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mFormat;
 	StreamOutputFormat mAudioFormat;
@@ -1471,10 +1501,11 @@ public:
 	AAMPEventListener* mEventListener;
 	double mReportProgressPosn;
 	long long mReportProgressTime;
+	long long mAdPrevProgressTime;
+	uint32_t mAdCurOffset;		//Start position in percentage
+	uint32_t mAdDuration;
+	std::string mAdProgressId;
 	bool discardEnteringLiveEvt;
-	bool mPlayingAd;
-	double mAdPosition;
-	char mAdUrl[MAX_URI_LENGTH];
 	bool mIsRetuneInProgress;
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
@@ -1804,6 +1835,13 @@ public:
 	void ReportProgress(void);
 
 	/**
+	 *   @brief Report Ad progress event
+	 *
+	 *   @return void
+	 */
+	void ReportAdProgress(void);
+
+	/**
 	 *   @brief Get asset duration in milliseconds
 	 *
 	 *   @return Duration in ms.
@@ -1890,9 +1928,11 @@ public:
 	 * @param[in] szName - Metadata name
 	 * @param[in] szContent - Metadata content
 	 * @param[in] nb - ContentSize
+	 * @param[in] id - Identifier of the TimedMetadata
+	 * @param[in] durationMS - Duration in milliseconds
 	 * @return void
 	 */
-	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb);
+	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = 0);
 
 	/**
 	 * @brief sleep only if aamp downloads are enabled.
@@ -2010,16 +2050,7 @@ public:
 	 */
 	char *GetManifestUrl(void)
 	{
-		char * url;
-		if (mPlayingAd)
-		{
-			url = mAdUrl;
-		}
-		else
-		{
-			url = manifestUrl;
-		}
-		return url;
+		return manifestUrl;
 	}
 
 	/**
@@ -2297,6 +2328,55 @@ public:
 	 *   @return void
 	 */
 	void SetPreferredDRM(DRMSystems drmType);
+
+	/**
+	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
+	 *
+	 *   @param[in] Adbreak's unique identifier.
+	 *   @param[in] Break start time in milli seconds.
+	 *   @param[in] Break duration in milli seconds
+	 *   @param[in] SCTE35 binary object.
+	 */
+	void FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35);
+
+	/**
+	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
+	 *
+	 *   @param[in] Adbreak's unique identifier.
+	 *   @param[in] Individual Ad's id
+	 *   @param[in] Ad URL
+	 */
+	void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url);
+
+	/**
+	 *   @brief Send status of Ad manifest downloading & parsing
+	 *
+	 *   @param[in] Ad's unique identifier.
+	 *   @param[in] Manifest status (success/Failure)
+	 *   @param[in] Ad playback start time in milliseconds
+	 *   @param[in] Ad's duration in milliseconds
+	 */
+	void SendAdResolvedEvent(const std::string &adId, bool status, uint64_t startMS=0, uint64_t durationMs=0);
+
+	/**
+	 * @brief Send status of Events corresponding to Ad reservation
+	 *
+	 * @param[in] tuneFailure - Reason of error
+	 * @param[in] error_code - HTTP error code/ CURLcode
+	 *
+	 * @return void
+	 */
+	void SendAdReservationEvent(AAMPEventType type, const std::string &adBreakId, uint64_t position, bool immediate=false);
+
+	/**
+	 * @brief Send status of Events corresponding to Ad placement
+	 *
+	 * @param[in] tuneFailure - Reason of error
+	 * @param[in] error_code - HTTP error code/ CURLcode
+	 *
+	 * @return void
+	 */
+	void SendAdPlacementEvent(AAMPEventType type, const std::string &adId, uint32_t position, uint32_t adOffset, uint32_t adDuration, bool immediate=false, long error_code=0);
 
 	/**
 	 *   @brief Set anonymous request true or false
@@ -2711,6 +2791,14 @@ private:
 	void ScheduleEvent(struct AsyncEventDescriptor* e);
 
 	/**
+	 * @brief Deliver all pending Ad events to JSPP
+	 *
+	 *
+	 * @return void
+	 */
+	void DeliverAdEvents();
+
+	/**
 	 *   @brief Set Content Type
 	 *
 	 *   @param[in]  url - Media URL
@@ -2745,7 +2833,6 @@ private:
 	long mAvailableBandwidth;
 	bool mProcessingDiscontinuity;
 	bool mDiscontinuityTuneOperationInProgress;
-	bool mProcessingAdInsertion;
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
@@ -2767,6 +2854,10 @@ private:
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
+#ifdef PLACEMENT_EMULATION
+	int mNumAds2Place;
+	std::string sampleAdBreakId;
+#endif
 };
 
 #endif // PRIVAAMP_H
