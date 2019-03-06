@@ -22,9 +22,30 @@
  * @brief Fragment collector MPEG DASH declarations
  */
 
+#ifndef FRAGMENTCOLLECTOR_MPD_H_
+#define FRAGMENTCOLLECTOR_MPD_H_
+
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
+#include "libdash/IMPD.h"
+#include "libdash/INode.h"
+#include "libdash/IDASHManager.h"
+#include "libdash/xml/Node.h"
+#include "libdash/helpers/Time.h"
+#include "libdash/xml/DOMParser.h"
+#include <libxml/xmlreader.h>
+using namespace dash;
+using namespace std;
+using namespace dash::mpd;
+using namespace dash::xml;
+using namespace dash::helpers;
+
+/*Common MPD util functions*/
+uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
+uint64_t aamp_GetPeriodDuration(IPeriod * period);
+Node* aamp_ProcessNode(xmlTextReaderPtr *reader, const char *url, bool isAd = false);
+uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
 
 /**
  * @class StreamAbstractionAAMP_MPD
@@ -37,22 +58,30 @@ public:
 	~StreamAbstractionAAMP_MPD();
 	StreamAbstractionAAMP_MPD(const StreamAbstractionAAMP_MPD&) = delete;
 	StreamAbstractionAAMP_MPD& operator=(const StreamAbstractionAAMP_MPD&) = delete;
-	void DumpProfiles(void);
-	void SetEndPos(double endPosition);
-	void Start();
-	void Stop(bool clearChannelData);
-	AAMPStatusType Init(TuneType tuneType);
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
-	double GetStreamPosition();
-	MediaTrack* GetMediaTrack(TrackType type);
-	double GetFirstPTS();
-	int GetBWIndex(long bitrate);
-	std::vector<long> GetVideoBitrates(void);
-	std::vector<long> GetAudioBitrates(void);
-	void StopInjection(void);
-	void StartInjection(void);
+	void DumpProfiles(void) override;
+	void Start() override;
+	void Stop(bool clearChannelData) override;
+	AAMPStatusType Init(TuneType tuneType) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) override;
+	double GetStreamPosition() override;
+	MediaTrack* GetMediaTrack(TrackType type) override;
+	double GetFirstPTS() override;
+	int GetBWIndex(long bitrate) override;
+	std::vector<long> GetVideoBitrates(void) override;
+	std::vector<long> GetAudioBitrates(void) override;
+	void StopInjection(void) override;
+	void StartInjection(void) override;
+	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
+
 protected:
-	StreamInfo* GetStreamInfo(int idx);
+	StreamInfo* GetStreamInfo(int idx) override;
 private:
 	class PrivateStreamAbstractionMPD* mPriv;
 };
+
+#endif //FRAGMENTCOLLECTOR_MPD_H_
+/**
+ * @}
+ */
+
+

@@ -128,8 +128,6 @@ map-mpd -	remap production linear/vod content to corresponding dash lanes
     map-mpd=2 //Old style COAM re-mapping
     map-mpd=3 //Replace all national channels' hostnames with `ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net`
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
-ad-position	position at which ad to be inserted, use together with ad-url
-ad-url		url of ad content to be inserted, use together with ad-position
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 min-vod-cache	Vod duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
