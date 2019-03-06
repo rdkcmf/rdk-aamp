@@ -671,6 +671,16 @@ public:
 	 */
 	bool IsStreamerStalled(void) { return mIsPlaybackStalled; }
 
+	/**
+	 *   @brief Stop injection of fragments.
+	 */
+	virtual void StopInjection(void) = 0;
+
+	/**
+	 *   @brief Start injection of fragments.
+	 */
+	virtual void StartInjection(void) = 0;
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
