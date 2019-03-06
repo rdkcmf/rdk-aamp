@@ -4490,3 +4490,58 @@ bool TrackState::FetchInitFragment(long &http_code)
 	}
 	return ret;
 }
+
+/***************************************************************************
+* @fn StopInjection
+* @brief Function to stop fragment injection
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::StopInjection(void)
+{
+	//invoked at times of discontinuity. Audio injection loop might have already exited here
+	ReassessAndResumeAudioTrack();
+
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		TrackState *track = trackState[iTrack];
+		if(track && track->Enabled())
+		{
+			track->StopInjection();
+		}
+	}
+}
+
+/***************************************************************************
+* @fn StopInjection
+* @brief Function to stop fragment injection
+*
+* @return void
+***************************************************************************/
+void TrackState::StopInjection()
+{
+	AbortWaitForCachedFragment(true);
+	if (playContext)
+	{
+		playContext->abort();
+	}
+	StopInjectLoop();
+}
+
+/***************************************************************************
+* @fn StartInjection
+* @brief Function to start fragment injection
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::StartInjection(void)
+{
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		TrackState *track = trackState[iTrack];
+		if(track && track->Enabled())
+		{
+			track->StartInjectLoop();
+		}
+	}
+}

@@ -172,6 +172,11 @@ public:
 	/// Check if discontinuity present around given position
 	bool HasDiscontinuityAroundPosition(double position);
 
+	/**
+	 * @brief Stop fragment injection
+	 */
+	void StopInjection();
+
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();
@@ -319,7 +324,13 @@ public:
 	/// Function to locally store the download files for debug purpose 
 	void HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix = NULL);
 #endif
-	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */ 
+	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */
+
+	/// Stop injection of fragments.
+	void StopInjection(void);
+	/// Start injection of fragments.
+	void StartInjection(void);
+
 protected:
 	/// Function to get StreamInfo stucture based on the index input
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
