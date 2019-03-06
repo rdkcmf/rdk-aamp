@@ -63,7 +63,7 @@
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_IV_LEN 16
-#define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
+#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
