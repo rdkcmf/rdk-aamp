@@ -1575,13 +1575,22 @@ void TrackState::FlushIndex()
 		{
 			traceprintf("TrackState::%s:%d drmMetadataNode[%d].metaData.metadataPtr %p\n", __FUNCTION__, __LINE__, i,
 			        drmMetadataNode[i].metaData.metadataPtr);
+
+			if ((NULL == drmMetadataNode[i].metaData.metadataPtr || NULL == drmMetadataNode[i].sha1Hash) && mDrmMetaDataIndexCount)
+			{
+				logprintf ("TrackState::%s:%d **** metadataPtr/sha1Hash is NULL, give attention and analyze it... mDrmMetaDataIndexCount[%d]\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+			}
+
 			if (drmMetadataNode[i].metaData.metadataPtr)
 			{
 				free(drmMetadataNode[i].metaData.metadataPtr);
+				drmMetadataNode[i].metaData.metadataPtr = NULL;
 			}
+
 			if (drmMetadataNode[i].sha1Hash)
 			{
 				free(drmMetadataNode[i].sha1Hash);
+				drmMetadataNode[i].sha1Hash = NULL;
 			}
 		}
 		aamp_Free(&mDrmMetaDataIndex.ptr);
