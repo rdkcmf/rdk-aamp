@@ -2381,7 +2381,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 * @return void
 ***************************************************************************/
 
-void StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
+void StreamAbstractionAAMP_HLS::SyncVODTracks()
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
@@ -2422,11 +2422,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	bool startTimeAvailable = true;
 	bool syncUsingStartTime = false;
-	bool syncedUsingSeqNum = false;
 	long long mediaSequenceNumber[AAMP_TRACK_COUNT];
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
-	double diffBetweenStartTimes = 0;
 	for(int i = 0; i<AAMP_TRACK_COUNT; i++)
 	{
 		TrackState *ts = trackState[i];
@@ -2442,7 +2440,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 
 	if (startTimeAvailable)
 	{
-		diffBetweenStartTimes = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec
+		const double diff = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec
 			+ (float)(trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_usec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_usec) / 1000000;
 		syncUsingStartTime = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
 		if (!syncUsingStartTime)
@@ -2456,15 +2454,59 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 			{
 				double diffBasedOnSeqNumber = (mediaSequenceNumber[eMEDIATYPE_AUDIO]
 				        - mediaSequenceNumber[eMEDIATYPE_VIDEO]) * video->fragmentDurationSeconds;
-				if (fabs(diffBasedOnSeqNumber - diffBetweenStartTimes) > video->fragmentDurationSeconds)
+				if (fabs(diffBasedOnSeqNumber - diff) > video->fragmentDurationSeconds)
 				{
 					logprintf("%s:%d WARNING - inconsistency between startTime and seqno  startTime diff %f diffBasedOnSeqNumber %f\n",
-					        __FUNCTION__, __LINE__, diffBetweenStartTimes, diffBasedOnSeqNumber);
+					        __FUNCTION__, __LINE__, diff, diffBasedOnSeqNumber);
 				}
 			}
 		}
+		else if (diff > 0 )
+		{
+			TrackState *ts = trackState[eMEDIATYPE_VIDEO];
+			if (diff > (ts->fragmentDurationSeconds / 2))
+			{
+				if (trackDuration[eMEDIATYPE_VIDEO] > (ts->playTarget + diff))
+				{
+					logprintf("%s:%d Audio track in front, catchup videotrack\n", __FUNCTION__, __LINE__);
+					ts->playTarget += diff;
+					ts->playTargetOffset = diff;
+				}
+				else
+				{
+					logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__, diff, ts->playTarget, trackDuration[eMEDIATYPE_VIDEO]);
+					syncUsingStartTime = false;
+				}
+			}
+			else
+			{
+				logprintf("syncTracks : Skip playTarget updation diff %f, vid track start %f fragmentDurationSeconds %f\n", diff, ts->playTarget, ts->fragmentDurationSeconds);
+			}
+		}
+		else if (diff < 0)
+		{
+			TrackState *ts = trackState[eMEDIATYPE_AUDIO];
+			if (fabs(diff) > (ts->fragmentDurationSeconds / 2))
+			{
+				if (trackDuration[eMEDIATYPE_AUDIO] > (ts->playTarget - diff))
+				{
+					logprintf("%s:%d Video track in front, catchup audio track\n", __FUNCTION__, __LINE__);
+					ts->playTarget -= diff;
+					ts->playTargetOffset = -diff;
+				}
+				else
+				{
+					logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__, diff, ts->playTarget, trackDuration[eMEDIATYPE_AUDIO]);
+					syncUsingStartTime = false;
+				}
+			}
+			else
+			{
+				logprintf("syncTracks : Skip playTarget updation diff %f, aud track start %f fragmentDurationSeconds %f\n", fabs(diff), ts->playTarget, ts->fragmentDurationSeconds);
+			}
+		}
 
-		if((diffBetweenStartTimes < -10 || diffBetweenStartTimes > 10))
+		if((diff < -10 || diff > 10))
 		{
 			logprintf("syncTracks diff debug : Audio start time sec : %ld  Video start time sec : %ld \n",
 			trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec,
@@ -2497,11 +2539,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 		}
 		if (laggingTS)
 		{
+			logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
+					__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
+					trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
+
 			if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
 			{
-				logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
-						__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
-						trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
 				while (diff > 0)
 				{
 					laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
@@ -2516,79 +2559,18 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 					}
 					diff--;
 				}
-				syncedUsingSeqNum = true;
 			}
 			else
 			{
-				logprintf("%s:%d Lag in '%s' seq no, diff[%lld] > maxValue[%d]\n",
+				logprintf("%s:%d [ERROR] ** Lag in '%s' seq no, diff[%lld] > maxValue[%d], cannot play this content.!!\n",
 						__FUNCTION__, __LINE__, ((eMEDIATYPE_VIDEO == mediaType) ? "video" : "audio"), diff, MAX_SEQ_NUMBER_LAG_COUNT);
+
+				retval = eAAMPSTATUS_SEQUENCE_NUMBER_ERROR;
 			}
 		}
 		else
 		{
 			logprintf("%s:%d No lag in seq no b/w AV\n", __FUNCTION__, __LINE__);
-		}
-	}
-
-	if (!syncedUsingSeqNum)
-	{
-		if (startTimeAvailable)
-		{
-			if (diffBetweenStartTimes > 0)
-			{
-				TrackState *ts = trackState[eMEDIATYPE_VIDEO];
-				if (diffBetweenStartTimes > (ts->fragmentDurationSeconds / 2))
-				{
-					if (trackDuration[eMEDIATYPE_VIDEO] > (ts->playTarget + diffBetweenStartTimes))
-					{
-						logprintf("%s:%d Audio track in front, catchup videotrack\n", __FUNCTION__, __LINE__);
-						ts->playTarget += diffBetweenStartTimes;
-						ts->playTargetOffset = diffBetweenStartTimes;
-					}
-					else
-					{
-						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, trackDuration[eMEDIATYPE_VIDEO]);
-						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
-					}
-				}
-				else
-				{
-					logprintf("syncTracks : Skip playTarget updation diff %f, vid track start %f fragmentDurationSeconds %f\n",
-					        diffBetweenStartTimes, ts->playTarget, ts->fragmentDurationSeconds);
-				}
-			}
-			else if (diffBetweenStartTimes < 0)
-			{
-				TrackState *ts = trackState[eMEDIATYPE_AUDIO];
-				if (fabs(diffBetweenStartTimes) > (ts->fragmentDurationSeconds / 2))
-				{
-					if (trackDuration[eMEDIATYPE_AUDIO] > (ts->playTarget - diffBetweenStartTimes))
-					{
-						logprintf("%s:%d Video track in front, catchup audio track\n", __FUNCTION__, __LINE__);
-						ts->playTarget -= diffBetweenStartTimes;
-						ts->playTargetOffset = -diffBetweenStartTimes;
-					}
-					else
-					{
-						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, trackDuration[eMEDIATYPE_AUDIO]);
-						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
-					}
-				}
-				else
-				{
-					logprintf(
-					        "syncTracks : Skip playTarget updation diff %f, aud track start %f fragmentDurationSeconds %f\n",
-					        fabs(diffBetweenStartTimes), ts->playTarget, ts->fragmentDurationSeconds);
-				}
-			}
-		}
-		else
-		{
-			logprintf("%s:%d Could not sync using seq num and start time not available., cannot play this content.!!\n",
-			        __FUNCTION__, __LINE__);
-			retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
 		}
 	}
 	logprintf("syncTracks Exit : audio track start %f, vid track start %f\n", trackState[eMEDIATYPE_AUDIO]->playTarget, trackState[eMEDIATYPE_VIDEO]->playTarget );
@@ -3146,7 +3128,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if ( ePLAYLISTTYPE_VOD == playlistType )
 			{
-				SyncTracksForDiscontinuity();
+				SyncVODTracks();
 			}
 			else
             {
@@ -3201,73 +3183,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
 		}
-		/*Adjust for discontinuity*/
-		if ((audio->enabled) && (ePLAYLISTTYPE_VOD != playlistType) && !gpGlobalConfig->bAudioOnlyPlayback)
-		{
-			std::map<int, double> &videoPeriodPositionIndex = video->mPeriodPositionIndex;
-			std::map<int, double> &audioPeriodPositionIndex = audio->mPeriodPositionIndex;
-			if (videoPeriodPositionIndex.size() > 0)
-			{
-				if (videoPeriodPositionIndex.size() == audioPeriodPositionIndex.size())
-				{
-					SyncTracksForDiscontinuity();
-					std::map<int, double>::iterator videoPeriodPositionIndexItr = videoPeriodPositionIndex.begin();
-					std::map<int, double>::iterator audioPeriodPositionIndexItr = audioPeriodPositionIndex.begin();
-					float videoPrevDiscontinuity = 0;
-					float audioPrevDiscontinuity = 0;
-					float videoNextDiscontinuity;
-					float audioNextDiscontinuity;
-					for (int i = 0; i <= videoPeriodPositionIndex.size(); i++)
-					{
-						if (i < videoPeriodPositionIndex.size())
-						{
-							videoNextDiscontinuity = videoPeriodPositionIndexItr->second;
-							audioNextDiscontinuity = audioPeriodPositionIndexItr->second;
-						}
-						else
-						{
-							videoNextDiscontinuity = aamp->GetDurationMs() / 1000;
-							audioNextDiscontinuity = videoNextDiscontinuity;
-						}
-						if ((videoNextDiscontinuity > (video->playTarget + 5))
-						        && (audioNextDiscontinuity > (audio->playTarget + 5)))
-						{
 
-							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : video->playTarget %f videoPrevDiscontinuity %f videoNextDiscontinuity %f\n",
-									__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity, videoNextDiscontinuity);
-							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : audio->playTarget %f audioPrevDiscontinuity %f audioNextDiscontinuity %f\n",
-									__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity, audioNextDiscontinuity);
-							if (video->playTarget < videoPrevDiscontinuity)
-							{
-								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [video] playTarget(%f) advance to discontinuity(%f)\n",
-										__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity);
-								video->playTarget = videoPrevDiscontinuity;
-							}
-							if (audio->playTarget < audioPrevDiscontinuity)
-							{
-								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [audio] playTarget(%f) advance to discontinuity(%f)\n",
-										__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity);
-								audio->playTarget = audioPrevDiscontinuity;
-							}
-							break;
-						}
-						videoPrevDiscontinuity = videoNextDiscontinuity;
-						audioPrevDiscontinuity = audioNextDiscontinuity;
-						videoPeriodPositionIndexItr++;
-						audioPeriodPositionIndexItr++;
-					}
-				}
-				else
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size %d audioPeriodPositionIndex.size %d\n",
-							__FUNCTION__, __LINE__, (int) videoPeriodPositionIndex.size(), (int) audioPeriodPositionIndex.size());
-				}
-			}
-			else
-			{
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0\n", __FUNCTION__, __LINE__);
-			}
-		}
 		if (audio->enabled)
 		{
 			audio->ProcessDrmMetadata(true);
