@@ -381,6 +381,8 @@ public:
 	int GetBWIndex(long bitrate);
 	std::vector<long> GetVideoBitrates(void);
 	std::vector<long> GetAudioBitrates(void);
+	void StopInjection();
+	void StartInjection();
 
 private:
 	AAMPStatusType UpdateMPD(bool retrievePlaylistFromCache = false);
@@ -4451,8 +4453,10 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 								{
 									if(trickPlay)
 									{
-										if(delta <= 0)
+										if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
+										{
 											delta = rate / gpGlobalConfig->vodTrickplayFPS;
+										}
 										delta = SkipFragments(pMediaStreamContext, delta);
 									}
 
@@ -5131,4 +5135,57 @@ std::vector<long> StreamAbstractionAAMP_MPD::GetVideoBitrates(void)
 std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 {
 	return mPriv->GetAudioBitrates();
+}
+
+
+/**
+*   @brief  Stops injecting fragments to StreamSink.
+*/
+void StreamAbstractionAAMP_MPD::StopInjection(void)
+{
+	//invoked at times of discontinuity. Audio injection loop might have already exited here
+	ReassessAndResumeAudioTrack();
+	mPriv->StopInjection();
+}
+
+
+/**
+*   @brief  Stops injection.
+*/
+void PrivateStreamAbstractionMPD::StopInjection(void)
+{
+	for (int iTrack = 0; iTrack < mNumberOfTracks; iTrack++)
+	{
+		MediaStreamContext *track = mMediaStreamContext[iTrack];
+		if(track && track->Enabled())
+		{
+			track->AbortWaitForCachedFragment(true);
+			track->StopInjectLoop();
+		}
+	}
+}
+
+
+/**
+*   @brief  Start injecting fragments to StreamSink.
+*/
+void StreamAbstractionAAMP_MPD::StartInjection(void)
+{
+	mPriv->StartInjection();
+}
+
+
+/**
+*   @brief  Start injection.
+*/
+void PrivateStreamAbstractionMPD::StartInjection(void)
+{
+	for (int iTrack = 0; iTrack < mNumberOfTracks; iTrack++)
+	{
+		MediaStreamContext *track = mMediaStreamContext[iTrack];
+		if(track && track->Enabled())
+		{
+			track->StartInjectLoop();
+		}
+	}
 }
