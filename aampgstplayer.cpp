@@ -760,7 +760,7 @@ static gboolean buffering_timeout (gpointer data)
 	AAMPGstPlayer * _this = (AAMPGstPlayer *) data;
 	if (_this->privateContext->buffering_in_progress)
 	{
-		guint bytes, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
+		guint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
 		if (_this->privateContext->video_dec)
 		{
 			g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
@@ -1941,7 +1941,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 
 	media_stream *stream = &privateContext->stream[type];
 	stream->eosReached = true;
-	if (stream->format != FORMAT_NONE && stream->resetPosition == true)
+	if ((stream->format != FORMAT_NONE && stream->format != FORMAT_INVALID) && stream->resetPosition == true)
 	{
 		logprintf("%s(): EOS received as first buffer \n", __FUNCTION__);
 		NotifyEOS();
