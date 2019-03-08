@@ -65,6 +65,7 @@
 #define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
+#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*Maximum difference in sequence number to sync tracks using sequence number.*/
 #define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -2506,7 +2507,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 		}
 		if (laggingTS)
 		{
-			if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
+			if (startTimeAvailable && (diff > MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC))
+			{
+				logprintf("%s:%d - falling back to synchronization based on start time as diff = %lld\n", __FUNCTION__, __LINE__, diff);
+			}
+			else if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
 			{
 				logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
 						__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
@@ -2536,6 +2541,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 		else
 		{
 			logprintf("%s:%d No lag in seq no b/w AV\n", __FUNCTION__, __LINE__);
+			syncedUsingSeqNum = true;
 		}
 	}
 
