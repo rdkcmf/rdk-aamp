@@ -173,6 +173,11 @@ public:
 	bool HasDiscontinuityAroundPosition(double position);
 
 	/**
+	 * @brief Start fragment injection
+	 */
+	void StartInjection();
+
+	/**
 	 * @brief Stop fragment injection
 	 */
 	void StopInjection();
