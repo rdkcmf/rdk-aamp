@@ -220,6 +220,7 @@ enum HttpHeaderType
 #define AAMP_LOG_NETWORK_ERROR		gpGlobalConfig->logging.LogNetworkError
 #define AAMP_LOG_DRM_ERROR			gpGlobalConfig->logging.LogDRMError
 #define AAMP_LOG_ABR_INFO			gpGlobalConfig->logging.LogABRInfo
+#define AAMP_IS_LOG_WORTHY_ERROR	gpGlobalConfig->logging.isLogworthyErrorCode
 
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
@@ -383,6 +384,11 @@ public:
 	 * @brief Set log file and cfg directory index.
 	 */
 	void setLogAndCfgDirectory(char driveName);
+
+	/**
+	 * @brief Check curl error before log on console.
+	 */
+	bool isLogworthyErrorCode(int errorCode);
 
 	/**
 	 * @brief Get aamp cfg directory.

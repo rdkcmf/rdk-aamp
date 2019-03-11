@@ -1923,7 +1923,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 #if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 					logprintf("CURL error: %d\n", res);
 #else
-					if (res != CURLE_WRITE_ERROR) /* Curl write error 23 is not a real network error, so no need to log it here */
+					if (AAMP_IS_LOG_WORTHY_ERROR(res)) /* Curl 23 and 42 is not a real network error, so no need to log it here */
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
 					}
@@ -2060,7 +2060,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		}
 		else
 		{
-			logprintf("BAD URL:%s\n", remoteUrl);
+			if (AAMP_IS_LOG_WORTHY_ERROR(res))
+			{
+				logprintf("BAD URL:%s\n", remoteUrl);
+			}
 			if (buffer->ptr)
 			{
 				aamp_Free(&buffer->ptr);

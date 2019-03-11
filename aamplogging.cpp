@@ -178,7 +178,7 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 	location="unknown";
 	symptom="unknown";
 
-	if(strstr(url,".m3u8") || strstr(url,".mpd"))
+	if(strstr(url,".m3u8") || strstr(url,".mpd") || strstr(url,"-init.seg"))
 	{
 		if(strstr(url,"-bandwidth-"))
 		{
@@ -227,6 +227,10 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 	else if(strstr(url,"//odol"))
 	{
 		location = "edge cache";
+	}
+	else if(strstr(url,"127.0.0.1:9080"))
+	{
+		location = "fog";
 	}
 }
 
@@ -388,6 +392,23 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 			profile.c_str(), pstAbrInfo->currentProfileIndex, pstAbrInfo->desiredProfileIndex, pstAbrInfo->currentBandwidth,
 			pstAbrInfo->desiredBandwidth, pstAbrInfo->networkBandwidth, reason.c_str(), symptom.c_str());
 	}
+}
+
+/**
+ * @brief Check curl error before log on console.
+ * @param[in] errorCode - curl error
+ * @retuen true if it is not a curl error 23 and 42, bcasue those are not a real network errors.
+ */
+bool AampLogManager::isLogworthyErrorCode(int errorCode)
+{
+	bool returnValue = false;
+
+	if ((errorCode !=0) && (errorCode != CURLE_WRITE_ERROR) && (errorCode != CURLE_ABORTED_BY_CALLBACK))
+	{
+		returnValue = true;
+	}
+
+	return returnValue;
 }
 
 /**
