@@ -3780,9 +3780,28 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 					for(int iPeriod = periods.size() - 1 ; iPeriod >= 0; iPeriod--)
 					{
 						IPeriod* period = periods.at(iPeriod);
-						IAdaptationSet * adaptationSet = period->GetAdaptationSets().at(0);
-						IRepresentation* representation = adaptationSet->GetRepresentation().at(0);
-						ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
+						vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+						if (adaptationSets.empty())
+						{
+							continue;
+						}
+						IAdaptationSet * adaptationSet = adaptationSets.at(0);
+
+						vector<IRepresentation *> representations = adaptationSet->GetRepresentation();
+
+						if(representations.empty())
+						{
+							continue;
+						}
+
+						IRepresentation* representation = representations.at(0);
+						ISegmentList *segmentList = representation->GetSegmentList();
+
+						if(!segmentList)
+						{
+							continue;
+						}
+
 						duration += segmentList->GetDuration();
 						vector<ISegmentURL*> segUrls = segmentList->GetSegmentURLs();
 						if(!segUrls.empty())
