@@ -127,11 +127,11 @@ public:
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
-	double IndexPlaylist();
+	void IndexPlaylist();
 	/// Function to handle Profile change after ABR  
 	void ABRProfileChanged(void);
 	/// Function to get next fragment URI for download 
-	char *GetNextFragmentUriFromPlaylist();
+	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false);
 	/// Function to update IV value from DRM information 
 	void UpdateDrmIV(const char *ptr);
 	/// Function to update SHA1 ID from DRM information
@@ -181,6 +181,9 @@ public:
 	 * @brief Stop fragment injection
 	 */
 	void StopInjection();
+
+	/// Stop wait for playlist refresh
+	void StopWaitForPlaylistRefresh();
 
 private:
 	/// Function to get fragment URI based on Index 
@@ -240,6 +243,7 @@ public:
 	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
 	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
 	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
+	double mDuration;  /** Duration of the track*/
 
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
@@ -252,6 +256,8 @@ private:
 	bool mInjectInitFragment;               /**< Indicates if init fragment injection is required*/
 	const char* mInitFragmentInfo;          /**< Holds init fragment Information index*/
 	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
+	pthread_mutex_t mPlaylistMutex;         /**< protect playlist update */
+	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
 };
 
 class StreamAbstractionAAMP_HLS;
@@ -342,7 +348,7 @@ protected:
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
-	AAMPStatusType SyncTracks( double trackDuration[]);
+	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
 	void SyncTracksForDiscontinuity();
 	

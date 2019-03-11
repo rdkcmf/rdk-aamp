@@ -1456,6 +1456,7 @@ public:
 	bool mEnableCache;
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
+	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 
 	/**
 	 * @brief Curl initialization function
