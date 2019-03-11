@@ -4545,6 +4545,21 @@ void TrackState::StopInjection()
 
 /***************************************************************************
 * @fn StartInjection
+* @brief starts fragment injection
+*
+* @return void
+***************************************************************************/
+void TrackState::StartInjection()
+{
+	if (playContext)
+	{
+		playContext->reset();
+	}
+	StartInjectLoop();
+}
+
+/***************************************************************************
+* @fn StartInjection
 * @brief Function to start fragment injection
 *
 * @return void
@@ -4556,7 +4571,7 @@ void StreamAbstractionAAMP_HLS::StartInjection(void)
 		TrackState *track = trackState[iTrack];
 		if(track && track->Enabled())
 		{
-			track->StartInjectLoop();
+			track->StartInjection();
 		}
 	}
 }
