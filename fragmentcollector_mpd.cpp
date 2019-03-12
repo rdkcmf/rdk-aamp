@@ -206,7 +206,7 @@ public:
 						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile\n",
 								__FUNCTION__, __LINE__, fragmentUrl, segDLFailCount);
 					}
-					else
+					else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
 					{
 						logprintf("PrivateStreamAbstractionMPD::%s:%d > Error on fetching %s fragment. failedCount:%d\n",
 								__FUNCTION__, __LINE__, name, segDLFailCount);

@@ -1272,7 +1272,10 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 
 				aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
 				segDLFailCount += 1;
-				logprintf("FetchFragmentHelper aamp_GetFile failed\n");
+				if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
+				{
+					logprintf("FetchFragmentHelper aamp_GetFile failed\n");
+				}
 				//Adding logic to report error if fragment downloads are failing continuously
 				if(MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount && aamp->DownloadsAreEnabled())
 				{
@@ -1425,7 +1428,7 @@ void TrackState::FetchFragment()
 			{
 				logprintf("%s:%d: Error while decrypting fragments. failedCount:%d\n", __FUNCTION__, __LINE__, segDLFailCount);
 			}
-			else
+			else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
 			{
 				logprintf("%s:%d: Error on fetching %s fragment. failedCount:%d\n", __FUNCTION__, __LINE__, name, segDLFailCount);
 			}
