@@ -2010,9 +2010,10 @@ double TrackState::IndexPlaylist()
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-	if (firstIndexDone && (NULL != mCMSha1Hash))
+	if ((firstIndexDone && (NULL != mCMSha1Hash)) || mForceProcessDrmMetadata)
 	{
 		ProcessDrmMetadata(false);
+		mForceProcessDrmMetadata = false;
 	}
 	if (mDrmKeyTagCount > 0)
 	{
@@ -2099,6 +2100,8 @@ void TrackState::ABRProfileChanged()
 	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
 	refreshPlaylist = true;
 	mInjectInitFragment = true;
+	/*For some VOD assets, different video profiles have different DRM meta-data.*/
+	mForceProcessDrmMetadata = true;
 	pthread_mutex_unlock(&mutex);
 }
 /***************************************************************************
@@ -3513,7 +3516,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
 		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
-		mInjectInitFragment(true), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false)
+		mInjectInitFragment(true), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false), mForceProcessDrmMetadata(false)
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
