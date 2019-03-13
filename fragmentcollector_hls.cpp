@@ -2354,6 +2354,14 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 			while(isspace(line.back()))
 			{
 				line.pop_back();
+				if (line.empty())
+				{
+				    break;
+				}
+			}
+			if (line.empty())
+			{
+			    continue;
 			}
 			traceprintf("%s:%d line === %s ====\n", __FUNCTION__, __LINE__, line.c_str());
 			size_t end = line.find("?");
