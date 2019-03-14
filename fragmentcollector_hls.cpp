@@ -1759,7 +1759,7 @@ void TrackState::IndexPlaylist()
 		}
 		else
 		{ // for Sling content
-			logprintf("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
+			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
 			ptr = playlist.ptr;
 			indexFirstMediaSequenceNumber = 0;
 		}
