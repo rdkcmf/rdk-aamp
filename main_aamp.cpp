@@ -628,6 +628,34 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 	}
 }
 
+/**
+ * @brief Sends Anomaly Error/warning messages
+ *
+ * @param[in] type - severity of message
+ * @param[in] format - format string
+ * args [in]  - multiple arguments based on format
+ * @return void
+ */
+void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...)
+{
+    if(NULL != format)
+    {
+        va_list args;
+        va_start(args, format);
+
+        AAMPEvent e;
+        e.type = AAMP_EVENT_REPORT_ANOMALY;
+        char * msgData = e.data.anomalyReport.msg;
+
+        msgData[(MAX_ANOMALY_BUFF_SIZE-1)] = 0;
+        vsnprintf(msgData, (MAX_ANOMALY_BUFF_SIZE-1), format, args);
+
+
+        e.data.anomalyReport.severity = (int)type;
+        AAMPLOG_INFO("Anomaly evt:%d msg:%s\n",e.data.anomalyReport.severity,msgData);
+        SendEventAsync(e);
+    }
+}
 
 /**
  * @brief Handles errors and sends events to application if required.
@@ -689,6 +717,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		}
 		logprintf("Sending error %s \n",e.data.mediaError.description);
 		SendEventAsync(e);
+		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 	}
 	else
 	{
@@ -977,6 +1006,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		{
 			mStreamSink->Stop(false);
 		}
+		SendAnomalyEvent(ANOMALY_TRACE, "Generating EOS event");
 		return;
 	}
 	if (!IsDiscontinuityProcessPending())
@@ -1079,6 +1109,12 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	int streamType = getStreamType();
 	profiler.TuneEnd(success, mContentType, streamType, mFirstTune);
 
+	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
+    if(!IsTSBSupported())
+    {
+        SetTunedManifestUrl(); /* Redirect URL in case on VOD */
+    }
+
 	if (!mTuneCompleted)
 	{
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
@@ -1095,7 +1131,29 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 				logprintf("aamp: - sent tune event on Tune Completion.\n");
 			}
 		}
+
+		AAMPAnomalyMessageType eMsgType = AAMPAnomalyMessageType::ANOMALY_TRACE;
+		if(mTuneAttempts > 1 )
+		{
+		    eMsgType = AAMPAnomalyMessageType::ANOMALY_WARNING;
+		}
+		std::string playbackType = GetContentTypString();
+
+		if(mContentType == ContentType_LINEAR)
+		{
+		    if(mTSBEnabled)
+		    {
+		        playbackType.append(":TSB=true");
+		    }
+		    else
+		    {
+		        playbackType.append(":TSB=false");
+		    }
+		}
+
+		SendAnomalyEvent(eMsgType, "Tune attempt#%d. %s:%s URL:%s", mTuneAttempts,playbackType.c_str(),getStreamTypeString().c_str(),GetTunedManifestUrl());
 	}
+
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_WARN);
 }
 
@@ -1359,6 +1417,7 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 	return ret;
 }
 
+#define FOG_REASON_STRING           "Fog-Reason:"
 
 /**
  * @brief callback invoked on http header by curl
@@ -1379,7 +1438,14 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 
 	std::string header((const char *)ptr, 0, len);
 
-	if (std::string::npos != header.find("X-Reason:"))
+    if (std::string::npos != header.find(FOG_REASON_STRING))
+    {
+        httpHeader->type = eHTTPHEADERTYPE_FOG_REASON;
+        logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+        startPos = header.find(FOG_REASON_STRING) + strlen(FOG_REASON_STRING);
+        endPos = header.length() - 1;
+    }
+	else if (std::string::npos != header.find("X-Reason:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
 		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
@@ -1795,8 +1861,10 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 	switch(fileType)
 	{
 		case eMEDIATYPE_VIDEO:
+		case eMEDIATYPE_INIT_VIDEO:
 			return "VIDEO";
 		case eMEDIATYPE_AUDIO:
+		case eMEDIATYPE_INIT_AUDIO:
 			return "AUDIO";
 		case eMEDIATYPE_MANIFEST:
 			return "MANIFEST";
@@ -1804,8 +1872,12 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 			return "LICENCE";
 		case eMEDIATYPE_IFRAME:
 			return "IFRAME";
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+		    return "PLAYLIST_VIDEO";
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+		    return "PLAYLIST_AUDIO";
 		default:
-			return "";
+			return "Unknown";
 	}
 }
 
@@ -2128,10 +2200,29 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			}
 			memset(buffer, 0x00, sizeof(*buffer));
 
+			if (rate != 1.0)
+			{
+				fileType = eMEDIATYPE_IFRAME;
+			}
+
+			// dont generate anomaly reports for write and aborted errors
+			// these are generated after trick play options,
+			if( !(http_code == CURLE_ABORTED_BY_CALLBACK || http_code == CURLE_WRITE_ERROR))
+			{
+				SendAnomalyEvent(ANOMALY_WARNING, "%s:%s,%s-%d url:%s", (mTSBEnabled ? "FOG" : "CDN"),
+					MediaTypeString(fileType), (http_code < 100) ? "Curl" : "HTTP", http_code, remoteUrl);
+			}
+            
 			if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_XREASON) && (httpRespHeaders[curlInstance].data.length() > 0) )
 			{
 				logprintf("Received X-Reason header from %s: '%s'", mTSBEnabled?"Fog":"CDN Server", httpRespHeaders[curlInstance].data.c_str());
+				SendAnomalyEvent(ANOMALY_WARNING, "%s X-Reason:%s", mTSBEnabled ? "Fog" : "CDN", httpRespHeaders[curlInstance].data.c_str());
 			}
+            else if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_REASON) && (httpRespHeaders[curlInstance].data.length() > 0) )
+            {
+                logprintf("Received FOG-Reason header: '%s'", httpRespHeaders[curlInstance].data.c_str());
+                SendAnomalyEvent(ANOMALY_WARNING, "FOG-Reason:%s", httpRespHeaders[curlInstance].data.c_str());
+            }
 		}
 
 		pthread_mutex_lock(&mLock);
@@ -3605,7 +3696,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	strncpy(manifestUrl, mainManifestUrl, MAX_URI_LENGTH);
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
-	
+
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
@@ -3716,7 +3807,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 			replace_cstring(manifestUrl, "-eac3.mpd", ".mpd");
 		} // mpd
 	} // !remap_url
-  
+ 
 	if (strstr(manifestUrl,"tsb?"))
 	{
 		mTSBEnabled = true;
@@ -3724,10 +3815,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
-	if(mTSBEnabled)
-	{
-		SetTunedManifestUrl(true);
-	}
+	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
 	{
@@ -3738,6 +3826,71 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mSessionUUID = strdup(sessionUUID);
 	}
 	TuneHelper(tuneType);
+}
+
+std::string  PrivateInstanceAAMP::GetContentTypString()
+{
+    std::string strRet;
+    switch(mContentType)
+    {
+        case ContentType_CDVR :
+        {
+            strRet = "CDVR"; //cdvr
+            break;
+        }
+        case ContentType_VOD :
+        {
+            strRet = "VOD"; //vod
+            break;
+        }    
+        case ContentType_LINEAR :
+        {
+            strRet = "LINEAR"; //linear
+            break;
+        }    
+        case ContentType_IVOD :
+        {
+            strRet = "IVOD"; //ivod
+            break;
+        }    
+        case ContentType_EAS :
+        {
+            strRet ="EAS"; //eas
+            break;
+        }    
+        case ContentType_CAMERA :
+        {
+            strRet = "XfinityHome"; //camera
+            break;
+        }    
+        case ContentType_DVR :
+        {
+            strRet = "DVR"; //dvr
+            break;
+        }    
+        case ContentType_MDVR :
+        {
+            strRet =  "MDVR" ; //mdvr
+            break;
+        }    
+        case ContentType_IPDVR :
+        {
+            strRet ="IPDVR" ; //ipdvr
+            break;
+        }    
+        caseContentType_PPV :
+        {
+            strRet =  "PPV"; //ppv
+            break;
+        }
+        default:
+        {
+            strRet =  "Unknown";
+            break;
+        }
+     }
+
+    return strRet;
 }
 
 void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char *cType)
@@ -5318,6 +5471,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration\n", __FUNCTION__, __LINE__);
 			return;
 		}
+		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"),
+		        (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
+		        (errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" : "STARTTIME RESET");
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
 		for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
@@ -6429,11 +6585,6 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
  */
 const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 {
-	if(!IsTSBSupported())
-	{
-		SetTunedManifestUrl(); /* Redirect URL in case on VOD */
-	}
-
 	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
 	return tunedManifestUrl;
 }
