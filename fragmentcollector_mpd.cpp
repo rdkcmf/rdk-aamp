@@ -1275,7 +1275,6 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				std::string range = segmentBase->GetIndexRange();
 				int start;
 				sscanf(range.c_str(), "%d-%d", &start, &pMediaStreamContext->fragmentOffset);
-
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
 				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, &pMediaStreamContext->index_len, curlInstance, range.c_str(),actualType);
@@ -4068,6 +4067,33 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 								}
 							}
 						}
+						else
+						{
+							std::string irange = segmentBase->GetIndexRange();
+							int start,stop;
+							if(sscanf(irange.c_str(), "%d-%d", &start, &stop)==2)
+							{
+								stop = start-1;
+								start = 0;
+								char range[10];
+								snprintf(range, 9, "%d-%d", start, stop);
+								range[9] = '\0';
+								char fragmentUrl[MAX_URI_LENGTH];
+								GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
+								if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
+								{
+									pMediaStreamContext->profileChanged = false;
+									if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0, range, true ))
+									{
+										logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+									}
+								}
+							}
+							else
+							{
+								logprintf("%s:%d sscanf failed\n", __FUNCTION__, __LINE__);
+							}
+						}
 					}
 					else
 					{
@@ -4478,7 +4504,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 										}
 										delta = SkipFragments(pMediaStreamContext, delta);
 									}
-
 									if(PushNextFragment(pMediaStreamContext,i))
 									{
 										if (mIsLive)
