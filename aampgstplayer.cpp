@@ -912,6 +912,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				{
 					GstElement * audio_dec = (GstElement *) msg->src;
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
+					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
 					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
 				}
