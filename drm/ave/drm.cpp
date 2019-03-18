@@ -172,45 +172,48 @@ public:
 		case 3321:
 		case 3322:
 		case 3328:
-				drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
-			break;
+                        drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
+
+                        description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
+
+                        /*
+                        * Creating file "/tmp/DRM_Error" will invoke self heal logic in
+                        * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
+                        * in the next tune attempt, this could clear tune error scenarios
+                        * due to corrupt drm data.
+                        */
+                        FILE *sentinelFile;
+                        sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
+
+                        if(sentinelFile)
+                        {
+                                fclose(sentinelFile);
+                        }
+                        else
+                        {
+                        logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s\n",
+                                                 __FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
+                        }
+
+                        snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
+                        break;
+
+                 case 3307:
+                        drmFailure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
+                        isRetryEnabled = false;
+                        break;
 
 		default:
                     break;
 		}
 
 		mpAamp->DisableDownloads();
+		
+
 		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
 		{
 			description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
-			memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
 			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-		}
-		else if(AAMP_TUNE_CORRUPT_DRM_DATA == drmFailure)
-		{
-			description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
-			memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
-
-			/*
-			* Creating file "/tmp/DRM_Error" will invoke self heal logic in
-			* ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
-			* in the next tune attempt, this could clear tune error scenarios
-			* due to corrupt drm data.
-			*/
-			FILE *sentinelFile;
-			sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
-
-			if(sentinelFile)
-			{
-				fclose(sentinelFile);
-			}
-			else
-			{
-				logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s\n",
-						 __FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
-			}
-
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 		}
 
 		mpAamp->SendErrorEvent(drmFailure, description, isRetryEnabled);
@@ -219,6 +222,7 @@ public:
 		{
 			delete[] description;
 		}
+	
 		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
 		logprintf("DRMListener::%s:%d[%p] majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 
