@@ -60,12 +60,14 @@
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-#define CURL_FRAGMENT_DL_TIMEOUT 5L     /**< Curl timeout for fragment download */
+#define CURL_FRAGMENT_DL_TIMEOUT 10L     /**< Curl timeout for fragment download */
 #define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
 #define EAS_CURL_CONNECTTIMEOUT 2L      /**< Curl timeout for EAS connection */
+#define DEFAULT_CURL_LOW_SPEED_LIMIT 1L /**< Curl low speed limit for downloads */
+#define DEFAULT_CURL_LOW_SPEED_TIME 1L  /**< Curl low spped time for downloads */
 #define DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS (6*1000)   /**< Interval between playlist refreshes */
 #define TRICKPLAY_NETWORK_PLAYBACK_FPS 4            /**< Frames rate for trickplay from CDN server */
 #define TRICKPLAY_TSB_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
@@ -493,6 +495,8 @@ public:
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	int mpdHarvestLimit;                     /**< How many static mpds to be saved to box, 0 means none*/
+	long curlLowSpeedLimit;                 /**< Value to be used for CURLOPT_LOW_SPEED_LIMIT in bytes/sec*/
+	long curlLowSpeedTime;                  /**< Value to be used for CURLOPT_LOW_SPEED_TIME in seconds*/
 public:
 
 	/**
@@ -521,7 +525,8 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
-		,enableMicroEvents(false), mpdHarvestLimit(0)
+		,enableMicroEvents(false), mpdHarvestLimit(0),
+		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

@@ -163,6 +163,8 @@ fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe track in non-4K assets( less than or equal to X ). Disabled in default configuration.
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
 mpd-harvest-limit=<X> Specify how many DASH DAI MPDs to save. Disabled in default configuration
+curl-low-speed-limit=<X> specify the minimum speed for a CURL download to keep the download alive, default is 1bytes/sec
+curl-low-speed-time=<X> specify the minimum time after download speed goes below curl-low-speed-limit to cancel the download, default is 1s
 
 CLI-specific commands:
 <enter>		dump currently available profiles

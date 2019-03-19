@@ -1619,6 +1619,8 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
+			curl_easy_setopt(curl[i], CURLOPT_LOW_SPEED_LIMIT, gpGlobalConfig->curlLowSpeedLimit);
+			curl_easy_setopt(curl[i], CURLOPT_LOW_SPEED_TIME, gpGlobalConfig->curlLowSpeedTime);
 			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
 			{
 				const char *proxy = NULL;
@@ -1904,7 +1906,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	CURLcode res = CURLE_OK;
 
 	// temporarily increase timeout for manifest download - these files (especially for VOD) can be large and slow to download
-	//bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
+	bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
 
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
@@ -1918,6 +1920,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	if (mDownloadsEnabled)
 	{
 		long long downloadTimeMS = 0;
+		bool isCurlLowSpeedTimedout = false;
 		pthread_mutex_unlock(&mLock);
 		AAMPLOG_INFO("aamp url: %s\n", remoteUrl);
 
@@ -1935,12 +1938,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
 
-			/*
 			if (modifyDownloadTimeout)
 			{
 				curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_MANIFEST_DL_TIMEOUT);
 			}
-			*/
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
@@ -1977,7 +1978,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 						}
 						else if (it->second.size() == 1)
 						{
-							snprintf(buf, 512, "trace-id=%s;parent-id=%u;span-id=%lld",
+							snprintf(buf, 512, "trace-id=%s;parent-id=%lld;span-id=%lld",
 									(const char*)it->second.at(0).c_str(),
 									aamp_GetCurrentTimeMS(),
 									aamp_GetCurrentTimeMS());
@@ -2000,6 +2001,9 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					traceprintf("%s:%d reset length. buffer %p avail %d\n", __FUNCTION__, __LINE__, buffer, (int)buffer->avail);
 					buffer->len = 0;
 				}
+
+				isCurlLowSpeedTimedout = false;
+
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 				long long tEndTime = NOW_STEADY_TS_MS;
@@ -2051,18 +2055,21 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 				else
 				{
-#if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
-					logprintf("CURL error: %d\n", res);
-#else
-					if (AAMP_IS_LOG_WORTHY_ERROR(res)) /* Curl 23 and 42 is not a real network error, so no need to log it here */
+					long curlDownloadTimeout = modifyDownloadTimeout ? CURL_MANIFEST_DL_TIMEOUT : gpGlobalConfig->fragmentDLTimeout;
+					//use a delta of 100ms for edge cases
+					isCurlLowSpeedTimedout = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE) &&
+									buffer->len > 0 &&
+									(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
+					/* Curl 23 and 42 is not a real network error, so no need to log it here */
+					if (AAMP_IS_LOG_WORTHY_ERROR(res))
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
 					}
-#endif /* 0 */
 					//Attempt retry for local playback since rampdown is disabled for FOG
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || fileType == eMEDIATYPE_MANIFEST))) && downloadAttempt < 2)
+					//Attempt retry for partial downloads, which have a higher chance to succeed
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isCurlLowSpeedTimedout) && downloadAttempt < 2)
 					{
-						logprintf("Download failed due to curl connect timeout. Retrying!\n");
+						logprintf("Download failed due to curl timeout or isCurlLowSpeedTimedout:%d. Retrying!\n", isCurlLowSpeedTimedout);
 						loopAgain = true;
 					}
 					/*
@@ -2072,6 +2079,19 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					*curl errors are below 100 and http error starts from 100
 					*/
 					http_code = res;
+					//Avoid low speed timeout scenarios from affecting ABR and rampdown
+					if (isCurlLowSpeedTimedout)
+					{
+						AAMPLOG_INFO("Curl download timedout due to low speed - curl result:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, downloadTimeMS, curlDownloadTimeout * 1000);
+						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
+						http_code = CURLE_PARTIAL_FILE;
+					}
+					else if (res == CURLE_OPERATION_TIMEDOUT && buffer->len == 0)
+					{
+						AAMPLOG_INFO("Curl download timedout with zero received bytes - curl result:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, downloadTimeMS, curlDownloadTimeout * 1000);
+						//To avoid updateBasedonFragmentCached being called on rampdown
+						http_code = CURLE_COULDNT_CONNECT;
+					}
 				}
 
 				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
@@ -2109,26 +2129,24 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				break;
 			}
 
-			/*
 			if (modifyDownloadTimeout)
 			{
 				curl_easy_setopt(curl, CURLOPT_TIMEOUT, gpGlobalConfig->fragmentDLTimeout);
 			}
-			*/
-
 		}
 
 		if (http_code == 200 || http_code == 206 || http_code == CURLE_OPERATION_TIMEDOUT)
 		{
-			if (http_code == CURLE_OPERATION_TIMEDOUT)
+			if (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)
 			{
-				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%u\n", buffer->len, downloadTimeMS);
+				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%lld and isCurlLowSpeedTimedout:%d\n", buffer->len, downloadTimeMS, isCurlLowSpeedTimedout);
 			}
-			if (downloadTimeMS > 0 && (fileType == eMEDIATYPE_VIDEO || fileType == eMEDIATYPE_INIT_VIDEO) && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE || (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)))
+
+			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE))
 			{
 				{
 					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,((long)(buffer->len / downloadTimeMS)*8000)));
-					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]\n",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMs)*8000));
+					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]\n",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
 				}
@@ -2968,8 +2986,18 @@ static void ProcessConfigEntry(char *cfg)
 		}
 		else if (sscanf(cfg, "mpd-harvest-limit=%d", &gpGlobalConfig->mpdHarvestLimit) == 1)
 		{
-			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->mpdHarvestLimit, 0);
+			VALIDATE_INT("mpd-harvest-limit", gpGlobalConfig->mpdHarvestLimit, 0);
 			logprintf("aamp mpd-harvest-limit: %d\n", gpGlobalConfig->mpdHarvestLimit);
+		}
+		else if (sscanf(cfg, "curl-low-speed-limit=%ld", &gpGlobalConfig->curlLowSpeedLimit) == 1)
+		{
+			VALIDATE_LONG("curl-low-speed-limit", gpGlobalConfig->curlLowSpeedLimit, DEFAULT_CURL_LOW_SPEED_LIMIT);
+			logprintf("aamp curl-low-speed-limit: %ld\n", gpGlobalConfig->curlLowSpeedLimit);
+		}
+		else if (sscanf(cfg, "curl-low-speed-time=%ld", &gpGlobalConfig->curlLowSpeedTime) == 1)
+		{
+			VALIDATE_LONG("curl-low-speed-time", gpGlobalConfig->curlLowSpeedTime, DEFAULT_CURL_LOW_SPEED_TIME);
+			logprintf("aamp curl-low-speed-time: %ld\n", gpGlobalConfig->curlLowSpeedTime);
 		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{
