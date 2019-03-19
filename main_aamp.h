@@ -1005,7 +1005,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(int timeout);
+	void SetNetworkTimeout(long timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
@@ -1027,6 +1027,20 @@ public:
 	 *   @param[in] proxy to use for license request
 	 */
 	void SetLicenseReqProxy(const char * licenseProxy);
+
+	/**
+	 *   @brief To set the curl stall timeout value
+	 *
+	 *   @param[in] curl stall timeout value
+	 */
+	void SetDownloadStallTimeout(long stallTimeout);
+
+	/**
+	 *   @brief To set the curl download start timeout
+	 *
+	 *   @param[in] curl download start timeout
+	 */
+	void SetDownloadStartTimeout(long startTimeout);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

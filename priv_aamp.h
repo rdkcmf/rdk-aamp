@@ -60,8 +60,7 @@
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-#define CURL_FRAGMENT_DL_TIMEOUT 5L     /**< Curl timeout for fragment download */
-#define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */
+#define CURL_FRAGMENT_DL_TIMEOUT 10L     /**< Curl timeout for fragment download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
@@ -211,6 +210,17 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
 	eHTTPHEADERTYPE_BITRATE,    /**< Bitrate info from fog */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unknown Header */
+};
+
+
+/**
+ * @brief Http Header Type
+ */
+enum CurlAbortReason
+{
+	eCURL_ABORT_REASON_NONE = 0,
+	eCURL_ABORT_REASON_STALL_TIMEDOUT,
+	eCURL_ABORT_REASON_START_TIMEDOUT
 };
 
 /*================================== AAMP Log Manager =========================================*/
@@ -526,6 +536,8 @@ public:
 	char *prLicenseServerURL;               /**< Playready License server URL*/
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
+	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
+	long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
 	bool enablePROutputProtection;          /**< Playready output protection config */
 	char *pUserAgentString;			/**< Curl user-agent string */
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
@@ -558,6 +570,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
+		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
@@ -1465,6 +1478,7 @@ public:
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
+	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 
 	/**
 	 * @brief Curl initialization function
@@ -1536,14 +1550,6 @@ public:
 	 * @return void
 	 */
 	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
-
-	/**
-	 * @brief Check current type is manifest or not
-	 *
-	 * @param[in] fileType - Type of Media
-	 * @param[out] bool value - returns true if its a manifest file.
-	 */
-	 bool IsManifestFile (MediaType fileType);
 
 	/**
 	 * @brief get Media Type in string
@@ -2487,7 +2493,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(int timeout);
+	void SetNetworkTimeout(long timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
@@ -2577,6 +2583,20 @@ public:
 	 *   @return true if current stream is muxed
 	 */
 	bool IsMuxedStream();
+
+	/**
+	 *   @brief To set the curl stall timeout value
+	 *
+	 *   @param[in] curl stall timeout
+	 */
+	void SetDownloadStallTimeout(long stallTimeout);
+
+	/**
+	 *   @brief To set the curl download start timeout value
+	 *
+	 *   @param[in] curl download start timeout
+	 */
+	void SetDownloadStartTimeout(long startTimeout);
 
 private:
 
