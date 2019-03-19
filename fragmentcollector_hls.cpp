@@ -1086,10 +1086,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					{
 						if (!ignoreDiscontinuity)
 						{
-							logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d]\n", __FUNCTION__, __LINE__, type);
+							logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] playTarget %f total culled duration %f\n", __FUNCTION__, __LINE__, type, playTarget, aamp->GetTotalCulledDuration());
 							TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
 							TrackState *other = context->trackState[otherType];
-							if (other->enabled && !other->HasDiscontinuityAroundPosition(playTarget))
+							if (other->enabled && !other->HasDiscontinuityAroundPosition(playTarget - aamp->GetTotalCulledDuration()))
 							{
 								logprintf("Ignoring discontinuity as %s track does not have discontinuity\n", other->name);
 								discontinuity = false;

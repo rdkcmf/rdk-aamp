@@ -1766,6 +1766,13 @@ public:
 	void UpdateCullingState(double culledSeconds);
 
 	/**
+	 * @brief Get total culled duration
+	 *
+	 * @return total culled duration in seconds.
+	 */
+	double GetTotalCulledDuration(){ return culledSeconds;}
+
+	/**
 	 *   @brief  Update playlist refresh inrerval
 	 *
 	 *   @param[in]  maxIntervalSecs - Interval in seconds
