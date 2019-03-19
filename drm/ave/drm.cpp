@@ -536,7 +536,39 @@ void AveDrmManager::Reset()
 {
 	mDrmContexSet = false;
 	memset(mSha1Hash, 0, DRM_SHA1_HASH_LEN);
+	userCount = 0;
 }
+
+void AveDrmManager::UpdateBeforeIndexList(const char* trackname)
+{
+	for (int i = 0; i < sAveDrmManager.size(); i++)
+        {
+                sAveDrmManager[i]->userCount--;
+        }
+}
+
+void AveDrmManager::FlushAfterIndexList(const char* trackname)
+{
+	std::vector<AveDrmManager*>::iterator iter;
+	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
+	{
+		AveDrmManager* aveDrmManager = *iter;
+		if(aveDrmManager->userCount == 0)
+		{
+			aveDrmManager->mDrm->Release();
+			aveDrmManager->Reset();
+			delete aveDrmManager;
+			iter = sAveDrmManager.erase(iter);
+			logprintf("[%s][%s] Erased unused DRM Metadata.Size remaining=%d \n",__FUNCTION__,trackname,sAveDrmManager.size());
+		}
+		else
+		{
+			iter++;
+		}
+
+	}
+}
+
 
 /**
  * @brief Reset state of AveDrmManager.
@@ -599,7 +631,8 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		{
 			if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
-				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d]\n", __FUNCTION__, __LINE__, i);
+				sAveDrmManager[i]->userCount++;
+				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] UserCount[%d]\n", __FUNCTION__, __LINE__, i,sAveDrmManager[i]->userCount);
 				drmMetaDataSet = true;
 				break;
 			}
@@ -634,10 +667,11 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		{
 			aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData);
 			aveDrmManager->mDrmContexSet = true;
+			aveDrmManager->userCount++;
 			memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		}
 	}
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sHlsDrmContextCount = %d\n", __FUNCTION__, __LINE__, sAveDrmManager.size());
+	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, sAveDrmManager.size());
 }
 
 /**

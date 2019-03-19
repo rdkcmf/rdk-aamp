@@ -1878,6 +1878,15 @@ void TrackState::IndexPlaylist()
 		}
 	}
 
+	// DELIA-33434
+	// Update DRM Manager for stored indexes so that it can be removed after playlist update
+	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
+	// SetMetadata is not called across playlist update , hence Update is not needed
+	if(mCMSha1Hash)
+	{
+		AveDrmManager::UpdateBeforeIndexList(name);
+	}
+
 	{ // build new index
 		IndexNode node;
 		node.completionTimeSecondsFromStart = 0.0;
@@ -2064,6 +2073,13 @@ void TrackState::IndexPlaylist()
 	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
 	mDuration = totalDuration;
+	// DELIA-33434
+	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
+	// SetMetadata is not called across playlist update hence flush is not needed
+	if(mCMSha1Hash)
+	{
+		AveDrmManager::FlushAfterIndexList(name);
+	}
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
