@@ -34,7 +34,7 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.5"
+#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.6"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -2293,6 +2293,18 @@ static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef f
 }
 
 
+/**
+ * @brief Callback invoked from JS to set live offset
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
 static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
@@ -2314,6 +2326,120 @@ static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function,
 		int liveOffset = (int)JSValueToNumber(context, arguments[0], exception);
 		pAAMP->_aamp->SetLiveOffset(liveOffset);
 	}
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback invoked from JS to set download stall timeout value
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setDownloadStallTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setDownloadStallTimeout on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setDownloadStallTimeout' - 1 argument required");
+	}
+	else
+	{
+		long stallTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetDownloadStallTimeout(stallTimeout);
+	}
+
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback invoked from JS to set download start timeout value
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setDownloadStartTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setDownlodStartTimeout on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setDownloadStartTimeout' - 1 argument required");
+	}
+	else
+	{
+		long startTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetDownloadStartTimeout(startTimeout);
+	}
+
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback invoked from JS to set network timeout value
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setNetworkTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setNetworkTimeout on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setNetworkTimeout' - 1 argument required");
+	}
+	else
+	{
+		long networkTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetNetworkTimeout(networkTimeout);
+	}
+
 	return JSValueMakeUndefined(context);
 }
 
@@ -2355,6 +2481,9 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 
 	{ "setLinearTrickplayFPS", AAMP_setLinearTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setLiveOffset", AAMP_setLiveOffset, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setDownloadStallTimeout", AAMP_setDownloadStallTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setDownloadStartTimeout", AAMP_setDownloadStartTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setNetworkTimeout", AAMP_setNetworkTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
