@@ -1878,6 +1878,8 @@ void TrackState::IndexPlaylist()
 		}
 	}
 
+	// Update DRM Manager for stored indexes so that it can be removed after playlist update
+	AveDrmManager::UpdateBeforeIndexList(name);
 	{ // build new index
 		IndexNode node;
 		node.completionTimeSecondsFromStart = 0.0;
@@ -2064,6 +2066,7 @@ void TrackState::IndexPlaylist()
 	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
 	mDuration = totalDuration;
+	AveDrmManager::FlushAfterIndexList(name);
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
