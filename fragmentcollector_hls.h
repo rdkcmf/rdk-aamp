@@ -113,9 +113,20 @@ struct IndexNode
 };
 
 /**
+*	\struct	DiscontinuityIndexNode
+* 	\brief	Index Node structure for Discontinuity Index
+*/
+struct DiscontinuityIndexNode
+{
+	int fragmentIdx;	         /**< Idx of fragment in index table*/
+	double position;	         /**< Time of index from start */
+	const char* programDateTime; /**Program Date time */
+};
+
+
+/**
  * @}
  */
-
 
 /**
  * \class TrackState
@@ -186,7 +197,7 @@ public:
 	int GetNumberOfPeriods();
 
 	/// Check if discontinuity present around given position
-	bool HasDiscontinuityAroundPosition(double position);
+	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition);
 
 	/**
 	 * @brief Start fragment injection
@@ -258,7 +269,8 @@ public:
 	int mDrmMetaDataIndexCount; /**< number of DrmMetadata records in currently indexed playlist */
 	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
 	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
-	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
+	GrowableBuffer mDiscontinuityIndex;  /**< discontinuity start position mapping of associated playlist */
+	int mDiscontinuityIndexCount; /**< number of records in discontinuity position index */
 	double mDuration;  /** Duration of the track*/
 
 private:
@@ -274,6 +286,9 @@ private:
 	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
 	pthread_mutex_t mPlaylistMutex;         /**< protect playlist update */
 	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
+	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
+	double mCulledSeconds;                  /**< Total culled duration */
+	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
 };
 
 class StreamAbstractionAAMP_HLS;
@@ -344,6 +359,7 @@ public:
 	bool firstFragmentDecrypted;					/**< Flag indicating if first fragment is decrypted for stream */
 	bool mStartTimestampZero;						/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
 	bool newTune;									/**< Flag to indicate new tune  */
+	int mNumberOfTracks;							/**< Number of media tracks.*/
 	/// Function to parse Main manifest 
 	void ParseMainManifest(char *ptr);
 	/// Function to get playlist URI for the track type 

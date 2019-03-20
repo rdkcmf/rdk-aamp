@@ -738,7 +738,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
 			if (0 == memcmp(sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
 				aveDrm = sAveDrmManager[i]->mDrm;
-				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] aveDrm[%p]\n", __FUNCTION__, __LINE__, i, aveDrm);
+				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] aveDrm[%p]\n", __FUNCTION__, __LINE__, i, aveDrm.get());
 				break;
 			}
 			else
