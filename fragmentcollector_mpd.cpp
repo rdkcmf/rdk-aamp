@@ -5017,7 +5017,7 @@ void PrivateStreamAbstractionMPD::Start(void)
 void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
-	ReassessAndResumeAudioTrack();
+	ReassessAndResumeAudioTrack(true);
 	mPriv->Stop();
 	aamp->EnableDownloads();
 }
@@ -5370,7 +5370,7 @@ std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 void StreamAbstractionAAMP_MPD::StopInjection(void)
 {
 	//invoked at times of discontinuity. Audio injection loop might have already exited here
-	ReassessAndResumeAudioTrack();
+	ReassessAndResumeAudioTrack(true);
 	mPriv->StopInjection();
 }
 

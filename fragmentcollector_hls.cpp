@@ -3834,7 +3834,7 @@ void StreamAbstractionAAMP_HLS::Start(void)
 void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
-	ReassessAndResumeAudioTrack();
+	ReassessAndResumeAudioTrack(true);
 
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
@@ -4580,7 +4580,7 @@ bool TrackState::FetchInitFragment(long &http_code)
 void StreamAbstractionAAMP_HLS::StopInjection(void)
 {
 	//invoked at times of discontinuity. Audio injection loop might have already exited here
-	ReassessAndResumeAudioTrack();
+	ReassessAndResumeAudioTrack(true);
 
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
