@@ -121,8 +121,6 @@ public:
 	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode);
 	static void PrintSha1Hash( char* sha1Hash);
 	static void DumpCachedLicenses();
-	static void FlushAfterIndexList(const char* trackname);
-	static void UpdateBeforeIndexList(const char* trackname);
 	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 private:
@@ -131,7 +129,6 @@ private:
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
 	std::shared_ptr<AveDrm> mDrm;
 	bool mDrmContexSet;
-	int userCount;
 	static std::vector<AveDrmManager*> sAveDrmManager;
 };
 
