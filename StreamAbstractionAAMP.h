@@ -430,7 +430,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReassessAndResumeAudioTrack();
+	void ReassessAndResumeAudioTrack(bool abort = false);
 
 	/**
 	 *   @brief When TSB is involved, use this to set bandwidth to be reported.

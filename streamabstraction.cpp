@@ -737,7 +737,7 @@ MediaTrack::~MediaTrack()
  *   @brief Unblocks track if caught up with video or downloads are stopped
  *
  */
-void StreamAbstractionAAMP::ReassessAndResumeAudioTrack()
+void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
@@ -746,7 +746,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack()
 		pthread_mutex_lock(&mLock);
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
-		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed())
+		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort)
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
