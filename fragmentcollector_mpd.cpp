@@ -2487,6 +2487,86 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			offsetFromStart -= currentPeriodStart;
 		}
 
+		if (0 == durationMs)
+		{
+			durationMs = GetDurationFromRepresentation();
+			logprintf("%s:%d - Duration after GetDurationFromRepresentation %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
+		}
+		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
+		 * 3. Seek to a point beyond duration*/
+		bool notifyEnteringLive = false;
+		if (mIsLive)
+		{
+			double duration = (double) durationMs / 1000;
+			bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && !(aamp->IsVodOrCdvrAsset());
+			if (eTUNETYPE_SEEKTOLIVE == tuneType)
+			{
+				logprintf("PrivateStreamAbstractionMPD::%s:%d eTUNETYPE_SEEKTOLIVE\n", __FUNCTION__, __LINE__);
+				liveAdjust = true;
+				notifyEnteringLive = true;
+			}
+			else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType || eTUNETYPE_NEW_SEEK == tuneType)) && (rate > 0))
+			{
+				double seekWindowEnd = duration - aamp->mLiveOffset;
+				// check if seek beyond live point
+				if (seekPosition > seekWindowEnd)
+				{
+					logprintf( "PrivateStreamAbstractionMPD::%s:%d offSetFromStart[%f] seekWindowEnd[%f]\n",
+							__FUNCTION__, __LINE__, seekPosition, seekWindowEnd);
+					liveAdjust = true;
+					if (eTUNETYPE_SEEK == tuneType)
+					{
+						notifyEnteringLive = true;
+					}
+				}
+			}
+			if (liveAdjust)
+			{
+				mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
+				if(!aamp->IsVodOrCdvrAsset())
+				{
+					duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
+					if(mCurrentPeriodIdx > 0)
+					{
+						currentPeriodStart = ((double)durationMs / 1000) - duration;
+					}
+					offsetFromStart = duration - aamp->mLiveOffset;
+					logprintf("%s:%d duration %f durationMs %f mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f \n", __FUNCTION__, __LINE__,
+                                 duration, (double)durationMs / 1000, mCurrentPeriodIdx, currentPeriodStart, offsetFromStart);
+				}
+				else
+				{
+					uint64_t  periodStartMs = 0;
+					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+					std::string tempString = period->GetStart();
+					ParseISO8601Duration( tempString.c_str(), periodStartMs);
+					currentPeriodStart = (double)periodStartMs/1000;
+					offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
+				}
+				if (offsetFromStart < 0)
+				{
+					offsetFromStart = 0;
+				}
+				mContext->mIsAtLivePoint = true;
+				logprintf( "PrivateStreamAbstractionMPD::%s:%d - liveAdjust - Updated offSetFromStart[%f] duration [%f] currentPeriodStart[%f] MaxPeriodIdx[%d]\n",
+						__FUNCTION__, __LINE__, offsetFromStart, duration, currentPeriodStart,mCurrentPeriodIdx);
+			}
+		}
+		else
+		{
+			// Non-live - VOD/CDVR(Completed) - DELIA-30266
+			double seekWindowEnd = (double) durationMs / 1000;
+			if(seekPosition > seekWindowEnd)
+			{
+				for (int i = 0; i < mNumberOfTracks; i++)
+				{
+					mMediaStreamContext[i]->eosReached=true;
+				}
+				logprintf("%s:%d seek target out of range, mark EOS. playTarget:%f End:%f. \n",
+					__FUNCTION__,__LINE__,seekPosition, seekWindowEnd);
+				return eAAMPSTATUS_SEEK_RANGE_ERROR;
+			}
+		}
 		UpdateLanguageList();
 		StreamSelection(true);
 
@@ -2504,91 +2584,15 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			}
 			UpdateTrackInfo(!newTune, true, true);
 
-			if (0 == durationMs)
+			if(notifyEnteringLive)
 			{
-				durationMs = GetDurationFromRepresentation();
-				logprintf("%s:%d - Duration after GetDurationFromRepresentation %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
+				aamp->NotifyOnEnteringLive();
 			}
-
-			/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
-			 * 3. Seek to a point beyond duration*/
-			if (mIsLive)
-			{
-				double duration = (double) durationMs / 1000;
-				bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && !(aamp->IsVodOrCdvrAsset());
-				if (eTUNETYPE_SEEKTOLIVE == tuneType)
-				{
-					logprintf("PrivateStreamAbstractionMPD::%s:%d eTUNETYPE_SEEKTOLIVE\n", __FUNCTION__, __LINE__);
-					liveAdjust = true;
-					aamp->NotifyOnEnteringLive();
-				}
-				else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType || eTUNETYPE_NEW_SEEK == tuneType)) && (rate > 0))
-				{
-					double seekWindowEnd = duration - aamp->mLiveOffset;
-					// check if seek beyond live point
-
-					if (seekPosition > seekWindowEnd)
-					{
-						logprintf( "PrivateStreamAbstractionMPD::%s:%d offSetFromStart[%f] seekWindowEnd[%f]\n",
-								__FUNCTION__, __LINE__, seekPosition, seekWindowEnd);
-						liveAdjust = true;
-						if (eTUNETYPE_SEEK == tuneType)
-						{
-							aamp->NotifyOnEnteringLive();
-						}
-					}
-				}
-				if (liveAdjust)
-				{
-					mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
-					if(!aamp->IsVodOrCdvrAsset())
-					{
-						duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
-						if(mCurrentPeriodIdx > 0)
-						{
-							currentPeriodStart = ((double)durationMs / 1000) - duration;
-						}
-						offsetFromStart = duration - aamp->mLiveOffset;
-					}
-					else
-					{
-						uint64_t  periodStartMs = 0;
-						IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-						std::string tempString = period->GetStart();
-						ParseISO8601Duration( tempString.c_str(), periodStartMs);
-						currentPeriodStart = (double)periodStartMs/1000;
-						offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
-					}
-					if (offsetFromStart < 0)
-					{
-						offsetFromStart = 0;
-					}
-					mContext->mIsAtLivePoint = true;
-					logprintf( "PrivateStreamAbstractionMPD::%s:%d - liveAdjust - Updated offSetFromStart[%f] duration [%f] currentPeriodStart[%f] MaxPeriodIdx[%d]\n",
-							__FUNCTION__, __LINE__, offsetFromStart, duration, currentPeriodStart,mCurrentPeriodIdx);
-				}
-			}
-			else
-			{
-				// Non-live - VOD/CDVR(Completed) - DELIA-30266
-				double seekWindowEnd = (double) durationMs / 1000;
-				if(seekPosition > seekWindowEnd)
-				{
-					for (int i = 0; i < mNumberOfTracks; i++)
-					{
-						mMediaStreamContext[i]->eosReached=true;
-					}
-					logprintf("%s:%d seek target out of range, mark EOS. playTarget:%f End:%f. \n",
-						__FUNCTION__,__LINE__,seekPosition, seekWindowEnd);
-					return eAAMPSTATUS_SEEK_RANGE_ERROR;
-				}
-			}
-
 			SeekInPeriod( offsetFromStart);
-			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
 			seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
 			if(0 != mCurrentPeriodIdx)
 				seekPosition += currentPeriodStart;
+			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
 			if (newTune )
 			{
 				std::vector<long> bitrateList;
@@ -4477,12 +4481,9 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						//for VOD and cDVR
 						logprintf("%s:%d Period(%d/%d) IsLive(%d) IsCdvr(%d) \n",__FUNCTION__,__LINE__,
 							mCurrentPeriodIdx,numPeriods,mIsLive,aamp->IsInProgressCDVR());
-						if(!mIsLive || aamp->IsVodOrCdvrAsset())
+						for (int i = 0; i < mNumberOfTracks; i++)
 						{
-							for (int i = 0; i < mNumberOfTracks; i++)
-							{
-								mMediaStreamContext[i]->lastSegmentTime = 0;
-							}
+							mMediaStreamContext[i]->lastSegmentTime = 0;
 						}
 					}
 
@@ -4552,16 +4553,16 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 						if (segmentTemplate)
 						{
-							uint64_t presentationTimeOffset = segmentTemplate->GetPresentationTimeOffset();
-							if (nextSegmentTime != presentationTimeOffset)
+							uint64_t segmentStartTime = GetFirstSegmentStartTime(period);
+							if (nextSegmentTime != segmentStartTime)
 							{
-								logprintf("PrivateStreamAbstractionMPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " presentationTimeOffset %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentTemplate->GetPresentationTimeOffset());
+								logprintf("PrivateStreamAbstractionMPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
 								discontinuity = true;
-								mFirstPTS = (double)presentationTimeOffset/segmentTemplate->GetTimescale();
+								mFirstPTS = (double)segmentStartTime/segmentTemplate->GetTimescale();
 							}
 							else
 							{
-								logprintf("PrivateStreamAbstractionMPD::%s:%d No discontinuity detected nextSegmentTime %" PRIu64 " presentationTimeOffset %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentTemplate->GetPresentationTimeOffset());
+								logprintf("PrivateStreamAbstractionMPD::%s:%d No discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
 							}
 						}
 						else
@@ -4835,7 +4836,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			//Periods could be added or removed, So select period based on periodID
 			//If period ID not found in MPD that means got culled, in that case select
-            // first period
+			// first period
 			logprintf("Updataing period index after mpd refresh\n");
 			vector<IPeriod *> periods = mpd->GetPeriods();
 			int iter = periods.size() - 1;
