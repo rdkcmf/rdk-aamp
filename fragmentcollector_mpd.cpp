@@ -80,6 +80,24 @@ struct FragmentDescriptor
 	uint64_t Time;
 };
 
+/**
+ * @struct PeriodInfo
+ * @brief Stores details about available periods in mpd
+ */
+
+struct PeriodInfo {
+	std::string periodId;
+	uint64_t startTime;
+	double duration;
+
+	PeriodInfo() {
+		periodId = "";
+		startTime = 0;
+		duration = 0.0;
+	}
+};
+
+
 static const char *mMediaTypeName[] = { "video", "audio" };
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -438,6 +456,7 @@ private:
 	std::unordered_map<long, int> mBitrateIndexMap;
 	bool mIsFogTSB;
 	bool mIsIframeTrackPresent;
+	vector<PeriodInfo> mMPDPeriodsInfo;
 };
 
 
@@ -2223,6 +2242,107 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 
 
 /**
+ *   @brief  GetFirstSegment start time from period
+ *   @param  period
+ *   @retval start time
+ */
+uint64_t GetFirstSegmentStartTime(IPeriod * period)
+{
+	uint64_t startTime = 0;
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+	if (adaptationSets.size() > 0)
+	{
+		IAdaptationSet * firstAdaptation = adaptationSets.at(0);
+		ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
+		if (!segmentTemplate)
+		{
+			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+			if (representations.size() > 0)
+			{
+				segmentTemplate = representations.at(0)->GetSegmentTemplate();
+			}
+		}
+		if (segmentTemplate)
+		{
+			const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			if (segmentTimeline)
+			{
+				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+				if(timelines.size() > 0)
+				{
+					startTime = timelines.at(0)->GetStartTime();
+				}
+			}
+		}
+	}
+	return startTime;
+}
+
+/**
+ *   @brief  Get Period Duration
+ *   @param  period
+ *   @retval period duration
+ */
+uint64_t GetPeriodDuration(IPeriod * period)
+{
+	uint64_t durationMs = 0;
+
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+	if (adaptationSets.size() > 0)
+	{
+		IAdaptationSet * firstAdaptation = adaptationSets.at(0);
+		ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
+		if (!segmentTemplate)
+		{
+			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+			if (representations.size() > 0)
+			{
+				segmentTemplate = representations.at(0)->GetSegmentTemplate();
+			}
+		}
+		if (segmentTemplate)
+		{
+			const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			uint32_t timeScale = segmentTemplate->GetTimescale();
+			durationMs = (segmentTemplate->GetDuration() / timeScale) * 1000;
+			if (0 == durationMs && segmentTimeline)
+			{
+				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+				int timeLineIndex = 0;
+				while (timeLineIndex < timelines.size())
+				{
+					ITimeline *timeline = timelines.at(timeLineIndex);
+					uint32_t repeatCount = timeline->GetRepeatCount();
+					uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+					durationMs += ((repeatCount + 1) * timelineDurationMs);
+					traceprintf("%s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]\n", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
+					timeLineIndex++;
+				}
+			}
+		}
+		else
+		{
+			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+			if (representations.size() > 0)
+			{
+				ISegmentList *segmentList = representations.at(0)->GetSegmentList();
+				if (segmentList)
+				{
+					const std::vector<ISegmentURL*> segmentURLs = segmentList->GetSegmentURLs();
+					durationMs += (double) segmentList->GetDuration() * 1000 / segmentList->GetTimescale();
+				}
+				else
+				{
+					aamp_Error("not-yet-supported mpd format");
+				}
+			}
+		}
+	}
+	return durationMs;
+}
+
+
+/**
  * @brief Get end time of current period
  * @retval current period's end time
  */
@@ -2253,6 +2373,8 @@ uint64_t PrivateStreamAbstractionMPD::GetPeriodEndTime()
 	traceprintf("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %lld\n", __FUNCTION__, __LINE__, periodEndTime);
 	return periodEndTime;
 }
+
+
 
 
 /**
@@ -2336,10 +2458,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
-			std::string tempString = period->GetStart();
+			std::string tempString = period->GetDuration();
 			uint64_t  periodStartMs = 0;
 			uint64_t periodDurationMs = 0;
-			tempString = period->GetDuration();
 			if(!tempString.empty())
 			{
 				ParseISO8601Duration( tempString.c_str(), periodDurationMs);
@@ -2349,10 +2470,17 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					logprintf("%s:%d - Updated duration %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
 				}
 			}
+			else if (mIsFogTSB)
+			{
+				periodDurationMs = GetPeriodDuration(period);
+				durationMs += periodDurationMs;
+				logprintf("%s:%d - Updated duration %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, durationMs/1000);
+			}
+
 			if(offsetFromStart >= 0 && seekPeriods)
 			{
 				tempString = period->GetStart();
-				if(!tempString.empty())
+				if(!tempString.empty() && !mIsFogTSB)
 				{
 					ParseISO8601Duration( tempString.c_str(), periodStartMs);
 				}
@@ -2446,14 +2574,19 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				}
 				if (liveAdjust)
 				{
+					mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
 					if(!aamp->IsVodOrCdvrAsset())
 					{
+						duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
+						if(mCurrentPeriodIdx > 0)
+						{
+							currentPeriodStart = ((double)durationMs / 1000) - duration;
+						}
 						offsetFromStart = duration - aamp->mLiveOffset;
 					}
 					else
 					{
 						uint64_t  periodStartMs = 0;
-						mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
 						IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
 						std::string tempString = period->GetStart();
 						ParseISO8601Duration( tempString.c_str(), periodStartMs);
@@ -3348,6 +3481,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		return;
 	}
 
+	AAMPLOG_INFO("Selected Period index %d, id %s\n", mCurrentPeriodIdx, period->GetId().c_str());
+
 	uint64_t  periodStartMs = 0;
 	mPeriodEndTime = GetPeriodEndTime();
 	string statTimeStr = period->GetStart();
@@ -3632,9 +3767,9 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					}
 					pMediaStreamContext->representationIndex = 0; //Fog custom mpd has a single representation
 					IRepresentation* representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(0);
-					long bandwidth = representation->GetBandwidth();
-					aamp->profiler.SetBandwidthBitsPerSecondVideo(bandwidth);
-					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bandwidth];
+					pMediaStreamContext->fragmentDescriptor.Bandwidth = representation->GetBandwidth();
+					aamp->profiler.SetBandwidthBitsPerSecondVideo(pMediaStreamContext->fragmentDescriptor.Bandwidth);
+					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
 				}
 				else if(!mIsFogTSB)
 				{
@@ -3781,6 +3916,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 }
 
 
+
 /**
  * @brief Update culling state for live manifests
  */
@@ -3907,28 +4043,52 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 		}
 		if (segmentTimeline)
 		{
-			std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-			if (timelines.size() > 0)
+			double culled = 0;
+			auto periods = mpd->GetPeriods();
+			vector<PeriodInfo> currMPDPeriodDetails;
+			uint32_t timescale = segmentTemplate->GetTimescale();
+			for (auto period : periods)
 			{
-				ITimeline *timeline = timelines.at(0);
-				newStartTimeSeconds = timeline->GetStartTime() / segmentTemplate->GetTimescale();
-				if (newStartTimeSeconds && mPrevStartTimeSeconds)
+				PeriodInfo periodInfo;
+				periodInfo.periodId = period->GetId();
+				periodInfo.duration = (double)GetPeriodDuration(period)/ 1000;
+				periodInfo.startTime = GetFirstSegmentStartTime(period);
+				currMPDPeriodDetails.push_back(periodInfo);
+			}
+
+			int iter1 = 0;
+			PeriodInfo currFirstPeriodInfo = currMPDPeriodDetails.at(0);
+			while (iter1 < mMPDPeriodsInfo.size())
+			{
+				PeriodInfo prevPeriodInfo = mMPDPeriodsInfo.at(iter1);
+				if(prevPeriodInfo.periodId == currFirstPeriodInfo.periodId)
 				{
-					double culled = newStartTimeSeconds - mPrevStartTimeSeconds;
-					traceprintf("PrivateStreamAbstractionMPD::%s:%d post-refresh %fs before %f (%f)\n\n", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
-					aamp->UpdateCullingState(culled);
+					if(prevPeriodInfo.startTime && currFirstPeriodInfo.startTime)
+					{
+						uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
+						culled += ((double)timeDiff / (double)timescale);
+						logprintf("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f\n", __FUNCTION__, __LINE__,
+											prevPeriodInfo.periodId.c_str(), prevPeriodInfo.startTime, currFirstPeriodInfo.startTime, culled);
+					}
+					break;
 				}
 				else
 				{
-					logprintf("PrivateStreamAbstractionMPD::%s:%d newStartTimeSeconds %f mPrevStartTimeSeconds %F\n",
-							__FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds );
+					culled += prevPeriodInfo.duration;
+					iter1++;
+					logprintf("%s:%d PeriodId %s , with last known duration %f seems to have got culled\n", __FUNCTION__, __LINE__,
+									prevPeriodInfo.periodId.c_str(), prevPeriodInfo.duration);
 				}
-				mPrevStartTimeSeconds = newStartTimeSeconds;
 			}
-			else
+
+			mMPDPeriodsInfo = currMPDPeriodDetails;
+
+			if(culled)
 			{
-				logprintf("PrivateStreamAbstractionMPD::%s:%d timelines size 0\n", __FUNCTION__, __LINE__);
+				logprintf("%s:%d Culled seconds = %f\n", __FUNCTION__, __LINE__, culled);
+				aamp->UpdateCullingState(culled);
 			}
+			return;
 		}
 		else
 		{
@@ -4369,6 +4529,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			mIsLive = !(mpd->GetType() == "static");
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
+			logprintf("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);
 			while(iPeriod < numPeriods && iPeriod >= 0 && !exitFetchLoop)
 			{
 				bool periodChanged = (iPeriod != mCurrentPeriodIdx);
@@ -4412,6 +4573,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						mPrevAdaptationSetCount = adaptationSetCount;
 						logprintf("playing period %d/%d\n", iPeriod, (int)numPeriods);
 						requireStreamSelection = true;
+						periodChanged = true;
 					}
 					else if(mPrevAdaptationSetCount != adaptationSetCount)
 					{
@@ -4621,7 +4783,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						// and refresh interval timeout not reached . To Avoid tight loop adding a min delay
 						aamp->InterruptableMsSleep(50);
 					}
-				}// end of while loop
+				}// end of while loop (!exitFetchLoop && !liveMPDRefresh)
 				if(liveMPDRefresh)
 				{
 					break;
@@ -4634,7 +4796,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				{
 					iPeriod--;
 				}
-			}
+			}//End of Period while loop
 
 			if ((rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
 			{
@@ -4737,6 +4899,26 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			break;
 		}
 
+		if(mIsFogTSB)
+		{
+			//Periods could be added or removed, So select period based on periodID
+			//If period ID not found in MPD that means got culled, in that case select
+            // first period
+			logprintf("Updataing period index after mpd refresh\n");
+			vector<IPeriod *> periods = mpd->GetPeriods();
+			int iter = periods.size() - 1;
+			mCurrentPeriodIdx = 0;
+			while(iter > 0)
+			{
+				if(mPeriodId == periods.at(iter)->GetId())
+				{
+					mCurrentPeriodIdx = iter;
+					break;
+				}
+				iter--;
+			}
+		}
+		else
 		{
 			// DELIA-31750 - looping of cdvr video - Issue happens with multiperiod content only
 			// When playback is near live position (last period) or after eos in period
