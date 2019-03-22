@@ -599,7 +599,7 @@ void MediaTrack::RunInjectLoop()
 			}
 			else
 			{
-				GetContext()->ReassessAndResumeAudioTrack();
+				GetContext()->ReassessAndResumeAudioTrack(false);
 			}
 		}
 	}
@@ -744,9 +744,10 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 	if( audio && video )
 	{
 		pthread_mutex_lock(&mLock);
+		abortWait = abort;
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
-		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort)
+		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abortWait)
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -771,7 +772,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	pthread_mutex_lock(&mLock);
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double videoDuration = video->GetTotalInjectedDuration();
-	if ((audioDuration > (videoDuration +  video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed())
+	if ((audioDuration > (videoDuration +  video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !abortWait)
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f\n",
@@ -792,7 +793,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1)
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), abortWait(false)
 {
 	mIsPlaybackStalled = false;
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
