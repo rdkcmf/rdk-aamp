@@ -472,8 +472,8 @@ bool MediaTrack::InjectFragment()
 					if(MAX_SEG_INJECT_FAIL_COUNT <= mSegInjectFailCount)
 					{
 						ret	= false;
-						logprintf("%s:%d [%s] Reached max inject failure count , stopping playback\n",__FUNCTION__, __LINE__, name);
-						aamp->SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+						logprintf("%s:%d [%s] Reached max inject failure count, stopping playback\n",__FUNCTION__, __LINE__, name);
+						aamp->SendErrorEvent(AAMP_TUNE_FAILED_PTS_ERROR);
 					}
 					
 				}
@@ -1158,7 +1158,7 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 	}
 	bool videoBufferIsEmpty = videoTrack->numberOfFragmentsCached == 0 && aamp->IsSinkCacheEmpty(eMEDIATYPE_VIDEO);
 	bool audioBufferIsEmpty = (audioTrack->Enabled() ? (audioTrack->numberOfFragmentsCached == 0) : true) && aamp->IsSinkCacheEmpty(eMEDIATYPE_AUDIO);
-	if (videoBufferIsEmpty && audioBufferIsEmpty)
+	if (videoBufferIsEmpty || audioBufferIsEmpty) /* Stall the playback either audio or video which ever become dry first */
 	{
 		logprintf("StreamAbstractionAAMP:%s() Stall detected. Buffer status is RED!\n", __FUNCTION__);
 		return true;
