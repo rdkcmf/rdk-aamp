@@ -1420,6 +1420,11 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 				}
 			}
 		}
+		//After sinkbin is removed from pipeline, a new decoder handle may be generated
+		if (mediaType == eMEDIATYPE_VIDEO)
+		{
+			privateContext->decoderHandleNotified = false;
+		}
 		stream->format = FORMAT_INVALID;
 		stream->sinkbin = NULL;
 		stream->source = NULL;
