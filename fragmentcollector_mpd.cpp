@@ -1785,7 +1785,15 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 		}
 		else
 		{
-			aamp_Error("not-yet-supported mpd format");
+			ISegmentBase *segmentBase = pMediaStreamContext->representation->GetSegmentBase();
+			if(segmentBase)
+			{
+				skipTime=0;
+			}
+			else
+			{
+				aamp_Error("not-yet-supported mpd format");
+			}
 		}
 	}
 	return skipTime;
