@@ -430,7 +430,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReassessAndResumeAudioTrack(bool abort = false);
+	void ReassessAndResumeAudioTrack(bool abort);
 
 	/**
 	 *   @brief When TSB is involved, use this to set bandwidth to be reported.
@@ -730,6 +730,7 @@ private:
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
+	bool abortWait;
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

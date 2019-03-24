@@ -5398,6 +5398,7 @@ void PrivateStreamAbstractionMPD::StopInjection(void)
 */
 void StreamAbstractionAAMP_MPD::StartInjection(void)
 {
+	abortWait = false;
 	mPriv->StartInjection();
 }
 
