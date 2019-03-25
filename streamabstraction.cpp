@@ -52,27 +52,19 @@
 using namespace std;
 
 /**
- * @brief idle task for buffer health monitoring
+ * @brief Thread funtion for Buffer Health Monitoring
  *
- * @return G_SOURCE_CONTINUE
+ * @return NULL
  */
-static gboolean BufferHealthMonitor(gpointer user_data)
+static void* BufferHealthMonitor(void* user_data)
 {
-	MediaTrack* mediaTrack = (MediaTrack*) user_data;
-	mediaTrack->MonitorBufferHealth();
-	return G_SOURCE_CONTINUE;
-}
-
-/**
- * @brief idle task to schedule buffer health monitoring
- *
- * @return G_SOURCE_REMOVE
- */
-static gboolean BufferHealthMonitorSchedule(gpointer user_data)
-{
-	MediaTrack* mediaTrack = (MediaTrack*) user_data;
-	mediaTrack->ScheduleBufferHealthMonitor();
-	return G_SOURCE_REMOVE;
+	MediaTrack *track = (MediaTrack *)user_data;
+	if(aamp_pthread_setname(pthread_self(), "aampBuffHealth"))
+	{
+		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+	}
+	track->MonitorBufferHealth();
+	return NULL;
 }
 
 /**
@@ -100,64 +92,64 @@ const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
 }
 
 /**
- * @brief Schedule buffer health monitor
- */
-void MediaTrack::ScheduleBufferHealthMonitor()
-{
-	pthread_mutex_lock(&mutex);
-	if (!abort)
-	{
-		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(gpGlobalConfig->bufferHealthMonitorInterval, BufferHealthMonitor, this);
-	}
-	pthread_mutex_unlock(&mutex);
-}
-
-/**
  * @brief Monitors buffer health of track
  */
 void MediaTrack::MonitorBufferHealth()
 {
-	pthread_mutex_lock(&mutex);
-	if (aamp->DownloadsAreEnabled())
+	assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
+	unsigned int bufferMontiorSceduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
+	aamp->InterruptableMsSleep(bufferMontiorSceduleTime *1000);
+	int monitorInterval = gpGlobalConfig->bufferHealthMonitorInterval  * 1000;
+	bool keepRunning = true;
+	while(keepRunning)
 	{
-		if ( numberOfFragmentsCached > 0)
+		aamp->InterruptableMsSleep(monitorInterval);
+		pthread_mutex_lock(&mutex);
+		if (aamp->DownloadsAreEnabled() && !abort)
 		{
-			bufferStatus = BUFFER_STATUS_GREEN;
-		}
-		else
-		{
-			double bufferedTime = totalInjectedDuration - GetContext()->GetElapsedTime();
-			if (bufferedTime > AAMP_BUFFER_MONITOR_GREEN_THRESHOLD)
+			if ( numberOfFragmentsCached > 0)
 			{
 				bufferStatus = BUFFER_STATUS_GREEN;
 			}
 			else
 			{
-				logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f\n",__FUNCTION__, __LINE__,
-						name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
-				if (bufferedTime <= 0)
+				double bufferedTime = totalInjectedDuration - GetContext()->GetElapsedTime();
+				if (bufferedTime > AAMP_BUFFER_MONITOR_GREEN_THRESHOLD)
 				{
-					bufferStatus = BUFFER_STATUS_RED;
+					bufferStatus = BUFFER_STATUS_GREEN;
 				}
 				else
 				{
-					bufferStatus = BUFFER_STATUS_YELLOW;
+					logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f\n",__FUNCTION__, __LINE__,
+							name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
+					if (bufferedTime <= 0)
+					{
+						bufferStatus = BUFFER_STATUS_RED;
+					}
+					else
+					{
+						bufferStatus = BUFFER_STATUS_YELLOW;
+					}
 				}
 			}
-		}
-		if (bufferStatus != prevBufferStatus)
-		{
-			logprintf("aamp: track[%s] buffering %s->%s\n", name, GetBufferHealthStatusString(prevBufferStatus),
-					GetBufferHealthStatusString(bufferStatus));
-			prevBufferStatus = bufferStatus;
+			if (bufferStatus != prevBufferStatus)
+			{
+				logprintf("aamp: track[%s] buffering %s->%s\n", name, GetBufferHealthStatusString(prevBufferStatus),
+						GetBufferHealthStatusString(bufferStatus));
+				prevBufferStatus = bufferStatus;
+			}
+			else
+			{
+				traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
+						GetBufferHealthStatusString(bufferStatus));
+			}
 		}
 		else
 		{
-			traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
-					GetBufferHealthStatusString(bufferStatus));
+			keepRunning = false;
 		}
+		pthread_mutex_unlock(&mutex);
 	}
-	pthread_mutex_unlock(&mutex);
 }
 
 /**
@@ -570,11 +562,16 @@ void MediaTrack::RunInjectLoop()
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
 	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
-	if (AAMP_NORMAL_PLAY_RATE == aamp->rate)
+	if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
 	{
-		assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
-		guint bufferMontiorSceduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
-		bufferHealthMonitorIdleTaskId = g_timeout_add_seconds(bufferMontiorSceduleTime, BufferHealthMonitorSchedule, this);
+		if (0 == pthread_create(&bufferMonitorThreadID, NULL, &BufferHealthMonitor, this))
+		{
+			bufferMonitorThreadStarted = true;
+		}
+		else
+		{
+			logprintf("Failed to create BufferHealthMonitor thread errno = %d, %s\n", errno, strerror(errno));
+		}
 	}
 	totalInjectedDuration = 0;
 	while (aamp->DownloadsAreEnabled() && keepInjecting)
@@ -602,11 +599,6 @@ void MediaTrack::RunInjectLoop()
 				GetContext()->ReassessAndResumeAudioTrack();
 			}
 		}
-	}
-	if(bufferHealthMonitorIdleTaskId)
-	{
-		g_source_remove(bufferHealthMonitorIdleTaskId);
-		bufferHealthMonitorIdleTaskId = 0;
 	}
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
 }
@@ -694,10 +686,10 @@ int MediaTrack::GetCurrentBandWidth()
  */
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
-		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), totalFragmentsDownloaded(0),
-		fragmentInjectorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
+		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), bufferMonitorThreadID(0), totalFragmentsDownloaded(0),
+		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
-		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN), bufferHealthMonitorIdleTaskId(0),
+		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL)
 {
@@ -719,6 +711,21 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
  */
 MediaTrack::~MediaTrack()
 {
+	if (bufferMonitorThreadStarted)
+	{
+		void *value_ptr = NULL;
+		int rc = pthread_join(bufferMonitorThreadID, &value_ptr);
+		if (rc != 0)
+		{
+			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)\n", rc, strerror(rc));
+		}
+#ifdef TRACE
+		else
+		{
+			logprintf("joined bufferMonitorThreadID\n");
+		}
+#endif
+	}
 	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
