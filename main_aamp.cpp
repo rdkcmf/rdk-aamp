@@ -3475,7 +3475,6 @@ static bool replace_cstring( char *string, const char *existingSubStringToReplac
 	}
 	return false;
 }
-
 /**
  * @brief Common tune operations used on Tune, Seek, SetRate etc
  * @param tuneType type of tune
@@ -3542,10 +3541,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (mIsDash)
 	{ // mpd
-#ifndef DISABLE_DASH
-		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
+#if  defined (DISABLE_DASH) || defined (INTELCE)
+        logprintf("Error: Dash playback not available\n");
+        mInitSuccess = false;
+        SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+        return;
 #else
-		logprintf("DISABLE_DASH set - Dash playback not available\n");
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
 #endif
 	}
 	else
