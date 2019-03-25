@@ -4329,7 +4329,7 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 	for (idx = 0; idx < indexCount; idx++)
 	{
 		const IndexNode *node = &index[idx];
-		if (node->completionTimeSecondsFromStart > playTarget)
+		if (node->completionTimeSecondsFromStart >= playTarget)
 		{
 			logprintf("%s Found node - rate %f completionTimeSecondsFromStart %f playTarget %f\n", __FUNCTION__,
 			        context->rate, node->completionTimeSecondsFromStart, playTarget);
