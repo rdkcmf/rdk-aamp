@@ -31,6 +31,10 @@
 #include <pthread.h>
 #include <errno.h>
 
+/**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
 
 #define AES_128_KEY_LEN_BYTES 16
 
@@ -39,7 +43,9 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief Signal key acquired to listener
- * @param arg drm status listener
+ *
+ * @param[in] arg drm status listener
+ *
  * @retval 0
  */
 static int drmSignalKeyAquired(void * arg)
@@ -52,7 +58,9 @@ static int drmSignalKeyAquired(void * arg)
 
 /**
  * @brief Signal drm error to listener
- * @param arg drm status listener
+ *
+ * @param[in] arg drm status listener
+ *
  * @retval 0
  */
 static int drmSignalError(void * arg)
@@ -64,7 +72,9 @@ static int drmSignalError(void * arg)
 
 /**
  * @brief key acquistion thread
- * @param arg AesDec pointer
+ *
+ * @param[in] arg AesDec pointer
+ *
  * @retval NULL
  */
 static void * acquire_key(void* arg)
@@ -76,7 +86,8 @@ static void * acquire_key(void* arg)
 
 /**
  * @brief Notify drm error
- * @param drmFailure drm error type
+ *
+ * @param[in] drmFailure Drm error type
  */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
@@ -169,8 +180,8 @@ void AesDec::AcquireKey()
 /**
  * @brief Set DRM meta-data. Stub implementation
  *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param metadata - Ignored
+ * @param[in] aamp       AAMP instance to be associated with this decryptor
+ * @param[in] metadata   Ignored
  *
  * @retval eDRM_SUCCESS
  */
@@ -182,8 +193,9 @@ DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata)
 /**
  * @brief Set information required for decryption
  *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param drmInfo Drm information
+ * @param[in] aamp AAMP instance to be associated with this decryptor
+ * @param[in] drmInfo Drm information
+ *
  * @retval eDRM_SUCCESS on success
  */
 DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
@@ -245,8 +257,9 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 
 /**
  * @brief Wait for key acquisition completion
- * @param[in] timeInMs timeout
- * @param[out] err error on failure
+ *
+ * @param[in] timeInMs   Timeout
+ * @param[out] err       Error on failure
  */
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
@@ -269,10 +282,11 @@ void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 
 /**
  * @brief Decrypts an encrypted buffer
- * @param bucketType Type of bucket for profiling
- * @param encryptedDataPtr pointer to encyrpted payload
- * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
- * @param timeInMs wait time
+ *
+ * @param[in] bucketType        Type of bucket for profiling
+ * @param[in] encryptedDataPtr  Pointer to encyrpted payload
+ * @param[in] encryptedDataLen  Length in bytes of data pointed to by encryptedDataPtr
+ * @param[in] timeInMs          Wait time
  */
 DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
@@ -389,8 +403,7 @@ void AesDec::CancelKeyWait()
 
 
 /**
- * @brief Restore key state post cleanup of
- * audio/video TrackState in case DRM data is persisted
+ * @brief Restore key state post cleanup of audio/video TrackState in case DRM data is persisted
  */
 void AesDec::RestoreKeyState()
 {
@@ -421,6 +434,7 @@ std::shared_ptr<AesDec> AesDec::GetInstance()
 
 /**
  * @brief AesDec Constructor
+ *
  * @retval
  */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
@@ -446,3 +460,7 @@ AesDec::~AesDec()
 	pthread_cond_destroy(&mCond);
 	EVP_CIPHER_CTX_cleanup(&mOpensslCtx);
 }
+
+/**
+ * @}
+ */

@@ -52,6 +52,11 @@
 using namespace std;
 
 /**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
+
+/**
  * @brief Thread funtion for Buffer Health Monitoring
  *
  * @return NULL
@@ -70,7 +75,7 @@ static void* BufferHealthMonitor(void* user_data)
 /**
  * @brief Get string corresponding to buffer status.
  *
- * @return string representation of buffer status
+ * @return String representation of buffer status
  */
 const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
 {
@@ -247,9 +252,12 @@ void MediaTrack::UpdateTSAfterFetch()
 
 /**
  * @brief Wait until a free fragment is available.
- * @note To be called before fragment fetch by subclasses
- * @param timeoutMs - timeout in milliseconds. -1 for infinite wait
+ *
+ * @param[in]  timeoutMs  Timeout in milliseconds. -1 for infinite wait
+ *
  * @retval true if fragment available, false on abort.
+ *
+ * @note To be called before fragment fetch by subclasses
  */
 bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 {
@@ -331,7 +339,8 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 
 /**
  * @brief Wait until a cached fragment is available.
- * @retval true if fragment available, false on abort.
+ *
+ * @retval True if fragment available, false on abort.
  */
 bool MediaTrack::WaitForCachedFragmentAvailable()
 {
@@ -365,6 +374,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 
 /**
  * @brief Aborts wait for fragment.
+ *
  * @param[in] immediate Indicates immediate abort as in a seek/ stop
  */
 void MediaTrack::AbortWaitForCachedFragment( bool immediate)
@@ -519,7 +529,9 @@ bool MediaTrack::InjectFragment()
 
 /**
  * @brief Fragment injector thread
- * @param arg Pointer to MediaTrack
+ *
+ * @param[in] arg Pointer to MediaTrack
+ *
  * @retval NULL
  */
 static void *FragmentInjector(void *arg)
@@ -555,7 +567,9 @@ void MediaTrack::StartInjectLoop()
 
 
 /**
- * @brief Injection loop - use internally by injection logic
+ * @brief Injection loop
+ *
+ * Use internally by injection logic
  */
 void MediaTrack::RunInjectLoop()
 {
@@ -649,6 +663,7 @@ void MediaTrack::StopInjectLoop()
 
 /**
  * @brief Check if a track is enabled
+ *
  * @retval true if enabled, false if disabled
  */
 bool MediaTrack::Enabled()
@@ -659,7 +674,9 @@ bool MediaTrack::Enabled()
 
 /**
  * @brief Get buffer to fetch and cache next fragment.
- * @param[in] initialize true to initialize the fragment.
+ *
+ * @param[in] Initialize true to initialize the fragment.
+ *
  * @retval Pointer to fragment buffer.
  */
 CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
@@ -680,7 +697,8 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 
 /**
  * @brief Set current bandwidth of track
- * @param bandwidthBps bandwidth in bits per second
+ *
+ * @param[in] bandwidthBps Bandwidth in bits per second
  */
 void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 {
@@ -689,7 +707,8 @@ void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 
 /**
  * @brief Get current bandwidth of track
- * @return bandwidth in bytes per second
+ *
+ * @return Bandwidth in bytes per second
  */
 int MediaTrack::GetCurrentBandWidth()
 {
@@ -699,9 +718,10 @@ int MediaTrack::GetCurrentBandWidth()
 
 /**
  * @brief MediaTrack Constructor
- * @param type Type of track
- * @param aamp Pointer to associated aamp instance
- * @param name Name of the track
+ *
+ * @param[in] type  Type of track
+ * @param[in] aamp  Pointer to associated aamp instance
+ * @param[in] name  Name of the track
  */
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
@@ -773,6 +793,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 
 /**
  *   @brief Waits track injection until caught up with video track.
+ *
  *   Used internally by injection logic
  */
 void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
@@ -797,7 +818,8 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 
 /**
  * @brief StreamAbstractionAAMP Constructor
- * @param[in] aamp pointer to PrivateInstanceAAMP object associated with stream
+ *
+ * @param[in] aamp  Pointer to PrivateInstanceAAMP object associated with stream
  */
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
@@ -848,8 +870,9 @@ double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
 /**
  *   @brief Get the desired profile to start fetching.
  *
- *   @param getMidProfile
- *   @retval profile index to be used for the track.
+ *   @param[in]  getMidProfile
+ *
+ *   @retval Profile index to be used for the track.
  */
 int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 {
@@ -879,9 +902,10 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 
 /**
  *   @brief Notify bitrate updates to application.
+ *
  *   Used internally by injection logic
  *
- *   @param[in]  profileIndex - profile index of last injected fragment.
+ *   @param[in]  profileIndex  Profile index of last injected fragment.
  */
 void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 {
@@ -936,7 +960,8 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 
 /**
  * @brief Get desired profile based on cached duration
- * @retval index of desired profile based on cached duration
+ *
+ * @retval Index of desired profile based on cached duration
  */
 int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 {
@@ -975,6 +1000,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
  * @brief Rampdown profile
  *
  * @param[in] http_error
+ *
  * @retval true on profile change
  */
 bool StreamAbstractionAAMP::RampDownProfile(long http_error)
@@ -1033,8 +1059,9 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 /**
  *   @brief Check for ramdown profile.
  *
- *   @param http_error
- *   @retval true if rampdown needed in the case of fragment not available in higher profile.
+ *   @param[in]  http_error
+ *
+ *   @retval True if rampdown needed in the case of fragment not available in higher profile.
  */
 bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 {
@@ -1106,6 +1133,7 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 
 /**
  *   @brief Get iframe track index.
+ *
  *   This shall be called only after UpdateIframeTracks() is done
  *
  *   @retval iframe track index.
@@ -1118,6 +1146,7 @@ int StreamAbstractionAAMP::GetIframeTrack()
 
 /**
  *   @brief Update iframe tracks.
+ *
  *   Subclasses shall invoke this after StreamInfo is populated .
  */
 void StreamAbstractionAAMP::UpdateIframeTracks()
@@ -1129,7 +1158,7 @@ void StreamAbstractionAAMP::UpdateIframeTracks()
 /**
  *   @brief Function called when playback is paused to update related flags.
  *
- *   @param[in] paused - true if playback paused, otherwise false.
+ *   @param[in] paused  True if playback paused, otherwise false.
  */
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
@@ -1224,7 +1253,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 /**
  *   @brief Check if playback has stalled and update related flags.
  *
- *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+ *   @param[in] fragmentParsed  True if next fragment was parsed, otherwise false
  */
 void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 {
@@ -1294,7 +1323,7 @@ double StreamAbstractionAAMP::GetElapsedTime()
 /**
  *   @brief Get the bitrate of current video profile selected.
  *
- *   @return bitrate of current video profile.
+ *   @return Bitrate of current video profile.
  */
 long StreamAbstractionAAMP::GetVideoBitrate(void)
 {
@@ -1305,7 +1334,7 @@ long StreamAbstractionAAMP::GetVideoBitrate(void)
 /**
  *   @brief Get the bitrate of current audio profile selected.
  *
- *   @return bitrate of current audio profile.
+ *   @return Bitrate of current audio profile.
  */
 long StreamAbstractionAAMP::GetAudioBitrate(void)
 {
@@ -1356,9 +1385,10 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 #ifdef USE_MAC_FOR_RANDOM_GEN
 
 /**
- * @brief get EstbMac
+ * @brief Get EstbMac
  *
  * @param  mac[out] eSTB MAC address
+ *
  * @return true on success.
  */
 static bool getEstbMac(char* mac)
@@ -1431,7 +1461,8 @@ static bool getEstbMac(char* mac)
 /**
  * @brief Get time to defer DRM acquisition
  *
- * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @param[in]  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ *
  * @return Time in MS to defer DRM acquisition
  */
 int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
@@ -1491,3 +1522,9 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 	logprintf("%s:%d - Added time for deferred license acquisition  %d \n", __FUNCTION__, __LINE__, (int)ret);
 	return ret;
 }
+
+/**
+ * @}
+ */
+
+

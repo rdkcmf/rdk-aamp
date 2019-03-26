@@ -18,7 +18,7 @@
 */
 
 /**
-* \file fragmentcollector_hls.cpp
+* @file fragmentcollector_hls.cpp
 *
 * Fragment Collect file includes class implementation for handling
 * HLS streaming of AAMP player. 
@@ -53,23 +53,27 @@
 #include "aamp_aes.h"
 #endif
 
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 //#define TRACE // compile-time optional noisy debug output
 
-#define CHAR_CR 0x0d // '\r'
-#define CHAR_LF 0x0a // '\n'
+#define CHAR_CR 0x0d //!< '\r'
+#define CHAR_LF 0x0a //!< '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
-#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
 #define DRM_IV_LEN 16
-#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
-#define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
-#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*Maximum difference in sequence number to sync tracks using sequence number.*/
-#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
+#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
+#define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
+#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
+#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /*!< Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
-static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**Sha1 hash of meta-data for deferred DRM license acquisition*/
+static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**< Sha1 hash of meta-data for deferred DRM license acquisition*/
 static long long gDeferredDrmTime = 0;                     /**< Time at which deferred DRM license to be requested*/
 static bool gDeferredDrmLicRequestPending = false;         /**< Indicates if deferred DRM request is pending*/
 static bool gDeferredDrmLicTagUnderProcessing = false;     /**< Indicates if deferred DRM request tag is under processing*/
@@ -109,13 +113,22 @@ static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 /// Variable initialization for media decrypt buckets
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_TRACK_COUNT] =
 	{PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO};
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 
 /***************************************************************************
 * @fn startswith
 * @brief Function to check if string is start of main string
 *        
-* @param pstring[in] Main string   
-* @param prefix[in] Sub string to check
+* @param[in]  pstring Main string   
+* @param[in]  prefix  Sub string to check
+*
 * @return bool true/false
 ***************************************************************************/
 static bool startswith(char **pstring, const char *prefix)
@@ -140,8 +153,9 @@ static bool startswith(char **pstring, const char *prefix)
 * @fn AttributeNameMatch
 * @brief Function to check if attribute name matches
 *        
-* @param attrNamePtr[in] Attribute Name pointer   
-* @param targetAttrNameCString[in] string to compare
+* @param[in] attrNamePtr            Attribute Name pointer   
+* @param[in] targetAttrNameCString  String to compare
+*
 * @return bool true/false
 ***************************************************************************/
 static bool AttributeNameMatch(const char *attrNamePtr, const char *targetAttrNameCString)
@@ -160,9 +174,10 @@ static bool AttributeNameMatch(const char *attrNamePtr, const char *targetAttrNa
 * @fn SubStringMatch
 * @brief Function to check if substring present in main string 
 *        
-* @param srcStart[in] Start of string pointer  
-* @param srcFin[in] End of string pointer (length = srcFin - srcStart)
-* @param cstring[in] string to compare
+* @param[in] srcStart  Start of string pointer  
+* @param[in] srcFin    End of string pointer (length = srcFin - srcStart)
+* @param[in] cstring   String to compare
+*
 * @return bool true/false
 ***************************************************************************/
 static bool SubStringMatch(const char *srcStart, const char *srcFin, const char *cstring)
@@ -185,10 +200,11 @@ static bool SubStringMatch(const char *srcStart, const char *srcFin, const char 
 
 /***************************************************************************
 * @fn GetAttributeValueString
-* @brief convert quoted string to NUL-terminated C-string; modifies string in place 
+* @brief Convert quoted string to NUL-terminated C-string; modifies string in place 
 *        
-* @param valuePtr[in] quoted string  
-* @param fin[in] End of string pointer 
+* @param[in]  valuePtr Quoted string  
+* @param[in]  fin      End of string pointer 
+*
 * @return char * pointed to first character of NUL-termianted string
 ***************************************************************************/
 static char * GetAttributeValueString(char *valuePtr, char *fin)
@@ -218,10 +234,11 @@ static char * GetAttributeValueString(char *valuePtr, char *fin)
 * @fn ParseKeyAttributeCallback
 * @brief Callback function to decode Key and attribute
 *        
-* @param attrName[in] input string  
-* @param delimEqual[in] delimiter string
-* @param fin[in] string end pointer
-* @param arg[out] TrackState pointer for storage
+* @param[in]  attrName   Input string  
+* @param[in]  delimEqual Delimiter string
+* @param[in]  fin        String end pointer
+* @param[out] arg        TrackState pointer for storage
+*
 * @return void
 ***************************************************************************/
 static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fin, void* arg)
@@ -298,10 +315,11 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 * @fn ParseStreamInfCallback
 * @brief Callback function to extract stream tag attributes
 *        
-* @param attrName[in] input string  
-* @param delimEqual[in] delimiter string
-* @param fin[in] string end pointer
-* @param arg[out] StreamAbstractionAAMP_HLS pointer for storage
+* @param[in]  attrName   Input string  
+* @param[in]  delimEqual Delimiter string
+* @param[in]  fin        String end pointer
+* @param[out] arg        StreamAbstractionAAMP_HLS pointer for storage
+*
 * @return void
 ***************************************************************************/
 static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, void* arg)
@@ -360,10 +378,11 @@ static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, 
 * @fn ParseMediaAttributeCallback
 * @brief Callback function to extract media tag attributes
 *		 
-* @param attrName[in] input string	
-* @param delimEqual[in] delimiter string
-* @param fin[in] string end pointer
-* @param arg[out] StreamAbstractionAAMP_HLS pointer for storage
+* @param[in]  attrName   Input string	
+* @param[in]  delimEqual Delimiter string
+* @param[in]  fin        String end pointer
+* @param[out] arg        StreamAbstractionAAMP_HLS pointer for storage
+*
 * @return void
 ***************************************************************************/
 static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *fin, void *arg)
@@ -442,7 +461,8 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 * @fn mystrpbrk
 * @brief Function to extract string pointer afer LF
 *		 
-* @param ptr[in] input string	
+* @param[in] ptr  Input string	
+*
 * @return char * - Next string pointer
 ***************************************************************************/
 static char *mystrpbrk(char *ptr)
@@ -468,9 +488,10 @@ static char *mystrpbrk(char *ptr)
 * @fn ParseAttrList
 * @brief Function to parse attribute list from tag string 
 *		 
-* @param attrName[in] input string	
-* @param cb[in] callback function to store parsed attributes
-* @param context[in] void pointer context
+* @param[in] attrName  Input string	
+* @param[in] cb        Callback function to store parsed attributes
+* @param[in] context   Void pointer context
+*
 * @return void
 ***************************************************************************/
 static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim, char *fin, void *context), void *context)
@@ -529,7 +550,8 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 * @fn TrackPLDownloader
 * @brief Thread function for download 
 *		 
-* @param arg[in] void ptr , thread arguement
+* @param[in] arg void ptr , thread argument
+*
 * @return void ptr
 ***************************************************************************/
 static void * TrackPLDownloader(void *arg)
@@ -547,7 +569,8 @@ static void * TrackPLDownloader(void *arg)
 * @fn ParseMainManifest
 * @brief Function to parse main manifest 
 *		 
-* @param ptr[in] Manifest file content string	
+* @param ptr[in] Manifest file content string
+*	
 * @return void
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
@@ -700,7 +723,7 @@ static char *RewindPlaylist(TrackState *trackState)
 * @fn GetFragmentUriFromIndex
 * @brief Function to get fragment URI from index count
 *		 
-* @return string fragment URI pointer
+* @return String fragment URI pointer
 ***************************************************************************/
 char *TrackState::GetFragmentUriFromIndex()
 {
@@ -1125,7 +1148,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 * @fn FindMediaForSequenceNumber
 * @brief Get fragment tag based on media sequence number 
 *		 
-* @return string fragment tag line pointer 
+* @return String fragment tag line pointer 
 ***************************************************************************/
 char *TrackState::FindMediaForSequenceNumber()
 {
@@ -1177,8 +1200,9 @@ char *TrackState::FindMediaForSequenceNumber()
 * @fn FetchFragmentHelper
 * @brief Helper function to download fragment 
 *		 
-* @param http_error[out] http error string 	
-* @param decryption_error[out] decryption error
+* @param[out] http_error        Http error string 	
+* @param[out] decryption_error  Decryption error
+*
 * @return bool true on success else false 
 ***************************************************************************/
 bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
@@ -1492,8 +1516,9 @@ void TrackState::FetchFragment()
 * @fn InjectFragmentInternal
 * @brief Injected decrypted fragment for playback 
 *		 
-* @param cachedFragment[in] CachedFragment structure 	
-* @param fragmentDiscarded[out] bool to indicate fragment successfully injected
+* @param[in]  cachedFragment     CachedFragment structure 	
+* @param[out] fragmentDiscarded  Bool to indicate fragment successfully injected
+*
 * @return void
 ***************************************************************************/
 void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
@@ -1523,8 +1548,9 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fr
 * @fn GetCompletionTimeForFragment
 * @brief Function to get end time of fragment
 *		 
-* @param trackState[in] TrackState structure	
-* @param mediaSequenceNumber[in] sequence number 
+* @param[in] trackState          TrackState structure	
+* @param[in] mediaSequenceNumber Sequence number 
+*
 * @return double end time 
 ***************************************************************************/
 static double GetCompletionTimeForFragment(const TrackState *trackState, long long mediaSequenceNumber)
@@ -1556,7 +1582,7 @@ static double GetCompletionTimeForFragment(const TrackState *trackState, long lo
 * @fn DumpIndex
 * @brief Function to log stored media information 
 *		 
-* @param trackState[in] TrackState structure
+* @param[in] trackState TrackState structure
 * @return void
 ***************************************************************************/
 static void DumpIndex(TrackState *trackState)
@@ -1717,7 +1743,7 @@ void TrackState::StartDeferredDrmLicenseAcquisition()
 * @fn IndexPlaylist
 * @brief Function to parse playlist 
 *		 
-* @return double total duration from playlist
+* @return double  Total duration from playlist
 ***************************************************************************/
 void TrackState::IndexPlaylist()
 {
@@ -2089,10 +2115,11 @@ void TrackState::IndexPlaylist()
 * @fn HarvestFile
 * @brief Function to harvest stream contents locally for debugging 
 *		 
-* @param url[in] url string	
-* @param buffer[in] data content
-* @param isFragment[in] flag indicating fragment or not
-* @param prefix[in] prefix string to add to file name 
+* @param[in] url         url string	
+* @param[in] buffer      Data content
+* @param[in] isFragment  Flag indicating fragment or not
+* @param[in] prefix      Prefix string to add to file name 
+*
 * @return void
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix)
@@ -2273,8 +2300,9 @@ void TrackState::RefreshPlaylist(void)
 * @fn GetPlaylistURI
 * @brief Function to get playlist URI based on media selection 
 *		 
-* @param trackType[in] Track type 
-* @param format[in] stream output type
+* @param[in] trackType  Track type 
+* @param[in] format     Stream output type
+*
 * @return string playlist URI 
 ***************************************************************************/
 const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, StreamOutputFormat* format)
@@ -2370,7 +2398,8 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 * @fn GetFormatFromFragmentExtension
 * @brief Function to get media format based on fragment extension
 *		 
-* @param trackState[in] TrackStatr structure pointer
+* @param[in] trackState  TrackState structure pointer
+*
 * @return StreamOutputFormat stream format
 ***************************************************************************/
 static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
@@ -2656,7 +2685,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 * @fn Init
 * @brief Function to initialize member variables,download main manifest and parse 
 *		 
-* @param tuneType[in] Tune type 
+* @param[in] tuneType Tune type 
+*
 * @return bool true on success 
 ***************************************************************************/
 AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
@@ -3607,10 +3637,11 @@ static void *FragmentCollector(void *arg)
 * @fn StreamAbstractionAAMP_HLS
 * @brief Constructor function 
 *		 
-* @param aamp[in] PrivateInstanceAAMP pointer
-* @param seekpos[in] Seek position 
-* @param rate[in] Rate of playback 
-* @param enableThrottle[in] throttle enable/disable flag
+* @param[in] aamp            PrivateInstanceAAMP pointer
+* @param[in] seekpos         Seek position 
+* @param[in] rate            Rate of playback 
+* @param[in] enableThrottle  Throttle enable/disable flag
+*
 * @return void
 ***************************************************************************/
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp)
@@ -3653,10 +3684,11 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 * @fn TrackState
 * @brief TrackState Constructor
 *		 
-* @param type[in] Type of the track
-* @param parent[in] StreamAbstractionAAMP_HLS instance 
-* @param aamp[in] PrivateInstanceAAMP pointer 
-* @param name[in] Name of the track 
+* @param[in] type    Type of the track
+* @param[in] parent  StreamAbstractionAAMP_HLS instance 
+* @param[in] aamp    PrivateInstanceAAMP pointer 
+* @param[in] name    Name of the track 
+*
 * @return void
 ***************************************************************************/
 TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name) :
@@ -3844,7 +3876,8 @@ void StreamAbstractionAAMP_HLS::Start(void)
 * @fn Stop
 * @brief Function to stop the HLS streaming 
 *		 
-* @param clearChannelData[in] flag indicating to full stop or temporary stop	
+* @param[in] clearChannelData Flag indicating to full stop or temporary stop	
+*
 * @return void
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
@@ -3954,8 +3987,9 @@ bool StreamAbstractionAAMP_HLS::IsLive(void)
 * @fn GetStreamFormat
 * @brief Function to get stream format 
 *		 
-* @param primaryOutputFormat[out] video format 
-* @param audioOutputFormat[out] audio format
+* @param[out]  primaryOutputFormat  Video format 
+* @param[out]  audioOutputFormat    Audio format
+*
 * @return void
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
@@ -4002,8 +4036,9 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 * @fn DrmDecrypt
 * @brief Function to decrypt the fragment for playback
 *		 
-* @param cachedFragment[in] CachedFragment struction pointer 	
-* @param bucketTypeFragmentDecrypt[in] ProfilerBucketType enum
+* @param[in] cachedFragment                CachedFragment struction pointer 	
+* @param[in] bucketTypeFragmentDecrypt     ProfilerBucketType enum
+*
 * @return bool true if successfully decrypted 
 ***************************************************************************/
 DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
@@ -4051,7 +4086,8 @@ StreamAbstractionAAMP* TrackState::GetContext()
 * @fn GetMediaTrack
 * @brief Function to get Media information for track type
 *		 
-* @param type[in] TrackType input	
+* @param[in] type  TrackType input	
+*
 * @return MediaTrack structure pointer
 ***************************************************************************/
 MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
@@ -4128,7 +4164,8 @@ void TrackState::SetDrmContextUnlocked()
 * @fn UpdateDrmCMSha1Hash
 * @brief Function to Update SHA1 Id for DRM Metadata 
 *		 
-* @param ptr[in] ShaID string from DRM attribute
+* @param[in] ptr ShaID string from DRM attribute
+*
 * @return void
 ***************************************************************************/
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
@@ -4236,7 +4273,8 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 * @fn UpdateDrmIV
 * @brief Function to update IV from DRM 
 *		 
-* @param ptr[in] IV string from DRM attribute
+* @param[in] ptr  IV string from DRM attribute
+*
 * @return void
 ***************************************************************************/
 void TrackState::UpdateDrmIV(const char *ptr)
@@ -4306,6 +4344,7 @@ void TrackState::FetchPlaylist()
 * @brief Function to get bandwidth index corresponding to bitrate
 *
 * @param bitrate Bitrate in bits per second
+*
 * @return bandwidth index
 ***************************************************************************/
 int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
@@ -4330,8 +4369,9 @@ int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
 * @fn GetNextFragmentPeriodInfo
 * @brief Function to get next playback position from start, to handle discontinuity 
 *		 
-* @param periodIdx[out] Period Index 	
-* @param offsetFromPeriodStart[out] Offset value
+* @param[out] periodIdx                  Period Index 	
+* @param[out] offsetFromPeriodStart      Offset value
+*
 * @return void
 ***************************************************************************/
 void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart)
@@ -4390,7 +4430,8 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 * @fn GetPeriodStartPosition
 * @brief Function to get Period start position for given period index,to handle discontinuity
 *		 
-* @param periodIdx[in] Period Index 
+* @param[in] periodIdx  Period Index 
+*
 * @return void
 ***************************************************************************/
 double TrackState::GetPeriodStartPosition(int periodIdx)
@@ -4671,3 +4712,8 @@ void TrackState::StopWaitForPlaylistRefresh()
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
+
+/**
+ * @}
+ */
+

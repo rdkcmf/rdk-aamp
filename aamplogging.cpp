@@ -35,7 +35,12 @@ using namespace std;
 #endif
 
 /**
- * @brief Max bebug log buffer size
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
+
+/**
+ * @brief Max debug log buffer size
  */
 #define MAX_DEBUG_LOG_BUFF_SIZE 1024
 
@@ -48,10 +53,20 @@ static char gAampCliCfg[] = "c:/tmp/aampcli.cfg";
 
 /*-----------------------------------------------------------------------------------------------------*/
 bool AampLogManager::disableLogRedirection = false;
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 
 /**
  * @brief To check the given log level is allowed to print mechanism
- * @param[in] chkLevel - log level
+ *
+ * @param[in] chkLevel  Log level
+ *
  * @retval true if the log level allowed for print mechanism
  */
 bool AampLogManager::isLogLevelAllowed(AAMP_LogLevel chkLevel)
@@ -61,8 +76,10 @@ bool AampLogManager::isLogLevelAllowed(AAMP_LogLevel chkLevel)
 
 /**
  * @brief Set the log level for print mechanism
- * @param[in] newLevel - log level new value
- * @retuen void
+ *
+ * @param[in] newLevel Log level new value
+ *
+ * @return void
  */
 void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
 {
@@ -89,7 +106,7 @@ const char* AampLogManager::getAampCfgPath(void)
 }
 
 /**
- * @brief Get aamp cfg directory.
+ * @brief Get aamp cli cfg directory.
  */
 const char* AampLogManager::getAampCliCfgPath(void)
 {
@@ -98,10 +115,12 @@ const char* AampLogManager::getAampCliCfgPath(void)
 
 /**
  * @brief Print the network latency level logging for triage purpose
- * @param[in] url - content url
- * @param[in] downloadTime - download time of the fragment or manifest
- * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
- * @retuen void
+ *
+ * @param[in] url                          Content url
+ * @param[in] downloadTime                 Download time of the fragment or manifest
+ * @param[in] downloadThresholdTimeoutMs   Specified download threshold time out value
+ *
+ * @return void
  */
 void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs)
 {
@@ -117,10 +136,12 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
 
 /**
  * @brief Print the network error level logging for triage purpose
- * @param[in] url - content url
- * @param[in] errorType - it can be http or curl errors
- * @param[in] errorCode - it can be http error or curl error code
- * @retuen void
+ *
+ * @param[in] url         Content url
+ * @param[in] errorType   It can be http or curl errors
+ * @param[in] errorCode   It can be http error or curl error code
+ *
+ * @return void
  */
 void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode)
 {
@@ -166,11 +187,13 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 
 /**
  * @brief To get the issue symptom based on the error type for triage purpose
- * @param[in] url - content url
- * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
- * @param[out] location - server location
- * @param[out] symptom - issue exhibiting scenario for error case
- * @retuen void
+ *
+ * @param[in]  url           Content url
+ * @param[out] contentType   It could be a manifest or other audio/video/iframe tracks
+ * @param[out] location      Server location
+ * @param[out] symptom       Issue exhibiting scenario for error case
+ *
+ * @return void
  */
 void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom)
 {
@@ -236,9 +259,11 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 
 /**
  * @brief Print the DRM error level logging for triage purpose
- * @param[in] major - drm major error code
- * @param[in] minor - drm minor error code
- * @retuen void
+ *
+ * @param[in] major   Drm major error code
+ * @param[in] minor   Drm minor error code
+ *
+ * @return void
  */
 void AampLogManager::LogDRMError(int major, int minor)
 {
@@ -327,8 +352,10 @@ void AampLogManager::LogDRMError(int major, int minor)
 
 /**
  * @brief Log ABR info for triage purpose
- * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
- * @retuen void
+ *
+ * @param[in] pstAbrInfo Pointer to a structure which will have abr info to be logged
+ *
+ * @return void
  */
 void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 {
@@ -413,8 +440,10 @@ bool AampLogManager::isLogworthyErrorCode(int errorCode)
 
 /**
  * @brief Print logs to console / log file
- * @param[in] format - printf style string
- * @retuen void
+ *
+ * @param[in] format Printf style string
+ *
+ * @return void
  */
 void logprintf(const char *format, ...)
 {
@@ -462,4 +491,8 @@ void logprintf(const char *format, ...)
 #endif
 #endif
 }
+
+/**
+ * @}
+ */
 

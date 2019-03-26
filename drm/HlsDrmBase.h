@@ -29,7 +29,13 @@
 #include "priv_aamp.h"
 
 /**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
+
+/**
  * @enum DrmReturn
+ *
  * @brief Return values of various functions
  */
 enum DrmReturn
@@ -41,6 +47,7 @@ enum DrmReturn
 
 /**
  * @enum DRMState
+ *
  * @brief States of DRM object
  */
 enum DRMState
@@ -54,17 +61,26 @@ enum DRMState
 
 /**
  * @class HlsDrmBase
+ *
  * @brief Base class of HLS DRM implementations
  */
 class HlsDrmBase
 {
 public:
+/**
+ * @}
+ */
 
+/**
+ * @addtogroup AAMP_DRM_API
+ * @{
+ */
 	/**
 	 * @brief Set DRM specific meta-data
 	 *
-	 * @param aamp AAMP instance to be associated with this decryptor
-	 * @param metadata DRM specific metadata
+	 * @param[in] aamp      AAMP instance to be associated with this decryptor
+	 * @param[in] metadata  DRM specific metadata
+         *
 	 * @retval 0 on success
 	 */
 	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata) = 0;
@@ -72,8 +88,9 @@ public:
 	/**
 	 * @brief Set information required for decryption
 	 *
-	 * @param aamp AAMP instance to be associated with this decryptor
-	 * @param drmInfo Drm information
+	 * @param[in] aamp     AAMP instance to be associated with this decryptor
+	 * @param[in] drmInfo  Drm information
+         *
 	 * @retval eDRM_SUCCESS on success
 	 */
 	virtual DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo) = 0;
@@ -81,10 +98,12 @@ public:
 
 	/**
 	 * @brief Decrypts an encrypted buffer
-	 * @param bucketType Type of bucket for profiling
-	 * @param encryptedDataPtr pointer to encyrpted payload
-	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
-	 * @param timeInMs wait time
+         *
+	 * @param[in] bucketType        Type of bucket for profiling
+	 * @param[in] encryptedDataPtr  Pointer to encyrpted payload
+	 * @param[in] encryptedDataLen  Length in bytes of data pointed to by encryptedDataPtr
+	 * @param[in] timeInMs          Wait time
+         *
 	 * @retval eDRM_SUCCESS on success
 	 */
 	virtual DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs = 3000) = 0;
@@ -112,3 +131,7 @@ public:
 
 };
 #endif /* _DRM_HLSDRMBASE_H_ */
+
+/**
+ * @}
+ */

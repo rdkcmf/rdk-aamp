@@ -40,6 +40,11 @@ typedef struct PrivAAMPStruct_JS {
 }PrivAAMPStruct_JS;
 
 /**
+ * @addtogroup AAMP_JS_API
+ * @{
+ */
+
+/**
  *   @brief  Load aamp JS bindings.
  *
  *   @param[in]  context - JS Core context.
@@ -68,4 +73,8 @@ void AAMPPlayer_LoadJS(void* context);
  */
 void AAMPPlayer_UnloadJS(void* context);
 
-#endif// __JSBINDINGS_H__
+#endif// __JSBINDINGS_H_
+
+/**
+ * @}
+ */_

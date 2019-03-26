@@ -35,6 +35,12 @@
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
+
+/**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
+
 /**
  * @enum DrmMethod
  * @brief AVE drm method
@@ -136,3 +142,8 @@ private:
 };
 
 #endif // DRM_H
+
+
+/**
+ * @}
+ */

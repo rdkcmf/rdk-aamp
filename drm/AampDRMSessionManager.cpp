@@ -31,6 +31,11 @@
 #include <uuid/uuid.h>
 
 //#define LOG_TRACE 1
+
+/**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
 #define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"
 #define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1"
 #define LICENCE_RESPONSE_JSON_LICENCE_KEY "license\":\""
@@ -59,13 +64,22 @@ SessionMgrState AampDRMSessionManager::sessionMgrState = SessionMgrState::eSESSI
 static pthread_mutex_t accessTokenMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t session_mutex[2] = {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER};
 static pthread_mutex_t initDataMutex = PTHREAD_MUTEX_INITIALIZER;
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_DRM_API
+ * @{
+ */
 
 #ifdef USE_SECCLIENT
 /**
  *  @brief Get formatted URL of license server
  *
- *  @param[in] url URL of license server
- *  @return		formatted url for secclient license acqusition.
+ *  @param[in]  url URL of license server
+ *
+ *  @return	Formatted url for secclient license acqusition.
  */
 static string getFormattedLicenseServerURL(string url)
 {
@@ -136,7 +150,9 @@ void AampDRMSessionManager::clearSessionData()
 
 /**
  * @brief	Set Session manager state
- * @param	state
+ *
+ * @param[in]	state
+ *
  * @return	void.
  */
 void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
@@ -189,10 +205,11 @@ void AampDRMSessionManager::clearAccessToken()
  *  @brief		Curl write callback, used to get the curl o/p
  *  			from DRM license, accessToken curl requests.
  *
- *  @param[in]	ptr - Pointer to received data.
- *  @param[in]	size, nmemb - Size of received data (size * nmemb).
- *  @param[out]	userdata - Pointer to buffer where the received data is copied.
- *  @return		returns the number of bytes processed.
+ *  @param[in]	ptr           Pointer to received data.
+ *  @param[in]	size, nmemb   Size of received data (size * nmemb).
+ *  @param[out]	userdata      Pointer to buffer where the received data is copied.
+ *
+ *  @return		Returns the number of bytes processed.
  */
 size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 		size_t nmemb, void *userdata)
@@ -217,8 +234,9 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 /**
  *  @brief		Extract substring between (excluding) two string delimiters.
  *
- *  @param[in]	parentStr - Parent string from which substring is extracted.
- *  @param[in]	startStr, endStr - String delimiters.
+ *  @param[in]	parentStr          Parent string from which substring is extracted.
+ *  @param[in]	startStr, endStr   String delimiters.
+ *
  *  @return		Returns the extracted substring; Empty string if delimiters not found.
  */
 string _extractSubstring(string parentStr, string startStr, string endStr)
@@ -240,8 +258,10 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
 /**
  *  @brief		Get the accessToken from authService.
  *
- *  @param[out]	tokenLen - Gets updated with accessToken length.
+ *  @param[out]	tokenLen  Gets updated with accessToken length.
+ *
  *  @return		Pointer to accessToken.
+ *
  *  @note		AccessToken memory is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
@@ -321,7 +341,8 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 
 /**
  * @brief Sleep for given milliseconds
- * @param milliseconds Time to sleep
+ *
+ * @param[in]  milliseconds Time to sleep
  */
 static void mssleep(int milliseconds)
 {
@@ -343,7 +364,9 @@ static void mssleep(int milliseconds)
  *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
  *  			are to be used.
  *  @param[in]	licenseProxy - Proxy to use for license requests.
+ *
  *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
+ *
  *  @note		Memory for license key is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
@@ -451,12 +474,13 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
  *  			Cleaned PSSH data, is PSSH data from which empty bytes are removed.
  *  			Used while extracting keyId or content meta data from PSSH.
  *
- *  @param[in]	psshData - Pointer to cleaned PSSH data.
- *  @param[in]	dataLength - Length of cleaned PSSH data.
- *  @param[in]	pos - Search start position.
- *  @param[in]	subStr - Pointer to substring to be searched.
- *  @param[out]	substrStartPos - Default NULL; If not NULL, gets updated with end
- *  			position of the substring in Cleaned PSSH; -1 if not found.
+ *  @param[in]	psshData        Pointer to cleaned PSSH data.
+ *  @param[in]	dataLength      Length of cleaned PSSH data.
+ *  @param[in]	pos             Search start position.
+ *  @param[in]	subStr          Pointer to substring to be searched.
+ *  @param[out]	substrStartPos  Default NULL; If not NULL, gets updated with end
+ *  			                position of the substring in Cleaned PSSH; -1 if not found.
+ *
  *  @return		Start position of substring in cleaned PSSH; -1 if not found.
  */
 int _findSubstr(const char* psshData, int dataLength, int pos, const char* substr, int *substrStartPos = NULL)
@@ -504,8 +528,9 @@ int _findSubstr(const char* psshData, int dataLength, int pos, const char* subst
 /**
  *  @brief		Swap the bytes at given positions.
  *
- *  @param[in, out]	bytes - Pointer to byte block where swapping is done.
- *  @param[in]	pos1, pos2 - Swap positions.
+ *  @param[in, out]	bytes    Pointer to byte block where swapping is done.
+ *  @param[in]	pos1, pos2   Swap positions.
+ *
  *  @return		void.
  */
 void Swap(unsigned char *bytes, int pos1, int pos2)
@@ -518,8 +543,9 @@ void Swap(unsigned char *bytes, int pos1, int pos2)
 /**
  *  @brief		Convert endianness of 16 byte block.
  *
- *  @param[in]	original - Pointer to source byte block.
- *  @param[out]	guidBytes - Pointer to destination byte block.
+ *  @param[in]	original    Pointer to source byte block.
+ *  @param[out]	guidBytes   Pointer to destination byte block.
+ *
  *  @return		void.
  */
 void ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
@@ -535,11 +561,13 @@ void ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
  *  @brief		Extract the keyId from PSSH data.
  *  			Different procedures are used for PlayReady and WideVine.
  *
- *  @param[in]	psshData - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of keyId.
- *  @param[in]	isWidevine - Flag to indicate WV.
+ *  @param[in]	psshData    Pointer to PSSH data.
+ *  @param[in]	dataLength  Length of PSSH data.
+ *  @param[out]	len         Gets updated with length of keyId.
+ *  @param[in]	isWidevine  Flag to indicate WV.
+ *
  *  @return		Pointer to extracted keyId.
+ *
  *  @note		Memory for keyId is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
@@ -608,10 +636,12 @@ unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int 
  *  @brief		Extract WideVine content meta data from Comcast DRM
  *  			Agnostic PSSH header. Might not work with WideVine PSSH header
  *
- *  @param[in]	Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of content meta data.
+ *  @param[in]	psshData     Pointer to PSSH data.
+ *  @param[in]	dataLength   Length of PSSH data.
+ *  @param[out]	len          Gets updated with length of content meta data.
+ *
  *  @return		Extracted ContentMetaData.
+ *
  *  @note		Memory for ContentMetaData is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
@@ -639,6 +669,7 @@ unsigned char * _extractWVContentMetadataFromPssh(const char* psshData, int data
 
 /**
  *  @brief		Extract content meta data or keyID from given PSSH data.
+ *
  *  			For example for content meta data,
  *  			When strings are given as "ckm:policy xmlns:ckm="urn:ccp:ckm"" and "ckm:policy"
  *  			<ckm:policy xmlns:ckm="urn:ccp:ckm">we need the contents from here</ckm:policy>
@@ -655,11 +686,13 @@ unsigned char * _extractWVContentMetadataFromPssh(const char* psshData, int data
  *				00000410 (0x14d410): 4e 00 58 00 51 00 6a 00 55 00 7a 00 49 00 31 00  N.X.Q.j.U.z.I.1.
  *				00000420 (0x14d420): 4e 00 69 00 49 00 36 00 49 00 6c 00 64 00 51 00  N.i.I.6.I.l.d.Q.
  *
- *  @param[in]	Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	startStr, endStr - Pointer to delimiter strings.
- *  @param[out]	len - Gets updated with length of content meta data.
+ *  @param[in]	psshData           Pointer to PSSH data.
+ *  @param[in]	dataLength         Length of PSSH data.
+ *  @param[in]	startStr, endStr   Pointer to delimiter strings.
+ *  @param[out]	len                Gets updated with length of content meta data.
+ *
  *  @return		Extracted data between delimiters; NULL if not found.
+ *
  *  @note		Memory of returned data is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
@@ -703,13 +736,14 @@ unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,
  *  @brief		Overloaded version of createDrmSession where contentMetadataPtr is not there
  *  			Called from gstaampopencdmiplugins.
  *
- *  @param[in]	systemId - UUID of the DRM system.
- *  @param[in]	initDataPtr - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	streamType - Whether audio or video.
- *  @param[in]	aamp - Pointer to PrivateInstanceAAMP, for DRM related profiling.
- *  @param[out]	error_code - Gets updated with proper error code, if session creation fails.
- *  			No NULL checks are done for error_code, caller should pass a valid pointer.
+ *  @param[in]	systemId     UUID of the DRM system.
+ *  @param[in]	initDataPtr  Pointer to PSSH data.
+ *  @param[in]	dataLength   Length of PSSH data.
+ *  @param[in]	streamType   Whether audio or video.
+ *  @param[in]	aamp         Pointer to PrivateInstanceAAMP, for DRM related profiling.
+ *  @param[out]	error_code   Gets updated with proper error code, if session creation fails.
+ *  			             No NULL checks are done for error_code, caller should pass a valid pointer.
+ *
  *  @return		Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
  */
 AampDrmSession * AampDRMSessionManager::createDrmSession(
@@ -726,17 +760,19 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
  *  			DRM session objects are created against requested keyId. Binds the oldest DRM Session
  *  			with new keyId if no matching keyId is found in existing sessions.
  *
- *  @param[in]	systemId - UUID of the DRM system.
- *  @param[in]	initDataPtr - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	streamType - Whether audio or video.
- *  @param[in]	contentMetadataPtr - Pointer to content meta data, when content meta data
+ *  @param[in]	systemId             UUID of the DRM system.
+ *  @param[in]	initDataPtr          Pointer to PSSH data.
+ *  @param[in]	dataLength           Length of PSSH data.
+ *  @param[in]	streamType           Whether audio or video.
+ *  @param[in]	contentMetadataPtr   Pointer to content meta data, when content meta data
  *  			is already extracted during manifest parsing. Used when content meta data
  *  			is available as part of another PSSH header, like Comcast DRM Agnostic PSSH
  *  			header.
- *  @param[in]	aamp - Pointer to PrivateInstanceAAMP, for DRM related profiling.
- *  @param[out]	error_code - Gets updated with proper error code, if session creation fails.
- *  			No NULL checks are done for error_code, caller should pass a valid pointer.
+ *  @param[in]	aamp                  Pointer to PrivateInstanceAAMP, for DRM related profiling.
+ *
+ *  @param[out]	error_code            Gets updated with proper error code, if session creation fails.
+ *  			                      No NULL checks are done for error_code, caller should pass a valid pointer.
+ *
  *  @return		Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
  */
 AampDrmSession * AampDRMSessionManager::createDrmSession(
@@ -1278,4 +1314,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	free(keyId);
 	return NULL;
 }
+
+/**
+ * @}
+ */
+
 

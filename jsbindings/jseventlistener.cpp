@@ -35,8 +35,14 @@
 class AAMP_Listener_PlaybackStateChanged : public AAMP_JSEventListener
 {
 public:
+
+/**
+ * @addtogroup AAMP_JS_API
+ * @{
+ */
 	/**
 	 * @brief AAMP_Listener_PlaybackStateChanged Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -48,7 +54,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in] e         AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -72,6 +79,7 @@ class AAMP_Listener_MediaEndReached : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_MediaEndReached Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -85,6 +93,7 @@ public:
 
 /**
  * @class AAMP_Listener_ProgressUpdate
+ *
  * @brief Event listener impl for AAMP_EVENT_PROGRESS event.
  */
 class AAMP_Listener_ProgressUpdate : public AAMP_JSEventListener
@@ -92,6 +101,7 @@ class AAMP_Listener_ProgressUpdate : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_ProgressUpdate Constructor
+ 	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -103,7 +113,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in]  e        AAMP Event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -135,6 +146,7 @@ public:
 
 /**
  * @class AAMP_Listener_SpeedChanged
+ *
  * @brief Event listener impl for AAMP_EVENT_SPEED_CHANGED event.
  */
 class AAMP_Listener_SpeedChanged : public AAMP_JSEventListener
@@ -142,6 +154,7 @@ class AAMP_Listener_SpeedChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_SpeedChanged Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -153,7 +166,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in]  e        AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -173,6 +187,7 @@ public:
 
 /**
  * @class AAMP_Listener_BufferingChanged
+ *
  * @brief Event listener impl for AAMP_EVENT_BUFFERING_CHANGED event.
  */
 class AAMP_Listener_BufferingChanged : public AAMP_JSEventListener
@@ -180,6 +195,7 @@ class AAMP_Listener_BufferingChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_BufferingChanged Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -191,7 +207,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in] e         AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -207,6 +224,7 @@ public:
 
 /**
  * @class AAMP_Listener_PlaybackFailed
+ *
  * @brief Event listener impl for AAMP_EVENT_TUNE_FAILED event.
  */
 class AAMP_Listener_PlaybackFailed : public AAMP_JSEventListener
@@ -214,6 +232,7 @@ class AAMP_Listener_PlaybackFailed : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_PlaybackFailed Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -225,7 +244,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in] e         AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -249,6 +269,7 @@ public:
 
 /**
  * @class AAMP_Listener_MediaMetadata
+ *
  * @brief Event listener impl for AAMP_EVENT_MEDIA_METADATA event.
  */
 class AAMP_Listener_MediaMetadata : public AAMP_JSEventListener
@@ -256,6 +277,7 @@ class AAMP_Listener_MediaMetadata : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_MediaMetadata Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -267,7 +289,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in] e         AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -331,6 +354,7 @@ public:
 
 /**
  * @class AAMP_Listener_SpeedsChanged
+ *
  * @brief Event listener impl for AAMP_EVENT_SPEEDS_CHANGED event.
  */
 class AAMP_Listener_SpeedsChanged : public AAMP_JSEventListener
@@ -338,6 +362,7 @@ class AAMP_Listener_SpeedsChanged : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_SpeedsChanged Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -349,7 +374,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in] e         AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -371,6 +397,7 @@ public:
 
 /**
  * @class AAMP_Listener_CCHandleAvailable
+ *
  * @brief Event listener impl for AAMP_EVENT_CC_HANDLE_RECEIVED, event.
  */
 class AAMP_Listener_CCHandleAvailable : public AAMP_JSEventListener
@@ -378,6 +405,7 @@ class AAMP_Listener_CCHandleAvailable : public AAMP_JSEventListener
 public:
 	/**
 	 * @brief AAMP_Listener_CCHandleAvailable Constructor
+	 *
          * @param[in] aamp instance of PrivAAMPStruct_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -389,7 +417,8 @@ public:
 
 	/**
 	 * @brief Set properties to JS event object
-	 * @param[in] e AAMP event object
+         *
+	 * @param[in]  e        AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
 	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
@@ -430,6 +459,7 @@ AAMP_JSEventListener::~AAMP_JSEventListener()
 
 /**
  * @brief Callback invoked for dispatching event
+ *
  * @param[in] e event object
  */
 void AAMP_JSEventListener::Event(const AAMPEvent& e)
@@ -454,6 +484,7 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 
 /**
  * @brief Adds a JS function as listener for a particular event
+ *
  * @param[in] jsObj instance of PrivAAMPStruct_JS
  * @param[in] type event type
  * @param[in] jsCallback callback to be registered as listener
@@ -509,6 +540,7 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 
 /**
  * @brief Removes a JS listener for a particular event
+ *
  * @param[in] jsObj instance of PrivAAMPStruct_JS
  * @param[in] type event type
  * @param[in] jsCallback callback to be removed as listener
@@ -562,3 +594,7 @@ void AAMP_JSEventListener::RemoveAllEventListener(PrivAAMPStruct_JS * obj)
 	obj->_listeners.clear();
 
 }
+
+/**
+ * @}
+ */
