@@ -285,8 +285,10 @@ private:
 	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
 	pthread_t fragmentInjectorThreadID; /**< Fragment injector thread id*/
+	pthread_t bufferMonitorThreadID;    /**< Buffer Monitor thread id */
 	int totalFragmentsDownloaded;       /**< Total fragments downloaded since start by track*/
 	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
+	bool bufferMonitorThreadStarted;    /**< Buffer Monitor thread started or not */
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
 	int cacheDurationSeconds;           /**< Total fragment cache duration*/
 	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
@@ -298,7 +300,6 @@ private:
 
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
-	guint bufferHealthMonitorIdleTaskId; /**< ID of idle task for buffer monitoring*/
 };
 
 
