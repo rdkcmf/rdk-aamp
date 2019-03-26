@@ -34,6 +34,11 @@
 #include <sys/utsname.h>
 #include "priv_aamp.h"
 
+/**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
+
 #define NYI_KEYSYSTEM "keysystem-placeholder"
 //#define TRACE_LOG 1
 
@@ -65,16 +70,26 @@ const DRM_CONST_STRING g_dstrCDMDrmPath = CREATE_DRM_STRING(g_rgwchCDMDrmPath);
 const DRM_CONST_STRING *g_rgpdstrRights[1] =
 { &g_dstrWMDRM_RIGHT_PLAYBACK };
 
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_DRM_API
+ * @{
+ */
 
 // The following function is missing from the official PK 2.5 release but
 // will be available in the next PK release.
 // It should be removed if the source is building with the next PK release.
 /**
  * @brief Read UUID from init data
- * @param pbData : Pointer to initdata
- * @param cbData : size of init data
- * @param ibGuidOffset : offset to uuid
- * @param pDrmGuid : Gets updated with uuid
+ *
+ * @param[in]  pbData        Pointer to initdata
+ * @param[in]  cbData        Size of init data
+ * @param[in]  ibGuidOffset  Offset to uuid
+ * @param[in]  pDrmGuid      Gets updated with uuid
+ *
  * @retval DRM_SUCCESS if no errors encountered
  */
 
@@ -197,9 +212,10 @@ void PlayReadyDRMSession::initAampDRMSession()
 
 /**
  * @brief Create drm session with given init data
- *        state will be KEY_INIT on success KEY_ERROR if failed
- * @param f_pbInitData pointer to initdata
- * @param f_cbInitData init data size
+ *        state will be KEY_INIT on success KEY_ERROR if failed.
+ *
+ * @param[in]  f_pbInitData  Pointer to initdata
+ * @param[in]  f_cbInitData  Init data size
  */
 void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
@@ -290,10 +306,12 @@ static DRM_ID PSSH_BOX_GUID =
 
 /**
  * @brief Retrieve PlayReady Object(PRO) from init data
- * @param f_pbInitData : Pointer to initdata
- * @param f_cbInitData : size of initdata
- * @param f_pibPRO : Gets updated with PRO
- * @param f_pcbPRO : size of PRO
+ *
+ * @param[in] f_pbInitData  Pointer to initdata
+ * @param[in] f_cbInitData  Size of initdata
+ * @param[in] f_pibPRO      Gets updated with PRO
+ * @param[in] f_pcbPRO      Size of PRO
+ *
  * @retval DRM_SUCCESS if no errors encountered
  */
 int PlayReadyDRMSession::_GetPROFromInitData(const DRM_BYTE *f_pbInitData,
@@ -445,8 +463,10 @@ int PlayReadyDRMSession::_GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 
 /**
  * @brief Parse init data to retrieve PRO from it
- * @param f_pbInitData : Pointer to initdata
- * @param f_cbInitData : size of init data
+ *
+ * @param[in] f_pbInitData   Pointer to initdata
+ * @param[in] f_cbInitData   Size of init data
+ *
  * @retval DRM_SUCCESS if no errors encountered
  */
 int PlayReadyDRMSession::_ParseInitData(const uint8_t *f_pbInitData,
@@ -482,7 +502,9 @@ int PlayReadyDRMSession::_ParseInitData(const uint8_t *f_pbInitData,
 /**
  * @brief Generate key request from DRM session
  *        Caller function should free the returned memory.
- * @param destinationURL : gets updated with license server url
+ *
+ * @param[out] destinationURL  Gets updated with license server url
+ *
  * @retval Pointer to DrmData containing license request, NULL if failure.
  */
 DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
@@ -560,7 +582,9 @@ DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
 
 /**
  * @brief Updates the received key to DRM session
- * @param key : License key from license server.
+ *
+ * @param[in]  key License key from license server.
+ *
  * @retval DRM_SUCCESS if no errors encountered
  */
 int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
@@ -616,11 +640,13 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
 
 /**
  * @brief Function to decrypt stream  buffer.
- * @param f_pbIV : Initialization vector.
- * @param f_cbIV : Initialization vector length.
- * @param payloadData : Data to decrypt.
- * @param payloadDataSize : Size of data.
- * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
+ *
+ * @param[in] f_pbIV           Initialization vector.
+ * @param[in] f_cbIV           Initialization vector length.
+ * @param[in] payloadData      Data to decrypt.
+ * @param[in] payloadDataSize  Size of data.
+ * @param[in] ppOpaqueData     Pointer to opaque buffer in case of SVP.
+ *
  * @retval Returns 1 on success 0 on failure.
  */
 int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
@@ -722,6 +748,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 /**
  * @brief Get the current state of DRM Session.
+ *
  * @retval KeyState
  */
 KeyState PlayReadyDRMSession::getState()
@@ -751,3 +778,7 @@ void PlayReadyDRMSession:: clearDecryptContext()
 	m_cbPRO = 0;
 	m_eKeyState = KEY_INIT;
 }
+
+/**
+ * @}
+ */

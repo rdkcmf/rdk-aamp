@@ -53,6 +53,10 @@
 #define AAMP_PACKED __attribute__((__packed__))
 #endif
 
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 #define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
@@ -292,6 +296,10 @@ struct AAMPAbrInfo
 };
 
 /**
+ * @}
+ */
+
+/**
  * @brief AampLogManager Class
  */
 class AampLogManager
@@ -316,6 +324,11 @@ public:
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
 	}
 
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
+
 	/* ---------- Triage Level Logging Support ---------- */
 
 	/**
@@ -324,7 +337,8 @@ public:
 	 * @param[in] url - content url
 	 * @param[in] downloadTime - download time of the fragment or manifest
 	 * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs);
 
@@ -334,7 +348,8 @@ public:
 	 * @param[in] url - content url
 	 * @param[in] errorType - it can be http or curl errors
 	 * @param[in] errorCode - it can be http error or curl error code
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode);
 
@@ -345,7 +360,8 @@ public:
 	 * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
 	 * @param[out] location - server location
 	 * @param[out] symptom - issue exhibiting scenario for error case
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom);
 
@@ -354,7 +370,8 @@ public:
 	 *
 	 * @param[in] major - drm major error code
 	 * @param[in] minor - drm minor error code
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void LogDRMError(int major, int minor);
 
@@ -362,7 +379,8 @@ public:
 	 * @brief Log ABR info for triage purpose
 	 *
 	 * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void LogABRInfo(AAMPAbrInfo *pstAbrInfo);
 	/* !---------- Triage Level Logging Support ---------- */
@@ -371,6 +389,7 @@ public:
 	 * @brief To check the given log level is allowed to print mechanism
 	 *
 	 * @param[in] chkLevel - log level
+         *
 	 * @retval true if the log level allowed for print mechanism
 	 */
 	bool isLogLevelAllowed(AAMP_LogLevel chkLevel);
@@ -379,7 +398,8 @@ public:
 	 * @brief Set the log level for print mechanism
 	 *
 	 * @param[in] newLevel - log level new value
-	 * @retuen void
+         *
+	 * @return void
 	 */
 	void setLogLevel(AAMP_LogLevel newLevel);
 
@@ -411,8 +431,10 @@ private:
 
 /**
  * @brief Print logs to console / log file
+ *
  * @param[in] format - printf style string
- * @retuen void
+ *
+ * @return void
  */
 extern void logprintf(const char *format, ...);
 
@@ -555,6 +577,7 @@ public:
 	 * @brief Setting secondary audio program
 	 *
 	 * @param[in] on - New SAP status
+         *
 	 * @return void
 	 */
 	void aamp_SetSAP(bool on)
@@ -576,6 +599,7 @@ public:
 	 * @brief Turning closed caption ON/OFF
 	 *
 	 * @param[in] on - New CC status
+         *
 	 * @return void
 	 */
 	void aamp_SetCCStatus(bool on)
@@ -594,6 +618,7 @@ extern GlobalConfigAAMP *gpGlobalConfig;
  * @param[out] dst - Created URL
  * @param[in] base - Base URL
  * @param[in] uri - File path
+ *
  * @return void
  */
 void aamp_ResolveURL(char *dst, const char *base, const char *uri);
@@ -609,6 +634,7 @@ long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_T
  * @brief Log error
  *
  * @param[in] msg - Error message
+ *
  * @return void
  */
 void aamp_Error(const char *msg);
@@ -617,6 +643,7 @@ void aamp_Error(const char *msg);
  * @brief AAMP's custom implementation of memory deallocation
  *
  * @param[in] pptr - Buffer to be deallocated
+ *
  * @return void
  */
 void aamp_Free(char **pptr);
@@ -627,6 +654,7 @@ void aamp_Free(char **pptr);
  * @param[in,out] buffer - GrowableBuffer to be appended
  * @param[in] ptr - Array of bytes to be appended
  * @param[in] len - Number of bytes
+ *
  * @return void
  */
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
@@ -643,6 +671,7 @@ void aamp_AppendNulTerminator(struct GrowableBuffer *buffer);
  *
  * @param[out] buffer - Allocated GrowableBuffer
  * @param[in] len - Allocation size
+ *
  * @return void
  */
 void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
@@ -651,6 +680,7 @@ void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
  * @brief Get DRM system ID
  *
  * @param[in] drmSystem - DRM system type
+ *
  * @return DRM system ID
  */
 const char * GetDrmSystemID(DRMSystems drmSystem);
@@ -659,6 +689,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @brief Get DRM system name
  *
  * @param[in] drmSystem - DRM system type
+ *
  * @return DRM system name
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
@@ -676,6 +707,7 @@ bool aamp_IsCCEnabled(void);
  * @brief Initialize CC resource. Rendering is disabled by default
  *
  * @param[in] handle
+ *
  * @return void
  */
 int aamp_CCStart(void *handle);
@@ -705,6 +737,15 @@ int aamp_CCShow(void);
 int aamp_CCHide(void);
 
 #endif //AAMP_CC_ENABLED
+
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 
 /**
  * @brief Bucket types of AAMP profiler
@@ -807,6 +848,10 @@ private:
 		bool complete;          /**< true if this step already accounted for, and further profiling should be ignored */
 	} buckets[PROFILE_BUCKET_TYPE_COUNT];
 
+/**
+ * @}
+ */
+
 	/**
 	 * @brief Calculating effecting duration of overlapping buckets, id1 & id2
 	 */
@@ -831,11 +876,17 @@ private:
 	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
 	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
 
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 	/**
 	 * @brief Calculating effective time of two overlapping buckets.
 	 *
 	 * @param[in] id1 - Bucket type 1
 	 * @param[in] id2 - Bucket type 2
+         *
 	 * @return void
 	 */
 	inline unsigned int effectiveBucketTime(ProfilerBucketType id1, ProfilerBucketType id2)
@@ -864,6 +915,7 @@ public:
 	 * @brief Setting video bandwidth in bps
 	 *
 	 * @param[in] bw - Bandwidth in bps
+         *
 	 * @return void
 	 */
 	void SetBandwidthBitsPerSecondVideo(long bw)
@@ -875,6 +927,7 @@ public:
 	 * @brief Setting audio bandwidth in bps
 	 *
 	 * @param[in] bw - Bandwidth in bps
+         *
 	 * @return void
 	 */
 	void SetBandwidthBitsPerSecondAudio(long bw)
@@ -886,6 +939,7 @@ public:
 	 * @brief Setting DRM error code
 	 *
 	 * @param[in] errCode - Error code
+         *
 	 * @return void
 	 */
 	void SetDrmErrorCode(int errCode)
@@ -900,6 +954,7 @@ public:
 	 * @param[in] start - Start time
 	 * @param[in] dur - Duration
 	 * @param[in] res - Event result
+         *
 	 * @return void
 	 */
 	void addtuneEvent(ProfilerBucketType pbt, unsigned int start,
@@ -925,6 +980,7 @@ public:
 	 * @param[in] streamType - Stream type
 	 * @param[in] url - Tune URL
 	 * @param[in] success - Tune success/failure
+         *
 	 * @return void
 	 */
 	void getTuneEventsJSON(std::stringstream &outSS, const std::string &streamType, const char *url, bool success)
@@ -1019,6 +1075,7 @@ public:
 	 * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
 	 * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
+         *
 	 * @return void
 	 */
 	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune)
@@ -1085,6 +1142,7 @@ public:
 	 * @param[in] isLive  - Live channel or not
 	 * @param[in] durationinSec - Asset duration in seconds
 	 * @param[out] TuneTimeInfoStr - Formatted output string
+         *
 	 * @return void
 	 */
 	void GetClassicTuneTimeInfo(bool success, int tuneRetries, int firstTuneType, long long playerLoadTime, int streamType, bool isLive,unsigned int durationinSec, char *TuneTimeInfoStr)
@@ -1141,6 +1199,7 @@ public:
 	 * @brief Marking the beginning of a bucket
 	 *
 	 * @param[in] type - Bucket type
+         *
 	 * @return void
 	 */
 	void ProfileBegin(ProfilerBucketType type )
@@ -1158,6 +1217,7 @@ public:
 	 *
 	 * @param[in] type - Bucket type
 	 * @param[in] result - Error code
+         *
 	 * @return void
 	 */
 	void ProfileError(ProfilerBucketType type, int result = -1)
@@ -1180,6 +1240,7 @@ public:
 	 * @brief Marking the end of a bucket
 	 *
 	 * @param[in] type - Bucket type
+         *
 	 * @return void
 	 */
 	void ProfileEnd( ProfilerBucketType type )
@@ -1218,6 +1279,7 @@ public:
 	 * @brief Method to mark the end of a bucket, for which beginning is not marked
 	 *
 	 * @param[in] type - Bucket type
+         *
 	 * @return void
 	 */
 	void ProfilePerformed(ProfilerBucketType type)
@@ -1257,7 +1319,9 @@ public:
 
 /**
  * @brief Function pointer for the idle task
+ *
  * @param[in] arg - Arguments
+ *
  * @return Idle task status
  */
 typedef int(*IdleTask)(void* arg);
@@ -1307,6 +1371,7 @@ public:
 	 *
 	 * @param[in] mediaType - Media type. eg: Video, Audio, etc
 	 * @param[in] isInitializationSegment - Initialization segment or not
+         *
 	 * @return Bucket type
 	 */
 	ProfilerBucketType GetProfilerBucketForMedia(MediaType mediaType, bool isInitializationSegment)
@@ -1328,6 +1393,7 @@ public:
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
+         *
 	 * @return void
 	 */
 	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
@@ -1336,6 +1402,7 @@ public:
 	 * @brief The helper function which perform tuning
 	 *
 	 * @param[in] tuneType - Type of tuning. eg: Normal, trick, seek to live, etc
+         *
 	 * @return void
 	 */
 	void TuneHelper(TuneType tuneType);
@@ -1344,6 +1411,7 @@ public:
 	 * @brief Terminate the stream
 	 *
 	 * @param[in] newTune - New tune or not
+         *
 	 * @return void
 	 */
 	void TeardownStream(bool newTune);
@@ -1353,6 +1421,7 @@ public:
 	 *
 	 * @param[in] str - Pointer to the message
 	 * @param[in] nToWrite - Number of bytes in the message
+         *
 	 * @return void
 	 */
 	void SendMessageOverPipe(const char *str,int nToWrite);
@@ -1376,6 +1445,7 @@ public:
 	 *
 	 * @param[in] type - Message type
 	 * @param[in] data - Message data
+         *
 	 * @return void
 	 */
 	void SendMessage2Receiver(AAMP2ReceiverMsgType type, const char *data);
@@ -1384,6 +1454,7 @@ public:
 	 * @brief Send tune events to receiver
 	 *
 	 * @param[in] success - Tune status
+         *
 	 * @return void
 	 */
 	void sendTuneMetrics(bool success);
@@ -1392,6 +1463,7 @@ public:
 	 * @brief Convert media file type to profiler bucket type
 	 *
 	 * @param[in] fileType - Media filetype
+         *
 	 * @return Profiler bucket type
 	 */
 	ProfilerBucketType mediaType2Bucket(MediaType fileType);
@@ -1468,6 +1540,7 @@ public:
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
+         *
 	 * @return void
 	 */
 	void CurlInit(int startIdx, unsigned int instanceCount);
@@ -1489,6 +1562,7 @@ public:
 	 *
 	 * @param[in] timeout - Timeout value
 	 * @param[in] instance - Curl instance
+         *
 	 * @return void
 	 */
 	void SetCurlTimeout(long timeout, unsigned int instance = 0);
@@ -1498,6 +1572,7 @@ public:
 	 *
 	 * @param[in] maxLangCount - Language count
 	 * @param[in] langlist - Array of languages
+         *
 	 * @return void
 	 */
 	void StoreLanguageList(int maxLangCount , char langlist[][MAX_LANGUAGE_TAG_LENGTH]);
@@ -1506,6 +1581,7 @@ public:
 	 * @brief Checking whether audio language supported
 	 *
 	 * @param[in] checkLanguage - Language to be checked
+         *
 	 * @return True or False
 	 */
 	bool IsAudioLanguageSupported (const char *checkLanguage);
@@ -1515,6 +1591,7 @@ public:
 	 *
 	 * @param[in] startIdx - First index
 	 * @param[in] instanceCount - Instance count
+         *
 	 * @return void
 	 */
 	void CurlTerm(int startIdx, unsigned int instanceCount);
@@ -1530,12 +1607,14 @@ public:
 	 * @param[in] curlInstance - Curl instance to be used
 	 * @param[in] resetBuffer - Flag to reset the out buffer
 	 * @param[in] fileType - File type
+         *
 	 * @return void
 	 */
 	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT);
 
 	/**
 	 * @brief get Media Type in string
+         *
 	 * @param[in] fileType - Type of Media
 	 * @param[out] pointer to Media Type string
 	 */
@@ -1551,6 +1630,7 @@ public:
 	 * @param[in] curlInstance - Curl instance to be used
 	 * @param[in] range - Byte range
 	 * @param[in] fileType - File type
+         *
 	 * @return void
 	 */
 	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
@@ -1565,6 +1645,7 @@ public:
 	 * @param[in] range - Byte range
 	 * @param[in] fileType - File type
 	 * @param[out] http_code - HTTP error code
+         *
 	 * @return void
 	 */
 	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL);
@@ -1576,6 +1657,7 @@ public:
 	 * @param[in] buffer - Pointer to the buffer
 	 * @param[in] fragmentTime - Fragment start time
 	 * @param[in] fragmentDuration - Fragment duration
+         *
 	 * @return void
 	 */
 	void PushFragment(MediaType mediaType, char *ptr, size_t len, double fragmentTime, double fragmentDuration);
@@ -1587,6 +1669,7 @@ public:
 	 * @param[in] buffer - Pointer to the growable buffer
 	 * @param[in] fragmentTime - Fragment start time
 	 * @param[in] fragmentDuration - Fragment duration
+         *
 	 * @return void
 	 */
 	void PushFragment(MediaType mediaType, GrowableBuffer* buffer, double fragmentTime, double fragmentDuration);
@@ -1595,6 +1678,7 @@ public:
 	 * @brief End of stream reached
 	 *
 	 * @param[in] mediaType - Media type
+         *
 	 * @return void
 	 */
 	void EndOfStreamReached(MediaType mediaType);
@@ -1603,6 +1687,7 @@ public:
 	 * @brief Clip ended
 	 *
 	 * @param[in] mediaType - Media type
+         *
 	 * @return void
 	 */
 	void EndTimeReached(MediaType mediaType);
@@ -1612,6 +1697,7 @@ public:
 	 *
 	 * @param[in] url - Ad url
 	 * @param[in] positionSeconds - Ad start position in seconds
+         *
 	 * @return void
 	 */
 	void InsertAd(const char *url, double positionSeconds);
@@ -1621,6 +1707,7 @@ public:
 	 *
 	 * @param[in] eventType - Event type
 	 * @param[in] eventListener - Event handler
+         *
 	 * @return void
 	 */
 	void AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
@@ -1630,6 +1717,7 @@ public:
 	 *
 	 * @param[in] eventType - Event type
 	 * @param[in] eventListener - Event handler
+         *
 	 * @return void
 	 */
 	void RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
@@ -1638,6 +1726,7 @@ public:
 	 * @brief Send events synchronously
 	 *
 	 * @param[in] e - Event object
+         *
 	 * @return void
 	 */
 	void SendEventAsync(const AAMPEvent &e);
@@ -1648,6 +1737,7 @@ public:
 	 *
 	 * @param[in] tuneFailure - Reason of error
 	 * @param[in] description - Optional description of error
+         *
 	 * @return void
 	 */
 	void SendErrorEvent(AAMPTuneFailure tuneFailure, const char *description = NULL, bool isRetryEnabled = true);
@@ -1668,6 +1758,7 @@ public:
 	 *
 	 * @param[in] tuneFailure - Reason of error
 	 * @param[in] error_code - HTTP error code/ CURLcode
+         *
 	 * @return void
 	 */
 	void SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,long error_code);
@@ -1685,7 +1776,8 @@ public:
 	/**
 	 * @brief Send events synchronously
 	 *
-	 * @param[in] e - Event object
+	 * @param[in] e - Event object    
+         *
 	 * @return void
 	 */
 	void SendEventSync(const AAMPEvent &e);
@@ -1694,6 +1786,7 @@ public:
 	 * @brief Notify speed change
 	 *
 	 * @param[in] rate - New speed
+         *
 	 * @return void
 	 */
 	void NotifySpeedChanged(int rate);
@@ -1706,6 +1799,7 @@ public:
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
+         *
 	 * @return void
 	 */
 	void NotifyBitRateChangeEvent(int bitrate , const char *description ,int width ,int height, bool GetBWIndex = false);
@@ -1743,6 +1837,7 @@ public:
 	 * @brief Set persisted bandwidth
 	 *
 	 * @param[in] bandwidth - Bandwidth in bps
+         *
 	 * @return void
 	 */
 	void SetPersistedBandwidth(long bandwidth) {mAvailableBandwidth = bandwidth;}
@@ -1766,6 +1861,7 @@ public:
 	 * @brief Update playlist culling
 	 *
 	 * @param[in] culledSeconds - Seconds to be culled
+         *
 	 * @return void
 	 */
 	void UpdateCullingState(double culledSeconds);
@@ -1781,6 +1877,7 @@ public:
 	 *   @brief  Update playlist refresh inrerval
 	 *
 	 *   @param[in]  maxIntervalSecs - Interval in seconds
+         *
 	 *   @return void
 	 */
 	void UpdateRefreshPlaylistInterval(float maxIntervalSecs);
@@ -1815,6 +1912,7 @@ public:
 	 *   @param[in]  fpts - Presentation Time Stamp.
 	 *   @param[in]  fdts - Decode Time Stamp
 	 *   @param[in]  duration - Buffer duration.
+         *
 	 *   @return void
 	 */
 	void SendStream(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration);
@@ -1827,6 +1925,7 @@ public:
 	 *   @param[in]  fpts - Presentation Time Stamp.
 	 *   @param[in]  fdts - Decode Time Stamp
 	 *   @param[in]  fDuration - Buffer duration.
+         *
 	 *   @return void
 	 */
 	void SendStream(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
@@ -1835,6 +1934,7 @@ public:
 	 * @brief Setting the stream sink
 	 *
 	 * @param[in] streamSink - Pointer to the stream sink
+         *
 	 * @return void
 	 */
 	void SetStreamSink(StreamSink* streamSink);
@@ -1879,6 +1979,7 @@ public:
 	 * @param[in] szName - Metadata name
 	 * @param[in] szContent - Metadata content
 	 * @param[in] nb - ContentSize
+         *
 	 * @return void
 	 */
 	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb);
@@ -1888,6 +1989,7 @@ public:
 	 * interrupted on aamp_DisableDownloads() call
 	 *
 	 * @param[in] timeInMs
+         *
 	 * @return void
 	 */
 	void InterruptableMsSleep(int timeInMs);
@@ -1898,6 +2000,7 @@ public:
 	 * @brief Collect decrypted fragments
 	 *
 	 * @param[in] modifyCount - Collect only the configured number of fragments
+         *
 	 * @return void
 	 */
 	bool HarvestFragments(bool modifyCount = true);
@@ -1928,19 +2031,20 @@ public:
 	void ResumeDownloads();
 
 	/**
-	 * @brief Stop downloads for a track.
-	 * Called from StreamSink to control flow
+	 * @brief Stop downloads for a track. Called from StreamSink to control flow
 	 *
 	 * @param[in] Media type
+         *
 	 * @return void
 	 */
 	void StopTrackDownloads(MediaType);
 
 	/**
  	 * @brief Resume downloads for a track.
-	 * Called from StreamSink to control flow
+	 *  Called from StreamSink to control flow
 	 *
 	 * @param[in] Media type
+         *
 	 * @return void
 	 */
 	void ResumeTrackDownloads(MediaType);
@@ -1951,6 +2055,7 @@ public:
 	 *   @param[in] cb - Callback helping to perform additional tasks, if gst doesn't need extra data
 	 *   @param[in] periodMs - Delay between callbacks
 	 *   @param[in] track - Track id
+         *
 	 *   @return void
 	 */
 	void BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track);
@@ -2059,6 +2164,7 @@ public:
 	 * @param[in] bitsPerSecond - bps
 	 * @param[in] trickPlay		- Is trickplay mode
 	 * @param[in] profile		- Profile id.
+         *
 	 * @return void
 	 */
 	void ResetCurrentlyAvailableBandwidth(long bitsPerSecond,bool trickPlay,int profile=0);
@@ -2091,6 +2197,7 @@ public:
 	 *   @brief Register event listener
 	 *
 	 *   @param[in] eventListener - Handle to event listener
+         *
 	 *   @return void
 	 */
 	void RegisterEvents(AAMPEventListener* eventListener)
@@ -2103,6 +2210,7 @@ public:
 	 *
 	 *   @param[in] errorType - Current error type
 	 *   @param[in] trackType - Video/Audio
+         *
 	 *   @return void
 	 */
 	void ScheduleRetune(PlaybackErrorType errorType, MediaType trackType);
@@ -2124,6 +2232,7 @@ public:
 	 *   @param[in] y - Top
 	 *   @param[in] w - Width
 	 *   @param[in] h - Height
+         *
 	 *   @return void
 	 */
 	void SetVideoRectangle(int x, int y, int w, int h);
@@ -2133,6 +2242,7 @@ public:
 	 *   Called from StreamAbstractionAAMP to signal discontinuity
 	 *
 	 *   @param[in] track - Media type
+         *
 	 *   @return true if discontinuity is handled.
 	 */
 	bool Discontinuity(MediaType);
@@ -2141,6 +2251,7 @@ public:
 	 *   @brief Set video zoom mode
 	 *
 	 *   @param[in] zoom - Video zoom mode
+         *
 	 *   @return void
 	 */
 	void SetVideoZoom(VideoZoomMode zoom);
@@ -2149,6 +2260,7 @@ public:
 	 *   @brief Set video mute state
 	 *
 	 *   @param[in] muted - muted or unmuted
+         *
 	 *   @return void
 	 */
 	void SetVideoMute(bool muted);
@@ -2157,6 +2269,7 @@ public:
 	 *   @brief Set audio volume
 	 *
 	 *   @param[in] volume - Volume level
+         *
 	 *   @return void
 	 */
 	void SetAudioVolume(int volume);
@@ -2165,6 +2278,7 @@ public:
 	 *   @brief Set player state
 	 *
 	 *   @param[in] state - New state
+         *
 	 *   @return void
 	 */
 	void SetState(PrivAAMPState state);
@@ -2173,6 +2287,7 @@ public:
 	 *   @brief Get player state
 	 *
 	 *   @param[out] state - Player state
+         *
 	 *   @return void
 	 */
 	void GetState(PrivAAMPState &state);
@@ -2182,6 +2297,7 @@ public:
 	 *
 	 *   @param[in] task - Task
 	 *   @param[in] arg - Arguments
+         *
 	 *   @return void
 	 */
 	static void AddIdleTask(IdleTask task, void* arg);
@@ -2220,6 +2336,7 @@ public:
 	 *
 	 *   @param[out] w - Width
 	 *   @param[out] h - Height
+         *
 	 *   @return void
 	 */
 	void GetPlayerVideoSize(int &w, int &h);
@@ -2228,6 +2345,7 @@ public:
 	 *   @brief Set callback as event pending
 	 *
 	 *   @param[in] id - Callback id.
+         *
 	 *   @return void
 	 */
 	void SetCallbackAsPending(gint id);
@@ -2236,6 +2354,7 @@ public:
 	 *   @brief Set callback as event dispatched
 	 *
 	 *   @param[in] id - Callback id.
+         *
 	 *   @return void
 	 */
 	void SetCallbackAsDispatched(gint id);
@@ -2246,6 +2365,7 @@ public:
 	 *
 	 *   @param[in] headerName  - Header name
 	 *   @param[in] headerValue - Header value
+         *
 	 *   @return void
 	 */
 	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue);
@@ -2263,6 +2383,7 @@ public:
 	 *   @brief Set Preferred DRM.
 	 *
 	 *   @param[in] drmType - Preferred DRM type
+         *
 	 *   @return void
 	 */
 	void SetPreferredDRM(DRMSystems drmType);
@@ -2271,6 +2392,7 @@ public:
 	 *   @brief Set anonymous request true or false
 	 *
 	 *   @param[in] isAnonymous - New status
+         *
 	 *   @return void
 	 */
 	void SetAnonymousRequest(bool isAnonymous);
@@ -2279,6 +2401,7 @@ public:
 	 *   @brief Set frames per second for VOD trickplay
 	 *
 	 *   @param[in] vodTrickplayFPS - FPS count
+         *
 	 *   @return void
 	 */
 	void SetVODTrickplayFPS(int vodTrickplayFPS);
@@ -2287,6 +2410,7 @@ public:
 	 *   @brief Set frames per second for linear trickplay
 	 *
 	 *   @param[in] linearTrickplayFPS - FPS count
+         *
 	 *   @return void
 	 */
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
@@ -2295,6 +2419,7 @@ public:
 	 *   @brief Sets live offset [Sec]
 	 *
 	 *   @param[in] SetLiveOffset - Live Offset
+         *
 	 *   @return void
 	 */
 
@@ -2306,6 +2431,7 @@ public:
 	 *   @param[in] url - URL
 	 *   @param[in] buffer - Pointer to growable buffer
 	 *   @param[in] effectiveUrl - Final URL
+         *
 	 *   @return void
 	 */
 	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl);
@@ -2316,6 +2442,7 @@ public:
 	 *   @param[in] url - URL
 	 *   @param[out] buffer - Pointer to growable buffer
 	 *   @param[out] effectiveUrl - Final URL
+         *
 	 *   @return true: found, false: not found
 	 */
 	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[]);
@@ -2331,6 +2458,7 @@ public:
 	 *   @brief Set stall error code
 	 *
 	 *   @param[in] errorCode - Stall error code
+         *
 	 *   @return void
 	 */
 	void SetStallErrorCode(int errorCode);
@@ -2339,6 +2467,7 @@ public:
 	 *   @brief Set stall timeout
 	 *
 	 *   @param[in] timeoutMS - Timeout in milliseconds
+         *
 	 *   @return void
 	 */
 	void SetStallTimeout(int timeoutMS);
@@ -2381,6 +2510,7 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
+         *
 	 *   @return void
 	 */
 	void UpdateAudioLanguageSelection(const char *lang);
@@ -2410,6 +2540,7 @@ public:
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type
+         *
 	 *   @return void
 	 */
 	void setCurrentDrm(DRMSystems drm) { mCurrentDrm = drm; }
@@ -2424,6 +2555,7 @@ public:
 #ifdef AAMP_MPD_DRM
 	/**
 	 * @brief Extracts / Generates MoneyTrace string
+         *
 	 * @param[out] customHeader - Generated moneytrace is stored
 	 *
 	 * @return void
@@ -2474,6 +2606,7 @@ public:
 	 *   @brief  Get Sequence Number from URL
 	 *
 	 *   @param[in] fragmentUrl fragment Url
+         *
 	 *   @returns Sequence Number if found in fragment Url else 0
 	 */
 	long long GetSeqenceNumberfromURL(const char *fragmentUrl);
@@ -2569,6 +2702,7 @@ private:
 	 *   @brief Schedule Event
 	 *
 	 *   @param[in]  e - Pointer to the event descriptor
+         *
 	 *   @return void
 	 */
 	void ScheduleEvent(struct AsyncEventDescriptor* e);
@@ -2578,6 +2712,7 @@ private:
 	 *
 	 *   @param[in]  url - Media URL
 	 *   @param[in]  contentType - Content type
+         *
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
@@ -2623,3 +2758,8 @@ private:
 };
 
 #endif // PRIVAAMP_H
+
+
+/**
+ * @}
+ */

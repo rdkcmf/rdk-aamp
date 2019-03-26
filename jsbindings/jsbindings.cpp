@@ -56,6 +56,12 @@ extern "C"
 }
 
 /**
+ * @addtogroup AAMP_DRM_TYPES
+ * @{
+ */
+
+
+/**
  * @struct AAMP_JS
  * @brief Data structure of AAMP object
  */
@@ -68,15 +74,25 @@ struct AAMP_JS
 	JSObjectRef _eventType;
 	JSObjectRef _subscribedTags;
 };
+/**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_DRM_API
+ * @{
+ */
 
 
 /**
- * @brief callback invoked when AAMP is used along with 'new'
- * @param[in] context JS execution context
- * @param[in] constructor JSObject that is the constructor being called
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @brief Callback invoked when AAMP is used along with 'new'
+ *
+ * @param[in] context        JS execution context
+ * @param[in] constructor    JSObject that is the constructor being called
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSObject that is the constructor's return value
  */
 static JSObjectRef AAMP_class_constructor(JSContextRef context, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -88,10 +104,12 @@ static JSObjectRef AAMP_class_constructor(JSContextRef context, JSObjectRef cons
 
 /**
  * @brief Callback invoked from JS to get the closedCaptionEnabled property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
+ *
+ * @param[in] context      JS execution context
+ * @param[in] thisObject   JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[out] exception   Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -110,11 +128,13 @@ static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JS
 
 /**
  * @brief Callback invoked from JS to set the closedCaptionEnabled property value
+ *
  * @param[in] context JS exception context
  * @param[in] thisObject JSObject on which to set the property's value
  * @param[in] propertyName JSString containing the name of the property to set
  * @param[in] value JSValue to use as the property's value
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -133,10 +153,12 @@ static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObject
 
 /**
  * @brief Callback invoked from JS to get the initialBufferTime property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context      JS execution context
+ * @param[in]  thisObject   JSObject to search for the property
+ * @param[in]  propertyName JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -155,11 +177,13 @@ static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObj
 
 /**
  * @brief Callback invoked from JS to set the initialBufferTime property value
- * @param[in] context JS exception context
- * @param[in] thisObject JSObject on which to set the property's value
- * @param[in] propertyName JSString containing the name of the property to set
- * @param[in] value JSValue to use as the property's value
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context      JS exception context
+ * @param[in]  thisObject   JSObject on which to set the property's value
+ * @param[in]  propertyName JSString containing the name of the property to set
+ * @param[in]  value        JSValue to use as the property's value
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -178,10 +202,12 @@ static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef
 
 /**
  * @brief Callback invoked from JS to get the trickPlayEnabled property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -200,11 +226,13 @@ static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObje
 
 /**
  * @brief Callback invoked from JS to set the trickPlayEnabled property value
- * @param[in] context JS exception context
- * @param[in] thisObject JSObject on which to set the property's value
- * @param[in] propertyName JSString containing the name of the property to set
- * @param[in] value JSValue to use as the property's value
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context JS    Exception context
+ * @param[in]  thisObject    JSObject on which to set the property's value
+ * @param[in]  propertyName  JSString containing the name of the property to set
+ * @param[in]  value         JSValue to use as the property's value
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -223,11 +251,13 @@ static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef 
 
 /**
  * @brief Callback invoked from JS to get the EventType property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -245,11 +275,13 @@ static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef t
 
 /**
  * @brief Callback invoked from JS to get the mediaType property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -275,10 +307,12 @@ static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef t
 
 /**
  * @brief Callback invoked from JS to get the version property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -298,11 +332,13 @@ static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thi
 
 /**
  * @brief Callback invoked from JS to get the audioLanguage property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -322,11 +358,13 @@ static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectR
 
 /**
  * @brief Callback invoked from JS to get the currentDRM property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_CurrentDRM(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -346,11 +384,13 @@ static JSValueRef AAMP_getProperty_CurrentDRM(JSContextRef context, JSObjectRef 
 
 /**
  * @brief Callback invoked from JS to get the timedMetadata property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context        JS execution context
+ * @param[in] thisObject     JSObject to search for the property
+ * @param[in] propertyName   JSString containing the name of the property to get
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -390,11 +430,13 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 
 /**
  * @brief Callback invoked from JS to set the stallErrorCode property value
- * @param[in] context JS exception context
- * @param[in] thisObject JSObject on which to set the property's value
+ *
+ * @param[in] context      JS exception context
+ * @param[in] thisObject   JSObject on which to set the property's value
  * @param[in] propertyName JSString containing the name of the property to set
- * @param[in] value JSValue to use as the property's value
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[in] value        JSValue to use as the property's value
+ * @param[out] exception   Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -415,11 +457,13 @@ static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef th
 
 /**
  * @brief Callback invoked from JS to set the stallTimeout property value
- * @param[in] context JS exception context
- * @param[in] thisObject JSObject on which to set the property's value
- * @param[in] propertyName JSString containing the name of the property to set
- * @param[in] value JSValue to use as the property's value
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context       JS exception context
+ * @param[in]  thisObject    JSObject on which to set the property's value
+ * @param[in]  propertyName  JSString containing the name of the property to set
+ * @param[in]  value         JSValue to use as the property's value
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -440,11 +484,13 @@ static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef this
 
 /**
  * @brief Callback invoked from JS to set the reportInterval property value
- * @param[in] context JS exception context
- * @param[in] thisObject JSObject on which to set the property's value
- * @param[in] propertyName JSString containing the name of the property to set
- * @param[in] value JSValue to use as the property's value
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context       JS exception context
+ * @param[in]  thisObject    JSObject on which to set the property's value
+ * @param[in]  propertyName  JSString containing the name of the property to set
+ * @param[in]  value         JSValue to use as the property's value
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval true if the property was set, otherwise false
  */
 static bool AAMP_setProperty_reportInterval(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
@@ -485,11 +531,13 @@ static const JSStaticValue AAMP_static_values[] =
 
 /**
  * @brief Callback invoked from JS to get the type property value
- * @param[in] context JS execution context
- * @param[in] thisObject JSObject to search for the property
- * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval property's value if object has the property, otherwise NULL
+ *
+ * @param[in] context       JS execution context
+ * @param[in] thisObject    JSObject to search for the property
+ * @param[in] propertyName  JSString containing the name of the property to get
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval Property's value if object has the property, otherwise NULL
  */
 static JSValueRef Event_getProperty_type(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
@@ -526,8 +574,9 @@ static const JSStaticFunction Event_staticfunctions[] =
 
 /**
  * @brief Callback invoked from JS when an object of Event is first created
- * @param[in] ctx JS execution context
- * @param[in] thisObject JSObject being created
+ *
+ * @param[in] ctx         JS execution context
+ * @param[in] thisObject  JSObject being created
  */
 static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 {
@@ -537,6 +586,7 @@ static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 
 /**
  * @brief Callback invoked when an object of Event is finalized
+ *
  * @param[in] thisObj JSObject being finalized
  */
 static void Event_finalize(JSObjectRef thisObject)
@@ -554,11 +604,13 @@ static JSClassRef Event_class_ref();
 
 /**
  * @brief callback invoked when Event is used along with 'new'
- * @param[in] context JS execution context
- * @param[in] constructor JSObject that is the constructor being called
+ *
+ * @param[in] context       JS execution context
+ * @param[in] constructor   JSObject that is the constructor being called
  * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSObject that is the constructor's return value
  */
 static JSObjectRef Event_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* execption)
@@ -595,7 +647,8 @@ static const JSClassDefinition Event_object_def =
 
 /**
  * @brief Creates a JavaScript class of Event for use with JSObjectMake
- * @retval singleton instance of JavaScript class created
+ *
+ * @retval Singleton instance of JavaScript class created
  */
 static JSClassRef Event_class_ref() {
 	static JSClassRef _classRef = NULL;
@@ -646,6 +699,7 @@ public:
 
 	/**
 	 * @brief Dispatch JS event for the corresponding AAMP event
+         *
 	 * @param[in] e AAMP event object
 	 */
 	void Event(const AAMPEvent& e)
@@ -666,9 +720,10 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
-	 * @param[out] eventObj JS event object
+         *
+	 * @param[in]  e         AAMP event object
+	 * @param[in]  context   JS execution context
+	 * @param[out] eventObj  JS event object
 	 */
 	virtual void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
@@ -701,8 +756,9 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -741,9 +797,10 @@ public:
 
 	/**
 	 * @brief AAMP_JSListener_BitRateChanged Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp        Instance of AAMP_JS
+         * @param[in] type        Event type
+         * @param[in] jsCallback  Callback to be registered as listener
 	 */
 	AAMP_JSListener_BitRateChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -751,8 +808,9 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -791,6 +849,7 @@ public:
 
         /**
          * @brief AAMP_JSListener_SpeedChanged Constructor
+         *
          * @param[in] aamp instance of AAMP_JS
          * @param[in] type event type
          * @param[in] jsCallback callback to be registered as listener
@@ -801,8 +860,10 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
+         *
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -829,9 +890,10 @@ public:
 
         /**
          * @brief AAMP_JSListener_TuneFailed Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp        Instance of AAMP_JS
+         * @param[in] type        Event type
+         * @param[in] jsCallback  Callback to be registered as listener
          */
 	AAMP_JSListener_TuneFailed(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -839,8 +901,9 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -874,6 +937,7 @@ public:
 
         /**
          * @brief AAMP_JSListener_DRMMetadata Constructor
+         *
          * @param aamp
          * @param type
          * @param jsCallback
@@ -884,9 +948,11 @@ public:
 
         /**
          * @brief
+         *
          * @param e
          * @param context
          * @param eventObj
+         *
          * @retval None
          */
         void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -961,9 +1027,10 @@ class AAMP_JSListener_CCHandleReceived : public AAMP_JSListener
 public:
         /**
          * @brief AAMP_JSListener_CCHandleReceived Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp        Instance of AAMP_JS
+         * @param[in] type        Event type
+         * @param[in] jsCallback  Callback to be registered as listener
 	 */
 	AAMP_JSListener_CCHandleReceived(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -971,9 +1038,10 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
-	 * @param[out] eventObj JS event object
+         *
+	 * @param[in] e          AAMP event object
+	 * @param[in] context    JS execution context
+	 * @param[out] eventObj  JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
@@ -995,9 +1063,10 @@ public:
 
         /**
          * @brief AAMP_JSListener_VideoMetadata Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp       Instance of AAMP_JS
+         * @param[in] type       Event type
+         * @param[in] jsCallback Callback to be registered as listener
          */
 	AAMP_JSListener_VideoMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -1005,9 +1074,10 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
-	 * @param[out] eventObj JS event object
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
+	 * @param[out]eventObj  JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
@@ -1079,9 +1149,10 @@ public:
 
         /**
          * @brief AAMP_JSListener_TimedMetadata Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp       Instance of AAMP_JS
+         * @param[in] type       Event type
+         * @param[in] jsCallback Callback to be registered as listener
          */
 	AAMP_JSListener_TimedMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -1089,8 +1160,9 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -1116,9 +1188,10 @@ public:
 
         /**
          * @brief AAMP_JSListener_StatusChanged Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         * 
+         * @param[in] aamp        Instance of AAMP_JS
+         * @param[in] type        Event type
+         * @param[in] jsCallback  Callback to be registered as listener
          */
 	AAMP_JSListener_StatusChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -1126,8 +1199,9 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
@@ -1152,9 +1226,10 @@ public:
 
         /**
          * @brief AAMP_JSListener_SpeedsChanged Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+         *
+         * @param[in] aamp        Instance of AAMP_JS
+         * @param[in] type        Event type
+         * @param[in] jsCallback  Callback to be registered as listener
          */
 	AAMP_JSListener_SpeedsChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -1162,9 +1237,10 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-	 * @param[in] e AAMP event object
-	 * @param[in] context JS execution context
-	 * @param[out] eventObj JS event object
+         *
+	 * @param[in]  e         AAMP event object
+	 * @param[in]  context   JS execution context
+	 * @param[out] eventObj  JS event object
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
@@ -1184,12 +1260,14 @@ public:
 
 /**
  * @brief Callback invoked from JS to add an event listener for a particular event
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1239,9 +1317,10 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 
 /**
  * @brief Adds a JS function as listener for a particular event
- * @param[in] jsObj instance of AAMP_JS
- * @param[in] type event type
- * @param[in] jsCallback callback to be registered as listener
+ *
+ * @param[in] jsObj       Instance of AAMP_JS
+ * @param[in] type        Event type
+ * @param[in] jsCallback  Callback to be registered as listener
  */
 void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
@@ -1306,12 +1385,14 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 
 /**
  * @brief Callback invoked from JS to remove an event listener
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1362,9 +1443,10 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 
 /**
  * @brief Removes a JS listener for a particular event
- * @param[in] aamp instance of AAMP_JS
- * @param[in] type event type
- * @param[in] jsCallback callback to be removed as listener
+ *
+ * @param[in] aamp        Instance of AAMP_JS
+ * @param[in] type        Event type
+ * @param[in] jsCallback  Callback to be removed as listener
  */
 void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
@@ -1388,12 +1470,14 @@ void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSO
 
 /**
  * @brief Callback invoked from JS to set AAMP object's properties
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1405,12 +1489,14 @@ static JSValueRef AAMP_setProperties(JSContextRef context, JSObjectRef function,
 
 /**
  * @brief Callback invoked from JS to get AAMP object's properties
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_getProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1422,12 +1508,14 @@ static JSValueRef AAMP_getProperties(JSContextRef context, JSObjectRef function,
 
 /**
  * @brief Callback invoked from JS to start playback for requested URL
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  context       JS execution context
+ * @param[in]  function      JSObject that is the function being called
+ * @param[in]  thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in]  argumentCount Number of args
+ * @param[in]  arguments[]   JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1480,12 +1568,14 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 
 /**
  * @brief Callback invoked from JS to start playback for requested URL
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1565,12 +1655,14 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 
 /**
  * @brief Callback invoked from JS to stop active playback
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1590,12 +1682,14 @@ static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObject
 
 /**
  * @brief Callback invoked from JS to set playback rate
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1632,12 +1726,14 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 
 /**
  * @brief Callback invoked from JS to perform seek to a particular playback position
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1669,12 +1765,14 @@ static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObject
 
 /**
  * @brief Callback invoked from JS to perform seek to live point
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1694,12 +1792,14 @@ static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JS
 
 /**
  * @brief Callback invoked from JS to set video rectangle co-ordinates
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1732,12 +1832,14 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
 
 /**
  * @brief Callback invoked from JS to set video mute status
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in]  arguments[]  JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1767,12 +1869,14 @@ static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, 
 
 /**
  * @brief Callback invoked from JS to set audio volume
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1802,12 +1906,14 @@ static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function
 
 /**
  * @brief Callback invoked from JS to set preferred zoom setting
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1848,12 +1954,14 @@ static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObj
 
 /**
  * @brief Callback invoked from JS to set preferred audio language
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1884,12 +1992,14 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
 
 /**
  * @brief Callback invoked from JS to set list of subscribed tags
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1933,12 +2043,14 @@ static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef functi
 
 /**
  * @brief Callback invoked from JS to add a custom HTTP header/s
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context        JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -1993,12 +2105,14 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 
 /**
  * @brief Callback invoked from JS to remove custom HTTP headers
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2031,12 +2145,14 @@ static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef 
 
 /**
  * @brief Callback invoked from JS to set an ad
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2048,12 +2164,14 @@ static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObje
 
 /**
  * @brief Callback invoked from JS to get list of audio tracks
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_getAudioTrackList(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2065,12 +2183,14 @@ static JSValueRef AAMP_getAudioTrackList(JSContextRef context, JSObjectRef funct
 
 /**
  * @brief Callback invoked from JS to get current audio track
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2082,12 +2202,14 @@ static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function,
 
 /**
  * @brief Callback invoked from JS to set audio track
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2099,12 +2221,14 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
 
 /**
  * @brief Callback invoked from JS to set CC track
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setClosedCaptionTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2115,12 +2239,14 @@ static JSValueRef AAMP_setClosedCaptionTrack(JSContextRef context, JSObjectRef f
 
 /**
  * @brief Callback invoked from JS to set license server URL
- * @param[in] context JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] context       JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2151,12 +2277,14 @@ static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef fun
 
 /**
  * @brief Callback invoked from JS to set the preferred DRM
+
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2193,12 +2321,14 @@ static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef functio
 
 /**
  * @brief Callback invoked from JS to en/disable anonymous request
+ *
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2228,12 +2358,14 @@ static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef fun
 
 /**
  * @brief Callback invoked from JS to set vod trickplay FPS
+ *
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2263,12 +2395,14 @@ static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef func
 
 /**
  * @brief Callback invoked from JS to set linear trickplay FPS
+ *
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -2364,6 +2498,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 
 /**
  * @brief Callback invoked when an object of AAMP is finalized
+ *
  * @param[in] thisObj JSObject being finalized
  */
 static void AAMP_finalize(JSObjectRef thisObject)
@@ -2433,6 +2568,7 @@ static const JSClassDefinition AAMP_class_def =
 
 /**
  * @brief Creates a JavaScript class of AAMP for use with JSObjectMake
+ *
  * @retval singleton instance of JavaScript class created
  */
 static JSClassRef AAMP_class_ref() {
@@ -2446,10 +2582,12 @@ static JSClassRef AAMP_class_ref() {
 
 /**
  * @brief Callback invoked from JS to get the AD_PLAYBACK_STARTED property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_STARTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2461,10 +2599,12 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_STARTED(JSContextRef context
 
 /**
  * @brief Callback invoked from JS to get the AD_PLAYBACK_COMPLETED property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_COMPLETED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2476,10 +2616,12 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_COMPLETED(JSContextRef conte
 
 /**
  * @brief Callback invoked from JS to get the AD_PLAYBACK_INTERRUPTED property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_INTERRUPTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2491,10 +2633,12 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_INTERRUPTED(JSContextRef con
 
 /**
  * @brief Callback invoked from JS to get the BUFFERING_BEGIN property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_BUFFERING_BEGIN(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2506,10 +2650,12 @@ static JSValueRef EventType_getproperty_BUFFERING_BEGIN(JSContextRef context, JS
 
 /**
  * @brief Callback invoked from JS to get the BUFFERING_END property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_BUFFERING_END(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2521,10 +2667,12 @@ static JSValueRef EventType_getproperty_BUFFERING_END(JSContextRef context, JSOb
 
 /**
  * @brief Callback invoked from JS to get the DECODER_AVAILABLE property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_DECODER_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2536,10 +2684,12 @@ static JSValueRef EventType_getproperty_DECODER_AVAILABLE(JSContextRef context, 
 
 /**
  * @brief Callback invoked from JS to get the DRM_METADATA_INFO_AVAILABLE property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2554,10 +2704,12 @@ static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef
 
 /**
  * @brief Callback invoked from JS to get the DRM_METADATA property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_DRM_METADATA(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2571,10 +2723,12 @@ static JSValueRef EventType_getproperty_DRM_METADATA(JSContextRef context, JSObj
 
 /**
  * @brief Callback invoked from JS to get the ENTERING_LIVE property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_ENTERING_LIVE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2586,10 +2740,12 @@ static JSValueRef EventType_getproperty_ENTERING_LIVE(JSContextRef context, JSOb
 
 /**
  * @brief Callback invoked from JS to get the MEDIA_OPENED property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_MEDIA_OPENED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2601,10 +2757,12 @@ static JSValueRef EventType_getproperty_MEDIA_OPENED(JSContextRef context, JSObj
 
 /**
  * @brief Callback invoked from JS to get the MEDIA_STOPPED property value
+ *
  * @param[in] context JS execution context
  * @param[in] thisObject JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef EventType_getproperty_MEDIA_STOPPED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
@@ -2635,6 +2793,7 @@ static const JSStaticValue EventType_staticprops[] =
 
 /**
  * @brief Callback invoked from JS when an object of EventType is first created
+ *
  * @param[in] ctx JS execution context
  * @param[in] thisObject JSObject being created
  */
@@ -2646,6 +2805,7 @@ static void EventType_init(JSContextRef ctx, JSObjectRef thisObject)
 
 /**
  * @brief Callback invoked when an object of EventType is finalized
+ *
  * @param[in] thisObj JSObject being finalized
  */
 static void EventType_finalize(JSObjectRef thisObject)
@@ -2681,6 +2841,7 @@ static const JSClassDefinition EventType_object_def =
 
 /**
  * @brief Creates a JavaScript class of EventType for use with JSObjectMake
+ *
  * @retval singleton instance of JavaScript class created
  */
 static JSClassRef EventType_class_ref() {
@@ -2694,7 +2855,9 @@ static JSClassRef EventType_class_ref() {
 
 /**
  * @brief Create a EventType JS object
+ *
  * @param[in] context JS execute context
+ *
  * @retval JSObject of EventType
  */
 JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
@@ -2709,10 +2872,12 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 
 /**
  * @brief Create a TimedMetadata JS object with args passed
+ *
  * @param[in] context JS execution context
  * @param[in] timeMS time in milliseconds
  * @param[in] szName name of the metadata tag
  * @param[in] szContent metadata associated with the tag
+ *
  * @retval JSObject of TimedMetadata generated
  */
 JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent)
@@ -2849,6 +3014,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
  *
  *   @param[in]  context - JS execution context
  *   @param[in]  playerInstanceAAMP - Instance of PlayerInstanceAAMP, if to be re-used
+ *
  *   @return void
  */
 void aamp_LoadJS(void* context, void* playerInstanceAAMP)
@@ -2898,6 +3064,7 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
  *   @brief  Removes the AAMP instance from JS context
  *
  *   @param[in]  context - JS execution context
+ *
  *   @return void
  */
 void aamp_UnloadJS(void* context)
@@ -2954,3 +3121,8 @@ void __attribute__ ((destructor(101))) _aamp_term()
 	ClearAAMPPlayerInstances();
 }
 #endif
+
+/**
+ * @}
+ */
+

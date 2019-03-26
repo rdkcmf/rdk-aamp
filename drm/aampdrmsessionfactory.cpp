@@ -30,10 +30,16 @@
 #endif
 
 /**
+ * @addtogroup AAMP_DRM_API
+ * @{
+ */
+
+/**
  *  @brief		Creates appropriate DRM systems Session objects based
  *  			on the requested systemID, like PlayReady or WideVine
  *
- *  @param[in]	systemid - DRM systems uuid
+ *  @param[in]	systemid  DRM systems uuid
+ *
  *  @return		Pointer to DrmSession.
  */
 AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
@@ -56,3 +62,8 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
     }
 	return drmSession;
 }
+
+/**
+ * @}
+ */
+

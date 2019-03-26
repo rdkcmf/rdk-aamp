@@ -82,7 +82,8 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 
 
 /**
- * @brief get a character for console
+ * @brief Get a character for console
+ *
  * @retval user input character
  */
 int getch(void)
@@ -98,6 +99,11 @@ int getch(void)
 	return ch;
 }
 #endif
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 
 #define ARRAY_SIZE(A) ((int)(sizeof(A)/sizeof(A[0])))
 
@@ -181,12 +187,23 @@ static struct
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
 
+/**
+ * @}
+ */
+
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
+
 #ifdef AAMP_CC_ENABLED
 
 //Required for now, since we use config params to switch CC on/off
 
 /**
  * @brief Checks if CC enabled in config params
+ *
  * @retval true if CC is enabled
  */
 bool aamp_IsCCEnabled(void)
@@ -202,7 +219,9 @@ bool aamp_IsCCEnabled(void)
 
 /**
  * @brief Initialize CC resource. Rendering is disabled by default
- * @param handle decoder handle
+ *
+ * @param[in] handle  Decoder handle
+ *
  * @retval 0 on sucess, -1 on failure
  */
 int aamp_CCStart(void *handle)
@@ -245,6 +264,7 @@ void aamp_CCStop(void)
 
 /**
  * @brief Start CC Rendering
+ *
  * @retval 0 on success
  */
 int aamp_CCShow(void)
@@ -255,6 +275,7 @@ int aamp_CCShow(void)
 
 /**
  * @brief Stop CC Rendering
+ *
  * @retval 0 on success
  */
 int aamp_CCHide(void)
@@ -265,7 +286,9 @@ int aamp_CCHide(void)
 
 /**
  * @brief Get ID of DRM system
- * @param drmSystem drm system
+ *
+ * @param[in] drmSystem Drm system
+ *
  * @retval ID of the DRM system, empty string if not supported
  */
 const char * GetDrmSystemID(DRMSystems drmSystem)
@@ -284,7 +307,9 @@ const char * GetDrmSystemID(DRMSystems drmSystem)
 
 /**
  * @brief Get name of DRM system
- * @param drmSystem drm system
+ *
+ * @param[in] drmSystem Drm system
+ *
  * @retval Name of the DRM system, empty string if not supported
  */
 const char * GetDrmSystemName(DRMSystems drmSystem)
@@ -307,7 +332,8 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 
 /**
  * @brief Get current time stamp
- * @retval current clock time as milliseconds
+ *
+ * @retval Current clock time as milliseconds
  */
 long long aamp_GetCurrentTimeMS(void)
 {
@@ -389,12 +415,11 @@ void PrivateInstanceAAMP::ReportProgress(void)
 }
 
 /**
-* @brief called from fragmentcollector_hls::IndexPlaylist to update TSB duration
-*/
-
-/**
- * @brief Update duration of stream
- * @param seconds duration in seconds
+ * @brief Update duration of stream.
+ *
+ * Called from fragmentcollector_hls::IndexPlaylist to update TSB duration
+ *
+ * @param[in] seconds Duration in seconds
  */
 void PrivateInstanceAAMP::UpdateDuration(double seconds)
 {
@@ -408,7 +433,9 @@ void PrivateInstanceAAMP::UpdateDuration(double seconds)
 
 /**
  * @brief Idle task to resume aamp
- * @param ptr pointer to PrivateInstanceAAMP object
+ *
+ * @param[in] ptr pointer to PrivateInstanceAAMP object
+ *
  * @retval G_SOURCE_REMOVE
  */
 static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
@@ -437,7 +464,8 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 
 /**
  * @brief Update culling state in case of TSB
- * @param culledSecs culled duration in seconds
+ *
+ * @param[in] culledSecs culled duration in seconds
  */
 void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 {
@@ -482,7 +510,8 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 /**
  * @brief Update playlist refresh interval
- * @param maxIntervalSecs refresh interval in seconds
+ *
+ * @param[in] maxIntervalSecs Refresh interval in seconds
  */
 void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
 {
@@ -493,8 +522,9 @@ void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
 
 /**
  * @brief Add listener to aamp events
- * @param eventType type of event to subscribe
- * @param eventListener listener
+ *
+ * @param[in] eventType     Type of event to subscribe
+ * @param[in] eventListener Listener
  */
 void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
@@ -517,8 +547,9 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
 
 /**
  * @brief Remove listener to aamp events
- * @param eventType type of event to unsubscribe
- * @param eventListener listener
+ *
+ * @param[in] eventType     Type of event to unsubscribe
+ * @param[in] eventListener Listener
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
@@ -593,8 +624,9 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long err
 
 /**
  * @brief Handles download errors and sends events to application if required.
- * @param tuneFailure Reason of error
- * @param error_code HTTP error code/ CURLcode
+ *
+ * @param[in] tuneFailure  Reason of error
+ * @param[in] error_code   HTTP error code/ CURLcode
  */
 void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,long error_code)
 {
@@ -660,9 +692,11 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
 
 /**
  * @brief Handles errors and sends events to application if required.
+ *
  * For download failures, use SendDownloadErrorEvent instead.
- * @param tuneFailure Reason of error
- * @param description Optional description of error
+ *
+ * @param[in] TuneFailure  Reason of error
+ * @param[in] Description  Optional description of error
  */
 void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled)
 {
@@ -729,7 +763,8 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 
 /**
  * @brief Send event asynchronously to listeners
- * @param e event
+ *
+ * @param[in]  e event
  */
 void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
 {
@@ -746,7 +781,8 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
 
 /**
  * @brief Send event synchronously to listeners
- * @param e event
+ *
+ * @param[in] e event
  */
 void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 {
@@ -803,11 +839,12 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 
 /**
  * @brief Notify bitrate change event to listeners
- * @param bitrate new bitrate
- * @param description description of rate change
- * @param width new width in pixels
- * @param height new height in pixels
- * @param GetBWIndex get bandwidth index - used for logging
+ *
+ * @param[in]  bitrate      New bitrate
+ * @param[in]  description  Description of rate change
+ * @param[in]  width        New width in pixels
+ * @param[in]  height       New height in pixels
+ * @param[in]  GetBWIndex   Get bandwidth index - used for logging
  */
 void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *description ,int width ,int height, bool GetBWIndex)
 {
@@ -852,7 +889,8 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
 
 /**
  * @brief Notify rate change event to listeners
- * @param rate new speed
+ *
+ * @param[in] rate New speed
  */
 void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
 {
@@ -909,7 +947,8 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 
 /**
  * @brief Check if discontinuity processing is pending
- * @retval true if discontinuity processing is pending
+ *
+ * @retval True if discontinuity processing is pending
  */
 bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
@@ -1058,7 +1097,9 @@ static void AsyncEventDestroyNotify(gpointer user_data)
 
 /**
  * @brief Idle task for sending asynchronous event
- * @param user_data pointer to AsyncEventDescriptor object
+ *
+ * @param[in] user_data pointer to AsyncEventDescriptor object
+ *
  * @retval G_SOURCE_REMOVE
  */
 static gboolean SendAsynchronousEvent(gpointer user_data)
@@ -1078,7 +1119,8 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 
 /**
  * @brief Schedule asynchronous event
- * @param e event descriptor
+ *
+ * @param[in] e event descriptor
  */
 void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 {
@@ -1091,7 +1133,8 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 /**
  * @brief Send tune events to receiver
  *
- * @param[in] success - Tune status
+ * @param[in] success  Tune status
+ *
  * @return void
  */
 void PrivateInstanceAAMP::sendTuneMetrics(bool success)
@@ -1178,7 +1221,8 @@ void PrivateInstanceAAMP::LogDrmInitComplete(void)
 
 /**
  * @brief Notifies profiler that decryption has started
- * @param bucketType profiler bucket type
+ *
+ * @param[in] bucketType Profiler bucket type
  */
 void PrivateInstanceAAMP::LogDrmDecryptBegin(ProfilerBucketType bucketType)
 {
@@ -1187,7 +1231,8 @@ void PrivateInstanceAAMP::LogDrmDecryptBegin(ProfilerBucketType bucketType)
 
 /**
  * @brief Notifies profiler that decryption has ended
- * @param bucketType profiler bucket type
+ *
+ * @param[in] bucketType Profiler bucket type
  */
 void PrivateInstanceAAMP::LogDrmDecryptEnd(ProfilerBucketType bucketType)
 {
@@ -1197,7 +1242,8 @@ void PrivateInstanceAAMP::LogDrmDecryptEnd(ProfilerBucketType bucketType)
 
 /**
  * @brief Log errors.
- * @param msg Error message
+ *
+ * @param[in] msg Error message
  */
 void aamp_Error(const char *msg)
 {
@@ -1208,6 +1254,7 @@ void aamp_Error(const char *msg)
 
 /**
  * @brief Free memory allocated by aamp_Malloc
+ *
  * @param[in][out] pptr Pointer to allocated memory
  */
 void aamp_Free(char **pptr)
@@ -1223,6 +1270,7 @@ void aamp_Free(char **pptr)
 
 /**
  * @brief Stop downloads of all tracks.
+ *
  * Used by aamp internally to manage states
  */
 void PrivateInstanceAAMP::StopDownloads()
@@ -1239,6 +1287,7 @@ void PrivateInstanceAAMP::StopDownloads()
 
 /**
  * @brief Resume downloads of all tracks.
+ *
  * Used by aamp internally to manage states
  */
 void PrivateInstanceAAMP::ResumeDownloads()
@@ -1256,8 +1305,10 @@ void PrivateInstanceAAMP::ResumeDownloads()
 
 /**
  * @brief Stop downloads for a track.
+ *
  * Called from StreamSink to control flow
- * @param type media type of the track
+ *
+ * @param[in] type Media type of the track
  */
 void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 { // called from gstreamer main event loop
@@ -1280,8 +1331,10 @@ void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 
 /**
  * @brief Resume downloads for a track.
+ *
  * Called from StreamSink to control flow
- * @param type media type of the track
+ *
+ * @param[in] type Media type of the track
  */
 void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
 { // called from gstreamer main event loop
@@ -1303,10 +1356,11 @@ void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
 }
 
 /**
- * @brief block until gstreamer indicates pipeline wants more data
- * @param cb callback called periodically, if non-null
- * @param periodMs delay between callbacks
- * @param track track index
+ * @brief Block until gstreamer indicates pipeline wants more data
+ *
+ * @param[in] cb        Callback called periodically, if non-null
+ * @param[in] periodMs  Delay between callbacks
+ * @param[in] track     Track index
  */
 void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track)
 { // called from FragmentCollector thread; blocks until gstreamer wants data
@@ -1336,8 +1390,9 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 
 /**
  * @brief Allocate memory to growable buffer
- * @param buffer growable buffer
- * @param len size of memory to be allocated
+ *
+ * @param[in] buffer Growable buffer
+ * @param[in] len    Size of memory to be allocated
  */
 void aamp_Malloc(struct GrowableBuffer *buffer, size_t len)
 {
@@ -1349,9 +1404,10 @@ void aamp_Malloc(struct GrowableBuffer *buffer, size_t len)
 
 /**
  * @brief Append data to buffer
- * @param buffer Growable buffer object pointer
- * @param ptr Buffer to append
- * @param len Buffer size
+ *
+ * @param[in] Buffer Growable buffer object pointer
+ * @param[in] ptr    Buffer to append
+ * @param[in] len    Buffer size
  */
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
 {
@@ -1381,6 +1437,15 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 }
 
 /**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
+
+/**
  * @struct CurlCallbackContext
  * @brief context during curl callbacks
  */
@@ -1392,11 +1457,22 @@ struct CurlCallbackContext
 };
 
 /**
+ * @}
+ */
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
+
+/**
  * @brief write callback to be used by CURL
+ *
  * @param ptr pointer to buffer containing the data
  * @param size size of the buffer
  * @param nmemb number of bytes
  * @param userdata CurlCallbackContext pointer
+ *
  * @retval size consumed or 0 if interrupted
  */
 static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
@@ -1508,11 +1584,12 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 
 /**
  * @brief
- * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
- * @param dltotal total bytes expected to download
- * @param dlnow downloaded bytes so far
- * @param ultotal total bytes expected to upload
- * @param ulnow uploaded bytes so far
+ * @param[in] clientp  App specific as optionally set with CURLOPT_PROGRESSDATA
+ * @param[in] dltotal  Total bytes expected to download
+ * @param[in] dlnow    Downloaded bytes so far
+ * @param[in] ultotal  Total bytes expected to upload
+ * @param[in] ulnow    Uploaded bytes so far
+ *
  * @retval
  */
 static int progress_callback(
@@ -1588,8 +1665,9 @@ CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
 
 /**
  * @brief Initialize curl instances
- * @param startIdx start index
- * @param instanceCount count of instances
+ *
+ * @param[in] startIdx      Start index
+ * @param[in] instanceCount Count of instances
  */
 void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 {
@@ -1666,8 +1744,9 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 
 /**
  * @brief Store language list of stream
- * @param maxLangCount count of language item to be stored
- * @param langlist Array of languges
+ *
+ * @param[in] maxLangCount Count of language item to be stored
+ * @param[in] langlist     Array of languges
  */
 void PrivateInstanceAAMP::StoreLanguageList(int maxLangCount , char langlist[][MAX_LANGUAGE_TAG_LENGTH])
 {
@@ -1687,7 +1766,9 @@ void PrivateInstanceAAMP::StoreLanguageList(int maxLangCount , char langlist[][M
 
 /**
  * @brief Check if audio language is supported
- * @param checkLanguage language string to be checked
+ *
+ * @param[in] checkLanguage Language string to be checked
+ *
  * @retval true if supported, false if not supported
  */
 bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
@@ -1716,8 +1797,9 @@ bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
 
 /**
  * @brief Set curl timeout (CURLOPT_TIMEOUT)
- * @param timeout maximum time  in seconds curl request is allowed to take
- * @param instance index of instance to which timeout to be set
+ *
+ * @param[in] timeout  Maximum time  in seconds curl request is allowed to take
+ * @param[in] instance Index of instance to which timeout to be set
  */
 void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
 {
@@ -1736,8 +1818,9 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
 
 /**
  * @brief Terminate curl instances
- * @param startIdx start index
- * @param instanceCount count of instances
+ *
+ * @param[in] startIdx      Start index
+ * @param[in] instanceCount Count of instances
  */
 void PrivateInstanceAAMP::CurlTerm(int startIdx, unsigned int instanceCount)
 {
@@ -1754,8 +1837,9 @@ void PrivateInstanceAAMP::CurlTerm(int startIdx, unsigned int instanceCount)
 }
 
 /**
- * @brief called when tuning - reset artificially
+ * @brief Called when tuning - reset artificially
  * low for quicker tune times
+ *
  * @param bitsPerSecond
  * @param trickPlay
  * @param profile
@@ -1770,9 +1854,9 @@ void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , 
 }
 
 /**
- * @brief estimate currently available bandwidth, 
- * using most recently recorded 3 samples
- * @retval currently available bandwidth
+ * @brief Estimate currently available bandwidth using most recently recorded 3 samples.
+ *
+ * @retval Currently available bandwidth
  */
 long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 {
@@ -1886,14 +1970,16 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 
 /**
  * @brief Fetch a file from CDN
- * @param remoteUrl url of the file
- * @param[out] buffer pointer to buffer abstraction
- * @param[out] effectiveUrl last effective URL
- * @param http_error error code in case of failure
- * @param range http range
- * @param curlInstance instance to be used to fetch
- * @param resetBuffer true to reset buffer before fetch
- * @param fileType media type of the file
+ *
+ * @param[in]  remoteUrl     URL of the file
+ * @param[out] buffer        Pointer to buffer abstraction
+ * @param[out] effectiveUrl  Last effective URL
+ * @param[in]  http_error    Error code in case of failure
+ * @param[in]  range         Http range
+ * @param[in]  curlInstance  Instance to be used to fetch
+ * @param[in]  resetBuffer   True to reset buffer before fetch
+ * @param[in]  fileType      Media type of the file
+ *
  * @retval true if success
  */
 bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType)
@@ -2268,8 +2354,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 
 /**
- * @brief Append nul character to buffer
- * @param buffer buffer in which nul to be append
+ * @brief Append null character to buffer
+ *
+ * @param[in] buffer Buffer in which null to be append
+ *
  */
 void aamp_AppendNulTerminator(struct GrowableBuffer *buffer)
 {
@@ -2419,9 +2507,10 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
 
 /**
  * @brief Resolve URL from base and uri
- * @param[out] dst Destination buffer
- * @param base Base URL
- * @param uri manifest/ fragment uri
+ *
+ * @param[out] dst   Destination buffer
+ * @param[in]  base  Base URL
+ * @param[in]  uri   Manifest/ fragment uri
  */
 void aamp_ResolveURL(char *dst, const char *base, const char *uri)
 {
@@ -2575,7 +2664,8 @@ char *  GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
 
 
 /**
- * @brief trim a string
+ * @brief Trim a string
+ *
  * @param[in][out] cmd Buffer containing string
  */
 static void trim(char **cmd)
@@ -2592,10 +2682,12 @@ static void trim(char **cmd)
 }
 
 /**
-* @brief helper function to avoid dependency on unsafe sscanf while reading strings
-* @param bufPtr pointer to CString buffer to scan
-* @param prefixPtr - prefix string to match in bufPtr
-* @param valueCopyPtr receives allocated copy of string following prefix (skipping delimiting whitesace) if prefix found
+* @brief Helper function to avoid dependency on unsafe sscanf while reading strings
+*
+* @param[in] bufPtr       Pointer to CString buffer to scan
+* @param[in] prefixPtr    Prefix string to match in bufPtr
+* @param[in] valueCopyPtr Receives allocated copy of string following prefix (skipping delimiting whitesace) if prefix found
+*
 * @retval 0 if prefix not present or error
 * @retval 1 if string extracted/copied to valueCopyPtr
 */
@@ -2621,9 +2713,9 @@ static int ReadConfigStringHelper(const char *bufPtr, const char *prefixPtr, con
 }
 
 /**
- * @brief Process config entries,i and update gpGlobalConfig params
- *        based on the config setting.
- * @param cfg config to process
+ * @brief Process config entries and update gpGlobalConfig param based on the config setting.
+ *
+ * @param[in] cfg Config to process
  */
 static void ProcessConfigEntry(char *cfg)
 {
@@ -3145,7 +3237,8 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 /**
  * @brief Executes tear down sequence
- * @param newTune true if operation is a new tune
+ *
+ * @param[in] newTune true if operation is a new tune
  */
 void PrivateInstanceAAMP::TeardownStream(bool newTune)
 {
@@ -3214,7 +3307,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 /**
  *   @brief Constructor.
  *
- *   @param  streamSink - custom stream sink, NULL for default.
+ *   @param[in] streamSink Custom stream sink, NULL for default.
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink)
 {
@@ -3332,8 +3425,9 @@ void PrivateInstanceAAMP::ClosePipeSession()
 
 /**
  * @brief Send message to application using pipe session
- * @param str message
- * @param nToWrite message size
+ *
+ * @param[in]  str      message
+ * @param[in]  nToWrite message size
  */
 void PrivateInstanceAAMP::SendMessageOverPipe(const char *str,int nToWrite)
 {
@@ -3416,7 +3510,8 @@ void PlayerInstanceAAMP::Stop(void)
 
 
 /**
- * @brief de-fog playback URL to play directly from CDN instead of fog
+ * @brief De-fog playback URL to play directly from CDN instead of fog
+ *
  * @param[in][out] dst Buffer containing URL
  */
 static void DeFog(char *dst)
@@ -3476,8 +3571,13 @@ static bool replace_cstring( char *string, const char *existingSubStringToReplac
 	return false;
 }
 /**
- * @brief Common tune operations used on Tune, Seek, SetRate etc
- * @param tuneType type of tune
+ * @brief Common tune operations used.
+ *
+ * - New Tune
+ * - Seek
+ * - SetRate etc
+ *
+ * @param[in] tuneType Type of tune
  */
 void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 {
@@ -3652,8 +3752,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 /**
  * @brief Tune to a URL.
  *
- * @param  mainManifestUrl - HTTP/HTTPS url to be played.
- * @param  contentType - content Type.
+ * @param[in]  mainManifestUrl  HTTP/HTTPS url to be played.
+ * @param[in]  contentType      content Type.
  */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt, const char *sessionUUID)
 {
@@ -3670,8 +3770,8 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 /**
  * @brief Tune to a URL.
  *
- * @param  mainManifestUrl - HTTP/HTTPS url to be played.
- * @param  contentType - content Type.
+ * @param[in]  mainManifestUrl  HTTP/HTTPS url to be played.
+ * @param[in]  contentType      content Type.
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt, const char *sessionUUID)
 {
@@ -3978,7 +4078,7 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 /**
  *   @brief Register event handler.
  *
- *   @param  eventListener - pointer to implementation of AAMPEventListener to receive events.
+ *   @param[in]  eventListener - pointer to implementation of AAMPEventListener to receive events.
  */
 void PlayerInstanceAAMP::RegisterEvents(AAMPEventListener* eventListener)
 {
@@ -4007,12 +4107,14 @@ void PrivateInstanceAAMP::SyncEnd(void)
 
 /**
  * @brief Fetch a file from CDN and update profiler
- * @param bucketType type of profiler bucket
- * @param fragmentUrl URL of the file
+ *
+ * @param[in] bucketType type of profiler bucket
+ * @param[in] fragmentUrl URL of the file
  * @param[out] len length of buffer
- * @param curlInstance instance to be used to fetch
- * @param range http range
- * @param fileType media type of the file
+ * @param[in] curlInstance instance to be used to fetch
+ * @param[in] range http range
+ * @param[in] fileType media type of the file
+ *
  * @retval buffer containing file, free using aamp_Free
  */
 char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance, const char *range, MediaType fileType)
@@ -4034,13 +4136,15 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
 
 /**
  * @brief Fetch a file from CDN and update profiler
- * @param bucketType type of profiler bucket
- * @param fragmentUrl URL of the file
+ *
+ * @param[in] bucketType type of profiler bucket
+ * @param[in] fragmentUrl URL of the file
  * @param[out] fragment pointer to buffer abstraction
- * @param curlInstance instance to be used to fetch
- * @param range http range
- * @param fileType media type of the file
- * @param http_code http code
+ * @param[in] curlInstance instance to be used to fetch
+ * @param[in] range http range
+ * @param[in] fileType media type of the file
+ * @param[in] http_code http code
+ *
  * @retval true on success, false on failure
  */
 bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code)
@@ -4062,11 +4166,12 @@ bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char
 
 /**
  * @brief Push a media fragment to sink
- * @param mediaType type of buffer
- * @param ptr buffer containing fragment
- * @param len length of buffer
- * @param fragmentTime PTS of fragment in seconds
- * @param fragmentDuration duration of fragment in seconds
+ *
+ * @param[in] mediaType type of buffer
+ * @param[in] ptr buffer containing fragment
+ * @param[in] len length of buffer
+ * @param[in] fragmentTime PTS of fragment in seconds
+ * @param[in] fragmentDuration duration of fragment in seconds
  */
 void PrivateInstanceAAMP::PushFragment(MediaType mediaType, char *ptr, size_t len, double fragmentTime, double fragmentDuration)
 {
@@ -4079,11 +4184,13 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, char *ptr, size_t le
 
 /**
  * @brief Push a media fragment to sink
+ *
  * @note Takes ownership of buffer
- * @param mediaType type of fragment
- * @param buffer contains data
- * @param fragmentTime PTS of fragment in seconds
- * @param fragmentDuration duration of fragment in seconds
+ *
+ * @param[in] mediaType type of fragment
+ * @param[in] buffer contains data
+ * @param[in] fragmentTime PTS of fragment in seconds
+ * @param[in] fragmentDuration duration of fragment in seconds
  */
 void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buffer, double fragmentTime, double fragmentDuration)
 {
@@ -4096,7 +4203,8 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buff
 
 /**
  * @brief Notifies EOS to sink
- * @param mediaType Type of media
+ *
+ * @param[in] mediaType Type of media
  */
 void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 {
@@ -4108,7 +4216,8 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 
 /**
  * @brief Notifies EndTime to sink, used for client DAI
- * @param mediaType Type of media
+ *
+ * @param[in] mediaType Type of media
  */
 void PrivateInstanceAAMP::EndTimeReached(MediaType mediaType)
 {
@@ -4121,8 +4230,9 @@ void PrivateInstanceAAMP::EndTimeReached(MediaType mediaType)
 
 /**
  * @brief Insert ad at position
- * @param url URL of ad asset
- * @param positionSeconds position at which ad to be inserted
+ *
+ * @param[in] url URL of ad asset
+ * @param[in] positionSeconds position at which ad to be inserted
  */
 void PrivateInstanceAAMP::InsertAd(const char *url, double positionSeconds)
 {
@@ -4143,8 +4253,8 @@ void PrivateInstanceAAMP::InsertAd(const char *url, double positionSeconds)
 /**
  *   @brief Schedule insertion of ad at given position.
  *
- *   @param  url - HTTP/HTTPS url of the ad
- *   @param  positionSeconds - position at which ad shall be inserted
+ *   @param[in]  url               HTTP/HTTPS url of the ad
+ *   @param[in]  positionSeconds   Position at which ad shall be inserted
  */
 void PlayerInstanceAAMP::InsertAd(const char *url, double positionSeconds)
 {
@@ -4154,6 +4264,7 @@ void PlayerInstanceAAMP::InsertAd(const char *url, double positionSeconds)
 
 /**
  * @brief Get seek base position
+ *
  * @retval seek base position
  */
 double PrivateInstanceAAMP::GetSeekBase(void)
@@ -4165,8 +4276,8 @@ double PrivateInstanceAAMP::GetSeekBase(void)
 /**
  *   @brief Set playback rate.
  *
- *   @param  rate - Rate of playback.
- *   @param  overshootcorrection - overshoot correction in milliseconds.
+ *   @param[in]  rate                  Rate of playback.
+ *   @param[in]  overshootcorrection   Overshoot correction in milliseconds.
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
@@ -4273,7 +4384,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 /**
  *   @brief Seek to a time.
  *
- *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
  *           relative position from first tune command.
  */
 void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
@@ -4354,8 +4465,8 @@ void PlayerInstanceAAMP::SeekToLive()
 /**
  *   @brief Seek to a time and playback with a new rate.
  *
- *   @param  rate - Rate of playback.
- *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *   @param[in]  rate - Rate of playback.
+ *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
  *           relative position from first tune command.
  */
 void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
@@ -4371,10 +4482,10 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 /**
  *   @brief Set video rectangle.
  *
- *   @param  x - horizontal start position.
- *   @param  y - vertical start position.
- *   @param  w - width.
- *   @param  h - height.
+ *   @param[in]  x - horizontal start position.
+ *   @param[in]  y - vertical start position.
+ *   @param[in]  w - width.
+ *   @param[in]  h - height.
  */
 void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -4385,7 +4496,7 @@ void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 /**
  *   @brief Set video zoom.
  *
- *   @param  zoom - zoom mode.
+ *   @param[in]  zoom - zoom mode.
  */
 void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
@@ -4398,7 +4509,7 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 /**
  *   @brief Enable/ Disable Video.
  *
- *   @param  muted - true to disable video, false to enable video.
+ *   @param[in]  muted - true to disable video, false to enable video.
  */
 void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
@@ -4411,7 +4522,7 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 /**
  *   @brief Set Audio Volume.
  *
- *   @param  volume - Minimum 0, maximum 100.
+ *   @param[in]  volume - Minimum 0, maximum 100.
  */
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
@@ -4424,7 +4535,7 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 /**
  *   @brief Set Audio language.
  *
- *   @param  language - Language of audio track.
+ *   @param[in]  language - Language of audio track.
  */
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
@@ -4470,7 +4581,7 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 /**
  *   @brief Set array of subscribed tags.
  *
- *   @param  subscribedTags - Array of subscribed tags.
+ *   @param[in]  subscribedTags - Array of subscribed tags.
  */
 void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTags)
 {
@@ -4488,7 +4599,7 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 /**
  *   @brief Load AAMP JS object in the specified JS context.
  *
- *   @param  context - JS context.
+ *   @param[in]  context - JS context.
  */
 void PlayerInstanceAAMP::LoadJS(void* context)
 {
@@ -4508,7 +4619,7 @@ void PlayerInstanceAAMP::LoadJS(void* context)
 /**
  *   @brief Unoad AAMP JS object in the specified JS context.
  *
- *   @param  context - JS context.
+ *   @param[in]  context - JS context.
  */
 void PlayerInstanceAAMP::UnloadJS(void* context)
 {
@@ -4529,8 +4640,8 @@ void PlayerInstanceAAMP::UnloadJS(void* context)
 /**
  *   @brief Support multiple listeners for multiple event type
  *
- *   @param  eventType - type of event.
- *   @param  eventListener - listener for the eventType.
+ *   @param[in]  eventType - type of event.
+ *   @param[in]  eventListener - listener for the eventType.
  */
 void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
@@ -4541,8 +4652,8 @@ void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventList
 /**
  *   @brief Remove event listener for eventType.
  *
- *   @param  eventType - type of event.
- *   @param  eventListener - listener to be removed for the eventType.
+ *   @param[in]  eventType - type of event.
+ *   @param[in]  eventListener - listener to be removed for the eventType.
  */
 void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
@@ -4627,8 +4738,8 @@ DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
 /**
  *   @brief Add/Remove a custom HTTP header and value.
  *
- *   @param  headerName - Name of custom HTTP header
- *   @param  headerValue - Value to be passed along with HTTP header.
+ *   @param[in]  headerName - Name of custom HTTP header
+ *   @param[in]  headerValue - Value to be passed along with HTTP header.
  */
 void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue)
 {
@@ -4638,8 +4749,8 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
 /**
  *   @brief Set License Server URL.
  *
- *   @param  url - URL of the server to be used for license requests
- *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
+ *   @param[in]  url - URL of the server to be used for license requests
+ *   @param[in]  type - DRM Type(PR/WV) for which the server URL should be used, global by default
  */
 void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
@@ -4650,7 +4761,7 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 /**
  *   @brief Indicates if session token has to be used with license request or not.
  *
- *   @param  isAnonymous - True if session token should be blank and false otherwise.
+ *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.
  */
 void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
@@ -4661,7 +4772,7 @@ void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 /**
  *   @brief Set VOD Trickplay FPS.
  *
- *   @param  vodTrickplayFPS - FPS to be used for VOD Trickplay
+ *   @param[in]  vodTrickplayFPS - FPS to be used for VOD Trickplay
  */
 void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 {
@@ -4672,7 +4783,7 @@ void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 /**
  *   @brief Set Linear Trickplay FPS.
  *
- *   @param  linearTrickplayFPS - FPS to be used for Linear Trickplay
+ *   @param[in]  linearTrickplayFPS - FPS to be used for Linear Trickplay
  */
 void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
@@ -4682,7 +4793,7 @@ void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 /**
  *   @brief Set Live Offset.
  *
- *   @param  liveoffset- Live Offset
+ *   @param[in]  liveoffset- Live Offset
  */
 void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 {
@@ -4693,7 +4804,7 @@ void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 /**
  *   @brief To set the error code to be used for playback stalled error.
  *
- *   @param  errorCode - error code for playback stall errors.
+ *   @param[in]  errorCode - error code for playback stall errors.
  */
 void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 {
@@ -4704,7 +4815,7 @@ void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 /**
  *   @brief To set the timeout value to be used for playback stall detection.
  *
- *   @param  timeoutMS - timeout in milliseconds for playback stall detection.
+ *   @param[in]  timeoutMS - timeout in milliseconds for playback stall detection.
  */
 void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 {
@@ -4715,7 +4826,7 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 /**
  *   @brief Set report interval duration
  *
- *   @param  reportIntervalMS - report interval duration in MS
+ *   @param[in]  reportIntervalMS - report interval duration in MS
  */
 void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
@@ -4726,7 +4837,7 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 /**
  *   @brief To get the current playback position.
  *
- *   @ret current playback position in seconds
+ *   @return current playback position in seconds
  */
 double PlayerInstanceAAMP::GetPlaybackPosition()
 {
@@ -4737,7 +4848,7 @@ double PlayerInstanceAAMP::GetPlaybackPosition()
 /**
 *   @brief To get the current asset's duration.
 *
-*   @ret duration in seconds
+*   @return duration in seconds
 */
 double PlayerInstanceAAMP::GetPlaybackDuration()
 {
@@ -4748,7 +4859,7 @@ double PlayerInstanceAAMP::GetPlaybackDuration()
 /**
  *   @brief To get the current AAMP state.
  *
- *   @ret current AAMP state
+ *   @return current AAMP state
  */
 PrivAAMPState PlayerInstanceAAMP::GetState(void)
 {
@@ -4761,7 +4872,7 @@ PrivAAMPState PlayerInstanceAAMP::GetState(void)
 /**
  *   @brief To get the bitrate of current video profile.
  *
- *   @ret bitrate of video profile
+ *   @return bitrate of video profile
  */
 long PlayerInstanceAAMP::GetVideoBitrate(void)
 {
@@ -4816,7 +4927,7 @@ long PrivateInstanceAAMP::GetVideoBitrate()
 /**
  *   @brief To get the bitrate of current audio profile.
  *
- *   @ret bitrate of audio profile
+ *   @return bitrate of audio profile
  */
 long PlayerInstanceAAMP::GetAudioBitrate(void)
 {
@@ -4843,7 +4954,7 @@ void PlayerInstanceAAMP::SetAudioBitrate(long bitrate)
 /**
  *   @brief To get the current audio volume.
  *
- *   @ret audio volume
+ *   @return audio volume
  */
 int PlayerInstanceAAMP::GetAudioVolume(void)
 {
@@ -4854,7 +4965,7 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
 /**
  *   @brief To get the current playback rate.
  *
- *   @ret current playback rate
+ *   @return current playback rate
  */
 int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
@@ -4865,7 +4976,7 @@ int PlayerInstanceAAMP::GetPlaybackRate(void)
 /**
  *   @brief To get the available video bitrates.
  *
- *   @ret available video bitrates
+ *   @return available video bitrates
  */
 std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 {
@@ -4880,7 +4991,7 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 /**
  *   @brief To get the available audio bitrates.
  *
- *   @ret available audio bitrates
+ *   @return available audio bitrates
  */
 std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 {
@@ -4972,10 +5083,10 @@ void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 /**
  *   @brief Set video rectangle.
  *
- *   @param  x - horizontal start position.
- *   @param  y - vertical start position.
- *   @param  w - width.
- *   @param  h - height.
+ *   @param[in]  x - horizontal start position.
+ *   @param[in]  y - vertical start position.
+ *   @param[in]  w - width.
+ *   @param[in]  h - height.
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -4986,7 +5097,7 @@ void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 /**
  *   @brief Set video zoom.
  *
- *   @param  zoom - zoom mode.
+ *   @param[in]  zoom - zoom mode.
  */
 void PrivateInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
@@ -4997,7 +5108,7 @@ void PrivateInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 /**
  *   @brief Enable/ Disable Video.
  *
- *   @param  muted - true to disable video, false to enable video.
+ *   @param[in]  muted - true to disable video, false to enable video.
  */
 void PrivateInstanceAAMP::SetVideoMute(bool muted)
 {
@@ -5008,7 +5119,7 @@ void PrivateInstanceAAMP::SetVideoMute(bool muted)
 /**
  *   @brief Set Audio Volume.
  *
- *   @param  volume - Minimum 0, maximum 100.
+ *   @param[in]  volume - Minimum 0, maximum 100.
  */
 void PrivateInstanceAAMP::SetAudioVolume(int volume)
 {
@@ -5031,6 +5142,7 @@ void PrivateInstanceAAMP::DisableDownloads(void)
 
 /**
  * @brief Check if downloads are enabled
+ *
  * @retval true if downloads are enabled
  */
 bool PrivateInstanceAAMP::DownloadsAreEnabled(void)
@@ -5052,6 +5164,7 @@ void PrivateInstanceAAMP::EnableDownloads()
 
 /**
  * @brief Sleep until timeout is reached or interrupted
+ *
  * @param timeInMs timeout in milliseconds
  */
 void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
@@ -5108,6 +5221,7 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 
 /**
  * @brief Get stream duration
+ *
  * @retval duration is milliseconds
  */
 long long PrivateInstanceAAMP::GetDurationMs()
@@ -5118,6 +5232,7 @@ long long PrivateInstanceAAMP::GetDurationMs()
 
 /**
  * @brief Get current stream position
+ *
  * @retval current stream position in ms
  */
 long long PrivateInstanceAAMP::GetPositionMs()
@@ -5163,12 +5278,13 @@ long long PrivateInstanceAAMP::GetPositionMs()
 
 /**
  * @brief Sends media buffer to sink
- * @param mediaType type of media
- * @param ptr buffer containing media data
- * @param len length of buffer
- * @param fpts pts in seconds
- * @param fdts dts in seconds
- * @param fDuration duration of buffer
+ *
+ * @param[in] mediaType type of media
+ * @param[in] ptr buffer containing media data
+ * @param[in] len length of buffer
+ * @param[in] fpts pts in seconds
+ * @param[in] fdts dts in seconds
+ * @param[in] fDuration duration of buffer
  */
 void PrivateInstanceAAMP::SendStream(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
 {
@@ -5179,12 +5295,14 @@ void PrivateInstanceAAMP::SendStream(MediaType mediaType, const void *ptr, size_
 
 /**
  * @brief Sends media buffer to sink
+ *
  * @note  Ownership of buffer is transferred.
- * @param mediaType type of media
- * @param buffer - media data
- * @param fpts pts in seconds
- * @param fdts dts in seconds
- * @param fDuration duration of buffer
+ *
+ * @param[in] mediaType type of media
+ * @param[in] buffer - media data
+ * @param[in] fpts pts in seconds
+ * @param[in] fdts dts in seconds
+ * @param[in] fDuration duration of buffer
  */
 void PrivateInstanceAAMP::SendStream(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
 {
@@ -5195,7 +5313,8 @@ void PrivateInstanceAAMP::SendStream(MediaType mediaType, GrowableBuffer* buffer
 
 /**
  * @brief Set stream sink
- * @param streamSink pointer of sink object
+ *
+ * @param[in] streamSink pointer of sink object
  */
 void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
 {
@@ -5205,6 +5324,7 @@ void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
 
 /**
  * @brief Check if stream is live
+ *
  * @retval true if stream is live, false if not
  */
 bool PrivateInstanceAAMP::IsLive()
@@ -5220,7 +5340,6 @@ bool PrivateInstanceAAMP::IsLive()
 
 /**
  * @brief Stop playback and release resources.
- *
  */
 void PrivateInstanceAAMP::Stop()
 {
@@ -5278,10 +5397,11 @@ void PrivateInstanceAAMP::Stop()
 
 /**
  * @brief Report TimedMetadata events
- * @param timeMilliseconds time in milliseconds
- * @param szName name of metadata
- * @param szContent  metadata content
- * @param nb unused
+ *
+ * @param[in] timeMilliseconds time in milliseconds
+ * @param[in] szName name of metadata
+ * @param[in] szContent  metadata content
+ * @param[in] nb unused
  */
 void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const char* szName, const char* szContent, int nb)
 {
@@ -5347,7 +5467,9 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 
 /**
  * @brief Check if harvest is required
- * @param modifyCount true to decrement harvest value
+ *
+ * @param[in] modifyCount true to decrement harvest value
+ *
  * @retval true if harvest is required
  */
 bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
@@ -5393,9 +5515,10 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 }
 
 /**
- * @brief Signal discontinuity of track.
- * Called from StreamAbstractionAAMP to signal discontinuity
+ * @brief Signal discontinuity of track. Called from StreamAbstractionAAMP to signal discontinuity
+ *
  * @param track MediaType of the track
+ *
  * @retval true if discontinuity is handled.
  */
 bool PrivateInstanceAAMP::Discontinuity(MediaType track)
@@ -5414,7 +5537,9 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track)
 
 /**
  * @brief Tune again to currently viewing asset. Used for internal error handling
- * @param ptr pointer to PrivateInstanceAAMP object
+ *
+ * @param[in] ptr pointer to PrivateInstanceAAMP object
+ *
  * @retval G_SOURCE_REMOVE
  */
 static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
@@ -5460,8 +5585,9 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 
 /**
  * @brief Schedules retune or discontinuity processing based on state.
- * @param errorType type of playback error
- * @param trackType media type
+ *
+ * @param[in] errorType type of playback error
+ * @param[in] trackType media type
  */
 void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType trackType)
 {
@@ -5730,7 +5856,8 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 
 /**
  * @brief Sets aamp state
- * @param state state to be set
+ *
+ * @param[in] state state to be set
  */
 void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 {
@@ -5763,6 +5890,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 
 /**
  * @brief Get aamp state
+ *
  * @param[out] state current state of aamp
  */
 void PrivateInstanceAAMP::GetState(PrivAAMPState& state)
@@ -5775,9 +5903,11 @@ void PrivateInstanceAAMP::GetState(PrivAAMPState& state)
 
 /**
  * @brief Add idle task
+ *
  * @note task shall return 0 to be removed, 1 to be repeated
- * @param task task function pointer
- * @param arg passed as parameter during idle task execution
+ *
+ * @param[in] task task function pointer
+ * @param[in] arg passed as parameter during idle task execution
  */
 void PrivateInstanceAAMP::AddIdleTask(IdleTask task, void* arg)
 {
@@ -5787,7 +5917,9 @@ void PrivateInstanceAAMP::AddIdleTask(IdleTask task, void* arg)
 
 /**
  * @brief Check if sink cache is empty
- * @param mediaType type of track
+ *
+ * @param[in] mediaType type of track
+ *
  * @retval true if sink cache is empty
  */
 bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
@@ -5806,6 +5938,7 @@ void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 
 /**
  * @brief Send tuned event to listeners if required
+ *
  * @retval true if event is scheduled, false if discarded
  */
 bool PrivateInstanceAAMP::SendTunedEvent()
@@ -5841,8 +5974,9 @@ bool PrivateInstanceAAMP::IsFragmentBufferingRequired()
 
 /**
  * @brief Get video display's width and height
- * @param width
- * @param height
+ *
+ * @param[in] width
+ * @param[in] height
  */
 void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
 {
@@ -5852,7 +5986,8 @@ void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
 
 /**
  * @brief Set an idle callback to dispatched state
- * @param id Idle task Id
+ *
+ * @param[in] id Idle task Id
  */
 void PrivateInstanceAAMP::SetCallbackAsDispatched(gint id)
 {
@@ -5874,7 +6009,8 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(gint id)
 
 /**
  * @brief Set an idle callback to pending state
- * @param id Idle task Id
+ *
+ * @param[in] id Idle task Id
  */
 void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
 {
@@ -5896,8 +6032,8 @@ void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
 /**
  *   @brief Add/Remove a custom HTTP header and value.
  *
- *   @param  headerName - Name of custom HTTP header
- *   @param  headerValue - Value to be pased along with HTTP header.
+ *   @param[in]  headerName - Name of custom HTTP header
+ *   @param[in]  headerValue - Value to be pased along with HTTP header.
  */
 void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue)
 {
@@ -5920,8 +6056,8 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 /**
  *   @brief Set License Server URL.
  *
- *   @param  url - URL of the server to be used for license requests
- *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
+ *   @param[in]  url - URL of the server to be used for license requests
+ *   @param[in]  type - DRM Type(PR/WV) for which the server URL should be used, global by default
  */
 void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
@@ -5960,7 +6096,7 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 /**
  *   @brief Indicates if session token has to be used with license request or not.
  *
- *   @param  isAnonymous - True if session token should be blank and false otherwise.
+ *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.
  */
 void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
@@ -5971,7 +6107,7 @@ void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 /**
  *   @brief Set VOD Trickplay FPS.
  *
- *   @param  vodTrickplayFPS - FPS to be used for VOD Trickplay
+ *   @param[in]  vodTrickplayFPS - FPS to be used for VOD Trickplay
  */
 void PrivateInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 {
@@ -5989,7 +6125,7 @@ void PrivateInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 /**
  *   @brief Set Linear Trickplay FPS.
  *
- *   @param  linearTrickplayFPS - FPS to be used for Linear Trickplay
+ *   @param[in]  linearTrickplayFPS - FPS to be used for Linear Trickplay
  */
 void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
@@ -6007,7 +6143,7 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 /**
  *   @brief Set live offset [Sec]
  *
- *   @param SetLiveOffset - Live Offset
+ *   @param[in] SetLiveOffset - Live Offset
  */
 void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 {
@@ -6019,9 +6155,10 @@ void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 
 /**
  * @brief Insert playlist to playlist cache
- * @param url URL corresponding to playlist
- * @param buffer Contains the playlist
- * @param effectiveUrl Effective URL of playlist
+ *
+ * @param[in] url URL corresponding to playlist
+ * @param[in] buffer Contains the playlist
+ * @param[in] effectiveUrl Effective URL of playlist
  */
 void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl)
 {
@@ -6047,9 +6184,11 @@ void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const Gro
 
 /**
  * @brief Retrieve playlist from playlist cache
- * @param url URL corresponding to playlist
+ *
+ * @param[in] url URL corresponding to playlist
  * @param[out] buffer Output buffer containing playlist
  * @param[out] effectiveUrl effective URL of retrieved playlist
+ *
  * @retval true if playlist is successfully retrieved.
  */
 bool PrivateInstanceAAMP::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[])
@@ -6106,7 +6245,7 @@ void PrivateInstanceAAMP::ClearPlaylistCache()
 /**
  *   @brief To set the error code to be used for playback stalled error.
  *
- *   @param  errorCode - error code for playback stall errors.
+ *   @param[in]  errorCode  Error code for playback stall errors.
  */
 void PrivateInstanceAAMP::SetStallErrorCode(int errorCode)
 {
@@ -6117,7 +6256,7 @@ void PrivateInstanceAAMP::SetStallErrorCode(int errorCode)
 /**
  *   @brief To set the timeout value to be used for playback stall detection.
  *
- *   @param  timeoutMS - timeout in milliseconds for playback stall detection.
+ *   @param[in]  timeoutMS  timeout in milliseconds for playback stall detection.
  */
 void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
 {
@@ -6151,7 +6290,8 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 
 /**
  * @brief Update audio language selection
- * @param lang string corresponding to language
+ *
+ * @param[in] lang String corresponding to language
  */
 void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 {
@@ -6161,13 +6301,14 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 
 /**
  * @brief Get current stream type
- * @retval 10 - HLS/Clear
- * @retval 11 - HLS/Consec
- * @retval 12 - HLS/Access
- * @retval 13 - HLS/Vanilla AES
- * @retval 20 - DASH/Clear
- * @retval 21 - DASH/WV
- * @retval 22 - DASH/PR
+ *
+ * @retval 10   HLS/Clear
+ * @retval 11   HLS/Consec
+ * @retval 12   HLS/Access
+ * @retval 13   HLS/Vanilla AES
+ * @retval 20   DASH/Clear
+ * @retval 21   DASH/WV
+ * @retval 22   DASH/PR
  */
 int PrivateInstanceAAMP::getStreamType()
 {
@@ -6199,8 +6340,9 @@ int PrivateInstanceAAMP::getStreamType()
 
 #ifdef AAMP_MPD_DRM
 /**
- * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string 
- * @param[out] customHeader - Generated moneytrace is stored  
+ * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
+ * 
+ * @param[out] customHeader  Variable stores the generated moneytrace
  *
  * @retval None
 */
@@ -6286,7 +6428,7 @@ double PrivateInstanceAAMP::GetFirstPTS()
 /**
  *   @brief  Check if asset is vod/ivod/cdvr.
  *
- *   @return true if asset is either vod/ivod/cdvr
+ *   @return True if asset is either vod/ivod/cdvr
  */
 bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
 {
@@ -6296,11 +6438,11 @@ bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
 /**
  *   @brief  Generate media metadata event based on args passed.
  *
- *   @param[in] durationMs - duration of playlist in milliseconds
- *   @param[in] langList - list of audio language available in asset
- *   @param[in] bitrateList - list of video bitrates available in asset
- *   @param[in] hasDrm - indicates if asset is encrypted/clear
- *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ *   @param[in] durationMs             Duration of playlist in milliseconds
+ *   @param[in] langList               List of audio language available in asset
+ *   @param[in] bitrateList            List of video bitrates available in asset
+ *   @param[in] hasDrm                 Indicates if asset is encrypted/clear
+ *   @param[in] isIframeTrackPresent   Indicates if iframe tracks are available in asset
  */
 void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent)
 {
@@ -6362,7 +6504,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 /**
  *   @brief  Generate supported speeds changed event based on arg passed.
  *
- *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ *   @param[in] isIframeTrackPresent Indicates if iframe tracks are available in asset
  */
 void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent)
 {
@@ -6396,7 +6538,8 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
  *   @brief  Get Sequence Number from URL
  *
  *   @param[in] fragmentUrl fragment Url
- *   @returns Sequence Number if found in fragment Url else 0
+ *
+ *   @return Sequence Number if found in fragment Url else 0
  */
 long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(const char *fragmentUrl)
 {
@@ -6438,7 +6581,7 @@ long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(const char *fragmentUrl)
 /**
  *   @brief To set the initial bitrate value.
  *
- *   @param[in] initial bitrate to be selected
+ *   @param[in] bitrate Initial bitrate to be selected
  */
 void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
 {
@@ -6452,7 +6595,7 @@ void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
 /**
  *   @brief To set the initial bitrate value for 4K assets.
  *
- *   @param[in] initial bitrate to be selected for 4K assets
+ *   @param[in] bitrate4K Initial bitrate to be selected for 4K assets
  */
 void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
@@ -6466,7 +6609,7 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 /**
  *   @brief To set the network download timeout value.
  *
- *   @param[in] preferred timeout value
+ *   @param[in] timeout Preferred timeout value
  */
 void PrivateInstanceAAMP::SetNetworkTimeout(int timeout)
 {
@@ -6480,7 +6623,7 @@ void PrivateInstanceAAMP::SetNetworkTimeout(int timeout)
 /**
  *   @brief To set the download buffer size value
  *
- *   @param[in] preferred download buffer size
+ *   @param[in] bufferSize  Preferred download buffer size
  */
 void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 {
@@ -6498,7 +6641,7 @@ bool PrivateInstanceAAMP::IsTuneCompleted()
 /**
  *   @brief Set Preferred DRM.
  *
- *   @param[in] drmType - Preferred DRM type
+ *   @param[in] drmType  Preferred DRM type
  */
 void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
@@ -6648,3 +6791,8 @@ void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 	}
 	mLicenseProxy = strdup(licenseProxy);
 }
+
+/**
+ * @}
+ */
+

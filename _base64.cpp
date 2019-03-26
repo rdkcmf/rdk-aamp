@@ -28,13 +28,20 @@
 #include <string.h>
 #include <stdio.h>
 
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 
 /**
  * @brief convert blob of binary data to ascii base64-encoded equivalent
+ *
  * @param src pointer to first byte of binary data to be encoded
  * @param len number of bytes to encode
+ *
  * @retval pointer to malloc'd cstring containing base64 encoded version of string
  * @retval NULL if insufficient memory to allocate base64-encoded copy
+ *
  * @note caller responsible for freeing returned cstring
  */
 char *base64_Encode(const unsigned char *src, size_t len)
@@ -89,10 +96,13 @@ char *base64_Encode(const unsigned char *src, size_t len)
 
 /**
  * @brief decode base64 encoded data to binary equivalent
+ *
  * @param src pointer to cstring containing base64-encoded data
  * @param len receives byte length of returned pointer, or zero upon failure
+ *
  * @retval pointer to malloc'd memory containing decoded binary data
  * @retval NULL if insufficient memory to allocate base64-decoded data
+ *
  * @note caller responsible for freeing returned data
  */
 unsigned char *base64_Decode(const char *src, size_t *len)
@@ -168,3 +178,8 @@ unsigned char *base64_Decode(const char *src, size_t *len)
 	}
 	return outData;
 }
+
+/**
+ * @}
+ */
+
