@@ -1905,7 +1905,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					}
 #endif /* 0 */
 					//Attempt retry for local playback since rampdown is disabled for FOG
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || fileType == eMEDIATYPE_MANIFEST))) && downloadAttempt < 2)
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && (mIsLocalPlayback || IsManifestFile(fileType)))) && (downloadAttempt < 2))
 					{
 						logprintf("Download failed due to curl connect timeout. Retrying!\n");
 						loopAgain = true;
@@ -2071,6 +2071,20 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	return ret;
 }
 
+/**
+ * @brief Check current type is manifest or not
+ * @param[in] fileType - Type of Media
+ * @param[out] bool value - returns true if its a manifest file.
+ */
+bool PrivateInstanceAAMP::IsManifestFile (MediaType fileType)
+{
+	if (fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO || fileType == eMEDIATYPE_PLAYLIST_VIDEO)
+	{
+		return true;
+	}
+
+	return false;
+}
 
 /**
  * @brief Append nul character to buffer
