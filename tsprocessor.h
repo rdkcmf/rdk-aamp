@@ -30,6 +30,12 @@
 
 #include <vector>
 
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
+
 #define MAX_PIDS (8) //PMT Parsing
 
 /**
@@ -332,4 +338,8 @@ class TSProcessor
 };
 
 #endif
+
+/**
+ * @}
+ */
 

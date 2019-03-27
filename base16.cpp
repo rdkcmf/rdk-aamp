@@ -28,16 +28,22 @@
 #include <string.h>
 #include <stdio.h>
 
-
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 
 /**
- * @brief convert binary data to hascii-encoded equivalent
- * @param src pointer to first byte of binary data to be encoded
- * @param len number of bytes to encode
- * @retval pointer to malloc'd cstring containing base16-encoded copy
+ * @brief Convert binary data to ascii-encoded equivalent
+ *
+ * @param[in] src  Pointer to first byte of binary data to be encoded
+ * @param[in] len  Number of bytes to encode
+ *
+ * @retval Pointer to malloc'd cstring containing base16-encoded copy
  * @retval NULL if unsufficient memory to allocate base16-encoded copt
- * @note caller responsible for freeing returned cstring
- * @note returned string will always contain an even number of characters
+ *
+ * @note Caller responsible for freeing returned cstring
+ * @note Returned string will always contain an even number of characters
  */
 char *base16_Encode(const unsigned char *src, size_t len)
 {
@@ -62,12 +68,15 @@ char *base16_Encode(const unsigned char *src, size_t len)
 
 
 /**
- * @brief decode base16 encoded data to binary equivalent
- * @param srcPtr pointer to cstring containing base16-encoded data
- * @param srcLen length of srcPtr (typically caller already knows, so saves call to strlen)
- * @param len receives byte length of returned pointer, or zero upon failure
+ * @brief Decode base16 encoded data to binary equivalent
+ *
+ * @param[in] srcPtr  Pointer to cstring containing base16-encoded data
+ * @param[in] srcLen  Length of srcPtr (typically caller already knows, so saves call to strlen)
+ * @param[in] len     Receives byte length of returned pointer, or zero upon failure
+ *
  * @retval pointer to malloc'd memory containing decoded binary data.
  * @retval NULL if insufficient memory to allocate base16-decoded data
+ *
  * @note caller responsible for freeing returned data
  */
 unsigned char *base16_Decode( const char *srcPtr, size_t srcLen, size_t *len )
@@ -109,3 +118,9 @@ unsigned char *base16_Decode( const char *srcPtr, size_t srcLen, size_t *len )
 	}
 	return outData;
 }
+
+/**
+ * @}
+ */
+
+

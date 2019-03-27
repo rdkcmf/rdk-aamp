@@ -220,12 +220,17 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 	}
 }
 
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 
 /**
  * @brief Helper function to parse DRM config params received from JS
- * @param[in] ctx JS execution context
- * @param[in] privObj AAMPMediaPlayer instance to set the drm configuration
- * @param[in] drmConfigParam parameters received as argument
+ *
+ * @param[in] ctx             JS execution context
+ * @param[in] privObj         AAMPMediaPlayer instance to set the drm configuration
+ * @param[in] drmConfigParam  Parameters received as argument
  */
 void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSValueRef drmConfigParam)
 {
@@ -285,12 +290,14 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.load()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in]  ctx            JS execution context
+ * @param[in]  function       JSObject that is the function being called
+ * @param[in]  thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in]  argumentCount  number of args
+ * @param[in]  arguments[]    JSValue array of args
+ * @param[out] exception      Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -322,12 +329,14 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.initConfig()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -450,13 +459,15 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 
 
 /**
- * @brief API invoked from JS when executing AAMPMediaPlayer.play()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @brief API Invoked from JS when executing AAMPMediaPlayer.play()
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -476,13 +487,15 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 
 
 /**
- * @brief API invoked from JS when executing AAMPMediaPlayer.pause()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @brief API Invoked from JS when executing AAMPMediaPlayer.pause()
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -503,12 +516,14 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.stop()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -529,12 +544,14 @@ JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObj
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.seek()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -565,12 +582,14 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getCurrentState()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentState (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -590,12 +609,14 @@ JSValueRef AAMPMediaPlayerJS_getCurrentState (JSContextRef ctx, JSObjectRef func
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getDurationSec()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getDurationSec (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -624,12 +645,14 @@ JSValueRef AAMPMediaPlayerJS_getDurationSec (JSContextRef ctx, JSObjectRef funct
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getCurrentPosition()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentPosition (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -658,12 +681,14 @@ JSValueRef AAMPMediaPlayerJS_getCurrentPosition (JSContextRef ctx, JSObjectRef f
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getVideoBitrates()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -697,12 +722,14 @@ JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef fun
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getAudioBitrates()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -736,12 +763,14 @@ JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef fun
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getCurrentVideoBitrate()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentVideoBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -761,12 +790,14 @@ JSValueRef AAMPMediaPlayerJS_getCurrentVideoBitrate (JSContextRef ctx, JSObjectR
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setVideoBitrate()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -806,12 +837,14 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getCurrentAudioBitrate()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentAudioBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -831,12 +864,14 @@ JSValueRef AAMPMediaPlayerJS_getCurrentAudioBitrate (JSContextRef ctx, JSObjectR
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setAudioBitrate()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -875,12 +910,14 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getAudioTrack()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -901,12 +938,14 @@ JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef functi
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setAudioTrack()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -936,12 +975,14 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getTextTrack()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx            JS execution context
+ * @param[in] function       JSObject that is the function being called
+ * @param[in] thisObject     JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount  Number of args
+ * @param[in] arguments[]    JSValue array of args
+ * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -962,12 +1003,14 @@ JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setTextTrack()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -997,12 +1040,14 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getVolume()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @param[in] ctx           JS execution context
+ * @param[in] function      JSObject that is the function being called
+ * @param[in] thisObject    JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount Number of args
+ * @param[in] arguments[]   JSValue array of args
+ * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getVolume (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1022,12 +1067,14 @@ JSValueRef AAMPMediaPlayerJS_getVolume (JSContextRef ctx, JSObjectRef function, 
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setVolume()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1066,12 +1113,14 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getPlaybackRate()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getPlaybackRate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1091,12 +1140,14 @@ JSValueRef AAMPMediaPlayerJS_getPlaybackRate (JSContextRef ctx, JSObjectRef func
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setPlaybackRate()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1132,12 +1183,14 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getSupportedKeySystems()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_getSupportedKeySystems (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1158,12 +1211,14 @@ JSValueRef AAMPMediaPlayerJS_getSupportedKeySystems (JSContextRef ctx, JSObjectR
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setProtectionSchemeInterface()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setProtectionSchemeInterface (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1193,12 +1248,14 @@ JSValueRef AAMPMediaPlayerJS_setProtectionSchemeInterface (JSContextRef ctx, JSO
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setVideoMute()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1230,12 +1287,14 @@ JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setSubscribedTags()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1272,12 +1331,14 @@ JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef fu
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.updateAlternateContent()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_updateAlternateContent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1307,12 +1368,14 @@ JSValueRef AAMPMediaPlayerJS_updateAlternateContent (JSContextRef ctx, JSObjectR
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.addEventListener()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1364,12 +1427,14 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.removeEventListener()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1421,12 +1486,14 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setDRMConfig()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1459,12 +1526,14 @@ JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.addCustomHTTPHeader()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1520,12 +1589,14 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.removeCustomHTTPHeader()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1558,12 +1629,14 @@ JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectR
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setVideoRect()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1597,12 +1670,14 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setVideoZoom()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1643,12 +1718,14 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.release()
+ *
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSValue that is the function's return value
  */
 JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1708,10 +1785,12 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 
 /**
  * @brief API invoked from JS when reading value of AAMPMediaPlayer.version
+ *
  * @param[in] ctx JS execution context
  * @param[in] object JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval property's value if object has the property, otherwise NULL
  */
 JSValueRef AAMPMediaPlayerJS_getProperty_Version(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
@@ -1739,6 +1818,7 @@ static const JSStaticValue AAMPMediaPlayer_JS_static_values[] = {
 
 /**
  * @brief API invoked from JS when an object of AAMPMediaPlayerJS is destroyed
+ *
  * @param[in] object JSObject being finalized
  */
 void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
@@ -1803,6 +1883,7 @@ static JSClassDefinition AAMPMediaPlayer_JS_object_def {
 
 /**
  * @brief Creates a JavaScript class of AAMPMediaPlayer object for use with JSObjectMake
+ *
  * @retval singleton instance of JavaScript class created
  */
 static JSClassRef AAMPMediaPlayer_object_ref() {
@@ -1816,11 +1897,13 @@ static JSClassRef AAMPMediaPlayer_object_ref() {
 
 /**
  * @brief API invoked when AAMPMediaPlayer is used along with 'new'
+ *
  * @param[in] ctx JS execution context
  * @param[in] constructor JSObject that is the constructor being called
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
  * @retval JSObject that is the constructor's return value
  */
 JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -1897,6 +1980,7 @@ void ClearAAMPPlayerInstances(void)
 
 /**
  * @brief Loads AAMPMediaPlayer JS constructor into JS context
+ *
  * @param[in] context JS execution context
  */
 void AAMPPlayer_LoadJS(void* context)
@@ -1922,6 +2006,7 @@ void AAMPPlayer_LoadJS(void* context)
 
 /**
  * @brief Removes the AAMPMediaPlayer constructor from JS context
+ *
  * @param[in] context JS execution context
  */
 void AAMPPlayer_UnloadJS(void* context)
@@ -1967,3 +2052,8 @@ void AAMPPlayer_UnloadJS(void* context)
 	JSGarbageCollect(jsContext);
 	TRACELOG("Exit %s()", __FUNCTION__);
 }
+
+/**
+ * @}
+ */
+

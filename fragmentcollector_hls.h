@@ -17,6 +17,7 @@
  * limitations under the License.
 */
 
+
  /** 
  *  @file  fragmentcollector_hls.cpp
  *  @brief This file handles HLS Streaming functionality for AAMP player	
@@ -40,22 +41,26 @@
 #include "tsprocessor.h"
 #include "drm.h"
 
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
+
 
 #define MAX_PROFILE 128 // TODO: remove limitation
 #define FOG_FRAG_BW_IDENTIFIER "bandwidth-"
 #define FOG_FRAG_BW_IDENTIFIER_LEN 10
 #define FOG_FRAG_BW_DELIMITER "-"
-#define CHAR_CR 0x0d // '\r'
-#define CHAR_LF 0x0a // '\n'
+#define CHAR_CR 0x0d //!< '\r'
+#define CHAR_LF 0x0a //!< '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
-#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
 #define DRM_IV_LEN 16
 #define AAMP_AUDIO_FORMAT_MAP_LEN 7
 #define AAMP_VIDEO_FORMAT_MAP_LEN 3
-
 
 
 /**
@@ -108,6 +113,11 @@ struct IndexNode
 };
 
 /**
+ * @}
+ */
+
+
+/**
  * \class TrackState
  * \brief State Machine for each Media Track
  *
@@ -116,6 +126,11 @@ struct IndexNode
 class TrackState : public MediaTrack
 {
 public:
+
+/**
+ * @addtogroup AAMP_COMMON_API
+ * @{
+ */
 	/// Constructor
 	TrackState(TrackType type, class StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name);
 	/// Destructor
@@ -158,6 +173,7 @@ public:
 	 * @brief Get start position of the period corresponding to the index.
 	 *
 	 * @param[in] periodIdx Index of period
+     *
 	 * @return Start position of the period
 	 */
 	double GetPeriodStartPosition(int periodIdx);
@@ -306,7 +322,7 @@ public:
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	
-	TrackState* trackState[AAMP_TRACK_COUNT];		/**< array to store all tracks of a stream */
+	TrackState* trackState[AAMP_TRACK_COUNT];		/**< Array to store all tracks of a stream */
 	float rate;										/**< Rate of playback  */
 	float maxIntervalBtwPlaylistUpdateMs;			/**< Interval between playlist update */
 
@@ -357,3 +373,8 @@ private:
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H
+
+/**
+ * @}
+ */
+
