@@ -378,14 +378,6 @@ public:
 	*/
 	virtual void Stop(bool clearChannelData) = 0;
 
-
-	/**
-	 *   @brief  Check if the stream live.
-	 *
-	 *   @return TRUE if live, else FALSE
-	 */
-	virtual bool IsLive() = 0;
-
 	/**
 	 *   @brief Get output format of stream.
 	 *

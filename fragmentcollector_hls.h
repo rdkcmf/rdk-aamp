@@ -306,8 +306,6 @@ public:
 	void Start();
 	/// Function to handle stop processing of all tracks within stream
 	void Stop(bool clearChannelData);
-	/// Function to return if stream is Live or VOD 
-	bool IsLive();
 	/// Function to initialize member variables,download main manifest and parse  
 	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
