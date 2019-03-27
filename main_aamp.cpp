@@ -4253,7 +4253,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 		return;
 	}
 
-	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
+	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
 		double currPositionSecs = aamp->GetPositionMs() / 1000.00;
 		if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
@@ -5092,7 +5092,7 @@ long long PrivateInstanceAAMP::GetPositionMs()
 		}
 		else if (mpStreamAbstractionAAMP)
 		{
-			if (!mpStreamAbstractionAAMP->IsLive())
+			if (!mIsLive)
 			{
 				long long durationMs  = GetDurationMs();
 				if(positionMiliseconds > durationMs)
@@ -5166,12 +5166,7 @@ void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
  */
 bool PrivateInstanceAAMP::IsLive()
 {
-	bool ret = false;
-	if (mpStreamAbstractionAAMP)
-	{
-		ret = mpStreamAbstractionAAMP->IsLive();
-	}
-	return ret;
+	return mIsLive;
 }
 
 
@@ -5565,6 +5560,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	fragmentCollectorThreadID = 0;
 	audio_volume = 100;
 	m_fd = -1;
+	mIsLive = false;
 	mTuneCompleted = false;
 	mFirstTune = true;
 	mState = eSTATE_RELEASED;

@@ -374,7 +374,6 @@ public:
 	void SetEndPos(double endPosition);
 	void Start();
 	void Stop();
-	bool IsLive();
 	AAMPStatusType Init(TuneType tuneType);
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
 
@@ -3335,7 +3334,7 @@ void * FragmentDownloader(void *arg)
 				downloadParams->context->PushNextFragment(downloadParams->pMediaStreamContext, 1);
 				if (downloadParams->pMediaStreamContext->eos)
 				{
-					if(!downloadParams->context->IsLive() && downloadParams->playingLastPeriod)
+					if(!downloadParams->context->aamp->IsLive() && downloadParams->playingLastPeriod)
 					{
 						downloadParams->pMediaStreamContext->eosReached = true;
 						downloadParams->pMediaStreamContext->AbortWaitForCachedFragment(false);
@@ -3351,7 +3350,7 @@ void * FragmentDownloader(void *arg)
 				}
 			}
 			timeoutMs = downloadParams->context->GetMinUpdateDuration() - (int)(aamp_GetCurrentTimeMS() - downloadParams->lastPlaylistUpdateMS);
-			if(timeoutMs <= 0 && downloadParams->context->IsLive())
+			if(timeoutMs <= 0 && downloadParams->context->aamp->IsLive())
 			{
 				break;
 			}
@@ -4484,6 +4483,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		if (mpd)
 		{
 			mIsLive = !(mpd->GetType() == "static");
+			aamp->SetIsLive(mIsLive);
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
 			logprintf("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);
@@ -5020,31 +5020,6 @@ void PrivateStreamAbstractionMPD::Stop()
 	AampDRMSessionManager::clearFailedKeyIds();
   #endif
 }
-
-
-/**
- *   @brief  Check if the stream live.
- *
- *   @retval true if live stream
- *   @retval false if VOD
- */
-bool PrivateStreamAbstractionMPD::IsLive(void)
-{
-	return mIsLive;
-}
-
-
-/**
- *   @brief  Check if the stream live.
- *
- *   @retval true if live stream
- *   @retval false if VOD
- */
-bool StreamAbstractionAAMP_MPD::IsLive(void)
-{
-	return mPriv->IsLive();
-}
-
 
 /**
  * @brief PrivateStreamAbstractionMPD Destructor
