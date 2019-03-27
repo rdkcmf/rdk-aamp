@@ -759,7 +759,7 @@ char *TrackState::GetFragmentUriFromIndex()
 
 		const IndexNode *lastIndexNode = &index[indexCount - 1];
 		double seekWindowEnd = lastIndexNode->completionTimeSecondsFromStart - aamp->mLiveOffset; 
-		if (context->IsLive() && playTarget > seekWindowEnd)
+		if (aamp->IsLive() && playTarget > seekWindowEnd)
 		{
 			logprintf("%s - rate - %f playTarget(%f) > seekWindowEnd(%f), forcing EOS\n",
                                 __FUNCTION__, context->rate, playTarget, seekWindowEnd);
@@ -1305,7 +1305,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (fragmentURI != NULL)
 			{
 				playTarget = playlistPosition + fragmentDurationSeconds;
-				if (context->IsLive())
+				if (aamp->IsLive())
 				{
 					context->CheckForPlaybackStall(true);
 				}
@@ -1317,7 +1317,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 					logprintf("aamp play to end. playTarget %f fragmentURI %p hasEndListTag %d\n", playTarget, fragmentURI, context->hasEndListTag);
 					eosReached = true;
 				}
-				else if (context->IsLive() && type == eTRACK_VIDEO)
+				else if (aamp->IsLive() && type == eTRACK_VIDEO)
 				{
 					context->CheckForPlaybackStall(false);
 				}
@@ -1477,7 +1477,7 @@ void TrackState::FetchFragment()
 	int timeoutMs = -1;
 	long http_error = 0;
 	bool decryption_error = false;
-	if (context->IsLive())
+	if (aamp->IsLive())
 	{
 		timeoutMs = context->maxIntervalBtwPlaylistUpdateMs - (int) (aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 		if(timeoutMs < 0)
@@ -1953,6 +1953,9 @@ void TrackState::IndexPlaylist()
 				context->playlistType = ePLAYLISTTYPE_VOD;
 			}
 		}
+
+		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
+
 		aamp->mEnableCache = (context->playlistType == ePLAYLISTTYPE_VOD);
 		if(aamp->mEnableCache)
 		{
@@ -2040,7 +2043,7 @@ void TrackState::IndexPlaylist()
 					}
 					mDrmKeyTagCount++;
 				}
-				else if ( context->IsLive() && (AAMP_NORMAL_PLAY_RATE == context->rate)
+				else if ( aamp->IsLive() && (AAMP_NORMAL_PLAY_RATE == context->rate)
 					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
 					&& (strncmp(ptr + 4, "-X-X1-LIN-CK:", 13) == 0))
 				{
@@ -3243,7 +3246,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (newTune)
 		{
-			TunedEventConfig tunedEventConfig =  IsLive() ?
+			TunedEventConfig tunedEventConfig =  aamp->IsLive() ?
 					gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
@@ -3257,7 +3260,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
 		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && (this->playlistType == ePLAYLISTTYPE_UNDEFINED) && !(aamp->IsVodOrCdvrAsset());
-		if ((eTUNETYPE_SEEKTOLIVE == tuneType) && IsLive())
+		if ((eTUNETYPE_SEEKTOLIVE == tuneType) && aamp->IsLive())
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d eTUNETYPE_SEEKTOLIVE, reset playTarget and enable liveAdjust\n",__FUNCTION__,__LINE__);
 			liveAdjust = true;
@@ -3269,7 +3272,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType)) && (this->rate > 0))
 		{
 			double seekWindowEnd = video->mDuration;
-			if(IsLive())
+			if(aamp->IsLive())
 			{
 				seekWindowEnd -= aamp->mLiveOffset ; 
 			}
@@ -3277,7 +3280,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if (video->playTarget > seekWindowEnd)
 			{
-				if (IsLive())
+				if (aamp->IsLive())
 				{
 					logprintf("StreamAbstractionAAMP_HLS::%s:%d playTarget > seekWindowEnd , playTarget:%f and seekWindowEnd:%f\n",
 							__FUNCTION__,__LINE__, video->playTarget , seekWindowEnd);
@@ -3681,7 +3684,7 @@ void TrackState::RunFetchLoop()
 
 		/* Added to handle an edge case for cdn failover, where we found valid sub-manifest but no valid fragments.
 		 * In this case we have to stall the playback here. */
-		if( fragmentURI == NULL && context->IsLive() && type == eTRACK_VIDEO)
+		if( fragmentURI == NULL && aamp->IsLive() && type == eTRACK_VIDEO)
 		{
 			AAMPLOG_FAILOVER("%s:%d: fragmentURI is NULL, playback may stall in few seconds..\n", __FUNCTION__, __LINE__);
 			context->CheckForPlaybackStall(false);
@@ -4049,16 +4052,7 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 		logprintf("\n");
 	}
 }
-/***************************************************************************
-* @fn IsLive
-* @brief Function to check if stream is live or VOD
-*		 
-* @return bool true if live stream
-***************************************************************************/
-bool StreamAbstractionAAMP_HLS::IsLive(void)
-{
-	return !(this->playlistType == ePLAYLISTTYPE_VOD);
-}
+
 /***************************************************************************
 * @fn GetStreamFormat
 * @brief Function to get stream format 

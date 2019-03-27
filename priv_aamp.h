@@ -2681,6 +2681,14 @@ public:
 	 */
 	char * GetLicenseReqProxy() { return mLicenseProxy; };
 
+	/**
+	 *   @brief Set is Live flag
+	 *
+	 *   @param[in] isLive - is Live flag
+	 *   @return void
+	 */
+	void SetIsLive(bool isLive)  {mIsLive = isLive; }
+
 
 private:
 
@@ -2720,6 +2728,7 @@ private:
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType lastTuneType;
 	int m_fd;
+	bool mIsLive;
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)
