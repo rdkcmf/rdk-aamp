@@ -28,11 +28,6 @@
 #include <JavaScriptCore/JavaScript.h>
 
 /**
- * @addtogroup AAMP_JS_TYPES
- * @{
- */
-
-/**
  * @enum EventPhase
  * @brief Phase of the event flow that is currently being evaluated.
  */
@@ -52,14 +47,7 @@ class AAMPJSEvent
 {
 
 public:
-/**
- * @}
- */
 
-/**
- * @addtogroup AAMP_JS_API
- * @{
- */
 	AAMPJSEvent();
 	AAMPJSEvent(const char *type, bool bubble, bool cancelable);
 	~AAMPJSEvent();
@@ -68,56 +56,48 @@ public:
 
 	/**
 	 * @brief Returns the name of the event
-         *
 	 * @retval event type
 	 */
 	const char* getType() 	{ return _typeName; }
 
 	/**
 	 * @brief Returns whether or not a specific event is a bubbling event
-         *
 	 * @retval true if event is a bubbling event
 	 */
 	bool getBubbles()       { return _bubbles; }
 
 	/**
 	 * @brief Returns whether or not an event can have its default action prevented
-         *
 	 * @retval true if default action of event can be prevented
 	 */
 	bool getCancelable()    { return _cancelable; }
 
 	/**
 	 * @brief Returns the element that triggered the event
-         *
 	 * @retval instance of the element
 	 */
 	JSObjectRef getTarget() { return _target; }
 
 	/**
 	 * @brief Returns the element whose event listeners triggered the event
-         *
 	 * @retval instance of the element
 	 */
 	JSObjectRef getCurrentTarget()  { return _currentTarget; }
 
 	/**
 	 * @brief Returns which phase of the event flow is currently being evaluated
-         *
 	 * @retval event phase
 	 */
 	EventPhase getEventPhase()  { return _phase; }
 
 	/**
 	 * @brief Returns whether or not the preventDefault() method was called for the event
-         *
 	 * @retval true if default was prevented
 	 */
 	bool getIsDefaultPrevented()  { return _canceled; }
 
 	/**
 	 * @brief Returns whether or not an event is trusted
-         *
 	 * @retval true if event is trusted
 	 */
 	bool getIsTrusted()           { return _isTrusted; }
@@ -155,9 +135,8 @@ public:
 
 	/**
 	 * @brief Set the target instance
-         *
 	 * @param[in] context JS execution context
-	 * @param[in] obj     Target instance
+	 * @param[in] obj target instance
 	 */
 	void setTarget(JSContextRef context, JSObjectRef obj)
 	{
@@ -175,9 +154,8 @@ public:
 
 	/**
 	 * @brief Set the current target instance
-         * 
 	 * @param[in] context JS execution context
-	 * @param[in] obj     Current target instance
+	 * @param[in] obj current target instance
 	 */
 	void setCurrentTarget(JSContextRef context, JSObjectRef obj)
 	{
@@ -215,7 +193,3 @@ private:
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
 
 #endif // __AAMP_JSEVENT_H__
-
-/**
- * @}
- */

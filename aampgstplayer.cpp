@@ -45,26 +45,21 @@
 
 
 /**
- * @addtogroup AAMP_COMMON_TYPES 
- * @{
- */
-
-/**
  * @enum GstPlayFlags 
  * @brief Enum of configuration flags used by playbin
  */
 typedef enum {
-	GST_PLAY_FLAG_VIDEO = (1 << 0), //!< 0x001
-	GST_PLAY_FLAG_AUDIO = (1 << 1), //!< 0x002
-	GST_PLAY_FLAG_TEXT = (1 << 2), //!< 0x004
-	GST_PLAY_FLAG_VIS = (1 << 3), //!< 0x008
-	GST_PLAY_FLAG_SOFT_VOLUME = (1 << 4), //!< 0x010
-	GST_PLAY_FLAG_NATIVE_AUDIO = (1 << 5), //!< 0x020
-	GST_PLAY_FLAG_NATIVE_VIDEO = (1 << 6), //!< 0x040
-	GST_PLAY_FLAG_DOWNLOAD = (1 << 7), //!< 0x080
-	GST_PLAY_FLAG_BUFFERING = (1 << 8), //!< 0x100
-	GST_PLAY_FLAG_DEINTERLACE = (1 << 9), //!< 0x200
-	GST_PLAY_FLAG_SOFT_COLORBALANCE = (1 << 10) //!< 0x400
+	GST_PLAY_FLAG_VIDEO = (1 << 0), // 0x001
+	GST_PLAY_FLAG_AUDIO = (1 << 1), // 0x002
+	GST_PLAY_FLAG_TEXT = (1 << 2), // 0x004
+	GST_PLAY_FLAG_VIS = (1 << 3), // 0x008
+	GST_PLAY_FLAG_SOFT_VOLUME = (1 << 4), // 0x010
+	GST_PLAY_FLAG_NATIVE_AUDIO = (1 << 5), // 0x020
+	GST_PLAY_FLAG_NATIVE_VIDEO = (1 << 6), // 0x040
+	GST_PLAY_FLAG_DOWNLOAD = (1 << 7), // 0x080
+	GST_PLAY_FLAG_BUFFERING = (1 << 8), // 0x100
+	GST_PLAY_FLAG_DEINTERLACE = (1 << 9), // 0x200
+	GST_PLAY_FLAG_SOFT_COLORBALANCE = (1 << 10) // 0x400
 } GstPlayFlags;
 
 //#define SUPPORT_MULTI_AUDIO
@@ -89,17 +84,16 @@ typedef enum {
 #else
 #define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
-#define DEFAULT_BUFFERING_TO_MS 10                       //!< TimeOut interval to check buffer fullness
-#define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) //!< prebuffer in bytes
-#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          //!< if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
-#define DEFAULT_BUFFERING_MAX_MS (1000)                  //!< max buffering time
-#define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   //!< max buffering timeout count
+#define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
+#define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
+#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
+#define DEFAULT_BUFFERING_MAX_MS (1000)                  // max buffering time
+#define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 
 /**
  * @struct media_stream
- *
  * @brief Holds stream(A/V) specific variables.
  */
 struct media_stream
@@ -116,7 +110,6 @@ struct media_stream
 
 /**
  * @struct AAMPGstPlayerPriv
- *
  * @brief Holds private variables of AAMPGstPlayer
  */
 struct AAMPGstPlayerPriv
@@ -201,8 +194,7 @@ static gboolean buffering_timeout (gpointer data);
 
 /**
  * @brief AAMPGstPlayer Constructor
- *
- * @param[in] aamp Pointer to PrivateInstanceAAMP object associated with player
+ * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
 AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
 {
@@ -232,8 +224,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 
 /**
  * @brief Analyze stream info from the GstPipeline
- *
- * @param[in] _this  Pointer to AAMPGstPlayer instance
+ * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void analyze_streams(AAMPGstPlayer *_this)
 {
@@ -273,10 +264,9 @@ static void analyze_streams(AAMPGstPlayer *_this)
 
 /**
  * @brief Callback for appsrc "need-data" signal
- *
- * @param[in] source  Pointer to appsrc instance triggering "need-data" signal
- * @param[in] size    Size of data required
- * @param[in] _this   Pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] source pointer to appsrc instance triggering "need-data" signal
+ * @param[in] size size of data required
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  */
 static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
 {
@@ -293,9 +283,8 @@ static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
 
 /**
  * @brief Callback for appsrc "enough-data" signal
- *
- * @param[in] source  Pointer to appsrc instance triggering "enough-data" signal
- * @param[in] _this   Pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] source pointer to appsrc instance triggering "enough-data" signal
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  */
 static void enough_data(GstElement *source, AAMPGstPlayer * _this)
 {
@@ -312,10 +301,9 @@ static void enough_data(GstElement *source, AAMPGstPlayer * _this)
 
 /**
  * @brief Callback for appsrc "seek-data" signal
- *
- * @param[in] src     Pointer to appsrc instance triggering "seek-data" signal 
- * @param[in] offset  Seek position offset
- * @param[in] _this   Pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] src pointer to appsrc instance triggering "seek-data" signal 
+ * @param[in] offset seek position offset
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  */
 static gboolean  appsrc_seek  (GstAppSrc *src, guint64 offset, AAMPGstPlayer * _this)
 {
@@ -328,10 +316,9 @@ static gboolean  appsrc_seek  (GstAppSrc *src, guint64 offset, AAMPGstPlayer * _
 
 /**
  * @brief Initialize properties/callback of appsrc
- *
- * @param[in] _this      Pointer to AAMPGstPlayer instance associated with the playback
- * @param[in] source     Pointer to appsrc instance to be initialized
- * @param[in] mediaType  Stream type
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] source pointer to appsrc instance to be initialized
+ * @param[in] mediaType stream type
  */
 static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType mediaType = eMEDIATYPE_VIDEO )
 {
@@ -362,9 +349,7 @@ static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType me
 
 /**
  * @brief Parse format to generate GstCaps
- *
- * @param[in] format Stream format to generate caps
- *
+ * @param[in] format stream format to generate caps
  * @retval GstCaps for the input format
  */
 static GstCaps* GetGstCaps(StreamOutputFormat format)
@@ -427,11 +412,10 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 
 /**
  * @brief Callback when source is added by playbin
- *
- * @param[in] object  GstObject
- * @param[in] orig 	  The object that originated the signal
- * @param[in] pspec   The property that changed
- * @param[in] _this   Pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] object a GstObject
+ * @param[in] orig the object that originated the signal
+ * @param[in] pspec the property that changed
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  */
 static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, AAMPGstPlayer * _this )
 {
@@ -461,10 +445,9 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 
 /**
  * @brief Calls this function for each tag inside the tag list
- *
- * @param[in] list      The GstTagList
- * @param[in] tag       Name of a tag in list
- * @param[in] user_data User data provided when registering callback
+ * @param[in] list the GstTagList
+ * @param[in] tag a name of a tag in list
+ * @param[in] user_data user data provided when registering callback
  */
 static void print_tag( const GstTagList * list, const gchar * tag, gpointer user_data)
 {
@@ -499,9 +482,7 @@ static void print_tag( const GstTagList * list, const gchar * tag, gpointer user
 
 /**
  * @brief Idle callback to notify first frame rendered event
- *
- * @param[in] user_data  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] user_data pointer to AAMPGstPlayer instance
  * @retval G_SOURCE_REMOVE, if the source should be removed
  */
 static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
@@ -516,9 +497,7 @@ static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 
 /**
  * @brief Idle callback to notify end-of-stream event
- *
- * @param[in] user_data  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] user_data pointer to AAMPGstPlayer instance
  * @retval G_SOURCE_REMOVE, if the source should be removed
  */
 static gboolean IdleCallbackOnEOS(gpointer user_data)
@@ -536,9 +515,7 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 
 /**
  * @brief Timer's callback to notify playback progress event
- *
- * @param[in] user_data Pointer to AAMPGstPlayer instance
- *
+ * @param[in] user_data pointer to AAMPGstPlayer instance
  * @retval G_SOURCE_REMOVE, if the source should be removed
  */
 static gboolean ProgressCallbackOnTimeout(gpointer user_data)
@@ -552,9 +529,7 @@ static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 
 /**
  * @brief Idle callback to start progress notifier timer
- *
- * @param[in] user_data  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] user_data pointer to AAMPGstPlayer instance
  * @retval G_SOURCE_REMOVE, if the source should be removed
  */
 static gboolean IdleCallback(gpointer user_data)
@@ -570,11 +545,8 @@ static gboolean IdleCallback(gpointer user_data)
 #endif
 
 /**
- * @brief Notify first Audio and Video frame through an idle function.
- *
- * To make the playersinkbin handling same as normal(playbin) playback.
- *
- * @param[in] type Media type of the frame which is decoded, either audio or video.
+ * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
+ * @param[in] type media type of the frame which is decoded, either audio or video.
  */
 void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 {
@@ -615,11 +587,10 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 
 /**
  * @brief Callback invoked after first video frame decoded
- *
- * @param[in] object  Pointer to element raising the callback
- * @param[in] arg0    Number of arguments
- * @param[in] arg1    Array of arguments
- * @param[in] _this   Pointer to AAMPGstPlayer instance
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder(GstElement* object, guint arg0, gpointer arg1,
 	AAMPGstPlayer * _this)
@@ -632,11 +603,10 @@ static void AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder(GstElement* object, gu
 
 /**
  * @brief Callback invoked after first audio buffer decoded
- *
- * @param[in] object  Pointer to element raising the callback
- * @param[in] arg0    Number of arguments
- * @param[in] arg1    Array of arguments
- * @param[in] _this   Pointer to AAMPGstPlayer instance
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
@@ -647,10 +617,8 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
 
 /**
  * @brief Check if gstreamer element is video decoder
- *
- * @param[in] name   Name of the element
- * @param[in] _this  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] name Name of the element
+ * @param[in] _this pointer to AAMPGstPlayer instance
  * @retval TRUE if element name is that of the decoder
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
@@ -661,10 +629,8 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 
 /**
  * @brief Check if gstreamer element is video sink
- *
- * @param[in] name   Name of the element
- * @param[in] _this  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] name Name of the element
+ * @param[in] _this pointer to AAMPGstPlayer instance
  * @retval TRUE if element name is that of video sink
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
@@ -675,10 +641,8 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 
 /**
  * @brief Check if gstreamer element is audio decoder
- *
- * @param[in] name    Name of the element
- * @param[in] _this   Pointer to AAMPGstPlayer instance
- *
+ * @param[in] name Name of the element
+ * @param[in] _this pointer to AAMPGstPlayer instance
  * @retval TRUE if element name is that of audio decoder
  */
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
@@ -690,9 +654,7 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 
 /**
  * @brief Notifies EOS if video decoder pts is stalled
- *
- * @param[in] user_data  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] user_data pointer to AAMPGstPlayer instance
  * @retval G_SOURCE_REMOVE, if the source should be removed
  */
 static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
@@ -722,11 +684,10 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 
 /**
  * @brief Callback invoked when facing an underflow
- *
- * @param[in] object  Pointer to element raising the callback
- * @param[in] arg0    Number of arguments
- * @param[in] arg1    Array of arguments
- * @param[in] _this   Pointer to AAMPGstPlayer instance
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
@@ -780,11 +741,10 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 
 /**
  * @brief Callback invoked a PTS error is encountered
- *
- * @param[in] object  Pointer to element raising the callback
- * @param[in] arg0    Number of arguments
- * @param[in] arg1    Array of arguments
- * @param[in] _this   Pointer to AAMPGstPlayer instance
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
  */
 static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
@@ -824,11 +784,9 @@ static gboolean buffering_timeout (gpointer data)
 
 /**
  * @brief Called from the mainloop when a message is available on the bus
- *
- * @param[in] bus    The GstBus that sent the message
- * @param[in] msg    The GstMessage
- * @param[in] _this  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] bus the GstBus that sent the message
+ * @param[in] msg the GstMessage
+ * @param[in] _this pointer to AAMPGstPlayer instance
  * @retval FALSE if the event source should be removed.
  */
 static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _this)
@@ -1082,11 +1040,9 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 /**
  * @brief Invoked synchronously when a message is available on the bus
- *
- * @param[in] bus    The GstBus that sent the message
- * @param[in] msg    The GstMessage
- * @param[in] _this  Pointer to AAMPGstPlayer instance
- *
+ * @param[in] bus the GstBus that sent the message
+ * @param[in] msg the GstMessage
+ * @param[in] _this pointer to AAMPGstPlayer instance
  * @retval FALSE if the event source should be removed.
  */
 static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _this)
@@ -1302,8 +1258,7 @@ void AAMPGstPlayer::DestroyPipeline()
 
 /**
  * @brief Retrieve the video decoder handle from pipeline
- *
- * @retval The decoder handle
+ * @retval the decoder handle
  */
 unsigned long AAMPGstPlayer::getCCDecoderHandle()
 {
@@ -1328,10 +1283,9 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 
 /**
  * @brief Generate a protection event
- *
- * @param[in] protSystemId  Key system to be used
- * @param[in] initData      DRM initialization data
- * @param[in] initDataSize  DRM initialization data size
+ * @param[in] protSystemId keysystem to be used
+ * @param[in] initData DRM initialization data
+ * @param[in] initDataSize DRM initialization data size
  */
 void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize)
 {
@@ -1363,10 +1317,9 @@ void AAMPGstPlayer::ClearProtectionEvent()
 
 /**
  * @brief Callback for receiving playersinkbin gstreamer events
- *
- * @param[in] playersinkbin  Instance of playersinkbin
- * @param[in] status         Event name
- * @param[in] arg            User data (pointer to AAMPGstPlayer instance)
+ * @param[in] playersinkbin instance of playersinkbin
+ * @param[in] status event name
+ * @param[in] arg user data (pointer to AAMPGstPlayer instance)
  */
 static void AAMPGstPlayer_PlayersinkbinCB(GstElement * playersinkbin, gint status,  void* arg)
 {
@@ -1412,11 +1365,9 @@ static void AAMPGstPlayer_PlayersinkbinCB(GstElement * playersinkbin, gint statu
 
 /**
  * @brief Create an appsrc element for a particular format
- *
- * @param[in] _this   Pointer to AAMPGstPlayer instance
- * @param[in] format  Data format for setting src pad caps
- *
- * @retval Pointer to appsrc instance
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ * @param[in] format data format for setting src pad caps
+ * @retval pointer to appsrc instance
  */
 static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, StreamOutputFormat format)
 {
@@ -1439,8 +1390,7 @@ static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, StreamOutputFor
 
 /**
  * @brief Cleanup resources and flags for a particular stream type
- *
- * @param[in] mediaType Stream type
+ * @param[in] mediaType stream type
  */
 void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 {
@@ -1501,10 +1451,8 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 
 /**
  * @brief Setup pipeline for a particular stream type
- *
- * @param[in] _this     Pointer to AAMPGstPlayer instance
- * @param[in] streamId  Stream type
- *
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ * @param[in] streamId stream type
  * @retval 0, if setup successfully. -1, for failure
  */
 static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
@@ -1598,10 +1546,9 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 
 /**
  * @brief Send any pending/cached events to pipeline
- *
- * @param[in] privateContext  Pointer to AAMPGstPlayerPriv instance
- * @param[in] mediaType       Stream type
- * @param[in] pts             PTS of next buffer
+ * @param[in] privateContext pointer to AAMPGstPlayerPriv instance
+ * @param[in] mediaType stream type
+ * @param[in] pts PTS of next buffer
  */
 static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
 {
@@ -1687,13 +1634,12 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 /**
  * @brief Inject buffer of a stream type to its pipeline
- *
- * @param[in] mediaType  Stream type
- * @param[in] ptr        Buffer pointer
- * @param[in] len0       Length of buffer
- * @param[in] fpts       PTS of buffer (in sec)
- * @param[in] fdts       DTS of buffer (in sec)
- * @param[in] fDuration  Duration of buffer (in sec)
+ * @param[in] mediaType stream type
+ * @param[in] ptr buffer pointer
+ * @param[in] len0 length of buffer
+ * @param[in] fpts PTS of buffer (in sec)
+ * @param[in] fdts DTS of buffer (in sec)
+ * @param[in] fDuration duration of buffer (in sec)
  */
 void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, double fpts, double fdts, double fDuration)
 {
@@ -1792,12 +1738,11 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 
 /**
  * @brief Inject buffer of a stream type to its pipeline
- *
- * @param[in] mediaType  Stream type
- * @param[in] pBuffer    Buffer as GrowableBuffer pointer
- * @param[in] fpts       PTS of buffer (in sec)
- * @param[in] fdts       DTS of buffer (in sec)
- * @param[in] fDuration  Duration of buffer (in sec)
+ * @param[in] mediaType stream type
+ * @param[in] pBuffer buffer as GrowableBuffer pointer
+ * @param[in] fpts PTS of buffer (in sec)
+ * @param[in] fdts DTS of buffer (in sec)
+ * @param[in] fDuration duration of buffer (in sec)
  */
 void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration)
 {
@@ -1875,9 +1820,8 @@ void AAMPGstPlayer::Stream()
 
 /**
  * @brief Configure pipeline based on A/V formats
- *
- * @param[in] format       Video format
- * @param[in] audioFormat  Audio format
+ * @param[in] format video format
+ * @param[in] audioFormat audio format
  */
 void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)
 {
@@ -1985,8 +1929,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 /**
  * @brief To signal EOS to a particular appsrc instance
- *
- * @param[in] source  Pointer to appsrc instance
+ * @param[in] source pointer to appsrc instance
  */
 static void AAMPGstPlayer_SignalEOS(GstElement *source )
 {
@@ -2004,8 +1947,7 @@ static void AAMPGstPlayer_SignalEOS(GstElement *source )
 
 /**
  * @brief Starts processing EOS for a particular stream type
- *
- * @param[in] type Stream type
+ * @param[in] type stream type
  */
 void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 {
@@ -2044,9 +1986,8 @@ void AAMPGstPlayer::DisconnectCallbacks()
 
 
 /**
- * @brief Stop playback and any idle handlers active at the time.
- *
- * @param[in] keepLastFrame Denotes if last video frame should be kept
+ * @brief Stop playback and any idle handlers active at the time
+ * @param[in] keepLastFrame denotes if last video frame should be kept
  */
 void AAMPGstPlayer::Stop(bool keepLastFrame)
 {
@@ -2201,12 +2142,10 @@ void AAMPGstPlayer::DumpStatus(void)
 
 
 /**
- * @brief Validate pipeline state transition within a max timeout.
- *
- * @param[in] _this            Pointer to AAMPGstPlayer instance
- * @param[in] stateToValidate  State to be validated
- * @param[in] msTimeOut        Max timeout in MS
- *
+ * @brief Validate pipeline state transition within a max timeout
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ * @param[in] stateToValidate state to be validated
+ * @param[in] msTimeOut max timeout in MS
  * @retval Current pipeline state
  */
 static GstState validateStateWithMsTimeout( AAMPGstPlayer *_this, GstState stateToValidate, guint msTimeOut)
@@ -2251,8 +2190,7 @@ void AAMPGstPlayer::Flush(void)
 
 /**
  * @brief Pause pipeline and flush 
- *
- * @param playAfterFlush Denotes if it should be set to playing at the end
+ * @param playAfterFlush denotes if it should be set to playing at the end
  */
 void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 {
@@ -2328,8 +2266,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 
 /**
  * @brief Select a particular audio track (for playbin)
- *
- * @param[in] index Index of audio track to be selected
+ * @param[in] index index of audio track to be selected
  */
 void AAMPGstPlayer::SelectAudio(int index)
 {
@@ -2345,8 +2282,7 @@ void AAMPGstPlayer::SelectAudio(int index)
 
 /**
  * @brief Get playback position in MS
- *
- * @retval Playback position in MS
+ * @retval playback position in MS
  */
 long AAMPGstPlayer::GetPositionMilliseconds(void)
 {
@@ -2374,8 +2310,7 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 
 /**
  * @brief To pause/play pipeline
- *
- * @param[in] Pause flag to pause/play the pipeline
+ * @param[in] pause flag to pause/play the pipeline
  */
 void AAMPGstPlayer::Pause( bool pause )
 {
@@ -2406,12 +2341,11 @@ void AAMPGstPlayer::Pause( bool pause )
 
 
 /**
- * @brief Set video display rectangle co-ordinates.
- *
- * @param[in] x  X co-ordinate of display rectangle
- * @param[in] y  Y co-ordinate of display rectangle
- * @param[in] w  Width of display rectangle
- * @param[in] h  Height of display rectangle
+ * @brief Set video display rectangle co-ordinates
+ * @param[in] x x co-ordinate of display rectangle
+ * @param[in] y y co-ordinate of display rectangle
+ * @param[in] w width of display rectangle
+ * @param[in] h height of display rectangle
  */
 void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -2450,9 +2384,8 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 
 
 /**
- * @brief Set video zoom.
- *
- * @param[in] zoom Zoom setting to be set.
+ * @brief Set video zoom
+ * @param[in] zoom zoom setting to be set
  */
 void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 {
@@ -2490,8 +2423,7 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 
 /**
  * @brief Set video mute
- *
- * @param[in] muted  True to mute video, otherwise false
+ * @param[in] muted true to mute video otherwise false
  */
 void AAMPGstPlayer::SetVideoMute(bool muted)
 {
@@ -2520,8 +2452,7 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
 
 /**
  * @brief Set audio volume
- *
- * @param[in] volume Audio volume value (0-100)
+ * @param[in] volume audio volume value (0-100)
  */
 void AAMPGstPlayer::SetAudioVolume(int volume)
 {
@@ -2533,8 +2464,7 @@ void AAMPGstPlayer::SetAudioVolume(int volume)
 
 /**
  * @brief Set audio volume or mute
- *
- * @note Set privateContext->audioVolume before calling this function
+ * @note set privateContext->audioVolume before calling this function
  */
 void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 {
@@ -2603,10 +2533,9 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 
 
 /**
- * @brief Flush cached GstBuffers and set seek position and rate.
- *
- * @param[in] position  Playback seek position
- * @param[in] rate      Playback rate
+ * @brief Flush cached GstBuffers and set seek position & rate
+ * @param[in] position playback seek position
+ * @param[in] rate playback rate
  */
 void AAMPGstPlayer::Flush(double position, int rate)
 {
@@ -2674,9 +2603,7 @@ void AAMPGstPlayer::Flush(double position, int rate)
 
 /**
  * @brief Process discontinuity for a stream type
- *
- * @param[in] type Stream type
- *
+ * @param type stream type
  * @retval true if discontinuity processed
  */
 bool AAMPGstPlayer::Discontinuity(MediaType type)
@@ -2700,11 +2627,9 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 
 
 /**
- * @brief Check if cache empty for a media type.
- *
- * @param[in] mediaType Stream type
- *
- * @retval True if cache empty
+ * @brief Check if cache empty for a media type
+ * @param[in] mediaType stream type
+ * @retval true if cache empty
  */
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
@@ -2801,10 +2726,9 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 
 
 /**
- * @brief Get video display's width and height.
- *
- * @param[out] width  Video width
- * @param[out] height Video height
+ * @brief Get video display's width and height
+ * @param[in] width video width
+ * @param[in] height video height
  */
 void AAMPGstPlayer::GetVideoSize(int &width, int &height)
 {
@@ -2869,7 +2793,6 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 /**
  * @brief Notify EOS to core aamp asynchronously if required.
- *
  * @note Used internally by AAMPGstPlayer
  */
 void AAMPGstPlayer::NotifyEOS()
@@ -2901,8 +2824,3 @@ void AAMPGstPlayer::NotifyEOS()
 		logprintf("%s()%d: EOS already signaled, hence skip!\n", __FUNCTION__, __LINE__);
 	}
 }
-
-/**
- * @}
- */
-

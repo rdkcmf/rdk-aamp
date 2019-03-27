@@ -150,7 +150,6 @@ public:
 
     /**
      * @brief Get PlayRedy OP levels
-     *
      * @retval m_minOPLevels
      */
     MinOPLevelsplayReady* getPlayReadyLevels() { return & m_minOPLevels; }
@@ -170,7 +169,6 @@ public:
 
     /**
      * @brief Check if HDCP is 2.2
-     *
      * @retval true if 2.2 false otherwise
      */
     bool isHDCPConnection2_2() { return m_hdcpCurrentProtocol == dsHDCP_VERSION_2X; }
@@ -179,7 +177,6 @@ public:
 
     /**
      * @brief Set GstElement
-     *
      * @param element
      */
     void setGstElement(GstElement *element) { m_gstElement = element;  }

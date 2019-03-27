@@ -41,11 +41,6 @@
  */
 void print_nop(const char *format, ...){}
 
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
 #ifdef LOG_ENABLE_TRACE
 #define TRACE1 logprintf("PC: TRACE1 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #define TRACE2 logprintf("PC: TRACE2 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
@@ -146,10 +141,6 @@ void print_nop(const char *format, ...){}
 #define DEBUG_DEMUX DEBUG
 #endif
 
-/**
- * @}
- */
-
 
 /**
  * @class Demuxer
@@ -177,10 +168,6 @@ private:
 	int packetCount;
 #endif
 
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
 
 	/**
 	 * @brief Sends elementary stream with proper PTS
@@ -220,7 +207,6 @@ private:
 public:
 	/**
 	 * @brief Demuxer Constructor
-         *
 	 * @param[in] aamp pointer to PrivateInstanceAAMP object associated with demux
 	 * @param[in] type Media type to be demuxed
 	 */
@@ -243,7 +229,6 @@ public:
 
 	/**
 	 * @brief Initialize demux
-         *
 	 * @param[in] position start position
 	 * @param[in] duration duration
 	 * @param[in] trickmode true if trickmode
@@ -273,7 +258,7 @@ public:
 
 
 	/**
-	 * @brief Flush es buffer and reset demux state
+	 * @brief flush es buffer and reset demux state
 	 */
 	void flush()
 	{
@@ -290,7 +275,7 @@ public:
 
 
 	/**
-	 * @brief Reset demux state
+	 * @brief reset demux state
 	 */
 	void reset()
 	{
@@ -303,9 +288,8 @@ public:
 
 	/**
 	 * @brief Set base PTS used for re-stamping
-         *
-	 * @param[in] basePTS  New base PTS
-	 * @param[in] final    True if base PTS is finalized
+	 * @param[in] basePTS new base PTS
+	 * @param[in] final true if base PTS is finalized
 	 */
 	void setBasePTS(unsigned long long basePTS, bool final)
 	{
@@ -319,7 +303,6 @@ public:
 
 	/**
 	 * @brief Get base PTS used for re-stamping
-         *
 	 * @retval base PTS used for re-stamping
 	 */
 	unsigned long long getBasePTS()
@@ -330,10 +313,9 @@ public:
 
 	/**
 	 * @brief Process a TS packet
-         *
-	 * @param[in]  packetStart     Start of buffer containing packet
-	 * @param[out] basePtsUpdated  True if base PTS is updated
-	 * @param[in]  ptsError        True if encountered PTS error.
+	 * @param[in] packetStart start of buffer containing packet
+	 * @param[out] basePtsUpdated true if base PTS is updated
+	 * @param[in] ptsError true if encountered PTS error.
 	 */
 	void processPacket(unsigned char * packetStart, bool &basePtsUpdated, bool &ptsError)
 	{
@@ -586,11 +568,9 @@ static void init_crc32()
 
 /**
  * @brief Get 32 bit CRC value
- *
  * @param[in] data buffer containing data
  * @param[in] size length of data
  * @param[in] initial initial CRC
- *
  * @retval 32 bit CRC value
  */
 static uint32_t get_crc32(unsigned char *data, int size, uint32_t initial = 0xffffffff)
@@ -607,10 +587,9 @@ static uint32_t get_crc32(unsigned char *data, int size, uint32_t initial = 0xff
 
 
 /**
- * @brief Dump TS packet.
- *
- * @param[in] packet      Buffer containing packet
- * @param[in] packetSize  Length of packet
+ * @brief Dump TS packet
+ * @param[in] packet buffer containing packet
+ * @param[in] packetSize length of packet
  */
 static void dumpPacket(unsigned char *packet, int packetSize)
 {
@@ -643,11 +622,10 @@ static void dumpPacket(unsigned char *packet, int packetSize)
 
 
 /**
- * @brief Dump TS packets
- *
- * @param[in] packets     Buffer containing packets
- * @param[in] len         Length of packets
- * @param[in] packetSize  Size of TS packet
+ * @brief dump TS packets
+ * @param[in] packets buffer containing packets
+ * @param[in] len length of packets
+ * @param[in] packetSize size of TS packet
  */
 static void dumpPackets(unsigned char *packets, int len, int packetSize)
 {
@@ -661,11 +639,10 @@ static void dumpPackets(unsigned char *packets, int len, int packetSize)
 
 /**
  * @brief TSProcessor Constructor
- *
- * @param[in] aamp             Pointer to aamp associated with this TSProcessor
- * @param[in] streamOperation  Operation to be done on injected data.
- * @param[in] track            MediaType to be operated on. Not relavent for demux operation
- * @param[in] peerTSProcessor  Peer TSProcessor used along with this in case of separate audio/video playlists
+ * @param[in] aamp Pointer to aamp associated with this TSProcessor
+ * @param[in] streamOperation Operation to be done on injected data.
+ * @param[in] track MediaType to be operated on. Not relavent for demux operation
+ * @param[in] peerTSProcessor Peer TSProcessor used along with this in case of separate audio/video playlists
  */
 TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamOperation, int track, TSProcessor* peerTSProcessor)
 	: m_needDiscontinuity(true),
@@ -871,12 +848,10 @@ TSProcessor::~TSProcessor()
 
 /**
  * @brief Insert PAT and PMT sections
- *
- * @param[out] buffer      PAT and PMT is copied to this buffer
- * @param[in]  trick       True on trick mode, false on normal playback
- * @param[in]  bufferSize  Size of buffer
- *
- * @retval Length of output buffer
+ * @param[out] buffer PAT and PMT is copied to this buffer
+ * @param[in] trick true on trick mode, false on normal playback
+ * @param[in] bufferSize size of buffer
+ * @retval length of output buffer
  */
 int TSProcessor::insertPatPmt(unsigned char *buffer, bool trick, int bufferSize)
 {
@@ -913,10 +888,9 @@ int TSProcessor::insertPatPmt(unsigned char *buffer, bool trick, int bufferSize)
 
 
 /**
- * @brief Insert PCR to the packet in case of PTS restamping
- *
- * @param[in] packet[in,out]  Buffer to which PCR to be inserted
- * @param[in] pid             Pcr pid
+ * @brief insert PCR to the packet in case of PTS restamping
+ * @param[in] packet[in,out] buffer to which PCR to be inserted
+ * @param[in] pid[in] pcr pid
  */
 void TSProcessor::insertPCR(unsigned char *packet, int pid)
 {
@@ -948,11 +922,9 @@ void TSProcessor::insertPCR(unsigned char *packet, int pid)
 }
 
 /**
- * @brief Process PMT section and update media components.
- *
+ * @brief process PMT section and update media components.
  * @param[in] section character buffer containing PMT section
  * @param[in] sectionLength length of PMT section
- *
  * @note Call with section pointing to first byte after section_length
  */
 void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
@@ -1206,7 +1178,6 @@ void TSProcessor::updatePATPMT()
 
 /**
  * @brief Send discontinuity packet. Not relevant for demux operations
- *
  * @param[in] position position in seconds
  */
 void TSProcessor::sendDiscontinuity(double position)
@@ -1322,8 +1293,7 @@ void TSProcessor::sendDiscontinuity(double position)
 
 /**
  * @brief Get current time stamp in milliseconds
- *
- * @retval Time stamp in milliseconds
+ * @retval time stamp in milliseconds
  */
 long long TSProcessor::getCurrentTime()
 {
@@ -1338,11 +1308,9 @@ long long TSProcessor::getCurrentTime()
 }
 
 /**
- * @brief Sleep used internal by throttle logic
- *
+ * @brief sleep used internal by throttle logic
  * @param[in] throttleDiff time in milliseconds
- *
- * @retval True on abort
+ * @retval true on abort
  */
 bool TSProcessor::msleep(long long throttleDiff)
 {
@@ -1367,8 +1335,7 @@ bool TSProcessor::msleep(long long throttleDiff)
 
 /**
  * @brief Blocks based on PTS. Can be used for pacing injection.
- *
- * @retval True if aborted
+ * @retval true if aborted
  */
 bool TSProcessor::throttle()
 {
@@ -1488,12 +1455,10 @@ bool TSProcessor::throttle()
 
 /**
  * @brief Process buffers and update internal states related to media components
- *
  * @param[in] buffer contains TS data
  * @param[in] size lenght of the buffer
  * @param[out] insPatPmt indicates if PAT and PMT needs to inserted
- *
- * @retval False if operation is aborted.
+ * @retval false if operation is aborted.
  */
 bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt)
 {
@@ -1927,7 +1892,6 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 
 /**
  * @brief Update internal state variables to set up throttle
- *
  * @param[in] segmentDurationMsSigned Duration of segment
  */
 void TSProcessor::setupThrottle(int segmentDurationMsSigned)
@@ -1943,14 +1907,12 @@ void TSProcessor::setupThrottle(int segmentDurationMsSigned)
 
 /**
  * @brief Demux TS and send elementary streams
- *
- * @param[in] ptr           Buffer containing TS data
- * @param[in] len           Length of buffer
- * @param[in] position      Position of segment in seconds
- * @param[in] duration      Duration of segment in seconds
- * @param[in] discontinuous True if segment is discontinous
- * @param[in] trackToDemux  Media track to do the operation
- *
+ * @param[in] ptr buffer containing TS data
+ * @param[in] len lenght of buffer
+ * @param[in] position position of segment in seconds
+ * @param[in] duration duration of segment in seconds
+ * @param[in] discontinuous true if segment is discontinous
+ * @param[in] trackToDemux media track to do the operation
  * @retval true on success, false on PTS error
  */
 bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, double duration, bool discontinuous, TrackToDemux trackToDemux)
@@ -2119,7 +2081,6 @@ void TSProcessor::reset()
 
 /**
  * @brief Flush all buffered data to sink
- *
  * @note Relevant only when s/w demux is used
  */
 void TSProcessor::flush()
@@ -2143,9 +2104,8 @@ void TSProcessor::flush()
 
 /**
  * @brief Send queued segment
- *
- * @param[in] basepts              New base pts to be set. Valid only for eStreamOp_DEMUX_AUDIO.
- * @param[in] updatedStartPositon  New start position of queued segment.
+ * @param[in] basepts new base pts to be set. Valid only for eStreamOp_DEMUX_AUDIO.
+ * @param[in] updatedStartPositon New start position of queued segment.
  */
 void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPositon)
 {
@@ -2187,10 +2147,9 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 
 
 /**
- * @brief Set base PTS for demux operations
- *
- * @param[in] position  Start position of fragment
- * @param[in] pts       Base pts for demux operations.
+ * @brief set base PTS for demux operations
+ * @param[in] position start position of fragment
+ * @param[in] pts base pts for demux operations.
  */
 void TSProcessor::setBasePTS(double position, long long pts)
 {
@@ -2211,14 +2170,12 @@ void TSProcessor::setBasePTS(double position, long long pts)
 
 /**
  * @brief Does configured operation on the segment and injects data to sink
- *
- * @param[in]  segment         Buffer containing the data segment
- * @param[in]  size            Specifies size of the segment in bytes.
- * @param[in]  position        Position of the segment in seconds
- * @param[in]  duration        Duration of the segment in seconds
- * @param[in]  discontinuous   True if fragment is discontinuous
- * @param[out] ptsError        True on PTS error
- *
+ * @param[in] segment Buffer containing the data segment
+ * @param[in] size Specifies size of the segment in bytes.
+ * @param[in] position Position of the segment in seconds
+ * @param[in] duration Duration of the segment in seconds
+ * @param[in] discontinuous true if fragment is discontinuous
+ * @param[out] true on PTS error
  * @retval true on success
  */
 bool TSProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
@@ -2406,11 +2363,10 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 
 /**
  * @brief Process ES start code
- *
- * @param[in] buffer        Buffer containing start code
- * @param[in] keepScanning  True to keep on scanning
- * @param[in] length        Size of the buffer
- * @param[in] base          Not used
+ * @param[in] buffer buffer containing start code
+ * @param[in] keepScanning true to keep on scanning
+ * @param[in] length size of the buffer
+ * @param[in] base Not used
  */
 bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, int length, int base)
 {
@@ -2683,9 +2639,8 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 
 /**
  * @brief Updates state variables depending on interlaced
- *
- * @param[in] packet Buffer containing TS packet
- * @param[in] length Length of buffer
+ * @param[in] packet buffer containing TS packet
+ * @param[in] length length of buffer
  */
 void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 {
@@ -2831,9 +2786,8 @@ void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 
 /**
  * @brief Does PTS re-stamping
- *
- * @param[in,out]   packet TS data to re-stamp
- * @param[in]       length TS data size
+ * @param[in,out] packet TS data to re-stamp
+ * @param[in] length[in] TS data size
  */
 void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 {
@@ -3194,8 +3148,8 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 /**
 * @brief Set to the playback mode.
 *
-* @param[in] mode  Play mode such as PlayMode_normal, PlayMode_retimestamp_Ionly,
-				   PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
+* @param[in] mode play mode such as PlayMode_normal, PlayMode_retimestamp_Ionly,
+* PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
 *
 * @note Not relevant for demux operations
 */
@@ -3211,8 +3165,7 @@ void TSProcessor::setPlayMode(PlayMode mode)
 
 
 /**
- * @brief Abort TSProcessor operations and return blocking calls immediately.
- *
+ * @brief Abort TSProcessor operations and return blocking calls immediately
  * @note Make sure that caller holds m_mutex before invoking this function
  */
 void TSProcessor::abortUnlocked()
@@ -3243,7 +3196,7 @@ void TSProcessor::abort()
 *
 * @param[in] rate play rate could be 1.0=Normal Playback, 0.0=Pause, etc
 * @param[in] mode play mode such as PlayMode_normal, PlayMode_retimestamp_Ionly,
-                  PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
+* PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
 *
 * @note mode is not relevant for demux operations
 */
@@ -3264,7 +3217,6 @@ void TSProcessor::setRate(double rate, PlayMode mode)
 
 /**
  * @brief Enable/ disable throttle
- *
  * @param[in] enable true to enable throttle, false to disable
  */
 void TSProcessor::setThrottleEnable(bool enable)
@@ -3276,7 +3228,6 @@ void TSProcessor::setThrottleEnable(bool enable)
 
 /**
  * @brief generate PAT and PMT based on media components
- *
  * @param[in] trick true on trickmode
  * @param[out] buff PAT and PMT copied to this buffer
  * @param[out] buflen Length of buff
@@ -3762,11 +3713,10 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 
 /**
  * @brief Appends a byte to PMT buffer
- *
- * @param[in,out] pmt    Buffer in which PMT is being constructed
- * @param[in,out] index  Current index of PMT construction.
- * @param[in]     byte   Byte to be written at index
- * @param[in]     pmtPid PID of PMT
+ * @param[in,out] pmt buffer in which PMT is being constructed
+ * @param[in,out] index current index of PMT construction.
+ * @param[in] byte byte to be written at index
+ * @param[in] pmtPid PID of PMT
  */
 void TSProcessor::putPmtByte(unsigned char* &pmt, int& index, unsigned char byte, int pmtPid)
 {
@@ -3801,10 +3751,8 @@ void TSProcessor::putPmtByte(unsigned char* &pmt, int& index, unsigned char byte
 
 /**
  * @brief Read time-stamp at the point
- *
- * @param[in] p    Buffer position containing time-stamp
- * @param[out] TS  Time-stamp
- *
+ * @param[in] p buffer position containing time-stamp
+ * @param[out] TS time-stamp
  * @retval true if time-stamp is present.
  */
 bool TSProcessor::readTimeStamp(unsigned char *p, long long& TS)
@@ -3850,10 +3798,9 @@ bool TSProcessor::readTimeStamp(unsigned char *p, long long& TS)
 
 /**
  * @brief Write time-stamp to buffer
- *
- * @param[out] p       Buffer to which TS to be written
- * @param[in]  prefix  Prefix of time-stamp
- * @param[in]  TS      Time-stamp
+ * @param[out] p buffer to which TS to be written
+ * @param[in] prefix of time-stamp
+ * @param[in] TS time-stamp
  */
 void TSProcessor::writeTimeStamp(unsigned char *p, int prefix, long long TS)
 {
@@ -3867,8 +3814,7 @@ void TSProcessor::writeTimeStamp(unsigned char *p, int prefix, long long TS)
 
 /**
  * @brief Read PCR from a buffer
- *
- * @param[in] p Start of PCR data
+ * @param[in] p start of PCR data
  */
 long long TSProcessor::readPCR(unsigned char *p)
 {
@@ -3883,10 +3829,9 @@ long long TSProcessor::readPCR(unsigned char *p)
 
 /**
  * @brief Write PCR to a buffer
- *
- * @param[out] p               Buffer to write PCR
- * @param[in]  PCR             Timestamp to be written
- * @param[in]  clearExtension  Clear PCR extension
+ * @param[out] p buffer to write PCR
+ * @param[in] PCR timestamp to be written
+ * @param[in] clearExtension clear PCR extension
  */
 void TSProcessor::writePCR(unsigned char *p, long long PCR, bool clearExtension)
 {
@@ -3907,7 +3852,7 @@ void TSProcessor::writePCR(unsigned char *p, long long PCR, bool clearExtension)
 
 /**
  * @struct MBAddrIncCode
- * @brief Holds macro block address increment codes
+ * @brief holds macro block address increment codes
  */
 struct MBAddrIncCode
 {
@@ -3981,11 +3926,9 @@ static unsigned char nullPFrameHeader[] =
 
 /**
  * @brief Create a Null P frame
- *
- * @param[in] width           Width of P frame to be constructed
- * @param[in] height          Height of P frame
- * @param[out] nullPFrameLen  Length of constructed p frame
- *
+ * @param[in] width width of P frame to be constructed
+ * @param[in] height height of P frame
+ * @param[out] nullPFrameLen length of constructed p frame
  * @retval Buffer containing P frame
  */
 unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFrameLen)
@@ -4136,11 +4079,9 @@ unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFr
 // Parse through the sequence parameter set data to determine the frame size
 
 /**
- * @brief Process sequence parameter set and update state variables.
- *
- * @param[in] p       Pointer containing SPS
- * @param[in] length  Size of SPS
- *
+ * @brief process sequence parameter set and update state variables
+ * @param[in] p pointer containing SPS
+ * @param[in] length size of SPS
  * @retval true if SPS is processed successfully
  */
 bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
@@ -4359,10 +4300,9 @@ bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
 }
 
 /**
- * @brief Parse through the picture parameter set to get required items.
- *
- * @param[in] p       Buffer containing PPS
- * @param[in] length  Size of PPS
+ * @brief Parse through the picture parameter set to get required items
+ * @param[in] p buffer containing PPS
+ * @param[in] length size of PPS
  */
 void TSProcessor::processPictureParameterSet(unsigned char *p, int length)
 {
@@ -4380,10 +4320,9 @@ void TSProcessor::processPictureParameterSet(unsigned char *p, int length)
 
 /**
  * @brief Consume all bits used by the scaling list
- *
- * @param[in] p     Buffer containing scaling list
- * @param[in] mask  mask
- * @param[in] size  length of scaling list
+ * @param[in] p buffer containing scaling list
+ * @param[in] mask mask
+ * @param[in] size lenght of scaling list
  */
 void TSProcessor::processScalingList(unsigned char *& p, int& mask, int size)
 {
@@ -4402,13 +4341,11 @@ void TSProcessor::processScalingList(unsigned char *& p, int& mask, int size)
 
 
 /**
- * @brief Get bits based on mask and count
- *
- * @param[in,out] p        Pointer being processed, updated internally
- * @param[in,out] mask     mask to be applied
- * @param[in]     bitCount Number of bits to be processed.
- *
- * @retval Value of bits
+ * @brief get bits based on mask and count
+ * @param[in,out] p pointer being processed, updated internally
+ * @param[in,out] mask mask to be applied
+ * @param[in] bitCount Number of bits to be processed.
+ * @retval value of bits
  */
 unsigned int TSProcessor::getBits(unsigned char *& p, int& mask, int bitCount)
 {
@@ -4434,11 +4371,10 @@ unsigned int TSProcessor::getBits(unsigned char *& p, int& mask, int bitCount)
 
 /**
  * @brief Put bits based on mask and count
- *
- * @param[in,out] p         Reference of buffer to which bits to be put
- * @param[in,out] mask      Mask to be applied
- * @param[in]     bitCount  Count of bits to be put
- * @param[in]     value     Bits to be put
+ * @param[in,out] p reference of buffer to which bits to be put
+ * @param[in,out] mask mask to be applied
+ * @param[in] bitCount count of bits to be put
+ * @param[in] value bits to be put
  */
 void TSProcessor::putBits(unsigned char *& p, int& mask, int bitCount, unsigned int value)
 {
@@ -4466,10 +4402,8 @@ void TSProcessor::putBits(unsigned char *& p, int& mask, int bitCount, unsigned 
 
 /**
  * @brief Gets unsigned EXP Golomb
- *
- * @param[in,out] p     Buffer
- * @param[in,out] mask  Bitmask
- *
+ * @param[in,out] p buffer
+ * @param[in,out] mask bitmask
  * @retval Unsigned EXP Golomb
  */
 unsigned int TSProcessor::getUExpGolomb(unsigned char *& p, int& mask)
@@ -4503,11 +4437,9 @@ unsigned int TSProcessor::getUExpGolomb(unsigned char *& p, int& mask)
 
 
 /**
- * @brief Gets signed EXP Golomb
- *
- * @param[in,out] p    Buffer
- * @param[in,out] bit  Mask
- *
+ * @brief Getss signed EXP Golomb
+ * @param[in,out] p buffer
+ * @param[in,out] bit mask
  * @retval signed EXP Golomb
  */
 int TSProcessor::getSExpGolomb(unsigned char *& p, int& bit)
@@ -4523,18 +4455,11 @@ int TSProcessor::getSExpGolomb(unsigned char *& p, int& bit)
 
 /**
  * @brief Get audio components
- *
- * @param[out] audioComponentsPtr  Pointer to audio component array
- * @param[out] count               Number of audio components
+ * @param[out] audioComponentsPtr pointer to audio component array
+ * @param[out] count Number of audio components
  */
 void TSProcessor::getAudioComponents(const RecordingComponent** audioComponentsPtr, int &count)
 {
 	count = audioComponentCount;
 	*audioComponentsPtr = audioComponents;
 }
-
-/**
- * @}
- */
-
-

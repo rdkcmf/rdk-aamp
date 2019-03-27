@@ -36,11 +36,6 @@
 #include "sec_client.h"
 #endif
 
-/**
- * @addtogroup AAMP_DRM_TYPES
- * @{
- */
-
 #define MAX_DRM_SESSIONS 2
 #define VIDEO_SESSION 0
 #define AUDIO_SESSION 1
@@ -131,7 +126,3 @@ unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int 
 unsigned char * _extractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len);
 
 #endif
-
-/**
- * @}
- */

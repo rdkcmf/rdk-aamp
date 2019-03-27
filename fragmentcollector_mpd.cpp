@@ -22,7 +22,6 @@
  * @brief Fragment collector implementation of MPEG DASH
  */
 
-
 #include "fragmentcollector_mpd.h"
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
@@ -54,11 +53,6 @@ using namespace std;
 using namespace dash::mpd;
 using namespace dash::xml;
 using namespace dash::helpers;
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
 
 #define MAX_ID_SIZE 1024
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
@@ -124,18 +118,8 @@ class MediaStreamContext : public MediaTrack
 {
 public:
 
-/**
- * @}
- */
-
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
-
 	/**
 	 * @brief MediaStreamContext Constructor
-         *
 	 * @param type Type of track
 	 * @param context  MPD collector context
 	 * @param aamp Pointer to associated aamp instance
@@ -171,8 +155,8 @@ public:
 	/**
 	 * @brief Receives cached fragment and injects to sink.
 	 *
-	 * @param[in]  cachedFragment      Contains fragment to be processed and injected
-	 * @param[out] fragmentDiscarded   True if fragment is discarded.
+	 * @param[in] cachedFragment - contains fragment to be processed and injected
+	 * @param[out] fragmentDiscarded - true if fragment is discarded.
 	 */
 	void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 	{
@@ -185,15 +169,13 @@ public:
 
 	/**
 	 * @brief Fetch and cache a fragment
-         *
-	 * @param[in] fragmentUrl   URL of fragment
-	 * @param[in] curlInstance  curl instance to be used to fetch
-	 * @param[in] position      Position of fragment in seconds
-	 * @param[in] duration      Duration of fragment in seconds
-	 * @param[in] range         Byte range
-	 * @param[in] initSegment   True if fragment is init fragment
-	 * @param[in] discontinuity True if fragment is discontinuous
-         *
+	 * @param fragmentUrl url of fragment
+	 * @param curlInstance curl instance to be used to fetch
+	 * @param position position of fragment in seconds
+	 * @param duration duration of fragment in seconds
+	 * @param range byte range
+	 * @param initSegment true if fragment is init fragment
+	 * @param discontinuity true if fragment is discontinuous
 	 * @retval true on success
 	 */
 	bool CacheFragment(const char *fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment= false, bool discontinuity = false
@@ -339,16 +321,6 @@ public:
 };
 
 /**
- * @}
- */
-
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
-/**
  * @struct HeaderFetchParams
  * @brief Holds information regarding initialization fragment
  */
@@ -389,11 +361,6 @@ struct DrmSessionParams
 };
 
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
-
-/**
- * @}
- */
-
 
 /**
  * @class PrivateStreamAbstractionMPD
@@ -492,18 +459,13 @@ private:
 	vector<PeriodInfo> mMPDPeriodsInfo;
 };
 
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
 
 /**
  * @brief PrivateStreamAbstractionMPD Constructor
- *
- * @param[in] context  MPD fragment collector context
- * @param[in] aamp     Pointer to associated aamp private object
- * @param[in] seekpos  Seek positon
- * @param[in] rate     Playback rate
+ * @param context MPD fragment collector context
+ * @param aamp Pointer to associated aamp private object
+ * @param seekpos Seek positon
+ * @param rate playback rate
  */
 PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate)
 {
@@ -542,10 +504,8 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 
 /**
  * @brief Check if mime type is compatible with media type
- *
- * @param[in] mimeType   Mime type
- * @param[in] mediaType  Media type
- *
+ * @param mimeType mime type
+ * @param mediaType media type
  * @retval true if compatible
  */
 static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
@@ -576,10 +536,8 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
 
 /**
  * @brief Get representation index of desired codec
- *
- * @param[in]  adaptationSet   Adaptation set object
- * @param[out] selectedRepType Type of desired representation
- *
+ * @param adaptationSet Adaptation set object
+ * @param[out] selectedRepType type of desired representation
  * @retval index of desired representation
  */
 static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedRepType)
@@ -643,10 +601,8 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 
 /**
  * @brief Check if adaptation set is of a given media type
- *
- * @param[in]  adaptationSet Adaptation set
- * @param[in]  mediaType     Media type
- *
+ * @param adaptationSet adaptation set
+ * @param mediaType media type
  * @retval true if adaptation set is of the given media type
  */
 static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
@@ -689,10 +645,8 @@ static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 }
 
 /**
- * @brief Read unsigned 32 bit value and update buffer pointer
- *
+ * @brief read unsigned 32 bit value and update buffer pointer
  * @param[in][out] pptr buffer
- *
  * @retval 32 bit value
  */
 static unsigned int Read32( const char **pptr)
@@ -711,16 +665,13 @@ static unsigned int Read32( const char **pptr)
 
 /**
  * @brief Parse segment index box
- *
- * @param[in]  start                Start of box
- * @param[in]  size                 Size of box
- * @param[in]  segmentIndex         Segment index
- * @param[out] referenced_size      Referenced size
- * @param[out] referenced_duration  Referenced duration
- *
- * @retval true on success
- *
  * @note The SegmentBase indexRange attribute points to Segment Index Box location with segments and random access points.
+ * @param start start of box
+ * @param size size of box
+ * @param segmentIndex segment index
+ * @param[out] referenced_size referenced size
+ * @param[out] referenced_duration referenced duration
+ * @retval true on success
  */
 static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentIndex, unsigned int *referenced_size, float *referenced_duration )
 {
@@ -748,11 +699,9 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 
 /**
  * @brief Replace matching token with given number
- *
- * @param[in] str       String in which operation to be performed
- * @param[in] from      Token
- * @param[in] toNumber  Number to replace token
- *
+ * @param str String in which operation to be performed
+ * @param from token
+ * @param toNumber number to replace token
  * @retval position
  */
 static int replace(std::string& str, const std::string& from, uint64_t toNumber )
@@ -802,11 +751,9 @@ static int replace(std::string& str, const std::string& from, uint64_t toNumber 
 
 /**
  * @brief Replace matching token with given string
- *
- * @param[in] str      String in which operation to be performed
- * @param[in] from     Token
- * @param[in] toString String to replace token
- *
+ * @param str String in which operation to be performed
+ * @param from token
+ * @param toString string to replace token
  * @retval position
  */
 static int replace(std::string& str, const std::string& from, const std::string& toString )
@@ -844,11 +791,10 @@ static int replace(std::string& str, const std::string& from, const std::string&
 
 
 /**
- * @brief Generates fragment URL from media information
- *
- * @param[out] fragmentUrl         Fragment URL
- * @param[in]  fragmentDescriptor  Descriptor
- * @param[in]  media               Media information string
+ * @brief Generates fragment url from media information
+ * @param[out] fragmentUrl fragment url
+ * @param fragmentDescriptor descriptor
+ * @param media media information string
  */
 static void GetFragmentUrl( char fragmentUrl[MAX_URI_LENGTH], const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
@@ -894,10 +840,9 @@ static void GetFragmentUrl( char fragmentUrl[MAX_URI_LENGTH], const FragmentDesc
 
 /**
  * @brief Gets file path to havest
- *
- * @param[out] filePath             Path of file
- * @param[in]  fragmentDescriptor   Fragment descriptor
- * @param[in]  media                String containing media info
+ * @param[out] filePath path of file
+ * @param fragmentDescriptor fragment descriptor
+ * @param media string containing media info
  */
 static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
@@ -913,10 +858,9 @@ static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor 
 
 /**
  * @brief Write file to storage
- *
- * @param[in]  fileName  Out file name
- * @param[in]  data      Buffer
- * @param[in]  len       Length of buffer
+ * @param fileName out file name
+ * @param data buffer
+ * @param len length of buffer
  */
 static void WriteFile(char* fileName, const char* data, int len)
 {
@@ -947,13 +891,12 @@ static void WriteFile(char* fileName, const char* data, int len)
 /**
  * @brief Fetch and cache a fragment
  *
- * @param[in]  pMediaStreamContext      Track object pointer
- * @param[in]  media                    Media descriptor string
- * @param[in]  fragmentDuration         Duration of fragment in seconds
- * @param[in]  isInitializationSegment  True if fragment is init fragment
- * @param[in]  curlInstance             Curl instance to be used to fetch
- * @param[in]  discontinuity            true if fragment is discontinuous
- *
+ * @param pMediaStreamContext Track object pointer
+ * @param media media descriptor string
+ * @param fragmentDuration duration of fragment in seconds
+ * @param isInitializationSegment true if fragment is init fragment
+ * @param curlInstance curl instance to be used to fetch
+ * @param discontinuity true if fragment is discontinuous
  * @retval true on fetch success
  */
 bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity)
@@ -1009,10 +952,8 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 
 /**
  * @brief Fetch and push next fragment
- *
- * @param[in] pMediaStreamContext  Track object
- * @param[in] curlInstance         Instance of curl to be used to fetch
- *
+ * @param pMediaStreamContext Track object
+ * @param curlInstance instance of curl to be used to fetch
  * @retval true if push is done successfully
  */
 bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *pMediaStreamContext, unsigned int curlInstance)
@@ -1554,8 +1495,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 /**
  * @brief Seek current period by a given time
- *
- * @param[in] seekPositionSeconds seek positon in seconds
+ * @param seekPositionSeconds seek positon in seconds
  */
 void PrivateStreamAbstractionMPD::SeekInPeriod( double seekPositionSeconds)
 {
@@ -1569,8 +1509,7 @@ void PrivateStreamAbstractionMPD::SeekInPeriod( double seekPositionSeconds)
 
 /**
  * @brief Skip to end of track
- *
- * @param[in] pMediaStreamContext Track object pointer
+ * @param pMediaStreamContext Track object pointer
  */
 void PrivateStreamAbstractionMPD::SkipToEnd( MediaStreamContext *pMediaStreamContext)
 {
@@ -1626,11 +1565,9 @@ void PrivateStreamAbstractionMPD::SkipToEnd( MediaStreamContext *pMediaStreamCon
 
 /**
  * @brief Skip fragments by given time
- *
- * @param[in] pMediaStreamContext Media track object
- * @param[in] skipTime            Time to skip in seconds
- * @param[in] updateFirstPTS      True to update first pts state variable
- *
+ * @param pMediaStreamContext Media track object
+ * @param skipTime time to skip in seconds
+ * @param updateFirstPTS true to update first pts state variable
  * @retval
  */
 double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS)
@@ -1884,9 +1821,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 
 /**
  * @brief Add attriblutes to xml node
- *
- * @param[in] reader xmlTextReaderPtr
- * @param[in] node   xml Node
+ * @param reader xmlTextReaderPtr
+ * @param node xml Node
  */
 static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
 {
@@ -1904,10 +1840,8 @@ static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
 
 /**
  * @brief Get xml node form reader
- *
- * @param[in] reader Pointer to reader object
- * @param[in] url    manifest url
- *
+ * @param reader pointer to reader object
+ * @param url manifest url
  * @retval xml node
  */
 static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
@@ -1981,13 +1915,10 @@ static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
 
 /**
  *   @brief  Initialize a newly created object.
- *
- *   @param[in]  tuneType  To set type of object.
- *
+ *   @note   To be implemented by sub classes
+ *   @param  tuneType to set type of object.
  *   @retval true on success
  *   @retval false on failure
- *
- *   @note   To be implemented by sub classes
  */
 AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 {
@@ -1997,9 +1928,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 /**
  * @brief Parse duration from ISO8601 string
- *
- * @param[in]  ptr         ISO8601 string
- * @param[out] durationMs  Duration in milliseconds
+ * @param ptr ISO8601 string
+ * @param[out] durationMs duration in milliseconds
  */
 static void ParseISO8601Duration(const char *ptr, uint64_t &durationMs)
 {
@@ -2039,10 +1969,9 @@ static void ParseISO8601Duration(const char *ptr, uint64_t &durationMs)
 
 /**
  * @brief Parse XML NS
- *
- * @param[in]  fullName  Full name of node
- * @param[out] ns        Namespace
- * @param[out] name      Name after 
+ * @param fullName full name of node
+ * @param[out] ns namespace
+ * @param[out] name name after :
  */
 static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string& name)
 {
@@ -2063,8 +1992,7 @@ static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string
 
 /**
  * @brief Create DRM Session
- *
- * @param[in] arg DrmSessionParams object pointer
+ * @param arg DrmSessionParams object pointer
  */
 void *CreateDRMSession(void *arg)
 {
@@ -2129,9 +2057,8 @@ void *CreateDRMSession(void *arg)
 
 /**
  * @brief Process content protection of adaptation
- *
- * @param[in] adaptationSet Adaptation set object
- * @param[in] mediaType     Type of track
+ * @param adaptationSet Adaptation set object
+ * @param mediaType type of track
  */
 void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType)
 {
@@ -2312,8 +2239,8 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 
 /**
  * @brief
- * @param[in] adaptationSet
- * @param[in] mediaType
+ * @param adaptationSet
+ * @param mediaType
  */
 void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType)
 {
@@ -2425,8 +2352,7 @@ uint64_t GetPeriodDuration(IPeriod * period)
 
 /**
  * @brief Get end time of current period
- *
- * @retval Current period's end time
+ * @retval current period's end time
  */
 uint64_t PrivateStreamAbstractionMPD::GetPeriodEndTime()
 {
@@ -2461,13 +2387,10 @@ uint64_t PrivateStreamAbstractionMPD::GetPeriodEndTime()
 
 /**
  *   @brief  Initialize a newly created object.
- *
- *   @param[in]  tuneType to set type of object.
- *
+ *   @note   To be implemented by sub classes
+ *   @param  tuneType to set type of object.
  *   @retval true on success
  *   @retval false on failure
- *
- *   @note   To be implemented by sub classes
  */
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
@@ -2749,8 +2672,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 /**
  * @brief Get duration though representation iteration
- *
- * @retval Duration in milliseconds
+ * @retval duration in milliseconds
  */
 uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
 {
@@ -2823,9 +2745,7 @@ uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
 
 /**
  * @brief Update MPD manifest
- *
- * @param[in] retrievePlaylistFromCache  True to try to get from cache
- *
+ * @param retrievePlaylistFromCache true to try to get from cache
  * @retval true on success
  */
 AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
@@ -3001,9 +2921,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 
 /**
  * @brief Find timed metadata from mainifest
- *
- * @param[in]  mpd   MPD top level element
- * @param[in]  root  XML root node
+ * @param mpd MPD top level element
+ * @param root XML root node
  */
 void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 {
@@ -3157,11 +3076,10 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 
 /**
  * @brief Process supplemental property of a period
- *
- * @param[in]  node        SupplementalProperty node
- * @param[out] AdID        AD Id
- * @param[in]  startMS     Start time in MS
- * @param[in]  durationMS  Duration in MS
+ * @param node SupplementalProperty node
+ * @param[out] AdID AD Id
+ * @param startMS start time in MS
+ * @param durationMS duration in MS
  */
 void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS)
 {
@@ -3228,12 +3146,11 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 
 /**
  * @brief Process Period AssetIdentifier
- *
- * @param[in] node        AssetIdentifier node
- * @param[in] startMS     Start time MS
- * @param[in] durationMS  Duration MS
- * @param[in] AssetID     Asset Id
- * @param[in] ProviderID  Provider Id
+ * @param node AssetIdentifier node
+ * @param startMS start time MS
+ * @param durationMS duration MS
+ * @param AssetID Asset Id
+ * @param ProviderID Provider Id
  */
 void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID)
 {
@@ -3287,10 +3204,9 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 
 /**
  * @brief Process Stream restriction list
- *
- * @param[in] node     StreamRestrictionListType node
- * @param[in] AdID     Ad Id
- * @param[in] startMS  Start time MS
+ * @param node StreamRestrictionListType node
+ * @param AdID Ad Id
+ * @param startMS start time MS
  */
 void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS)
 {
@@ -3310,10 +3226,9 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const
 
 /**
  * @brief Process stream restriction
- *
- * @param[in] node     StreamRestriction xml node
- * @param[in] AdID     Ad ID
- * @param[in] startMS  Start time in MS
+ * @param node StreamRestriction xml node
+ * @param AdID Ad ID
+ * @param startMS Start time in MS
  */
 void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS)
 {
@@ -3333,10 +3248,9 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std
 
 /**
  * @brief Process stream restriction extension
- *
- * @param[in] node     Ext child of StreamRestriction xml node
- * @param[in] AdID     Ad ID
- * @param[in] startMS  Start time in ms
+ * @param node Ext child of StreamRestriction xml node
+ * @param AdID Ad ID
+ * @param startMS start time in ms
  */
 void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS)
 {
@@ -3356,10 +3270,9 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const 
 
 /**
  * @brief Process trick mode restriction
- *
- * @param[in] node     TrickModeRestriction xml node
- * @param[in] AdID     Ad ID
- * @param[in] startMS  Start time in ms
+ * @param node TrickModeRestriction xml node
+ * @param AdID Ad ID
+ * @param startMS start time in ms
  */
 void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS)
 {
@@ -3404,8 +3317,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 
 /**
  * @brief Fragment downloader thread
- *
- * @param[in] arg HeaderFetchParams pointer
+ * @param arg HeaderFetchParams pointer
  */
 void * TrackDownloader(void *arg)
 {
@@ -3431,9 +3343,7 @@ void * TrackDownloader(void *arg)
 
 /**
  * @brief Fragment downloader thread
- *
- * @param[in] arg Pointer to FragmentDownloadParams  object
- *
+ * @param arg Pointer to FragmentDownloadParams  object
  * @retval NULL
  */
 void * FragmentDownloader(void *arg)
@@ -3484,9 +3394,7 @@ void * FragmentDownloader(void *arg)
 
 /**
  * @brief Fragment collector thread
- *
- * @param[in] arg Pointer to PrivateStreamAbstractionMPD object
- *
+ * @param arg Pointer to PrivateStreamAbstractionMPD object
  * @retval NULL
  */
 static void * FragmentCollector(void *arg)
@@ -3503,9 +3411,7 @@ static void * FragmentCollector(void *arg)
 
 /**
  * @brief Check if adaptation set is iframe track
- *
- * @param[in] adaptationSet Pointer to adaptainSet
- *
+ * @param adaptationSet Pointer to adaptainSet
  * @retval true if iframe track
  */
 static bool IsIframeTrack(IAdaptationSet *adaptationSet)
@@ -3561,8 +3467,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 
 /**
  * @brief Does stream selection
- *
- * @param[in] newTune True if this is a new tune
+ * @param newTune true if this is a new tune
  */
 void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
@@ -3789,11 +3694,9 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 
 /**
  * @brief Extract bitrate info from custom mpd
- *
- * @param[in]  AdaptationSet     AdaptationSet from which bitrate info is to be extracted
- * @param[out] representations   Representation vector gets updated with available bit rates.
- *
  * @note Caller function should delete the vector elements after use.
+ * @param adaptationSet : AdaptaionSet from which bitrate info is to be extracted
+ * @param[out] representations : Representation vector gets updated with Available bit rates.
  */
 static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vector<Representation *>& representations )
 {
@@ -4241,8 +4144,7 @@ void PrivateStreamAbstractionMPD::UpdateCullingState()
 
 /**
  * @brief Fetch and inject initialization fragment
- *
- * @param[in]  discontinuity  True if discontinuous fragment
+ * @param discontinuity true if discontinuous fragment
  */
 void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuity)
 {
@@ -4487,8 +4389,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 
 /**
  * @brief Check if current period is clear
- *
- * @retval True if clear period
+ * @retval true if clear period
  */
 bool PrivateStreamAbstractionMPD::CheckForInitalClearPeriod()
 {
@@ -5049,10 +4950,9 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 /**
  * @brief StreamAbstractionAAMP_MPD Constructor
- *
- * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
- * @param[in] seek_pos  Seek position
- * @param[in] rate      Playback rate
+ * @param aamp pointer to PrivateInstanceAAMP object associated with player
+ * @param seek_pos Seek position
+ * @param rate playback rate
  */
 StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp)
 {
@@ -5072,8 +4972,7 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 
 /**
  *   @brief  Set a position at which stop injection .
- *
- *   @param[in]  endPosition  Playback end position.
+ *   @param  endPosition - playback end position.
  */
 void StreamAbstractionAAMP_MPD::SetEndPos(double endPosition)
 {
@@ -5083,8 +4982,7 @@ void StreamAbstractionAAMP_MPD::SetEndPos(double endPosition)
 
 /**
  *   @brief  Set a position at which stop injection .
- *
- *   @param[in]  endPosition   Playback end position.
+ *   @param  endPosition - playback end position.
  */
 void PrivateStreamAbstractionMPD::SetEndPos(double endPosition)
 {
@@ -5123,7 +5021,7 @@ void PrivateStreamAbstractionMPD::Start(void)
 /**
 *   @brief  Stops streaming.
 *
-*   @param[in]  clearChannelData  Ignored.
+*   @param  clearChannelData - ignored.
 */
 void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 {
@@ -5250,8 +5148,8 @@ void StreamAbstractionAAMP_MPD::DumpProfiles(void)
 /**
  *   @brief Get output format of stream.
  *
- *   @param[out]  primaryOutputFormat  Format of primary track
- *   @param[out]  audioOutputFormat    Format of audio track
+ *   @param[out]  primaryOutputFormat - format of primary track
+ *   @param[out]  audioOutputFormat - format of audio track
  */
 void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
@@ -5277,8 +5175,8 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 /**
  * @brief Get output format of stream.
  *
- * @param[out]  primaryOutputFormat  Format of primary track
- * @param[out]  audioOutputFormat    Format of audio track
+ * @param[out]  primaryOutputFormat - format of primary track
+ * @param[out]  audioOutputFormat - format of audio track
  */
 void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
@@ -5289,8 +5187,7 @@ void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutpu
 /**
  *   @brief Return MediaTrack of requested type
  *
- *   @param[in]  type  Track type
- *
+ *   @param[in]  type - track type
  *   @retval MediaTrack pointer.
  */
 MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
@@ -5302,8 +5199,7 @@ MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
 /**
  *   @brief Return MediaTrack of requested type
  *
- *   @param[in]  type  Track type
- *
+ *   @param[in]  type - track type
  *   @retval MediaTrack pointer.
  */
 MediaTrack* PrivateStreamAbstractionMPD::GetMediaTrack(TrackType type)
@@ -5315,7 +5211,7 @@ MediaTrack* PrivateStreamAbstractionMPD::GetMediaTrack(TrackType type)
 /**
  * @brief Get current stream position.
  *
- * @retval Current position of stream.
+ * @retval current position of stream.
  */
 double StreamAbstractionAAMP_MPD::GetStreamPosition()
 {
@@ -5324,7 +5220,6 @@ double StreamAbstractionAAMP_MPD::GetStreamPosition()
 
 /**
  * @brief Gets number of profiles
- *
  * @retval number of profiles
  */
 int PrivateStreamAbstractionMPD::GetProfileCount()
@@ -5344,9 +5239,8 @@ int PrivateStreamAbstractionMPD::GetProfileCount()
 /**
  *   @brief Get stream information of a profile from subclass.
  *
- *   @param[in]  idx  Profile index.
- *
- *   @retval Stream information corresponding to index.
+ *   @param[in]  idx - profile index.
+ *   @retval stream information corresponding to index.
  */
 StreamInfo* PrivateStreamAbstractionMPD::GetStreamInfo(int idx)
 {
@@ -5358,9 +5252,8 @@ StreamInfo* PrivateStreamAbstractionMPD::GetStreamInfo(int idx)
 /**
  *   @brief Get stream information of a profile from subclass.
  *
- *   @param[in]  idx  Profile index.
- *
- *   @retval Stream information corresponding to index.
+ *   @param[in]  idx - profile index.
+ *   @retval stream information corresponding to index.
  */
 StreamInfo* StreamAbstractionAAMP_MPD::GetStreamInfo(int idx)
 {
@@ -5392,9 +5285,7 @@ double PrivateStreamAbstractionMPD::GetFirstPTS()
 
 /**
  * @brief Get index corresponding to bitrate
- *
- * @param[in] bitrate Stream's bitrate
- *
+ * @param bitrate Stream's bitrate
  * @retval Bandwidth index
  */
 int PrivateStreamAbstractionMPD::GetBWIndex(long bitrate)
@@ -5418,9 +5309,7 @@ int PrivateStreamAbstractionMPD::GetBWIndex(long bitrate)
 
 /**
  * @brief Get index of profile corresponds to bandwidth
- *
  * @param[in] bitrate Bitrate to lookup profile
- *
  * @retval profile index
  */
 int StreamAbstractionAAMP_MPD::GetBWIndex(long bitrate)
@@ -5431,8 +5320,7 @@ int StreamAbstractionAAMP_MPD::GetBWIndex(long bitrate)
 
 /**
  * @brief To get the available video bitrates.
- *
- * @return available video bitrates
+ * @ret available video bitrates
  */
 std::vector<long> PrivateStreamAbstractionMPD::GetVideoBitrates(void)
 {
@@ -5456,8 +5344,7 @@ std::vector<long> PrivateStreamAbstractionMPD::GetVideoBitrates(void)
 
 /**
  * @brief To get the available audio bitrates.
- *
- * @return  Available audio bitrates
+ * @ret available audio bitrates
  */
 std::vector<long> PrivateStreamAbstractionMPD::GetAudioBitrates(void)
 {
@@ -5468,8 +5355,7 @@ std::vector<long> PrivateStreamAbstractionMPD::GetAudioBitrates(void)
 
 /**
  * @brief To get the available video bitrates.
- *
- * @return  Available video bitrates
+ * @ret available video bitrates
  */
 std::vector<long> StreamAbstractionAAMP_MPD::GetVideoBitrates(void)
 {
@@ -5539,7 +5425,3 @@ void PrivateStreamAbstractionMPD::StartInjection(void)
 		}
 	}
 }
-
-/**
- * @}
- */

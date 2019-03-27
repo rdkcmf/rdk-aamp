@@ -26,13 +26,6 @@
 #include "AampDRMutils.h"
 
 /**
- * @addtogroup AAMP_DRM_API
- * @{
- */
-
-
-
-/**
  *  @brief		Default constructor for DrmData.
  *				NULL initialize data and dataLength.
  */
@@ -47,8 +40,8 @@ DrmData::DrmData()
  *              allocate memory and initialize data and
  *				dataLength with given params.
  *
- *  @param[in]	data         Pointer to data to be copied.
- *  @param[in]	dataLength   Length of data
+ *  @param[in]	data - pointer to data to be copied.
+ *  @param[in]	dataLength - length of data
  */
 DrmData::DrmData(unsigned char *data, int dataLength)
 {
@@ -95,9 +88,8 @@ int DrmData::getDataLength()
  *  @brief		Updates DrmData with given data.
  *				Frees the existing data, before copying new data.
  *
- *  @param[in]	data         Pointer to data to be set.
- *  @param[in]	dataLength   Length of data.
- *
+ *  @param[in]	data - Pointer to data to be set.
+ *  @param[in]	dataLength - length of data.
  *  @return		void.
  */
 void DrmData::setData(unsigned char * data, int dataLength)
@@ -114,9 +106,8 @@ void DrmData::setData(unsigned char * data, int dataLength)
 /**
  *  @brief      Appends DrmData with given data.
  *
- *  @param[in]  data        Pointer to data to be appended.
- *  @param[in]  dataLength  Length of data.
- *
+ *  @param[in]  data - Pointer to data to be appended.
+ *  @param[in]  dataLength - length of data.
  *  @return     void.
  */
 void DrmData::addData(unsigned char * data, int dataLength)
@@ -133,7 +124,3 @@ void DrmData::addData(unsigned char * data, int dataLength)
 		this->dataLength = this->dataLength + dataLength;
 	}
 }
-
-/**
- * @}
- */

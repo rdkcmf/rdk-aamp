@@ -27,11 +27,6 @@
 #include <stdint.h>
 
 /**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
-/**
  * @class StreamAbstractionAAMP_MPD
  * @brief Fragment collector for MPEG DASH
  */
@@ -60,9 +55,3 @@ protected:
 private:
 	class PrivateStreamAbstractionMPD* mPriv;
 };
-
-/**
- * @}
- */
-
-

@@ -35,11 +35,6 @@
 
 
 /**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
-/**
  * @brief Media Track Types
  */
 typedef enum
@@ -90,15 +85,6 @@ enum BufferHealthStatus
 class MediaTrack
 {
 public:
-/**
- * @}
- */
-
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
-
 
 	/**
 	 * @brief MediaTrack Constructor
@@ -269,7 +255,6 @@ protected:
 	 *
 	 * @param[in] cachedFragment - contains fragment to be processed and injected
 	 * @param[out] fragmentDiscarded - true if fragment is discarded.
-	 *
 	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
@@ -317,16 +302,6 @@ private:
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
 };
 
-/**
- * @}
- */
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
-
 
 /**
  * @brief Structure holding the resolution of stream
@@ -356,15 +331,6 @@ public:
 	/**
 	 * @brief StreamAbstractionAAMP constructor.
 	 */
-/**
- * @}
- */
-
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
-
 	StreamAbstractionAAMP(PrivateInstanceAAMP* aamp);
 
 	/**
@@ -425,7 +391,6 @@ public:
 	 *
 	 *   @param[out]  primaryOutputFormat - format of primary track
 	 *   @param[out]  audioOutputFormat - format of audio track
-	 *
 	 *   @return void
 	 */
 	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) = 0;
@@ -448,7 +413,6 @@ public:
 	 *   @brief Return MediaTrack of requested type
 	 *
 	 *   @param[in]  type - track type
-         *
 	 *   @return MediaTrack pointer.
 	 */
 	virtual MediaTrack* GetMediaTrack(TrackType type) = 0;
@@ -473,7 +437,6 @@ public:
 	 *   @brief When TSB is involved, use this to set bandwidth to be reported.
 	 *
 	 *   @param[in]  tsbBandwidth - Bandwidth of the track.
-	 *
 	 *   @return void
 	 */
 	void SetTsbBandwidth(long tsbBandwidth){ mTsbBandwidth = tsbBandwidth;}
@@ -482,7 +445,6 @@ public:
 	 *   @brief Set elementary stream type change status for reconfigure the pipeline.
 	 *
 	 *   @param[in]  None
-	 *
 	 *   @return void
 	 */
 	void SetESChangeStatus(void){ mESChangeStatus = true;}
@@ -491,7 +453,6 @@ public:
 	 *   @brief Reset elementary stream type change status once the pipeline reconfigured.
 	 *
 	 *   @param[in]  None
-	 *
 	 *   @return void
 	 */
 	void ResetESChangeStatus(void){ mESChangeStatus = false;}
@@ -500,7 +461,6 @@ public:
 	 *   @brief Get elementary stream type change status for reconfigure the pipeline..
 	 *
 	 *   @param[in]  None
-	 *
 	 *   @retval mESChangeStatus flag value ( true or false )
 	 */
 	bool GetESChangeStatus(void){ return mESChangeStatus;}
@@ -511,7 +471,6 @@ public:
 	 * @brief Rampdown profile
 	 *
 	 * @param[in] http_error
-	 *
 	 * @return True, if ramp down successful. Else false
 	 */
 	bool RampDownProfile(long http_error);
@@ -520,7 +479,6 @@ public:
 	 *   @brief Check for ramdown profile.
 	 *
 	 *   @param http_error
-	 *
 	 *   @return true if rampdown needed in the case of fragment not available in higher profile.
 	 */
 	bool CheckForRampDownProfile(long http_error);
@@ -529,7 +487,6 @@ public:
 	 *   @brief Checks and update profile based on bandwidth.
 	 *
 	 *   @param None
-	 *
 	 *   @return void
 	 */
 	void CheckForProfileChange(void);
@@ -539,7 +496,6 @@ public:
 	 *   This shall be called only after UpdateIframeTracks() is done
 	 *
 	 *   @param None
-	 *
 	 *   @return iframe track index.
 	 */
 	int GetIframeTrack();
@@ -549,7 +505,6 @@ public:
 	 *   Subclasses shall invoke this after StreamInfo is populated .
 	 *
 	 *   @param None
-         *
 	 *   @return void
 	 */
 	void UpdateIframeTracks();
@@ -566,7 +521,6 @@ public:
 	 *   @brief Get the desired profile to start fetching.
 	 *
 	 *   @param getMidProfile
-         *
 	 *   @return profile index to be used for the track.
 	 */
 	int GetDesiredProfile(bool getMidProfile);
@@ -576,7 +530,6 @@ public:
 	 *   Used internally by injection logic
 	 *
 	 *   @param[in]  profileIndex - profile index of last injected fragment.
-         *
 	 *   @return void
 	 */
 	void NotifyBitRateUpdate(int profileIndex);
@@ -599,7 +552,6 @@ public:
 	 *   @brief Informs streamer that playback was paused.
 	 *
 	 *   @param[in] paused - true, if playback was paused
-         *
 	 *   @return void
 	 */
 	virtual void NotifyPlaybackPaused(bool paused);
@@ -647,7 +599,6 @@ public:
 	 *   @brief Get profile index of given bandwidth.
 	 *
 	 *   @param[in]  bandwidth - Bandwidth
-         *
 	 *   @return Profile index
 	 */
 	virtual int GetBWIndex(long bandwidth) = 0;
@@ -736,7 +687,6 @@ protected:
 	 *   @brief Get stream information of a profile from subclass.
 	 *
 	 *   @param[in]  idx - profile index.
-         *
 	 *   @return stream information corresponding to index.
 	 */
 	virtual StreamInfo* GetStreamInfo(int idx) = 0;
@@ -785,8 +735,3 @@ protected:
 };
 
 #endif // STREAMABSTRACTIONAAMP_H
-
-/**
- * @}
- */
-

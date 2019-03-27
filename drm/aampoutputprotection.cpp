@@ -38,10 +38,6 @@
 /* Static local variables */
 AampOutputProtection* s_pAampOP = NULL;
 
-/**
- * @addtogroup AAMP_DRM_API
- * @{
- */
 
 /**
  * @brief AampOutputProtection Constructor
@@ -93,10 +89,8 @@ AampOutputProtection::~AampOutputProtection()
 
 /**
  * @brief Find GstElement with target name
- *
- * @param[in] element      GstBin in which search is done
- * @param[in] targetName   Name of element to find
- *
+ * @param element : GstBin in which search is done
+ * @param targetName : Name of element to find
  * @retval GstElement if found, NULL otherwise
  */
 GstElement* AampOutputProtection::FindElement(GstElement *element, const char* targetName)
@@ -156,7 +150,6 @@ GstElement* AampOutputProtection::FindElement(GstElement *element, const char* t
 
 /**
  * @brief Check if source is UHD, by checking dimentions from Video decoder
- *
  * @retval true, if source is UHD, otherwise false
  */
 bool AampOutputProtection::IsSourceUHD()
@@ -258,9 +251,8 @@ void AampOutputProtection::SetHDMIStatus()
 
 /**
  * @brief Set values of resolution member variable
- *
- * @param[in]  width
- * @param[in]  height
+ * @param width
+ * @param height
  */
 void AampOutputProtection::SetResolution(int width, int height)
 {
@@ -274,11 +266,9 @@ void AampOutputProtection::SetResolution(int width, int height)
 // Pleayrady OP Callback
 /**
  * @brief Pleayrady OP Callback to ensure HDCP compliance
- *
- * @param[in]  f_pvOutputLevelsData    Pointer to licenses output restrictions information
- * @param[in]  f_dwCallbackType        Type of callback
- * @param[in]  data                    Pointer passed from Drm_Reader_Bind, m_minOPLevels
- *
+ * @param f_pvOutputLevelsData : Pointer to licenses output restrictions information
+ * @param f_dwCallbackType : Type of callback
+ * @param data : Pointer passed from Drm_Reader_Bind, m_minOPLevels
  * @retval DRM_SUCCESS if no errors encountered
  */
 DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
@@ -351,12 +341,10 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 
 /**
  * @brief IARM event handler for HDCP and HDMI hot plug events
- *
- * @param[in] owner
- * @param[in] eventId
- * @param[in] data
- * @param[in] len
-
+ * @param owner
+ * @param eventId
+ * @param data
+ * @param len
  */
 void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
@@ -398,12 +386,11 @@ void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t ev
 }
 
 /**
- * @brief IARM event handler for resolution changes.
- *
- * @param[in] owner
- * @param[in] eventId
- * @param[in] data
- * @param[in] len
+ * @brief IARM event handler for resolution changes
+ * @param owner
+ * @param eventId
+ * @param data
+ * @param len
  */
 void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
@@ -441,7 +428,6 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
 
 /**
  * @brief Check if  AampOutputProcectionInstance active
- *
  * @retval true or false
  */
 bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
@@ -456,7 +442,6 @@ bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
 
 /**
  * @brief Singleton for object creation
- *
  * @retval AampOutputProtection object
  */
 AampOutputProtection * AampOutputProtection::GetAampOutputProcectionInstance()
@@ -470,7 +455,3 @@ AampOutputProtection * AampOutputProtection::GetAampOutputProcectionInstance()
 
     return s_pAampOP;
 }
-
-/**
- * @}
- */

@@ -23,39 +23,17 @@
  */
 
 /**
- * @defgroup AAMP  AAMP (Advanced Adaptive Micro Player)
- *
- * - AAMP is a native video engine build on top of gstreamer, optimized for performance, memory use, and code size.
- * - AAMP  downloads and parses HLS/DASH manifests.
- * - AAMP  has been  integrated with Adobe Access,PlayReady, CONSEC agnostic, and Widevine DRM
- * - AAMP is fronted by JS PP (JavaScript Player Platform), which provides an additional layer of functionality
- * including player analytics, configuration management, and ad insertion.
- *
- * @defgroup AAMP_API AAMP Public APIs
- * @ingroup  AAMP
- *
- * @defgroup AAMP_TYPES AAMP Data Types
- * @ingroup  AAMP
- *
- * @defgroup AAMP_DRM_API  AAMP DRM APIs
- * @ingroup  AAMP_API
- *
- * @defgroup AAMP_JS_API AAMP JS APIs
- * @ingroup  AAMP_API
- *
- * @defgroup AAMP_COMMON_API AAMP COMMON Apis
- * @ingroup  AAMP_API
- *
- * @defgroup AAMP_DRM_TYPES AAMP DRM Types
- * @ingroup  AAMP_TYPES
- *
- * @defgroup AAMP_JS_TYPES AAMP JS Types
- * @ingroup  AAMP_TYPES
- *
- * @defgroup AAMP_COMMON_TYPES AAMP COMMON Types
- * @ingroup  AAMP_TYPES
- */
+ @mainpage Advanced Adaptive Micro Player (AAMP)
 
+ <b>AAMP</b> is a native video engine build on top of gstreamer, optimized for
+ performance, memory use, and code size.
+ <br><b>AAMP</b> downloads and parses HLS/DASH manifests. <b>AAMP</b> has been
+ integrated with Adobe Access, PlayReady, CONSEC agnostic, and Widevine DRM
+
+ <b>AAMP</b> is fronted by JS PP (JavaScript Player Platform), which provides an
+ additional layer of functionality including player analytics, configuration
+ management, and ad insertion.
+ */
 
 #ifndef MAINAAMP_H
 #define MAINAAMP_H
@@ -64,12 +42,6 @@
 #include <string>
 
 #include <stddef.h>
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-
 
 /*! \mainpage
  *
@@ -448,28 +420,19 @@ enum AuthTokenErrors {
 	eAUTHTOKEN_INVALID_STATUS_CODE = -2
 };
 
-
 /**
  * @brief GStreamer Abstraction class for the implementation of AAMPGstPlayer and gstaamp plugin
  */
 class StreamSink
 {
 public:
-/**
- * @}
- */
 
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
 	/**
 	 *   @brief  Configure output formats
 	 *
-	 *   @param[in]  format            Video output format.
-	 *   @param[in]  audioFormat       Audio output format.
-	 *   @param[in]  bESChangeStatus   Flag to keep force configure the pipeline value
-         *
+	 *   @param[in]  format - Video output format.
+	 *   @param[in]  audioFormat - Audio output format.
+	 *   @param[in]  bESChangeStatus - Flag to keep force configure the pipeline value
 	 *   @return void
 	 */
 	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)=0;
@@ -477,13 +440,12 @@ public:
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.
 	 *
-	 *   @param[in]  mediaType   Type of the media.
-	 *   @param[in]  ptr         Pointer to the buffer; caller responsible of freeing memory
-	 *   @param[in]  len         Buffer length.
-	 *   @param[in]  fpts        Presentation Time Stamp.
-	 *   @param[in]  fdts        Decode Time Stamp
-	 *   @param[in]  duration    Buffer duration.
-         *
+	 *   @param[in]  mediaType - Type of the media.
+	 *   @param[in]  ptr - Pointer to the buffer; caller responsible of freeing memory
+	 *   @param[in]  len - Buffer length.
+	 *   @param[in]  fpts - Presentation Time Stamp.
+	 *   @param[in]  fdts - Decode Time Stamp
+	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
 	virtual void Send( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration)= 0;
@@ -491,12 +453,11 @@ public:
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.
 	 *
-	 *   @param[in]  mediaType   Type of the media.
-	 *   @param[in]  buffer      Pointer to the GrowableBuffer; ownership is taken by the sink
-	 *   @param[in]  fpts        Presentation Time Stamp.
-	 *   @param[in]  fdts        Decode Time Stamp
-	 *   @param[in]  duration    Buffer duration.
-         *
+	 *   @param[in]  mediaType - Type of the media.
+	 *   @param[in]  buffer - Pointer to the GrowableBuffer; ownership is taken by the sink
+	 *   @param[in]  fpts - Presentation Time Stamp.
+	 *   @param[in]  fdts - Decode Time Stamp
+	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
 	virtual void Send( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration)= 0;
@@ -504,8 +465,7 @@ public:
 	/**
 	 *   @brief  Notifies EOS to sink
 	 *
-	 *   @param[in]  mediaType  Media Type
-         *
+	 *   @param[in]  mediaType - Media Type
 	 *   @return void
 	 */
 	virtual void EndOfStreamReached(MediaType mediaType){}
@@ -520,8 +480,7 @@ public:
 	/**
 	 *   @brief Stop the stream
 	 *
-	 *   @param[in]  keepLastFrame  Keep the last frame on screen (true/false)
-         *
+	 *   @param[in]  keepLastFrame - Keep the last frame on screen (true/false)
 	 *   @return void
 	 */
 	virtual void Stop(bool keepLastFrame){}
@@ -536,9 +495,8 @@ public:
 	/**
 	 *   @brief Flush the pipeline
 	 *
-	 *   @param[in]  position  Playback position
-	 *   @param[in]  rate      Speed
-         *
+	 *   @param[in]  position - playback position
+	 *   @param[in]  rate - Speed
 	 *   @return void
 	 */
 	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE){}
@@ -546,8 +504,7 @@ public:
 	/**
 	 *   @brief Select audio track
 	 *
-	 *   @param[in]  index Index
-         *
+	 *   @param[in]  index
 	 *   @return void
 	 */
 	virtual void SelectAudio(int index){}
@@ -555,8 +512,7 @@ public:
 	/**
 	 *   @brief Enabled or disable playback pause
 	 *
-	 *   @param[in]  pause  Enable/Disable
-         *
+	 *   @param[in]  pause - Enable/Disable
 	 *   @return void
 	 */
 	virtual void Pause(bool pause){}
@@ -578,11 +534,10 @@ public:
 	/**
 	 *   @brief Set video display rectangle co-ordinates
 	 *
-	 *   @param[in]  x   x position
-	 *   @param[in]  y   y position
-	 *   @param[in]  w   Width
-	 *   @param[in]  h   Height
-         *
+	 *   @param[in]  x - x position
+	 *   @param[in]  y - y position
+	 *   @param[in]  w - Width
+	 *   @param[in]  h - Height
 	 *   @return void
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h){};
@@ -590,8 +545,7 @@ public:
 	/**
 	 *   @brief Set video zoom state
 	 *
-	 *   @param[in]  zoom  Zoom mode
-         *
+	 *   @param[in]  zoom - Zoom mode
 	 *   @return void
 	 */
 	virtual void SetVideoZoom(VideoZoomMode zoom){};
@@ -599,8 +553,7 @@ public:
 	/**
 	 *   @brief Set video mute state
 	 *
-	 *   @param[in] muted  true: video muted, false: video unmuted
-         *
+	 *   @param[in] muted - true: video muted, false: video unmuted
 	 *   @return void
 	 */
 	virtual void SetVideoMute(bool muted){};
@@ -609,7 +562,6 @@ public:
 	 *   @brief Set volume level
 	 *
 	 *   @param[in]  volume - Minimum 0, maximum 100.
-         *
 	 *   @return void
 	 */
 	virtual void SetAudioVolume(int volume){};
@@ -622,8 +574,7 @@ public:
 	/**
 	 *   @brief Process PTS discontinuity for a stream type
 	 *
-	 *   @param[in]  mediaType Media Type
-         *
+	 *   @param[in]  mediaType - Media Type
 	 *   @return TRUE if discontinuity processed
 	 */
 	virtual bool Discontinuity( MediaType mediaType) = 0;
@@ -632,8 +583,7 @@ public:
 	/**
 	 *   @brief Check whether cach is empty
 	 *
-	 *   @param[in]  mediaType  Media Type
-         *
+	 *   @param[in]  mediaType - Media Type
 	 *   @return true: empty, false: not empty
 	 */
 	virtual bool IsCacheEmpty(MediaType mediaType){ return true; };
@@ -648,20 +598,18 @@ public:
 	/**
 	 *   @brief Get the video dimensions
 	 *
-	 *   @param[out]  w  Width
-	 *   @param[out]  h  Height
-         *
- 	 *   @return void
+	 *   @param[out]  w - Width
+	 *   @param[out]  h - Height
+	 *   @return void
 	 */
 	virtual void GetVideoSize(int &w, int &h){};
 
 	/**
 	 *   @brief Queue-up the protection event.
 	 *
-	 *   @param[in]  protSystemId  DRM system ID.
-	 *   @param[in]  ptr           Pointer to the protection data.
-	 *   @param[in]  len           Length of the protection data.
-         *
+	 *   @param[in]  protSystemId - DRM system ID.
+	 *   @param[in]  ptr - Pointer to the protection data.
+	 *   @param[in]  len - Length of the protection data.
 	 *   @return void
 	 */
 	virtual void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len) {};
@@ -673,15 +621,7 @@ public:
 	 */
 	virtual void ClearProtectionEvent() {};
 };
-/**
- * @}
- */
 
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
 
 /**
  * @brief Player interface class for the JS pluggin.
@@ -689,16 +629,6 @@ public:
 class PlayerInstanceAAMP
 {
 public:
-/**
- * @}
- */
-
-
-/**
- * @addtogroup AAMP_COMMON_API
- * @{
- */
-
 	/**
 	 *   @brief PlayerInstanceAAMP Constructor.
 	 *
@@ -714,9 +644,8 @@ public:
 	/**
 	 *   @brief Tune to a URL.
 	 *
-	 *   @param[in]  url           HTTP/HTTPS url to be played.
-	 *   @param[in]  contentType   Content type of the asset
-         * 
+	 *   @param[in]  url - HTTP/HTTPS url to be played.
+	 *   @param[in]  contentType - Content type of the asset
 	 *   @return void
 	 */
 	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false, const char* sessionUUID = NULL);
@@ -730,9 +659,8 @@ public:
 	/**
 	 *   @brief Set playback rate.
 	 *
-	 *   @param[in]  rate        Rate of playback.
-	 *   @param[in]  overshoot   Overshoot correction in milliseconds.
-         *
+	 *   @param[in]  rate - Rate of playback.
+	 *   @param[in]  overshoot - overshoot correction in milliseconds.
 	 *   @return void
 	 */
 	void SetRate(int rate, int overshootcorrection=0);
@@ -741,7 +669,7 @@ public:
 	 *   @brief Seek to a time.
 	 *
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
-	 *               relative position from first tune command.
+	 *           relative position from first tune command.
 	 */
 	void Seek(double secondsRelativeToTuneTime);
 
@@ -763,7 +691,7 @@ public:
 	/**
 	 *   @brief Register event handler.
 	 *
-	 *   @param[in]  eventListener  pointer to implementation of AAMPEventListener to receive events.
+	 *   @param[in]  eventListener - pointer to implementation of AAMPEventListener to receive events.
 	 *   @return void
 	 */
 	void RegisterEvents(AAMPEventListener* eventListener);
@@ -771,11 +699,10 @@ public:
 	/**
 	 *   @brief Specify video rectangle.
 	 *
-	 *   @param[in]  x   Horizontal start position.
-	 *   @param[in]  y   Vertical start position.
-	 *   @param[in]  w   Width.
-	 *   @param[in]  h   Height.
-         *
+	 *   @param[in]  x - horizontal start position.
+	 *   @param[in]  y - vertical start position.
+	 *   @param[in]  w - width.
+	 *   @param[in]  h - height.
 	 *   @return void
 	 */
 	void SetVideoRectangle(int x, int y, int w, int h);
@@ -783,8 +710,7 @@ public:
 	/**
 	 *   @brief Set video zoom.
 	 *
-	 *   @param[in]  zoom  Zoom mode.
-         *
+	 *   @param[in]  zoom - zoom mode.
 	 *   @return void
 	 */
 	void SetVideoZoom(VideoZoomMode zoom);
@@ -792,8 +718,7 @@ public:
 	/**
 	 *   @brief Enable/ Disable Video.
 	 *
-	 *   @param[in]  muted  True to disable video, false to enable video.
-         *
+	 *   @param[in]  muted - true to disable video, false to enable video.
 	 *   @return void
 	 */
 	void SetVideoMute(bool muted);
@@ -801,8 +726,7 @@ public:
 	/**
 	 *   @brief Set Audio Volume.
 	 *
-	 *   @param[in]  volume  Minimum 0, maximum 100.
-         *
+	 *   @param[in]  volume - Minimum 0, maximum 100.
 	 *   @return void
 	 */
 	void SetAudioVolume(int volume);
@@ -810,8 +734,7 @@ public:
 	/**
 	 *   @brief Set Audio language.
 	 *
-	 *   @param[in]  language  Language of audio track.
-         *
+	 *   @param[in]  language - Language of audio track.
 	 *   @return void
 	 */
 	void SetLanguage(const char* language);
@@ -819,8 +742,7 @@ public:
 	/**
 	 *   @brief Set array of subscribed tags.
 	 *
-	 *   @param[in]  subscribedTags  Array of subscribed tags.
-         *
+	 *   @param[in]  subscribedTags - Array of subscribed tags.
 	 *   @return void
 	 */
 	void SetSubscribedTags(std::vector<std::string> subscribedTags);
@@ -829,8 +751,7 @@ public:
 	/**
 	 *   @brief Load AAMP JS object in the specified JS context.
 	 *
-	 *   @param[in]  context  JS context.
-         *
+	 *   @param[in]  context - JS context.
 	 *   @return void
 	 */
 	void LoadJS(void* context);
@@ -838,8 +759,7 @@ public:
 	/**
 	 *   @brief Unload AAMP JS object in the specified JS context.
 	 *
-	 *   @param[in]  context  JS context.
-         *
+	 *   @param[in]  context - JS context.
 	 *   @return void
 	 */
 	void UnloadJS(void* context);
@@ -847,19 +767,17 @@ public:
 	/**
 	 *   @brief Support multiple listeners for multiple event type
 	 *
-	 *   @param[in]  eventType       Type of event.
-	 *   @param[in]  eventListener   Listener for the eventType.
-         *
- 	 *   @return void
+	 *   @param[in]  eventType - type of event.
+	 *   @param[in]  eventListener - listener for the eventType.
+	 *   @return void
 	 */
 	void AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
 
 	/**
 	 *   @brief Remove event listener for eventType.
 	 *
-	 *   @param[in]  eventType       Type of event.
-	 *   @param[in]  eventListener   Listener to be removed for the eventType.
-         *
+	 *   @param[in]  eventType - type of event.
+	 *   @param[in]  eventListener - listener to be removed for the eventType.
 	 *   @return void
 	 */
 	void RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
@@ -867,16 +785,15 @@ public:
 	/**
 	 *   @brief To check whether the asset is live or not.
 	 *
-	 *   @return bool  True if live content, false otherwise
+	 *   @return bool - True if live content, false otherwise
 	 */
 	bool IsLive();
 
 	/**
 	 *   @brief Schedule insertion of ad at given position.
 	 *
-	 *   @param[in]  url               HTTP/HTTPS url of the ad
-	 *   @param[in]  positionSeconds   Position at which ad shall be inserted
-         *
+	 *   @param[in]  url - HTTP/HTTPS url of the ad
+	 *   @param[in]  positionSeconds - position at which ad shall be inserted
 	 *   @return void
 	 */
 	void InsertAd(const char *url, double positionSeconds);
@@ -884,23 +801,22 @@ public:
 	/**
 	 *   @brief Get current audio language.
 	 *
-	 *   @return char* Current audio language
+	 *   @return char* - current audio language
 	 */
 	char* GetCurrentAudioLanguage();
 
 	/**
 	 *   @brief Get current drm
 	 *
-	 *   @return char*  Current drm
+	 *   @return char* - current drm
 	 */
 	const char* GetCurrentDRM();
 
 	/**
 	 *   @brief Add/Remove a custom HTTP header and value.
 	 *
-	 *   @param[in]  headerName       Name of custom HTTP header
-	 *   @param[in]  subscribedTags   Value to be pased along with HTTP header.
-         *
+	 *   @param[in]  headerName - Name of custom HTTP header
+	 *   @param[in]  subscribedTags - Value to be pased along with HTTP header.
 	 *   @return void
 	 */
 	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue);
@@ -908,9 +824,8 @@ public:
 	/**
 	 *   @brief Set License Server URL.
 	 *
-	 *   @param[in]  url    URL of the server to be used for license requests
-	 *   @param[in]  type   DRM Type(PR/WV) for which the server URL should be used, global by default
-         *
+	 *   @param[in]  url - URL of the server to be used for license requests
+	 *   @param[in]  type - DRM Type(PR/WV) for which the server URL should be used, global by default
 	 *   @return void
 	 */
 	void SetLicenseServerURL(const char *url, DRMSystems type = eDRM_MAX_DRMSystems);
@@ -918,8 +833,7 @@ public:
 	/**
 	 *   @brief Set Preferred DRM.
 	 *
-	 *   @param[in] drmType  Preferred DRM type
-         *
+	 *   @param[in] drmType - Preferred DRM type
 	 *   @return void
 	 */
 	void SetPreferredDRM(DRMSystems drmType);
@@ -927,8 +841,7 @@ public:
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
-	 *   @param[in]  isAnonymous  True if session token should be blank and false otherwise.
-         *
+	 *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.
 	 *   @return void
 	 */
 	void SetAnonymousRequest(bool isAnonymous);
@@ -936,8 +849,7 @@ public:
 	/**
 	 *   @brief Set VOD Trickplay FPS.
 	 *
-	 *   @param[in]  vodTrickplayFPS  FPS to be used for VOD Trickplay
-         *
+	 *   @param[in]  vodTrickplayFPS - FPS to be used for VOD Trickplay
 	 *   @return void
 	 */
 	void SetVODTrickplayFPS(int vodTrickplayFPS);
@@ -945,8 +857,7 @@ public:
 	/**
 	 *   @brief Set Linear Trickplay FPS.
 	 *
-	 *   @param[in]  linearTrickplayFPS FPS to be used for Linear Trickplay
-         *
+	 *   @param[in]  linearTrickplayFPS - FPS to be used for Linear Trickplay
 	 *   @return void
 	 */
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
@@ -954,8 +865,7 @@ public:
 	/**
 	 *   @brief Set Live Offset
 	 *
-	 *   @param[in]  liveoffset Live Offset
-         *
+	 *   @param[in]  liveoffset- Live Offset
 	 *   @return void
 	 */
 	void SetLiveOffset(int liveoffset);
@@ -963,7 +873,7 @@ public:
 	/**
 	 *   @brief To set the error code to be used for playback stalled error.
 	 *
-	 *   @param[in]  errorCode Error code for playback stall errors.
+	 *   @param[in]  errorCode - error code for playback stall errors.
 	 *   @return void
 	 */
 	void SetStallErrorCode(int errorCode);
@@ -971,7 +881,7 @@ public:
 	/**
 	 *   @brief To set the timeout value to be used for playback stall detection.
 	 *
-	 *   @param[in]  timeoutMS  Timeout in milliseconds for playback stall detection.
+	 *   @param[in]  timeoutMS - timeout in milliseconds for playback stall detection.
 	 *   @return void
 	 */
 	void SetStallTimeout(int timeoutMS);
@@ -979,112 +889,112 @@ public:
 	/**
 	 *   @brief To set the Playback Position reporting interval.
 	 *
-	 *   @param[in]  reportIntervalMS Playback reporting interval in milliseconds.
+	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
 	 */
 	void SetReportInterval(int reportIntervalMS);
 
 	/**
 	 *   @brief To get the current playback position.
 	 *
-	 *   @return Current playback position in seconds
+	 *   @ret current playback position in seconds
 	 */
 	double GetPlaybackPosition(void);
 
 	/**
 	 *   @brief To get the current asset's duration.
 	 *
-	 *   @return Duration in seconds
+	 *   @ret duration in seconds
 	 */
 	double GetPlaybackDuration(void);
 
 	/**
 	 *   @brief To get the current AAMP state.
 	 *
-	 *   @return Current AAMP state
+	 *   @ret current AAMP state
 	 */
 	PrivAAMPState GetState(void);
 
 	/**
 	 *   @brief To get the bitrate of current video profile.
 	 *
-	 *   @return Bitrate of video profile
+	 *   @ret bitrate of video profile
 	 */
 	long GetVideoBitrate(void);
 
 	/**
 	 *   @brief To set a preferred bitrate for video profile.
 	 *
-	 *   @param[in] Preferred bitrate for video profile
+	 *   @param[in] preferred bitrate for video profile
 	 */
 	void SetVideoBitrate(long bitrate);
 
 	/**
 	 *   @brief To get the bitrate of current audio profile.
 	 *
-	 *   @return Bitrate of audio profile
+	 *   @ret bitrate of audio profile
 	 */
 	long GetAudioBitrate(void);
 
 	/**
 	 *   @brief To set a preferred bitrate for audio profile.
 	 *
-	 *   @param[in] Preferred bitrate for audio profile
+	 *   @param[in] preferred bitrate for audio profile
 	 */
 	void SetAudioBitrate(long bitrate);
 
 	/**
 	 *   @brief To get the current audio volume.
 	 *
-	 *   @return Audio volume
+	 *   @ret audio volume
 	 */
 	int GetAudioVolume(void);
 
 	/**
 	 *   @brief To get the current playback rate.
 	 *
-	 *   @return Current playback rate
+	 *   @ret current playback rate
 	 */
 	int GetPlaybackRate(void);
 
 	/**
 	 *   @brief To get the available video bitrates.
 	 *
-	 *   @return Available video bitrates
+	 *   @ret available video bitrates
 	 */
 	std::vector<long> GetVideoBitrates(void);
 
 	/**
 	 *   @brief To get the available audio bitrates.
 	 *
-	 *   @return Available audio bitrates
+	 *   @ret available audio bitrates
 	 */
 	std::vector<long> GetAudioBitrates(void);
 
 	/**
 	 *   @brief To set the initial bitrate value.
 	 *
-	 *   @param[in] Initial bitrate to be selected
+	 *   @param[in] initial bitrate to be selected
 	 */
 	void SetInitialBitrate(long bitrate);
 
 	/**
 	 *   @brief To set the initial bitrate value for 4K assets.
 	 *
-	 *   @param[in] Initial bitrate to be selected for 4K assets
+	 *   @param[in] initial bitrate to be selected for 4K assets
 	 */
 	void SetInitialBitrate4K(long bitrate4K);
 
 	/**
 	 *   @brief To set the network download timeout value.
 	 *
-	 *   @param[in] Preferred timeout value
+	 *   @param[in] preferred timeout value
 	 */
 	void SetNetworkTimeout(int timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
 	 *
-	 *   @param[in] Preferred download buffer size
+	 *   @param[in] preferred download buffer size
 	 */
 	void SetDownloadBufferSize(int bufferSize);
 
@@ -1109,8 +1019,3 @@ private:
 };
 
 #endif // MAINAAMP_H
-
-/**
- * @}
- */
-

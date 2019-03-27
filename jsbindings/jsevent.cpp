@@ -35,10 +35,7 @@
 #define LOG(...)
 #endif
 
-/**
- * @addtogroup AAMP_JS_API
- * @{
- */
+
 
 /**
  * @brief AAMPJSEvent Constructor
@@ -64,10 +61,9 @@ AAMPJSEvent::AAMPJSEvent()
 
 /**
  * @brief AAMPJSEvent Constructor
- *
- * @param[in] type        Event type
- * @param[in] bubble      True if event is a bubbling event
- * @param[in] cancelable  True if event default operation can be cancelled
+ * @param[in] type event type
+ * @param[in] bubble true if event is a bubbling event
+ * @param[in] cancelable true if event default operation can be cancelled
  */
 AAMPJSEvent::AAMPJSEvent(const char *type, bool bubble, bool cancelable)
 	: _bubbles(bubble)
@@ -107,10 +103,9 @@ AAMPJSEvent::~AAMPJSEvent()
 
 /**
  * @brief Initialize event's properties
- *
- * @param[in] type        Event type
- * @param[in] bubble      True if event is a bubbling event
- * @param[in] cancelable  True if event default operation can be cancelled
+ * @param[in] type event type
+ * @param[in] bubble true if event is a bubbling event
+ * @param[in] cancelable true if event default operation can be cancelled
  */
 void AAMPJSEvent::initEvent(const char *type, bool bubble, bool cancelable)
 {
@@ -123,12 +118,11 @@ void AAMPJSEvent::initEvent(const char *type, bool bubble, bool cancelable)
 
 /**
  * @brief Initialize event's properties based on args passed from JavaScript code.
- *
- * @param[in] context        JS execution context
- * @param[in] thisObj        JSObject that is the 'this' variable in the function's scope.
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject that is the 'this' variable in the function's scope.
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  */
 static void initEvent(JSContextRef context, JSObjectRef thisObj, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
@@ -175,14 +169,12 @@ static void initEvent(JSContextRef context, JSObjectRef thisObj, size_t argument
 
 /**
  * @brief Callback invoked from JS to initialize event's properties
- *
- * @param[in] context        JS execution context
- * @param[in] func           JSObject that is the function being called
- * @param[in] thisObj        JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] func JSObject that is the function being called
+ * @param[in] thisObj JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value.
  */
 static JSValueRef AAMPJSEvent_initEvent(JSContextRef context, JSObjectRef func, JSObjectRef thisObj, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -195,14 +187,12 @@ static JSValueRef AAMPJSEvent_initEvent(JSContextRef context, JSObjectRef func, 
 
 /**
  * @brief Callback invoked from JS to cancel the event's default action
- *
- * @param[in] context        JS execution context
- * @param[in] func           JSObject that is the function being called
- * @param[in] thisObj        JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] func JSObject that is the function being called
+ * @param[in] thisObj JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value.
  */
 static JSValueRef AAMPJSEvent_preventDefault(JSContextRef context, JSObjectRef func, JSObjectRef thisObj, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -220,14 +210,12 @@ static JSValueRef AAMPJSEvent_preventDefault(JSContextRef context, JSObjectRef f
 
 /**
  * @brief Callback invoked from JS to prevent other listeners from being called
- *
- * @param[in] context        JS execution context
- * @param[in] func           JSObject that is the function being called
- * @param[in] thisObj        JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] func JSObject that is the function being called
+ * @param[in] thisObj JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value.
  */
 static JSValueRef AAMPJSEvent_stopImmediatePropagation(JSContextRef context, JSObjectRef func, JSObjectRef thisObj, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -245,14 +233,12 @@ static JSValueRef AAMPJSEvent_stopImmediatePropagation(JSContextRef context, JSO
 
 /**
  * @brief Callback invoked from JS to prevent further propagation of event during event flow
- *
- * @param[in] context        JS execution context
- * @param[in] func           JSObject that is the function being called
- * @param[in] thisObj        JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] func JSObject that is the function being called
+ * @param[in] thisObj JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value.
  */
 static JSValueRef AAMPJSEvent_stopPropagation(JSContextRef context, JSObjectRef func, JSObjectRef thisObj, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
@@ -270,12 +256,10 @@ static JSValueRef AAMPJSEvent_stopPropagation(JSContextRef context, JSObjectRef 
 
 /**
  * @brief Callback invoked from JS to get the bubble property value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_bubbles(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -293,12 +277,10 @@ static JSValueRef AAMPJSEvent_getproperty_bubbles(JSContextRef context, JSObject
 
 /**
  * @brief Callback invoked from JS to get the cancelable property value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_cancelable(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -316,12 +298,10 @@ static JSValueRef AAMPJSEvent_getproperty_cancelable(JSContextRef context, JSObj
 
 /**
  * @brief Callback invoked from JS to get the default prevented value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_defaultPrevented(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -339,12 +319,10 @@ static JSValueRef AAMPJSEvent_getproperty_defaultPrevented(JSContextRef context,
 
 /**
  * @brief Callback invoked from JS to get the event phase property value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_eventPhase(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -362,12 +340,10 @@ static JSValueRef AAMPJSEvent_getproperty_eventPhase(JSContextRef context, JSObj
 
 /**
  * @brief Callback invoked from JS to get the target property value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_target(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -385,12 +361,10 @@ static JSValueRef AAMPJSEvent_getproperty_target(JSContextRef context, JSObjectR
 
 /**
  * @brief Callback invoked from JS to get the current target property value
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_currentTarget(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -408,12 +382,10 @@ static JSValueRef AAMPJSEvent_getproperty_currentTarget(JSContextRef context, JS
 
 /**
  * @brief
- *
- * @param[in]  context       JS execution context
- * @param[in]  thisObj       JSObject to search for the property
- * @param[in]  propertyName  JSString containing the name of the property to get
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_timestamp(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -431,12 +403,10 @@ static JSValueRef AAMPJSEvent_getproperty_timestamp(JSContextRef context, JSObje
 
 /**
  * @brief Callback invoked from JS to get the event type
- *
- * @param[in] context       JS execution context
- * @param[in] thisObj       JSObject to search for the property
- * @param[in] propertyName  JSString containing the name of the property to get
- * @param[out] exception    Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
+ * @param[in] propertyName JSString containing the name of the property to get
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_type(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -454,12 +424,10 @@ static JSValueRef AAMPJSEvent_getproperty_type(JSContextRef context, JSObjectRef
 
 /**
  * @brief Callback invoked from JS to get the isTrusted property value
- *
- * @param[in] context      JS execution context
- * @param[in] thisObj      JSObject to search for the property
+ * @param[in] context JS execution context
+ * @param[in] thisObj JSObject to search for the property
  * @param[in] propertyName JSString containing the name of the property to get
- * @param[out] exception   Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval property's value if object has the property, otherwise NULL
  */
 static JSValueRef AAMPJSEvent_getproperty_isTrusted(JSContextRef context, JSObjectRef thisObj, JSStringRef propertyName, JSValueRef* exception)
@@ -477,9 +445,8 @@ static JSValueRef AAMPJSEvent_getproperty_isTrusted(JSContextRef context, JSObje
 
 /**
  * @brief Callback invoked from JS when an object is first created
- *
- * @param[in] ctx     JS execution context
- * @param[in] object  JSObject being created
+ * @param[in] ctx JS execution context
+ * @param[in] object JSObject being created
  */
 void AAMPJSEvent_initialize (JSContextRef ctx, JSObjectRef object)
 {
@@ -492,7 +459,6 @@ void AAMPJSEvent_initialize (JSContextRef ctx, JSObjectRef object)
 
 /**
  * @brief Callback invoked from JS when an object is finalized
- *
  * @param[in] object JSObject being finalized
  */
 void AAMPJSEvent_finalize(JSObjectRef object)
@@ -558,13 +524,11 @@ static const JSClassDefinition AAMPJSEvent_object_def =
 
 /**
  * @brief Callback invoked when an object is used as a constructor in a 'new' expression
- *
- * @param[in] ctx            JS execution context
- * @param[in] constructor    JSObject that is the constructor being called
- * @param[in] argumentCount  Number of args
- * @param[in] arguments[]    JSValue array of the args
- * @param[out] exception     Pointer to a JSValueRef in which to return an exception, if any
- *
+ * @param[in] ctx JS execution context
+ * @param[in] constructor JSObject that is the constructor being called
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of the args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSObject that is the constructor's return value
  */
 static JSObjectRef AAMPJSEvent_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
@@ -605,12 +569,10 @@ static const JSClassDefinition AAMPJSEvent_class_def =
 
 /**
  * @brief To create a new JS event instance
- *
- * @param[in] ctx         JS execution context
- * @param[in] type        Event type
- * @param[in] bubbles     Denotes if event support bubbling
- * @param[in] cancelable  Denotes if event is cancelable
- *
+ * @param[in] ctx JS execution context
+ * @param[in] type event type
+ * @param[in] bubbles denotes if event support bubbling
+ * @param[in] cancelable denotes if event is cancelable
  * @retval JSObject of the new instance created
  */
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable)
@@ -624,7 +586,3 @@ JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool 
 
 	return eventObj;
 }
-
-/**
- * @}
- */

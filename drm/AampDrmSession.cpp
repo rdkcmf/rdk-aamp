@@ -25,11 +25,6 @@
 #include "AampDrmSession.h"
 
 /**
- * @addtogroup AAMP_DRM_API
- * @{
- */
-
-/**
  *  @brief	AampDrmSession constructor.
  */
 AampDrmSession::AampDrmSession(const string &keySystem)
@@ -53,8 +48,3 @@ string AampDrmSession::getKeySystem()
 {
 	return m_keySystem;
 }
-
-/**
- * @}
- */
-

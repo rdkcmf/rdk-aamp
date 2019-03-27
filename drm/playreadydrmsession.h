@@ -42,11 +42,6 @@ using namespace std;
 } while(FALSE)
 
 /**
- * @addtogroup AAMP_DRM_TYPES
- * @{
- */
-
-/**
  * @class PlayReadyDRMSession
  * @brief Class for PlayReady DRM operations
  */
@@ -107,6 +102,4 @@ public:
 };
 
 #endif
-/**
- * @}
- */
+

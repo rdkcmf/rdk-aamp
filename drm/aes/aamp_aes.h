@@ -27,11 +27,6 @@
 #include <memory>
 
 /**
- * @addtogroup AAMP_DRM_TYPES
- * @{
- */
-
-/**
  * @class AesDec
  * @brief Vanilla AES based DRM management
  */
@@ -73,7 +68,3 @@ private:
 };
 
 #endif // _AAMP_AES_H_
-
-/**
- * @}
- */
