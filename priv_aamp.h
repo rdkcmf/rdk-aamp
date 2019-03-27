@@ -1527,6 +1527,14 @@ public:
 	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT);
 
 	/**
+	 * @brief Check current type is manifest or not
+	 *
+	 * @param[in] fileType - Type of Media
+	 * @param[out] bool value - returns true if its a manifest file.
+	 */
+	 bool IsManifestFile (MediaType fileType);
+
+	/**
 	 * @brief get Media Type in string
 	 * @param[in] fileType - Type of Media
 	 * @param[out] pointer to Media Type string
