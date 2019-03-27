@@ -2058,8 +2058,8 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					long curlDownloadTimeout = modifyDownloadTimeout ? CURL_MANIFEST_DL_TIMEOUT : gpGlobalConfig->fragmentDLTimeout;
 					//use a delta of 100ms for edge cases
 					isCurlLowSpeedTimedout = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE) &&
-									buffer->len > 0 &&
-									(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
+													(buffer->len >= 0) &&
+													(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
 					if (AAMP_IS_LOG_WORTHY_ERROR(res))
 					{
@@ -2085,12 +2085,6 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 						AAMPLOG_INFO("Curl download timedout due to low speed - curl result:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, downloadTimeMS, curlDownloadTimeout * 1000);
 						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
 						http_code = CURLE_PARTIAL_FILE;
-					}
-					else if (res == CURLE_OPERATION_TIMEDOUT && buffer->len == 0)
-					{
-						AAMPLOG_INFO("Curl download timedout with zero received bytes - curl result:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, downloadTimeMS, curlDownloadTimeout * 1000);
-						//To avoid updateBasedonFragmentCached being called on rampdown
-						http_code = CURLE_COULDNT_CONNECT;
 					}
 				}
 
