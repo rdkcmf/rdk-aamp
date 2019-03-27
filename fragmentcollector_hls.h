@@ -240,6 +240,7 @@ private:
 	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
 	bool mInjectInitFragment;               /**< Indicates if init fragment injection is required*/
 	const char* mInitFragmentInfo;          /**< Holds init fragment Information index*/
+	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
 };
 
 class StreamAbstractionAAMP_HLS;
