@@ -576,9 +576,8 @@ void MediaTrack::RunInjectLoop()
 	const bool isAudioTrack = (eTRACK_AUDIO == type);
 	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
-	if (AAMP_NORMAL_PLAY_RATE == aamp->rate)
+	if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
 	{
-		assert(!bufferMonitorThreadStarted);
 		if (0 == pthread_create(&bufferMonitorThreadID, NULL, &BufferHealthMonitor, this))
 		{
 			bufferMonitorThreadStarted = true;
@@ -615,24 +614,6 @@ void MediaTrack::RunInjectLoop()
 			}
 		}
 	}
-
-	if (bufferMonitorThreadStarted)
-	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(bufferMonitorThreadID, &value_ptr);
-		if (rc != 0)
-		{
-			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)\n", rc, strerror(rc));
-		}
-#ifdef TRACE
-		else
-		{
-			logprintf("joined bufferMonitorThreadID\n");
-		}
-#endif
-	}
-	bufferMonitorThreadStarted = false;
-
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
 }
 
@@ -750,6 +731,21 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
  */
 MediaTrack::~MediaTrack()
 {
+	if (bufferMonitorThreadStarted)
+	{
+		void *value_ptr = NULL;
+		int rc = pthread_join(bufferMonitorThreadID, &value_ptr);
+		if (rc != 0)
+		{
+			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)\n", rc, strerror(rc));
+		}
+#ifdef TRACE
+		else
+		{
+			logprintf("joined bufferMonitorThreadID\n");
+		}
+#endif
+	}
 	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
