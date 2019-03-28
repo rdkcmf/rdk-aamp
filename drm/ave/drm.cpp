@@ -60,6 +60,7 @@ static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int drmSignalKeyAquired(void * arg);
 static int drmSignalError(void * arg);
+static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
 From FlashAccessKeyFormats.pdf:
@@ -119,7 +120,7 @@ public:
 	{
 		mpAamp = pAamp;
 		mpAveDrm = aveDrm;
-		logprintf("TheDRMListener::%s:%d[%p]\n", __FUNCTION__, __LINE__, mpAveDrm);
+		logprintf("TheDRMListener::%s:%d[%p]->[%p]\n", __FUNCTION__, __LINE__, mpAveDrm,this);
 	}
 
 	/**
@@ -511,6 +512,24 @@ AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 	pthread_cond_init(&cond, NULL);
 }
 
+
+AveDrm::~AveDrm()
+{
+	if(m_pDrmListner)
+	{
+		delete m_pDrmListner;
+		m_pDrmListner = NULL;
+	}	
+	if(m_pDrmAdapter)
+	{
+		delete m_pDrmAdapter;
+		m_pDrmAdapter = NULL;
+	}
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&cond);
+}
+
+
 /**
  * @brief Set state and signal waiting threads. Used internally by listener.
  *
@@ -535,6 +554,7 @@ AveDrmManager::AveDrmManager() :
 	Reset();
 }
 
+
 //#define ENABLE_AVE_DRM_MANGER_DEBUG
 #ifdef ENABLE_AVE_DRM_MANGER_DEBUG
 #define AVE_DRM_MANGER_DEBUG logprintf
@@ -550,23 +570,29 @@ void AveDrmManager::Reset()
 	mDrmContexSet = false;
 	memset(mSha1Hash, 0, DRM_SHA1_HASH_LEN);
 	userCount = 0;
+	trackType = 0;
 }
 
-void AveDrmManager::UpdateBeforeIndexList(const char* trackname)
+void AveDrmManager::UpdateBeforeIndexList(const char* trackname,int trackType)
 {
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
         {
-                sAveDrmManager[i]->userCount--;
+		if(sAveDrmManager[i]->trackType == trackType){
+	                sAveDrmManager[i]->userCount--;
+		}
         }
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
-void AveDrmManager::FlushAfterIndexList(const char* trackname)
+void AveDrmManager::FlushAfterIndexList(const char* trackname,int trackType)
 {
 	std::vector<AveDrmManager*>::iterator iter;
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
 		AveDrmManager* aveDrmManager = *iter;
-		if(aveDrmManager->userCount == 0)
+		if(aveDrmManager->trackType == trackType && aveDrmManager->userCount <= 0)
 		{
 			aveDrmManager->mDrm->Release();
 			aveDrmManager->Reset();
@@ -580,6 +606,7 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname)
 		}
 
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
 
@@ -588,10 +615,12 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname)
  */
 void AveDrmManager::ResetAll()
 {
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
 		sAveDrmManager[i]->Reset();
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
 /**
@@ -599,10 +628,12 @@ void AveDrmManager::ResetAll()
  */
 void AveDrmManager::CancelKeyWaitAll()
 {
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
 		sAveDrmManager[i]->mDrm->CancelKeyWait();
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
 /**
@@ -610,10 +641,21 @@ void AveDrmManager::CancelKeyWaitAll()
  */
 void AveDrmManager::ReleaseAll()
 {
-	for (int i = 0; i < sAveDrmManager.size(); i++)
+	// Only called from Stop of fragment collector of hls , mutex protection 
+	// added for calling 
+	
+	logprintf("[%s]Releasing AveDrmManager of size=%d \n",__FUNCTION__,sAveDrmManager.size());
+	std::vector<AveDrmManager*>::iterator iter;
+	pthread_mutex_lock(&aveDrmManagerMutex);
+	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
-		sAveDrmManager[i]->mDrm->Release();
+		AveDrmManager* aveDrmManager = *iter;
+		aveDrmManager->mDrm->Release();
+		aveDrmManager->Reset();
+		delete aveDrmManager;
+		iter = sAveDrmManager.erase(iter);
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
 /**
@@ -621,10 +663,12 @@ void AveDrmManager::ReleaseAll()
  */
 void AveDrmManager::RestoreKeyStateAll()
 {
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
 		sAveDrmManager[i]->mDrm->RestoreKeyState();
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
 /**
@@ -633,11 +677,12 @@ void AveDrmManager::RestoreKeyStateAll()
  * @param[in] aamp          AAMP instance associated with the operation.
  * @param[in] metaDataNode  DRM meta data node containing meta-data to be set.
  */
-void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode)
+void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType)
 {
 	AveDrmManager* aveDrmManager = NULL;
 	bool drmMetaDataSet = false;
 	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
 		if (sAveDrmManager[i]->mDrmContexSet)
@@ -673,7 +718,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			sAveDrmManager.push_back(aveDrmManager);
 			if (sAveDrmManager.size() > MAX_DRM_CONTEXT)
 			{
-				logprintf("%s:%d: WARNING - %d AveDrmManager objects allocated\n", __FUNCTION__, __LINE__);
+				logprintf("%s:%d: WARNING - %d AveDrmManager objects allocated\n", __FUNCTION__, __LINE__,sAveDrmManager.size());
 			}
 		}
 		if (aveDrmManager)
@@ -681,9 +726,11 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData);
 			aveDrmManager->mDrmContexSet = true;
 			aveDrmManager->userCount++;
+			aveDrmManager->trackType = trackType;
 			memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		}
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, sAveDrmManager.size());
 }
 
@@ -733,6 +780,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
 	printf("%s:%d Enter sAveDrmManager.size = %d sha1Hash -  ", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
 	PrintSha1Hash(sha1Hash);
 #endif
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
 		if (sAveDrmManager[i]->mDrmContexSet)
@@ -756,6 +804,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
 			logprintf("%s:%d: sHlsDrmContext[%d].mDrmContexSet is false\n", __FUNCTION__, __LINE__, i);
 		}
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 	return aveDrm;
 }
 
@@ -768,6 +817,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
 int AveDrmManager::GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount)
 {
 	int idx = -1;
+	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int j = drmMetadataCount - 1; j >= 0; j--)
 	{
 		bool matched = false;
@@ -785,6 +835,7 @@ int AveDrmManager::GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmM
 			break;
 		}
 	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 	return idx;
 }
 
