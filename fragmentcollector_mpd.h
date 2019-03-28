@@ -48,6 +48,8 @@ public:
 	int GetBWIndex(long bitrate);
 	std::vector<long> GetVideoBitrates(void);
 	std::vector<long> GetAudioBitrates(void);
+	void StopInjection(void);
+	void StartInjection(void);
 protected:
 	StreamInfo* GetStreamInfo(int idx);
 private:

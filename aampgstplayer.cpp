@@ -2673,7 +2673,7 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 				}
 				else
 				{
-					logprintf("AAMPGstPlayer::%s():%d video-pts parsed is: " G_GINT64_FORMAT "\n",
+					logprintf("AAMPGstPlayer::%s():%d video-pts parsed is: %" G_GINT64_FORMAT "\n",
 						__FUNCTION__, __LINE__, currentPTS);
 				}
 			}

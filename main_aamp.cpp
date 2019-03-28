@@ -877,7 +877,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		logprintf("PrivateInstanceAAMP::%s:%d mProcessingDiscontinuity set\n", __FUNCTION__, __LINE__);
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
-		mpStreamAbstractionAAMP->Stop(false);
+		mpStreamAbstractionAAMP->StopInjection();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 #else
@@ -885,7 +885,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 #endif
 		mpStreamAbstractionAAMP->GetStreamFormat(mFormat, mAudioFormat);
 		mStreamSink->Configure(mFormat, mAudioFormat, false);
-		mpStreamAbstractionAAMP->Start();
+		mpStreamAbstractionAAMP->StartInjection();
 		mStreamSink->Stream();
 		mProcessingDiscontinuity = false;
 	}
@@ -2997,12 +2997,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		else
 		{
-			//reset discontinuity related flags
-			mProcessingDiscontinuity = mProcessingAdInsertion =  false;
 			g_source_remove(mDiscontinuityTuneOperationId);
 			mDiscontinuityTuneOperationId = 0;
 		}
 	}
+	//reset discontinuity related flags
+	mProcessingDiscontinuity = mProcessingAdInsertion = mPlayingAd = false;
 	pthread_mutex_unlock(&mLock);
 
 	if (mpStreamAbstractionAAMP)
