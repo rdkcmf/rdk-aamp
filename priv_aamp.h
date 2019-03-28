@@ -499,6 +499,7 @@ public:
 	const char* httpProxy;                  /**< HTTP proxy address*/
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
+	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
 	bool mpdDiscontinuityHandling;          /**< Enable MPD discontinuity handling*/
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/
@@ -555,6 +556,7 @@ public:
 		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		pUserAgentString = NULL;
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
+		isUsingLocalConfigForPreferredDRM = false;
 	}
 
 	/**
