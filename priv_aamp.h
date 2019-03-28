@@ -502,6 +502,7 @@ public:
 	const char* httpProxy;                  /**< HTTP proxy address*/
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
+	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
 	bool mpdDiscontinuityHandling;          /**< Enable MPD discontinuity handling*/
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/
@@ -556,6 +557,7 @@ public:
                 // onStreamPlaying is sent optimistically in advance
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
+		isUsingLocalConfigForPreferredDRM = false;
 	}
 
 	/**
