@@ -2938,6 +2938,7 @@ static void ProcessConfigEntry(char *cfg)
 			}
 			else
 			{
+				gpGlobalConfig->isUsingLocalConfigForPreferredDRM = true;
 				gpGlobalConfig->preferredDrm = (DRMSystems) value;
 			}
 			logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
@@ -6639,8 +6640,17 @@ bool PrivateInstanceAAMP::IsTuneCompleted()
  */
 void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
-	AAMPLOG_INFO("%s:%d set preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
-	gpGlobalConfig->preferredDrm = drmType;
+    // if Preferred DRM is set using /opt/aamp.cfg or via RFC then
+    // ignore this function setting
+    if(gpGlobalConfig->isUsingLocalConfigForPreferredDRM)
+    {
+        AAMPLOG_INFO("%s:%d Ignoring Preferred drm: %d setting as localConfig for Preferred DRM is set to :%d\n", __FUNCTION__, __LINE__, drmType,gpGlobalConfig->preferredDrm);
+    }
+    else
+    {
+        AAMPLOG_INFO("%s:%d set Preferred drm: %d\n", __FUNCTION__, __LINE__, drmType);
+        gpGlobalConfig->preferredDrm = drmType;
+    }
 }
 
 std::string PrivateInstanceAAMP::getStreamTypeString()
