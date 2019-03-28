@@ -1687,7 +1687,7 @@ void TrackState::ProcessDrmMetadata(bool acquireCurrentLicenseOnly)
 			}
 		}
 		traceprintf("%s:%d: Setting  metadata for index %d\n", __FUNCTION__, __LINE__, i);
-		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
+		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i],(int)type);
 	}
 	mDrmLicenseRequestPending = (mCMSha1Hash && acquireCurrentLicenseOnly && (mDrmMetaDataIndexCount >1));
 	if(mCMSha1Hash && !foundCurrentMetaDataIndex)
@@ -1726,7 +1726,7 @@ void TrackState::StartDeferredDrmLicenseAcquisition()
 			if (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
 			{
 				logprintf("%s:%d: Found matching drmMetadataNode index %d\n", __FUNCTION__, __LINE__, i);
-				AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
+				AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i],(int)type);
 				gDeferredDrmLicRequestPending = false;
 				break;
 			}
@@ -1910,7 +1910,7 @@ void TrackState::IndexPlaylist()
 	// SetMetadata is not called across playlist update , hence Update is not needed
 	if(mCMSha1Hash)
 	{
-		AveDrmManager::UpdateBeforeIndexList(name);
+		AveDrmManager::UpdateBeforeIndexList(name,(int)type);
 	}
 
 	{ // build new index
@@ -2104,7 +2104,7 @@ void TrackState::IndexPlaylist()
 	// SetMetadata is not called across playlist update hence flush is not needed
 	if(mCMSha1Hash)
 	{
-		AveDrmManager::FlushAfterIndexList(name);
+		AveDrmManager::FlushAfterIndexList(name,(int)type);
 	}
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
