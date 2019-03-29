@@ -111,6 +111,7 @@ typedef enum
 	AAMP_TUNE_DRM_KEY_UPDATE_FAILED,        /**< Failed to process DRM key, see the error code returned from Update() for more info */
 	AAMP_TUNE_DEVICE_NOT_PROVISIONED,       /**< STB not provisioned/corrupted; need to re-provision. */
 	AAMP_TUNE_INVALID_MANIFEST_FAILURE,     /**< Manifest is invalid */
+	AAMP_TUNE_FAILED_PTS_ERROR,             /**< Playback failed due to PTS error */
 	AAMP_TUNE_FAILURE_UNKNOWN               /**<  Unknown failure */
 }AAMPTuneFailure;
 
