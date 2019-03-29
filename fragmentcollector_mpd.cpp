@@ -151,12 +151,20 @@ public:
 	{
 		mContext = context;
 		memset(&fragmentDescriptor, 0, sizeof(FragmentDescriptor));
+		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
 
 	/**
 	 * @brief MediaStreamContext Destructor
 	 */
-	~MediaStreamContext(){}
+	~MediaStreamContext()
+	{
+		if(mDownloadedFragment.ptr)
+		{
+			aamp_Free(&mDownloadedFragment.ptr);
+			mDownloadedFragment.ptr = NULL;
+		}
+	}
 
 
 	/**
@@ -196,7 +204,7 @@ public:
          *
 	 * @retval true on success
 	 */
-	bool CacheFragment(const char *fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment= false, bool discontinuity = false
+	bool CacheFragment(const char *fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		, std::string media = 0
 #endif
@@ -208,13 +216,35 @@ public:
 		ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
 		CachedFragment* cachedFragment = GetFetchBuffer(true);
 		long http_code = 0;
+		long bitrate = 0;
 		MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
-		ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
-			        range, actualType, &http_code);
+
+		if(!initSegment && mDownloadedFragment.ptr)
+		{
+			ret = true;
+			cachedFragment->fragment.ptr = mDownloadedFragment.ptr;
+			cachedFragment->fragment.len = mDownloadedFragment.len;
+			cachedFragment->fragment.avail = mDownloadedFragment.avail;
+			memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
+		}
+		else
+		{
+			ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
+						range, actualType, &http_code, &bitrate);
+		}
 
 		mContext->mCheckForRampdown = false;
-
-		if (!ret)
+		if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
+		{
+			AAMPLOG_INFO("%s:%d Bitrate changed from %ld to %ld\n", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
+			fragmentDescriptor.Bandwidth = bitrate;
+			mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
+			mDownloadedFragment.avail = cachedFragment->fragment.avail;
+			mDownloadedFragment.len = cachedFragment->fragment.len;
+			memset(&cachedFragment->fragment, 0, sizeof(GrowableBuffer));
+			ret = false;
+		}
+		else if (!ret)
 		{
 			aamp_Free(&cachedFragment->fragment.ptr);
 			if( aamp->DownloadsAreEnabled())
@@ -324,6 +354,7 @@ public:
 	bool eos;
 	bool endTimeReached;
 	bool profileChanged;
+	GrowableBuffer mDownloadedFragment;
 
 	double fragmentTime;
 	double targetDnldPosition;
@@ -1127,37 +1158,15 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 #endif
 				if ((pMediaStreamContext->fragmentDescriptor.Time > pMediaStreamContext->lastSegmentTime) || (0 == pMediaStreamContext->lastSegmentTime))
 				{
-					if(mIsFogTSB && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
-					{
-						long long bitrate = 0;
-						std::map<string,string> rawAttributes =  timeline->GetRawAttributes();
-						if(rawAttributes.find("b") == rawAttributes.end())
-						{
-							bitrate = pMediaStreamContext->fragmentDescriptor.Bandwidth;
-						}
-						else
-						{
-							string bitrateStr = rawAttributes["b"];
-							bitrate = stoll(bitrateStr);
-						}
-						if(pMediaStreamContext->fragmentDescriptor.Bandwidth != bitrate || pMediaStreamContext->profileChanged)
-						{
-							pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
-							pMediaStreamContext->profileChanged = true;
-							mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bitrate];
-							FetchAndInjectInitialization();
-							return false; //Since we need to check WaitForFreeFragmentCache
-						}
-					}
 #ifdef DEBUG_TIMELINE
 					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) \n",__FUNCTION__, __LINE__,
 					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
 #endif
-					pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 					double fragmentDuration = (double)duration/timeScale;
 					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 					if(retval)
 					{
+						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 						//logprintf("VOD/CDVR Line:%d fragmentDuration:%f target:%f SegTime%f rate:%f\n",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
 						if(rate > AAMP_NORMAL_PLAY_RATE)
 						{
@@ -1168,7 +1177,14 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							pMediaStreamContext->targetDnldPosition += fragmentDuration;
 						}
 					}
-					if(mContext->mCheckForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
+					else if(mIsFogTSB && pMediaStreamContext->mDownloadedFragment.ptr)
+					{
+						pMediaStreamContext->profileChanged = true;
+						mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
+						FetchAndInjectInitialization();
+						return false;
+					}
+					else if(mContext->mCheckForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
 					{
 						// DELIA-31780 - On audio fragment download failure (http500), rampdown was attempted .
 						// rampdown is only needed for video fragments not for audio.
@@ -1176,8 +1192,6 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						// startTime is set to start of Period . This caused audio fragment download from "0" resulting in PTS mismatch and mute
 						// Fix : Only do lastSegmentTime correction for video not for audio
 						//	 lastSegmentTime to be corrected with duration of last segment attempted .
-						if(pMediaStreamContext->lastSegmentTime)
-							pMediaStreamContext->lastSegmentTime -= duration;
 						return retval; /* Incase of fragment download fail, no need to increase the fragment number to download next fragment,
 								 * instead check the same fragment in lower profile. */
 					}

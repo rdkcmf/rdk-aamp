@@ -197,7 +197,8 @@ enum HttpHeaderType
 {
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
-	eHTTPHEADERTYPE_FOG_REASON,    /**< X-Reason Header */
+	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
+	eHTTPHEADERTYPE_BITRATE,    /**< Bitrate info from fog */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -1612,7 +1613,7 @@ public:
          *
 	 * @return void
 	 */
-	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT);
+	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
 
 	/**
 	 * @brief get Media Type in string
@@ -1650,7 +1651,7 @@ public:
          *
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
