@@ -54,6 +54,8 @@ using namespace media;
 
 #endif /*!NO_AVE_DRM*/
 
+static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
+
 #ifdef AVE_DRM
 
 static int drmSignalKeyAquired(void * arg);
