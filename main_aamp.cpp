@@ -46,6 +46,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <string>
 #include <vector>
 #include <list>
 #ifdef AAMP_CC_ENABLED
@@ -1411,6 +1412,13 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		startPos = header.find("X-Reason:") + strlen("X-Reason:");
 		endPos = header.length() - 1;
 	}
+	else if (std::string::npos != header.find("X-Bitrate:"))
+	{
+		httpHeader->type = eHTTPHEADERTYPE_BITRATE;
+		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+		startPos = header.find("X-Bitrate:") + strlen("X-Bitrate:");
+		endPos = header.length() - 1;
+	}
 	else if (std::string::npos != header.find("Set-Cookie:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_COOKIE;
@@ -1852,7 +1860,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param fileType media type of the file
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType)
+bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate)
 {
 	long http_code = -1;
 	bool ret = false;
@@ -2185,6 +2193,11 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
             }
 		}
 
+		if (bitrate && (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_BITRATE) && (httpRespHeaders[curlInstance].data.length() > 0))
+		{
+			//logprintf("Received Bitrate header: '%s'", httpRespHeaders[curlInstance].data.c_str());
+			*bitrate = std::stol("0" + httpRespHeaders[curlInstance].data);
+		}
 		pthread_mutex_lock(&mLock);
 	}
 	else
@@ -4014,12 +4027,12 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
 	char effectiveUrl[MAX_URI_LENGTH];
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType))
+	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType);
