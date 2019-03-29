@@ -54,11 +54,12 @@ using namespace media;
 
 #endif /*!NO_AVE_DRM*/
 
+static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
+
 #ifdef AVE_DRM
 
 static int drmSignalKeyAquired(void * arg);
 static int drmSignalError(void * arg);
-static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
 From FlashAccessKeyFormats.pdf:
