@@ -1668,6 +1668,7 @@ void TrackState::FlushIndex()
 	index.avail = 0;
 	currentIdx = -1;
 	mDrmKeyTagCount = 0;
+	mDiscontinuityIndexCount = 0;
 	aamp_Free(&mDiscontinuityIndex.ptr);
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
 	if (mDrmMetaDataIndexCount)
@@ -2017,7 +2018,7 @@ void TrackState::IndexPlaylist()
 				else if (strncmp(ptr + 4, "-X-PROGRAM-DATE-TIME:", 21) == 0)
 				{
 					programDateTimeIdxOfFragment = ptr+4+21;
-					logprintf("Got EXT-X-PROGRAM-DATE-TIME: %.*s \n", 30, programDateTimeIdxOfFragment);
+					traceprintf("Got EXT-X-PROGRAM-DATE-TIME: %.*s \n", 30, programDateTimeIdxOfFragment);
 				}
 				else if (strncmp(ptr + 4, "-X-KEY:", 7) == 0)
 				{
