@@ -577,8 +577,9 @@ void AveDrmManager::UpdateBeforeIndexList(const char* trackname,int trackType)
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
         {
-		if(sAveDrmManager[i]->trackType == trackType){
+		if(sAveDrmManager[i]->trackType & (1<<trackType)){
 	                sAveDrmManager[i]->userCount--;
+			sAveDrmManager[i]->trackType &= ~(1<<trackType);
 		}
         }
 	pthread_mutex_unlock(&aveDrmManagerMutex);
@@ -591,7 +592,7 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname,int trackType)
 	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
 		AveDrmManager* aveDrmManager = *iter;
-		if(aveDrmManager->trackType == trackType && aveDrmManager->userCount <= 0)
+		if(aveDrmManager->userCount <= 0)
 		{
 			aveDrmManager->mDrm->Release();
 			aveDrmManager->Reset();
@@ -689,8 +690,9 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
 				sAveDrmManager[i]->userCount++;
-				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] UserCount[%d]\n", __FUNCTION__, __LINE__, i,sAveDrmManager[i]->userCount);
 				drmMetaDataSet = true;
+				sAveDrmManager[i]->trackType |= (1<<trackType);
+				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash. Index[%d] UserCount[%d][%x]\n", __FUNCTION__, __LINE__, i,sAveDrmManager[i]->userCount,sAveDrmManager[i]->trackType);
 				break;
 			}
 			else
@@ -712,20 +714,16 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 	{
 		if (!aveDrmManager)
 		{
-			logprintf("%s:%d: Create new AveDrmManager object\n", __FUNCTION__, __LINE__);
 			aveDrmManager = new AveDrmManager();
 			sAveDrmManager.push_back(aveDrmManager);
-			if (sAveDrmManager.size() > MAX_DRM_CONTEXT)
-			{
-				logprintf("%s:%d: WARNING - %d AveDrmManager objects allocated\n", __FUNCTION__, __LINE__,sAveDrmManager.size());
-			}
+			logprintf("%s:%d: Created new AveDrmManager .Track[%d].Total Sz=%d\n", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
 		}
 		if (aveDrmManager)
 		{
 			aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData);
 			aveDrmManager->mDrmContexSet = true;
 			aveDrmManager->userCount++;
-			aveDrmManager->trackType = trackType;
+			aveDrmManager->trackType |= (1<<trackType);
 			memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		}
 	}
