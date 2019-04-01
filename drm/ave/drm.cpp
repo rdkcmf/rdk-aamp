@@ -224,15 +224,15 @@ public:
 			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 		}
 
+		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
+		logprintf("DRMListener::%s:%d[%p] majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
+
 		mpAamp->SendErrorEvent(drmFailure, description, isRetryEnabled);
 
 		if (description)
 		{
 			delete[] description;
 		}
-	
-		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
-		logprintf("DRMListener::%s:%d[%p] majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
 	}
