@@ -665,16 +665,8 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 			errorDescription = tuneFailureMap[AAMP_TUNE_FAILURE_UNKNOWN].description;
 		}
 
-		if (mSessionUUID)
-		{
-			memset(e.data.mediaError.description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
-			snprintf(e.data.mediaError.description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s metricLogUUID=%s", errorDescription, mSessionUUID);
-		}
-		else
-		{
-			strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
-			e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
-		}
+		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
+		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
 		logprintf("Sending error %s \n",e.data.mediaError.description);
 		SendEventAsync(e);
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
@@ -3583,7 +3575,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt, const char *sessionUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -3591,7 +3583,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt, sessionUUID);
+	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt);
 }
 
 
@@ -3601,7 +3593,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt, const char *sessionUUID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
 {
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
 
@@ -3780,10 +3772,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	if(bFirstAttempt)
 	{
 		mfirstTuneFmt = mIsDash?1:0;
-	}
-	if (sessionUUID)
-	{
-		mSessionUUID = strdup(sessionUUID);
 	}
 	TuneHelper(tuneType);
 }
@@ -5179,11 +5167,6 @@ void PrivateInstanceAAMP::Stop()
 	mEnableCache = true;
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
-	if (mSessionUUID)
-	{
-		free(mSessionUUID);
-		mSessionUUID = NULL;
-	}
 }
 
 
@@ -5591,7 +5574,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 
 	mIsLocalPlayback = false;
 	previousAudioType = eAUDIO_UNKNOWN;
-	mSessionUUID = NULL;
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 }
