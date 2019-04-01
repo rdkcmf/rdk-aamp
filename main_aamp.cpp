@@ -4402,7 +4402,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 		return;
 	}
 
-	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
+	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
 		double currPositionSecs = aamp->GetPositionMs() / 1000.00;
 		if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
