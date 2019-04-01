@@ -71,6 +71,8 @@
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /*!< Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**< Sha1 hash of meta-data for deferred DRM license acquisition*/
@@ -4556,7 +4558,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 	bool discontinuityPending = false;
 	double low = position - DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
 	double high = position + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
-	bool playlistRefreshed = false;
+	int playlistRefreshCount = 0;
 	diffBetweenDiscontinuities = DBL_MAX;
 	pthread_mutex_lock(&mPlaylistMutex);
 	while (aamp->DownloadsAreEnabled())
@@ -4608,14 +4610,35 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 		}
 		if (!discontinuityPending)
 		{
-			logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshed %d playlistType %d useStartTime %d\n", __FUNCTION__, __LINE__,
-					name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, (int)playlistRefreshed, (int)context->playlistType, (int)useStartTime);
-			if ( !playlistRefreshed &&  (ePLAYLISTTYPE_VOD != context->playlistType) && (mDuration  < (playPosition + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS)))
+			logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d\n", __FUNCTION__, __LINE__,
+					name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)context->playlistType, (int)useStartTime);
+			if (ePLAYLISTTYPE_VOD != context->playlistType)
 			{
-				logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f\n", __FUNCTION__, __LINE__, name, mDuration, mCulledSeconds);
-				pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-				logprintf("%s:%d Wait for %s playlist update over\n", __FUNCTION__, __LINE__, name);
-				playlistRefreshed = true;
+				int maxPlaylistRefreshCount;
+				bool liveNoTSB;
+				if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
+				{
+					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
+					liveNoTSB = false;
+				}
+				else
+				{
+					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
+					liveNoTSB = true;
+				}
+				if ((playlistRefreshCount < maxPlaylistRefreshCount)
+						&& (liveNoTSB || (mDuration < (playPosition + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS))))
+				{
+					logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f\n", __FUNCTION__,
+					        __LINE__, name, mDuration, mCulledSeconds);
+					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
+					logprintf("%s:%d Wait for %s playlist update over\n", __FUNCTION__, __LINE__, name);
+					playlistRefreshCount++;
+				}
+				else
+				{
+					break;
+				}
 			}
 			else
 			{
