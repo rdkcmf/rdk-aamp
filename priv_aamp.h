@@ -1398,7 +1398,7 @@ public:
          *
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -2754,7 +2754,6 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
-	char *mSessionUUID; /** unique id for playback session */
 	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
