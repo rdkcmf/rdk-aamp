@@ -1456,7 +1456,6 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		char* contentType = NULL;
 		bool bFinalAttempt = false;
 		bool bFirstAttempt = true;
-		char* sessionUUID = NULL;
 		if (argumentCount == 2 && JSValueIsObject(context, arguments[1]))
 		{
 			JSObjectRef argument = JSValueToObject(context, arguments[1], NULL);
@@ -1483,27 +1482,15 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 				bFinalAttempt = JSValueToBoolean(context, paramValue);
 			}
 			JSStringRelease(paramName);
-
-			paramName = JSStringCreateWithUTF8CString("sessionUUID");
-			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
-			if (JSValueIsString(context, paramValue))
-			{
-				sessionUUID = aamp_JSValueToCString(context, paramValue, NULL);
-			}
-			JSStringRelease(paramName);
 		}
 
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
-		pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt, sessionUUID);
+		pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt);
 
 		delete [] url;
 		if (contentType)
 		{
 			delete[] contentType;
-		}
-		if (sessionUUID)
-		{
-			delete[] sessionUUID;
 		}
 	}
 	else
