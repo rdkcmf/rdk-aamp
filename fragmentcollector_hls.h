@@ -380,7 +380,7 @@ private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
 	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
-	void SyncTracksForDiscontinuity();
+	AAMPStatusType SyncTracksForDiscontinuity();
 	
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
