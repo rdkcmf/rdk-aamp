@@ -2539,17 +2539,18 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	}
 	return format;
 }
+
 /***************************************************************************
 * @fn SyncVODTracks
 * @brief Function to synchronize time between audio & video for VOD stream
 *		 
-* @return void
+* @return eAAMPSTATUS_OK on success
 ***************************************************************************/
-
-void StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
+AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
+	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
 	if (audio->GetNumberOfPeriods() == video->GetNumberOfPeriods())
 	{
 		int periodIdx;
@@ -2562,6 +2563,7 @@ void StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 			if (0 != audioPeriodStart )
 			{
 				audio->playTarget = audioPeriodStart + offsetFromPeriod;
+				retVal = eAAMPSTATUS_OK;
 			}
 			else
 			{
@@ -2574,13 +2576,14 @@ void StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 		logprintf("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
 	}
 	logprintf("%s Exit : audio track start %f, vid track start %f\n", __FUNCTION__, audio->playTarget, video->playTarget );
+	return retVal;
 }
 
 /***************************************************************************
 * @fn SyncTracks
 * @brief Function to synchronize time between A/V for Live/Event assets
 * @param useProgramDateTimeIfAvailable use program date time tag to sync if available
-* @return void
+* @return eAAMPSTATUS_OK on success
 ***************************************************************************/
 AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAvailable)
 {
@@ -2595,6 +2598,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 	{
 		TrackState *ts = trackState[i];
 		ts->fragmentURI = trackState[i]->GetNextFragmentUriFromPlaylist(true); //To parse track playlist
+		/*Update playTarget to playlistPostion to correct the seek position to start of a fragment*/
+		ts->playTarget = ts->playlistPosition;
 		logprintf("syncTracks loop : track[%d] pos %f start %f frag-duration %f trackState->fragmentURI %s ts->nextMediaSequenceNumber %lld\n", i, ts->playlistPosition, ts->playTarget, ts->fragmentDurationSeconds, ts->fragmentURI, ts->nextMediaSequenceNumber);
 		if (ts->startTimeForPlaylistSync.tv_sec == 0)
 		{
@@ -3321,18 +3326,28 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				if(!gpGlobalConfig->bAudioOnlyPlayback)
 				{
-					bool useProgramDateTimeIfAvailable = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
-					/*For VSS streams, use program-date-time if available*/
-					const char *manifestUrl =  aamp->GetManifestUrl();
-					if (aamp->mIsVSS)
+					bool syncDone = false;
+					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == audio->mDiscontinuityIndexCount))
 					{
-						logprintf("StreamAbstractionAAMP_HLS::%s:%d : VSS stream\n", __FUNCTION__, __LINE__);
-						useProgramDateTimeIfAvailable = true;
+						if (eAAMPSTATUS_OK == SyncTracksForDiscontinuity())
+						{
+							syncDone = true;
+						}
 					}
-					AAMPStatusType retValue = SyncTracks(useProgramDateTimeIfAvailable);
-					if (eAAMPSTATUS_OK != retValue)
+					if (!syncDone)
 					{
-						return retValue;
+						bool useProgramDateTimeIfAvailable = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
+						/*For VSS streams, use program-date-time if available*/
+						if (aamp->mIsVSS)
+						{
+							logprintf("StreamAbstractionAAMP_HLS::%s:%d : VSS stream\n", __FUNCTION__, __LINE__);
+							useProgramDateTimeIfAvailable = true;
+						}
+						AAMPStatusType retValue = SyncTracks(useProgramDateTimeIfAvailable);
+						if (eAAMPSTATUS_OK != retValue)
+						{
+							return retValue;
+						}
 					}
 				}
 			}
@@ -3386,7 +3401,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				if (discontinuityIndexCount == audio->mDiscontinuityIndexCount)
 				{
-					SyncTracksForDiscontinuity();
+					if (liveAdjust)
+					{
+						SyncTracksForDiscontinuity();
+					}
 					float videoPrevDiscontinuity = 0;
 					float audioPrevDiscontinuity = 0;
 					float videoNextDiscontinuity;
@@ -4454,6 +4472,7 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 	periodIdx = -1;
 	offsetFromPeriodStart = 0;
 	int idx;
+	double prevCompletionTimeSecondsFromStart = 0;
 	assert(context->rate > 0);
 	for (idx = 0; idx < indexCount; idx++)
 	{
@@ -4465,12 +4484,13 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 			idxNode = node;
 			break;
 		}
+		prevCompletionTimeSecondsFromStart = node->completionTimeSecondsFromStart;
 	}
 	if (idxNode)
 	{
 		if (idx > 0)
 		{
-			offsetFromPeriodStart = index[idx].completionTimeSecondsFromStart;
+			offsetFromPeriodStart = prevCompletionTimeSecondsFromStart;
 			double periodStartPosition = 0;
 			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
 			for (int i = 0; i < mDiscontinuityIndexCount; i++)
