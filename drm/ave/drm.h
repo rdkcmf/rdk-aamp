@@ -97,6 +97,20 @@ private:
 	pthread_mutex_t mutex;
 };
 
+
+/**
+* @struct       data
+* @brief        data structure for poplulating values from DRM listner to senderrorevent.
+*/
+typedef struct DRMErrorData
+{
+        void *ptr;
+        char description[MAX_ERROR_DESCRIPTION_LENGTH];
+        AAMPTuneFailure drmFailure;
+        bool isRetryEnabled;
+}DRMErrorData;
+
+
 /**
 * @struct	DrmMetadataNode
 * @brief	DrmMetadataNode structure for DRM Metadata/Hash storage
