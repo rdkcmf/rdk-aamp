@@ -2500,6 +2500,11 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 					logprintf("%s:%d fragment extension %s - FORMAT_ISO_BMFF\n", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_ISO_BMFF;
 				}
+				else if (0 == extension.compare(".aac"))
+				{
+					logprintf("%s:%d fragment extension %s - FORMAT_AUDIO_ES_AAC\n", __FUNCTION__, __LINE__, extension.c_str());
+					format = FORMAT_AUDIO_ES_AAC;
+				}
 				else
 				{
 					logprintf("%s:%d Not TS or MP4 extension, probably ES. fragment extension %s len %d\n", __FUNCTION__, __LINE__, extension.c_str(), strlen(extension.c_str()));
@@ -3044,6 +3049,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_ISO_BMFF\n", ts->name);
 					ts->streamOutputFormat = FORMAT_ISO_BMFF;
+					continue;
+				}
+				if (FORMAT_AUDIO_ES_AAC == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC\n", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_AAC;
 					continue;
 				}
 				if (eMEDIATYPE_AUDIO == iTrack)
