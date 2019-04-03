@@ -3871,7 +3871,7 @@ void TrackState::Stop(bool clearDRM)
 		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
 		mDrm->CancelKeyWait();
 
-		if(clearDRM)
+		if(clearDRM && aamp->GetCurrentDRM() != eDRM_Adobe_Access)
 		{
 			pthread_mutex_lock(&gDrmMutex);
 			mDrm->Release();
@@ -3984,7 +3984,6 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
-
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];

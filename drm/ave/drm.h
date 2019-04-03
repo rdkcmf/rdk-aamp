@@ -138,8 +138,9 @@ private:
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
 	std::shared_ptr<AveDrm> mDrm;
 	bool mDrmContexSet;
-	int userCount;
-	int trackType;
+	bool mHasBeenUsed;
+	int mUserCount;
+	int mTrackType;
 	static std::vector<AveDrmManager*> sAveDrmManager;
 };
 
