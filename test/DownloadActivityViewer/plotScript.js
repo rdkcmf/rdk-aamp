@@ -1,22 +1,3 @@
-/*
- * If not stated otherwise in this file or this component's license file the
- * following copyright and licenses apply:
- *
- * Copyright 2018 RDK Management
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
-*/
-
 window.onload = function() {
     var ROWHEIGHT = 24;
     var BITRATE_MARGIN = 112;
@@ -346,8 +327,14 @@ window.onload = function() {
                 if (seqno < 0) {
                     seqno = "*";
                 } else {
-                    if (data[i].type == 'I') seqno -= iframe_seqstart;
-                    else seqno -= av_seqstart;
+                    if (data[i].type == 'I') {
+                        seqno -= iframe_seqstart;
+                    } else {
+                        // If wants to do normalization to the seqno 
+                        if(document.getElementById("applyNorm").checked) {
+                            seqno -= av_seqstart;
+                        }
+                    }
                 }
                 if (data[i].error != null) {
                     seqno += data[i].error;
@@ -381,7 +368,21 @@ window.onload = function() {
         myLoadHandler();
     }
 
+    // For a new checkbox change request
+    function newCheckBoxChange(evt) {
+        if(sessionClicked) {
+            myLoadHandler();
+        } else {
+            var event = new Event('change');
+            // Dispatch the change event
+            document.getElementById('files').dispatchEvent(event);
+        }
+        
+    }
+
     document.getElementById('files').addEventListener('change', handleFileSelect, false);
     document.getElementById('session').addEventListener('change', newSession, false);
+    document.getElementById('applyNorm').addEventListener('change', newCheckBoxChange, false);
+    document.getElementById('showbandwidth').addEventListener('change', newCheckBoxChange, false);
 
 }
