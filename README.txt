@@ -159,6 +159,7 @@ audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads
 pts-error-threshold=<X> aamp maximum number of back-to-back pts errors to be considered for triggering a retune
+disable_westeros Disable westeros as the video sink
 fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe track in non-4K assets( less than or equal to X ). Disabled in default configuration.
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
