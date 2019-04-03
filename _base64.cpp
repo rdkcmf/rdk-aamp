@@ -105,7 +105,8 @@ char *base64_Encode(const unsigned char *src, size_t len)
  *
  * @note caller responsible for freeing returned data
  */
-unsigned char *base64_Decode(const char *src, size_t *len)
+
+unsigned char *base64_Decode(const char *src, size_t *len, size_t srcLen)
 {
 	static const signed char mBase64CharToIndex[256] =
 	{
@@ -141,7 +142,6 @@ unsigned char *base64_Decode(const char *src, size_t *len)
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	};
-	size_t srcLen = strlen(src); // 7384
 	size_t numChars = (srcLen / 4) * 3; // initially round up to nearest 4 bytes
 	unsigned char *outData = (unsigned char *)malloc(numChars); // 5538
 	if (outData)
@@ -179,6 +179,10 @@ unsigned char *base64_Decode(const char *src, size_t *len)
 	return outData;
 }
 
+unsigned char *base64_Decode(const char *src, size_t *len)
+{
+	return base64_Decode(src, len, strlen(src));
+}
 /**
  * @}
  */
