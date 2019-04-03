@@ -562,6 +562,7 @@ public:
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
+	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
 public:
 
 	/**
@@ -590,7 +591,7 @@ public:
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
-		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
+		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), disableWesteros(false),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, disableSslVerifyPeer(true)
