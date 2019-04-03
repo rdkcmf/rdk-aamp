@@ -201,7 +201,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
 	privateContext->using_westerossink = false;
-	if (getenv("PLAYERSINKBIN_USE_WESTEROSSINK"))
+	if (gpGlobalConfig->disableWesteros)
+		privateContext->using_westerossink = false;
+	else
 		privateContext->using_westerossink = true;
 	this->aamp = aamp;
 
@@ -928,7 +930,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			// so it can get the source width/height
 			if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
-				logprintf("AAMPGstPlayer Found --> brcmvideodecoder = %p\n", msg->src);
 				if(AampOutputProtection::IsAampOutputProcectionInstanceActive())
 				{
 					AampOutputProtection *pInstance = AampOutputProtection::GetAampOutputProcectionInstance();

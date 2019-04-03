@@ -3266,6 +3266,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mEnableRectPropertyCfg = true;
 			logprintf("AAMP configured to set Rectangle property for sink element\n");
 		}
+		else if (cfg.compare("disable_westeros") == 0)
+		{
+			gpGlobalConfig->disableWesteros = true;
+			logprintf("Westeros is disabled\n");
+		}
 		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{
 			// Read value in KB , convert it to bytes
