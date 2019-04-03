@@ -26,6 +26,4 @@ char *base64_Encode(const unsigned char *src, size_t len);
 
 unsigned char *base64_Decode(const char *src, size_t *len);
 
-unsigned char *base64_Decode(const char *src, size_t *len, size_t srcLen);
-
 #endif // BASE64_H
