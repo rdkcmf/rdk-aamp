@@ -1798,50 +1798,6 @@ void TrackState::StartDeferredDrmLicenseAcquisition()
 	}
 }
 
-/***************************************************************************
-* @fn GetNextLineStart
-* @brief Function to get start of the next line
-* @param[in] ptr buffer to do the operation
-* @return start of the next line
-***************************************************************************/
-static char* GetNextLineStart(char* ptr)
-{
-	ptr = strchr(ptr, CHAR_LF);
-	if( ptr )
-	{
-	    ptr++;
-	}
-	return ptr;
-}
-
-/***************************************************************************
-* @fn FindLineLength
-* @brief Function to get the length of line.
-* @param[in] ptr start of line
-* @return length of line
-***************************************************************************/
-static size_t FindLineLength(const char* ptr)
-{
-	size_t len;
-        /*
-        Lines in a Playlist file are terminated by either a single line feed
-        character or a carriage return character followed by an line feed
-        */
-	const char * delim = strchr(ptr, CHAR_LF);
-	if (delim)
-	{
-		len = delim-ptr;
-		if (delim > ptr && delim[-1] == CHAR_CR)
-		{
-			len--;
-		}
-	}
-	else
-	{
-		len = strlen(ptr);
-	}
-	return len;
-}
 
 /***************************************************************************
 * @fn IndexPlaylist
@@ -1852,13 +1808,18 @@ static size_t FindLineLength(const char* ptr)
 void TrackState::IndexPlaylist()
 {
 	double totalDuration = 0.0;
+	char * playlistBackup = NULL;
 	traceprintf("%s:%d Enter \n", __FUNCTION__, __LINE__);
 	pthread_mutex_lock(&mPlaylistMutex);
+
 	FlushIndex();
 	mIndexingInProgress = true;
 	if (playlist.ptr )
 	{
 		char *ptr;
+
+		//ptr = strstr(playlist.ptr, "#EXTM3U");
+
 		if(memcmp(playlist.ptr,"#EXTM3U",7)!=0)
 		{
 		    int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
@@ -1873,23 +1834,164 @@ void TrackState::IndexPlaylist()
 		    pthread_mutex_unlock(&mPlaylistMutex);
 		    return;
 		}
+
+		// TODO: may be more efficient to do the following scans as we walk the file
+
+		ptr = strstr(playlist.ptr, "#EXT-X-MEDIA-SEQUENCE:");
+		if (ptr)
+		{
+			ptr += 22;
+			indexFirstMediaSequenceNumber = atoll(ptr);
+		}
+		else
+		{ // for Sling content
+			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
+			ptr = playlist.ptr;
+			indexFirstMediaSequenceNumber = 0;
+		}
+
+		ptr = strstr(playlist.ptr, "#EXT-X-TARGETDURATION:");
+		if( ptr )
+		{
+			ptr += 22;
+			targetDurationSeconds = atof(ptr);
+			AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
+		}
+
+		ptr = strstr(playlist.ptr, "#EXT-X-MAP:");
+		if( ptr )
+		{
+			mInitFragmentInfo = ptr + 11;
+			logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
+		}
+
 		DrmMetadataNode drmMetadataNode;
+		playlistBackup = (char*) malloc(playlist.len);
+		memcpy(playlistBackup, playlist.ptr, playlist.len);
+		ptr = playlist.ptr;
+		do
+		{
+			char *drmPtr = NULL;
+			ptr = strstr(ptr, "#EXT-X-FAXS-CM:");
+			if (ptr)
+			{
+				drmPtr = ptr+strlen("#EXT-X-FAXS-CM:");
+				traceprintf("aamp: #EXT-X-FAXS-CM:\n");
+
+				char * delim = strchr(ptr, CHAR_LF);
+				if (delim)
+				{
+					if (delim > ptr && delim[-1] == CHAR_CR)
+					{
+						delim--;
+					}
+					*delim = '\0';
+					ptr = delim + 1;
+				}
+				else
+				{
+					ptr = NULL;
+				}
+				unsigned char hash[SHA_DIGEST_LENGTH] = {0};
+				drmMetadataNode.metaData.metadataPtr =  base64_Decode(drmPtr, &drmMetadataNode.metaData.metadataSize);
+				SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
+				drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
+#ifdef TRACE
+				logprintf("%s:%d [%s] drmMetadataNode[%d].sha1Hash -- ", __FUNCTION__, __LINE__, name, mDrmMetaDataIndexCount);
+				for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
+				{
+					printf("%c", drmMetadataNode.sha1Hash[i]);
+				}
+				printf("\n");
+#endif
+
+				aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
+				traceprintf("%s:%d mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, mDrmMetaDataIndex.ptr);
+				mDrmMetaDataIndexCount++;
+			}
+		}
+		while (ptr);
+		if (mDrmMetaDataIndexCount > 1)
+		{
+			traceprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+		}
+		memcpy(playlist.ptr, playlistBackup, playlist.len);
+
+		ptr = strstr(playlist.ptr, "#EXT-X-PLAYLIST-TYPE:");
+		if (ptr)
+		{
+			ptr += 21;
+			// EVENT or VOD (optional); VOD if playlist will never change
+			if (startswith(&ptr, "VOD"))
+			{
+				logprintf("aamp: EXT-X-PLAYLIST-TYPE - VOD\n");
+				context->playlistType = ePLAYLISTTYPE_VOD;
+			}
+			else if (startswith(&ptr, "EVENT"))
+			{
+				logprintf("aamp: EXT-X-PLAYLIST-TYPE = EVENT\n");
+				context->playlistType = ePLAYLISTTYPE_EVENT;
+			}
+			else
+			{
+				aamp_Error("unknown PLAYLIST-TYPE");
+			}
+		}
+
+		if (context->playlistType != ePLAYLISTTYPE_VOD)
+		{
+			ptr = strstr(playlist.ptr, "#EXT-X-ENDLIST");
+			if (ptr)
+			{
+				if (context->playlistType == ePLAYLISTTYPE_UNDEFINED)
+				{
+					logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE\n");
+				}
+				else
+				{
+					logprintf("aamp: Found EXT-X-ENDLIST with ePLAYLISTTYPE_EVENT\n");
+				}
+				//required to avoid live adjust kicking in
+				logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present\n");
+				context->playlistType = ePLAYLISTTYPE_VOD;
+			}
+		}
+
+		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
+
+		aamp->mEnableCache = (context->playlistType == ePLAYLISTTYPE_VOD);
+		if(aamp->mEnableCache)
+		{
+			logprintf("%s:%d [%s] Insert playlist to cache\n", __FUNCTION__, __LINE__, name);
+			aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl);
+		}
+	}
+
+	// DELIA-33434
+	// Update DRM Manager for stored indexes so that it can be removed after playlist update
+	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
+	// SetMetadata is not called across playlist update , hence Update is not needed
+	if(mCMSha1Hash)
+	{
+		AveDrmManager::UpdateBeforeIndexList(name,(int)type);
+	}
+
+	{ // build new index
 		IndexNode node;
 		node.completionTimeSecondsFromStart = 0.0;
 		node.pFragmentInfo = NULL;
+		char *ptr = playlist.ptr;
 		int drmMetadataIdx = -1;
-		bool deferDrmTagPresent = false;
-		const char* deferDrmVal = NULL;
-		bool endOfTopTags = false;
-		bool mediaSequence = false;
 		const char* programDateTimeIdxOfFragment = NULL;
 		bool discontinuity = false;
-		ptr = GetNextLineStart(playlist.ptr);
+		bool deferDrmTagPresent = false;
 		while (ptr)
 		{
-			if(startswith(&ptr,"#EXT"))
+			// If enableSubscribedTags is true, examine each '#EXT' tag.
+			ptr = strstr(ptr, "#EXT");
+			if(ptr)
 			{
-				if (startswith(&ptr,"INF:"))
+				if (strncmp(ptr + 4, "INF:", 4) == 0)
 				{
 					if (discontinuity)
 					{
@@ -1903,88 +2005,39 @@ void TrackState::IndexPlaylist()
 						discontinuity = false;
 					}
 					programDateTimeIdxOfFragment = NULL;
-					node.pFragmentInfo = ptr-8;//Point to beginning of #EXTINF
+					node.pFragmentInfo = ptr;
 					indexCount++;
+					ptr += 8; // skip #EXTINF:
 					totalDuration += atof(ptr);
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
 					aamp_AppendBytes(&index, &node, sizeof(node));
 				}
-				else if(startswith(&ptr,"-X-MEDIA-SEQUENCE:"))
-				{
-					indexFirstMediaSequenceNumber = atoll(ptr);
-					mediaSequence = true;
-				}
-				else if(startswith(&ptr,"-X-TARGETDURATION:"))
-				{
-					targetDurationSeconds = atof(ptr);
-					AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
-				}
-				else if(startswith(&ptr,"-X-MAP:"))
-				{
-					mInitFragmentInfo = ptr;
-					logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
-				}
-				else if(startswith(&ptr,"-X-PLAYLIST-TYPE:"))
-				{
-					// EVENT or VOD (optional); VOD if playlist will never change
-					if (startswith(&ptr, "VOD"))
-					{
-						logprintf("aamp: EXT-X-PLAYLIST-TYPE - VOD\n");
-						context->playlistType = ePLAYLISTTYPE_VOD;
-					}
-					else if (startswith(&ptr, "EVENT"))
-					{
-						logprintf("aamp: EXT-X-PLAYLIST-TYPE = EVENT\n");
-						context->playlistType = ePLAYLISTTYPE_EVENT;
-					}
-					else
-					{
-						aamp_Error("unknown PLAYLIST-TYPE");
-					}
-				}
-				else if(startswith(&ptr,"-X-FAXS-CM:"))
-				{
-					size_t srcLen;
-					traceprintf("aamp: #EXT-X-FAXS-CM:\n");
-					srcLen = FindLineLength(ptr);
-					unsigned char hash[SHA_DIGEST_LENGTH] = {0};
-					drmMetadataNode.metaData.metadataPtr =  base64_Decode(ptr, &drmMetadataNode.metaData.metadataSize, srcLen);
-					SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
-					drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
-	#ifdef TRACE
-					logprintf("%s:%d [%s] drmMetadataNode[%d].sha1Hash -- ", __FUNCTION__, __LINE__, name, mDrmMetaDataIndexCount);
-					for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
-					{
-						printf("%c", drmMetadataNode.sha1Hash[i]);
-					}
-					printf("\n");
-	#endif
-					aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
-					traceprintf("%s:%d mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, mDrmMetaDataIndex.ptr);
-					mDrmMetaDataIndexCount++;
-				}
-				else if(startswith(&ptr,"-X-DISCONTINUITY"))
+				else if (strncmp(ptr + 4, "-X-DISCONTINUITY", 16) == 0)
 				{
 					if (0 != totalDuration)
 					{
 						discontinuity = true;
 					}
 				}
-				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
+				else if (strncmp(ptr + 4, "-X-PROGRAM-DATE-TIME:", 21) == 0)
 				{
-					programDateTimeIdxOfFragment = ptr;
+					programDateTimeIdxOfFragment = ptr+4+21;
 					traceprintf("Got EXT-X-PROGRAM-DATE-TIME: %.*s \n", 30, programDateTimeIdxOfFragment);
 				}
-				else if (startswith(&ptr, "-X-KEY:"))
+				else if (strncmp(ptr + 4, "-X-KEY:", 7) == 0)
 				{
-					size_t len;
 					traceprintf("aamp: EXT-X-KEY\n");
-					len = FindLineLength(ptr);
-					char* key =(char*) malloc (len+1);
-					memcpy(key,ptr,len);
-					key[len]='\0';
-					ParseAttrList(key, ParseKeyAttributeCallback, this);
+					ptr += strlen("#EXT-X-KEY:");
+					char* delim = strchr(ptr, CHAR_LF);
+					if (delim)
+					{
+						*delim = '\0';
+					}
+					ParseAttrList(ptr, ParseKeyAttributeCallback, this);
+					//int prtOffset = ptr-
+					//TODO optimize this
+					memcpy(playlist.ptr, playlistBackup, playlist.len);
 					drmMetadataIdx = mDrmMetaDataIndexPosition;
 					if(!fragmentEncrypted)
 					{
@@ -1992,31 +2045,71 @@ void TrackState::IndexPlaylist()
 						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
 					}
 					mDrmKeyTagCount++;
-					free (key);
 				}
 				else if ( aamp->IsLive() && (AAMP_NORMAL_PLAY_RATE == context->rate)
 					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
-					&& (startswith(&ptr, "-X-X1-LIN-CK:")))
+					&& (strncmp(ptr + 4, "-X-X1-LIN-CK:", 13) == 0))
 				{
 					deferDrmTagPresent = true;
-					deferDrmVal = ptr;
-				}
-				else if (context->playlistType != ePLAYLISTTYPE_VOD)
-				{
-					if (startswith(&ptr,"-X-ENDLIST"))
+
+					pthread_mutex_lock(&gDrmMutex);
+					if (!gDeferredDrmLicTagUnderProcessing )
 					{
-						if (context->playlistType == ePLAYLISTTYPE_UNDEFINED)
+						ptr += 17;
+						char* delim = strchr(ptr, CHAR_LF);
+						if (delim)
 						{
-							logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE\n");
+							long time = strtol(ptr, NULL, 10);
+							logprintf("%s:%d [%s] #EXT-X-X1-LIN-CK:%d #####\n", __FUNCTION__, __LINE__, name, time);
+							if (time != 0 )
+							{
+								if (mDrmMetaDataIndexCount > 1)
+								{
+									if (!firstIndexDone)
+									{
+										logprintf("%s:%d #EXT-X-X1-LIN-CK on first index - not deferring license acquisition\n", __FUNCTION__, __LINE__);
+										gDeferredDrmLicRequestPending = false;
+									}
+									else
+									{
+										logprintf("%s:%d: mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+										DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
+										int deferredIdx = AveDrmManager::GetNewMetadataIndex( drmMetadataIdx, mDrmMetaDataIndexCount);
+										if ( deferredIdx != -1)
+										{
+											logprintf("%s:%d: deferredIdx %d\n", __FUNCTION__, __LINE__, deferredIdx);
+											char * sha1Hash = drmMetadataIdx[deferredIdx].sha1Hash;
+											assert(sha1Hash);
+											printf("%s:%d defer acquisition of meta-data with hash - ", __FUNCTION__, __LINE__);
+											AveDrmManager::PrintSha1Hash(sha1Hash);
+											memcpy(gDeferredDrmMetaDataSha1Hash, sha1Hash, DRM_SHA1_HASH_LEN);
+											gDeferredDrmTime = aamp_GetCurrentTimeMS() + GetDeferTimeMs(time);
+											gDeferredDrmLicRequestPending = true;
+										}
+										else
+										{
+											logprintf("%s:%d: GetNewMetadataIndex failed\n", __FUNCTION__, __LINE__);
+										}
+									}
+									gDeferredDrmLicTagUnderProcessing = true;
+								}
+								else
+								{
+									logprintf("%s:%d: ERROR mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+								}
+							}
+							else
+							{
+								logprintf("%s:%d: #EXT-X-X1-LIN-CK invalid time\n", __FUNCTION__, __LINE__);
+							}
 						}
 						else
 						{
-							logprintf("aamp: Found EXT-X-ENDLIST with ePLAYLISTTYPE_EVENT\n");
+							logprintf("%s:%d: #EXT-X-X1-LIN-CK - parse error\n", __FUNCTION__, __LINE__);
+
 						}
-						//required to avoid live adjust kicking in
-						logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present\n");
-						context->playlistType = ePLAYLISTTYPE_VOD;
 					}
+					pthread_mutex_unlock(&gDrmMutex);
 				}
 				else if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
 				{
@@ -2024,113 +2117,45 @@ void TrackState::IndexPlaylist()
 					{
 						int len = aamp->subscribedTags.at(i).length();
 						const char* data = aamp->subscribedTags.at(i).data();
-						if (strncmp(ptr, data + 4, len - 4) == 0)
+						if (strncmp(ptr + 4, data + 4, len - 4) == 0)
 						{
-							int nb = (int)FindLineLength(ptr);
+							char *fin = strchr(ptr, CHAR_LF);
+							if (fin)
+							{
+								if (fin > ptr && fin[-1] == CHAR_CR)
+								{
+									fin--;
+								}
+							}
+							else
+							{
+								fin = strchr(ptr, '\0');
+							}
+							int nb = fin - ptr;
 							// logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'\n", i, totalDuration, nb, ptr);
 							aamp->ReportTimedMetadata(totalDuration * 1000, data, ptr, nb);
 							break;
 						}
 					}
 				}
-			}
-			ptr=GetNextLineStart(ptr);
-		}
-		// DELIA-33434
-		// Update DRM Manager for stored indexes so that it can be removed after playlist update
-		// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
-		// SetMetadata is not called across playlist update , hence Update is not needed
-		if(mCMSha1Hash)
-		{
-			AveDrmManager::UpdateBeforeIndexList(name,(int)type);
-		}
-
-		if (mDrmMetaDataIndexCount > 1)
-		{
-			logprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-		}
-		if (deferDrmVal)
-		{
-			pthread_mutex_lock(&gDrmMutex);
-			if (!gDeferredDrmLicTagUnderProcessing )
-			{
-				const char* delim = strchr(deferDrmVal, CHAR_LF);
-				if (delim)
-				{
-					long time = strtol(deferDrmVal, NULL, 10);
-					logprintf("%s:%d [%s] #EXT-X-X1-LIN-CK:%d #####\n", __FUNCTION__, __LINE__, name, time);
-					if (time != 0 )
-					{
-						if (mDrmMetaDataIndexCount > 1)
-						{
-							if (!firstIndexDone)
-							{
-								logprintf("%s:%d #EXT-X-X1-LIN-CK on first index - not deferring license acquisition\n", __FUNCTION__, __LINE__);
-								gDeferredDrmLicRequestPending = false;
-							}
-							else
-							{
-								logprintf("%s:%d: mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-								DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-								int deferredIdx = AveDrmManager::GetNewMetadataIndex( drmMetadataIdx, mDrmMetaDataIndexCount);
-								if ( deferredIdx != -1)
-								{
-									logprintf("%s:%d: deferredIdx %d\n", __FUNCTION__, __LINE__, deferredIdx);
-									char * sha1Hash = drmMetadataIdx[deferredIdx].sha1Hash;
-									assert(sha1Hash);
-									printf("%s:%d defer acquisition of meta-data with hash - ", __FUNCTION__, __LINE__);
-									AveDrmManager::PrintSha1Hash(sha1Hash);
-									memcpy(gDeferredDrmMetaDataSha1Hash, sha1Hash, DRM_SHA1_HASH_LEN);
-									gDeferredDrmTime = aamp_GetCurrentTimeMS() + GetDeferTimeMs(time);
-									gDeferredDrmLicRequestPending = true;
-								}
-								else
-								{
-									logprintf("%s:%d: GetNewMetadataIndex failed\n", __FUNCTION__, __LINE__);
-								}
-							}
-							gDeferredDrmLicTagUnderProcessing = true;
-						}
-						else
-						{
-							logprintf("%s:%d: ERROR mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-						}
-					}
-					else
-					{
-						logprintf("%s:%d: #EXT-X-X1-LIN-CK invalid time\n", __FUNCTION__, __LINE__);
-					}
-				}
-				else
-				{
-					logprintf("%s:%d: #EXT-X-X1-LIN-CK - parse error\n", __FUNCTION__, __LINE__);
-
-				}
-			}
-			pthread_mutex_unlock(&gDrmMutex);
-		}
-		if(mediaSequence==false)
-		{ // for Sling content
-			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
-			ptr = playlist.ptr;
-			indexFirstMediaSequenceNumber = 0;
-		}
-		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
-		aamp->mEnableCache = (context->playlistType == ePLAYLISTTYPE_VOD);
-		if(aamp->mEnableCache)
-		{
-			logprintf("%s:%d [%s] Insert playlist to cache\n", __FUNCTION__, __LINE__, name);
-			aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl);
+				ptr += 4; // skip #EXT
+		    }
 		}
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
 		}
+
 		if (gDeferredDrmLicTagUnderProcessing && !deferDrmTagPresent)
 		{
 			logprintf("%s:%d - reset gDeferredDrmLicTagUnderProcessing\n", __FUNCTION__, __LINE__);
 			gDeferredDrmLicTagUnderProcessing = false;
 		}
+	}
+
+	if(playlistBackup)
+	{
+		free(playlistBackup);
 	}
 #ifdef TRACE
 	DumpIndex(this);
