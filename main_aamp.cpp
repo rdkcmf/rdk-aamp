@@ -3211,6 +3211,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
 		}
+		else if (cfg.compare("disable_westeros") == 0)
+		{
+			gpGlobalConfig->disableWesteros = true;
+			logprintf("Westeros is disabled\n");
+		}
 		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{
 			// Read value in KB , convert it to bytes
