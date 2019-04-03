@@ -524,6 +524,7 @@ public:
 	long curlLowSpeedLimit;                 /**< Value to be used for CURLOPT_LOW_SPEED_LIMIT in bytes/sec*/
 	long curlLowSpeedTime;                  /**< Value to be used for CURLOPT_LOW_SPEED_TIME in seconds*/
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
+	bool disable_westeros;                 /**< To disable westeros sink (by default this is true*/
 public:
 
 	/**
@@ -552,7 +553,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
-		,enableMicroEvents(false), mpdHarvestLimit(0),
+		,enableMicroEvents(false), mpdHarvestLimit(0), disable_westeros(false),
 		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME),
 		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS)
 	{
