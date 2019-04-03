@@ -153,9 +153,9 @@ public:
 	 */
 	void NotifyDRMError(uint32_t majorError, uint32_t minorError)//(ErrorCode majorError, DRMMinorError minorError, AVString* errorString, media::DRMMetadata* metadata)
 	{
-		AAMPTuneFailure drmFailure = AAMP_TUNE_UNTRACKED_DRM_ERROR;
-		char *description = NULL;
-		bool isRetryEnabled = true;
+		DRMErrorData *drmerrordata = new DRMErrorData;
+		drmerrordata->isRetryEnabled = true;
+		drmerrordata->drmFailure = AAMP_TUNE_UNTRACKED_DRM_ERROR;
 
 		switch(majorError)
 		{
@@ -165,75 +165,74 @@ public:
 			 * 12000 is recovering on retry so kept retry logic for that.
 			 * Exclude the known 4xx errors also from retry, not giving
 			 * all 4xx errors since 429 was found to be recovering on retry
-			*/
+			 */
 			if(minorError > 12000 || (minorError >= 400 && minorError <= 412))
 			{
-				isRetryEnabled = false;
+				drmerrordata->isRetryEnabled = false;
 			}
 			if(12012 == minorError || 12013 == minorError)
 			{
-				drmFailure = AAMP_TUNE_AUTHORISATION_FAILURE;
+				drmerrordata->drmFailure = AAMP_TUNE_AUTHORISATION_FAILURE;
+				snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Authorization failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 			}
 			break;
-
+			
 		case 3321:
+			/* This was added to avoid the crash in ave drm due to deleting 
+			the persistant folder DELIA-34306
+			*/
+			drmerrordata->isRetryEnabled = false;
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Individualization server down majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
+			break;
 		case 3322:
 		case 3328:
-                        drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
+			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
+			
+				
+			/*
+ 			 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
+			 * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
+			 * in the next tune attempt, this could clear tune error scenarios
+			 * due to corrupt drm data.
+ 			*/
+			FILE *sentinelFile;
+			sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
+			
+			if(sentinelFile)
+			{
+				fclose(sentinelFile);
+			}
+			else
+			{
+				logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s\n",
+				__FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
+			}
+			
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minor								Error);
+			break;
 
-                        description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
-
-                        /*
-                        * Creating file "/tmp/DRM_Error" will invoke self heal logic in
-                        * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
-                        * in the next tune attempt, this could clear tune error scenarios
-                        * due to corrupt drm data.
-                        */
-                        FILE *sentinelFile;
-                        sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
-
-                        if(sentinelFile)
-                        {
-                                fclose(sentinelFile);
-                        }
-                        else
-                        {
-                        logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s\n",
-                                                 __FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
-                        }
-
-                        snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-                        break;
-
-                 case 3307:
-                        drmFailure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
-                        isRetryEnabled = false;
-                        break;
+		case 3307:
+			drmerrordata->drmFailure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
+			drmerrordata->isRetryEnabled = false;
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Device not provisioned majorError = %d, minorError = %d",(int)majorError, (int)minorError);
+			break;
 
 		default:
-                    break;
+			break;
 		}
 
 		mpAamp->DisableDownloads();
-		
 
-		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
+		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmerrordata->drmFailure)
 		{
-			description = new char[MAX_ERROR_DESCRIPTION_LENGTH];
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 		}
 
-		PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
+		drmerrordata->ptr = this;
+		PrivateInstanceAAMP::AddIdleTask(drmSignalError, drmerrordata);
 		logprintf("DRMListener::%s:%d[%p] majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
-
-		mpAamp->SendErrorEvent(drmFailure, description, isRetryEnabled);
-
-		if (description)
-		{
-			delete[] description;
-		}
-
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
+
 	}
 
 
@@ -241,9 +240,10 @@ public:
 	/**
 	 * @brief Signal drm error
 	 */
-	void SignalDrmError()
+	void SignalDrmError(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled)
 	{
 		mpAveDrm->SetState(eDRM_KEY_FAILED);
+		mpAamp->SendErrorEvent(tuneFailure, description, isRetryEnabled);
 	}
 
 
@@ -290,8 +290,10 @@ static int drmSignalKeyAquired(void * arg)
  */
 static int drmSignalError(void * arg)
 {
-	TheDRMListener * drmListener = (TheDRMListener*)arg;
-	drmListener->SignalDrmError();
+	DRMErrorData *drmerrordata = (DRMErrorData*)arg;
+	TheDRMListener * drmListener = (TheDRMListener*)drmerrordata->ptr;
+	drmListener->SignalDrmError(drmerrordata->drmFailure,drmerrordata->description,drmerrordata->isRetryEnabled);
+	delete drmerrordata;
 	return 0;
 }
 
