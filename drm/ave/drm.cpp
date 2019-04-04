@@ -208,7 +208,8 @@ public:
 				__FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
 			}
 			
-			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",(int)majorError, (int)minor								Error);
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",
+											(int)majorError, (int)minorError);
 			break;
 
 		case 3307:
