@@ -430,7 +430,10 @@ void AveDrm::CancelKeyWait()
 {
 	pthread_mutex_lock(&mutex);
 	//save the current state in case required to restore later.
-	mPrevDrmState = mDrmState;
+	if (mDrmState != eDRM_KEY_FLUSH)
+	{
+		mPrevDrmState = mDrmState;
+	}
 	//required for demuxed assets where the other track might be waiting on mutex lock.
 	mDrmState = eDRM_KEY_FLUSH;
 	pthread_cond_broadcast(&cond);

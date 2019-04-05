@@ -3823,25 +3823,11 @@ TrackState::~TrackState()
 * @fn Stop
 * @brief Function to stop track download/playback 
 *		 
-* @param clearDRM[in] flag indicating if DRM resources to be freed or not
 * @return void
 ***************************************************************************/
-void TrackState::Stop(bool clearDRM)
+void TrackState::Stop()
 {
 	AbortWaitForCachedFragment(true);
-
-	if (mDrm)
-	{
-		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
-		mDrm->CancelKeyWait();
-
-		if(clearDRM && aamp->GetCurrentDRM() != eDRM_Adobe_Access)
-		{
-			pthread_mutex_lock(&gDrmMutex);
-			mDrm->Release();
-			pthread_mutex_unlock(&gDrmMutex);
-		}
-	}
 
 	if (playContext)
 	{
@@ -3864,12 +3850,6 @@ void TrackState::Stop(bool clearDRM)
 		fragmentCollectorThreadStarted = false;
 	}
 	StopInjectLoop();
-
-	if (!clearDRM && mDrm)
-	{
-		//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
-		mDrm->RestoreKeyState();
-	}
 }
 /***************************************************************************
 * @fn ~StreamAbstractionAAMP_HLS
@@ -3948,6 +3928,17 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
 
+	//This is purposefully kept in a separate loop to avoid being hung
+	//on pthread_join of fragmentCollectorThread
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		TrackState *track = trackState[iTrack];
+		if(track && track->Enabled())
+		{
+			track->CancelDrmOperation(clearChannelData);
+		}
+	}
+
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
@@ -3961,7 +3952,12 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 
 		if(track && track->Enabled())
 		{
-			track->Stop(clearChannelData);
+			track->Stop();
+			if (!clearChannelData)
+			{
+				//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
+				track->RestoreDrmState();
+			}
 		}
 	}
 
@@ -4105,16 +4101,12 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
 {
 		DrmReturn drmReturn = eDRM_ERROR;
+
+		pthread_mutex_lock(&gDrmMutex);
 		if (aamp->DownloadsAreEnabled())
 		{
-			drmReturn = eDRM_ERROR;
-			pthread_mutex_lock(&gDrmMutex);
 			bool isVanilaAES = ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount));
 			if (!mDrm || (mCMSha1Hash) || isVanilaAES)
-			{
-				SetDrmContextUnlocked();
-			}
-			else if ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount))
 			{
 				SetDrmContextUnlocked();
 			}
@@ -4124,8 +4116,8 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 						cachedFragment->fragment.len, MAX_LICENSE_ACQ_WAIT_TIME);
 
 			}
-			pthread_mutex_unlock(&gDrmMutex);
 		}
+		pthread_mutex_unlock(&gDrmMutex);
 
 		if (drmReturn != eDRM_SUCCESS)
 		{
@@ -4822,3 +4814,45 @@ void TrackState::StopWaitForPlaylistRefresh()
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
+
+/***************************************************************************
+* @fn CancelDrmOperation
+* @brief Cancel all DRM operations
+*
+* @param[in] clearDRM flag indicating if DRM resources to be freed or not
+* @return void
+***************************************************************************/
+void TrackState::CancelDrmOperation(bool clearDRM)
+{
+	//Calling mDrm is required for AES encrypted assets which doesn't have AveDrmManager
+	if (mDrm)
+	{
+		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
+		mDrm->CancelKeyWait();
+		if (clearDRM && aamp->GetCurrentDRM() != eDRM_Adobe_Access)
+		{
+			pthread_mutex_lock(&gDrmMutex);
+			mDrm->Release();
+			pthread_mutex_unlock(&gDrmMutex);
+		}
+	}
+}
+
+/***************************************************************************
+* @fn RestoreDrmState
+* @brief Restore DRM states
+*
+* @return void
+***************************************************************************/
+void TrackState::RestoreDrmState()
+{
+	if (mDrm)
+	{
+		mDrm->RestoreKeyState();
+	}
+}
+
+/**
+ * @}
+ */
+
