@@ -63,9 +63,8 @@
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_IV_LEN 16
-#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
+#define MAX_LICENSE_ACQ_WAIT_TIME 10000  // 10 secs
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
-#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
 pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
 static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**Sha1 hash of meta-data for deferred DRM license acquisition*/
@@ -995,14 +994,6 @@ char *TrackState::GetNextFragmentUriFromPlaylist()
 				{
 					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
 					discontinuity = true;
-
-					TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
-					TrackState *other = context->trackState[otherType];
-					if (other->enabled && !other->HasDiscontinuityAroundPosition(playTarget))
-					{
-						logprintf("Ignoring discontinuity as %s track does not have discontinuity\n", other->name);
-						discontinuity = false;
-					}
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
 				{
@@ -1581,22 +1572,13 @@ void TrackState::FlushIndex()
 		{
 			traceprintf("TrackState::%s:%d drmMetadataNode[%d].metaData.metadataPtr %p\n", __FUNCTION__, __LINE__, i,
 			        drmMetadataNode[i].metaData.metadataPtr);
-
-			if ((NULL == drmMetadataNode[i].metaData.metadataPtr || NULL == drmMetadataNode[i].sha1Hash) && mDrmMetaDataIndexCount)
-			{
-				logprintf ("TrackState::%s:%d **** metadataPtr/sha1Hash is NULL, give attention and analyze it... mDrmMetaDataIndexCount[%d]\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-			}
-
 			if (drmMetadataNode[i].metaData.metadataPtr)
 			{
 				free(drmMetadataNode[i].metaData.metadataPtr);
-				drmMetadataNode[i].metaData.metadataPtr = NULL;
 			}
-
 			if (drmMetadataNode[i].sha1Hash)
 			{
 				free(drmMetadataNode[i].sha1Hash);
-				drmMetadataNode[i].sha1Hash = NULL;
 			}
 		}
 		aamp_Free(&mDrmMetaDataIndex.ptr);
@@ -2020,17 +2002,6 @@ double TrackState::IndexPlaylist()
 	if (firstIndexDone && (NULL != mCMSha1Hash))
 	{
 		ProcessDrmMetadata(false);
-	}
-	if (mDrmKeyTagCount > 0)
-	{
-		if (mDrmMetaDataIndexCount > 0)
-		{
-			aamp->setCurrentDrm(eDRM_Adobe_Access);
-		}
-		else
-		{
-			aamp->setCurrentDrm(eDRM_Vanilla_AES);
-		}
 	}
 	firstIndexDone = true;
 	mIndexingInProgress = false;
@@ -3859,38 +3830,27 @@ void TrackState::SetDrmContextUnlocked()
 		if (!mDrm)
 		{
 			logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-			printf("%s:%d [%s] sha1hash - ", __FUNCTION__, __LINE__, name);
-			AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
+			pthread_mutex_lock(&gDrmMutex);
 			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
 			{
 				logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
 				StartDeferredDrmLicenseAcquisition();
 				mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-			}
-			if (!mDrm)
-			{
-				if (mDrmLicenseRequestPending)
+				if (!mDrm)
 				{
-					pthread_mutex_unlock(&gDrmMutex);
-					logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
-					ProcessDrmMetadata(false);
-					pthread_mutex_lock(&gDrmMutex);
-					mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
+					logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
 				}
 			}
-			if (!mDrm)
-			{
-				printf("%s:%d [%s] GetAveDrm failed for sha1hash - ", __FUNCTION__, __LINE__, name);
-				AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-				AveDrmManager::DumpCachedLicenses();
-			}
+			pthread_mutex_unlock(&gDrmMutex);
 		}
+		aamp->setCurrentDrm(eDRM_Adobe_Access);
 	}
 	else
 	{
 #ifdef AAMP_VANILLA_AES_SUPPORT
 		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
 		mDrm = AesDec::GetInstance();
+		aamp->setCurrentDrm(eDRM_Vanilla_AES);
 #else
 		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
 #endif
@@ -4209,38 +4169,3 @@ int TrackState::GetNumberOfPeriods()
 {
 	return (int)mPeriodPositionIndex.size();
 }
-
-/***************************************************************************
-* @fn HasDiscontinuityAroundPosition
-* @brief Check if discontinuity present around given position
-* @param[in] position Position to check for discontinuity
-* @return true if discontinuity present around given position
-***************************************************************************/
-bool TrackState::HasDiscontinuityAroundPosition(double position)
-{
-	bool discontinuityPending = false;
-	pthread_mutex_lock(&mutex);
-	if (0 != mPeriodPositionIndex.size())
-	{
-		double low = position - DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
-		double high = position + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
-		std::map<int, double>::iterator it = mPeriodPositionIndex.begin();
-		while (it != mPeriodPositionIndex.end())
-		{
-			traceprintf("%s:%d low %f high %f position %f discontinuity %f\n", __FUNCTION__, __LINE__, low, high, position, it->second);
-			if ( low < it->second && high > it->second )
-			{
-				discontinuityPending = true;
-				break;
-			}
-			it++;
-		}
-		if (!discontinuityPending)
-		{
-			logprintf("%s:%d Discontinuity not found in window low %f high %f position %f\n", __FUNCTION__, __LINE__, low, high, position);
-		}
-	}
-	pthread_mutex_unlock(&mutex);
-	return discontinuityPending;
-}
-

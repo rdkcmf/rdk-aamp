@@ -169,9 +169,6 @@ public:
 	 */
 	int GetNumberOfPeriods();
 
-	/// Check if discontinuity present around given position
-	bool HasDiscontinuityAroundPosition(double position);
-
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();

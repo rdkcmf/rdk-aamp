@@ -465,7 +465,7 @@ DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmI
 
 DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
-	return eDRM_SUCCESS;
+	return eDRM_ERROR;
 }
 
 
@@ -649,23 +649,6 @@ void AveDrmManager::PrintSha1Hash(char* sha1Hash)
 	}
 	printf("\n");
 }
-
-/**
- * @brief Dump cached DRM licenses
- */
-void AveDrmManager::DumpCachedLicenses()
-{
-	std::shared_ptr<AveDrm>  aveDrm = nullptr;
-	printf("%s:%d sAveDrmManager.size %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
-	for (int i = 0; i < sAveDrmManager.size(); i++)
-	{
-		printf("%s:%d sAveDrmManager[%d] mDrmContexSet %s .mSha1Hash -  ", __FUNCTION__, __LINE__, i,
-				sAveDrmManager[i]->mDrmContexSet?"true":"false");
-		PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
-	}
-	printf("\n");
-}
-
 
 /**
  * @brief Get AveDrm instance configured with a specific metadata
