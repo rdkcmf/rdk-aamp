@@ -2290,20 +2290,28 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 
 /**
  * @brief To pause/play pipeline
- * @param[in] pause flag to pause/play the pipeline
+ * @param[in] Pause flag to pause/play the pipeline
+ * @retval true if content successfully paused
  */
-void AAMPGstPlayer::Pause( bool pause )
+bool AAMPGstPlayer::Pause( bool pause )
 {
+	bool retValue = true;
+
 	aamp->SyncBegin();
+
 	logprintf("entering AAMPGstPlayer_Pause\n");
-	if (privateContext->pipeline == NULL)
+
+	if (privateContext->pipeline != NULL)
+	{
+		GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
+		gst_element_set_state(this->privateContext->pipeline, nextState);
+		privateContext->buffering_target_state = nextState;
+	}
+	else
 	{
 		logprintf("%s(): Pipeline is NULL\n", __FUNCTION__);
-		return;
+		retValue = false;
 	}
-	GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
-	gst_element_set_state(this->privateContext->pipeline, nextState);
-	privateContext->buffering_target_state = nextState;
 
 #if 0
 	GstStateChangeReturn rc;
@@ -2316,7 +2324,10 @@ void AAMPGstPlayer::Pause( bool pause )
 		}
 	}
 #endif
+
 	aamp->SyncEnd();
+
+	return retValue;
 }
 
 
