@@ -51,7 +51,7 @@ public:
 	void DumpStatus(void);
 	void Flush(double position, float rate);
 	void SelectAudio(int index);
-	void Pause(bool pause);
+	bool Pause(bool pause);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
 	void SetVideoRectangle(int x, int y, int w, int h);

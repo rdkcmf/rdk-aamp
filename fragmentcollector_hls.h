@@ -39,6 +39,7 @@
 #include "StreamAbstractionAAMP.h"
 #include "tsprocessor.h"
 #include "drm.h"
+#include <sys/time.h>
 
 
 #define MAX_PROFILE 128 // TODO: remove limitation
