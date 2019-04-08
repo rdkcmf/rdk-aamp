@@ -504,10 +504,10 @@ public:
 	/**
 	 *   @brief Enabled or disable playback pause
 	 *
-	 *   @param[in]  pause - Enable/Disable
-	 *   @return void
+	 *   @param[in]  pause  Enable/Disable
+	 *   @return true if content successfully paused
 	 */
-	virtual void Pause(bool pause){}
+	virtual bool Pause(bool pause){ return true; }
 
 	/**
 	 *   @brief Get playback position in milliseconds
