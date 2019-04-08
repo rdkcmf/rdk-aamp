@@ -440,13 +440,14 @@ void PrivateInstanceAAMP::UpdateDuration(double seconds)
  */
 static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 {
+	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
 	if (aamp->pipeline_paused)
 	{
 		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			aamp->mStreamSink->Pause(false);
+			retValue = aamp->mStreamSink->Pause(false);
 			aamp->pipeline_paused = false;
 		}
 		else
@@ -456,7 +457,11 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 			aamp->TuneHelper(eTUNETYPE_SEEK);
 		}
 		aamp->ResumeDownloads();
-		aamp->NotifySpeedChanged(aamp->rate);
+
+		if(retValue)
+		{
+			aamp->NotifySpeedChanged(aamp->rate);
+		}
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -4264,8 +4269,11 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
-	if (aamp->mpStreamAbstractionAAMP)
+	PrivAAMPState state;
+	aamp->GetState(state);
+	if (aamp->mpStreamAbstractionAAMP && state != eSTATE_ERROR)
 	{
+		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
 			logprintf("%s(): Already at logical live point, hence skipping operation\n", __FUNCTION__);
@@ -4330,7 +4338,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMs());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				aamp->mStreamSink->Pause(false);
+				retValue = aamp->mStreamSink->Pause(false);
 				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
@@ -4343,7 +4351,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMs());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
-				aamp->mStreamSink->Pause(true);
+				retValue = aamp->mStreamSink->Pause(true);
 				aamp->pipeline_paused = true;
 			}
 		}
@@ -4355,7 +4363,10 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->TuneHelper(eTUNETYPE_SEEK); // this unpauses pipeline as side effect
 		}
 
-		aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate);
+		if(retValue)
+		{
+			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate);
+		}
 	}
 	else
 	{
