@@ -557,9 +557,9 @@ public:
 	 *
 	 *   @param[in]  pause  Enable/Disable
          *
-	 *   @return void
+	 *   @return true if content successfully paused
 	 */
-	virtual void Pause(bool pause){}
+	virtual bool Pause(bool pause){ return true; }
 
 	/**
 	 *   @brief Get playback position in milliseconds
