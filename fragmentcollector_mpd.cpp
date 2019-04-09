@@ -295,6 +295,14 @@ public:
 
 	}
 
+	/**
+	 * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
+	 */
+	void SignalTrickModeDiscontinuity()
+	{
+		aamp->SignalTrickModeDiscontinuity();
+	}
+
 	MediaType mediaType;
 	struct FragmentDescriptor fragmentDescriptor;
 	IAdaptationSet *adaptationSet;
@@ -4133,7 +4141,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 	for (int i = 0; i < numberOfTracks; i++)
 	{
 		struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
-		if(pMediaStreamContext->enabled && pMediaStreamContext->profileChanged)
+		if(pMediaStreamContext->enabled && (pMediaStreamContext->profileChanged || discontinuity))
 		{
 			if (pMediaStreamContext->adaptationSet)
 			{
@@ -4569,7 +4577,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					lastLiveFlag = mIsLive;
 					/*Discontinuity handling on period change*/
 					if ( periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
-							mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled &&
 							(gpGlobalConfig->mpdDiscontinuityHandlingCdvr || (!aamp->IsInProgressCDVR())))
 					{
 						MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
