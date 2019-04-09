@@ -31,6 +31,7 @@
 #include "_base64.h"
 #include "base16.h"
 #include <algorithm> // for std::min
+#include <sys/time.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>

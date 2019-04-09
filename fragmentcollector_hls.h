@@ -40,7 +40,6 @@
 #include "StreamAbstractionAAMP.h"
 #include "tsprocessor.h"
 #include "drm.h"
-#include <sys/time.h>
 
 /**
  * @addtogroup AAMP_COMMON_TYPES
