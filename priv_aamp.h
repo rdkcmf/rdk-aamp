@@ -2623,6 +2623,13 @@ public:
 	 */
 	void SetIsLive(bool isLive)  {mIsLive = isLive; }
 
+	/**
+	 *   @brief Signal trick mode discontinuity to stream sink
+	 *
+	 *   @return void
+	 */
+	void SignalTrickModeDiscontinuity();
+
 
 private:
 

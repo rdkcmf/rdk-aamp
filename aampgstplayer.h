@@ -73,6 +73,7 @@ public:
 	void NotifyEOS();
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
+	void SignalTrickModeDiscontinuity();
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);
