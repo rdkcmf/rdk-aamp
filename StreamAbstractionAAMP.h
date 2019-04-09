@@ -277,6 +277,12 @@ protected:
 
 	static int GetDeferTimeMs(long maxTimeSeconds);
 
+	/**
+	 * @brief To be implemented by derived classes if discontinuity on trick-play is to be notified.
+	 *
+	 */
+	virtual void SignalTrickModeDiscontinuity(){};
+
 private:
 	static const char* GetBufferHealthStatusString(BufferHealthStatus status);
 

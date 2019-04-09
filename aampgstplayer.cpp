@@ -1630,6 +1630,30 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		if (!ret) logprintf("%s: flush stop error\n", __FUNCTION__);
 		stream->flush = false;
 	}
+
+	if (stream->format == FORMAT_ISO_BMFF)
+	{
+		gboolean enableOverride;
+#ifdef INTELCE
+		enableOverride = TRUE;
+#else
+		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
+#endif
+		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
+#ifdef INTELCE
+		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
+		{
+			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
+			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]\n", __FUNCTION__, basePTS);
+			gst_structure_set (eventStruct, "basePTS", G_TYPE_UINT64, basePTS, NULL);
+		}
+#endif
+		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
+		{
+			logprintf("%s: Error on sending rate override event\n", __FUNCTION__);
+		}
+	}
+
 #ifdef USE_GST1
 	GstSegment segment;
 	gst_segment_init(&segment, GST_FORMAT_TIME);
@@ -1653,26 +1677,6 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-		gboolean enableOverride;
-#ifdef INTELCE
-		enableOverride = TRUE;
-#else
-		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
-#endif
-		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
-#ifdef INTELCE
-		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
-		{
-			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
-			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]\n", __FUNCTION__, basePTS);
-			gst_structure_set (eventStruct, "basePTS", G_TYPE_UINT64, basePTS, NULL);
-		}
-#endif
-		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
-		{
-			logprintf("%s: Error on sending rate override event\n", __FUNCTION__);
-		}
-
 		if(privateContext->protectionEvent)
 		{
 			logprintf("%s pushing protection event! mediatype: %d\n", __FUNCTION__, mediaType);
@@ -2975,6 +2979,28 @@ void AAMPGstPlayer::DumpDiagnostics()
 	DumpFile("/proc/brcm/video_decoder");
 	DumpFile("/proc/brcm/audio");
 #endif
+}
+
+/**
+ *   @brief Signal trick mode discontinuity to gstreamer pipeline
+ *
+ */
+void AAMPGstPlayer::SignalTrickModeDiscontinuity()
+{
+	media_stream* stream = &privateContext->stream[eMEDIATYPE_VIDEO];
+	if (stream && (privateContext->rate != AAMP_NORMAL_PLAY_RATE) )
+	{
+		GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
+		GstStructure * eventStruct = gst_structure_new("aamp-tm-disc", "fps", G_TYPE_UINT, (guint)gpGlobalConfig->vodTrickplayFPS, NULL);
+		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
+		{
+			logprintf("%s:%d Error on sending aamp-tm-disc\n", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			logprintf("%s:%d Sent aamp-tm-disc event\n", __FUNCTION__, __LINE__);
+		}
+	}
 }
 
 /**

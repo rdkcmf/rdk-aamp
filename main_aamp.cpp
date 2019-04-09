@@ -6825,6 +6825,19 @@ void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 }
 
 /**
+ *   @brief Signal trick mode discontinuity to stream sink
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SignalTrickModeDiscontinuity()
+{
+	if (mStreamSink)
+	{
+		mStreamSink->SignalTrickModeDiscontinuity();
+	}
+}
+
+/**
  * @}
  */
 
