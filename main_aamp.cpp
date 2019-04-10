@@ -2112,8 +2112,9 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 #else
 						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorHttp, (int)http_code);
 #endif /* 0 */
-						if((500 == http_code || 503 == http_code) && downloadAttempt < 2)
+						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
+							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 							logprintf("Download failed due to Server error. Retrying!\n");
 							loopAgain = true;
 						}
@@ -3095,6 +3096,11 @@ static void ProcessConfigEntry(char *cfg)
 		{
 			VALIDATE_LONG("curl-low-speed-time", gpGlobalConfig->curlLowSpeedTime, DEFAULT_CURL_LOW_SPEED_TIME);
 			logprintf("aamp curl-low-speed-time: %ld\n", gpGlobalConfig->curlLowSpeedTime);
+		}
+		else if (sscanf(cfg, "wait-time-before-retry-http-5xx-ms=%d", &gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
+		{
+			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
+			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d\n", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{

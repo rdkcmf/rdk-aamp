@@ -108,6 +108,8 @@
 
 #define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
 
+#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -521,6 +523,7 @@ public:
 	int mpdHarvestLimit;                     /**< How many static mpds to be saved to box, 0 means none*/
 	long curlLowSpeedLimit;                 /**< Value to be used for CURLOPT_LOW_SPEED_LIMIT in bytes/sec*/
 	long curlLowSpeedTime;                  /**< Value to be used for CURLOPT_LOW_SPEED_TIME in seconds*/
+	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 public:
 
 	/**
@@ -550,7 +553,8 @@ public:
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
-		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME)
+		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME),
+		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
