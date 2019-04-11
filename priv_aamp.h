@@ -1334,6 +1334,14 @@ public:
 typedef int(*IdleTask)(void* arg);
 
 /**
+ * @brief Function pointer for the destroy task
+ *
+ * @param[in] arg - Arguments
+ *
+ */
+typedef void(*DestroyTask)(void * arg);
+
+/**
  * @brief To store Set Cookie: headers and X-Reason headers in HTTP Response
  */
 struct httpRespHeaderData {
@@ -2301,6 +2309,15 @@ public:
 	 *   @return void
 	 */
 	static void AddIdleTask(IdleTask task, void* arg);
+	/**
+	*   @brief Add high priority idle task to the gstreamer
+	*
+	*   @param[in] task - Task
+	*   @param[in] arg - Arguments
+	*
+	*   @return void
+	*/
+	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
 
 	/**
 	 *   @brief Check sink cache empty
