@@ -3975,12 +3975,11 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		if(track && track->Enabled())
 		{
 			track->Stop();
-		}
-
-		if (!clearChannelData)
-		{
-			//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
-			track->RestoreDrmState();
+			if (!clearChannelData)
+			{
+				//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
+				track->RestoreDrmState();
+			}
 		}
 	}
 
