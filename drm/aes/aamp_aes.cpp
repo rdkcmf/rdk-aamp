@@ -174,9 +174,33 @@ void AesDec::AcquireKey()
  *
  * @retval eDRM_SUCCESS
  */
-DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata)
+DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType)
 {
 	return eDRM_SUCCESS;
+}
+
+/**
+ * @brief AcquireKey Function to acquire key . Stub implementation
+ *
+ * @param[in] aamp       AAMP instance to be associated with this decryptor
+ * @param[in] metadata   Ignored
+ *
+ * @retval None
+ */
+void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+{
+
+}
+
+/**
+ * @brief GetState Function to get current DRM State
+ *
+ *
+ * @retval DRMState
+ */
+DRMState AesDec::GetState()
+{
+	return mDrmState;
 }
 
 /**

@@ -31,7 +31,7 @@
 
 #define MAX_DRM_CONTEXT 6
 #define DRM_SHA1_HASH_LEN 40
-
+#define DRM_IV_LEN 16
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
@@ -80,21 +80,27 @@ class AveDrm : public HlsDrmBase
 public:
 	AveDrm();
 	~AveDrm();
-	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata);
+	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata,int trackType);
 	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
 	void Release();
 	void CancelKeyWait();
 	void RestoreKeyState();
 	void SetState(DRMState state);
+	DRMState GetState();
+	void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType);
 	DRMState mDrmState;
 private:
 	PrivateInstanceAAMP *mpAamp;
 	class MyFlashAccessAdapter *m_pDrmAdapter;
 	class TheDRMListener *m_pDrmListner;
 	DRMState mPrevDrmState;
+	DrmMetadata mMetaData;
+	DrmInfo mDrmInfo;
 	pthread_cond_t cond;
 	pthread_mutex_t mutex;
+	// Function to store the new DecrypytInfo 
+	bool StoreDecryptInfoIfChanged( const DrmInfo *drmInfo);
 };
 
 
@@ -118,6 +124,8 @@ typedef struct DRMErrorData
 struct DrmMetadataNode
 {
 	DrmMetadata metaData;
+	int deferredInterval ;
+	long long drmKeyReqTime;
 	char* sha1Hash;
 };
 
@@ -138,7 +146,9 @@ public:
 	static void DumpCachedLicenses();
 	static void FlushAfterIndexList(const char* trackname,int trackType);
 	static void UpdateBeforeIndexList(const char* trackname,int trackType);
-	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash);
+	static int IsMetadataAvailable(char* sha1Hash);
+	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash,int trackType);
+	static bool AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType,bool overrideDeferring=false);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 private:
 	AveDrmManager();
@@ -149,6 +159,7 @@ private:
 	bool mHasBeenUsed;
 	int mUserCount;
 	int mTrackType;
+	long long mDeferredTime;
 	static std::vector<AveDrmManager*> sAveDrmManager;
 };
 
