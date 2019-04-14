@@ -106,15 +106,17 @@ class TheDRMListener : public MyDRMListener
 private:
 	PrivateInstanceAAMP *mpAamp;
 	AveDrm* mpAveDrm;
+	int mTrackType;
 public:
 	/**
 	 * @brief TheDRMListener Constructor
 	 */
-	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm)
+	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType)
 	{
 		mpAamp = pAamp;
 		mpAveDrm = aveDrm;
-		logprintf("TheDRMListener::%s:%d AveDrm[%p]Listner[%p]\n", __FUNCTION__, __LINE__, mpAveDrm,this);
+		mTrackType = trackType;
+		logprintf("TheDRMListener::%s:%d AveDrm[%p]Listner[%p]Track[%d]\n", __FUNCTION__, __LINE__, mpAveDrm,this,mTrackType);
 	}
 
 	/**
@@ -129,7 +131,7 @@ public:
 	 */
 	void SignalKeyAcquired(gint callbackID)
 	{
-		logprintf("DRMListener::%s:%d[%p]drmState:%d moving to KeyAcquired.callbackID[%d]\n", __FUNCTION__, __LINE__, mpAveDrm, mpAveDrm->mDrmState,callbackID);
+		logprintf("DRMListener::%s:%d[%p][%d]drmState:%d moving to KeyAcquired.callbackID[%d]\n", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, mpAveDrm->mDrmState,callbackID);
 		mpAamp->SetCallbackAsDispatched(callbackID);
 		mpAveDrm->SetState(eDRM_KEY_ACQUIRED);
 		mpAamp->LogDrmInitComplete();
@@ -231,7 +233,7 @@ public:
 		{
 			mpAamp->SetCallbackAsPending(callbackID);
 		}
-		logprintf("DRMListener::%s:%d[%p]majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
+		logprintf("DRMListener::%s:%d[%p]Track[%d] majorError = %d, minorError = %d drmState:%d\n", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
 
 	}
@@ -312,40 +314,94 @@ static void freeDrmErrorData(void * arg)
 }
 
 /**
- * @brief prepare for decryption - individualization & license acquisition
+ * @brief SetMetaData Function to create adapter and listner for Metadata handling
  *
- * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
- * @param[in] metadata pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+ * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+ * @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+ * @param[in] trackType Track Type ( audio / video)
+ *
  * @retval eDRM_SUCCESS on success
  */
-DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata)
+DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
 {
 	const DrmMetadata *drmMetadata = ( DrmMetadata *)metadata;
 	pthread_mutex_lock(&mutex);
 	mpAamp = aamp;
-	DrmReturn err = eDRM_ERROR;
+	DrmReturn err = eDRM_SUCCESS;
 	if( !m_pDrmAdapter )
 	{
 		m_pDrmAdapter = new MyFlashAccessAdapter();
-		m_pDrmListner = new TheDRMListener(mpAamp, this);
+		m_pDrmListner = new TheDRMListener(mpAamp, this,trackType);
+		// Need to store the Metadata as part of AveDrm as FragmentCollector frees the Metadata memory
+		// inside Flush . This Metadata pointer is referred inside AVE Lib, so its safe to keep a copy within instance
+		mMetaData.metadataPtr = new (std::nothrow) unsigned char[drmMetadata->metadataSize];
+		mMetaData.metadataSize = drmMetadata->metadataSize;
+		memcpy(mMetaData.metadataPtr, drmMetadata->metadataPtr, drmMetadata->metadataSize);
 	}
 
-	if (m_pDrmAdapter)
+	mDrmState = eDRM_INITIALIZED;
+	mPrevDrmState = eDRM_INITIALIZED;
+	pthread_mutex_unlock(&mutex);
+	logprintf("AveDrm::%s:%d[%p]Track[%d] drmState:%d \n", __FUNCTION__, __LINE__, this,trackType, mDrmState);
+	return err;
+}
+
+/**
+ * @brief StoreDecryptInfoIfChanged Checks if DrmInfo to be stored 
+ *
+ * @param[in] drmInfo  DRM information required to decrypt
+ *
+ * @retval True on new DrmInfo , false if already exist
+ */
+bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
+{
+	bool newInfo = false;
+	if(drmInfo)
 	{
-		mDrmState = eDRM_ACQUIRING_KEY;
-		m_pDrmAdapter->Initialize( drmMetadata, m_pDrmListner );
-		m_pDrmAdapter->SetupDecryptionContext();
-		err = eDRM_SUCCESS;
+		newInfo = true;	
+		if(drmInfo->method == mDrmInfo.method)
+		{
+			if(drmInfo->useFirst16BytesAsIV == mDrmInfo.useFirst16BytesAsIV)
+			{
+				if(drmInfo->iv && mDrmInfo.iv && (0==memcmp(drmInfo->iv, mDrmInfo.iv,DRM_IV_LEN)))
+				{
+					if(drmInfo->uri && mDrmInfo.uri && (0==strcmp(drmInfo->uri, mDrmInfo.uri)))
+					{
+						// Sorry , no luck this time .Have same data here . Ignoring your request
+						newInfo = false;
+					}
+				}
+			}
+		}
 	}
 	else
 	{
-		mDrmState = eDRM_INITIALIZED;
+		logprintf("[%s][%d] Invalid DRMInfo provided for SetDecrypto !!! \n",__FUNCTION__,__LINE__);
 	}
-	mPrevDrmState = eDRM_INITIALIZED;
-	pthread_mutex_unlock(&mutex);
-	logprintf("AveDrm::%s:%d[%p] drmState:%d \n", __FUNCTION__, __LINE__, this, mDrmState);
-	return err;
+	if(newInfo)
+	{
+		// Found new DRM Info , need to set to AVE with decrypt info
+		mDrmInfo.method = drmInfo->method;
+		mDrmInfo.useFirst16BytesAsIV = drmInfo->useFirst16BytesAsIV;
+		if(mDrmInfo.iv)
+		{	delete[] mDrmInfo.iv ;mDrmInfo.iv = NULL;}
+		if(mDrmInfo.uri)
+		{	delete[] mDrmInfo.uri ; mDrmInfo.uri = NULL;}
+		if(drmInfo->iv) 
+		{	mDrmInfo.iv = new (std::nothrow) unsigned char[DRM_IV_LEN];
+			memcpy(mDrmInfo.iv, drmInfo->iv,DRM_IV_LEN);
+		}
+		if(drmInfo->uri)
+		{
+			int len = strlen(drmInfo->uri);
+			mDrmInfo.uri = new (std::nothrow) char[len+1];
+			strncpy(mDrmInfo.uri, drmInfo->uri,len);
+			mDrmInfo.uri[len] = 0x0;
+		}
+	}
+	return newInfo;
 }
+
 
 /**
  * @brief Set information required for decryption
@@ -360,14 +416,22 @@ DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmI
 	pthread_mutex_lock(&mutex);
 	mpAamp = aamp;
 
-	if (m_pDrmAdapter)
+	// find if same DRMInfo is available and already set to Ave-Lib ?? 
+	bool bNewDrmInfo = StoreDecryptInfoIfChanged(drmInfo);
+	if(bNewDrmInfo)
 	{
-		m_pDrmAdapter->SetDecryptInfo(drmInfo);
-		err = eDRM_SUCCESS;
-	}
-	else
-	{
-		logprintf("AveDrm::%s:%d[%p] ERROR -  NULL m_pDrmAdapter\n", __FUNCTION__, __LINE__, this);
+		if (m_pDrmAdapter)
+		{
+			// Set the decrypt info within AveDrm , not passed by fragment collector 
+			// as memory allocated for iv/uri will be released every playlist refresh
+			/// same cannot be passed to Ave-DRM
+			m_pDrmAdapter->SetDecryptInfo((const DrmInfo *)&mDrmInfo);
+			err = eDRM_SUCCESS;
+		}
+		else
+		{
+			logprintf("AveDrm::%s:%d[%p] ERROR -  NULL m_pDrmAdapter\n", __FUNCTION__, __LINE__, this);
+		}
 	}
 	pthread_mutex_unlock(&mutex);
 	return eDRM_SUCCESS;
@@ -484,13 +548,84 @@ void AveDrm::RestoreKeyState()
 	}
 	pthread_mutex_unlock(&mutex);
 }
-#else
 
-DrmReturn AveDrm::SetMetaData(class PrivateInstanceAAMP *aamp, void *drmMetadata)
+
+/**
+ * @brief Destructor of AveDrm
+ *
+ */
+AveDrm::~AveDrm()
+{
+	if(m_pDrmListner)
+	{
+		delete m_pDrmListner;
+		m_pDrmListner = NULL;
+	}
+	if(m_pDrmAdapter)
+	{
+		delete m_pDrmAdapter;
+		m_pDrmAdapter = NULL;
+	}
+	if(mMetaData.metadataPtr)
+	{
+		delete[] mMetaData.metadataPtr;
+		mMetaData.metadataPtr = NULL;
+	}
+	if(mDrmInfo.iv)
+	{
+		delete[] mDrmInfo.iv;
+		mDrmInfo.iv = NULL;
+	}
+	if(mDrmInfo.uri)
+	{
+		delete[] mDrmInfo.uri;
+		mDrmInfo.uri = NULL;
+	}
+
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&cond);
+}
+
+/**
+* @brief AcquireKey Acquire key for AveDrm instance for Meta provided
+*
+* @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+* @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+*/
+void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+{
+	(void)metadata;
+	pthread_mutex_lock(&mutex);
+	mpAamp = aamp;
+	if( !m_pDrmAdapter )
+	{
+		logprintf("%s:%d:%d WARNING !!! KeyAcquisition cannot be done without SetMetadata !!!\n",__FUNCTION__,__LINE__,trackType);
+		return;
+	}
+
+	mDrmState = eDRM_ACQUIRING_KEY;
+	// mMetaData - Memory allocated within AveDrm, which is assigned to Ave-Lib. 
+	m_pDrmAdapter->Initialize( (const DrmMetadata *)&mMetaData, m_pDrmListner );
+	m_pDrmAdapter->SetupDecryptionContext();
+
+	mPrevDrmState = eDRM_INITIALIZED;
+	pthread_mutex_unlock(&mutex);
+	logprintf("AveDrm::%s:%d[%p] drmState:%d Track[%d]\n", __FUNCTION__, __LINE__, this, mDrmState,trackType);
+}
+
+
+
+#else  // for Non-AVE macro
+
+DrmReturn AveDrm::SetMetaData(class PrivateInstanceAAMP *aamp, void *drmMetadata,int trackType)
 {
 	return eDRM_ERROR;
 }
 
+void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata, int trackType)
+{
+
+}
 
 DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo)
 {
@@ -515,6 +650,32 @@ void AveDrm::CancelKeyWait()
 void AveDrm::RestoreKeyState()
 {
 }
+
+/**
+* @brief Destructor of AveDrm
+*
+*/
+AveDrm::~AveDrm()
+{
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&cond);
+	if(mMetaData.metadataPtr)
+	{
+		delete[] mMetaData.metadataPtr;
+		mMetaData.metadataPtr = NULL;
+	}
+	if(mDrmInfo.iv)
+	{
+		delete[] mDrmInfo.iv;
+		mDrmInfo.iv = NULL; 
+	}
+	if(mDrmInfo.uri)
+	{
+		delete[] mDrmInfo.uri;
+		mDrmInfo.uri = NULL;
+	}
+}
+
 #endif // !AVE_DRM
 
 
@@ -526,23 +687,12 @@ AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 {
 	pthread_mutex_init(&mutex, NULL);
 	pthread_cond_init(&cond, NULL);
-}
-
-
-AveDrm::~AveDrm()
-{
-	if(m_pDrmListner)
-	{
-		delete m_pDrmListner;
-		m_pDrmListner = NULL;
-	}	
-	if(m_pDrmAdapter)
-	{
-		delete m_pDrmAdapter;
-		m_pDrmAdapter = NULL;
-	}
-	pthread_mutex_destroy(&mutex);
-	pthread_cond_destroy(&cond);
+	mMetaData.metadataPtr = NULL;
+	mMetaData.metadataSize = 0;
+	mDrmInfo.method = DrmMethod::eMETHOD_NONE;
+	mDrmInfo.useFirst16BytesAsIV = false;
+	mDrmInfo.iv = NULL;
+	mDrmInfo.uri = NULL;
 }
 
 
@@ -557,6 +707,15 @@ void AveDrm::SetState(DRMState state)
 	mDrmState = state;
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
+}
+/**
+ * @brief GetState Function to return current DRM State
+ *
+ * @retval DRMState
+ */
+DRMState AveDrm::GetState()
+{
+	return mDrmState;
 }
 
 /**
@@ -587,6 +746,7 @@ void AveDrmManager::Reset()
 	memset(mSha1Hash, 0, DRM_SHA1_HASH_LEN);
 	mUserCount = 0;
 	mTrackType = 0;
+	mDeferredTime = 0;
 	mHasBeenUsed = false;
 }
 
@@ -677,6 +837,7 @@ void AveDrmManager::ReleaseAll()
 	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
 		AveDrmManager* aveDrmManager = *iter;
+
 		aveDrmManager->mDrm->Release();
 		aveDrmManager->Reset();
 		delete aveDrmManager;
@@ -699,72 +860,116 @@ void AveDrmManager::RestoreKeyStateAll()
 }
 
 /**
- * @brief Set DRM meta-data. Creates AveDrm instance if meta-data is not already configured.
- *
- * @param aamp AAMP instance associated with the operation.
- * @param metaDataNode DRM meta data node containing meta-data to be set.
- */
+* @brief Set DRM meta-data. Creates AveDrm instance if meta-data is not already configured.
+*
+* @param[in] aamp          AAMP instance associated with the operation.
+* @param[in] metaDataNode  DRM meta data node containing meta-data to be set.
+* @param[in] trackType     Source track type (audio/video)
+*/
 void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType)
 {
 	AveDrmManager* aveDrmManager = NULL;
-	bool drmMetaDataSet = false;
+	bool drmMetaDataAlreadyStored = false;
 	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		if (sAveDrmManager[i]->mDrmContexSet)
+		if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 		{
-			if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
+			drmMetaDataAlreadyStored = true;
+			if(sAveDrmManager[i]->mTrackType & (1<<trackType))
 			{
-				drmMetaDataSet = true;
-				if(sAveDrmManager[i]->mTrackType & (1<<trackType))
-				{
-					AVE_DRM_MANGER_DEBUG("[%s][%d] Meta hash[%s] already set for tracktype[%x]UserCount[%d]\n",__FUNCTION__, __LINE__,metaDataNode->sha1Hash,sAveDrmManager[i]->mTrackType,sAveDrmManager[i]->mUserCount);
-				}
-				else
-                             	{
-					sAveDrmManager[i]->mTrackType |= (1<<trackType);
-					sAveDrmManager[i]->mUserCount++;
-				}
-				AVE_DRM_MANGER_DEBUG("%s:%d: Found matching sha1Hash[%s]. Index[%d] UserCount[%d][%x]\n", __FUNCTION__, __LINE__,metaDataNode->sha1Hash, i,sAveDrmManager[i]->mUserCount,sAveDrmManager[i]->mTrackType);
-				break;
+				AVE_DRM_MANGER_DEBUG("[%s][%d] Meta hash[%s] already set for tracktype[%x]UserCount[%d]\n",__FUNCTION__, __LINE__,metaDataNode->sha1Hash,sAveDrmManager[i]->mTrackType,sAveDrmManager[i]->mUserCount);
 			}
 			else
 			{
-#ifdef ENABLE_AVE_DRM_MANGER_DEBUG
-				printf("%s:%d sHlsDrmContext[%d].mSha1Hash -  ", __FUNCTION__, __LINE__, i);
-				PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
-				printf("metaDataNode->sha1Hash - ");
-				PrintSha1Hash(metaDataNode->sha1Hash);
-#endif
+				sAveDrmManager[i]->mTrackType |= (1<<trackType);
+				sAveDrmManager[i]->mUserCount++;
 			}
-		}
-		else if (!aveDrmManager)
-		{
-			aveDrmManager = sAveDrmManager[i];
+			AVE_DRM_MANGER_DEBUG("%s:%d: Found matching sha1Hash[%s]. Index[%d] UserCount[%d][%x]\n", __FUNCTION__, __LINE__,metaDataNode->sha1Hash, i,sAveDrmManager[i]->mUserCount,sAveDrmManager[i]->mTrackType);
 		}
 	}
-	if (!drmMetaDataSet)
+	if (!drmMetaDataAlreadyStored)
 	{
-		if (!aveDrmManager)
-		{
-			aveDrmManager = new AveDrmManager();
-			sAveDrmManager.push_back(aveDrmManager);
-			logprintf("%s:%d: Created new AveDrmManager[%s] .Track[%d].Total Sz=%d\n", __FUNCTION__, __LINE__,metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
-		}
-		if (aveDrmManager)
-		{
-			aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData);
-			aveDrmManager->mDrmContexSet = true;
-			aveDrmManager->mUserCount++;
-			aveDrmManager->mTrackType |= (1<<trackType);
-			memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
-		}
+		aveDrmManager = new AveDrmManager();
+		sAveDrmManager.push_back(aveDrmManager);
+		aveDrmManager->mDrmContexSet = true;
+		aveDrmManager->mUserCount++;
+		aveDrmManager->mTrackType |= (1<<trackType);
+		memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
+		aveDrmManager->mDeferredTime = metaDataNode->drmKeyReqTime;
+		aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData,trackType);
+		logprintf("%s:%d: Created new AveDrmManager[%s] .Track[%d].Total Sz=%d\n", __FUNCTION__, __LINE__,metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, sAveDrmManager.size());
 }
 
+
+/**
+* @brief AcquireKey Acquire key for Meta data provided for stream type
+*
+* @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+* @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+* @param[in] trackType Track type audio / video
+* @param[in] overrideDeferring Flag to indicate override deferring and request key immediately
+*/
+bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType,bool overrideDeferring)
+{
+	bool retStatus = true;
+	AveDrmManager* aveDrmManager = NULL;
+	bool drmMetaFound = false;
+	int metaIdx = 0;
+	bool drmMetaDataKeyRequested = false;
+	// a buffer of 5 sec is considered.As next request will happen after playlist refresh
+	long long currTime = aamp_GetCurrentTimeMS() + 5000;
+	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	//
+	pthread_mutex_lock(&aveDrmManagerMutex);
+	for (int idx = 0; idx < sAveDrmManager.size(); idx++)
+	{
+		if (0 == memcmp(metaDataNode->sha1Hash, sAveDrmManager[idx]->mSha1Hash, DRM_SHA1_HASH_LEN))
+		{
+			// Check if key already acquired '
+			DRMState currState = sAveDrmManager[idx]->mDrm->GetState() ;
+			if(currState != DRMState::eDRM_ACQUIRING_KEY && currState != DRMState::eDRM_KEY_ACQUIRED)
+			{
+				// new one - VSS Deferring logic. Check if any time is set
+				if(sAveDrmManager[idx]->mDeferredTime && overrideDeferring ==false)
+				{
+					if(sAveDrmManager[idx]->mDeferredTime < currTime)
+					{
+						drmMetaDataKeyRequested = true;
+					}
+				}
+				else
+				{
+					// No deferred time set , request key immediately
+					drmMetaDataKeyRequested = true;
+				}
+			}
+			metaIdx = idx;
+			drmMetaFound = true;
+			break;
+		}
+	}
+
+	if(drmMetaDataKeyRequested)
+	{
+		logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]\n",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
+		sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType);
+	}
+
+	if(!drmMetaFound)
+	{
+		// Something wrong . Key request is Made for the Meta which is not available.
+		retStatus = false;
+		logprintf("%s:%d:[%d] Key Request made for Meta which is not stored..Mismatched Hash data [%s] ?\n",__FUNCTION__, __LINE__, trackType,metaDataNode->sha1Hash);
+	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
+	return retStatus;
+
+}
 /**
  * @brief Print DRM metadata hash
  *
@@ -795,50 +1000,81 @@ void AveDrmManager::DumpCachedLicenses()
 	printf("\n");
 }
 
-
 /**
  * @brief Get AveDrm instance configured with a specific metadata
  *
- * @param sha1Hash SHA1 hash of meta-data
- * @return AveDrm instance corresponds to sha1Hash
- * @return NULL if AveDrm instance configured with the meta-data is not available
+ * @param[in] sha1Hash SHA1 hash of meta-data
+ * @param[in] trackType Sourec track type (audio/video)
+ *
+ * @return AveDrm  Instance corresponds to sha1Hash
+ * @return NULL    If AveDrm instance configured with the meta-data is not available
  */
-std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
+std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 {
-	std::shared_ptr<AveDrm>  aveDrm = nullptr;
-#ifdef ENABLE_AVE_DRM_MANGER_DEBUG
-	printf("%s:%d Enter sAveDrmManager.size = %d sha1Hash -  ", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
-	PrintSha1Hash(sha1Hash);
-#endif
-	pthread_mutex_lock(&aveDrmManagerMutex);
-	for (int i = 0; i < sAveDrmManager.size(); i++)
+        std::shared_ptr<AveDrm>  aveDrm = nullptr;
+        pthread_mutex_lock(&aveDrmManagerMutex);
+	// Cases to handle
+	// a) sha1Hash is having value - If there are multi key,hash will be present.Easy to map hash to correct meta
+	// b) sha1Hash is null - Two scenario possible
+	//	1. There is only one Common key for both audio and video track
+	//	2. There will be separate keys for audio/video.Match using the trackType
+
+	// Case a
+	if(sha1Hash){
+        for (int i = 0; i < sAveDrmManager.size(); i++)
+        {
+                if (sAveDrmManager[i]->mDrmContexSet)
+                {
+                        if (0 == memcmp(sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
+                        {
+                                aveDrm = sAveDrmManager[i]->mDrm;
+                                // Found a user for the Meta data , update the flag so that it can be removed when no users for it
+                                sAveDrmManager[i]->mHasBeenUsed = true;
+                                AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash[%s]. Index[%d] aveDrm[%p]\n", __FUNCTION__, __LINE__,sha1Hash, i, aveDrm.get());
+                                break;
+                        }
+                }
+                else
+                {
+                        logprintf("%s:%d:[%d] sHlsDrmContext[%d].mDrmContexSet is false\n", __FUNCTION__, __LINE__,trackType, i);
+                }
+        }
+	}
+	// case b.1
+	else if(sAveDrmManager.size() == 1)
 	{
-		if (sAveDrmManager[i]->mDrmContexSet)
+		if (sAveDrmManager[0]->mDrmContexSet)
 		{
-			if (0 == memcmp(sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
-			{
-				aveDrm = sAveDrmManager[i]->mDrm;
-				// Found a user for the Meta data , update the flag so that it can be removed when no users for it 
-				sAveDrmManager[i]->mHasBeenUsed = true;
-				AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash[%s]. Index[%d] aveDrm[%p]\n", __FUNCTION__, __LINE__,sha1Hash, i, aveDrm.get());
-				break;
-			}
-			else
-			{
-#ifdef ENABLE_AVE_DRM_MANGER_DEBUG
-				printf("%s:%d sHlsDrmContext[%d].mSha1Hash -  ", __FUNCTION__, __LINE__, i);
-				PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
-#endif
-			}
+			aveDrm = sAveDrmManager[0]->mDrm;
+			sAveDrmManager[0]->mHasBeenUsed = true;
+			logprintf("%s:%d:[%d] Returned only available Drm Instance \n", __FUNCTION__, __LINE__,trackType);
 		}
 		else
 		{
-			logprintf("%s:%d: sHlsDrmContext[%d].mDrmContexSet is false\n", __FUNCTION__, __LINE__, i);
+			logprintf("%s:%d:[%d] sHlsDrmContextmDrmContexSet is false\n", __FUNCTION__, __LINE__,trackType);
 		}
 	}
-	pthread_mutex_unlock(&aveDrmManagerMutex);
-	return aveDrm;
+	// case b.2
+	else if(sAveDrmManager.size() > 1)
+	{
+		logprintf("%s:%d:[%d] Multi Meta[%d]available  without hash.Matching trackTypee \n", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
+		for (int i = 0; i < sAveDrmManager.size(); i++)
+		{
+			logprintf("%s:%d:[%d] Idx[%d] ContextSet[%d] mTractType[%d]\n",__FUNCTION__, __LINE__,trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
+			if (sAveDrmManager[i]->mDrmContexSet && (sAveDrmManager[i]->mTrackType & (1<<trackType)))
+			{
+				aveDrm = sAveDrmManager[i]->mDrm;
+				sAveDrmManager[i]->mHasBeenUsed = true;
+				logprintf("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]\n",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
+				break;
+			}
+		}
+	}
+
+        pthread_mutex_unlock(&aveDrmManagerMutex);
+        return aveDrm;
 }
+
 
 /**
  * @brief Get index of drm meta-data which is not yet configured
@@ -846,29 +1082,33 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash)
  * @param drmMetadataIdx Indexed DRM meta-data
  * @param drmMetadataCount Count of meta-data present in the index
  */
-int AveDrmManager::GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount)
+int AveDrmManager::IsMetadataAvailable(char* sha1Hash)
 {
-	int idx = -1;
-	pthread_mutex_lock(&aveDrmManagerMutex);
-	for (int j = drmMetadataCount - 1; j >= 0; j--)
+        int idx = -1;
+        pthread_mutex_lock(&aveDrmManagerMutex);
+	if(sha1Hash)
 	{
-		bool matched = false;
 		for (int i = 0; i < sAveDrmManager.size(); i++)
 		{
-			if (0 == memcmp(drmMetadataIdx[j].sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
+			if (0 == memcmp(sha1Hash, sAveDrmManager[i]->mSha1Hash, DRM_SHA1_HASH_LEN))
 			{
-				matched = true;
+				idx = i;
 				break;
 			}
 		}
-		if (!matched)
-		{
-			idx = j;
-			break;
-		}
 	}
-	pthread_mutex_unlock(&aveDrmManagerMutex);
-	return idx;
+        pthread_mutex_unlock(&aveDrmManagerMutex);
+        return idx;
 }
 
+
+
 std::vector<AveDrmManager*> AveDrmManager::sAveDrmManager;
+
+
+
+
+/**
+ * @}
+ */
+

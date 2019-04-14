@@ -109,6 +109,17 @@ struct IndexNode
 };
 
 /**
+*	\struct	KeyTagStruct
+* 	\brief	KeyTagStruct structure to store all Keytags with Hash
+*/
+typedef struct
+{
+	std::string mShaID;		/**< ShaID of Key tag */
+	double mKeyStartDuration;		/**< duration in playlist where Keytag starts */
+	std::string mKeyTagStr;			/**< String to store key tag,needed for trickplay */
+}KeyTagStruct;
+
+/**
 *	\struct	DiscontinuityIndexNode
 * 	\brief	Index Node structure for Discontinuity Index
 */
@@ -153,16 +164,10 @@ public:
 	void UpdateDrmIV(const char *ptr);
 	/// Function to update SHA1 ID from DRM information
 	void UpdateDrmCMSha1Hash(const char *ptr);
-	/// Function to set the DRM Metadata into Adobe DRM Layer 
-	void SetDrmContextUnlocked();
 	/// Function to decrypt the fragment data 
 	DrmReturn DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
 	/// Function to fetch the Playlist file
 	void FetchPlaylist();
-	/// Process Drm Metadata after indexing
-	void ProcessDrmMetadata(bool acquireCurrentLicenseOnly);
-	/// Start deferred DRM license acquisition
-	void StartDeferredDrmLicenseAcquisition();
 	/**
 	 * @brief Get period information of next fragment
 	 *
@@ -231,6 +236,14 @@ private:
 	char *FindMediaForSequenceNumber();
 	/// Fetch and inject init fragment
 	bool FetchInitFragment(long &http_code);
+	/// Process Drm Metadata after indexing
+	void ProcessDrmMetadata();
+	/// Function to check for deferred licensing
+	void ComputeDeferredKeyRequestTime();
+	/// Function to get DRM License key
+	void InitiateDRMKeyAcquisition(int indexPosn=-1);
+	/// Function to set the DRM Metadata into Adobe DRM Layer for decryption
+	void SetDrmContext();
 
 public:
 	char effectiveUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
@@ -253,7 +266,7 @@ public:
 	double playTarget; /**< initially relative seek time (seconds) based on playlist window, but updated as a play_target */
 
 	double targetDurationSeconds; /**< copy of \#EXT-X-TARGETDURATION to manage playlist refresh frequency */
-
+	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
 	TSProcessor* playContext; /**< state for s/w demuxer / pts/pcr restamper module */
 	struct timeval startTimeForPlaylistSync; /**< used for time-based track synchronization when switching between playlists */
@@ -261,6 +274,8 @@ public:
 	bool discontinuity; /**< Set when discontinuity is found in track*/
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
 	bool fragmentEncrypted; /**< In DAI, ad fragments can be clear. Set if current fragment is encrypted*/
+	bool mKeyTagChanged;	/**< Flag to indicate Key tag got changed for decryption context setting */
+	int mLastKeyTagIdx ;     /**< Variable to hold the last keyTag index,to check if key tag changed */
 	struct DrmInfo mDrmInfo;	/**< Structure variable to hold Drm Information */
 	char* mCMSha1Hash;	/**< variable to store ShaID*/
 	long long mDrmTimeStamp;	/**< variable to store Drm Time Stamp */
@@ -272,6 +287,9 @@ public:
 	GrowableBuffer mDiscontinuityIndex;  /**< discontinuity start position mapping of associated playlist */
 	int mDiscontinuityIndexCount; /**< number of records in discontinuity position index */
 	double mDuration;  /** Duration of the track*/
+	typedef std::vector<KeyTagStruct> KeyHashTable;
+	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
+	KeyHashTable mKeyHashTable;
 
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
@@ -286,6 +304,7 @@ private:
 	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
 	pthread_mutex_t mPlaylistMutex;         /**< protect playlist update */
 	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
+	pthread_mutex_t mTrackDrmMutex;         /**< protect DRM Interactions for the track */
 	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
 	double mCulledSeconds;                  /**< Total culled duration */
 	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
