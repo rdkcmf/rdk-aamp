@@ -83,7 +83,7 @@ public:
          *
 	 * @retval 0 on success
 	 */
-	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata) = 0;
+	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata,int trackType) = 0;
 
 	/**
 	 * @brief Set information required for decryption
@@ -123,7 +123,16 @@ public:
 	 * audio/video TrackState in case DRM data is persisted
 	 */
 	virtual void RestoreKeyState() = 0;
-
+	/**
+	* @brief AcquireKey Function to get DRM Key
+	*
+	*/
+	virtual void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType) = 0;
+	/**
+	* @brief GetState Function to get current DRM state
+	*
+	*/
+	virtual DRMState GetState() = 0;
 	/**
 	 * @brief HlsDrmBase Destructor
 	 */
