@@ -3082,11 +3082,6 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
 		}
-		else if (strcmp(cfg, "disable_westeros") == 0)
-		{
-			gpGlobalConfig->disable_westeros = true;
-			logprintf("disable_westeros is %s\n", gpGlobalConfig->disable_westeros ? "enabled" : "disabled");
-		}
 		else if (sscanf(cfg, "mpd-harvest-limit=%d", &gpGlobalConfig->mpdHarvestLimit) == 1)
 		{
 			VALIDATE_INT("mpd-harvest-limit", gpGlobalConfig->mpdHarvestLimit, 0);
