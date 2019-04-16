@@ -2393,7 +2393,7 @@ void TrackState::RefreshPlaylist(void)
 		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operationsaamp_AppendNulTerminator(&this->mainManifest); // make safe for cstring operations
 		if (gpGlobalConfig->logging.trace)
 		{
-			logprintf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
+			printf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
 		IndexPlaylist();
 		if( mDuration > 0.0f )
@@ -2919,7 +2919,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		aamp_AppendNulTerminator(&this->mainManifest); // make safe for cstring operations
 		if (gpGlobalConfig->logging.trace )
 		{
-			logprintf("***Main Manifest***:\n\n%s\n************\n", this->mainManifest.ptr);
+			printf("***Main Manifest***:\n\n%s\n************\n", this->mainManifest.ptr);
 		}
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -3090,7 +3090,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				aamp_AppendNulTerminator(&ts->playlist); // make safe for cstring operations
 				if (gpGlobalConfig->logging.trace  )
 				{
-					logprintf("***Initial Playlist:******\n\n%s\n*****************\n", ts->playlist.ptr);
+					printf("***Initial Playlist:******\n\n%s\n*****************\n", ts->playlist.ptr);
 				}
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 				const char* prefix = (iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-";
