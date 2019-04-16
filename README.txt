@@ -154,6 +154,7 @@ mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period tr
 mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
 force-http Allow forcing of HTTP protocol for HTTPS URLs
 internal-retune=0 Disable internal reTune logic on underflows/ pts errors
+re-tune-on-buffering-timeout=0 Disable internal re-tune on buffering time-out
 gst-buffering-before-play=0 Disable pre buffering logic which ensures minimum buffering is done before pipeline play
 audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads

@@ -142,6 +142,7 @@ enum PlaybackErrorType
 {
 	eGST_ERROR_PTS,                 /**< PTS error from gstreamer */
 	eGST_ERROR_UNDERFLOW,           /**< Underflow error from gstreamer */
+	eGST_ERROR_VIDEO_BUFFERING,     /**< Video buffering error */
 	eDASH_ERROR_STARTTIME_RESET     /**< Start time reset of DASH */
 };
 
@@ -524,6 +525,7 @@ public:
 	long curlLowSpeedLimit;                 /**< Value to be used for CURLOPT_LOW_SPEED_LIMIT in bytes/sec*/
 	long curlLowSpeedTime;                  /**< Value to be used for CURLOPT_LOW_SPEED_TIME in seconds*/
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
+	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 public:
 
 	/**
@@ -554,7 +556,7 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
 		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME),
-		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS)
+		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

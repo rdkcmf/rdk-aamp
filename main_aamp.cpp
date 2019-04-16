@@ -3038,6 +3038,11 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
 			logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
 		}
+		else if (sscanf(cfg, "re-tune-on-buffering-timeout=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->reTuneOnBufferingTimeout = (value != 0);
+			logprintf("re-tune-on-buffering-timeout=%d\n", (int)gpGlobalConfig->reTuneOnBufferingTimeout);
+		}
 		else if (strcmp(cfg, "audioLatencyLogging") == 0)
 		{
 			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
@@ -5598,7 +5603,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 	{
 		PrivAAMPState state;
 		GetState(state);
-		if (state != eSTATE_PLAYING || mSeekOperationInProgress)
+		if (((state != eSTATE_PLAYING) && (eGST_ERROR_VIDEO_BUFFERING != errorType)) || mSeekOperationInProgress)
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Not processing reTune since state = %d, mSeekOperationInProgress = %d\n",
 						__FUNCTION__, __LINE__, state, mSeekOperationInProgress);
@@ -5685,9 +5690,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 						}
 						lastUnderFlowTimeMs[trackType] = now;
 					}
-					else if(eDASH_ERROR_STARTTIME_RESET == errorType)
+					else
 					{
-						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune to handle start time reset.\n", __FUNCTION__, __LINE__);
+						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune errorType %d\n", __FUNCTION__, __LINE__, errorType);
 						gActivePrivAAMPs[i].reTune = true;
 						g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
 					}
