@@ -65,19 +65,12 @@
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
-#define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /*!< Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
-
-pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
-static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**< Sha1 hash of meta-data for deferred DRM license acquisition*/
-static long long gDeferredDrmTime = 0;                     /**< Time at which deferred DRM license to be requested*/
-static bool gDeferredDrmLicRequestPending = false;         /**< Indicates if deferred DRM request is pending*/
-static bool gDeferredDrmLicTagUnderProcessing = false;     /**< Indicates if deferred DRM request tag is under processing*/
 
 /**
 * \struct	FormatMap
@@ -271,6 +264,7 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 				ts->fragmentEncrypted = true;
 			}
 			ts->mDrmInfo.method = eMETHOD_AES_128;
+			ts->mKeyTagChanged = true;
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES"))
 		{
@@ -874,7 +868,27 @@ char *TrackState::GetFragmentUriFromIndex()
 		else
 		{
 			fragmentEncrypted = true;
-			mDrmMetaDataIndexPosition = idxNode->drmMetadataIdx;
+			// for each iframe , need to see if KeyTag changed and get the drminfo .
+			// Get the key Index position .
+			int keyIndexPosn = idxNode->drmMetadataIdx;
+			if(keyIndexPosn != mLastKeyTagIdx)
+			{
+				logprintf("%s:%d:[%d] KeyTable Size [%d] keyIndexPosn[%d] lastKeyIdx[%d]\n",__FUNCTION__,__LINE__,type,mKeyHashTable.size(),keyIndexPosn,mLastKeyTagIdx);
+				if(keyIndexPosn < mKeyHashTable.size() && mKeyHashTable[keyIndexPosn].mKeyTagStr.size())
+				{
+					// ParseAttrList function modifies the input string ,hence cannot pass mKeyTagStr
+					// modifying const memory will cause crash . So had to copy locally
+					char* key =(char*) malloc (mKeyHashTable[keyIndexPosn].mKeyTagStr.size());
+                                        memcpy(key,mKeyHashTable[keyIndexPosn].mKeyTagStr.c_str(),mKeyHashTable[keyIndexPosn].mKeyTagStr.size());
+
+					//logprintf("%s:%d:[%d] Parse the Key attribute for new KeyIndex[%d][%s] \n",__FUNCTION__,__LINE__,type,keyIndexPosn,mKeyHashTable[keyIndexPosn].mShaID.c_str());
+					ParseAttrList((char *)key, ParseKeyAttributeCallback, this);
+					free(key);
+				}
+				mKeyTagChanged = true;
+				mLastKeyTagIdx = keyIndexPosn;
+			}
+
 		}
 	}
 	else
@@ -1669,6 +1683,9 @@ void TrackState::FlushIndex()
 	index.avail = 0;
 	currentIdx = -1;
 	mDrmKeyTagCount = 0;
+	mLastKeyTagIdx = -1;
+	mDeferredDrmKeyMaxTime = 0;
+	mKeyHashTable.clear();
 	mDiscontinuityIndexCount = 0;
 	aamp_Free(&mDiscontinuityIndex.ptr);
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
@@ -1709,91 +1726,199 @@ void TrackState::FlushIndex()
 }
 
 /***************************************************************************
-* @fn ProcessDrmMetadata
-* @brief Process Drm Metadata after indexing
+* @fn ComputeDeferredKeyRequestTime
+* @brief Function to compute Deferred key request time for VSS Stream Meta data
 ***************************************************************************/
-void TrackState::ProcessDrmMetadata(bool acquireCurrentLicenseOnly)
+void TrackState::ComputeDeferredKeyRequestTime()
 {
-	traceprintf("%s:%d: mDrmMetaDataIndexCount %d \n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	bool foundCurrentMetaDataIndex = false;
-	pthread_mutex_lock(&gDrmMutex);
-	/* Acquire license if license rotation not enabled (mCMSha1Hash NULL) or
-	 * matches current fragment's meta-data or
-	 * acquireCurrentLicenseOnly flag not set and license is not deferred*/
-	for (int i = 0; i < mDrmMetaDataIndexCount; i++)
+	// This function will be called only if special tag -X-X1-LIN is present to differ the Key acquisition
+	//  on random value based on the Max refresh time interval
+	// From gathered information , Meta data gets added to playlist and then Key tag follows after certain time interval
+	// defined in X-X1-LIN tag . So if a new Meta appears , before the KeyTag comes up , Key need to be acquired on a random
+	// timeout.
+	// Assumption 1:There is no deferring required between 2 or more meta present in the playlist if there is equivalent KeyTag
+	// 				with Sha is present .For all the Metas with KeyTags , key request will happen immediately
+	// Assumption 2 not considered : Not sure if new Meta gets added always at the end or can get it added in any index ,
+	//			 either by Fog or Source server. So going worst case, if it can added any position , need to run the loop completely
+
+	bool foundFlag = false;
+	if(mDrmMetaDataIndexCount > 1)
 	{
-		if (mCMSha1Hash)
+		DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
+		int foundMetaCounter = 0;
+		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
 		{
-			if (!foundCurrentMetaDataIndex && (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
+			// Check if the Meta is already present with AveDrmManager. If there its already configured for deferred time,no need to add again
+			// If not present , check if Key Tag is present or not .
+			// a)if Key tag present , then no deferring . Key requested immediately.
+			// b)if Key tag not present , then calculate deferred time
+			if(AveDrmManager::IsMetadataAvailable(drmMetadataNode[idx].sha1Hash) == -1)
 			{
-				mDrmMetaDataIndexPosition = i;
-				foundCurrentMetaDataIndex = true;
-			}
-			else
-			{
-				if ( acquireCurrentLicenseOnly )
+				foundFlag = false;
+				// checking Hash availability in KeyTags
+				KeyHashTableIter iter = mKeyHashTable.begin();
+				for(;iter != mKeyHashTable.end();iter++)
 				{
-					printf("%s:%d Not acquiring license for index %d mDrmMetaDataIndexCount %d since it is not the current metadata. sha1Hash - ", __FUNCTION__, __LINE__, i, mDrmMetaDataIndexCount);
-					AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
-					continue;
+					if(iter->mShaID.size() && (0 == memcmp(iter->mShaID.c_str(), drmMetadataNode[idx].sha1Hash , DRM_SHA1_HASH_LEN)))
+					{
+						// Key tag present , not to defer
+						foundFlag = true;
+						foundMetaCounter++;
+						break;
+					}
 				}
-				if ( gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending && (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
+
+				if(!foundFlag)
 				{
-					logprintf("%s:%d: Not setting  metadata for index %d as deferred\n", __FUNCTION__, __LINE__, i);
-					continue;
+					// Found new Meta with no key Mapping. Need to defer key request for this Meta
+					int deferredTimeMs = GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
+					drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
+
+					logprintf("[%s][%d][%s] Found New Meta[%d] without KeyTag mapping.Defer license request[%d]\n",
+						__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
+				}
+				else
+				{
+					// This is preventive measure to avoid overloading of DRM and cpu.
+					// For any reason process crashes and comes back ,fog may give complete TSB with so many
+					// Metadata with KeyTag available. This will cause sudden rush of Meta add and key requset
+					// Differ the key in staggered manner. If particular Meta-Key is needed for decrypt, then it will
+					// be requested on Emergency mode
+					if(foundMetaCounter > 2)
+					{
+						int deferredTimeMs = GetDeferTimeMs(30);
+						drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
+						logprintf("[%s][%d][%s] Found New Meta[%d] with KeyTag mapping.Deferring license request due to load[%d]\n",__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
+					}
 				}
 			}
 		}
-		traceprintf("%s:%d: Setting  metadata for index %d\n", __FUNCTION__, __LINE__, i);
-		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i],(int)type);
 	}
-	mDrmLicenseRequestPending = (mCMSha1Hash && acquireCurrentLicenseOnly && (mDrmMetaDataIndexCount >1));
-	if(mCMSha1Hash && !foundCurrentMetaDataIndex)
-	{
-		printf("%s:%d ERROR Could not find matching metadata for hash - ", __FUNCTION__, __LINE__);
-		AveDrmManager::PrintSha1Hash(mCMSha1Hash);
-		printf("%d Metadata available\n", mDrmMetaDataIndexCount);
-		for (int i = 0; i < mDrmMetaDataIndexCount; i++)
-		{
-			printf("sha1Hash of drmMetadataNode[%d]", i);
-			AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
-		}
-		printf("\n\nTrack [%s] playlist length %d\n", name, (int)playlist.len);
-		for (int i = 0; i < playlist.len; i++)
-		{
-			printf("%c", playlist.ptr[i]);
-		}
-		printf("\n\nTrack [%s] playlist end\n", name);
-		aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
-	}
-	traceprintf("%s:%d: mDrmLicenseRequestPending %d\n", __FUNCTION__, __LINE__, (int) mDrmLicenseRequestPending);
-	pthread_mutex_unlock(&gDrmMutex);
 }
 
 /***************************************************************************
-* @brief Start deferred DRM license acquisition
+* @fn ProcessDrmMetadata
+* @brief Process Drm Metadata after indexing
 ***************************************************************************/
-void TrackState::StartDeferredDrmLicenseAcquisition()
+void TrackState::ProcessDrmMetadata()
 {
-	logprintf("%s:%d: mDrmMetaDataIndexCount %d Start deferred license request\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+
+	// This function after indexplaylist to be called , this will store the metadata into AveDrmManager
+	// Storing will not invoke key request . If meta already present , no update happens
 	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	for (int i = (mDrmMetaDataIndexCount-1); i >= 0; i--)
+	if(mDrmMetaDataIndexCount)
 	{
-		if(drmMetadataNode[i].sha1Hash)
+		// WARNING ::: Dont put condition here for optimizaion , if Metaavailable !!!!
+		// Meta may be added for other track . Also this is the method by which DrmManger knows Meta
+		// is still available after refresh . Else it will flush out the Meta from DrmManager thinking
+		// Source removed the source
+		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
 		{
-			if (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
-			{
-				logprintf("%s:%d: Found matching drmMetadataNode index %d\n", __FUNCTION__, __LINE__, i);
-				AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i],(int)type);
-				gDeferredDrmLicRequestPending = false;
-				break;
-			}
+			traceprintf("%s:%d:[%s] Setting  metadata for index %d/%d\n", __FUNCTION__, __LINE__,name, idx,mDrmMetaDataIndexCount);
+			AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[idx],(int)type);
 		}
 	}
-	if(gDeferredDrmLicRequestPending)
+}
+
+/***************************************************************************
+* @fn InitiateDRMKeyAcquisition
+* @brief Function to initiate key request for all Meta data
+***************************************************************************/
+void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
+{
+	// WARNING :: Dont put optimization condition here to check if MetaAvailable or KeyAvailable.
+	// This is the call by which DrmManager runs the loops to initiate key request for deferred
+
+	// Initiate Key Request will happen after every refresh for all the Meta as there is no pre-refresh data stored to compare
+	// Inside AveDrmManager, check is done if Key is already acquired or not . Also if any deferred request is needed or not
+	// Second caller of this function is SetDrmContext,if Key is not acquired then for specific meta index key request is made
+	//logprintf("%s:%d:[%s] mDrmMetaDataIndexCount %d \n", __FUNCTION__, __LINE__,name, mDrmMetaDataIndexCount);
+	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
+	long long currentTime = aamp_GetCurrentTimeMS();
+	bool retStatus = true;
+	// Function to initiate key request with DRM
+	// if indexPosn == -1 , its required to check for all the Metadata stored in the list
+	// 		this call will be made after playlist update .
+	// if indexPosn != -1 , its required to initiate key request immediately for particular Meta
+	if(mDrmMetaDataIndexCount > 0)
 	{
-		logprintf("%s:%d: WARNING - Could not start deferred license request - no matching sha1Hash\n", __FUNCTION__, __LINE__);
+		// if it is for Adobe DRM only , upfront Key request is done ,
+		// If Clear , nothing to do
+		if(indexPosn == -1)
+		{
+			for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
+			{
+				// Request key for all Meta's received in playlist refresh .
+				// Deferring logic is with DRM Manager ..lets make it little more intelligent instead of FragCollector
+				// doing all checks n calculcation .
+				// Every refresh of playlist , DRM Meta will calculate new refresh time and request. DRM Manager knows the
+				// first request with deferred time , so it will request key when time comes.
+				traceprintf("%s:%d:[%s]Request DRM Key for indexPosn[%d]\n",__FUNCTION__, __LINE__,name,idx);
+				retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[idx],(int)type);
+				if(retStatus == false)
+					break;
+			}
+		}
+		else
+		{
+			// on an emergency may have to request Key for certain index only
+			logprintf("%s:%d:[%s]Request DRM Key immediately for indexPosn[%d]\n",__FUNCTION__, __LINE__,name,indexPosn);
+			retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[indexPosn],(int)type,true);
+		}
+
+		if(retStatus == false)
+		{
+			// Something wrong , why should AveDrmManager return false when Key is requested,
+			// May be Meta is not stored before requesting Key or Meta may not be available for ShaId looking for
+			logprintf("%s:%d:[%s] Failure to Get Key \n",__FUNCTION__, __LINE__,name);
+			aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
+		}
+	}
+}
+
+/***************************************************************************
+* @fn SetDrmContext
+* @brief Function to set DRM Context when KeyTag changes
+* @return None
+***************************************************************************/
+void TrackState::SetDrmContext()
+{
+	// Set the appropriate DrmContext for Decryption
+	// This function need to be called where KeyMethod != None is found after indexplaylist
+	// or when new KeyMethod is found , None to AES or between AES with different Method
+	// or between KeyMethond when IV or URL changes (for Vanilla AES)
+
+	bool drmContextUpdated = false;
+	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
+
+	if(drmMetadataIdx)
+	{
+		logprintf("TrackState::[%s][%s] Enter mCMSha1Hash [%p] mDrmMetaDataIndexPosition %d\n", __FUNCTION__,name, mCMSha1Hash,
+			mDrmMetaDataIndexPosition);
+		// Get the DRM Instance based on current Sha1
+		// a) If Multi Key involved mCMSha1Hash will have value ,based on which DRM Instance is picked
+		// b) If Single Key invloved (no mCMSha1Hash), but with diff Meta for audio and video , based on track type appropriate DRM instance picked
+		// c) If Single Key involved (no mCMSha1Hash) , audio/video having same meta, AveDrmManager will get the the only on Drm Instance
+		mDrm = AveDrmManager::GetAveDrm(mCMSha1Hash,type);
+		if(mDrm && mDrm->GetState() != DRMState::eDRM_KEY_ACQUIRED)
+			{
+				// Need of the hour ,initiate the key before the decrypt function is called
+				logprintf("%s:%d:[%s] Initiating Key Request as Key is not available for index [%d]\n",__FUNCTION__,__LINE__,name,mDrmMetaDataIndexPosition);
+				InitiateDRMKeyAcquisition(mDrmMetaDataIndexPosition);
+			}
+	}
+	else
+	{
+#ifdef AAMP_VANILLA_AES_SUPPORT
+		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
+		mDrm = AesDec::GetInstance();
+#else
+		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
+#endif
+	}
+	if(mDrm)
+	{
+		mDrm->SetDecryptInfo(aamp, &mDrmInfo);
 	}
 }
 
@@ -1919,6 +2044,12 @@ void TrackState::IndexPlaylist()
 					targetDurationSeconds = atof(ptr);
 					AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
 				}
+				else if(startswith(&ptr,"-X-X1-LIN-CK:"))
+				{
+					// get the deferred drm key acquisition time
+					mDeferredDrmKeyMaxTime = atoi(ptr);
+					AAMPLOG_INFO("%s:%d: #EXT-X-LIN [%d]\n",__FUNCTION__, __LINE__, mDeferredDrmKeyMaxTime);
+				}
 				else if(startswith(&ptr,"-X-MAP:"))
 				{
 					mInitFragmentInfo = ptr;
@@ -1948,6 +2079,8 @@ void TrackState::IndexPlaylist()
 					traceprintf("aamp: #EXT-X-FAXS-CM:\n");
 					srcLen = FindLineLength(ptr);
 					unsigned char hash[SHA_DIGEST_LENGTH] = {0};
+					drmMetadataNode.deferredInterval = mDeferredDrmKeyMaxTime;
+					drmMetadataNode.drmKeyReqTime = 0;
 					drmMetadataNode.metaData.metadataPtr =  base64_Decode(ptr, &drmMetadataNode.metaData.metadataSize, srcLen);
 					SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
 					drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
@@ -1983,22 +2116,41 @@ void TrackState::IndexPlaylist()
 					char* key =(char*) malloc (len+1);
 					memcpy(key,ptr,len);
 					key[len]='\0';
+
+					// Need to store the Key tag to a list . Needs listed below
+					// a) When a new Meta is added , its hash need to be compared
+					//with available keytags to determine if its a deferred KeyAcquisition or not(VSS)
+					// b) If there is a stream with varying IV in keytag with single Meta,
+					// check if during trickplay drmInfo is considered .
+					KeyTagStruct keyinfo;
+					keyinfo.mKeyStartDuration = totalDuration;
+					keyinfo.mKeyTagStr.resize(len);
+					memcpy((char*)keyinfo.mKeyTagStr.data(),key,len);
+
 					ParseAttrList(key, ParseKeyAttributeCallback, this);
-					drmMetadataIdx = mDrmMetaDataIndexPosition;
+					//Each fragment should store the corresponding keytag indx to decrypt, MetaIdx may work with
+					// adobe mapping , then if or any attribute of Key tag is different ?
+					// At present , second Key parsing is done inside GetNextFragmentUriFromPlaylist(that saved)
+					//Need keytag idx to pick the corresponding keytag and get drmInfo,so that second parsing can be removed
+					//drmMetadataIdx = mDrmMetaDataIndexPosition;
+					drmMetadataIdx = mDrmKeyTagCount;
 					if(!fragmentEncrypted)
 					{
 						drmMetadataIdx = -1;
 						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
 					}
-					mDrmKeyTagCount++;
+
+					// mCMSha1Hash is populated after ParseAttrList , hence added here
+					if(mCMSha1Hash)
+					{
+						keyinfo.mShaID.resize(DRM_SHA1_HASH_LEN);
+						memcpy((char*)keyinfo.mShaID.data(), mCMSha1Hash, DRM_SHA1_HASH_LEN);
+					}
+					mKeyHashTable.push_back(keyinfo);
+					mKeyTagChanged = false;
+
 					free (key);
-				}
-				else if ( aamp->IsLive() && (AAMP_NORMAL_PLAY_RATE == context->rate)
-					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
-					&& (startswith(&ptr, "-X-X1-LIN-CK:")))
-				{
-					deferDrmTagPresent = true;
-					deferDrmVal = ptr;
+					mDrmKeyTagCount++;
 				}
 				else if (context->playlistType != ePLAYLISTTYPE_VOD)
 				{
@@ -2035,79 +2187,24 @@ void TrackState::IndexPlaylist()
 			}
 			ptr=GetNextLineStart(ptr);
 		}
+
+		if (mDrmMetaDataIndexCount > 1)
+		{
+			logprintf("%s:%d[%d] Indexed %d drm metadata\n", __FUNCTION__, __LINE__,type, mDrmMetaDataIndexCount);
+		}
+
 		// DELIA-33434
 		// Update DRM Manager for stored indexes so that it can be removed after playlist update
 		// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
 		// SetMetadata is not called across playlist update , hence Update is not needed
-		if(mCMSha1Hash)
+		// Have to check for normal playback only. SAP Audio in VSS sometimes having total different
+		// Meta set from video.So when iframe manifest is parsed, audio Meta shouldnt be cleared.
+		// Trickplay is for short duration , when back to normal rate,it will flush iframe specific Metas 
+		if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
 		{
 			AveDrmManager::UpdateBeforeIndexList(name,(int)type);
 		}
 
-		if (mDrmMetaDataIndexCount > 1)
-		{
-			logprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-		}
-		if (deferDrmVal)
-		{
-			pthread_mutex_lock(&gDrmMutex);
-			if (!gDeferredDrmLicTagUnderProcessing )
-			{
-				const char* delim = strchr(deferDrmVal, CHAR_LF);
-				if (delim)
-				{
-					long time = strtol(deferDrmVal, NULL, 10);
-					logprintf("%s:%d [%s] #EXT-X-X1-LIN-CK:%d #####\n", __FUNCTION__, __LINE__, name, time);
-					if (time != 0 )
-					{
-						if (mDrmMetaDataIndexCount > 1)
-						{
-							if (!firstIndexDone)
-							{
-								logprintf("%s:%d #EXT-X-X1-LIN-CK on first index - not deferring license acquisition\n", __FUNCTION__, __LINE__);
-								gDeferredDrmLicRequestPending = false;
-							}
-							else
-							{
-								logprintf("%s:%d: mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-								DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-								int deferredIdx = AveDrmManager::GetNewMetadataIndex( drmMetadataIdx, mDrmMetaDataIndexCount);
-								if ( deferredIdx != -1)
-								{
-									logprintf("%s:%d: deferredIdx %d\n", __FUNCTION__, __LINE__, deferredIdx);
-									char * sha1Hash = drmMetadataIdx[deferredIdx].sha1Hash;
-									assert(sha1Hash);
-									printf("%s:%d defer acquisition of meta-data with hash - ", __FUNCTION__, __LINE__);
-									AveDrmManager::PrintSha1Hash(sha1Hash);
-									memcpy(gDeferredDrmMetaDataSha1Hash, sha1Hash, DRM_SHA1_HASH_LEN);
-									gDeferredDrmTime = aamp_GetCurrentTimeMS() + GetDeferTimeMs(time);
-									gDeferredDrmLicRequestPending = true;
-								}
-								else
-								{
-									logprintf("%s:%d: GetNewMetadataIndex failed\n", __FUNCTION__, __LINE__);
-								}
-							}
-							gDeferredDrmLicTagUnderProcessing = true;
-						}
-						else
-						{
-							logprintf("%s:%d: ERROR mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-						}
-					}
-					else
-					{
-						logprintf("%s:%d: #EXT-X-X1-LIN-CK invalid time\n", __FUNCTION__, __LINE__);
-					}
-				}
-				else
-				{
-					logprintf("%s:%d: #EXT-X-X1-LIN-CK - parse error\n", __FUNCTION__, __LINE__);
-
-				}
-			}
-			pthread_mutex_unlock(&gDrmMutex);
-		}
 		if(mediaSequence==false)
 		{ // for Sling content
 			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
@@ -2125,20 +2222,29 @@ void TrackState::IndexPlaylist()
 		{
 			aamp->UpdateDuration(totalDuration);
 		}
-		if (gDeferredDrmLicTagUnderProcessing && !deferDrmTagPresent)
-		{
-			logprintf("%s:%d - reset gDeferredDrmLicTagUnderProcessing\n", __FUNCTION__, __LINE__);
-			gDeferredDrmLicTagUnderProcessing = false;
-		}
+
 	}
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-	if ((firstIndexDone && (NULL != mCMSha1Hash)) || mForceProcessDrmMetadata)
+
+	if(mDeferredDrmKeyMaxTime != 0)
 	{
-		ProcessDrmMetadata(false);
-		mForceProcessDrmMetadata = false;
+		// Special stream with Deferred DRM Key Acquisition required
+		ComputeDeferredKeyRequestTime();
 	}
+	// No condition checks for call . All checks n balances inside the module
+	// which is been called.
+	// Store the all the Metadata received from playlist indexing .
+	// IF already stored , AveDrmManager will ignore it
+	// ProcessDrmMetadata -> to be called only from one place , after playlist indexing. Not to call from other places
+	ProcessDrmMetadata();
+	// Initiating key request for Meta present.If already key received ,call will be ignored.
+	InitiateDRMKeyAcquisition();
+	// default MetaIndex is 0 , for single Meta . If Multi Meta is there ,then Hash is the criteria
+	// for selection
+	mDrmMetaDataIndexPosition = 0;
+
 	if (mDrmKeyTagCount > 0)
 	{
 		if (mDrmMetaDataIndexCount > 0)
@@ -2157,7 +2263,7 @@ void TrackState::IndexPlaylist()
 	// DELIA-33434
 	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
 	// SetMetadata is not called across playlist update hence flush is not needed
-	if(mCMSha1Hash)
+	if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
 	{
 		AveDrmManager::FlushAfterIndexList(name,(int)type);
 	}
@@ -2772,9 +2878,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	memset(&mainManifest, 0, sizeof(mainManifest));
 	if (newTune)
 	{
-		pthread_mutex_lock(&gDrmMutex);
 		AveDrmManager::ResetAll();
-		pthread_mutex_unlock(&gDrmMutex);
 	}
 
 	if (aamp->mEnableCache)
@@ -3445,14 +3549,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0\n", __FUNCTION__, __LINE__);
 			}
 		}
-		if (audio->enabled)
-		{
-			audio->ProcessDrmMetadata(true);
-		}
-		if (video->enabled)
-		{
-			video->ProcessDrmMetadata(true);
-		}
 
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
@@ -3546,23 +3642,6 @@ void TrackState::RunFetchLoop()
 			if (!aamp->DownloadsAreEnabled())
 			{
 				break;
-			}
-
-			traceprintf("%s:%d: gDeferredDrmLicTagUnderProcessing %d gDeferredDrmLicRequestPending %d\n", __FUNCTION__, __LINE__, (int)gDeferredDrmLicTagUnderProcessing, (int)gDeferredDrmLicRequestPending);
-			pthread_mutex_lock(&gDrmMutex);
-			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
-			{
-				if(aamp_GetCurrentTimeMS() > gDeferredDrmTime)
-				{
-					StartDeferredDrmLicenseAcquisition();
-				}
-			}
-			pthread_mutex_unlock(&gDrmMutex);
-
-			if (mDrmLicenseRequestPending)
-			{
-				logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
-				ProcessDrmMetadata(false);
 			}
 
 			/*Check for profile change only for video track*/
@@ -3792,20 +3871,22 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
-
-	effectiveUrl[0] = 0,
+	mDeferredDrmKeyMaxTime = 0;
+	effectiveUrl[0] = 0;
 	playlistUrl[0] = 0;
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
 	fragmentURIFromIndex[0] = 0;
 	memset(&startTimeForPlaylistSync, 0, sizeof(struct timeval));
 	fragmentEncrypted = false;
+	mKeyTagChanged = false;
 	memset(&mDrmMetaDataIndex, 0, sizeof(mDrmMetaDataIndex));
 	memset(&mDrmInfo, 0, sizeof(mDrmInfo));
 	mDrmMetaDataIndexPosition = 0;
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
+	pthread_mutex_init(&mTrackDrmMutex, NULL);
 }
 /***************************************************************************
 * @fn ~TrackState
@@ -3828,17 +3909,21 @@ TrackState::~TrackState()
 	if (mCMSha1Hash)
 	{
 		free(mCMSha1Hash);
+		mCMSha1Hash = NULL;
 	}
 	if (mDrmInfo.iv)
 	{
 		free(mDrmInfo.iv);
+		mDrmInfo.iv = NULL;
 	}
 	if (mDrmInfo.uri)
 	{
 		free(mDrmInfo.uri);
+		mDrmInfo.uri = NULL;
 	}
 	pthread_cond_destroy(&mPlaylistIndexed);
 	pthread_mutex_destroy(&mPlaylistMutex);
+	pthread_mutex_destroy(&mTrackDrmMutex);
 }
 /***************************************************************************
 * @fn Stop
@@ -3985,13 +4070,9 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 
 	if (clearChannelData && aamp->GetCurrentDRM() == eDRM_Adobe_Access)
 	{
-		pthread_mutex_lock(&gDrmMutex);
 		AveDrmManager::CancelKeyWaitAll();
 		AveDrmManager::ReleaseAll();
 		AveDrmManager::ResetAll();
-		gDeferredDrmLicRequestPending = false;
-		gDeferredDrmLicTagUnderProcessing = false;
-		pthread_mutex_unlock(&gDrmMutex);
 	}
 
 	aamp->EnableDownloads();
@@ -4117,13 +4198,18 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 {
 		DrmReturn drmReturn = eDRM_ERROR;
 
-		pthread_mutex_lock(&gDrmMutex);
+		pthread_mutex_lock(&mTrackDrmMutex);
 		if (aamp->DownloadsAreEnabled())
 		{
-			bool isVanilaAES = ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount));
-			if (!mDrm || (mCMSha1Hash) || isVanilaAES)
+			// Update the DRM Context , if current active Drm Session is not received (mDrm)
+			// or if Key Tag changed ( either with hash change )
+			// For DAI scenaio-> Clear to Encrypted or Encrypted to Clear can happen.
+			//      For Encr to clear,not to set SetDrmContext
+			//      For Clear to Encr,SetDrmContext is called.If same hash then not SetDecrypto called
+			if (fragmentEncrypted && (!mDrm || mKeyTagChanged))
 			{
-				SetDrmContextUnlocked();
+				SetDrmContext();
+				mKeyTagChanged = false;
 			}
 			if(mDrm)
 			{
@@ -4132,7 +4218,7 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 
 			}
 		}
-		pthread_mutex_unlock(&gDrmMutex);
+		pthread_mutex_unlock(&mTrackDrmMutex);
 
 		if (drmReturn != eDRM_SUCCESS)
 		{
@@ -4140,6 +4226,7 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 		}
 		return drmReturn;
 }
+
 /***************************************************************************
 * @fn GetContext
 * @brief Function to get current StreamAbstractionAAMP instance value 
@@ -4161,72 +4248,6 @@ StreamAbstractionAAMP* TrackState::GetContext()
 MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
 {
 	return trackState[(int)type];
-}
-/***************************************************************************
-* @fn SetDrmContextUnlocked
-* @brief Function to set DRM Context value based on DRM Metadata 
-*		 
-* @return void
-***************************************************************************/
-void TrackState::SetDrmContextUnlocked()
-{
-	bool drmContextUpdated = false;
-	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	DrmMetadata *drmMetadata = NULL;
-	if(mDrmMetaDataIndexCount > 0)
-	{
-		drmMetadata = &drmMetadataIdx[mDrmMetaDataIndexPosition].metaData;
-		assert(drmMetadata->metadataPtr);
-	}
-	traceprintf("TrackState::%s Enter mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__, mCMSha1Hash,
-	        mDrmMetaDataIndexPosition);
-
-	if (drmMetadata)
-	{
-		mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-		if (!mDrm)
-		{
-			logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-			printf("%s:%d [%s] sha1hash - ", __FUNCTION__, __LINE__, name);
-			AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
-			{
-				logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-				StartDeferredDrmLicenseAcquisition();
-				mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-			}
-			if (!mDrm)
-			{
-				if (mDrmLicenseRequestPending)
-				{
-					pthread_mutex_unlock(&gDrmMutex);
-					logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
-					ProcessDrmMetadata(false);
-					pthread_mutex_lock(&gDrmMutex);
-					mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-				}
-			}
-			if (!mDrm)
-			{
-				printf("%s:%d [%s] GetAveDrm failed for sha1hash - ", __FUNCTION__, __LINE__, name);
-				AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-				AveDrmManager::DumpCachedLicenses();
-			}
-		}
-	}
-	else
-	{
-#ifdef AAMP_VANILLA_AES_SUPPORT
-		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
-		mDrm = AesDec::GetInstance();
-#else
-		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
-#endif
-	}
-	if(mDrm)
-	{
-		mDrm->SetDecryptInfo(aamp, &mDrmInfo);
-	}
 }
 /***************************************************************************
 * @fn UpdateDrmCMSha1Hash
@@ -4848,13 +4869,13 @@ void TrackState::CancelDrmOperation(bool clearDRM)
 	//Calling mDrm is required for AES encrypted assets which doesn't have AveDrmManager
 	if (mDrm)
 	{
-		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
+		//To force release mTrackDrmMutex mutex held by drm_Decrypt in case of clearDRM
 		mDrm->CancelKeyWait();
 		if (clearDRM && aamp->GetCurrentDRM() != eDRM_Adobe_Access)
 		{
-			pthread_mutex_lock(&gDrmMutex);
+			pthread_mutex_lock(&mTrackDrmMutex);
 			mDrm->Release();
-			pthread_mutex_unlock(&gDrmMutex);
+			pthread_mutex_unlock(&mTrackDrmMutex);
 		}
 	}
 }
