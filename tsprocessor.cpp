@@ -163,10 +163,7 @@ private:
 	MediaType type;
 	bool trickmode;
 	bool finalized_base_pts;
-#ifdef DEBUG_DEMUX_TRACK
 	int sentESCount;
-	int packetCount;
-#endif
 
 
 	/**
@@ -197,9 +194,14 @@ private:
 			DEBUG_DEMUX("Send : pts %f dts %f\n", pts, dts);
 			DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d\n", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
 			aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
-#ifdef DEBUG_DEMUX_TRACK
-			sentESCount++;
-#endif
+			if (gpGlobalConfig->logging.info)
+			{
+				sentESCount++;
+				if(0 == (sentESCount % 150 ))
+				{
+					logprintf("Demuxer::%s:%d: type %d sent %d packets\n", __FUNCTION__, __LINE__, (int)type, sentESCount);
+				}
+			}
 		}
 		es.len = 0;
 	}
@@ -248,10 +250,7 @@ public:
 		finalized_base_pts = false;
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
-#ifdef DEBUG_DEMUX_TRACK
 		sentESCount = 0;
-		packetCount = 0;
-#endif
 		pes_state = PES_STATE_WAITING_FOR_HEADER;
 		DEBUG_DEMUX("init : position %f, duration %f resetBasePTS %d\n", position, duration, resetBasePTS);
 	}
@@ -267,10 +266,8 @@ public:
 			INFO("demux : sending remaining bytes. es.len %d\n", (int)es.len);
 			send();
 		}
+		AAMPLOG_INFO("Demuxer::%s:%d: count %d in duration %f\n", __FUNCTION__, __LINE__, sentESCount, duration);
 		reset();
-#ifdef DEBUG_DEMUX_TRACK
-		INFO("Sent Segment. ES count %d in duration %f packetCount %d\n", sentESCount, duration, packetCount);
-#endif
 	}
 
 
@@ -283,6 +280,7 @@ public:
 		aamp_Free(&pes_header.ptr);
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
+		sentESCount = 0;
 	}
 
 
@@ -321,9 +319,6 @@ public:
 	{
 		int adaptation_fieldlen = 0;
 		basePtsUpdated = false;
-#ifdef DEBUG_DEMUX_TRACK
-		packetCount++;
-#endif
 		if (CONTAINS_PAYLOAD(packetStart))
 		{
 			if (ADAPTATION_FIELD_PRESENT(packetStart))
