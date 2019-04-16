@@ -1046,6 +1046,28 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 #endif
 				if ((pMediaStreamContext->fragmentDescriptor.Time > pMediaStreamContext->lastSegmentTime) || (0 == pMediaStreamContext->lastSegmentTime))
 				{
+					if(mIsFogTSB && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
+					{
+						long long bitrate = 0;
+						std::map<string,string> rawAttributes =  timeline->GetRawAttributes();
+						if(rawAttributes.find("b") == rawAttributes.end())
+						{
+							bitrate = pMediaStreamContext->fragmentDescriptor.Bandwidth;
+						}
+						else
+						{
+							string bitrateStr = rawAttributes["b"];
+							bitrate = stoll(bitrateStr);
+						}
+						if(pMediaStreamContext->fragmentDescriptor.Bandwidth != bitrate || pMediaStreamContext->profileChanged)
+						{
+							pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
+							pMediaStreamContext->profileChanged = true;
+							mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bitrate];
+							FetchAndInjectInitialization();
+							return false; //Since we need to check WaitForFreeFragmentCache
+						}
+					}
 #ifdef DEBUG_TIMELINE
 					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) \n",__FUNCTION__, __LINE__,
 					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
