@@ -2475,11 +2475,11 @@ public:
 	double GetFirstPTS();
 
 	/**
-	 *   @brief  Check if asset is vod/ivod/cdvr.
+	 *   @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
 	 *
-	 *   @return true if asset is either vod/ivod/cdvr
+	 *   @return True if the content is either vod/ivod/cdvr/ip-dvr/eas
 	 */
-	bool IsVodOrCdvrAsset();
+	bool IsLiveAdjustRequired();
 
 	/**
 	 *   @brief  Generate media metadata event based on args passed.
