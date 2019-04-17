@@ -557,9 +557,7 @@ unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int 
 		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, key_id, key_id_size);
 		if(gpGlobalConfig->logging.trace)
 		{
-			for (int i = 0; i < key_id_size; ++i)
-				logprintf("%2x",key_id[i]);
-			logprintf("\n\n");
+			DumpBlob(key_id, key_id_size);
 		}
 
 	}else{
@@ -944,8 +942,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 #ifdef LOG_TRACE
 		logprintf("\n\n%s:%d Licence challenge = \n\n", __FUNCTION__, __LINE__);
 		unsigned char * data = licenceChallenge->getData();
-		for (int i = 0; i < licenceChallenge->getDataLength(); ++i)
-			cout << data[i];
+		DumpBlob( data, licenceChallenge->getDataLength() );
 		cout << endl;
 #endif
 
@@ -992,10 +989,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 #ifdef LOG_TRACE
 			logprintf("\n\n%s:%d ContentMetaData = \n\n", __FUNCTION__, __LINE__);
-			for (int i = 0; i < contentMetaDataLen; ++i)
-			{
-				cout << (char)contentMetaData[i];
-			}
+			DumpBlob( contentMetaData, contentMetaDataLen );
 			cout<<endl;
 #endif
 			GrowableBuffer comChallenge = {0,0,0};
@@ -1034,8 +1028,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 #ifdef LOG_TRACE
 			cout << systemId << endl << "Inside Session manager; printing Challenge : ";
-			for (int i = 0; i < comChallenge.len; ++i)
-				cout <<(char) comChallenge.ptr[i];
+			DumpBlob( (const unsigned char *)comChallenge.ptr, comChallenge.len );
 			cout << endl;
 #endif
 			licenceChallenge = new DrmData(reinterpret_cast<unsigned char*>(comChallenge.ptr),comChallenge.len);
@@ -1180,8 +1173,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 #ifdef LOG_TRACE
 				cout << "Printing key data  from server \n";
 				unsigned char * data1 = key->getData();
-				for (int i = 0; i < key->getDataLength(); ++i)
-					cout << data1[i];
+				DumpBlob( data1, key->getDataLength() );
 				cout << endl;
 #endif
 			}

@@ -463,3 +463,49 @@ void logprintf(const char *format, ...)
 #endif
 }
 
+/**
+ * @brief Compactly log blobs of binary data
+ *
+ * @param[in] ptr to the buffer
+ * @param[in] size_t    length of buffer
+ *
+ * @return void
+ */
+void DumpBlob(const unsigned char *ptr, size_t len)
+{
+#define FIT_CHARS 32
+	char buf[FIT_CHARS + 2]; // pad for newline and end-of-string
+	char *dst = buf;
+	const unsigned char *fin = ptr+len;
+	int fit = FIT_CHARS;
+	char str_hex[]="0123456789abcdef";
+	while (ptr < fin)
+	{
+		char c = *ptr++;
+		if (c >= ' ' && c < 128)
+		{
+			*dst++ = c;
+			fit--;
+		}
+		else
+		{
+			*dst++ = '[';
+			*dst++ = str_hex[c >> 4];
+			*dst++ = str_hex[c &0xf ];
+			*dst++ = ']';
+			fit -= 4;
+		}
+		if (fit < 4 || ptr==fin )
+		{
+			*dst++ = '\n';
+			*dst++ = 0x00;
+			printf(">>>\t%s", buf);
+			dst = buf;
+			fit = FIT_CHARS;
+		}
+	}
+}
+/**
+ * @}
+ */
+
