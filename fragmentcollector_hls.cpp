@@ -3211,7 +3211,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
-		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && (this->playlistType == ePLAYLISTTYPE_UNDEFINED) && !(aamp->IsLiveAdjustRequired());
+		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && (this->playlistType == ePLAYLISTTYPE_UNDEFINED) && aamp->IsLiveAdjustRequired();
 		if ((eTUNETYPE_SEEKTOLIVE == tuneType) && aamp->IsLive())
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d eTUNETYPE_SEEKTOLIVE, reset playTarget and enable liveAdjust\n",__FUNCTION__,__LINE__);
