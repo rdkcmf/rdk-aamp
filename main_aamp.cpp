@@ -1455,6 +1455,21 @@ struct CurlCallbackContext
 };
 
 /**
+ * @struct CurlProgressCbContext
+ * @brief context during curl progress callbacks
+ */
+struct CurlProgressCbContext
+{
+	PrivateInstanceAAMP *aamp;
+	long long downloadStartTime;
+	long long downloadUpdatedTime;
+	long startTimeout;
+	long stallTimeout;
+	double downloadSize;
+	CurlAbortReason abortReason;
+};
+
+/**
  * @}
  */
 
@@ -1605,14 +1620,53 @@ static int progress_callback(
 	double ulnow // uploaded bytes so far
 	)
 {
-	PrivateInstanceAAMP *context = (PrivateInstanceAAMP *)clientp;
+	CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
 	int rc = 0;
-	pthread_mutex_lock(&context->mLock);
-	if (!context->mDownloadsEnabled)
+	context->aamp->SyncBegin();
+	if (!context->aamp->mDownloadsEnabled)
 	{
 		rc = -1; // CURLE_ABORTED_BY_CALLBACK
 	}
-	pthread_mutex_unlock(&context->mLock);
+	context->aamp->SyncEnd();
+	if( rc==0 )
+	{ // only proceed if not an aborted download
+		if (dlnow > 0 && context->stallTimeout > 0)
+		{
+			if (context->downloadSize == -1)
+			{ // first byte(s) downloaded
+				context->downloadSize = dlnow;
+				context->downloadUpdatedTime = NOW_STEADY_TS_MS;
+			}
+			else
+			{
+				if (dlnow == context->downloadSize)
+				{ // no change in downloaded bytes - check time since last update to infer stall
+					double timeElapsedSinceLastUpdate = (NOW_STEADY_TS_MS - context->downloadUpdatedTime) / 1000.0; //in secs
+					if (timeElapsedSinceLastUpdate >= context->stallTimeout)
+					{ // no change for at least <stallTimeout> seconds - consider download stalled and abort
+						logprintf("Abort download as mid-download stall detected for %.2f seconds, download size:%.2f bytes\n", timeElapsedSinceLastUpdate, dlnow);
+						context->abortReason = eCURL_ABORT_REASON_STALL_TIMEDOUT;
+						rc = -1;
+					}
+				}
+				else
+				{ // received additional bytes - update state to track new size/time
+					context->downloadSize = dlnow;
+					context->downloadUpdatedTime = NOW_STEADY_TS_MS;
+				}
+			}
+		}
+		else if (dlnow == 0 && context->startTimeout > 0)
+		{ // check to handle scenario where <startTimeout> seconds delay occurs without any bytes having been downloaded (stall at start)
+			double timeElapsedInSec = (NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs
+			if (timeElapsedInSec >= context->startTimeout)
+			{
+				logprintf("Abort download as no data received for %.2f seconds\n", timeElapsedInSec);
+				context->abortReason = eCURL_ABORT_REASON_START_TIMEDOUT;
+				rc = -1;
+			}
+		}
+	}
 	return rc;
 }
 
@@ -1689,7 +1743,6 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			}
 			curl_easy_setopt(curl[i], CURLOPT_NOSIGNAL, 1L);
 			//curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback); // unused
-			curl_easy_setopt(curl[i], CURLOPT_PROGRESSDATA, this);
 			curl_easy_setopt(curl[i], CURLOPT_PROGRESSFUNCTION, progress_callback);
 			curl_easy_setopt(curl[i], CURLOPT_HEADERFUNCTION, header_callback);
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
@@ -1702,8 +1755,6 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
-			curl_easy_setopt(curl[i], CURLOPT_LOW_SPEED_LIMIT, gpGlobalConfig->curlLowSpeedLimit);
-			curl_easy_setopt(curl[i], CURLOPT_LOW_SPEED_TIME, gpGlobalConfig->curlLowSpeedTime);
 			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
 			{
 				const char *proxy = NULL;
@@ -2011,7 +2062,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	if (mDownloadsEnabled)
 	{
 		long long downloadTimeMS = 0;
-		bool isCurlLowSpeedTimedout = false;
+		bool isDownloadStalled = false;
 		pthread_mutex_unlock(&mLock);
 		AAMPLOG_INFO("aamp url: %s\n", remoteUrl);
 
@@ -2025,6 +2076,11 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+
+			CurlProgressCbContext progressCtx;
+			progressCtx.aamp = this;
+			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
+			progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
 
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
@@ -2087,13 +2143,18 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 			while(downloadAttempt < 2)
 			{
+				progressCtx.downloadStartTime = NOW_STEADY_TS_MS;
+				progressCtx.downloadUpdatedTime = -1;
+				progressCtx.downloadSize = -1;
+				progressCtx.abortReason = eCURL_ABORT_REASON_NONE;
+				curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progressCtx);
 				if(buffer->ptr != NULL)
 				{
 					traceprintf("%s:%d reset length. buffer %p avail %d\n", __FUNCTION__, __LINE__, buffer, (int)buffer->avail);
 					buffer->len = 0;
 				}
 
-				isCurlLowSpeedTimedout = false;
+				isDownloadStalled = false;
 
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
@@ -2147,11 +2208,14 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 				else
 				{
-					long curlDownloadTimeout = modifyDownloadTimeout ? CURL_MANIFEST_DL_TIMEOUT : gpGlobalConfig->fragmentDLTimeout;
+					long curlDownloadTimeout = (modifyDownloadTimeout == true) ? CURL_MANIFEST_DL_TIMEOUT : gpGlobalConfig->fragmentDLTimeout;
 					//use a delta of 100ms for edge cases
-					isCurlLowSpeedTimedout = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE) &&
-													(buffer->len >= 0) &&
-													(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
+					//abortReason for progress_callback exit scenarios
+					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
+									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
+									(buffer->len >= 0) &&
+									(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
+
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
 					if (AAMP_IS_LOG_WORTHY_ERROR(res))
 					{
@@ -2159,9 +2223,9 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isCurlLowSpeedTimedout) && downloadAttempt < 2)
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < 2)
 					{
-						logprintf("Download failed due to curl timeout or isCurlLowSpeedTimedout:%d. Retrying!\n", isCurlLowSpeedTimedout);
+						logprintf("Download failed due to curl timeout or isDownloadStalled:%d. Retrying!\n", isDownloadStalled);
 						loopAgain = true;
 					}
 					/*
@@ -2171,10 +2235,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					*curl errors are below 100 and http error starts from 100
 					*/
 					http_code = res;
-					//Avoid low speed timeout scenarios from affecting ABR and rampdown
-					if (isCurlLowSpeedTimedout)
+					//Avoid download stall scenarios from affecting ABR and rampdown
+					if (isDownloadStalled)
 					{
-						AAMPLOG_INFO("Curl download timedout due to low speed - curl result:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, downloadTimeMS, curlDownloadTimeout * 1000);
+						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, progressCtx.abortReason, downloadTimeMS, curlDownloadTimeout * 1000);
 						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
 						http_code = CURLE_PARTIAL_FILE;
 					}
@@ -2225,7 +2289,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		{
 			if (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)
 			{
-				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%lld and isCurlLowSpeedTimedout:%d\n", buffer->len, downloadTimeMS, isCurlLowSpeedTimedout);
+				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%lld and isDownloadStalled:%d\n", buffer->len, downloadTimeMS, isDownloadStalled);
 			}
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE))
@@ -3092,15 +3156,15 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("mpd-harvest-limit", gpGlobalConfig->mpdHarvestLimit, 0);
 			logprintf("aamp mpd-harvest-limit: %d\n", gpGlobalConfig->mpdHarvestLimit);
 		}
-		else if (sscanf(cfg, "curl-low-speed-limit=%ld", &gpGlobalConfig->curlLowSpeedLimit) == 1)
+		else if (sscanf(cfg, "curl-stall-timeout=%ld", &gpGlobalConfig->curlStallTimeout) == 1)
 		{
-			VALIDATE_LONG("curl-low-speed-limit", gpGlobalConfig->curlLowSpeedLimit, DEFAULT_CURL_LOW_SPEED_LIMIT);
-			logprintf("aamp curl-low-speed-limit: %ld\n", gpGlobalConfig->curlLowSpeedLimit);
+			//Not calling VALIDATE_LONG since zero is supported
+			logprintf("aamp curl-stall-timeout: %ld\n", gpGlobalConfig->curlStallTimeout);
 		}
-		else if (sscanf(cfg, "curl-low-speed-time=%ld", &gpGlobalConfig->curlLowSpeedTime) == 1)
+		else if (sscanf(cfg, "curl-download-start-timeout=%ld", &gpGlobalConfig->curlDownloadStartTimeout) == 1)
 		{
-			VALIDATE_LONG("curl-low-speed-time", gpGlobalConfig->curlLowSpeedTime, DEFAULT_CURL_LOW_SPEED_TIME);
-			logprintf("aamp curl-low-speed-time: %ld\n", gpGlobalConfig->curlLowSpeedTime);
+			//Not calling VALIDATE_LONG since zero is supported
+			logprintf("aamp curl-download-start-timeout: %ld\n", gpGlobalConfig->curlDownloadStartTimeout);
 		}
 		else if (sscanf(cfg, "wait-time-before-retry-http-5xx-ms=%d", &gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
 		{
