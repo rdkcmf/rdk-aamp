@@ -1208,7 +1208,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
 						((pMediaStreamContext->lastSegmentTime - pMediaStreamContext->fragmentDescriptor.Time) > TIMELINE_START_RESET_DIFF))
 				{
-					if(!mIsLive || aamp->IsVodOrCdvrAsset())
+					if(!mIsLive || aamp->IsLiveAdjustRequired())
 					{
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time - 1;
 						return false;
@@ -2630,7 +2630,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		if (mIsLive)
 		{
 			double duration = (double) durationMs / 1000;
-			bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && !(aamp->IsVodOrCdvrAsset());
+			bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && !(aamp->IsLiveAdjustRequired());
 			if (eTUNETYPE_SEEKTOLIVE == tuneType)
 			{
 				logprintf("PrivateStreamAbstractionMPD::%s:%d eTUNETYPE_SEEKTOLIVE\n", __FUNCTION__, __LINE__);
@@ -2655,7 +2655,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if (liveAdjust)
 			{
 				mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
-				if(!aamp->IsVodOrCdvrAsset())
+				if(!aamp->IsLiveAdjustRequired())
 				{
 					duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
 					if(mCurrentPeriodIdx > 0)
@@ -4031,7 +4031,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
-	if (mIsLive && !aamp->IsVodOrCdvrAsset() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+	if (mIsLive && !aamp->IsLiveAdjustRequired() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 	{
 		UpdateCullingState();
 	}
