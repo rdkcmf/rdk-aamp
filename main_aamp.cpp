@@ -3692,20 +3692,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
-	
+
 	SetContentType(mainManifestUrl, contentType);
-	if(IsLiveAdjustRequired())
+	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
-		// DELIA-30843/DELIA-31379 . for CDVR/IVod , offset is set to higher value 	
-		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec 
+		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
+		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec
 		if(!mNewLiveOffsetflag)
 		{
 			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
 		}
-	}	
+	}
 	else
 	{
-		// will be used only for live 
+		// will be used only for live
 		if(!mNewLiveOffsetflag)
 		{
 			mLiveOffset	=	gpGlobalConfig->liveOffset;
@@ -6249,11 +6249,11 @@ double PrivateInstanceAAMP::GetFirstPTS()
 /**
  *   @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
  *
- *   @return True if the content is either vod/ivod/cdvr/ip-dvr/eas
+ *   @return False if the content is either vod/ivod/cdvr/ip-dvr/eas
  */
 bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 {
-	bool retValue = false;
+	bool retValue;
 
 	switch (mContentType)
 	{
@@ -6262,10 +6262,12 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 		case ContentType_CDVR:
 		case ContentType_IPDVR:
 		case ContentType_EAS:
-		{
+			retValue = false;
+			break;
+
+		default:
 			retValue = true;
 			break;
-		}
 	}
 
 	return retValue;
