@@ -115,6 +115,7 @@ typedef enum
 	AAMP_TUNE_FAILED_TO_GET_KEYID,          /**< Failed to parse key id from init data*/
 	AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN,   /**< Failed to get session token from AuthService*/
 	AAMP_TUNE_CORRUPT_DRM_DATA,             /**< DRM failure due to corrupt drm data, self heal might clear further errors*/
+	AAMP_TUNE_CORRUPT_DRM_METADATA,         /**< DRM failure due to corrupt drm metadata in the stream*/
 	AAMP_TUNE_DRM_DECRYPT_FAILED,           /**< DRM Decryption Failed for Fragments */
 	AAMP_TUNE_GST_PIPELINE_ERROR,           /**< Playback failure due to error from GStreamer pipeline or associated plugins */
 	AAMP_TUNE_PLAYBACK_STALLED,             /**< Playback was stalled due to valid fragments not available in playlist */
