@@ -1113,6 +1113,15 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-ADVERTISING"))
 				{ // placeholder for advertising zone for linear (soon to be deprecated)
 				}
+				else if (startswith(&ptr, "-X-SOURCE-STREAM"))
+				{ // placeholder for vss source stream id
+				}
+				else if (startswith(&ptr, "-X-X1-LIN-CK"))
+				{ // placeholder for deferred drm information
+				}
+				else if (startswith(&ptr, "-X-SCTE35"))
+				{ // placeholder for DAI tag processing
+				}
 				else 
 				{
 					std::string unknowTag= ptr;
@@ -4289,7 +4298,7 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			drmDataChanged = true;
 			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		}
-		else
+		else if (!mIndexingInProgress)
 		{
 			AAMPLOG_INFO("%s:%d Same DRM Metadata\n", __FUNCTION__, __LINE__);
 		}
@@ -4319,7 +4328,10 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			{
 				if (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
 				{
-					AAMPLOG_INFO("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
+					if (!mIndexingInProgress)
+					{
+						AAMPLOG_INFO("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
+					}
 					mDrmMetaDataIndexPosition = i;
 					break;
 				}
