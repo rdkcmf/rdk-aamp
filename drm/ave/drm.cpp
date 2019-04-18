@@ -217,7 +217,15 @@ public:
 			drmerrordata->isRetryEnabled = false;
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Device not provisioned majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 			break;
-
+		case 3314:
+			//BCOM-3444
+			// Error 3314->Multiple times same Metadata is set to AVE-DRM session or a bad Metadata for a stream set 
+			// No need to retune same bad channel or set same meta again. Exit the playback by sending error 
+			// Let XRE decide to retune or move to previous good channel
+			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_METADATA;
+			drmerrordata->isRetryEnabled = false;
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Metadata error majorError = %d, minorError = %d",(int)majorError, (int)minorError);
+			break;
 		default:
 			break;
 		}
