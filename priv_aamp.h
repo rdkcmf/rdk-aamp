@@ -1181,7 +1181,7 @@ public:
 	void ProfileError(ProfilerBucketType type, int result = -1)
 	{
 		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete)
+		if (!bucket->complete && !(0==bucket->tStart))
 		{
 			bucket->errorCount++;
 			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
@@ -1203,7 +1203,7 @@ public:
 	void ProfileEnd( ProfilerBucketType type )
 	{
 		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete)
+		if (!bucket->complete && !(0==bucket->tStart))
 		{
 			bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
 			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
