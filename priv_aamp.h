@@ -70,8 +70,8 @@
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
 #define EAS_CURL_CONNECTTIMEOUT 2L      /**< Curl timeout for EAS connection */
-#define DEFAULT_CURL_LOW_SPEED_LIMIT 1L /**< Curl low speed limit for downloads */
-#define DEFAULT_CURL_LOW_SPEED_TIME 1L  /**< Curl low spped time for downloads */
+#define DEFAULT_CURL_DWLD_STALL_TIMEOUT 3L   /**< Curl download stall detection timeout*/
+#define DEFAULT_CURL_DWLD_START_TIMEOUT 3L   /**< Timeout for curl download to start */
 #define DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS (6*1000)   /**< Interval between playlist refreshes */
 #define TRICKPLAY_NETWORK_PLAYBACK_FPS 4            /**< Frames rate for trickplay from CDN server */
 #define TRICKPLAY_TSB_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
@@ -203,6 +203,17 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
 	eHTTPHEADERTYPE_BITRATE,    /**< Bitrate info from fog */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
+};
+
+
+/**
+ * @brief Http Header Type
+ */
+enum CurlAbortReason
+{
+	eCURL_ABORT_REASON_NONE = 0,
+	eCURL_ABORT_REASON_STALL_TIMEDOUT,
+	eCURL_ABORT_REASON_START_TIMEDOUT
 };
 
 /*================================== AAMP Log Manager =========================================*/
@@ -522,8 +533,8 @@ public:
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	int mpdHarvestLimit;                     /**< How many static mpds to be saved to box, 0 means none*/
-	long curlLowSpeedLimit;                 /**< Value to be used for CURLOPT_LOW_SPEED_LIMIT in bytes/sec*/
-	long curlLowSpeedTime;                  /**< Value to be used for CURLOPT_LOW_SPEED_TIME in seconds*/
+	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
+	long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 public:
@@ -555,7 +566,7 @@ public:
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
-		curlLowSpeedLimit(DEFAULT_CURL_LOW_SPEED_LIMIT), curlLowSpeedTime(DEFAULT_CURL_LOW_SPEED_TIME),
+		curlStallTimeout(DEFAULT_CURL_DWLD_STALL_TIMEOUT), curlDownloadStartTimeout(DEFAULT_CURL_DWLD_START_TIMEOUT),
 		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
