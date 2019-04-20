@@ -2247,6 +2247,7 @@ void TrackState::IndexPlaylist()
 	// Store the all the Metadata received from playlist indexing .
 	// IF already stored , AveDrmManager will ignore it
 	// ProcessDrmMetadata -> to be called only from one place , after playlist indexing. Not to call from other places
+	aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	ProcessDrmMetadata();
 	// Initiating key request for Meta present.If already key received ,call will be ignored.
 	InitiateDRMKeyAcquisition();
