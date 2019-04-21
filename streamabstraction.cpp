@@ -417,6 +417,15 @@ bool MediaTrack::InjectFragment()
 		if (cachedFragment->fragment.ptr)
 		{
 			StreamAbstractionAAMP*  context = GetContext();
+#ifdef AAMP_DEBUG_INJECT
+			if ((1 << type) & AAMP_DEBUG_INJECT)
+			{
+				if (cachedFragment->discontinuity)
+				{
+					logprintf("%s:%d [%s] Discontinuity present. uri %s\n", __FUNCTION__, __LINE__, name, cachedFragment->uri);
+				}
+			}
+#endif
 			if ((cachedFragment->discontinuity || ptsError) &&  (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
 				logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
@@ -438,6 +447,10 @@ bool MediaTrack::InjectFragment()
 				{
 					logprintf("%s:%d - continuing injection\n", __FUNCTION__, __LINE__);
 				}
+			}
+			else if (cachedFragment->discontinuity)
+			{
+				SignalTrickModeDiscontinuity();
 			}
 			if (!stopInjection)
 			{

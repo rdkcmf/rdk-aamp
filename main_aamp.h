@@ -673,6 +673,14 @@ public:
 	 *   @return void
 	 */
 	virtual void ClearProtectionEvent() {};
+
+
+	/**
+	 *   @brief Signal discontinuity on trickmode if restamping is done by stream sink.
+	 *
+	 *   @return void
+	 */
+	virtual void SignalTrickModeDiscontinuity() {};
 };
 /**
  * @}
