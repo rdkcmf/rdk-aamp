@@ -1752,7 +1752,7 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
-			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, "AAMP/2.0.0");
+			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
@@ -2797,7 +2797,7 @@ static void ProcessConfigEntry(char *cfg)
 
 		double seconds = 0;
 		int value;
-		char strValue[1024];
+        	char * tempUserAgent =NULL;
 		if (sscanf(cfg, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
 		{
 			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
@@ -3171,6 +3171,24 @@ static void ProcessConfigEntry(char *cfg)
 		{
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
 			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d\n", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
+		}
+		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tempUserAgent))
+		{
+			if(tempUserAgent)
+			{
+				if(strlen(tempUserAgent) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
+				{
+					logprintf("user-agent=%s\n", tempUserAgent);
+					gpGlobalConfig->aamp_SetBaseUserAgentString(tempUserAgent);
+				}
+				else
+				{
+					logprintf("user-agent len is more than %d , Hence Ignoring \n", AAMP_USER_AGENT_MAX_CONFIG_LEN);
+				}
+ 
+				free(tempUserAgent);
+				tempUserAgent = NULL;
+			}
 		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{

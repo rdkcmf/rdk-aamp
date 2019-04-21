@@ -110,6 +110,10 @@
 
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
+#define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
+#define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
+#define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -537,6 +541,7 @@ public:
 	long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
+	char *pUserAgentString;			/**< Curl user-agent string */
 public:
 
 	/**
@@ -576,6 +581,8 @@ public:
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		isUsingLocalConfigForPreferredDRM = false;
+		pUserAgentString = NULL;
+		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 	}
 
 	/**
@@ -613,6 +620,22 @@ public:
 	bool aamp_GetCCStatus(void)
 	{
 		return bEnableCC;
+	}
+
+	/**
+	@brief Sets user agent string
+	*
+	* @return none
+	*/
+	void aamp_SetBaseUserAgentString(const char * newUserAgent)
+	{
+		int iLen = strlen(newUserAgent) + strlen(AAMP_USERAGENT_SUFFIX) + 2;
+		if(pUserAgentString)
+		{
+			free(pUserAgentString);
+		}
+		pUserAgentString =(char*) malloc(iLen);
+		sprintf(pUserAgentString, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);
 	}
 
 	/**
