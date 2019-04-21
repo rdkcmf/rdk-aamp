@@ -102,6 +102,10 @@
 
 #define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
 
+#define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
+#define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
+#define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -493,6 +497,7 @@ public:
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	bool enablePROutputProtection;          /**< Playready output protection config */
+	char *pUserAgentString;			/**< Curl user-agent string */
 public:
 
 	/**
@@ -529,6 +534,8 @@ public:
                 // onStreamPlaying is sent optimistically in advance
 		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
+		pUserAgentString = NULL;
+		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 	}
 
 	/**
@@ -565,6 +572,22 @@ public:
 	bool aamp_GetCCStatus(void)
 	{
 		return bEnableCC;
+	}
+
+	/**
+	@brief Sets user agent string
+	*
+	* @return none
+	*/
+	void aamp_SetBaseUserAgentString(const char * newUserAgent)
+	{
+		int iLen = strlen(newUserAgent) + strlen(AAMP_USERAGENT_SUFFIX) + 2;
+		if(pUserAgentString)
+		{
+			free(pUserAgentString);
+		}
+		pUserAgentString =(char*) malloc(iLen);
+		sprintf(pUserAgentString, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);
 	}
 
 	/**
