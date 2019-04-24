@@ -64,6 +64,8 @@ enum ConfigParamType
 	ePARAM_LIVEOFFSET,
 	ePARAM_NETWORKPROXY,
 	ePARAM_LICENSEREQPROXY,
+	ePARAM_DOWNLOADSTALLTIMEOUT,
+	ePARAM_DOWNLOADSTARTTIMEOUT,
 	ePARAM_MAX_COUNT
 };
 
@@ -97,6 +99,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_LIVEOFFSET, "liveOffset" },
 	{ ePARAM_NETWORKPROXY, "networkProxy" },
 	{ ePARAM_LICENSEREQPROXY, "licenseProxy" },
+	{ ePARAM_DOWNLOADSTALLTIMEOUT, "downloadStallTimeout" },
+	{ ePARAM_DOWNLOADSTARTTIMEOUT, "downloadStartTimeout" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -383,6 +387,8 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_MAXBITRATE:
 			case ePARAM_TSBLENGTH:
 			case ePARAM_LIVEOFFSET:
+			case ePARAM_DOWNLOADSTALLTIMEOUT:
+			case ePARAM_DOWNLOADSTARTTIMEOUT:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -434,6 +440,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_LICENSEREQPROXY:
 					privObj->_aamp->SetLicenseReqProxy(valueAsString);
 					delete[] valueAsString;
+					break;
+				case ePARAM_DOWNLOADSTALLTIMEOUT:
+					privObj->_aamp->SetDownloadStallTimeout((long) valueAsNumber);
+					break;
+				case ePARAM_DOWNLOADSTARTTIMEOUT:
+					privObj->_aamp->SetDownloadStartTimeout((long) valueAsNumber);
 					break;
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
