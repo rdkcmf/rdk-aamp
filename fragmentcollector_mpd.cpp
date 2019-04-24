@@ -2147,7 +2147,6 @@ void *CreateDRMSession(void *arg)
 	return NULL;
 }
 
-
 /**
  * @brief Process content protection of adaptation
  *
@@ -2179,12 +2178,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			if(gpGlobalConfig->logging.trace)
 			{
 				logprintf("content metadata from manifest; length %d\n", dataLength);
-				for (int j = 0; j < dataLength; j++)
-				{
-					logprintf("0x%02x ", data[j]);
-					if ((j+1)%8==0) logprintf("\n");
-				}
-				logprintf("\n");
+				DumpBlob( data, dataLength );
 			}
 			if(dataLength != 0)
 			{
@@ -2193,12 +2187,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				if(gpGlobalConfig->logging.trace)
 				{
 					logprintf("content metadata from PSSH; length %d\n", contentMetadataLen);
-					for (int j = 0; j < contentMetadataLen; j++)
-					{
-						logprintf("0x%02x ", contentMetadata[j]);
-						if ((j+1)%8==0) logprintf("\n");
-					}
-					logprintf("\n");
+					DumpBlob( contentMetadata, contentMetadataLen );
 				}
 			}
 			if(data) free(data);

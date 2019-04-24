@@ -457,6 +457,16 @@ private:
  */
 extern void logprintf(const char *format, ...);
 
+/**
+ * @brief Compactly log blobs of binary data
+ *
+ * @param[in] ptr to the buffer
+ * @param[in] size_t  length of buffer
+ *
+ * @return void
+ */
+void DumpBlob(const unsigned char *ptr, size_t len);
+
 /*!================================== AAMP Log Manager =========================================*/
 
 /**
