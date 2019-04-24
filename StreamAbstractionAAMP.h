@@ -259,9 +259,6 @@ protected:
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 
-
-	static int GetDeferTimeMs(long maxTimeSeconds);
-
 private:
 	static const char* GetBufferHealthStatusString(BufferHealthStatus status);
 
@@ -584,7 +581,6 @@ public:
 	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
 	bool mNetworkDownDetected;              /**< Network down status indicator */
 	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
-	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
 
 
 	/**

@@ -35,7 +35,6 @@
 #ifndef FRAGMENTCOLLECTOR_HLS_H
 #define FRAGMENTCOLLECTOR_HLS_H
 
-#include <memory>
 #include "StreamAbstractionAAMP.h"
 #include "tsprocessor.h"
 #include "drm.h"
@@ -50,9 +49,12 @@
 #define CHAR_LF 0x0a // '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
+#define DRM_DECRYPT_RETRY_COUNT 2
+#define DRM_DECRYPT_RETRY_TIMEOUT 5000
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
 #define AAMP_AUDIO_FORMAT_MAP_LEN 7
 #define AAMP_VIDEO_FORMAT_MAP_LEN 3
@@ -124,7 +126,7 @@ public:
 	/// Start Fragment downloader and Injector thread  
 	void Start();
 	/// Reset and Stop Collector and Injector thread 
-	void Stop(bool clearChannelData);
+	void Stop();
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
@@ -140,13 +142,9 @@ public:
 	/// Function to set the DRM Metadata into Adobe DRM Layer 
 	void SetDrmContextUnlocked();
 	/// Function to decrypt the fragment data 
-	DrmReturn DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
+	bool DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
 	/// Function to fetch the Playlist file
 	void FetchPlaylist();
-	/// Process Drm Metadata after indexing
-	void ProcessDrmMetadata(bool acquireCurrentLicenseOnly);
-	/// Start deferred DRM license acquisition
-	void StartDeferredDrmLicenseAcquisition();
 	/**
 	 * @brief Get period information of next fragment
 	 *
@@ -222,26 +220,20 @@ public:
 	bool discontinuity; /**< Set when discontinuity is found in track*/
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
 	bool fragmentEncrypted; /**< In DAI, ad fragments can be clear. Set if current fragment is encrypted*/
-	struct DrmInfo mDrmInfo;	/**< Structure variable to hold Drm Information */
-	char* mCMSha1Hash;	/**< variable to store ShaID*/
+	struct DrmInfo mDrmInfo;	/**< Struture variable to hold Drm Information */
+	unsigned char* mCMSha1Hash;	/**< variable to store ShaID*/
 	long long mDrmTimeStamp;	/**< variable to store Drm Time Stamp */
 	int mDrmMetaDataIndexPosition;	/**< Variable to store Drm Meta data Index position*/
 	GrowableBuffer mDrmMetaDataIndex;  /**< DrmMetadata records for associated playlist */
 	int mDrmMetaDataIndexCount; /**< number of DrmMetadata records in currently indexed playlist */
-	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
-	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
 	pthread_t fragmentCollectorThreadID;	/**< Thread Id for Fragment  collector Thread */
 	bool fragmentCollectorThreadStarted;	/**< Flag indicating if fragment collector thread started or not*/
 	int manifestDLFailCount;				/**< Manifest Download fail count for retry*/
 	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
-	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
-	std::shared_ptr<HlsDrmBase> mDrm;       /**< DRM decrypt context*/
-	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
 	bool mInjectInitFragment;               /**< Indicates if init fragment injection is required*/
 	const char* mInitFragmentInfo;          /**< Holds init fragment Information index*/
-	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
 };
 
 class StreamAbstractionAAMP_HLS;

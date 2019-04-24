@@ -58,20 +58,25 @@
 #define CHAR_LF 0x0a // '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
+#define DRM_DECRYPT_RETRY_COUNT 2
+#define DRM_DECRYPT_RETRY_TIMEOUT 5000
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 #define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
-pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
-static unsigned char gDeferredDrmMetaDataSha1Hash[DRM_SHA1_HASH_LEN]; /**Sha1 hash of meta-data for deferred DRM license acquisition*/
-static long long gDeferredDrmTime = 0;                     /**< Time at which deferred DRM license to be requested*/
-static bool gDeferredDrmLicRequestPending = false;         /**< Indicates if deferred DRM request is pending*/
-static bool gDeferredDrmLicTagUnderProcessing = false;     /**< Indicates if deferred DRM request tag is under processing*/
-
+//Global variables to persist drm related info for particular tune/vod
+static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
+static DrmMetadata gDrmMetadata = {0, 0};
+static DrmInfo gDrmInfo = {eMETHOD_NONE, false, NULL, NULL};
+static HlsDrmBase* gDrm = NULL;
+static bool gDrmContexSet = false;
+static pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
+static int gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME; /** max time to wait for license acquisition before report error **/
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -80,6 +85,15 @@ struct FormatMap
 {
 	const char* codec;
 	StreamOutputFormat format;
+};
+/**
+* \struct	DrmMetadataNode
+* \brief	DrmMetadataNode structure for DRM Metadata/Hash storage
+*/
+struct DrmMetadataNode
+{
+	DrmMetadata metaData;
+	char* sha1Hash;
 };
 
 /// Variable initialization for various audio formats 
@@ -232,22 +246,15 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		{ // used by DAI
 			if(ts->fragmentEncrypted)
 			{
-				if (!ts->mIndexingInProgress)
-				{
-					logprintf("Track %s encrypted to clear \n", ts->name);
-				}
+				logprintf("Track %s encrypted to clear \n", ts->name);
 				ts->fragmentEncrypted = false;
-				ts->UpdateDrmCMSha1Hash(NULL);
 			}
 		}
 		else if (SubStringMatch(valuePtr, fin, "AES-128"))
 		{
 			if(!ts->fragmentEncrypted)
 			{
-				if (!ts->mIndexingInProgress)
-				{
-					AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
-				}
+				AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
 				ts->fragmentEncrypted = true;
 			}
 			ts->mDrmInfo.method = eMETHOD_AES_128;
@@ -1144,7 +1151,7 @@ char *TrackState::FindMediaForSequenceNumber()
 			{ // URI
 				if (seq >= mediaSequenceNumber)
 				{
-					if ((mDrmKeyTagCount >1) && key)
+					if (mCMSha1Hash && key)
 					{
 						ParseAttrList(key, ParseKeyAttributeCallback, this);
 					}
@@ -1302,19 +1309,19 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (cachedFragment->fragment.len && fragmentEncrypted)
 			{
 				{	
-					traceprintf("%s:%d [%s] uri %s - calling  DrmDecrypt()\n", __FUNCTION__, __LINE__, name, fragmentURI);
-					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
+					bool decrypted = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
 
-					if(eDRM_SUCCESS != drmReturn)
+					if(!decrypted)
 					{
+
 						logprintf("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d\n", fragmentURI, segDrmDecryptFailCount);
 						if (aamp->DownloadsAreEnabled())
 						{
-							if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+							if (gDrmLicenseAcqWaitTime <= 0)
 							{
 								decryption_error = true;
 								logprintf("FetchFragmentHelper : drm_Decrypt failed due to license acquisition timeout\n");
-								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT, NULL, false);
+								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT);
 							}
 							else
 							{
@@ -1571,7 +1578,6 @@ void TrackState::FlushIndex()
 	index.len = 0;
 	index.avail = 0;
 	currentIdx = -1;
-	mDrmKeyTagCount = 0;
 	mPeriodPositionIndex.clear();
 	if (mDrmMetaDataIndexCount)
 	{
@@ -1608,97 +1614,6 @@ void TrackState::FlushIndex()
 	}
 	mInitFragmentInfo = NULL;
 }
-
-/***************************************************************************
-* @fn ProcessDrmMetadata
-* @brief Process Drm Metadata after indexing
-***************************************************************************/
-void TrackState::ProcessDrmMetadata(bool acquireCurrentLicenseOnly)
-{
-	traceprintf("%s:%d: mDrmMetaDataIndexCount %d \n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	bool foundCurrentMetaDataIndex = false;
-	pthread_mutex_lock(&gDrmMutex);
-	/* Acquire license if license rotation not enabled (mCMSha1Hash NULL) or
-	 * matches current fragment's meta-data or
-	 * acquireCurrentLicenseOnly flag not set and license is not deferred*/
-	for (int i = 0; i < mDrmMetaDataIndexCount; i++)
-	{
-		if (mCMSha1Hash)
-		{
-			if (!foundCurrentMetaDataIndex && (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
-			{
-				mDrmMetaDataIndexPosition = i;
-				foundCurrentMetaDataIndex = true;
-			}
-			else
-			{
-				if ( acquireCurrentLicenseOnly )
-				{
-					printf("%s:%d Not acquiring license for index %d mDrmMetaDataIndexCount %d since it is not the current metadata. sha1Hash - ", __FUNCTION__, __LINE__, i, mDrmMetaDataIndexCount);
-					AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
-					continue;
-				}
-				if ( gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending && (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN)))
-				{
-					logprintf("%s:%d: Not setting  metadata for index %d as deferred\n", __FUNCTION__, __LINE__, i);
-					continue;
-				}
-			}
-		}
-		traceprintf("%s:%d: Setting  metadata for index %d\n", __FUNCTION__, __LINE__, i);
-		AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
-	}
-	mDrmLicenseRequestPending = (mCMSha1Hash && acquireCurrentLicenseOnly && (mDrmMetaDataIndexCount >1));
-	if(mCMSha1Hash && !foundCurrentMetaDataIndex)
-	{
-		printf("%s:%d ERROR Could not find matching metadata for hash - ", __FUNCTION__, __LINE__);
-		AveDrmManager::PrintSha1Hash(mCMSha1Hash);
-		printf("%d Metadata available\n", mDrmMetaDataIndexCount);
-		for (int i = 0; i < mDrmMetaDataIndexCount; i++)
-		{
-			printf("sha1Hash of drmMetadataNode[%d]", i);
-			AveDrmManager::PrintSha1Hash(drmMetadataNode[i].sha1Hash);
-		}
-		printf("\n\nTrack [%s] playlist length %d\n", name, (int)playlist.len);
-		for (int i = 0; i < playlist.len; i++)
-		{
-			printf("%c", playlist.ptr[i]);
-		}
-		printf("\n\nTrack [%s] playlist end\n", name);
-		aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
-	}
-	traceprintf("%s:%d: mDrmLicenseRequestPending %d\n", __FUNCTION__, __LINE__, (int) mDrmLicenseRequestPending);
-	pthread_mutex_unlock(&gDrmMutex);
-}
-
-/***************************************************************************
-* @brief Start deferred DRM license acquisition
-***************************************************************************/
-void TrackState::StartDeferredDrmLicenseAcquisition()
-{
-	logprintf("%s:%d: mDrmMetaDataIndexCount %d Start deferred license request\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	for (int i = (mDrmMetaDataIndexCount-1); i >= 0; i--)
-	{
-		if(drmMetadataNode[i].sha1Hash)
-		{
-			if (0 == memcmp(gDeferredDrmMetaDataSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
-			{
-				logprintf("%s:%d: Found matching drmMetadataNode index %d\n", __FUNCTION__, __LINE__, i);
-				AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[i]);
-				gDeferredDrmLicRequestPending = false;
-				break;
-			}
-		}
-	}
-	if(gDeferredDrmLicRequestPending)
-	{
-		logprintf("%s:%d: WARNING - Could not start deferred license request - no matching sha1Hash\n", __FUNCTION__, __LINE__);
-	}
-}
-
-
 /***************************************************************************
 * @fn IndexPlaylist
 * @brief Function to parse playlist 
@@ -1712,7 +1627,7 @@ double TrackState::IndexPlaylist()
 	traceprintf("%s:%d Enter \n", __FUNCTION__, __LINE__);
 
 	FlushIndex();
-	mIndexingInProgress = true;
+
 	if (playlist.ptr )
 	{
 		char *ptr;
@@ -1867,7 +1782,6 @@ double TrackState::IndexPlaylist()
 		node.pFragmentInfo = NULL;
 		char *ptr = playlist.ptr;
 		int drmMetadataIdx = -1;
-		bool deferDrmTagPresent = false;
 		while (ptr)
 		{
 			// If enableSubscribedTags is true, examine each '#EXT' tag.
@@ -1909,74 +1823,8 @@ double TrackState::IndexPlaylist()
 					if(!fragmentEncrypted)
 					{
 						drmMetadataIdx = -1;
-						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
+						logprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
 					}
-					mDrmKeyTagCount++;
-				}
-				else if ( context->IsLive() && (1.0 == context->rate)
-					&& ((eTUNETYPE_NEW_NORMAL == context->mTuneType) || (eTUNETYPE_SEEKTOLIVE == context->mTuneType))
-					&& (strncmp(ptr + 4, "-X-X1-LIN-CK:", 13) == 0))
-				{
-					deferDrmTagPresent = true;
-
-					pthread_mutex_lock(&gDrmMutex);
-					if (!gDeferredDrmLicTagUnderProcessing )
-					{
-						ptr += 17;
-						char* delim = strchr(ptr, CHAR_LF);
-						if (delim)
-						{
-							long time = strtol(ptr, NULL, 10);
-							logprintf("%s:%d [%s] #EXT-X-X1-LIN-CK:%d #####\n", __FUNCTION__, __LINE__, name, time);
-							if (time != 0 )
-							{
-								if (mDrmMetaDataIndexCount > 1)
-								{
-									if (!firstIndexDone)
-									{
-										logprintf("%s:%d #EXT-X-X1-LIN-CK on first index - not deferring license acquisition\n", __FUNCTION__, __LINE__);
-										gDeferredDrmLicRequestPending = false;
-									}
-									else
-									{
-										logprintf("%s:%d: mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-										DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-										int deferredIdx = AveDrmManager::GetNewMetadataIndex( drmMetadataIdx, mDrmMetaDataIndexCount);
-										if ( deferredIdx != -1)
-										{
-											logprintf("%s:%d: deferredIdx %d\n", __FUNCTION__, __LINE__, deferredIdx);
-											char * sha1Hash = drmMetadataIdx[deferredIdx].sha1Hash;
-											assert(sha1Hash);
-											printf("%s:%d defer acquisition of meta-data with hash - ", __FUNCTION__, __LINE__);
-											AveDrmManager::PrintSha1Hash(sha1Hash);
-											memcpy(gDeferredDrmMetaDataSha1Hash, sha1Hash, DRM_SHA1_HASH_LEN);
-											gDeferredDrmTime = aamp_GetCurrentTimeMS() + GetDeferTimeMs(time);
-											gDeferredDrmLicRequestPending = true;
-										}
-										else
-										{
-											logprintf("%s:%d: GetNewMetadataIndex failed\n", __FUNCTION__, __LINE__);
-										}
-									}
-									gDeferredDrmLicTagUnderProcessing = true;
-								}
-								else
-								{
-									logprintf("%s:%d: ERROR mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
-								}
-							}
-							else
-							{
-								logprintf("%s:%d: #EXT-X-X1-LIN-CK invalid time\n", __FUNCTION__, __LINE__);
-							}
-						}
-						else
-						{
-							logprintf("%s:%d: #EXT-X-X1-LIN-CK - parse error\n", __FUNCTION__, __LINE__);
-
-						}
-					}
-					pthread_mutex_unlock(&gDrmMutex);
 				}
 				else if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
 				{
@@ -2012,12 +1860,6 @@ double TrackState::IndexPlaylist()
 		{
 			aamp->UpdateDuration(totalDuration);
 		}
-
-		if (gDeferredDrmLicTagUnderProcessing && !deferDrmTagPresent)
-		{
-			logprintf("%s:%d - reset gDeferredDrmLicTagUnderProcessing\n", __FUNCTION__, __LINE__);
-			gDeferredDrmLicTagUnderProcessing = false;
-		}
 	}
 
 	if(playlistBackup)
@@ -2027,24 +1869,6 @@ double TrackState::IndexPlaylist()
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-	if ((firstIndexDone && (NULL != mCMSha1Hash)) || mForceProcessDrmMetadata)
-	{
-		ProcessDrmMetadata(false);
-		mForceProcessDrmMetadata = false;
-	}
-	if (mDrmKeyTagCount > 0)
-	{
-		if (mDrmMetaDataIndexCount > 0)
-		{
-			aamp->setCurrentDrm(eDRM_Adobe_Access);
-		}
-		else
-		{
-			aamp->setCurrentDrm(eDRM_Vanilla_AES);
-		}
-	}
-	firstIndexDone = true;
-	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
 	return totalDuration;
 }
@@ -2117,8 +1941,6 @@ void TrackState::ABRProfileChanged()
 	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
 	refreshPlaylist = true;
 	mInjectInitFragment = true;
-	/*For some VOD assets, different video profiles have different DRM meta-data.*/
-	mForceProcessDrmMetadata = true;
 	pthread_mutex_unlock(&mutex);
 }
 /***************************************************************************
@@ -2599,7 +2421,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_GENERIC_ERROR;
 	bool needMetadata = true;
-	mTuneType = tuneType;
 	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
 
     /* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -2614,7 +2435,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	if (newTune)
 	{
 		pthread_mutex_lock(&gDrmMutex);
-		AveDrmManager::ResetAll();
+		gDrmContexSet = false;
+		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
 		pthread_mutex_unlock(&gDrmMutex);
 	}
 
@@ -3194,20 +3016,42 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
 		}
-
-		if (audio->enabled)
-		{
-			audio->ProcessDrmMetadata(true);
-		}
-		if (video->enabled)
-		{
-			video->ProcessDrmMetadata(true);
-		}
-
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((rate == 1.0) && ((!audio->enabled) || audio->playContext));
+		if( newTune )
+		{
+			TrackState *encTs = NULL;
+			if (video->enabled && video->mDrmInfo.method == eMETHOD_AES_128)
+			{
+				encTs = video;
+			}
+			else if (audio->enabled && audio->mDrmInfo.method == eMETHOD_AES_128)
+			{
+				encTs = audio;
+			}
+			if (encTs)
+			{
+				if (!encTs->mCMSha1Hash)
+				{
+					logprintf("%s:%d new tune, initializing DRM\n", __FUNCTION__, __LINE__);
+					aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
+					encTs->mDrmMetaDataIndexPosition = 0;
+					pthread_mutex_lock(&gDrmMutex);
+					encTs->SetDrmContextUnlocked();
+					pthread_mutex_unlock(&gDrmMutex);
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d : mCMSha1Hash present\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d : Not encrypted\n", __FUNCTION__, __LINE__);
+			}
+		}
 		if (!aamp->mEnableCache)
 		{
 			aamp->ClearPlaylistCache();
@@ -3296,23 +3140,6 @@ void TrackState::RunFetchLoop()
 			if (!aamp->DownloadsAreEnabled())
 			{
 				break;
-			}
-
-			traceprintf("%s:%d: gDeferredDrmLicTagUnderProcessing %d gDeferredDrmLicRequestPending %d\n", __FUNCTION__, __LINE__, (int)gDeferredDrmLicTagUnderProcessing, (int)gDeferredDrmLicRequestPending);
-			pthread_mutex_lock(&gDrmMutex);
-			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
-			{
-				if(aamp_GetCurrentTimeMS() > gDeferredDrmTime)
-				{
-					StartDeferredDrmLicenseAcquisition();
-				}
-			}
-			pthread_mutex_unlock(&gDrmMutex);
-
-			if (mDrmLicenseRequestPending)
-			{
-				logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
-				ProcessDrmMetadata(false);
 			}
 
 			/*Check for profile change only for video track*/
@@ -3532,8 +3359,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
-		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
-		mInjectInitFragment(true), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false), mForceProcessDrmMetadata(false)
+		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),
+		mInjectInitFragment(true), mInitFragmentInfo(NULL)
 {
 	this->context = parent;
 	targetDurationSeconds = 1; // avoid tight loop
@@ -3585,26 +3412,11 @@ TrackState::~TrackState()
 * @fn Stop
 * @brief Function to stop track download/playback 
 *		 
-* @param clearDRM[in] flag indicating if DRM resources to be freed or not
 * @return void
 ***************************************************************************/
-void TrackState::Stop(bool clearDRM)
+void TrackState::Stop()
 {
 	AbortWaitForCachedFragment(true);
-
-	if (mDrm)
-	{
-		//To force release gDrmMutex mutex held by drm_Decrypt in case of clearDRM
-		mDrm->CancelKeyWait();
-
-		if(clearDRM)
-		{
-			pthread_mutex_lock(&gDrmMutex);
-			mDrm->Release();
-			pthread_mutex_unlock(&gDrmMutex);
-		}
-	}
-
 	if (playContext)
 	{
 		playContext->abort();
@@ -3626,12 +3438,6 @@ void TrackState::Stop(bool clearDRM)
 		fragmentCollectorThreadStarted = false;
 	}
 	StopInjectLoop();
-
-	if (!clearDRM && mDrm)
-	{
-		//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
-		mDrm->RestoreKeyState();
-	}
 }
 /***************************************************************************
 * @fn ~StreamAbstractionAAMP_HLS
@@ -3710,27 +3516,38 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack();
 
+	//To force release gDrmMutex mutex held by drm_Decrypt in case of clearChannelData
+	if(gDrm)
+	{
+		gDrm->CancelKeyWait();
+	}
+
+	if(clearChannelData)
+	{
+		pthread_mutex_lock(&gDrmMutex);
+		if(gDrm)
+		{
+			gDrm->Release();
+		}
+		gDrmContexSet = false;
+		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
+		pthread_mutex_unlock(&gDrmMutex);
+	}
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
 		if(track && track->Enabled())
 		{
-			track->Stop(clearChannelData);
+			track->Stop();
 		}
 	}
-
-	if (clearChannelData && aamp->GetCurrentDRM() == eDRM_Adobe_Access)
-	{
-		pthread_mutex_lock(&gDrmMutex);
-		AveDrmManager::CancelKeyWaitAll();
-		AveDrmManager::ReleaseAll();
-		AveDrmManager::ResetAll();
-		gDeferredDrmLicRequestPending = false;
-		gDeferredDrmLicTagUnderProcessing = false;
-		pthread_mutex_unlock(&gDrmMutex);
-	}
-
 	aamp->EnableDownloads();
+
+	//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
+	if (gDrm && !clearChannelData)
+	{
+		gDrm->RestoreKeyState();
+	}
 }
 /***************************************************************************
 * @fn DumpProfiles
@@ -3856,36 +3673,69 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 * @param bucketTypeFragmentDecrypt[in] ProfilerBucketType enum
 * @return bool true if successfully decrypted 
 ***************************************************************************/
-DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
+bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
 {
+		bool ret = true;
+		int retryCount = 0;
 		DrmReturn drmReturn = eDRM_ERROR;
-		if (aamp->DownloadsAreEnabled())
+		ret = false;
+		while (retryCount < DRM_DECRYPT_RETRY_COUNT && drmReturn != eDRM_SUCCESS && aamp->DownloadsAreEnabled())
 		{
 			drmReturn = eDRM_ERROR;
 			pthread_mutex_lock(&gDrmMutex);
-			bool isVanilaAES = ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount));
-			if (!mDrm || (mCMSha1Hash) || isVanilaAES)
+			if (mCMSha1Hash)
 			{
+				traceprintf("%s:%d [%s]mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, name, mDrmMetaDataIndex.ptr);
+				assert(mDrmMetaDataIndexCount);
+				assert(mDrmMetaDataIndexPosition > -1);
 				SetDrmContextUnlocked();
 			}
 			else if ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount))
 			{
 				SetDrmContextUnlocked();
 			}
-			if(mDrm)
+			if(gDrm)
 			{
-				drmReturn = mDrm->Decrypt(bucketTypeFragmentDecrypt, cachedFragment->fragment.ptr,
-						cachedFragment->fragment.len, MAX_LICENSE_ACQ_WAIT_TIME);
+				// Max wait time allowed for license acquisition expired
+				if (gDrmLicenseAcqWaitTime <= 0)
+				{
+					ret = false;
+					pthread_mutex_unlock(&gDrmMutex);
+					break;
+				}
 
+				drmReturn = gDrm->Decrypt(bucketTypeFragmentDecrypt, cachedFragment->fragment.ptr,
+						cachedFragment->fragment.len, DRM_DECRYPT_RETRY_TIMEOUT);
+
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+				{
+					gDrmLicenseAcqWaitTime -= DRM_DECRYPT_RETRY_TIMEOUT;
+					logprintf("StreamAbstractionAAMP_HLS::%s eDRM_KEY_ACQUSITION_TIMEOUT retryCount %d, remainingTime %d secs\n",
+						__FUNCTION__, retryCount, (gDrmLicenseAcqWaitTime < 0) ? 0 : gDrmLicenseAcqWaitTime);
+				}
 			}
 			pthread_mutex_unlock(&gDrmMutex);
+			if (drmReturn != eDRM_SUCCESS)
+			{
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn && gDrmLicenseAcqWaitTime > 0)
+				{
+					retryCount++;
+					continue;
+				}
+				ret = false;
+				break;
+			}
+			else
+			{
+				ret = true;
+			}
 		}
 
-		if (drmReturn != eDRM_SUCCESS)
+		if (ret == false)
 		{
 			aamp->profiler.ProfileError(bucketTypeFragmentDecrypt, drmReturn);
 		}
-		return drmReturn;
+		return ret;
 }
 /***************************************************************************
 * @fn GetContext
@@ -3926,52 +3776,128 @@ void TrackState::SetDrmContextUnlocked()
 	}
 	traceprintf("TrackState::%s Enter mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__, mCMSha1Hash,
 	        mDrmMetaDataIndexPosition);
+	bool drmChanged = true;
 
-	if (drmMetadata)
+	/*If metadata hash is present, set drm context only if hash/iv is different from currently set ones*/
+	if (gDrmContexSet)
 	{
-		mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-		if (!mDrm)
+		if (mCMSha1Hash)
 		{
-			logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-			printf("%s:%d [%s] sha1hash - ", __FUNCTION__, __LINE__, name);
-			AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-			if(gDeferredDrmLicTagUnderProcessing && gDeferredDrmLicRequestPending)
+			if (0 == memcmp(mCMSha1Hash, gCMSha1Hash, DRM_SHA1_HASH_LEN))
 			{
-				logprintf("%s:%d [%s] GetAveDrm failed\n", __FUNCTION__, __LINE__, name);
-				StartDeferredDrmLicenseAcquisition();
-				mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-			}
-			if (!mDrm)
-			{
-				if (mDrmLicenseRequestPending)
+				if (gDrmInfo.iv)
 				{
-					pthread_mutex_unlock(&gDrmMutex);
-					logprintf("%s:%d: Start acquisition of pending DRM licenses\n", __FUNCTION__, __LINE__);
-					ProcessDrmMetadata(false);
-					pthread_mutex_lock(&gDrmMutex);
-					mDrm = AveDrmManager::GetAveDrm(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
+					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
+					{
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						drmChanged = false;
+					}
+					else
+					{
+						logprintf("StreamAbstractionAAMP_HLS::%s:%d iv different\n", __FUNCTION__, __LINE__);
+					}
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d gDrmInfo.iv NULL\n", __FUNCTION__, __LINE__);
 				}
 			}
-			if (!mDrm)
+			else
 			{
-				printf("%s:%d [%s] GetAveDrm failed for sha1hash - ", __FUNCTION__, __LINE__, name);
-				AveDrmManager::PrintSha1Hash(drmMetadataIdx[mDrmMetaDataIndexPosition].sha1Hash);
-				AveDrmManager::DumpCachedLicenses();
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash different\n", __FUNCTION__, __LINE__);
 			}
 		}
+		else if (nullptr == drmMetadata)
+		{
+			if (gDrmMetadata.metadataPtr)
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d AVE->AES vanilla\n", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				if (gDrmInfo.iv)
+				{
+					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
+					{
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						if (gDrmInfo.uri)
+						{
+							if (0 == strcmp(mDrmInfo.uri, gDrmInfo.uri))
+							{
+								traceprintf("StreamAbstractionAAMP_HLS::%s:%d URI not changed\n", __FUNCTION__, __LINE__);
+								drmChanged = false;
+							}
+							else
+							{
+								logprintf("StreamAbstractionAAMP_HLS::%s:%d uri different\n", __FUNCTION__, __LINE__);
+							}
+						}
+					}
+					else
+					{
+						logprintf("StreamAbstractionAAMP_HLS::%s:%d iv different\n", __FUNCTION__, __LINE__);
+					}
+				}
+			}
+		}
+		else
+		{
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d mCMSha1Hash NULL\n", __FUNCTION__, __LINE__);
+			drmChanged = false;
+		}
 	}
-	else
+	if (drmChanged)
 	{
+		if (!gDrmInfo.iv)
+		{
+			gDrmInfo.iv = (unsigned char *) malloc(DRM_IV_LEN);
+		}
+		memcpy(gDrmInfo.iv, mDrmInfo.iv, DRM_IV_LEN);
+		if (gDrmInfo.uri)
+		{
+			free(gDrmInfo.uri);
+		}
+		gDrmInfo.uri = strdup(mDrmInfo.uri);
+		if (gDrmMetadata.metadataPtr)
+		{
+			free(gDrmMetadata.metadataPtr);
+			gDrmMetadata.metadataPtr = nullptr;
+		}
+		if (gDrm)
+		{
+			gDrm = nullptr;
+		}
+		gDrmInfo.method = mDrmInfo.method;
+		if (drmMetadata)
+		{
+			gDrmMetadata.metadataPtr = (unsigned char *) malloc(drmMetadata->metadataSize);
+			memcpy(gDrmMetadata.metadataPtr, drmMetadata->metadataPtr, drmMetadata->metadataSize);
+			gDrmMetadata.metadataSize = drmMetadata->metadataSize;
+			gDrm = AveDrm::GetInstance();
+			if (mCMSha1Hash)
+			{
+				memcpy(gCMSha1Hash, mCMSha1Hash, DRM_SHA1_HASH_LEN);
+			}
+			aamp->setCurrentDrm(eDRM_Adobe_Access);
+			logprintf("%s:%s Setting DRM mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__,name, mCMSha1Hash,mDrmMetaDataIndexPosition);
+		}
+		else
+		{
 #ifdef AAMP_VANILLA_AES_SUPPORT
-		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
-		mDrm = AesDec::GetInstance();
+			AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
+			gDrm = AesDec::GetInstance();
+			aamp->setCurrentDrm(eDRM_Vanilla_AES);
 #else
-		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
 #endif
-	}
-	if(mDrm)
-	{
-		mDrm->SetDecryptInfo(aamp, &mDrmInfo);
+		}
+		if(gDrm)
+		{
+			gDrm->SetContext(aamp, &gDrmMetadata, &gDrmInfo);
+			gDrmContexSet = true;
+			// Reset license acqusition wait time
+			gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME;
+		}
 	}
 }
 /***************************************************************************
@@ -3984,32 +3910,21 @@ void TrackState::SetDrmContextUnlocked()
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 {
 	bool drmDataChanged = false;
-	if (NULL == ptr)
-	{
-		if (mCMSha1Hash)
-		{
-			free(mCMSha1Hash);
-			mCMSha1Hash = NULL;
-		}
-	}
-	else if (mCMSha1Hash)
+	if (mCMSha1Hash)
 	{
 		if (0 != memcmp(ptr, (char*) mCMSha1Hash, DRM_SHA1_HASH_LEN))
 		{
-			if (!mIndexingInProgress)
+			logprintf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
+			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
 			{
-				printf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
-				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
-				{
-					printf("%c", mCMSha1Hash[i]);
-				}
-				printf(" new - ");
-				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
-				{
-					printf("%c", ptr[i]);
-				}
-				printf("\n");
+				printf("%c", mCMSha1Hash[i]);
 			}
+			printf(" new - ");
+			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+			{
+				printf("%c", ptr[i]);
+			}
+			printf("\n");
 			drmDataChanged = true;
 			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		}
@@ -4020,16 +3935,13 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 	}
 	else
 	{
-		if (!mIndexingInProgress)
+		AAMPLOG_INFO("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
+		for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
 		{
-			printf("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
-			for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
-			{
-				printf("%c", ptr[i]);
-			}
-			printf("\n");
+			printf("%c", ptr[i]);
 		}
-		mCMSha1Hash = (char*)malloc(DRM_SHA1_HASH_LEN);
+		printf("\n");
+		mCMSha1Hash = (unsigned char*)malloc(DRM_SHA1_HASH_LEN);
 		memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		drmDataChanged = true;
 	}
@@ -4057,7 +3969,7 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			{
 				if (drmMetadataNode[j].sha1Hash)
 				{
-					printf("%s:%d drmMetadataNode[%d].sha1Hash -- \n", __FUNCTION__, __LINE__, j);
+					logprintf("%s:%d drmMetadataNode[%d].sha1Hash -- \n", __FUNCTION__, __LINE__, j);
 					for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
 					{
 						printf("%c", drmMetadataNode[j].sha1Hash[i]);

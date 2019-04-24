@@ -2374,7 +2374,7 @@ public:
 	 *
 	 *   @return current drm
 	 */
-	DRMSystems GetCurrentDRM();
+	const char* GetCurrentDRM();
 
 	/**
 	 *   @brief Set DRM type
