@@ -474,7 +474,7 @@ public:
 	void StartInjection();
 
 private:
-	AAMPStatusType UpdateMPD(bool retrievePlaylistFromCache = false);
+	AAMPStatusType UpdateMPD();
 	void FindTimedMetadata(MPD* mpd, Node* root);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID);
@@ -2495,7 +2495,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
 #endif
-	AAMPStatusType ret = UpdateMPD(aamp->mEnableCache);
+	AAMPStatusType ret = UpdateMPD();
 	if (ret == eAAMPSTATUS_OK)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();
@@ -2838,7 +2838,7 @@ uint64_t PrivateStreamAbstractionMPD::GetDurationFromRepresentation()
  *
  * @retval true on success
  */
-AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromCache)
+AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 {
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
@@ -2847,14 +2847,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	bool harvestManifest = (gpGlobalConfig->mpdHarvestLimit && strstr(manifestUrl, "ccr.mm-"));
-	if (retrievePlaylistFromCache)
+	memset(&manifest, 0, sizeof(manifest));
+	if (aamp->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
 	{
-		memset(&manifest, 0, sizeof(manifest));
-		if (aamp->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
-		{
-			logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache\n", __FUNCTION__, __LINE__);
-			retrievedPlaylistFromCache = true;
-		}
+		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache\n", __FUNCTION__, __LINE__);
+		retrievedPlaylistFromCache = true;
 	}
 	while( downloadAttempt < 2)
 	{
@@ -2949,11 +2946,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool retrievePlaylistFromC
 								delete this->mpd;
 							}
 							this->mpd = mpd;
-	                        aamp->mEnableCache = (mpd->GetType() == "static");
-	                        if (aamp->mEnableCache && !retrievedPlaylistFromCache)
-	                        {
-	                            aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl());
-	                        }
+							mIsLive = !(mpd->GetType() == "static");
+							aamp->SetIsLive(mIsLive);
+							if (!retrievedPlaylistFromCache)
+							{
+								aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl());
+							}
 						}
 						else
 						{
@@ -4647,8 +4645,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		bool liveMPDRefresh = false;
 		if (mpd)
 		{
-			mIsLive = !(mpd->GetType() == "static");
-			aamp->SetIsLive(mIsLive);
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
 			logprintf("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);

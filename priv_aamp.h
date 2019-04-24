@@ -113,6 +113,8 @@
 #define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
 #define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
+// HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
+#define MAX_PLAYLIST_CACHE_SIZE    (2*1024*1024) // Approx 2MB -> 2 video profiles + one audio profile + one iframe profile, 25-50K MainManifest
 
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
@@ -313,6 +315,16 @@ struct AAMPAbrInfo
 	AAMPNetworkErrorType errorType;
 	int errorCode;
 };
+
+/**
+ * @brief PlayListCachedData structure to store playlist data
+ */
+typedef struct {
+	char *mEffectiveUrl;
+	GrowableBuffer* mCachedBuffer;
+	MediaType mFileType;
+}PlayListCachedData;
+
 
 /**
  * @}
@@ -552,6 +564,7 @@ public:
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	char *pUserAgentString;			/**< Curl user-agent string */
+	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 public:
 
 	/**
@@ -582,7 +595,7 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
 		curlStallTimeout(DEFAULT_CURL_DWLD_STALL_TIMEOUT), curlDownloadStartTimeout(DEFAULT_CURL_DWLD_START_TIMEOUT),
-		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true)
+		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1591,7 +1604,6 @@ public:
 	double mAdPosition;
 	char mAdUrl[MAX_URI_LENGTH];
 	bool mIsRetuneInProgress;
-	bool mEnableCache;
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
@@ -2497,7 +2509,7 @@ public:
          *
 	 *   @return void
 	 */
-	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl);
+	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,MediaType fileType=eMEDIATYPE_DEFAULT);
 
 	/**
 	 *   @brief Retrieve playlist from cache
@@ -2516,6 +2528,15 @@ public:
 	 *   @return void
 	 */
 	void ClearPlaylistCache();
+
+	/**
+	 *   @brief AllocatePlaylistCacheSlot Freeup Playlist cache for new playlist caching
+	 *   @param[in] fileType - Indicate the type of playlist to store/remove
+	 *   @param[in] newLen  - Size required to store new playlist
+	 *
+	 *   @return bool Success or Failure
+	 */
+	bool AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen);
 
 	/**
 	 *   @brief Set stall error code
@@ -2824,7 +2845,10 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
-	std::unordered_map<std::string, std::pair<GrowableBuffer*, char*>> mPlaylistCache;
+	int mCacheStoredSize;
+	typedef std::unordered_map<std::string, PlayListCachedData *> PlaylistCache ;
+	typedef std::unordered_map<std::string, PlayListCachedData *>::iterator PlaylistCacheIter;
+	PlaylistCache mPlaylistCache;
 	std::map<gint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;

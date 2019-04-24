@@ -1377,7 +1377,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			// if fragment URI uses relative path, we don't want to replace effective URI
 			char tempEffectiveUrl[MAX_URI_LENGTH];
 			traceprintf("%s:%d Calling Getfile . buffer %p avail %d\n", __FUNCTION__, __LINE__, &cachedFragment->fragment, (int)cachedFragment->fragment.avail);
-
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_error, range, type, false, (MediaType)(type));
 			if (!fetched)
 			{
@@ -2221,12 +2220,7 @@ void TrackState::IndexPlaylist()
 			indexFirstMediaSequenceNumber = 0;
 		}
 		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
-		aamp->mEnableCache = (context->playlistType == ePLAYLISTTYPE_VOD);
-		if(aamp->mEnableCache)
-		{
-			logprintf("%s:%d [%s] Insert playlist to cache\n", __FUNCTION__, __LINE__, name);
-			aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl);
-		}
+		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,(MediaType)type);
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2390,8 +2384,10 @@ void TrackState::RefreshPlaylist(void)
 		memset(&tempBuff, 0, sizeof(tempBuff));
 	}
 
-	aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
-
+	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
+	if (aamp->RetrieveFromPlaylistCache(playlistUrl, &playlist, effectiveUrl) == false) {
+		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
+	}
 	if (playlist.len)
 	{ // download successful
 		//lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
@@ -2910,12 +2906,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		AveDrmManager::ResetAll();
 	}
 
-	if (aamp->mEnableCache)
+	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
 	{
-		if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
-		{
-			logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
-		}
+		logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 	}
 	if (!this->mainManifest.len)
 	{
@@ -2929,7 +2922,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl());
+				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),eMEDIATYPE_MANIFEST);
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -3038,12 +3031,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		bool trackPLDownloadThreadStarted = false;
 		if (audio->enabled)
 		{
-			if (aamp->mEnableCache)
+			if (aamp->RetrieveFromPlaylistCache(audio->playlistUrl, &audio->playlist, audio->effectiveUrl))
 			{
-				if (aamp->RetrieveFromPlaylistCache(audio->playlistUrl, &audio->playlist, audio->effectiveUrl))
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache\n", __FUNCTION__, __LINE__);
-				}
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
 			if(!audio->playlist.len)
 			{
@@ -3067,12 +3057,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (video->enabled)
 		{
-			if (aamp->mEnableCache)
+			if (aamp->RetrieveFromPlaylistCache(video->playlistUrl, &video->playlist, video->effectiveUrl))
 			{
-				if (aamp->RetrieveFromPlaylistCache(video->playlistUrl, &video->playlist, video->effectiveUrl))
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache\n", __FUNCTION__, __LINE__);
-				}
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
 			if(!video->playlist.len)
 			{
@@ -3582,11 +3569,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((rate == AAMP_NORMAL_PLAY_RATE) && ((!audio->enabled) || audio->playContext));
-		if (!aamp->mEnableCache)
-		{
-			aamp->ClearPlaylistCache();
-		}
-		else if (newTune && gpGlobalConfig->prefetchIframePlaylist)
+		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
 			if (0 <= iframeStreamIdx)
@@ -3596,10 +3579,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				GrowableBuffer defaultIframePlaylist;
 				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo[iframeStreamIdx].uri);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist\n", __FUNCTION__, __LINE__);
-				aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
-				if (defaultIframePlaylist.len)
+				bool bFiledownloaded = false;
+				if (aamp->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
+					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
+				}
+				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl);
+					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else
