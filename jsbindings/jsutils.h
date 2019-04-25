@@ -73,7 +73,6 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
 JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo);
 
 AAMPEventType aamp_getEventTypeFromName(const char* szName);
-const char* aamp_getNameFromEventType(AAMPEventType type);
 
 void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event);
 
