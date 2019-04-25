@@ -434,6 +434,98 @@ public:
 
 
 /**
+ * @class AAMP_Listener_DRMMetadata
+ *
+ * @brief Event listener impl for AAMP_EVENT_DRM_METADATA event.
+ */
+class AAMP_Listener_DRMMetadata : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_DRMMetadata Constructor
+	 *
+         * @param[in] aamp instance of PrivAAMPStruct_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_DRMMetadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+         *
+	 * @param[in]  e        AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+                JSStringRef prop;
+
+                int code = ev.data.dash_drmmetadata.accessStatus_value;
+                const char* description = ev.data.dash_drmmetadata.accessStatus;
+
+                ERROR("AAMP_Listener_DRMMetadata code %d Description %s\n", code, description);
+                prop = JSStringCreateWithUTF8CString("code");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, code), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+
+                prop = JSStringCreateWithUTF8CString("description");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+
+/**
+ * @class AAMP_Listener_AnomalyReport
+ *
+ * @brief Event listener impl for AAMP_EVENT_REPORT_ANOMALY event.
+ */
+class AAMP_Listener_AnomalyReport : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_AnomalyReport Constructor
+	 *
+         * @param[in] aamp instance of PrivAAMPStruct_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_AnomalyReport(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+         *
+	 * @param[in]  e        AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+                JSStringRef prop;
+
+                int severity = ev.data.anomalyReport.severity;
+                const char* description = ev.data.anomalyReport.msg;
+
+                ERROR("AAMP_Listener_AnomalyReport severity %d Description %s\n", severity, description);
+                prop = JSStringCreateWithUTF8CString("severity");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, severity), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+
+                prop = JSStringCreateWithUTF8CString("description");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -523,6 +615,12 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			pListener = new AAMP_Listener_CCHandleAvailable(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_DRM_METADATA:
+			pListener = new AAMP_Listener_DRMMetadata(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_REPORT_ANOMALY:
+			pListener = new AAMP_Listener_AnomalyReport(obj, type, jsCallback);
 			break;
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
