@@ -2834,6 +2834,14 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 							{
 								delete this->mpd;
 							}
+							else
+							{
+								if (gpGlobalConfig->logging.trace)
+								{
+									aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
+									printf("%s\n", manifest.ptr);
+								}
+							}
 							this->mpd = mpd;
 							mIsLive = !(mpd->GetType() == "static");
 							aamp->SetIsLive(mIsLive);
@@ -2862,11 +2870,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 				xmlFreeTextReader(reader);
 			}
 
-			if (gpGlobalConfig->logging.trace)
-			{
-				aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-				printf("%s\n", manifest.ptr);
-			}
 			aamp_Free(&manifest.ptr);
 			mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 		}
