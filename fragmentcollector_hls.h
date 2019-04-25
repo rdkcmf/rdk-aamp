@@ -227,6 +227,8 @@ public:
 	 * @brief Restore DRM state
 	 */
 	void RestoreDrmState();
+	/// Function to check the IsLive status of track. Kept Public as its called from StreamAbstraction
+	bool IsLive()  { return (ePLAYLISTTYPE_VOD != mPlaylistType);}
 
 private:
 	/// Function to get fragment URI based on Index 
@@ -255,7 +257,6 @@ private:
 	void InitiateDRMKeyAcquisition(int indexPosn=-1);
 	/// Function to set the DRM Metadata into Adobe DRM Layer for decryption
 	void SetDrmContext();
-
 public:
 	char effectiveUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
 	char playlistUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist */
@@ -319,6 +320,8 @@ private:
 	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
 	double mCulledSeconds;                  /**< Total culled duration */
 	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
+	PlaylistType mPlaylistType;		/**< Playlist Type */
+	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
 };
 
 class StreamAbstractionAAMP_HLS;
@@ -368,12 +371,7 @@ public:
 	TrackState* trackState[AAMP_TRACK_COUNT];		/**< Array to store all tracks of a stream */
 	float rate;										/**< Rate of playback  */
 	float maxIntervalBtwPlaylistUpdateMs;			/**< Interval between playlist update */
-
-	PlaylistType playlistType;						/**< Playlist Type */
-	bool hasEndListTag;								/**< Flag indicating if End list is present or not */
-
 	GrowableBuffer mainManifest;					/**< Main manifest buffer holder */
-
 	bool allowsCache;								/**< Flag indicating if playlist needs to be cached or not */
 
 	HlsStreamInfo streamInfo[MAX_PROFILE];			/**< Array to store multiple stream information */
@@ -402,6 +400,8 @@ public:
 	void StopInjection(void);
 	/// Start injection of fragments.
 	void StartInjection(void);
+	/// Function to check for live status comparing both playlist ( audio & video).Kept public as its called from outside StreamAbstraction class
+	bool IsLive();
 
 protected:
 	/// Function to get StreamInfo stucture based on the index input
@@ -411,7 +411,6 @@ private:
 	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
 	AAMPStatusType SyncTracksForDiscontinuity();
-	
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 };
