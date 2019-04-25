@@ -2787,6 +2787,20 @@ public:
 	 */
 	void SignalTrickModeDiscontinuity();
 
+	/**
+	 *   @brief To set the curl stall timeout value
+	 *
+	 *   @param[in] curl stall timeout
+	 */
+	void SetDownloadStallTimeout(long stallTimeout);
+
+	/**
+	 *   @brief To set the curl download start timeout value
+	 *
+	 *   @param[in] curl download start timeout
+	 */
+	void SetDownloadStartTimeout(long startTimeout);
+
 
 private:
 

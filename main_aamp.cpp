@@ -2217,9 +2217,10 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 									(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
 
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
-					if (AAMP_IS_LOG_WORTHY_ERROR(res))
+					//Log errors due to curl stall/start detection abort
+					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
-						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)res);
+						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE));
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
@@ -2235,7 +2236,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					*curl errors are below 100 and http error starts from 100
 					*/
 					http_code = res;
-					//Avoid download stall scenarios from affecting ABR and rampdown
+
 					if (isDownloadStalled)
 					{
 						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, progressCtx.abortReason, downloadTimeMS, curlDownloadTimeout * 1000);
@@ -5183,6 +5184,28 @@ void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 
 
 /**
+ *   @brief To set the curl stall timeout value
+ *
+ *   @param[in] curl stall timeout
+ */
+void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
+{
+	aamp->SetDownloadStallTimeout(stallTimeout);
+}
+
+
+/**
+ *   @brief To set the curl download start timeout value
+ *
+ *   @param[in] curl download start timeout
+ */
+void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
+{
+	aamp->SetDownloadStartTimeout(startTimeout);
+}
+
+
+/**
  *   @brief Set video rectangle.
  *
  *   @param[in]  x - horizontal start position.
@@ -7015,6 +7038,32 @@ void PrivateInstanceAAMP::SignalTrickModeDiscontinuity()
 	if (mStreamSink)
 	{
 		mStreamSink->SignalTrickModeDiscontinuity();
+	}
+}
+
+/**
+ *   @brief To set the curl stall timeout value
+ *
+ *   @param[in] curl stall timeout
+ */
+void PrivateInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
+{
+	if (stallTimeout >= 0)
+	{
+		gpGlobalConfig->curlStallTimeout = stallTimeout;
+	}
+}
+
+/**
+ *   @brief To set the curl download start timeout value
+ *
+ *   @param[in] curl download start timeout
+ */
+void PrivateInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
+{
+	if (startTimeout >= 0)
+	{
+		gpGlobalConfig->curlDownloadStartTimeout = startTimeout;
 	}
 }
 
