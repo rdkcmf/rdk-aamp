@@ -162,6 +162,7 @@ pts-error-threshold=<X> aamp maximum number of back-to-back pts errors to be con
 fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe track in non-4K assets( less than or equal to X ). Disabled in default configuration.
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
+playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 
 CLI-specific commands:
 <enter>		dump currently available profiles
