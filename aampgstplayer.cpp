@@ -814,8 +814,11 @@ static gboolean buffering_timeout (gpointer data)
 			g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
 		}
 		logprintf("%s: video_dec %p  bytes %u  frames %u  buffering_timeout_cnt %u\n", __FUNCTION__, (void*)_this->privateContext->video_dec, bytes, frames, _this->privateContext->buffering_timeout_cnt);
-
-		if (G_UNLIKELY((privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+		/* DELIA-34654: Disable re-tune on buffering timeout for DASH as unlike HLS,
+		   DRM key acquisition can end after injection, and buffering is not expected
+		   to be completed by the 1 second timeout
+		*/
+		if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
 		{
 			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d\n", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent);
 			privateContext->buffering_in_progress = false;
