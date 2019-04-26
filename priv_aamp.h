@@ -485,6 +485,7 @@ public:
 	char *prLicenseServerURL;               /**< Playready License server URL*/
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
+	bool enablePROutputProtection;          /**< Playready output protection config */
 public:
 
 	/**
@@ -513,7 +514,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
-		,enableMicroEvents(false)
+		,enableMicroEvents(false),enablePROutputProtection(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

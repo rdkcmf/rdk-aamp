@@ -2707,6 +2707,11 @@ static void ProcessConfigEntry(char *cfg)
 			}
 			logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
 		}
+		else if (sscanf(cfg, "playready-output-protection=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->enablePROutputProtection = (value != 0);
+			logprintf("playready-output-protection is %s\n", (value ? "on" : "off"));
+		}
 		else if (sscanf(cfg, "live-tune-event = %d", &value) == 1)
                 { // default is 0; set 1 for sending tuned for live
                         logprintf("live-tune-event = %d\n", value);
