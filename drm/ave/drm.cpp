@@ -176,7 +176,6 @@ public:
 			/* This was added to avoid the crash in ave drm due to deleting 
 			the persistant folder DELIA-34306
 			*/
-			drmerrordata->isRetryEnabled = false;
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Individualization server down majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
 			break;
 		case 3322:
