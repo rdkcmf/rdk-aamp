@@ -324,7 +324,10 @@ int OpenCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 #endif
 
 	// Verify output protection parameters
-	if(m_pOutputProtection->IsSourceUHD()) {
+	// -----------------------------------
+	// Widevine output protection is currently supported without any external configuration.
+	// But the Playready output protection will be enabled based on 'enablePROutputProtection' flag which can be configured through RFC/aamp.cfg..
+	if((m_keySystem == WIDEVINE_KEY_SYSTEM_STRING || (m_keySystem == PLAYREADY_KEY_SYSTEM_STRING && gpGlobalConfig->enablePROutputProtection)) && m_pOutputProtection->IsSourceUHD()) {
 		// Source material is UHD
 		if(!m_pOutputProtection->isHDCPConnection2_2()) {
 			// UHD and not HDCP 2.2
