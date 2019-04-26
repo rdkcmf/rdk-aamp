@@ -565,6 +565,7 @@ public:
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	char *pUserAgentString;			/**< Curl user-agent string */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
+	bool enablePROutputProtection;          /**< Playready output protection config */
 public:
 
 	/**
@@ -595,7 +596,7 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
 		curlStallTimeout(DEFAULT_CURL_DWLD_STALL_TIMEOUT), curlDownloadStartTimeout(DEFAULT_CURL_DWLD_START_TIMEOUT),
-		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
+		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),enablePROutputProtection(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
