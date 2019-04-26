@@ -168,6 +168,8 @@ curl-stall-timeout=<X> specify the value in seconds for a CURL download to be de
 curl-download-start-timeout=<X> specify the value in seconds for after which a CURL download is aborted if no data is received after connect, 0 to disable
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
+playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
+
 CLI-specific commands:
 <enter>		dump currently available profiles
 help		show usage notes
