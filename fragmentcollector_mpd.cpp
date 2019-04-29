@@ -2401,7 +2401,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
   #endif
 	aamp->licenceFromManifest = false;
-	bool newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
+	bool newTune = aamp->IsNewTune();
 
 	aamp->IsTuneTypeNew = false;
 
