@@ -194,6 +194,7 @@ enum AAMPStatusType
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
 	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
 	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
+	eAAMPSTATUS_MANIFEST_INVALID_TYPE,
 	eAAMPSTATUS_SEEK_RANGE_ERROR,
 	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR
 };
@@ -2737,7 +2738,6 @@ public:
 	 *   @return true if ABR enabled.
 	 */
 	bool CheckABREnabled(void) { return mABREnabled; }
-
 	/**
 	 *   @brief Set a preferred bitrate for video.
 	 *
@@ -2801,6 +2801,12 @@ public:
 	 *   @param[in] curl download start timeout
 	 */
 	void SetDownloadStartTimeout(long startTimeout);
+	/**
+	 *   @brief IsNewTune Function to check if tune is New tune or retune
+	 *
+	 *   @return Bool True on new tune
+	 */
+	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
 
 
 private:
@@ -2839,7 +2845,7 @@ private:
 	std::string GetContentTypString();
 
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
-	TuneType lastTuneType;
+	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;
 	bool mTuneCompleted;

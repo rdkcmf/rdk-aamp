@@ -384,7 +384,7 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 {
 	StreamAbstractionAAMP_HLS *context = (StreamAbstractionAAMP_HLS *) arg;
 	char *valuePtr = delimEqual + 1;
-	struct MediaInfo *mediaInfo = &context->mediaInfo[context->mediaCount];
+	struct MediaInfo *mediaInfo = &context->mediaInfo[context->GetMediaCount()];
 	/*
 	#EXT - X - MEDIA:TYPE = AUDIO, GROUP - ID = "g117600", NAME = "English", LANGUAGE = "en", DEFAULT = YES, AUTOSELECT = YES
 	#EXT - X - MEDIA:TYPE = AUDIO, GROUP - ID = "g117600", NAME = "Spanish", LANGUAGE = "es", URI = "HBOHD_HD_NAT_15152_0_5939026565177792163/format-hls-track-sap-bandwidth-117600-repid-root_audio103.m3u8"
@@ -589,10 +589,14 @@ static void * TrackPLDownloader(void *arg)
 *		 
 * @param ptr[in] Manifest file content string
 *	
-* @return void
+* @return AAMPStatusType
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
+AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 {
+	int vProfileCount = 0;
+	int iFrameCount = 0;
+	int lineNum = 0;
+	AAMPStatusType retval = eAAMPSTATUS_OK;
 	mAbrManager.clearProfiles();
 	while (ptr)
 	{
@@ -618,6 +622,7 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->resolution.width,
 						streamInfo->resolution.height,
 					});
+					iFrameCount++;					
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
@@ -635,12 +640,13 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->resolution.width,
 						streamInfo->resolution.height
 					});
+					vProfileCount++;
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))
 				{
-					memset(&this->mediaInfo[this->mediaCount], 0, sizeof(MediaInfo));
+					memset(&this->mediaInfo[mMediaCount], 0, sizeof(MediaInfo));
 					ParseAttrList(ptr, ParseMediaAttributeCallback, this);
-					this->mediaCount++;
+					mMediaCount++;
 				}
 				else if (startswith(&ptr, "-X-VERSION:"))
 				{
@@ -656,6 +662,13 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				}
 				else if (startswith(&ptr, "M3U"))
 				{
+					// Spec :: 4.3.1.1.  EXTM3U - It MUST be the first line of every Media Playlist and every Master Playlist
+					if(lineNum)
+					{
+						logprintf("%s:%d M3U tag not the first line[%d] of Manifest\n",__FUNCTION__,__LINE__,lineNum);
+						retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+						break;
+					}
 				}
 				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER"))
 				{
@@ -672,16 +685,50 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "-X-ADVERTISING"))
 				{ // placeholder for advertising zone for linear (soon to be deprecated)
 				}
+				else if (startswith(&ptr, "INF:"))
+				{
+					// its not a main manifest, instead its playlist given for playback . Consider not a error
+					// Report it , so that Init flow can be changed accordingly 
+					retval = eAAMPSTATUS_MANIFEST_INVALID_TYPE;
+					break;
+				}
 				else 
 				{
 					std::string unknowTag= ptr;
 					AAMPLOG_INFO("***unknown tag:%s\n", unknowTag.substr(0,24).c_str());
 				}
+				lineNum++;
 			}
 		}
 		ptr = next;
 	}
-	UpdateIframeTracks();
+	if(retval == eAAMPSTATUS_OK)
+	{
+		// Check if there are are valid profiles to do playback 
+		if(vProfileCount == 0)
+		{
+			logprintf("%s:%d ERROR No video profiles available in manifest for playback\n",__FUNCTION__,__LINE__);
+			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+		}
+		else
+		{	// If valid video profiles , check for Media and iframe and report warnings only 
+			if(mMediaCount == 0)
+			{
+				// just a warning .Play the muxed content with default audio 
+				logprintf("%s:%d WARNING !!! No media definitions in manifest for playback\n",__FUNCTION__,__LINE__);
+			}
+			if(iFrameCount == 0)
+			{
+				// just a warning 
+				logprintf("%s:%d WARNING !!! No iframe definitions .Trickplay not supported\n",__FUNCTION__,__LINE__);
+			}
+			else
+			{
+				UpdateIframeTracks();
+			}
+		}
+	}
+	return retval;
 } // ParseMainManifest
 
 #ifdef AAMP_REWIND_PLAYLIST_SUPPORTED
@@ -2498,7 +2545,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			bool foundAudio = false;
 			for(int langChecks = aamp->language[0] ? 2 : 1; langChecks > 0 && !foundAudio; --langChecks)
 			{
-				for (int i = 0; i < this->mediaCount; i++)
+				for (int i = 0; i < mMediaCount; i++)
 				{
 	#ifdef TRACE
 					logprintf("GetPlaylistURI : AudioTrack: this->mediaInfo[%d].group_id %s\n", i,
@@ -2918,8 +2965,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	AAMPStatusType retval = eAAMPSTATUS_GENERIC_ERROR;
 	bool needMetadata = true;
 	mTuneType = tuneType;
-	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
-
+	bool newTune = aamp->IsNewTune();
     /* START: Added As Part of DELIA-28363 and DELIA-28247 */
     aamp->IsTuneTypeNew = false;
     /* END: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -2933,11 +2979,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		AveDrmManager::ResetAll();
 	}
 
-	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
-	{
-		logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
-	}
-	if (!this->mainManifest.len)
+	// 1. Check if Cache is avaialable.
+	// 2. If not available , download from the main manifest
+	// 3. If valid length downloaded , Insert to cache &  Parse the contents 
+	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl())==false)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest\n", __FUNCTION__, __LINE__);
@@ -2974,8 +3019,33 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
 #endif
+		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
+		AAMPStatusType mainManifestResult = ParseMainManifest(this->mainManifest.ptr);
+		// Check if Main manifest is good or not 
+		if(mainManifestResult != eAAMPSTATUS_OK)
+		{				
+			if(mainManifestResult == eAAMPSTATUS_MANIFEST_INVALID_TYPE)
+			{
+				// if playlist is provided as Main manifest, return error in this version.
+				// Playlist based playback support to be added in future
+				// TODO :: Handle playlist only playback -> Disable ABR , Re-arrange cached , populate track.  
+				logprintf("%s:%d WARNING !!!. Playlist received instead of Manifest.Playback failed\n",__FUNCTION__,__LINE__);
+				mainManifestResult = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+			}
+			// check for the error type , if critical error return immediately
+			if(mainManifestResult == eAAMPSTATUS_MANIFEST_CONTENT_ERROR || mainManifestResult == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
+			{	
+				// Dump the invalid manifest content before reporting error 
+				int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
+				char temp[MANIFEST_TEMP_DATA_LENGTH];
+				strncpy(temp, this->mainManifest.ptr, tempDataLen);
+				temp[tempDataLen] = 0x00;
+				// this will print only one line :(
+				printf("ERROR: Invalid Main Manifest : %s \n", temp);	   
+				return mainManifestResult; 
+			}
+		}
 
-		ParseMainManifest(this->mainManifest.ptr);
 		if (!newTune)
 		{
 			long persistedBandwidth = aamp->GetPersistedBandwidth();
@@ -3002,7 +3072,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			aamp->IsTuneTypeNew = newTune;
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
+		
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			const char* trackName = "audio";
@@ -3152,7 +3222,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					std::vector<long> bitrateList;
 					bool isIframeTrackPresent = false;
 					//To avoid duplicate entries in audioLanguage list
-					for (int iMedia = 0; iMedia < this->mediaCount; iMedia++)
+					for (int iMedia = 0; iMedia < mMediaCount; iMedia++)
 					{
 						if (this->mediaInfo[iMedia].type == eMEDIATYPE_AUDIO && this->mediaInfo[iMedia].language)
 						{
@@ -3871,9 +3941,8 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	firstFragmentDecrypted = false;
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
-	mediaCount = 0;
+	mMediaCount = 0;
 	allowsCache = false;
-	newTune = true;
 	segDLFailCount = 0;
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	mStartTimestampZero = false;
@@ -4143,9 +4212,9 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 		logprintf("\n");
 	}
 
-	if (this->mediaCount)
+	if (mMediaCount)
 	{
-		for (int i = 0; i < this->mediaCount; i++)
+		for (int i = 0; i < mMediaCount; i++)
 		{
 			MediaInfo *mediaInfo = &this->mediaInfo[i];
 			logprintf("media[%d]:\n", i);

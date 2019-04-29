@@ -3704,14 +3704,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (eTUNETYPE_LAST == tuneType)
 	{
-		tuneType = lastTuneType;
+		tuneType = mTuneType;
 	}
 	else
 	{
-		lastTuneType = tuneType;
+		mTuneType = tuneType;
 	}
 
-	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
+	newTune = IsNewTune();
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
@@ -5854,7 +5854,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 	culledSeconds = 0.0;
 	maxRefreshPlaylistIntervalSecs = DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS / 1000;
 	initialTuneTimeMs = 0;
-	lastTuneType = eTUNETYPE_NEW_NORMAL;
+	mTuneType = eTUNETYPE_NEW_NORMAL;
 	fragmentCollectorThreadID = 0;
 	audio_volume = 100;
 	m_fd = -1;
