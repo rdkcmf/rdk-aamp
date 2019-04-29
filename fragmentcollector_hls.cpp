@@ -2223,7 +2223,7 @@ void TrackState::IndexPlaylist()
 		}
 		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
 		aamp->SetIsLive(context->IsLive());
-		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,(MediaType)type);
+		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,IsLive(),(MediaType)type);
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2949,7 +2949,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),eMEDIATYPE_MANIFEST);
+				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -3612,7 +3612,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,eMEDIATYPE_IFRAME);
+					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else
