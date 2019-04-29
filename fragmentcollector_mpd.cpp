@@ -987,15 +987,24 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				if (pMediaStreamContext->fragmentRepeatCount == 0)
 				{
 					ITimeline *timeline = timelines.at(pMediaStreamContext->timeLineIndex);
-					uint64_t startTime = timeline->GetStartTime();
-					if(startTime)
+					uint64_t startTime = 0;
+					map<string, string> attributeMap = timeline->GetRawAttributes();
+					if(attributeMap.find("t") != attributeMap.end())
+					{
+						startTime = timeline->GetStartTime();
+					}
+					else
+					{ // DELIA-35059
+						startTime = pMediaStreamContext->fragmentDescriptor.Time;
+					}
+					if(startTime && mIsLive)
 					{
 						// After mpd refresh , Time will be 0. Need to traverse to the right fragment for playback
 						if(0 == pMediaStreamContext->fragmentDescriptor.Time)
 						{
 							uint32_t duration =0;
 							uint32_t repeatCount =0;
-							int index=pMediaStreamContext->timeLineIndex;
+							int index = pMediaStreamContext->timeLineIndex;
 							// This for loop is to go to the right index based on LastSegmentTime
 							for(;index<timelines.size();index++)
 							{
@@ -1599,9 +1608,10 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					uint32_t repeatCount = timeline->GetRepeatCount();
 					if (pMediaStreamContext->fragmentRepeatCount == 0)
 					{
-						uint64_t startTime = timeline->GetStartTime();
-						if(startTime)
+						map<string, string> attributeMap = timeline->GetRawAttributes();
+						if(attributeMap.find("t") != attributeMap.end())
 						{
+							uint64_t startTime = timeline->GetStartTime();
 							pMediaStreamContext->fragmentDescriptor.Time = startTime;
 						}
 					}
