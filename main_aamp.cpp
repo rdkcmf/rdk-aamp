@@ -3623,14 +3623,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (eTUNETYPE_LAST == tuneType)
 	{
-		tuneType = lastTuneType;
+		tuneType = mTuneType;
 	}
 	else
 	{
-		lastTuneType = tuneType;
+		mTuneType = tuneType;
 	}
 
-	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
+	newTune = IsNewTune();
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
@@ -5755,7 +5755,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mCurrentLanguageIndex(0),mVideoEnd(
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
-	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL), lastTuneType(eTUNETYPE_NEW_NORMAL)
+	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL), mTuneType(eTUNETYPE_NEW_NORMAL)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
