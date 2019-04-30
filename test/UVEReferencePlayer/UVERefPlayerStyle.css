@@ -197,6 +197,9 @@ img {
     margin-left: 32.5%;
     width: 27%;
 }
+#helpButton {
+    margin-left: 40px;
+}
 
 #helpButton.focus ,#helpButton:active {
     background-color: orange;
@@ -236,9 +239,9 @@ img {
     border: 1px solid #888;
     width: 35%;
     box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
-    -webkit-animation-name: animatetop;
+    -webkit-animation-name: flydown;
     -webkit-animation-duration: 0.4s;
-    animation-name: animatetop;
+    animation-name: flydown;
     animation-duration: 0.4s
 }
 
@@ -277,9 +280,9 @@ img {
     border: 1px solid #2B363D;
     width: 35%;
     box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
-    -webkit-animation-name: animatetop;
+    -webkit-animation-name: flydown;
     -webkit-animation-duration: 0.4s;
-    animation-name: animatetop;
+    animation-name: flydown;
     animation-duration: 0.4s
 }
 
@@ -294,33 +297,68 @@ img {
     color: #fff;
 }
 
-/* Add Animation */
-@-webkit-keyframes animatetop {
+/* The Anomaly Modal */
+.anomalyModal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    padding-top: 75px;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+/* Anomaly Modal Content */
+.anomaly-modal-content {
+    position: relative;
+    background-color: rgb(0,0,0);
+    background-color: rgba(0,0,0,0.8);
+    margin: auto;
+    padding: 0;
+    border: 1px solid #2B363D;
+    width: 50%;
+    box-shadow: 0 3px 7px 0 rgba(0,0,0,0.3),0 5px 19px 0 rgba(0,0,0,0.2);
+    animation-duration: 0.5s;
+    -webkit-animation-name: flydown;
+    animation-name: flydown;
+    -webkit-animation-duration: 0.4s;
+}
+
+#logState {
+    margin-left: 10px;
+}
+
+#buff {
+    position: absolute;
+    left: 42%;
+    top: 58%;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 30px;
+    color: #3498db;
+}
+
+@keyframes flydown {
     from { top: -300px; opacity: 0 }
     to { top: 0; opacity: 1 }
 }
 
-@keyframes animatetop {
+@-webkit-keyframes flydown {
     from { top: -300px; opacity: 0 }
     to { top: 0; opacity: 1 }
 }
 
-@-webkit-keyframes animatebottom {
+@keyframes down {
     from { bottom: -300px; opacity: 0 }
     to { bottom: 0; opacity: 1 }
 }
 
-@keyframes animatebottom {
+@-webkit-keyframes down {
     from { bottom: -300px; opacity: 0 }
     to { bottom: 0; opacity: 1 }
-}
-
-#AutoplayState {
-    margin-left: 10px;
-}
-
-#replaceDateState {
-    margin-left: 10px;
 }
 
 /*help round button*/
@@ -379,29 +417,20 @@ img {
 /* Add animation to "page content" */
 .animate-bottom {
     position: relative;
-    -webkit-animation-name: animatebottom;
+    -webkit-animation-name: down;
     -webkit-animation-duration: 1s;
-    animation-name: animatebottom;
+    animation-name: down;
     animation-duration: 1s
 }
 
-@-webkit-keyframes animatebottom {
+@-webkit-keyframes down {
     from { bottom: -100px; opacity: 0 }
     to { bottom: 0px; opacity: 1 }
 }
 
-@keyframes animatebottom {
+@keyframes down {
     from { bottom: -100px; opacity: 0 }
     to { bottom: 0; opacity: 1 }
-}
-
-#buff {
-    position: absolute;
-    left: 42%;
-    top: 58%;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 30px;
-    color: #3498db;
 }
 
 .balls  {
@@ -513,4 +542,21 @@ img {
     position: fixed;
     font-family: Arial, Helvetica, sans-serif;
     font-weight: bold;
+}
+
+#logList {
+    padding: 5px;
+}
+
+#autoLogButton {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    margin-top: 17px;
+}
+
+#logCheck{
+    padding: 5px;
+    width: 18px;
+    height: 18px;
 }

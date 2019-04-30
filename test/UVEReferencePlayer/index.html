@@ -74,6 +74,10 @@
               </select>
               <button class="button" id="loadButton">Load</button>
               <button class="button" id="deleteButton">Delete</button>
+              <span id="logState">Logs: </span>
+              <label id="autoLogButton">
+                  <input type="checkbox" id="logCheck">
+              </label>
               <label>
                   <button class="round-button" id="helpButton"><img src="icons/help.png"></button>
               </label>
@@ -119,6 +123,14 @@
           <p>POSITION: <nobr id="testPosition"  class="overlay-inside">0</nobr></p>
           <p>SPEED: <nobr id="speedX"  class="overlay-inside">0</nobr></p>
         </div>
+      </div>
+    </div>
+
+    <!-- The Anomaly Modal -->
+    <div id="anomalyModal" class="anomalyModal">
+      <!-- Anomaly Modal content -->
+      <div class="anomaly-modal-content">
+          <p id="logList"></p>
       </div>
     </div>
 
