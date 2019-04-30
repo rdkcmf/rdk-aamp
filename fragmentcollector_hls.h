@@ -365,6 +365,8 @@ public:
 	std::vector<long> GetVideoBitrates(void);
 	/// Function to get available audio bitrates.
 	std::vector<long> GetAudioBitrates(void);
+	/// Function to get the Media count 
+	int GetMediaCount(void) { return mMediaCount;}	
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	
@@ -373,10 +375,7 @@ public:
 	float maxIntervalBtwPlaylistUpdateMs;			/**< Interval between playlist update */
 	GrowableBuffer mainManifest;					/**< Main manifest buffer holder */
 	bool allowsCache;								/**< Flag indicating if playlist needs to be cached or not */
-
 	HlsStreamInfo streamInfo[MAX_PROFILE];			/**< Array to store multiple stream information */
-
-	int mediaCount;									/**< Number of media in the stream */
 	MediaInfo mediaInfo[MAX_PROFILE];				/**< Array to store multiple media within stream */
 
 	double seekPosition;							/**< Seek position for playback */
@@ -384,10 +383,9 @@ public:
 	bool enableThrottle;							/**< Flag indicating throttle enable/disable */
 	bool firstFragmentDecrypted;					/**< Flag indicating if first fragment is decrypted for stream */
 	bool mStartTimestampZero;						/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
-	bool newTune;									/**< Flag to indicate new tune  */
 	int mNumberOfTracks;							/**< Number of media tracks.*/
 	/// Function to parse Main manifest 
-	void ParseMainManifest(char *ptr);
+	AAMPStatusType ParseMainManifest(char *ptr);
 	/// Function to get playlist URI for the track type 
 	const char *GetPlaylistURI(TrackType trackType, StreamOutputFormat* format = NULL);
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -413,6 +411,7 @@ private:
 	AAMPStatusType SyncTracksForDiscontinuity();
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
+	int mMediaCount;						/**< Number of media in the stream */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H
