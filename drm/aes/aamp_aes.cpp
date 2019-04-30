@@ -167,26 +167,13 @@ void AesDec::AcquireKey()
 
 
 /**
- * @brief Set DRM meta-data. Stub implementation
+ * @brief prepare for decryption - individualization & license acquisition
  *
  * @param aamp AAMP instance to be associated with this decryptor
  * @param metadata - Ignored
- *
- * @retval eDRM_SUCCESS
+ * @param drmInfo DRM information
  */
-DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata)
-{
-	return eDRM_SUCCESS;
-}
-
-/**
- * @brief Set information required for decryption
- *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param drmInfo Drm information
- * @retval eDRM_SUCCESS on success
- */
-DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
+int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo)
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
@@ -204,7 +191,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 		{
 			logprintf("AesDec::%s:%d same url:%s - not acquiring key\n",__FUNCTION__, __LINE__, mDrmUrl);
 			pthread_mutex_unlock(&mMutex);
-			return eDRM_SUCCESS;
+			return 0;
 		}
 		free(mDrmUrl);
 	}
@@ -240,8 +227,9 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	}
 	pthread_mutex_unlock(&mMutex);
 	AAMPLOG_INFO("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
-	return err;
+	return ret;
 }
+
 
 /**
  * @brief Wait for key acquisition completion
@@ -403,17 +391,20 @@ void AesDec::RestoreKeyState()
 	pthread_mutex_unlock(&mMutex);
 }
 
-std::shared_ptr<AesDec> AesDec::mInstance = nullptr;
+
+AesDec* AesDec::mInstance = nullptr;
+
+
 
 /**
  * @brief Get singleton instance
  */
-std::shared_ptr<AesDec> AesDec::GetInstance()
+AesDec* AesDec::GetInstance()
 {
 	pthread_mutex_lock(&mutex);
 	if (nullptr == mInstance)
 	{
-		mInstance = std::make_shared<AesDec>();
+		mInstance = new AesDec();
 	}
 	pthread_mutex_unlock(&mutex);
 	return mInstance;

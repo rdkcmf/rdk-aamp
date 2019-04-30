@@ -3654,7 +3654,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
 
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
-	mIsVSS = (strstr(mainManifestUrl, "?sz=") || strstr(mainManifestUrl, "\%3Fsz\%3D"));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
@@ -4515,29 +4514,7 @@ char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
  */
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
-	DRMSystems currentDRM = aamp->GetCurrentDRM();
-	const char *drmName = "";
-	switch(currentDRM)
-	{
-		case eDRM_WideVine:
-			drmName = "WideVine";
-			break;
-		case eDRM_CONSEC_agnostic:
-			drmName = "CONSEC_agnostic";
-			break;
-		case eDRM_PlayReady:
-			drmName = "PlayReady";
-			break;
-		case eDRM_Adobe_Access:
-			drmName = "Adobe_Access";
-			break;
-		case eDRM_Vanilla_AES:
-			drmName = "Vanilla_AES";
-			break;
-		default:
-			break;
-	}
-	return drmName;
+	return aamp->GetCurrentDRM();
 }
 
 
@@ -4546,9 +4523,28 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
  *
  *   @return current drm
  */
-DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
+const char* PrivateInstanceAAMP::GetCurrentDRM(void)
 {
-	return mCurrentDrm;
+	switch(mCurrentDrm)
+	{
+		case eDRM_WideVine:
+			return "WideVine";
+			break;
+		case eDRM_CONSEC_agnostic:
+			return "CONSEC_agnostic";
+			break;
+		case eDRM_PlayReady:
+			return "PlayReady";
+			break;
+		case eDRM_Adobe_Access:
+			return "Adobe_Access";
+			break;
+		case eDRM_Vanilla_AES:
+			return "Vanilla_AES";
+			break;
+		default:
+			return "";
+	}
 }
 
 /**
