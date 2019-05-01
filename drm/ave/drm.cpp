@@ -47,6 +47,7 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 #include <stdlib.h> // for malloc
 #include <pthread.h>
 #include <errno.h>
+#include <unistd.h>
 
 using namespace media;
 
@@ -616,7 +617,11 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 	// mMetaData - Memory allocated within AveDrm, which is assigned to Ave-Lib. 
 	m_pDrmAdapter->Initialize( (const DrmMetadata *)&mMetaData, m_pDrmListner );
 	m_pDrmAdapter->SetupDecryptionContext();
-
+	if(mpAamp->ave_adapter)
+	{
+		sleep(4);
+		logprintf("DELIA-33528 sleep for 4 secs for first adapter %x\n",mpAamp->ave_adapter);
+	}
 	mPrevDrmState = eDRM_INITIALIZED;
 	pthread_mutex_unlock(&mutex);
 	logprintf("AveDrm::%s:%d[%p] drmState:%d Track[%d]\n", __FUNCTION__, __LINE__, this, mDrmState,trackType);
@@ -879,6 +884,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 {
 	AveDrmManager* aveDrmManager = NULL;
 	bool drmMetaDataAlreadyStored = false;
+	static bool firstMyFlashadapter = true;
 	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
@@ -907,7 +913,9 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		aveDrmManager->mTrackType |= (1<<trackType);
 		memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		aveDrmManager->mDeferredTime = metaDataNode->drmKeyReqTime;
+		aamp->ave_adapter = firstMyFlashadapter;
 		aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData,trackType);
+		firstMyFlashadapter = false;
 		logprintf("%s:%d: Created new AveDrmManager[%s] .Track[%d].Total Sz=%d\n", __FUNCTION__, __LINE__,metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
