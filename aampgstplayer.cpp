@@ -766,10 +766,10 @@ static gboolean buffering_timeout (gpointer data)
 			g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 			g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
 		}
-		logprintf("%s: video_dec %p  bytes %u  frames %u  buffering_timeout_cnt %u\n", __FUNCTION__, (void*)_this->privateContext->video_dec, bytes, frames, _this->privateContext->buffering_timeout_cnt);
 
-		if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || _this->privateContext->buffering_timeout_cnt-- == 0) {
-			logprintf("%s: Set pipeline state to %s\n", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state));
+		if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || _this->privateContext->buffering_timeout_cnt-- == 0)
+		{
+			logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u\n", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1));
 			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 			_this->privateContext->buffering_in_progress = false;
 		}
@@ -1886,7 +1886,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	else
 	{
-		if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID)
+		if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 		{
 			if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 			{
