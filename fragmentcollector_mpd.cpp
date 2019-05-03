@@ -4703,10 +4703,10 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 						// If audio and video reached EOS then only break the fetch loop .
 						if(vEos && aEos)
-                                                {
+						{
 							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop \n",__FUNCTION__, __LINE__);
 							break;
-                                                }
+						}
 					}
 
 
@@ -4750,7 +4750,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 				}
 			}//End of Period while loop
 
-			if ((rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
+			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
 			{
 				break;
 			}
@@ -4846,7 +4846,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			// sleep before next manifest update
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
-		if (UpdateMPD() != eAAMPSTATUS_OK)
+		if (!aamp->DownloadsAreEnabled() || UpdateMPD() != eAAMPSTATUS_OK)
 		{
 			break;
 		}
