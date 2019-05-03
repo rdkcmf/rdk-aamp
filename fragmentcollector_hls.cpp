@@ -2462,6 +2462,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 		break;
 
 	case eTRACK_AUDIO:
+		assert(GetProfileCount() > this->currentProfileIndex);
 		HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 		const char* group = streamInfo->audio;
 		if (group)
@@ -3845,6 +3846,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	newTune = true;
 	segDLFailCount = 0;
 	memset(&trackState[0], 0x00, sizeof(trackState));
+	memset(streamInfo, 0, sizeof(*streamInfo));
 	mStartTimestampZero = false;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	lastSelectedProfileIndex = 0;
