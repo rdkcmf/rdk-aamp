@@ -166,6 +166,22 @@ iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe 
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+
+=================================================================================================================
+Overriding channels in aamp.cfg
+aamp.cfg allows to map channnels to custom urls as follows
+
+*<Token> <Custom url>
+This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
+
+Example adding the following in aamp.cfg will make tune to the given url (Spring_4Ktest) on tuning to url with USAHD in it
+This can be done for n number of channels.
+
+*USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
+*FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
+
+=================================================================================================================
+
 CLI-specific commands:
 <enter>		dump currently available profiles
 help		show usage notes
