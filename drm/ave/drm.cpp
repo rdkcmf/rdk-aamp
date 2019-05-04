@@ -277,6 +277,7 @@ static int drmSignalKeyAquired(void * arg)
  * @param arg drm status listener
  * @retval 0
  */
+static int drmSignalError(void * arg)
 {
 	DRMErrorData *drmerrordata = (DRMErrorData*)arg;
 	TheDRMListener * drmListener = (TheDRMListener*)drmerrordata->ptr;
