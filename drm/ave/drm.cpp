@@ -216,6 +216,10 @@ public:
 		}
 
 		mpAamp->DisableDownloads();
+		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmerrordata->drmFailure)
+		{
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
+		}
 		
 		drmerrordata->ptr = this;
 		PrivateInstanceAAMP::AddIdleTask(drmSignalError, drmerrordata);
