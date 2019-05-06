@@ -575,6 +575,8 @@ public:
 	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_CC_ENABLED
 		bEnableCC(true),
+#else
+        bEnableCC(false),
 #endif
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
@@ -597,16 +599,15 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
 		curlStallTimeout(DEFAULT_CURL_DWLD_STALL_TIMEOUT), curlDownloadStartTimeout(DEFAULT_CURL_DWLD_START_TIMEOUT),
-		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),enablePROutputProtection(false)
+		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),
+		gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),enablePROutputProtection(false),
+		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
+		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
                 // considering round trip delay to remove overlay
                 // onStreamPlaying is sent optimistically in advance
-		tunedEventConfigLive = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-		tunedEventConfigVOD = eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-		isUsingLocalConfigForPreferredDRM = false;
-		pUserAgentString = NULL;
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 	}
 
@@ -614,6 +615,10 @@ public:
 	 * @brief GlobalConfigAAMP Destructor
 	 */
 	~GlobalConfigAAMP(){}
+
+	GlobalConfigAAMP(const GlobalConfigAAMP&) = delete;
+
+	GlobalConfigAAMP& operator=(const GlobalConfigAAMP&) = delete;
 
 	/**
 	 * @brief Get SAP status
@@ -970,7 +975,8 @@ public:
 	/**
 	 * @brief ProfileEventAAMP Constructor
 	 */
-	ProfileEventAAMP()
+	ProfileEventAAMP() : tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
+        bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(), tuneEventListMtx()
 	{
 	}
 
@@ -1406,6 +1412,9 @@ typedef void(*DestroyTask)(void * arg);
  * @brief To store Set Cookie: headers and X-Reason headers in HTTP Response
  */
 struct httpRespHeaderData {
+	httpRespHeaderData() : type(0), data("")
+	{
+	}
 	int type;             /**< Header type */
 	std::string data;     /**< Header value */
 };
@@ -2293,6 +2302,10 @@ public:
 	 * @brief PrivateInstanceAAMP Destructor
 	 */
 	~PrivateInstanceAAMP();
+
+	PrivateInstanceAAMP(const PrivateInstanceAAMP&) = delete;
+
+	PrivateInstanceAAMP& operator=(const PrivateInstanceAAMP&) = delete;
 
 	/**
 	 *   @brief Set video rectangle

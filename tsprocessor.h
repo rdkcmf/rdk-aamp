@@ -129,6 +129,8 @@ class TSProcessor
 {
    public:
       TSProcessor(class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL);
+      TSProcessor(const TSProcessor&) = delete;
+      TSProcessor& operator=(const TSProcessor&) = delete;
       ~TSProcessor();
       bool sendSegment( char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError);
       void setRate(double rate, PlayMode mode);

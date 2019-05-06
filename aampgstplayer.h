@@ -68,6 +68,8 @@ public:
 
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp);
+	AAMPGstPlayer(const AAMPGstPlayer&) = delete;
+	AAMPGstPlayer& operator=(const AAMPGstPlayer&) = delete;
 	~AAMPGstPlayer();
 	static void InitializeAAMPGstreamerPlugins();
 	void NotifyEOS();
