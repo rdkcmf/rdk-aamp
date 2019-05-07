@@ -3693,7 +3693,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mCurrentDrm = eDRM_NONE;
 	
 	SetContentType(mainManifestUrl, contentType);
-	if(IsVodOrCdvrAsset())
+	if(IsLiveAdjustRequired())
 	{
 		// DELIA-30843/DELIA-31379 . for CDVR/IVod , offset is set to higher value 	
 		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec 
@@ -6246,13 +6246,28 @@ double PrivateInstanceAAMP::GetFirstPTS()
 }
 
 /**
- *   @brief  Check if asset is vod/ivod/cdvr.
+ *   @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
  *
- *   @return true if asset is either vod/ivod/cdvr
+ *   @return True if the content is either vod/ivod/cdvr/ip-dvr/eas
  */
-bool PrivateInstanceAAMP::IsVodOrCdvrAsset()
+bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 {
-	return (mContentType == ContentType_IVOD || mContentType == ContentType_VOD || mContentType == ContentType_CDVR || mContentType == ContentType_IPDVR);
+	bool retValue = false;
+
+	switch (mContentType)
+	{
+		case ContentType_IVOD:
+		case ContentType_VOD:
+		case ContentType_CDVR:
+		case ContentType_IPDVR:
+		case ContentType_EAS:
+		{
+			retValue = true;
+			break;
+		}
+	}
+
+	return retValue;
 }
 
 /**
