@@ -219,11 +219,6 @@ public:
 											(int)majorError, (int)minorError);
 			break;
 
-		case 3307:
-			drmerrordata->drmFailure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
-			drmerrordata->isRetryEnabled = false;
-			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Device not provisioned majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-			break;
 		case 3314:
 			//BCOM-3444
 			// Error 3314->Multiple times same Metadata is set to AVE-DRM session or a bad Metadata for a stream set 
