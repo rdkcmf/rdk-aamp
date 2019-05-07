@@ -2214,11 +2214,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			if(gpGlobalConfig->logging.trace)
 			{
 				logprintf("init data from manifest; length %d\n", wvDataLength);
-				for (int j = 0; j < wvDataLength; j++)
-				{
-					logprintf("%c", wvData[j]);
-				}
-				logprintf("\n");
+				DumpBlob(wvData, wvDataLength);
 			}
 			continue;
 		}
@@ -2233,11 +2229,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			if(gpGlobalConfig->logging.trace)
 			{
 				logprintf("init data from manifest; length %d\n", prDataLength);
-				for (int j = 0; j < prDataLength; j++)
-				{
-					logprintf("%c", prData[j]);
-				}
-				logprintf("\n");
+				DumpBlob(prData, prDataLength);
 			}
 			continue;
 		}

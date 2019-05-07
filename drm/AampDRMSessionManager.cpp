@@ -589,9 +589,7 @@ unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int 
 		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, key_id, key_id_size);
 		if(gpGlobalConfig->logging.trace)
 		{
-			for (int i = 0; i < key_id_size; ++i)
-				logprintf("%2x",key_id[i]);
-			logprintf("\n\n");
+			DumpBlob(key_id, key_id_size);
 		}
 
 	}else{

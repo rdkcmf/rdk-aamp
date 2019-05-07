@@ -502,7 +502,7 @@ void logprintf(const char *format, ...)
  */
 void DumpBlob(const unsigned char *ptr, size_t len)
 {
-#define FIT_CHARS 64
+#define FIT_CHARS 32
 	char buf[FIT_CHARS + 2]; // pad for newline and end-of-string
 	char *dst = buf;
 	const unsigned char *fin = ptr+len;
@@ -528,7 +528,7 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 		{
 			*dst++ = '\n';
 			*dst++ = 0x00;
-			printf("\t%s", buf);
+			printf(">>>\t%s", buf);
 			dst = buf;
 			fit = FIT_CHARS;
 		}
