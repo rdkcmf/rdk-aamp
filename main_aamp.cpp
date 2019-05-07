@@ -5734,6 +5734,20 @@ void PrivateInstanceAAMP::AddIdleTask(IdleTask task, void* arg)
 
 
 /**
+ * @brief Add high priority idle task
+ *
+ * @note task shall return 0 to be removed, 1 to be repeated
+ *
+ * @param[in] task task function pointer
+ * @param[in] arg passed as parameter during idle task execution
+ */
+gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask)
+{
+	gint callbackID = g_idle_add_full(G_PRIORITY_HIGH_IDLE, task, (gpointer)arg, dtask);
+	return callbackID;
+}
+
+/**
  * @brief Check if sink cache is empty
  * @param mediaType type of track
  * @retval true if sink cache is empty
@@ -5837,7 +5851,8 @@ void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
 	else
 	{
 		mPendingAsyncEvents[id] = true;
-	}	pthread_mutex_unlock(&mLock);
+	}
+	pthread_mutex_unlock(&mLock);
 }
 
 
