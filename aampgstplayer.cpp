@@ -157,6 +157,7 @@ struct AAMPGstPlayerPriv
 	gint64 lastKnownPTS; //To store the PTS of last displayed video
 	long long ptsUpdatedTimeMS; //Timestamp when PTS was last updated
 	guint ptsCheckForEosOnUnderflowIdleTaskId; //ID of task to ensure video PTS is not moving before notifying EOS on underflow.
+	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
 };
 
 
@@ -758,6 +759,7 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 static gboolean buffering_timeout (gpointer data)
 {
 	AAMPGstPlayer * _this = (AAMPGstPlayer *) data;
+	AAMPGstPlayerPriv * privateContext = _this->privateContext;
 	if (_this->privateContext->buffering_in_progress)
 	{
 		guint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
@@ -766,8 +768,18 @@ static gboolean buffering_timeout (gpointer data)
 			g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 			g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
 		}
-
-		if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || _this->privateContext->buffering_timeout_cnt-- == 0)
+		/* DELIA-34654: Disable re-tune on buffering timeout for DASH as unlike HLS,
+		   DRM key acquisition can end after injection, and buffering is not expected
+		   to be completed by the 1 second timeout
+		*/
+		if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+		{
+			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d\n", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent);
+			privateContext->buffering_in_progress = false;
+			_this->DumpDiagnostics();
+			_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
+		}
+		else if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
 		{
 			logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u\n", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1));
 			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
@@ -953,7 +965,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			if (_this->privateContext->buffering_in_progress)
 			{
 				if (buffering_timeout(_this)) { // call immediately and if already buffered enough don't start timer.
-					g_timeout_add(DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+					g_timeout_add((guint)DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
 				}
 			}
 		}
@@ -1719,6 +1731,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			break;
 		}
 	}
+	if (eMEDIATYPE_VIDEO == mediaType)
+	{
+		privateContext->numberOfVideoBuffersSent++;
+	}
 }
 
 
@@ -1792,6 +1808,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 
 	/*Since ownership of buffer is given to gstreamer, reset pBuffer */
 	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
+	if (eMEDIATYPE_VIDEO == mediaType)
+	{
+		privateContext->numberOfVideoBuffersSent++;
+	}
 }
 
 
@@ -1907,6 +1927,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		}
 	}
 	privateContext->eosSignalled = false;
+	privateContext->numberOfVideoBuffersSent = 0;
 #ifdef TRACE
 	logprintf("exiting AAMPGstPlayer::%s\n", __FUNCTION__);
 #endif
@@ -2595,6 +2616,7 @@ void AAMPGstPlayer::Flush(double position, int rate)
 		}
 	}
 	privateContext->eosSignalled = false;
+	privateContext->numberOfVideoBuffersSent = 0;
 }
 
 
@@ -2821,3 +2843,51 @@ void AAMPGstPlayer::NotifyEOS()
 		logprintf("%s()%d: EOS already signaled, hence skip!\n", __FUNCTION__, __LINE__);
 	}
 }
+
+/**
+ * @brief Dump a file to log
+ *
+ * @param fileName file name
+ */
+static void DumpFile(const char* fileName)
+{
+	int c;
+	FILE *fp = fopen(fileName, "r");
+	if (fp)
+	{
+		printf("\n************************Dump %s **************************\n", fileName);
+		c = getc(fp);
+		while (c != EOF)
+		{
+			printf("%c", c);
+			c = getc(fp);
+		}
+		fclose(fp);
+		printf("\n**********************Dump %s end *************************\n", fileName);
+	}
+	else
+	{
+		logprintf("%s:%d: Could not open %s\n", __FUNCTION__, __LINE__, fileName);
+	}
+}
+
+/**
+ * @brief Dump diagnostic information
+ *
+ */
+void AAMPGstPlayer::DumpDiagnostics()
+{
+	logprintf("%s:%d video_dec %p audio_dec %p video_sink %p audio_sink %p numberOfVideoBuffersSent %d\n", __FUNCTION__,
+			__LINE__, privateContext->video_dec, privateContext->audio_dec, privateContext->video_sink,
+			privateContext->audio_sink, privateContext->numberOfVideoBuffersSent);
+#ifndef INTELCE
+	DumpFile("/proc/brcm/transport");
+	DumpFile("/proc/brcm/video_decoder");
+	DumpFile("/proc/brcm/audio");
+#endif
+}
+
+/**
+ * @}
+ */
+
