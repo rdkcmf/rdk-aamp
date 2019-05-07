@@ -2594,7 +2594,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 /***************************************************************************
 * @fn SyncVODTracks
 * @brief Function to synchronize time between audio & video for VOD stream
-*		 
+*
 * @return eAAMPSTATUS_OK on success
 ***************************************************************************/
 AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
@@ -2602,6 +2602,25 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
 	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
+
+	/*If video playTarget is just before a discontinuity, move playTarget to the discontinuity position*/
+	DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
+	for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
+	{
+		double diff = videoDiscontinuityIndex[i].position - video->playTarget;
+		if (diff > 0)
+		{
+			if (diff < video->targetDurationSeconds)
+			{
+				logprintf("%s:%d video track -  playTarget [%f]->[%f] targetDurationSeconds %f\n",
+				        __FUNCTION__, __LINE__, video->playTarget, videoDiscontinuityIndex[i].position,
+				        video->targetDurationSeconds);
+				video->playTarget = videoDiscontinuityIndex[i].position;
+			}
+			break;
+		}
+	}
+
 	if (audio->GetNumberOfPeriods() == video->GetNumberOfPeriods())
 	{
 		int periodIdx;
@@ -4423,7 +4442,7 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 	for (idx = 0; idx < indexCount; idx++)
 	{
 		const IndexNode *node = &index[idx];
-		if (node->completionTimeSecondsFromStart >= playTarget)
+		if (node->completionTimeSecondsFromStart > playTarget)
 		{
 			logprintf("%s Found node - rate %f completionTimeSecondsFromStart %f playTarget %f\n", __FUNCTION__,
 			        context->rate, node->completionTimeSecondsFromStart, playTarget);
