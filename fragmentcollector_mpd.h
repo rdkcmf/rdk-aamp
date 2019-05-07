@@ -39,7 +39,6 @@ public:
 	void SetEndPos(double endPosition);
 	void Start();
 	void Stop(bool clearChannelData);
-	bool IsLive();
 	AAMPStatusType Init(TuneType tuneType);
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
 	double GetStreamPosition();
