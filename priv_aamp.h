@@ -2477,7 +2477,7 @@ public:
 	/**
 	 *   @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
 	 *
-	 *   @return True if the content is either vod/ivod/cdvr/ip-dvr/eas
+	 *   @return False if the content is either vod/ivod/cdvr/ip-dvr/eas
 	 */
 	bool IsLiveAdjustRequired();
 
