@@ -847,14 +847,7 @@ void AveDrmManager::CancelKeyWaitAll()
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		if(sAveDrmManager[i]->mDrm)
-		{
-			sAveDrmManager[i]->mDrm->CancelKeyWait();
-		}
-		else
-		{
-			AAMPLOG_ERR("DELIA-34385 AveDrmManager::CancelKeyWaitAll mDrm is NULL at iteration i = %d\n",i);
-		}
+		sAveDrmManager[i]->mDrm->CancelKeyWait();
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
