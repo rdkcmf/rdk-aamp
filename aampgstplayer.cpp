@@ -205,7 +205,7 @@ static gboolean buffering_timeout (gpointer data);
  *
  * @param[in] aamp Pointer to PrivateInstanceAAMP object associated with player
  */
-AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp)
+AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL)
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));

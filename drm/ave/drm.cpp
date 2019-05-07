@@ -117,20 +117,27 @@ public:
 	/**
 	 * @brief TheDRMListener Constructor
 	 */
-	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType)
+	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType) : mpAamp(pAamp), mpAveDrm(aveDrm), mTrackType(trackType)
 	{
-		mpAamp = pAamp;
-		mpAveDrm = aveDrm;
-		mTrackType = trackType;
 		logprintf("TheDRMListener::%s:%d AveDrm[%p]Listner[%p]Track[%d]\n", __FUNCTION__, __LINE__, mpAveDrm,this,mTrackType);
 	}
 
 	/**
-	 * @brief TheDRMListener Constructor
+	 * @brief TheDRMListener Destructor
 	 */
 	~TheDRMListener()
 	{
 	}
+
+	/**
+	 * @brief TheDRMListener Copy Constructor
+	 */
+	TheDRMListener(const TheDRMListener&) = delete;
+
+	/**
+	 * @brief TheDRMListener Assignment operator overloading
+	 */
+	TheDRMListener& operator=(const TheDRMListener&) = delete;
 
 	/**
 	 * @brief Callback on key acquired
@@ -719,7 +726,8 @@ AveDrm::~AveDrm()
  * @brief AveDrm Constructor
  */
 AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
-		mDrmState(eDRM_INITIALIZED), mPrevDrmState(eDRM_INITIALIZED)
+		mDrmState(eDRM_INITIALIZED), mPrevDrmState(eDRM_INITIALIZED),
+		mMetaData(), mDrmInfo(), cond(), mutex()
 {
 	pthread_mutex_init(&mutex, NULL);
 	pthread_cond_init(&cond, NULL);
@@ -758,7 +766,9 @@ DRMState AveDrm::GetState()
  * @brief AveDrmManager Constructor.
  *
  */
-AveDrmManager::AveDrmManager()
+AveDrmManager::AveDrmManager() :
+		mDrm(), mDrmContexSet(false), mHasBeenUsed(false),
+		mUserCount(0), mTrackType(0), mDeferredTime(0)
 {
 	Reset();
 	mDrm = std::make_shared<AveDrm>();
