@@ -85,6 +85,8 @@ class AveDrm : public HlsDrmBase
 {
 public:
 	AveDrm();
+	AveDrm(const AveDrm&) = delete;
+	AveDrm& operator=(const AveDrm&) = delete;
 	~AveDrm();
 	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata,int trackType);
 	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);

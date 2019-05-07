@@ -117,12 +117,15 @@ struct IndexNode
 *	\struct	KeyTagStruct
 * 	\brief	KeyTagStruct structure to store all Keytags with Hash
 */
-typedef struct
+struct KeyTagStruct
 {
+	KeyTagStruct() : mShaID(""), mKeyStartDuration(0), mKeyTagStr("")
+	{
+	}
 	std::string mShaID;		/**< ShaID of Key tag */
 	double mKeyStartDuration;		/**< duration in playlist where Keytag starts */
 	std::string mKeyTagStr;			/**< String to store key tag,needed for trickplay */
-}KeyTagStruct;
+};
 
 /**
 *	\struct	DiscontinuityIndexNode
@@ -156,8 +159,12 @@ public:
  */
 	/// Constructor
 	TrackState(TrackType type, class StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name);
+	/// Copy Constructor
+	TrackState(const TrackState&) = delete;
 	/// Destructor
 	~TrackState();
+	/// Assignment operator Overloading
+	TrackState& operator=(const TrackState&) = delete;
 	/// Start Fragment downloader and Injector thread  
 	void Start();
 	/// Reset and Stop Collector and Injector thread 
@@ -340,8 +347,12 @@ public:
 	double IndexPlaylist(TrackState *trackState);
 	/// Constructor 
 	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle);
+	/// Copy Constructor
+	StreamAbstractionAAMP_HLS(const StreamAbstractionAAMP_HLS&) = delete;
 	/// Destructor 
 	~StreamAbstractionAAMP_HLS();
+	/// Assignment operator overloading
+	StreamAbstractionAAMP_HLS& operator=(const StreamAbstractionAAMP_HLS&) = delete;
 	/// Function to log all video/audio profiles 
 	void DumpProfiles(void);
 	//void SetRate(float rate, double seek_pos );

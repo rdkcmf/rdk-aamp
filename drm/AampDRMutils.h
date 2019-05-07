@@ -44,6 +44,8 @@ public:
 
 	DrmData();
 	DrmData(unsigned char *data, int dataLength);
+	DrmData(const DrmData&) = delete;
+	DrmData& operator=(const DrmData&) = delete;
 	~DrmData();
 
 	unsigned char * getData();
