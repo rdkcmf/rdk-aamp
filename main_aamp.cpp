@@ -1756,6 +1756,9 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
+
+			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT;
+
 			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
 			{
 				const char *proxy = NULL;
@@ -1774,10 +1777,14 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 				{
 					proxy = gpGlobalConfig->httpProxy;
 				}
-				/* use this proxy */
-				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
-				/* allow whatever auth the proxy speaks */
-				curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+
+				if (proxy != NULL)
+				{
+					/* use this proxy */
+					curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
+					/* allow whatever auth the proxy speaks */
+					curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+				}
 			}
 			if(ContentType_EAS == mContentType)
 			{
@@ -1787,6 +1794,9 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 				//set eas specific timeouts to handle faster cycling through bad hosts and faster total timeout
 				curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, EAS_CURL_TIMEOUT);
 				curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, EAS_CURL_CONNECTTIMEOUT);
+
+				curlDLTimeout[i] = EAS_CURL_TIMEOUT;
+
 				//on ipv6 box force curl to use ipv6 mode only (DELIA-20209)
 				struct stat tmpStat;
 				bool isv6(::stat( "/tmp/estb_ipv6", &tmpStat) == 0);
@@ -1865,6 +1875,7 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
 	if(instance < MAX_CURL_INSTANCE_COUNT && curl[instance])
 	{
 		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT, timeout);
+		curlDLTimeout[instance] = timeout;
 	}
 	else
 	{
@@ -1889,6 +1900,7 @@ void PrivateInstanceAAMP::CurlTerm(int startIdx, unsigned int instanceCount)
 		{
 			curl_easy_cleanup(curl[i]);
 			curl[i] = NULL;
+			curlDLTimeout[i] = 0;
 		}
 	}
 }
@@ -2048,8 +2060,6 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
 
-	// temporarily increase timeout for manifest download - these files (especially for VOD) can be large and slow to download
-	bool modifyDownloadTimeout = (!mIsLocalPlayback && fileType == eMEDIATYPE_MANIFEST);
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
 	{
@@ -2079,16 +2089,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
+			//Disable download stall detection checks for FOG playback done by JS PP
 			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
 			progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
 
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
-
-			if (modifyDownloadTimeout)
-			{
-				curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_MANIFEST_DL_TIMEOUT);
-			}
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
@@ -2208,13 +2214,13 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				}
 				else
 				{
-					long curlDownloadTimeout = (modifyDownloadTimeout == true) ? CURL_MANIFEST_DL_TIMEOUT : gpGlobalConfig->fragmentDLTimeout;
+					long curlDownloadTimeoutMS = curlDLTimeout[curlInstance] * 1000;
 					//use a delta of 100ms for edge cases
 					//abortReason for progress_callback exit scenarios
 					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
 									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
 									(buffer->len >= 0) &&
-									(downloadTimeMS < (curlDownloadTimeout * 1000) - 100));
+									(downloadTimeMS < curlDownloadTimeoutMS - 100));
 
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
 					//Log errors due to curl stall/start detection abort
@@ -2239,7 +2245,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 
 					if (isDownloadStalled)
 					{
-						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%lld \n", res, progressCtx.abortReason, downloadTimeMS, curlDownloadTimeout * 1000);
+						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%ld \n", res, progressCtx.abortReason, downloadTimeMS, curlDownloadTimeoutMS);
 						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
 						http_code = CURLE_PARTIAL_FILE;
 					}
@@ -2278,11 +2284,6 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code);
 				}
 				break;
-			}
-
-			if (modifyDownloadTimeout)
-			{
-				curl_easy_setopt(curl, CURLOPT_TIMEOUT, gpGlobalConfig->fragmentDLTimeout);
 			}
 		}
 
@@ -5144,7 +5145,7 @@ void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
  *
  *   @param[in] preferred timeout value
  */
-void PlayerInstanceAAMP::SetNetworkTimeout(int timeout)
+void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
 {
 	aamp->SetNetworkTimeout(timeout);
 }
@@ -5894,6 +5895,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 		//cookieHeaders[i].clear();
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
 		httpRespHeaders[i].data.clear();
+		curlDLTimeout[i] = 0;
 	}
 	mEventListener = NULL;
 	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
@@ -6857,12 +6859,13 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
  *
  *   @param[in] timeout Preferred timeout value
  */
-void PrivateInstanceAAMP::SetNetworkTimeout(int timeout)
+void PrivateInstanceAAMP::SetNetworkTimeout(long timeout)
 {
 	if (timeout > 0)
 	{
 		gpGlobalConfig->fragmentDLTimeout = timeout;
 	}
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld\n", __FUNCTION__, __LINE__, timeout);
 }
 
 

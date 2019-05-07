@@ -65,13 +65,10 @@
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 #define CURL_FRAGMENT_DL_TIMEOUT 10L     /**< Curl timeout for fragment download */
-#define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
 #define EAS_CURL_CONNECTTIMEOUT 2L      /**< Curl timeout for EAS connection */
-#define DEFAULT_CURL_DWLD_STALL_TIMEOUT 3L   /**< Curl download stall detection timeout*/
-#define DEFAULT_CURL_DWLD_START_TIMEOUT 3L   /**< Timeout for curl download to start */
 #define DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS (6*1000)   /**< Interval between playlist refreshes */
 #define TRICKPLAY_NETWORK_PLAYBACK_FPS 4            /**< Frames rate for trickplay from CDN server */
 #define TRICKPLAY_TSB_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
@@ -598,7 +595,7 @@ public:
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false), mpdHarvestLimit(0),
-		curlStallTimeout(DEFAULT_CURL_DWLD_STALL_TIMEOUT), curlDownloadStartTimeout(DEFAULT_CURL_DWLD_START_TIMEOUT),
+		curlStallTimeout(0), curlDownloadStartTimeout(0),
 		waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS), reTuneOnBufferingTimeout(true),
 		gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),enablePROutputProtection(false),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
@@ -1619,6 +1616,7 @@ public:
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
+	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 
 	/**
 	 * @brief Curl initialization function
@@ -2732,7 +2730,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(int timeout);
+	void SetNetworkTimeout(long timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
