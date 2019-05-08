@@ -654,6 +654,17 @@ public:
 		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
 	}
 
+
+	/**
+	 *   @brief Gets Max bitrate supported
+	 *
+	 *   @return max bandwidth
+	 */
+	long GetMaxBitrate(){
+		return mAbrManager.getBandwidthOfProfile(mAbrManager.getMaxBandwidthProfile());
+	}
+
+
 	/**
 	 *   @brief Get the bitrate of current video profile selected.
 	 *

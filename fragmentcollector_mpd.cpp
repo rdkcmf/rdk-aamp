@@ -220,8 +220,25 @@ public:
 		}
 		else
 		{
-			ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &bitrate);
+			char effectiveUrl[MAX_URI_LENGTH];
+			effectiveUrl[0] = 0;
+			int iFogError = -1;
+			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
+						range, actualType, &http_code, &bitrate, & iFogError);
+
+			if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
+			{
+				actualType = eMEDIATYPE_IFRAME;
+				if(actualType == eMEDIATYPE_INIT_VIDEO)
+				{
+					actualType = eMEDIATYPE_INIT_IFRAME;
+				}
+			}
+
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( actualType,
+									bitrate? bitrate : fragmentDescriptor.Bandwidth,
+									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration);
 		}
 
 		mContext->mCheckForRampdown = false;
@@ -1329,7 +1346,25 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
-				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, &pMediaStreamContext->index_len, curlInstance, range.c_str(),actualType);
+				char effectiveUrl[MAX_URI_LENGTH];
+				effectiveUrl[0] =0;
+				long http_code;
+				int iFogError = -1;
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
+
+				if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
+				{
+					actualType = eMEDIATYPE_IFRAME;
+					if(actualType == eMEDIATYPE_INIT_VIDEO)
+					{
+						actualType = eMEDIATYPE_INIT_IFRAME;
+					}
+				}
+
+				//update videoend info
+				aamp->UpdateVideoEndMetrics( actualType,
+										pMediaStreamContext->fragmentDescriptor.Bandwidth,
+										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 
@@ -2783,6 +2818,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 			memset(&manifest, 0, sizeof(manifest));
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+
+			//update videoend info
+			aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
+
 			if (gotManifest)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
