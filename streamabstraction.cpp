@@ -1034,6 +1034,8 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 		AAMP_LOG_ABR_INFO(&stAbrInfo);
 
+		aamp->UpdateVideoEndMetrics(stAbrInfo);
+
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
@@ -1225,6 +1227,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		stAbrInfo.errorType = AAMPNetworkErrorNone;
 
 		AAMP_LOG_ABR_INFO(&stAbrInfo);
+		aamp->UpdateVideoEndMetrics(stAbrInfo);
 #endif /* 0 */
 
 		this->currentProfileIndex = desiredProfileIndex;

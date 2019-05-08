@@ -40,6 +40,7 @@
 #include <list>
 #include <sstream>
 #include <mutex>
+#include <VideoStat.h>
 
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
@@ -1378,7 +1379,7 @@ public:
 	 * @param[in] bFinalAttempt - Final retry/attempt.
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1481,6 +1482,7 @@ public:
 	bool pipeline_paused; // true if pipeline is paused
 	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
+	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
 	VideoZoomMode zoom_mode;
 	bool video_muted;
@@ -1609,7 +1611,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
+	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
 
 	/**
 	 * @brief Download fragment
@@ -1623,7 +1625,7 @@ public:
 	 * @param[out] http_code - HTTP error code
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2260,6 +2262,13 @@ public:
 	bool SendTunedEvent();
 
 	/**
+	 *   @brief Send VideoEndEvent
+	 *
+	 *   @return success or failure
+	 */
+	bool SendVideoEndEvent();
+
+	/**
 	 *   @brief Check if fragment buffering needed
 	 *
 	 *   @return true: needed, false: not needed
@@ -2634,6 +2643,46 @@ public:
 	void SignalTrickModeDiscontinuity();
 
 
+	/**
+	 *   @brief updates download metrics to VideoStat object,
+	 *
+	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	 *   @param[in]  bitrate - bitrate ( bits per sec )
+	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+     *   @param[in]  strUrl :  URL in case of faulures
+	 *   @return void
+	 */
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl);
+
+	/**
+	 *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	 *
+	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	 *   @param[in]  bitrate - bitrate ( bits per sec )
+	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+     *   @param[in]  strUrl :  URL in case of faulures
+	 *   @return void
+	 */
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration);
+
+
+	/**
+	 *   @brief updates abr metrics to VideoStat object,
+	 *
+	 *   @param[in]  AAMPAbrInfo - abr info
+	 *   @return void
+	 */
+	void UpdateVideoEndMetrics(AAMPAbrInfo & info);
+
+	/**
+	 *   @brief Converts lang index to Audio Track type
+	 *
+	 *   @param[in] int - Audio Lang Index
+	 *   @return VideoStatTrackType
+	 */
+	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
+
+
 private:
 
 	/**
@@ -2659,6 +2708,7 @@ private:
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
+
 
     /**
      *   @brief Set Content Type
@@ -2701,6 +2751,12 @@ private:
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
 	char *mLicenseProxy;                /**< proxy for license acquisition */
+
+	CVideoStat * mVideoEnd;
+	std::string  mTraceUUID; // Trace ID unique to tune
+	double mTimeToTopProfile;
+	double mTimeAtTopProfile;
+	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 };
 
 #endif // PRIVAAMP_H
