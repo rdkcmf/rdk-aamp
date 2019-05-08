@@ -69,6 +69,9 @@
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
+// checks if current state is going to use IFRAME ( Fragment/Playlist )
+#define IS_FOR_IFRAME(type) ((type == eTRACK_VIDEO) && (aamp->rate != AAMP_NORMAL_PLAY_RATE))
+
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -1365,7 +1368,7 @@ char *TrackState::FindMediaForSequenceNumber()
 * @param decryption_error[out] decryption error
 * @return bool true on success else false 
 ***************************************************************************/
-bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
+bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError)
 {
 #ifdef TRACE
 		logprintf("FetchFragmentHelper Enter: pos %f start %f frag-duration %f fragmentURI %s\n",
@@ -1506,6 +1509,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 
 			if (cachedFragment->fragment.len && fragmentEncrypted)
 			{
+				// DrmDecrypt resets mKeyTagChanged , take a back up here to give back to caller
+				bKeyChanged = mKeyTagChanged;
 				{	
 					traceprintf("%s:%d [%s] uri %s - calling  DrmDecrypt()\n", __FUNCTION__, __LINE__, name, fragmentURI);
 					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
@@ -1603,7 +1608,9 @@ void TrackState::FetchFragment()
 	AAMPLOG_INFO("%s:%d: %s\n", __FUNCTION__, __LINE__, name);
 	//DELIA-33346 -- always set the rampdown flag to false .
 	context->mCheckForRampdown = false;
-	if (false == FetchFragmentHelper(http_error, decryption_error) && aamp->DownloadsAreEnabled() )
+        bool bKeyChanged = false;
+        int iFogErrorCode = -1;
+	if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode) && aamp->DownloadsAreEnabled() )
 	{
 		if (fragmentURI )
 		{
@@ -1642,6 +1649,15 @@ void TrackState::FetchFragment()
 			// if real problem exists, underflow will eventually be detected/reported
 			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track \n", __FUNCTION__, __LINE__, name);
 		}
+
+		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+		// hence getting from context which is updated in FetchFragmentHelper
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+								lbwd,
+								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->effectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
+
 		return;
 	}
 	CachedFragment* cachedFragment = GetFetchBuffer(false);
@@ -1671,6 +1687,15 @@ void TrackState::FetchFragment()
 		}
 		cachedFragment->duration = duration;
 		cachedFragment->position = position;
+
+		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+		// hence getting from context which is updated in FetchFragmentHelper
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
+
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+								lbwd,
+								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->effectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
 	}
 	else
 	{
@@ -2480,6 +2505,20 @@ void TrackState::RefreshPlaylist(void)
 	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
 	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(playlistUrl, &playlist, effectiveUrl) == false) {
 		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
+		//update videoend info
+		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
+		if(IS_FOR_IFRAME(type))
+		{
+			actualType = eMEDIATYPE_PLAYLIST_IFRAME;
+		}
+		else if (type == eTRACK_AUDIO )
+		{
+			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
+		}
+
+		aamp->UpdateVideoEndMetrics( actualType,
+								(this->GetCurrentBandWidth()*8),
+								http_error,effectiveUrl);
 	}
 	if (playlist.len)
 	{ // download successful
@@ -3210,6 +3249,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		do
 		{
 			aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 			if (this->mainManifest.len)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -3999,6 +4040,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				bool bFiledownloaded = false;
 				if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
+					//update videoend info
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -4855,6 +4898,9 @@ void TrackState::FetchPlaylist()
 	{
 		MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
 		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, mType);
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),(this->GetCurrentBandWidth()*8),
+									http_error,effectiveUrl);
 		if(playlist.len)
 		{
 			aamp->profiler.ProfileEnd(bucketId);
@@ -5185,11 +5231,27 @@ bool TrackState::FetchInitFragment(long &http_code)
 			char fragmentUrl[MAX_URI_LENGTH];
 			aamp_ResolveURL(fragmentUrl, effectiveUrl, uri.c_str());
 			char tempEffectiveUrl[MAX_URI_LENGTH];
+			tempEffectiveUrl[0] = 0;
 			WaitForFreeFragmentAvailable();
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			logprintf("%s:%d fragmentUrl = %s \n", __FUNCTION__, __LINE__, fragmentUrl);
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false, (MediaType) (type));
+
+			MediaType actualType = eMEDIATYPE_INIT_VIDEO ;
+			if(IS_FOR_IFRAME(type))
+			{
+				actualType = eMEDIATYPE_INIT_IFRAME;
+			}
+			else if (type == eTRACK_AUDIO )
+			{
+				actualType = eMEDIATYPE_INIT_AUDIO ;
+			}
+
+			aamp->UpdateVideoEndMetrics( actualType,
+									(this->GetCurrentBandWidth() *8),
+									http_code,effectiveUrl);
+
 			if (!fetched)
 			{
 				logprintf("%s:%d aamp_GetFile failed\n", __FUNCTION__, __LINE__);
