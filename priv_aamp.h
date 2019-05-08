@@ -41,6 +41,7 @@
 #include <sstream>
 #include <mutex>
 #include <queue>
+#include <VideoStat.h>
 
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
@@ -219,7 +220,6 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
 	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
-	eHTTPHEADERTYPE_BITRATE,    /**< Bitrate info from fog */
 	eHTTPHEADERTYPE_EFF_LOCATION, /**< Effective URL location returned */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
@@ -585,6 +585,7 @@ public:
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
+	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 public:
 
 	/**
@@ -618,6 +619,7 @@ public:
 		, disableSslVerifyPeer(true)
 		,mSubtitleLanguage()
 		, enableClientDai(false), playAdFromCDN(false)
+		,mEnableVideoEndEvent(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1415,7 +1417,7 @@ public:
 	 * @param[in] bFinalAttempt - Final retry/attempt.
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1521,6 +1523,7 @@ public:
 	bool pipeline_paused; // true if pipeline is paused
 	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
+	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
 	VideoZoomMode zoom_mode;
 	bool video_muted;
@@ -1622,7 +1625,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
+	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL);
 
 	/**
 	 * @brief get Media Type in string
@@ -1641,9 +1644,10 @@ public:
 	 * @param[in] curlInstance - Curl instance to be used
 	 * @param[in] range - Byte range
 	 * @param[in] fileType - File type
+	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
+	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
 
 	/**
 	 * @brief Download fragment
@@ -1655,9 +1659,10 @@ public:
 	 * @param[in] range - Byte range
 	 * @param[in] fileType - File type
 	 * @param[out] http_code - HTTP error code
+	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL, int * fogError = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2304,6 +2309,13 @@ public:
 	bool SendTunedEvent();
 
 	/**
+	 *   @brief Send VideoEndEvent
+	 *
+	 *   @return success or failure
+	 */
+	bool SendVideoEndEvent();
+
+	/**
 	 *   @brief Check if fragment buffering needed
 	 *
 	 *   @return true: needed, false: not needed
@@ -2804,6 +2816,64 @@ public:
 	 *   @return bool - true if subtitles are enabled
 	 */
 	bool IsSubtitleEnabled(void);
+	/**   @brief updates download metrics to VideoStat object,
+	 *
+	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	 *   @param[in]  bitrate - bitrate ( bits per sec )
+	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+     *   @param[in]  strUrl :  URL in case of faulures
+	 *   @return void
+	 */
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl);
+
+	/**
+	 *   @brief updates time shift buffer status
+	 *
+	 *   @param[in]  btsbAvailable - true if TSB supported
+	 *   @return void
+	 */
+	void UpdateVideoEndTsbStatus(bool btsbAvailable);
+
+	/**
+	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	*
+	*  @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	*   @param[in]  bitrate - bitrate ( bits per sec )
+	*   @param[in]  curlOrHTTPErrorCode - download curl or http error
+	*   @param[in]  strUrl :  URL in case of faulures
+	*   @param[in] keyChanged : if DRM key changed then it is set to true
+	*   @param[in] isEncrypted : if fragment is encrypted then it is set to true
+	*   @return void
+	*/
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, bool keyChanged, bool isEncrypted);
+    
+	/**
+	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	*
+	*   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	*   @param[in]  bitrate - bitrate ( bits per sec )
+	*   @param[in]  curlOrHTTPErrorCode - download curl or http error
+	*   @param[in]  strUrl :  URL in case of faulures
+	*   @return void
+	*/
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration);
+
+
+	/**
+	 *   @brief updates abr metrics to VideoStat object,
+	 *
+	 *   @param[in]  AAMPAbrInfo - abr info
+	 *   @return void
+	 */
+	void UpdateVideoEndMetrics(AAMPAbrInfo & info);
+
+	/**
+	 *   @brief Converts lang index to Audio Track type
+	 *
+	 *   @param[in] int - Audio Lang Index
+	 *   @return VideoStatTrackType
+	 */
+	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
 private:
 
@@ -2845,6 +2915,7 @@ private:
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
+
 
     /**
      *   @brief Set Content Type
@@ -2894,6 +2965,11 @@ private:
 	int mNumAds2Place;
 	std::string sampleAdBreakId;
 #endif
+	CVideoStat * mVideoEnd;
+	std::string  mTraceUUID; // Trace ID unique to tune
+	double mTimeToTopProfile;
+	double mTimeAtTopProfile;
+	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 };
 
 #endif // PRIVAAMP_H
