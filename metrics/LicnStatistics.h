@@ -17,6 +17,9 @@
  * limitations under the License.
 */
 
+
+// NOTE - protex_scan is failing hence changed file name from LicenseStatistics.h LicnStatistics.h
+
 #ifndef __LICENSE_STATISTICS_H__
 #define __LICENSE_STATISTICS_H__
 
@@ -28,16 +31,28 @@ private:
 	int mTotalRotations; // total liecense rotation/switch
 	int mTotalEncryptedToClear; // Encrypted to clear liecense switch
 	int mTotalClearToEncrypted; // Clear to encrypted liecense switch
+	bool mbEncypted;
+	// First call to reporting data will set this variable to true, 
+	// this is used to avoid recording license data of stream starts with encrypted content and never transition to clear. 
+	bool isInitialized; 
 public:
-	CLicenseStatistics() :mTotalRotations(COUNT_NONE), mTotalEncryptedToClear(COUNT_NONE) , mTotalClearToEncrypted(COUNT_NONE)
+	CLicenseStatistics() :mTotalRotations(COUNT_NONE), mTotalEncryptedToClear(COUNT_NONE) , mTotalClearToEncrypted(COUNT_NONE),
+	mbEncypted(false) , isInitialized (false) 
 	{
 
 	}
 
 	/**
+	 *   @brief  Records license stat
+	 *   @param[in]  isEncypted indicates track or fragment is encrypted, based on this info clear to enc or enc to clear stats are incremented
+	 *   @param[in]  isKeyChanged indicates if keychanged for encrypted fragment
+	 *   @return None
+	 */
+	void Record_License_EncryptionStat(bool isEncypted, bool isKeyChanged);
+
+	/**
 	 *   @brief  Increments License stat count
 	 *   @param[in]  VideoStatCountType
-     *
 	 *   @return None
 	 */
 	void IncrementCount(VideoStatCountType type);

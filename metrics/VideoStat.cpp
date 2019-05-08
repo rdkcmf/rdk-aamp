@@ -26,6 +26,31 @@
 
 #include <iostream>
 
+#define TAG_VERSION					"vr" 	// version of video end event
+//timetoTop
+#define TAG_TIME_TO_TOP					"tt"  	// time to reach top profile
+#define TAG_TIME_AT_TOP					"ta" 	//time for which video remain on top profile
+#define TAG_TIME_PLAYBACK_DURATION			"d" 	// time for which playback was done, this is measured at the time of fragment download , hence play-back duration may be slightly less due to g-streamer and aamp buffers
+#define TAG_ABR_NET_DROP				"dn"   	// Step down profile count happened due to Bad network bandwidth
+#define TAG_ABR_ERR_DROP				"de"   	// Step down profile count happened due to Bad download errors/failures
+#define TAG_TSB_AVAILIBLITY				"t"		// indicates if TSB used for playback,
+// TAGs for Playback types
+#define TAG_MAIN					"m"		// Main manifest
+#define TAG_VIDEO					"v"		// Video Profile
+#define TAG_IFRAME					"i"		// Iframe Profile
+#define TAG_AUDIO_1					"a1"	// Audio track 1
+#define TAG_AUDIO_2					"a2"	// Audio track 2
+#define TAG_AUDIO_3					"a3"	// Audio track 3
+#define TAG_AUDIO_4					"a4"	// Audio track 4
+#define TAG_AUDIO_5					"a5"	// Audio track 5
+#define TAG_UNKNOWN					"u"		// Unknown Profile or track type
+
+#define TAG_SUPPORTED_LANG				"l"		// Supported language
+#define TAG_PROFILES 					"p"		// Encapsulates Different Profile available in stream
+#define TAG_LICENSE_STAT				"ls"	// License statistics
+
+
+
 
 
 
@@ -46,21 +71,44 @@ char * CVideoStat::ToJsonString() const
 		cJSON * jsonObj = NULL;
 
 		jsonObj = cJSON_CreateString(VIDEO_END_DATA_VERSION);
-		cJSON_AddItemToObject(monitor, "version", jsonObj);
+		cJSON_AddItemToObject(monitor, TAG_VERSION, jsonObj);
 
 
-		jsonObj =  cJSON_CreateNumber(mTmeToTopProfile);
-		cJSON_AddItemToObject(monitor, "timetoTop", jsonObj);
-		jsonObj =  cJSON_CreateNumber(mTimeAtTopProfile);
-		cJSON_AddItemToObject(monitor, "timeAtTop", jsonObj);
-		jsonObj =  cJSON_CreateNumber(mTotalVideoDuration);
-		cJSON_AddItemToObject(monitor, "duration", jsonObj);
-		jsonObj =  cJSON_CreateNumber(mAbrNetworkDropCount);
-		cJSON_AddItemToObject(monitor, "abrNetDrop", jsonObj);
-		jsonObj =  cJSON_CreateNumber(mAbrErrorDropCount);
-		cJSON_AddItemToObject(monitor, "abrErrDrop", jsonObj);
+		if(mTmeToTopProfile > 0 )
+		{
+			jsonObj =  cJSON_CreateNumber(mTmeToTopProfile);
+			cJSON_AddItemToObject(monitor, TAG_TIME_TO_TOP, jsonObj);
+		}
 
+		if(mTimeAtTopProfile > 0)
+		{
+			jsonObj =  cJSON_CreateNumber(mTimeAtTopProfile);
+			cJSON_AddItemToObject(monitor, TAG_TIME_AT_TOP, jsonObj);
+		}
 
+		if(mTotalVideoDuration > 0 )
+		{
+			jsonObj =  cJSON_CreateNumber(mTotalVideoDuration);
+			cJSON_AddItemToObject(monitor, TAG_TIME_PLAYBACK_DURATION, jsonObj);
+		}
+
+		if(mTotalVideoDuration >0 )
+		{
+			jsonObj =  cJSON_CreateNumber(mAbrNetworkDropCount);
+			cJSON_AddItemToObject(monitor, TAG_ABR_NET_DROP, jsonObj);
+		}
+
+		if(mAbrErrorDropCount > 0)
+		{
+			jsonObj =  cJSON_CreateNumber(mAbrErrorDropCount);
+			cJSON_AddItemToObject(monitor, TAG_ABR_ERR_DROP, jsonObj);
+		}
+
+		if(mbTsb)
+		{
+			jsonObj =  cJSON_CreateNumber(1);
+			cJSON_AddItemToObject(monitor, TAG_TSB_AVAILIBLITY, jsonObj);
+		}
 
 		bool isDataAdded = false;
 
@@ -79,7 +127,7 @@ char * CVideoStat::ToJsonString() const
 
 		if(isDataAdded)
 		{
-			cJSON_AddItemToObject(monitor, "supportedLang", langList);
+			cJSON_AddItemToObject(monitor, TAG_SUPPORTED_LANG, langList);
 		}
 		else
 		{
@@ -90,9 +138,6 @@ char * CVideoStat::ToJsonString() const
 
 		for (auto const& mapProfileInfo : mMapStreamInfo)
 		{
-
-		//	cJSON * streamInfoArry = cJSON_AddArrayToObject(monitor,TrackTypeToString(mapProfileInfo.first).c_str());
-
 			cJSON *profiles = cJSON_CreateObject();
 			jsonObj = NULL;
 
@@ -114,7 +159,25 @@ char * CVideoStat::ToJsonString() const
 			
 			if(isDataAdded) // at least one profile added to profiles
 			{
-				cJSON_AddItemToObject(monitor, TrackTypeToString(mapProfileInfo.first).c_str(), profiles);
+
+				cJSON * trackJson  = cJSON_CreateObject();
+
+				cJSON_AddItemToObject(trackJson, TAG_PROFILES, profiles);
+
+				cJSON * licenceJson = NULL;
+
+				auto  it = mMapLicenseInfo.find(mapProfileInfo.first);
+				if (it != mMapLicenseInfo.end())
+				{
+					licenceJson = (*it).second.ToJson();
+				}
+
+				if(licenceJson)
+				{
+					cJSON_AddItemToObject(trackJson, TAG_LICENSE_STAT, licenceJson);
+				}
+
+				cJSON_AddItemToObject(monitor, TrackTypeToString(mapProfileInfo.first).c_str(), trackJson);
 			}
 			else
 			{
@@ -185,18 +248,17 @@ void CVideoStat::Increment_Manifest_Count(VideoStatTrackType eType, VideoStatCou
 
 
 /**
- *   @brief Increment License stats
+ *   @brief   Records License stat based on isEncypted
  *
- *   @param[in] VideoStatTrackType - Indicates track for which Increment required
- *    @param[in] VideoStatCountType - Type of count type
- *    bitrate : profile bitrate
- *
+ *   @param[in] VideoStatTrackType - Indicates track
+ *   @param[in] isEncypted - Indicates clear(false) or encrypted ( true)
+ *   @param[in] isKeyChanged - indicates if key is changed for encrypted fragment
  *   @return None
  */
-void CVideoStat::Increment_License_Count(VideoStatTrackType eType, VideoStatCountType eCountType, long bitrate)
+void CVideoStat::Record_License_EncryptionStat(VideoStatTrackType eType, bool isEncypted, bool isKeyChanged)
 {
-	CProfileInfo * pinfo = &(mMapStreamInfo[eType][bitrate]);
-	pinfo->GetLicenseStat()->IncrementCount(eCountType);
+    
+	mMapLicenseInfo[eType].Record_License_EncryptionStat(isEncypted,isKeyChanged);
 }
 
 /**
@@ -257,51 +319,51 @@ std::string CVideoStat::TrackTypeToString(VideoStatTrackType type) const
 	switch (type) {
 		case STAT_MAIN:
 		{
-			strRetVal ="main";
+			strRetVal = TAG_MAIN;
 		}
 			break;
 			
 		case STAT_VIDEO:
 		{
-			strRetVal ="video";
+			strRetVal =TAG_VIDEO;
 		}
 			break;
 		case STAT_IFRAME:
 		{
-			strRetVal ="iframe";
+			strRetVal = TAG_IFRAME;
 		}
 			break;
 			
 		case STAT_AUDIO_1:
 		{
-			strRetVal ="audio_1";
+			strRetVal = TAG_AUDIO_1;
 		}
 			break;
 
 		case STAT_AUDIO_2:
 		{
-			strRetVal ="audio_2";
+			strRetVal = TAG_AUDIO_2;
 		}
 			break;
 			
 		case STAT_AUDIO_3:
 		{
-			strRetVal ="audio_3";
+			strRetVal = TAG_AUDIO_3;
 		}
 			break;
 		case STAT_AUDIO_4:
 		{
-			strRetVal ="audio_4";
+			strRetVal = TAG_AUDIO_4;
 		}
 			break;
 			
 		case STAT_AUDIO_5:
 		{
-			strRetVal ="audio_5";
+			strRetVal =TAG_AUDIO_5;
 		}
 			break;
 		default:
-			strRetVal ="unknown";
+			strRetVal = TAG_UNKNOWN;
 			break;
 	}
 	
@@ -339,10 +401,6 @@ void CVideoStat::Increment_Data(VideoStatDataType dataType,VideoStatTrackType eT
 				Increment_Init_Fragment_Count(eType,eCountType,bitrate );
 			}
 				break;
-		case VE_DATA_LICENSE:
-			{
-				Increment_License_Count(eType,eCountType,bitrate );
-			}
 			default:
 
 				break;

@@ -222,8 +222,9 @@ public:
 		{
 			char effectiveUrl[MAX_URI_LENGTH];
 			effectiveUrl[0] = 0;
+			int iFogError = -1;
 			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &bitrate);
+						range, actualType, &http_code, &bitrate, & iFogError);
 
 			if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 			{
@@ -237,7 +238,7 @@ public:
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( actualType,
 									bitrate? bitrate : fragmentDescriptor.Bandwidth,
-									http_code,effectiveUrl,duration);
+									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration);
 		}
 
 		mContext->mCheckForRampdown = false;
@@ -1348,7 +1349,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				char effectiveUrl[MAX_URI_LENGTH];
 				effectiveUrl[0] =0;
 				long http_code;
-				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType);
+				int iFogError = -1;
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
 
 				if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 				{
@@ -1362,7 +1364,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				//update videoend info
 				aamp->UpdateVideoEndMetrics( actualType,
 										pMediaStreamContext->fragmentDescriptor.Bandwidth,
-										http_code,effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time);
+										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 

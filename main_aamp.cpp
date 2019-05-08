@@ -58,6 +58,7 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #else
 #include <termios.h>
 #include <errno.h>
+#include <regex>
 
 #ifdef IARM_MGR
 #include "host.hpp"
@@ -1359,6 +1360,12 @@ struct CurlCallbackContext
 	PrivateInstanceAAMP *aamp;
 	GrowableBuffer *buffer;
 	httpRespHeaderData *responseHeaderData;
+	long bitrate;
+
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0)
+	{
+
+	}
 };
 
 /**
@@ -1421,6 +1428,7 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 	size_t len = nmemb * size;
 	int startPos = 0;
 	int endPos = 0;
+	bool isBitrateHeader = false;
 
 	std::string header((const char *)ptr, 0, len);
 
@@ -1440,10 +1448,10 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 	}
 	else if (std::string::npos != header.find("X-Bitrate:"))
 	{
-		httpHeader->type = eHTTPHEADERTYPE_BITRATE;
 		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
 		startPos = header.find("X-Bitrate:") + strlen("X-Bitrate:");
 		endPos = header.length() - 1;
+		isBitrateHeader = true;
 	}
 	else if (std::string::npos != header.find("Set-Cookie:"))
 	{
@@ -1488,12 +1496,20 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		{
 			endPos--;
 		}
-		httpHeader->data = header.substr(startPos, (endPos - startPos + 1));
 
-		//Append a delimiter ";"
-		httpHeader->data += ';';
+		if(isBitrateHeader)
+		{
+			std::string strBitrate = header.substr(startPos, (endPos - startPos + 1));
+			context->bitrate = std::stol("0" + strBitrate);
+		}
+		else
+		{
+			httpHeader->data = header.substr(startPos, (endPos - startPos + 1));
+			//Append a delimiter ";"
+			httpHeader->data += ';';
 
-		traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+			traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+		}
 	}
 	return len;
 }
@@ -1983,7 +1999,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param fileType media type of the file
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate)
+bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate, int * fogError)
 {
 	long http_code = -1;
 	bool ret = false;
@@ -2007,11 +2023,12 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		bool isDownloadStalled = false;
 		pthread_mutex_unlock(&mLock);
 		AAMPLOG_INFO("aamp url: %s\n", remoteUrl);
+		CurlCallbackContext context;
 
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl);
-			CurlCallbackContext context;
+
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
@@ -2133,6 +2150,8 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					        mTSBEnabled = false;
 					        logprintf("NO_TSB_AVAILABLE playing from:%s \n", effectiveUrl);
 					    }
+					    // updating here because, tune request can be for fog but fog may redirect to cdn in some cases
+					    this->UpdateVideoEndTsbStatus(mTSBEnabled);
 					}
 
 					/*
@@ -2321,17 +2340,48 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				logprintf("Received X-Reason header from %s: '%s'", mTSBEnabled?"Fog":"CDN Server", httpRespHeaders[curlInstance].data.c_str());
 				SendAnomalyEvent(ANOMALY_WARNING, "%s X-Reason:%s", mTSBEnabled ? "Fog" : "CDN", httpRespHeaders[curlInstance].data.c_str());
 			}
-            else if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_REASON) && (httpRespHeaders[curlInstance].data.length() > 0) )
-            {
+			else if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_REASON) && (httpRespHeaders[curlInstance].data.length() > 0) )
+			{
+				//extract error and url used by fog to download content from cdn
+				// it is part of fog-reason
+				if(fogError)
+				{
+					std::regex errRegx("-(.*),");
+					std::smatch match;
+					if (std::regex_search(httpRespHeaders[curlInstance].data, match, errRegx) && match.size() > 1) {
+						if (!match.str(1).empty())
+						{
+							*fogError = std::stoi(match.str(1));
+							logprintf("Received FOG-Reason fogError: '%d'", *fogError);
+						}
+					}
+				}
+
+				//	get failed url from fog reason and update effectiveUrl
+				if(effectiveUrl)
+				{
+					std::regex fromRegx("from:(.*),");
+					std::smatch match;
+
+					if (std::regex_search(httpRespHeaders[curlInstance].data, match, fromRegx) && match.size() > 1) {
+						if (!match.str(1).empty())
+						{
+							strncpy(effectiveUrl, match.str(1).c_str(), MAX_URI_LENGTH-1);
+							logprintf("Received FOG-Reason effectiveUrl: '%s'", effectiveUrl);
+						}
+					}
+				}
+
+
                 logprintf("Received FOG-Reason header: '%s'", httpRespHeaders[curlInstance].data.c_str());
                 SendAnomalyEvent(ANOMALY_WARNING, "FOG-Reason:%s", httpRespHeaders[curlInstance].data.c_str());
             }
 		}
 
-		if (bitrate && (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_BITRATE) && (httpRespHeaders[curlInstance].data.length() > 0))
+		if (bitrate && (context.bitrate > 0))
 		{
-			//logprintf("Received Bitrate header: '%s'", httpRespHeaders[curlInstance].data.c_str());
-			*bitrate = std::stol("0" + httpRespHeaders[curlInstance].data);
+			logprintf("Received getfile Bitrate : %ld", context.bitrate);
+			*bitrate = context.bitrate;
 		}
 		pthread_mutex_lock(&mLock);
 	}
@@ -4153,12 +4203,12 @@ void PrivateInstanceAAMP::SyncEnd(void)
  * @param fileType media type of the file
  * @retval buffer containing file, free using aamp_Free
  */
-char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code,MediaType fileType)
+char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code,MediaType fileType,int * fogError)
 {
 	profiler.ProfileBegin(bucketType);
 
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
-	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, range, curlInstance, true, fileType))
+	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, range, curlInstance, true, fileType,NULL,fogError))
 	{
 		profiler.ProfileError(bucketType);
 	}
@@ -4181,12 +4231,12 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl,char *effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl,char *effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate,int * fogError)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
 
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
+	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate,fogError))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType);
@@ -6022,7 +6072,6 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 
 }
 
-
 /**
  *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  *
@@ -6034,7 +6083,40 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration)
 {
-	AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f n", mediaType, bitrate , curlOrHTTPCode,mTimeAtTopProfile ,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration);
+    UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,duration,false,false);
+}
+
+/**
+ *   @brief updates time shift buffer status
+ *
+ *   @param[in]  btsbAvailable - true if TSB supported
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
+{
+	pthread_mutex_lock(&mLock);
+	if(mVideoEnd)
+	{
+
+		mVideoEnd->SetTsbStatus(btsbAvailable);
+	}
+	pthread_mutex_unlock(&mLock);
+}
+    
+
+/**
+ *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+ *
+ *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+ *   @param[in]  bitrate - bitrate ( bits per sec )
+ *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+ *   @param[in]  strUrl :  URL in case of faulures
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration, bool keyChanged, bool isEncrypted)
+{
+	AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f keyChan:%d encry:%d",
+			mediaType, bitrate , curlOrHTTPCode,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration,keyChanged,isEncrypted );
 
 	// ignore for write and aborted errors
 	// these are generated after trick play options,
@@ -6193,6 +6275,10 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 					//set failure url
 					mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
 				}
+				if(dataType == VideoStatDataType::VE_DATA_FRAGMENT) 
+				{
+					mVideoEnd->Record_License_EncryptionStat(trackType,isEncrypted,keyChanged);
+				}
 			}
 			pthread_mutex_unlock(&mLock);
 
@@ -6254,7 +6340,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl)
 {
-	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0);
+	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,false,false);
 }
 
 /**

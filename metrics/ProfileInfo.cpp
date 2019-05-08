@@ -19,6 +19,8 @@
 
 #include "ProfileInfo.h"
 
+#define TAG_MANIFEST_STAT	"ms"	// Manifest Stats
+#define TAG_FRAGMENT_STAT	"fs"	// Fragment Stats
 
 /**
  *   @brief  Converts class object data to Json object
@@ -33,14 +35,12 @@ cJSON * CProfileInfo::ToJson() const
 	if(monitor)
 	{
 		cJSON * jsonObj = NULL;
-		bool isDataAdded = false;
 		if(mpManifestStat)
 		{
 			jsonObj = mpManifestStat->ToJson();
 			if(jsonObj)
 			{
-				cJSON_AddItemToObject(monitor, "manifestStat", jsonObj);
-				isDataAdded = true;
+				cJSON_AddItemToObject(monitor, TAG_MANIFEST_STAT, jsonObj);
 			}
 		}
 
@@ -49,22 +49,11 @@ cJSON * CProfileInfo::ToJson() const
 			jsonObj = mpFragmentStat->ToJson();
 			if(jsonObj)
 			{
-				cJSON_AddItemToObject(monitor, "fragStat", jsonObj);
-				isDataAdded = true;
+				cJSON_AddItemToObject(monitor, TAG_FRAGMENT_STAT, jsonObj);
 			}
 		}
 
-		if( mplicenseStatistics)
-		{
-			jsonObj = mplicenseStatistics->ToJson();
-			if(jsonObj)
-			{
-				cJSON_AddItemToObject(monitor, "licStat", jsonObj);
-				isDataAdded = true;
-			}
-		}
-
-		if(!isDataAdded)
+		if(jsonObj == NULL)
 		{
 			//nothing is added to monitor
 			//delete monitor
