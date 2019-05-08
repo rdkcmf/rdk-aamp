@@ -91,6 +91,7 @@ typedef enum
 	AAMP_EVENT_AD_PLACEMENT_END,    /**< Ad playback ends */
 	AAMP_EVENT_AD_PLACEMENT_ERROR,  /**< Ad playback error */
 	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
+	AAMP_EVENT_REPORT_METRICS_DATA,       /**< AAMP VideoEnd info reporting */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -192,6 +193,13 @@ typedef enum
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
 #define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
 #define MAX_ANOMALY_BUFF_SIZE   256
+#define METRIC_UUID_BUFF_LEN  256
+
+typedef enum E_MetricsDataType
+{
+	AAMP_DATA_NONE,
+	AAMP_DATA_VIDEO_END
+}MetricsDataType;
 
 
 /**
@@ -208,6 +216,14 @@ struct AAMPEvent
 			int severity; /**< informative number indicates severity of msg, e.g Warning, Error, Trace etc */
 			char msg[MAX_ANOMALY_BUFF_SIZE];
 		} anomalyReport;
+
+
+		struct
+		{
+			MetricsDataType type; 		/**< type of data , e.g AAMP_DATA_VIDEO_END for VideoEndEvent data */
+			char metricUUID[METRIC_UUID_BUFF_LEN]; // unique session id passed during tune,
+			char * data;   /**< data for event  */
+		} metricsData;
 
 		/**
 		 * @brief Structure of the progress event data
@@ -385,6 +401,7 @@ struct AAMPEvent
 	 */
 	AAMPEvent() : type(), data(),additionalEventData()
 	{
+
 	}
 
 	/**
@@ -393,6 +410,7 @@ struct AAMPEvent
 	 */
 	AAMPEvent(AAMPEventType t) : type(t), data(),additionalEventData()
 	{
+
 	}
 
 	/**
@@ -462,6 +480,8 @@ enum MediaType
 	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
 	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
 	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
+	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
+	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 
@@ -760,7 +780,7 @@ public:
 	 *   @param[in]  contentType - Content type of the asset
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL);
 
 	/**
 	 *   @brief Stop playback and release resources.

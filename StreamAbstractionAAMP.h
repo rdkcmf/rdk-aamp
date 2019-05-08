@@ -471,6 +471,13 @@ public:
 	void SetTsbBandwidth(long tsbBandwidth){ mTsbBandwidth = tsbBandwidth;}
 
 	/**
+	 *   @brief When TSB is involved, use this to get bandwidth to be reported.
+	 *
+	 *   @return Bandwidth of the track.
+	 */
+	long GetTsbBandwidth() { return mTsbBandwidth ;}
+
+	/**
 	 *   @brief Set elementary stream type change status for reconfigure the pipeline.
 	 *
 	 *   @param[in]  None
@@ -653,6 +660,17 @@ public:
 	long GetCurProfIdxBW(){
 		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
 	}
+
+
+	/**
+	 *   @brief Gets Max bitrate supported
+	 *
+	 *   @return max bandwidth
+	 */
+	virtual long GetMaxBitrate(){
+		return mAbrManager.getBandwidthOfProfile(mAbrManager.getMaxBandwidthProfile());
+	}
+
 
 	/**
 	 *   @brief Get the bitrate of current video profile selected.

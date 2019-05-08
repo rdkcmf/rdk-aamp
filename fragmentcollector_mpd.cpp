@@ -256,8 +256,25 @@ public:
 		}
 		else
 		{
-			ret = aamp->LoadFragment(bucketType, fragmentUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &bitrate);
+			std::string effectiveUrl;
+			int iFogError = -1;
+			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
+			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
+						range, actualType, &http_code, &bitrate, &iFogError);
+
+			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
+			{
+				actualType = eMEDIATYPE_IFRAME;
+				if(actualType == eMEDIATYPE_INIT_VIDEO)
+				{
+					actualType = eMEDIATYPE_INIT_IFRAME;
+				}
+			}
+
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( actualType,
+									bitrate? bitrate : fragmentDescriptor.Bandwidth,
+									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration);
 		}
 
 		mContext->mCheckForRampdown = false;
@@ -507,6 +524,8 @@ public:
 	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
+	long GetMaxTSBBandwidth() { return mMaxTSBBandwidth; }
+	bool IsTSBUsed() { return mIsFogTSB; }
 private:
 	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false);
@@ -567,6 +586,11 @@ private:
 	double mBasePeriodOffset;
 	PrivateCDAIObjectMPD *mCdaiObject;
 
+	// DASH does not use abr manager to store the supported bandwidth values,
+	// hence storing max TSB bandwith in this variable which will be used for VideoEnd Metric data via
+	// StreamAbstractionAAMP::GetMaxBitrate function,
+	long mMaxTSBBandwidth;
+
 	double mLiveEndPosition;
 	double mCulledSeconds;
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
@@ -589,6 +613,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
+	,mMaxTSBBandwidth(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -1452,7 +1477,25 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
-				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, &pMediaStreamContext->index_len, curlInstance, range.c_str(),actualType);
+				std::string effectiveUrl;
+				long http_code;
+				int iFogError = -1;
+				int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
+
+				if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
+				{
+					actualType = eMEDIATYPE_IFRAME;
+					if(actualType == eMEDIATYPE_INIT_VIDEO)
+					{
+						actualType = eMEDIATYPE_INIT_IFRAME;
+					}
+				}
+
+				//update videoend info
+				aamp->UpdateVideoEndMetrics( actualType,
+										pMediaStreamContext->fragmentDescriptor.Bandwidth,
+										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 
@@ -3034,6 +3077,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			memset(&manifest, 0, sizeof(manifest));
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+
+			//update videoend info
+			aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
+
 			if (gotManifest)
 			{
 				aamp->mManifestUrl = manifestUrl;
@@ -4056,6 +4103,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					}
 					mContext->GetABRManager().clearProfiles();
 					mBitrateIndexMap.clear();
+					mMaxTSBBandwidth = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
 						Representation* representation = representations.at(idx);
@@ -4065,6 +4113,11 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
 						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
 						delete representation;
+
+						if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
+						{
+							mMaxTSBBandwidth = mStreamInfo[idx].bandwidthBitsPerSecond;
+						}
 					}
 					pMediaStreamContext->representationIndex = 0; //Fog custom mpd has a single representation
 					IRepresentation* representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(0);
@@ -5694,6 +5747,26 @@ std::vector<long> PrivateStreamAbstractionMPD::GetAudioBitrates(void)
 std::vector<long> StreamAbstractionAAMP_MPD::GetVideoBitrates(void)
 {
 	return mPriv->GetVideoBitrates();
+}
+
+/*
+* @brief Gets Max Bitrate avialable for current playback.
+* @ret long MAX video bitrates
+*/
+long StreamAbstractionAAMP_MPD::GetMaxBitrate()
+{
+	long maxBitrate = 0;
+	if(mPriv->IsTSBUsed())
+	{
+		maxBitrate = mPriv->GetMaxTSBBandwidth();
+	}
+	else
+	{
+
+		maxBitrate = StreamAbstractionAAMP::GetMaxBitrate();
+	}
+
+	return maxBitrate;
 }
 
 

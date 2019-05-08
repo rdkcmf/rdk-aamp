@@ -168,6 +168,7 @@ max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Si
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 sslverifypeer=1	Enable TLS certificate verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
+enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -221,7 +222,7 @@ version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,Manifes
 version#4
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune
 
-MicroEvents Acronyms
+MicroEvents Information
 =====================
 Common:
 ct = Content Type
@@ -259,4 +260,41 @@ d = Duration till the completion of event
 o = Output of Event (200:Success, Non 200:Error Code)
 
 
+VideoEnd Event Information
+==========================
+vr = version of video end event (currently "1.0")
+tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
+ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
+d = duration - estimate of total playback duration.  Note that this is based on fragments downloaded/injected - user may interrupt buffered playback with seek/stop, causing estimates to skew higher in edge cases.
+dn = Download step-downs due to bad Network bandwidth
+de = Download step-downs due to Error handling ramp-down/retry logic
+t = indicates that FOG time shift buffer (TSB) was used for playback
+m =  main manifest
+v = video Profile
+i = Iframe Profile
+a1 = audio track 1
+a2 = audio track 2
+a3 = audio track 3
+...
+u = Unknown Profile or track type
 
+l = supported languages
+p = profile-specific metrics encapsulation
+ls = license statistics
+
+ms = manifest statistics
+fs = fragment statistics
+
+r = total license rotations / stream switches
+e = encrypted to clear switches
+c = clear to encrypted switches
+
+4 = HTTP-4XX error count
+5 = HTTP-5XX error count
+t = CURL timeout error count
+c = CURL error count (other)
+s = successful download count
+
+u = URL of most recent (last) failed download
+n = normal fragment statistics
+i = "init" fragment statistics (used in case of DASH and fragmented mp4)
