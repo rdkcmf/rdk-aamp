@@ -54,6 +54,7 @@ AampOutputProtection::AampOutputProtection()
 , m_isHDCPEnabled(false)
 , m_gstElement(NULL)
 , m_hdcpCurrentProtocol(dsHDCP_VERSION_MAX)
+, m_opProtectMutex()
 {
     DEBUG_FUNC;
     pthread_mutex_init(&m_opProtectMutex,NULL);

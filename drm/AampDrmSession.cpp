@@ -32,9 +32,8 @@
 /**
  *  @brief	AampDrmSession constructor.
  */
-AampDrmSession::AampDrmSession(const string &keySystem)
+AampDrmSession::AampDrmSession(const string &keySystem) : m_keySystem(keySystem)
 {
-	m_keySystem = keySystem;
 }
 
 /**

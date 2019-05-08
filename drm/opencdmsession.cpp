@@ -153,7 +153,9 @@ OpenCDMSession::OpenCDMSession(string& keySystem) :
 		m_eKeyState(KEY_INIT), 
 		m_pOutputProtection(NULL),
 		m_pOpencdm(NULL),
-		m_pOpencdmDecrypt(NULL)
+		m_pOpencdmDecrypt(NULL),
+		decryptMutex(),
+		m_sessionID()
 {
 	logprintf("OpenCDMSession :: enter \n");
 	pthread_mutex_init(&decryptMutex,NULL);

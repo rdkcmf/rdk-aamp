@@ -36,10 +36,8 @@
  *  @brief		Default constructor for DrmData.
  *				NULL initialize data and dataLength.
  */
-DrmData::DrmData()
+DrmData::DrmData() : data(NULL), dataLength(0)
 {
-	dataLength = 0;
-	data = NULL;
 }
 
 /**
@@ -50,10 +48,9 @@ DrmData::DrmData()
  *  @param[in]	data         Pointer to data to be copied.
  *  @param[in]	dataLength   Length of data
  */
-DrmData::DrmData(unsigned char *data, int dataLength)
+DrmData::DrmData(unsigned char *data, int dataLength) : data(NULL), dataLength(dataLength)
 {
 	this->data =(unsigned char*) malloc(dataLength + 1);
-	this->dataLength = dataLength;
 	memcpy(this->data,data,dataLength + 1);
 }
 

@@ -32,12 +32,17 @@
  * @struct PrivAAMPStruct_JS
  * @brief Private data structure for JS binding object
  */
-typedef struct PrivAAMPStruct_JS {
+struct PrivAAMPStruct_JS {
+	PrivAAMPStruct_JS() : _ctx(), _aamp(NULL), _listeners()
+	{
+	}
+	PrivAAMPStruct_JS(const PrivAAMPStruct_JS&) = delete;
+	PrivAAMPStruct_JS& operator=(const PrivAAMPStruct_JS&) = delete;
 	JSGlobalContextRef _ctx;
 	PlayerInstanceAAMP* _aamp;
 
 	std::multimap<AAMPEventType, void*> _listeners;
-}PrivAAMPStruct_JS;
+};
 
 /**
  * @addtogroup AAMP_JS_API

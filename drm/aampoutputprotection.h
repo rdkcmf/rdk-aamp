@@ -76,7 +76,7 @@ class ReferenceCount
 {
 public:
 
-    ReferenceCount() : m_refCount(0) {
+    ReferenceCount() : m_refCount(0), m_refCountMutex() {
         pthread_mutex_init(&m_refCountMutex, NULL);
     }
 
@@ -153,6 +153,10 @@ public:
     AampOutputProtection();
 
     virtual ~AampOutputProtection();
+
+    AampOutputProtection(const AampOutputProtection&) = delete;
+
+    AampOutputProtection& operator=(const AampOutputProtection&) = delete;
 
 #ifndef USE_OPENCDM
 
