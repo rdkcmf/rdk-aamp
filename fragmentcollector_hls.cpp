@@ -731,7 +731,7 @@ char *TrackState::GetFragmentUriFromIndex()
 
 		const IndexNode *lastIndexNode = &index[indexCount - 1];
 		double seekWindowEnd = lastIndexNode->completionTimeSecondsFromStart - aamp->mLiveOffset; 
-		if (aamp->IsLive() && playTarget > seekWindowEnd)
+		if (IsLive() && playTarget > seekWindowEnd)
 		{
 			logprintf("%s - rate - %f playTarget(%f) > seekWindowEnd(%f), forcing EOS\n",
                                 __FUNCTION__, context->rate, playTarget, seekWindowEnd);
@@ -1018,7 +1018,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-ENDLIST"))
 				{ // indicates that no more media segments are available
 					logprintf("#EXT-X-ENDLIST\n");
-					context->hasEndListTag = true;
+					mReachedEndListTag = true;
 				}
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
@@ -1305,19 +1305,19 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (fragmentURI != NULL)
 			{
 				playTarget = playlistPosition + fragmentDurationSeconds;
-				if (aamp->IsLive())
+				if (IsLive())
 				{
 					context->CheckForPlaybackStall(true);
 				}
 			}
 			else
 			{
-				if ((ePLAYLISTTYPE_VOD == context->playlistType || context->hasEndListTag) && (playlistPosition != -1))
+				if ((!IsLive() || mReachedEndListTag) && (playlistPosition != -1))
 				{
-					logprintf("aamp play to end. playTarget %f fragmentURI %p hasEndListTag %d\n", playTarget, fragmentURI, context->hasEndListTag);
+					logprintf("aamp play to end. playTarget %f fragmentURI %p ReachedEndListTag %d Type %d\n", playTarget, fragmentURI, mReachedEndListTag,type);
 					eosReached = true;
 				}
-				else if (aamp->IsLive() && type == eTRACK_VIDEO)
+				else if (IsLive() && type == eTRACK_VIDEO)
 				{
 					context->CheckForPlaybackStall(false);
 				}
@@ -1476,7 +1476,7 @@ void TrackState::FetchFragment()
 	int timeoutMs = -1;
 	long http_error = 0;
 	bool decryption_error = false;
-	if (aamp->IsLive())
+	if (IsLive())
 	{
 		timeoutMs = context->maxIntervalBtwPlaylistUpdateMs - (int) (aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 		if(timeoutMs < 0)
@@ -2043,12 +2043,12 @@ void TrackState::IndexPlaylist()
 					if (startswith(&ptr, "VOD"))
 					{
 						logprintf("aamp: EXT-X-PLAYLIST-TYPE - VOD\n");
-						context->playlistType = ePLAYLISTTYPE_VOD;
+						mPlaylistType = ePLAYLISTTYPE_VOD;
 					}
 					else if (startswith(&ptr, "EVENT"))
 					{
 						logprintf("aamp: EXT-X-PLAYLIST-TYPE = EVENT\n");
-						context->playlistType = ePLAYLISTTYPE_EVENT;
+						mPlaylistType = ePLAYLISTTYPE_EVENT;
 					}
 					else
 					{
@@ -2134,11 +2134,13 @@ void TrackState::IndexPlaylist()
 					free (key);
 					mDrmKeyTagCount++;
 				}
-				else if (context->playlistType != ePLAYLISTTYPE_VOD)
+				else if (startswith(&ptr,"-X-ENDLIST"))
 				{
-					if (startswith(&ptr,"-X-ENDLIST"))
+					// ENDLIST found .Check playlist tag with vod was missing or not.If playlist still undefined
+					// mark it as VOD
+					if (IsLive())
 					{
-						if (context->playlistType == ePLAYLISTTYPE_UNDEFINED)
+						if (mPlaylistType == ePLAYLISTTYPE_UNDEFINED)
 						{
 							logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE\n");
 						}
@@ -2148,7 +2150,7 @@ void TrackState::IndexPlaylist()
 						}
 						//required to avoid live adjust kicking in
 						logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present\n");
-						context->playlistType = ePLAYLISTTYPE_VOD;
+						mPlaylistType = ePLAYLISTTYPE_VOD;
 					}
 				}
 				else if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
@@ -2193,8 +2195,9 @@ void TrackState::IndexPlaylist()
 			ptr = playlist.ptr;
 			indexFirstMediaSequenceNumber = 0;
 		}
-		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
-		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,(MediaType)type);
+		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
+		aamp->SetIsLive(context->IsLive());
+		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,IsLive(),(MediaType)type);
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2381,7 +2384,7 @@ void TrackState::RefreshPlaylist(void)
 		    const char* prefix = (type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
 		    context->HarvestFile(playlistUrl, &playlist, false, prefix);
 #endif
-		    if (ePLAYLISTTYPE_VOD != context->playlistType)
+		    if (IsLive())
 		    {
 		        fragmentURI = FindMediaForSequenceNumber();
 		    }
@@ -2596,6 +2599,30 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	}
 	return format;
 }
+
+/***************************************************************************
+* @fn IsLive
+* @brief Function to check if both tracks in demuxed HLS are in live mode
+*
+* @return True if both or any track in live mode
+***************************************************************************/
+bool StreamAbstractionAAMP_HLS::IsLive()
+{
+	// Check for both the tracks if its in Live state
+	// In Demuxed content , Hot CDVR playlist update for audio n video happens at a small time delta
+	// To avoid missing contents ,until both tracks are not moved to VOD , stream has to be in Live mode
+	bool retValIsLive = false;
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		TrackState *track = trackState[iTrack];
+		if(track && track->Enabled())
+		{
+			retValIsLive |= track->IsLive();	
+		}
+	}
+	return retValIsLive;
+}
+
 
 /***************************************************************************
 * @fn SyncVODTracks
@@ -2887,7 +2914,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),eMEDIATYPE_MANIFEST);
+				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -3331,7 +3358,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
-		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && (this->playlistType == ePLAYLISTTYPE_UNDEFINED) && aamp->IsLiveAdjustRequired();
+		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType)  && aamp->IsLiveAdjustRequired() && (aamp->IsLive());
 		if ((eTUNETYPE_SEEKTOLIVE == tuneType) && aamp->IsLive())
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d eTUNETYPE_SEEKTOLIVE, reset playTarget and enable liveAdjust\n",__FUNCTION__,__LINE__);
@@ -3381,7 +3408,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		if (audio->enabled)
 		{
-			if ( ePLAYLISTTYPE_VOD == playlistType )
+			if (!aamp->IsLive())
 			{
 				SyncTracksForDiscontinuity();
 			}
@@ -3457,7 +3484,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			seekPosition = video->playTarget;
 		}
 		/*Adjust for discontinuity*/
-		if ((audio->enabled) && (ePLAYLISTTYPE_VOD != playlistType) && !gpGlobalConfig->bAudioOnlyPlayback)
+		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
 		{
 			int discontinuityIndexCount = video->mDiscontinuityIndexCount;
 			if (discontinuityIndexCount > 0)
@@ -3544,7 +3571,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,eMEDIATYPE_IFRAME);
+					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else
@@ -3636,7 +3663,7 @@ void TrackState::RunFetchLoop()
 				}
 			}
 
-			if (ePLAYLISTTYPE_VOD != context->playlistType)
+			if (IsLive())
 			{
 				int timeSinceLastPlaylistDownload = (int) (aamp_GetCurrentTimeMS()
 				        - lastPlaylistDownloadTimeMS);
@@ -3663,7 +3690,7 @@ void TrackState::RunFetchLoop()
 		// reached end of vod stream
 		//teststreamer_EndOfStreamReached();
 
-		if (eosReached || context->hasEndListTag || !context->aamp->DownloadsAreEnabled())
+		if (eosReached || mReachedEndListTag || !context->aamp->DownloadsAreEnabled())
 		{
 			AbortWaitForCachedFragment(false);
 			break;
@@ -3714,8 +3741,8 @@ void TrackState::RunFetchLoop()
 					static int bufferlowCnt;
 					if((bufferlowCnt++ & 5) == 0)
 					{ 
-						logprintf("%s:%d: Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
-							__FUNCTION__, __LINE__, bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
+						logprintf("%s:%d: Buffer is running low(%ld).Type(%d) Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
+							__FUNCTION__, __LINE__, bufferAvailable,type,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
 					}
 				}
 			}
@@ -3731,8 +3758,8 @@ void TrackState::RunFetchLoop()
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			AAMPLOG_INFO("%s:%d: aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n",
-					__FUNCTION__, __LINE__, bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
+			AAMPLOG_INFO("%s:%d aamp playlist end refresh type(%d) bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n",
+					__FUNCTION__, __LINE__, type,bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
 		RefreshPlaylist();
@@ -3742,7 +3769,7 @@ void TrackState::RunFetchLoop()
 
 		/* Added to handle an edge case for cdn failover, where we found valid sub-manifest but no valid fragments.
 		 * In this case we have to stall the playback here. */
-		if( fragmentURI == NULL && aamp->IsLive() && type == eTRACK_VIDEO)
+		if( fragmentURI == NULL && IsLive() && type == eTRACK_VIDEO)
 		{
 			AAMPLOG_FAILOVER("%s:%d: fragmentURI is NULL, playback may stall in few seconds..\n", __FUNCTION__, __LINE__);
 			context->CheckForPlaybackStall(false);
@@ -3800,9 +3827,6 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	}
 	this->enableThrottle = enableThrottle;
 	firstFragmentDecrypted = false;
-
-	playlistType = ePLAYLISTTYPE_UNDEFINED;
-	hasEndListTag = false;
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
 	mediaCount = 0;
@@ -3855,6 +3879,9 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	memset(&mDrmInfo, 0, sizeof(mDrmInfo));
 	mDrmMetaDataIndexPosition = 0;
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
+	mPlaylistType = ePLAYLISTTYPE_UNDEFINED;
+	mReachedEndListTag = false;
+
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
@@ -4594,8 +4621,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 		if (!discontinuityPending)
 		{
 			logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d\n", __FUNCTION__, __LINE__,
-					name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)context->playlistType, (int)useStartTime);
-			if (ePLAYLISTTYPE_VOD != context->playlistType)
+					name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useStartTime);
+			if (IsLive())
 			{
 				int maxPlaylistRefreshCount;
 				bool liveNoTSB;

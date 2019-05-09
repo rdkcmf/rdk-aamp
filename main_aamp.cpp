@@ -5993,12 +5993,12 @@ void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
  * @param effectiveUrl Effective URL of playlist
  */
 
-void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,MediaType fileType)
+void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType)
 {
 	PlayListCachedData *tmpData;
 	// First check point , Caching is allowed only if its VOD and for Main Manifest(HLS) for both VOD/Live
 	// For Main manifest , fileType will bypass storing for live content
-	if(!IsLive() || fileType==eMEDIATYPE_MANIFEST)
+	if(trackLiveStatus==false || fileType==eMEDIATYPE_MANIFEST)
 	{
 
 		PlaylistCacheIter it = mPlaylistCache.find(url);
