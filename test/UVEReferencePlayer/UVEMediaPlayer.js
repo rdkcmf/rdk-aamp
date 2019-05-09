@@ -172,6 +172,9 @@ class AAMPMediaPlayer {
 */
 // AAMP Player impl
 // AAMPMediaPlayer is defined and available in STB
+var playerStatesEnum = { "idle":0, "initializing":1, "playing":8, "paused":6, "seeking":7 };
+Object.freeze(playerStatesEnum);
+
 class AAMPPlayer {
 
     constructor() {
@@ -442,5 +445,12 @@ class AAMPPlayer {
      */
     setVideoZoom(videoZoom) {
         this.player.setVideoZoom(videoZoom);
+    }
+
+    /**
+     * Get UVE API version
+     */
+    get version() {
+        return this.player.version;
     }
 };
