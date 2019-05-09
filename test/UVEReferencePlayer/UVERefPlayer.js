@@ -17,8 +17,6 @@
  * limitations under the License.
 */
 
-var playerStatesEnum = { "idle":0, "initializing":1, "playing":8, "paused":6, "seeking":7 };
-Object.freeze(playerStatesEnum);
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
 //Default DRM config for AAMP
@@ -103,6 +101,16 @@ var defaultInitConfig = {
      *  network proxy to use for license requests
      */
     //licenseProxy: string;
+
+    /**
+     * timeout value for download to start after connect in seconds
+     */
+    //downloadStallTimeout: number;
+
+    /**
+     * timeout value for download stall detection in seconds
+     */
+    //downloadStallTimeout: number;
 };
 
 var urls = [
@@ -296,9 +304,12 @@ function loadUrl(urlObject) {
             }
         }
     } else if (urlObject.useDefaultDrmConfig === true) {
+        defaultInitConfig.drmConfig = defaultDrmConfig;
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {
+        defaultInitConfig.drmConfig = null;
+        playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     }
 }
