@@ -4029,6 +4029,7 @@ TrackState::~TrackState()
 		free(mDrmInfo.uri);
 		mDrmInfo.uri = NULL;
 	}
+	mDrm = 0;
 	pthread_cond_destroy(&mPlaylistIndexed);
 	pthread_mutex_destroy(&mPlaylistMutex);
 	pthread_mutex_destroy(&mTrackDrmMutex);

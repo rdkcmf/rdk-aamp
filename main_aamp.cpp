@@ -3351,7 +3351,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
  *
  * @param[in] newTune true if operation is a new tune
  */
-void PrivateInstanceAAMP::TeardownStream(bool newTune)
+void PrivateInstanceAAMP::TeardownStream(bool newTune,bool isLocalTearDown)
 {
 	pthread_mutex_lock(&mLock);
 	//Have to perfom this for trick and stop operations but avoid ad insertion related ones
@@ -3372,7 +3372,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	mProcessingDiscontinuity = mProcessingAdInsertion = mPlayingAd = false;
 	pthread_mutex_unlock(&mLock);
 
-	if (mpStreamAbstractionAAMP)
+	// Memory is freed only if Teardown is called for retune(Seek/failure) case and for freshtune(to ensure nothing is lingering)
+	// if mpStreamAbstractionAAMP exists:
+	// a) For final playback stop from JS(isLocalTearDown=false) , DRM and Stream instance is released in PrivateInstanceAAMP Stop function
+	// b) For temporary stop(Seek/Retunes) , instance is deleted but DRM is not released ( stop with false called )
+	//
+	if (mpStreamAbstractionAAMP && isLocalTearDown)
 	{
 		mpStreamAbstractionAAMP->Stop(false);
 		delete mpStreamAbstractionAAMP;
@@ -3712,6 +3717,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 
 	newTune = IsNewTune();
+
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
@@ -5473,8 +5479,11 @@ void PrivateInstanceAAMP::Stop()
 	{
 		mpStreamAbstractionAAMP->Stop(true);
 	}
-
-	TeardownStream(true);
+	// Note :: When playback is end ,stop (true) is called above , inside TeardownStream also stop is called
+	// memory released .
+	// Change added : When stop for playback comes from JS , delete instance here only. This prevents twice Stop call
+	// of Streamabstaction and CancelKeyWait
+	TeardownStream(true,false);
 	pthread_mutex_lock(&mLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
@@ -5502,6 +5511,11 @@ void PrivateInstanceAAMP::Stop()
 		timedMetadata.clear();
 	}
 	pthread_mutex_unlock(&mLock);
+	if(mpStreamAbstractionAAMP)
+        {
+                delete mpStreamAbstractionAAMP;
+                mpStreamAbstractionAAMP = NULL;
+        }
 	seek_pos_seconds = -1;
 	culledSeconds = 0;
 	durationSeconds = 0;

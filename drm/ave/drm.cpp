@@ -532,6 +532,8 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 void AveDrm::Release()
 {
 	pthread_mutex_lock(&mutex);
+	//TODO : Remove this log after weekend test
+	AAMPLOG_WARN("AveDrm::%s:%d[%p] Releasing DrmAdapter \n",__FUNCTION__, __LINE__, this);
 	if (m_pDrmAdapter)
 	{
 		// close all drm sessions
@@ -553,6 +555,8 @@ void AveDrm::CancelKeyWait()
 	{
 		mPrevDrmState = mDrmState;
 	}
+	//TODO : Remove this log after weekend test
+	AAMPLOG_WARN("AveDrm::%s:%d[%p] State[%d] \n",__FUNCTION__, __LINE__, this,mDrmState);
 	//required for demuxed assets where the other track might be waiting on mutex lock.
 	mDrmState = eDRM_KEY_FLUSH;
 	pthread_cond_broadcast(&cond);
@@ -606,7 +610,8 @@ AveDrm::~AveDrm()
 		delete[] mDrmInfo.uri;
 		mDrmInfo.uri = NULL;
 	}
-
+	//TODO : Remove this log line after weekend test
+	AAMPLOG_WARN("AveDrm::%s:%d[%p] Destructor \n",__FUNCTION__, __LINE__, this);
 	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&cond);
 }
@@ -751,11 +756,10 @@ DRMState AveDrm::GetState()
  * @brief AveDrmManager Constructor.
  *
  */
-AveDrmManager::AveDrmManager() :
-		mDrm(NULL)
+AveDrmManager::AveDrmManager()
 {
-	mDrm = std::make_shared<AveDrm>();
 	Reset();
+	mDrm = std::make_shared<AveDrm>();
 }
 
 
@@ -777,6 +781,7 @@ void AveDrmManager::Reset()
 	mTrackType = 0;
 	mDeferredTime = 0;
 	mHasBeenUsed = false;
+	mDrm = 0;
 }
 
 void AveDrmManager::UpdateBeforeIndexList(const char* trackname,int trackType)
@@ -867,14 +872,21 @@ void AveDrmManager::ReleaseAll()
 	// Only called from Stop of fragment collector of hls , mutex protection 
 	// added for calling 
 	
-	logprintf("[%s]Releasing AveDrmManager of size=%d \n",__FUNCTION__,sAveDrmManager.size());
 	std::vector<AveDrmManager*>::iterator iter;
 	pthread_mutex_lock(&aveDrmManagerMutex);
+	logprintf("[%s]Releasing AveDrmManager of size=%d \n",__FUNCTION__,sAveDrmManager.size());
 	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
 		AveDrmManager* aveDrmManager = *iter;
-
-		aveDrmManager->mDrm->Release();
+		if(aveDrmManager->mDrm)
+		{
+			aveDrmManager->mDrm->Release();
+		}
+		else
+		{
+			// TODO : Remove this else part after weekend test
+			AAMPLOG_WARN("AveDrm::%s:%d  Instance Null \n",__FUNCTION__, __LINE__);
+		}
 		aveDrmManager->Reset();
 		delete aveDrmManager;
 		iter = sAveDrmManager.erase(iter);
@@ -1086,7 +1098,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 		{
 			aveDrm = sAveDrmManager[0]->mDrm;
 			sAveDrmManager[0]->mHasBeenUsed = true;
-			logprintf("%s:%d:[%d] Returned only available Drm Instance \n", __FUNCTION__, __LINE__,trackType);
+			logprintf("%s:%d:[%d] Returned only available mDrm[%p] \n", __FUNCTION__, __LINE__,trackType,aveDrm.get());
 		}
 		else
 		{
@@ -1104,7 +1116,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 			{
 				aveDrm = sAveDrmManager[i]->mDrm;
 				sAveDrmManager[i]->mHasBeenUsed = true;
-				logprintf("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]\n",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
+				logprintf("%s:%d:[%d] Found Matching Multi Meta mDrm[%p] State[%d]\n",__FUNCTION__, __LINE__,trackType,aveDrm.get(),aveDrm->GetState());
 				break;
 			}
 		}

@@ -1499,7 +1499,7 @@ public:
          *
 	 * @return void
 	 */
-	void TeardownStream(bool newTune);
+	void TeardownStream(bool newTune , bool isLocalTearDown=true);
 
 	/**
 	 * @brief Send messages to Receiver over PIPE
