@@ -184,8 +184,15 @@ public:
 			break;
 		case 3322:
 		case 3328:
+		case 3307:
 			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
 			
+			if( majorError == 3307 && minorError != 1107296262 )
+                        {
+                                AAMPLOG_ERR("AAMP: AVE DRM error majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
+                                break;
+                        }
+
 				
 			/*
  			 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
