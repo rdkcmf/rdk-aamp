@@ -1069,10 +1069,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					_this->privateContext->video_dec = (GstElement *) msg->src;
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder), _this);
-					if(!_this->privateContext->using_westerossink)
-					{
-						g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
-					}
 				}
 				else
 				{
