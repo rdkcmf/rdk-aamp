@@ -119,6 +119,9 @@ var mutedStatus = false;
 var ccStatus = false;
 var playerObj = null;
 
+//declare anomaly List
+var anomalyList = [];
+
 window.onload = function() {
     initPlayerControls();
     resetPlayer();
@@ -190,7 +193,27 @@ function mediaSpeedChanged(event) {
 
 function mediaPlaybackFailed(event) {
     console.log("Media failed event: " + JSON.stringify(event));
+    updateAnomalyList(event);
     loadNextAsset();
+}
+
+function anomalyReportAvailable(event) {
+    console.log("Anomaly Report event: " + JSON.stringify(event));
+    updateAnomalyList(event);
+}
+
+function updateAnomalyList(event) {
+    if (anomalyList.length === 5) {
+        anomalyList.shift();
+        anomalyList.push(event.description);
+    } else {
+        anomalyList.push(event.description);
+    }
+    // create a list of anomaly logs
+    for(iter=0, anomalyString=""; iter<anomalyList.length; iter++) {
+        anomalyString += "<li>" + anomalyList[iter] + "</li>";
+    }
+    document.getElementById("logList").innerHTML = anomalyString;
 }
 
 function mediaMetadataParsed(event) {
@@ -265,6 +288,7 @@ function resetPlayer() {
     playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
+    playerObj.addEventListener("anomalyReport", anomalyReportAvailable);
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }

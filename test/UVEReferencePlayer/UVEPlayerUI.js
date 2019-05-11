@@ -151,6 +151,17 @@ function deleteVideo() {
     }
 }
 
+//function to toggle Anomaly Overlay widget
+    function toggleAnomalyOverlay() {
+        var anomaly = document.getElementById('anomalyModal');
+        document.getElementById("logCheck").checked = !document.getElementById("logCheck").checked;
+        if(document.getElementById("logCheck").checked) {
+            anomaly.style.display = "block";
+        } else {
+        anomaly.style.display = "none";
+        }
+    }
+
 function loadNextAsset() {
     resetPlayer();
     resetUIOnNewAsset();
@@ -201,10 +212,11 @@ var HTML5PlayerControls = function() {
         this.videoFileList = document.getElementById("videoURLs");
         this.loadVideoButton = document.getElementById("loadButton");
         this.deleteVideoButton = document.getElementById("deleteButton");
+        this.autoVideoLogButton = document.getElementById("autoLogButton");
         this.helpContentButton = document.getElementById('helpButton');
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.setButton, this.videoFileList, this.loadVideoButton, this.deleteVideoButton, this.helpContentButton];
+        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.setButton, this.videoFileList, this.loadVideoButton, this.deleteVideoButton, this.autoVideoLogButton, this.helpContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.dropDownBitrateListVisible = false;
@@ -320,7 +332,7 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if (this.dropDownBitrateListVisible) {
             this.nextBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.setButton) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.loadVideoButton) || (this.components[this.currentPos] == this.deleteVideoButton) || (this.components[this.currentPos] == this.helpContentButton)) {
+        } else if ((this.components[this.currentPos] == this.setButton) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.loadVideoButton) || (this.components[this.currentPos] == this.deleteVideoButton) || (this.components[this.currentPos] == this.autoPlayVideoButton) || (this.components[this.currentPos] == this.helpContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -437,6 +449,9 @@ var HTML5PlayerControls = function() {
                     deleteVideo();
                     break;
             case 11:
+                    toggleAnomalyOverlay();
+                    break;
+            case 12:
                     showhide();
                     break;
         };
@@ -649,6 +664,9 @@ function initPlayerControls() {
     //to show the navBar initially
     document.getElementById('controlDiv').style.display = "block";
     document.getElementById('controlDivNext').style.display = "block";
+
+    //to hide the anomaly overlay widget initially
+    document.getElementById("logCheck").checked = false;
 
     //to refreash URL select field on every reload
     var storedURLs = JSON.parse(sessionStorage.getItem("URLItems"));
