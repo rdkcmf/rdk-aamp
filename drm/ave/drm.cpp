@@ -216,12 +216,6 @@ public:
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",											(int)majorError, (int)minorError);
 			break;
 
-		case 3307:
-			drmerrordata->drmFailure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
-			drmerrordata->isRetryEnabled = false;
-			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Device not provisioned majorError = %d, minorError = %d",(int)majorError, (int)minorError);
-			break;
-
 		default:
 			break;
 		}
