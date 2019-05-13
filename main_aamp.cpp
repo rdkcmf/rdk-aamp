@@ -2868,10 +2868,10 @@ static void ProcessConfigEntry(char *cfg)
 		{
 			logprintf("enableSubscribedTags=%d\n", gpGlobalConfig->enableSubscribedTags);
 		}
-		else if (sscanf(cfg, "fragmentDLTimeout=%ld", &gpGlobalConfig->fragmentDLTimeout) == 1)
+		else if (sscanf(cfg, "networkTimeout=%ld", &gpGlobalConfig->networkTimeout) == 1)
 		{
-			VALIDATE_LONG("fragmentDLTimeout", gpGlobalConfig->fragmentDLTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-			logprintf("fragmentDLTimeout=%ld\n", gpGlobalConfig->fragmentDLTimeout);
+			VALIDATE_LONG("networkTimeout", gpGlobalConfig->networkTimeout, CURL_FRAGMENT_DL_TIMEOUT)
+			logprintf("networkTimeout=%ld\n", gpGlobalConfig->networkTimeout);
 		}
 #ifdef AAMP_CC_ENABLED
 		else if (strcmp(cfg, "cc") == 0)
@@ -6863,7 +6863,7 @@ void PrivateInstanceAAMP::SetNetworkTimeout(long timeout)
 {
 	if (timeout > 0)
 	{
-		gpGlobalConfig->fragmentDLTimeout = timeout;
+		gpGlobalConfig->networkTimeout = timeout;
 	}
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld\n", __FUNCTION__, __LINE__, timeout);
 }

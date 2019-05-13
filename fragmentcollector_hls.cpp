@@ -2977,6 +2977,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		AveDrmManager::ResetAll();
 	}
 
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+	{
+		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+	}
+
 	// 1. Check if Cache is avaialable.
 	// 2. If not available , download from the main manifest
 	// 3. If valid length downloaded , Insert to cache &  Parse the contents 
@@ -3193,7 +3198,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			TrackState *ts = trackState[iTrack];
-			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, iTrack);
 
 			if(ts->enabled)
 			{
