@@ -2898,6 +2898,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		AveDrmManager::ResetAll();
 	}
 
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+	{
+		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+	}
+
 	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
 	{
 		logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
@@ -3090,7 +3095,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			TrackState *ts = trackState[iTrack];
-			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, iTrack);
 
 			if(ts->enabled)
 			{
