@@ -735,7 +735,10 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 	if( audio && video )
 	{
 		pthread_mutex_lock(&mLock);
-		abortWait = abort;
+		if(abort)
+		{ // DELIA-34897
+			abortWait = true;
+		}
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
 		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abortWait)
