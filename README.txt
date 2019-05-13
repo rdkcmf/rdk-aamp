@@ -132,7 +132,7 @@ ad-position	position at which ad to be inserted, use together with ad-url
 ad-url		url of ad content to be inserted, use together with ad-position
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 min-vod-cache	Vod duration to be cached before playing in seconds.
-fragmentDLTimeout=<download time out> Specify curl fragment download time out in seconds, default is 5 seconds
+networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
 license-anonymous-request If set, makes PlayReady/WideVine license request without access token
 abr-cache-life=<x in sec> lifetime value for abr cache  for network bandwidth calculation(default 5 sec)
 abr-cache-length=<x>  length of abr cache for network bandwidth calculation (default 3)
