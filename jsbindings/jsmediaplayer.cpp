@@ -28,7 +28,7 @@
 #include "jseventlistener.h"
 #include <vector>
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "0.5"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "0.7"
 
 extern "C"
 {
@@ -418,7 +418,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->Seek(valueAsNumber);
 					break;
 				case ePARAM_NETWORKTIMEOUT:
-					privObj->_aamp->SetNetworkTimeout((int) valueAsNumber);
+					privObj->_aamp->SetNetworkTimeout((long) valueAsNumber);
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);

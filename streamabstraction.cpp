@@ -1089,7 +1089,13 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		else if (http_error == CURLE_OPERATION_TIMEDOUT)
 		{
 			if(UpdateProfileBasedOnFragmentCache())
+			{
 				retValue = true;
+			}
+			else if (RampDownProfile(http_error))
+			{
+				retValue = true;
+			}
 		}
 	}
 

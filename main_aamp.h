@@ -1102,7 +1102,7 @@ public:
 	 *
 	 *   @param[in] Preferred timeout value
 	 */
-	void SetNetworkTimeout(int timeout);
+	void SetNetworkTimeout(long timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
