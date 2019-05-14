@@ -30,6 +30,7 @@
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
+#include "AampDRMSessionManager.h"
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -3246,6 +3247,9 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (aamp)
 	{
 		aamp->Stop();
+#ifdef AAMP_MPD_DRM
+		AampDRMSessionManager::clearSessionData();
+#endif /*AAMP_MPD_DRM*/
 		delete aamp;
 	}
 	if (mInternalStreamSink)
