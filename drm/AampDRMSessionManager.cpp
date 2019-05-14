@@ -130,6 +130,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
  */
 void AampDRMSessionManager::clearSessionData()
 {
+	logprintf("%s:%d AampDRMSessionManager:: Clearing session data\n", __FUNCTION__, __LINE__);
 	for(int i = 0 ; i < MAX_DRM_SESSIONS; i++)
 	{
 		if(drmSessionContexts[i].drmSession != NULL)
@@ -138,6 +139,8 @@ void AampDRMSessionManager::clearSessionData()
 			delete drmSessionContexts[i].data;
 			drmSessionContexts[i].data = NULL;
 			drmSessionContexts[i].dataLength = 0;
+			delete drmSessionContexts[i].drmSession;
+			drmSessionContexts[i].drmSession = NULL;
 		}
 		if(cachedKeyIDs[i].data != NULL)
 		{
