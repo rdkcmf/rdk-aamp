@@ -2996,6 +2996,8 @@ void __attribute__ ((destructor(101))) _aamp_term()
 		LOG("[AAMP_JS] %s:%d stopping aamp\n", __FUNCTION__, __LINE__);
 		_allocated_aamp->Stop();
 		LOG("[AAMP_JS] %s:%d stopped aamp\n", __FUNCTION__, __LINE__);
+		delete _allocated_aamp;
+		_allocated_aamp = NULL;
 	}
 	pthread_mutex_unlock(&mutex);
 
