@@ -819,6 +819,13 @@ static gboolean buffering_timeout (gpointer data)
 		*/
 		if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
 		{
+			GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(_this->privateContext->stream->source), "src");
+			if (sourceEleSrcPad) {
+				if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, gst_structure_new("capture_stream_on_error", "error_string", G_TYPE_STRING, "aamp_buffering_timeout", NULL))))
+				{
+					logprintf("%s: Error on sending capture_stream_on_error custom event\n", __FUNCTION__);
+				}
+			}
 			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d\n", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent);
 			privateContext->buffering_in_progress = false;
 			_this->DumpDiagnostics();
