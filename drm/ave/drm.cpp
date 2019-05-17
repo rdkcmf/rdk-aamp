@@ -184,16 +184,8 @@ public:
 			break;
 		case 3322:
 		case 3328:
-		case 3307:
 			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
 			
-			if( majorError == 3307 && minorError != 1107296262 )
-                        {
-                                AAMPLOG_ERR("AAMP: AVE DRM error majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
-                                break;
-                        }
-
-				
 			/*
  			 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
 			 * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
@@ -214,6 +206,15 @@ public:
 			}
 			
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",											(int)majorError, (int)minorError);
+			break;
+		case 3307:
+			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
+			AAMPLOG_ERR("AAMP: AVE DRM error majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
+			if( minorError == 1107296262 )
+			{
+				system("rm -fr /opt/persistent/adobe/drm/");
+			}
+			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt CertStore majorError = %d, minorError = %d",											(int)majorError, (int)minorError);
 			break;
 
 		default:
