@@ -5009,7 +5009,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			// sleep before next manifest update
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
-		if (UpdateMPD() != eAAMPSTATUS_OK)
+		if (!aamp->DownloadsAreEnabled() || UpdateMPD() != eAAMPSTATUS_OK)
 		{
 			break;
 		}
