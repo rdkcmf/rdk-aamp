@@ -158,11 +158,12 @@ static TuneFailureMap tuneFailureMap[] =
  */
 struct ChannelInfo
 {
-	ChannelInfo() : name(), uri()
+	ChannelInfo() : name(), uri(), contentType()
 	{
 	}
 	std::string name;
 	std::string uri;
+	std::string contentType;
 };
 
 static std::list<ChannelInfo> mChannelOverrideMap;
@@ -2673,17 +2674,17 @@ std::string aamp_getHostFromURL(char *url)
  * @param mainManifestUrl
  * @retval
  */
-static const char *RemapManifestUrl(const char *mainManifestUrl)
+static const ChannelInfo* RemapManifestUrl(const char *mainManifestUrl)
 {
 	if (!mChannelOverrideMap.empty())
 	{
 		for (std::list<ChannelInfo>::iterator it = mChannelOverrideMap.begin(); it != mChannelOverrideMap.end(); ++it)
 		{
-			ChannelInfo &pChannelInfo = *it;
-			if (strstr(mainManifestUrl, pChannelInfo.name.c_str()))
+			ChannelInfo* pChannelInfo = &(*it);
+			if (strstr(mainManifestUrl, pChannelInfo->name.c_str()))
 			{
 				logprintf("override!\n");
-				return pChannelInfo.uri.c_str();
+				return pChannelInfo;
 			}
 		}
 	}
@@ -2799,13 +2800,11 @@ static void ProcessConfigEntry(char *cfg)
 {
 	if (cfg[0] != '#')
 	{ // ignore comments
-
 		//Removing unnecessary spaces and newlines
 		trim(&cfg);
-
 		double seconds = 0;
 		int value;
-        	char * tempUserAgent =NULL;
+		char * tempUserAgent =NULL;
 		if (sscanf(cfg, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
 		{
 			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
@@ -3223,13 +3222,19 @@ static void ProcessConfigEntry(char *cfg)
 					ChannelInfo channelInfo;
 					char *channelStr = &cfg[1];
 					char *token = strtok(channelStr, " ");
-					while (token != NULL)
-					{
-						if (memcmp(token, "http", 4) == 0)
-							channelInfo.uri = token;
-						else
-							channelInfo.name = token;
+					if( token )
+					{// first parameter: pattern to match
+						channelInfo.name = token;
 						token = strtok(NULL, " ");
+						if( token && memcmp(token, "http", 4) == 0 )
+						{ // 2nd parameter: replacement locator
+							channelInfo.uri = token;
+							token = strtok(NULL, " " );
+							if( token )
+							{ // optional 3rd parameter: contentType override
+								channelInfo.contentType = token;
+							}
+						}
 					}
 					mChannelOverrideMap.push_back(channelInfo);
 				}
@@ -3940,11 +3945,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
 		httpRespHeaders[i].data.clear();
 	}
-
-	const char *remapUrl = RemapManifestUrl(mainManifestUrl);
-	if (remapUrl )
+	const ChannelInfo *mOverrideChannel = RemapManifestUrl(mainManifestUrl);
+	if (mOverrideChannel)
 	{
-		mainManifestUrl = remapUrl;
+		mainManifestUrl = mOverrideChannel->uri.c_str();
+		if (!mOverrideChannel->contentType.empty())
+		{
+			contentType = mOverrideChannel->contentType.c_str();
+		}
 	}
 
 	strncpy(manifestUrl, mainManifestUrl, MAX_URI_LENGTH);
@@ -3990,7 +3998,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	}
 	profiler.TuneBegin();
 
-	if( !remapUrl )
+	if( !mOverrideChannel )
 	{
 		if (gpGlobalConfig->mapMPD && !mIsDash && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
@@ -4068,7 +4076,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
-
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)

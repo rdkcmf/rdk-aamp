@@ -174,15 +174,16 @@ playready-output-protection=1  enable HDCP output protection for DASH-PlayReady 
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
 
-*<Token> <Custom url>
+*<Token> <Custom url> [<Content Type>]
 This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
+Content Type is optional.
 
 Example adding the following in aamp.cfg will make tune to the given url (Spring_4Ktest) on tuning to url with USAHD in it
 This can be done for n number of channels.
 
 *USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
 *FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
-
+*USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd VOD
 =================================================================================================================
 
 
