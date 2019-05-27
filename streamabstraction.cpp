@@ -704,11 +704,9 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
-		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL)
+		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
+		mutex(), fragmentFetched(), fragmentInjected()
 {
-	this->type = type;
-	this->aamp = aamp;
-	this->name = name;
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
 		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
@@ -816,9 +814,11 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), abortWait(false)
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), abortWait(false), aamp(aamp),
+		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
+		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
+		mAbrManager()
 {
-	mIsPlaybackStalled = false;
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
@@ -831,7 +831,6 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
 	}
 
-	this->aamp = aamp;
 }
 
 

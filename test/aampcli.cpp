@@ -46,6 +46,9 @@ static GMainLoop *AAMPGstPlayerMainLoop = NULL;
  */
 struct VirtualChannelInfo
 {
+	VirtualChannelInfo() : channelNumber(0), name(), uri()
+	{
+	}
 	int channelNumber;
 	std::string name;
 	std::string uri;

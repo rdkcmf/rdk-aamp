@@ -212,12 +212,24 @@ public:
 	 * @param[in] aamp pointer to PrivateInstanceAAMP object associated with demux
 	 * @param[in] type Media type to be demuxed
 	 */
-	Demuxer(class PrivateInstanceAAMP *aamp,MediaType type)
+	Demuxer(class PrivateInstanceAAMP *aamp,MediaType type) : aamp(aamp), pes_state(0),
+		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
+		es(), position(0), duration(0), base_pts(0), current_pts(0),
+		current_dts(0), type(type), trickmode(false), finalized_base_pts(false),
+		sentESCount(0)
 	{
-		this->aamp = aamp;
-		this->type = type;
 		init(0, 0, false, true);
 	}
+
+	/**
+	 * @brief Copy Constructor
+	 */
+	Demuxer(const Demuxer&) = delete;
+
+	/**
+	 * @brief Assignment operator overloading
+	 */
+	Demuxer& operator=(const Demuxer&) = delete;
 
 	/**
 	 * @brief Demuxer Destructor
@@ -643,102 +655,41 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	: m_needDiscontinuity(true),
 	m_PatPmtLen(0), m_PatPmt(0), m_PatPmtTrickLen(0), m_PatPmtTrick(0), m_PatPmtPcrLen(0), m_PatPmtPcr(0),
 	m_nullPFrame(0), m_nullPFrameLength(0), m_nullPFrameNextCount(0), m_nullPFrameOffset(0),
-	m_emulationPreventionCapacity(0), m_emulationPreventionOffset(0), m_emulationPrevention(0)
+	m_emulationPreventionCapacity(0), m_emulationPreventionOffset(0), m_emulationPrevention(0), aamp(aamp),
+	m_currStreamOffset(0), m_currPTS(-1), m_currTimeStamp(-1LL), m_currFrameNumber(-1),
+	m_currFrameLength(0), m_currFrameOffset(-1LL), m_trickExcludeAudio(true), m_patCounter(0),
+	m_pmtCounter(0), m_playMode(PlayMode_normal), m_playModeNext(PlayMode_normal), m_playRate(1.0f), m_absPlayRate(1.0f),
+	m_playRateNext(1.0f), m_apparentFrameRate(FIXED_FRAME_RATE), m_packetSize(PACKET_SIZE), m_ttsSize(0),
+	m_pcrPid(-1), m_videoPid(-1), m_haveBaseTime(false), m_haveEmittedIFrame(false), m_haveUpdatedFirstPTS(true),
+	m_pcrPerPTSCount(0), m_baseTime(0), m_segmentBaseTime(0), m_basePCR(-1LL), m_prevRateAdjustedPCR(-1LL),
+	m_currRateAdjustedPCR(0), m_currRateAdjustedPTS(-1LL), m_nullPFrameWidth(-1), m_nullPFrameHeight(-1),
+	m_frameWidth(FRAME_WIDTH_MAX), m_frameHeight(FRAME_HEIGHT_MAX), m_scanForFrameSize(false), m_scanRemainderSize(0),
+	m_scanRemainderLimit(SCAN_REMAINDER_SIZE_MPEG2), m_isH264(false), m_isMCChannel(false), m_isInterlaced(false), m_isInterlacedKnown(false),
+	m_throttle(true), m_haveThrottleBase(false), m_lastThrottleContentTime(-1LL), m_lastThrottleRealTime(-1LL),
+	m_baseThrottleContentTime(-1LL), m_baseThrottleRealTime(-1LL), m_throttlePTS(-1LL), m_insertPCR(false),
+	m_scanSkipPacketsEnabled(false), m_currSPSId(0), m_picOrderCount(0), m_updatePicOrderCount(false),
+	m_havePAT(false), m_versionPAT(0), m_program(0), m_pmtPid(0), m_havePMT(false), m_versionPMT(-1), m_indexAudio(false),
+	m_haveAspect(false), m_haveFirstPTS(false), m_currentPTS(-1), m_pmtCollectorNextContinuity(0),
+	m_pmtCollectorSectionLength(0), m_pmtCollectorOffset(0), m_pmtCollector(NULL),
+	m_scrambledWarningIssued(false), m_checkContinuity(false), videoComponentCount(0), audioComponentCount(0),
+	dataComponentCount(0), m_actualStartPTS(-1LL), m_throttleMaxDelayMs(DEFAULT_THROTTLE_MAX_DELAY_MS),
+	m_throttleMaxDiffSegments(DEFAULT_THROTTLE_MAX_DIFF_SEGMENTS_MS),
+	m_throttleDelayIgnoredMs(DEFAULT_THROTTLE_DELAY_IGNORED_MS), m_throttleDelayForDiscontinuityMs(DEFAULT_THROTTLE_DELAY_FOR_DISCONTINUITY_MS),
+	m_throttleCond(), m_basePTSCond(), m_mutex(), m_enabled(true), m_processing(false), m_framesProcessedInSegment(0),
+	m_lastPTSOfSegment(-1), m_streamOperation(streamOperation), m_vidDemuxer(NULL), m_audDemuxer(NULL),
+	m_demux(NULL), m_peerTSProcessor(peerTSProcessor), m_packetStartAfterFirstPTS(-1), m_queuedSegment(NULL),
+	m_queuedSegmentPos(0), m_queuedSegmentDuration(0), m_queuedSegmentLen(0), m_queuedSegmentDiscontinuous(false), m_startPosition(-1.0),
+	m_track(track), m_last_frame_time(0), m_demuxInitialized(false), m_basePTSFromPeer(-1)
 {
 	INFO("constructor - %p\n", this);
-	this->aamp = aamp;
-
-	m_playMode = m_playModeNext = PlayMode_normal;
-	m_playRate = m_playRateNext = m_absPlayRate = 1.0f;
-	m_packetSize = PACKET_SIZE;
-	m_ttsSize = 0;
-	m_currPTS = -1;
-	m_currStreamOffset = 0;
-	m_currFrameNumber = -1;
-	m_currFrameLength = 0;
-	m_currFrameOffset = -1LL;
-	m_videoPid = -1;
-	m_pcrPid = -1;
-	m_haveBaseTime = false;
-	m_haveEmittedIFrame = false;
-	m_haveUpdatedFirstPTS = true;
-	m_pcrPerPTSCount = 0;
-	m_baseTime = 0;
-	m_basePCR = -1LL;
-	m_prevRateAdjustedPCR = -1LL;
-	m_currRateAdjustedPCR = 0;
-	m_currRateAdjustedPTS = -1LL;
-	m_currTimeStamp = -1LL;
-	m_nullPFrameWidth = -1;
-	m_nullPFrameHeight = -1;
-	m_frameWidth = FRAME_WIDTH_MAX;
-	m_frameHeight = FRAME_HEIGHT_MAX;
-	m_scanForFrameSize = false;
-	m_scanRemainderSize = 0;
-	m_scanRemainderLimit = SCAN_REMAINDER_SIZE_MPEG2;
-	m_isH264 = false;
-	m_isMCChannel = false;
-	m_isInterlaced = false;
-	m_throttle = true;
-	m_haveThrottleBase = false;
-	m_lastThrottleContentTime = -1LL;
-	m_lastThrottleRealTime = -1LL;
-	m_baseThrottleContentTime = -1LL;
-	m_baseThrottleRealTime = -1LL;
-	m_throttlePTS = -1LL;
-	m_insertPCR = false;
-	m_picOrderCount = 0;
-	m_isInterlacedKnown = false;
-	m_updatePicOrderCount = false;
-	m_apparentFrameRate = FIXED_FRAME_RATE;
-	m_trickExcludeAudio = true;
 
 	memset(m_SPS, 0, 32 * sizeof(H264SPS));
 	memset(m_PPS, 0, 256 * sizeof(H264PPS));
 
-	m_scanSkipPacketsEnabled = false;
-	m_actualStartPTS = -1LL;
-
-	m_currentPTS = -1;
-	m_versionPMT = -1;
-	m_haveAspect = false;
-
-	m_throttleMaxDelayMs = DEFAULT_THROTTLE_MAX_DELAY_MS;
-	m_throttleMaxDiffSegments = DEFAULT_THROTTLE_MAX_DIFF_SEGMENTS_MS;
-	m_throttleDelayIgnoredMs = DEFAULT_THROTTLE_DELAY_IGNORED_MS;
-	m_throttleDelayForDiscontinuityMs = DEFAULT_THROTTLE_DELAY_FOR_DISCONTINUITY_MS;
 	pthread_cond_init(&m_throttleCond, NULL);
 	pthread_cond_init(&m_basePTSCond, NULL);
 	pthread_mutex_init(&m_mutex, NULL);
-	m_enabled = true;
-	m_processing = false;
-	m_framesProcessedInSegment = 0;
-	m_havePAT = false;
-	m_havePMT = false;
-	m_pmtCollector = NULL;
-	m_pmtCollectorOffset = 0;
-	m_pmtCollectorSectionLength = 0;
-	m_currSPSId = 0;
-	m_checkContinuity = false;
-	m_indexAudio = false;
-	videoComponentCount = 0;
-	audioComponentCount = 0;
-	dataComponentCount = 0;
-	m_patCounter = m_pmtCounter = 0;
-	m_haveFirstPTS = false;
-	m_versionPAT = 0;
 	m_versionPMT = 0;
-	m_lastPTSOfSegment = -1;
-	m_scrambledWarningIssued = false;
-	m_segmentBaseTime = 0;
-	m_pmtPid = 0;
-	m_program = 0;
-	m_pmtCollectorNextContinuity = 0;
-	m_streamOperation = streamOperation;
-	m_audDemuxer = NULL;
-	m_vidDemuxer = NULL;
-	m_demux = NULL;
-	m_peerTSProcessor = peerTSProcessor;
 
 	if ((m_streamOperation == eStreamOp_DEMUX_ALL) || (m_streamOperation == eStreamOp_DEMUX_VIDEO))
 	{
@@ -751,17 +702,11 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 		m_audDemuxer = new Demuxer(aamp, eMEDIATYPE_AUDIO);
 		m_demux = true;
 	}
-	m_queuedSegment = NULL;
-	m_queuedSegmentLen = 0;
 
 	int compBufLen = MAX_PIDS*sizeof(RecordingComponent);
 	memset(videoComponents, 0, compBufLen);
 	memset(audioComponents, 0, compBufLen);
 	memset(dataComponents, 0, compBufLen);
-	m_startPosition = -1.0;
-	m_track = track;
-	m_demuxInitialized = false;
-	m_basePTSFromPeer = -1;
 }
 
 /**
@@ -1465,7 +1410,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	insPatPmt = false;
 	bool removePatPmt = false;
 	m_packetStartAfterFirstPTS = -1;
-
+  
 	if ((m_playRate != 1.0) || (eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO == m_streamOperation))
 	{
 		insPatPmt = true;

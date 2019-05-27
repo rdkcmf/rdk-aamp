@@ -323,7 +323,7 @@ struct AAMPEvent
 	/**
 	 * @brief AAMPEvent Constructor
 	 */
-	AAMPEvent()
+	AAMPEvent() : type(), data()
 	{
 	}
 
@@ -331,7 +331,7 @@ struct AAMPEvent
 	 * @brief AAMPEvent Constructor
 	 * @param[in]  Event type
 	 */
-	AAMPEvent(AAMPEventType t) : type(t)
+	AAMPEvent(AAMPEventType t) : type(t), data()
 	{
 	}
 };
@@ -641,6 +641,20 @@ public:
 	 *   @brief PlayerInstanceAAMP Destructor.
 	 */
 	~PlayerInstanceAAMP();
+
+	/**
+	 *   @brief copy constructor
+	 *
+	 *   @param other object to copy
+	 */
+	PlayerInstanceAAMP(const PlayerInstanceAAMP& other) = delete;
+
+	/**
+	 *   @brief To overload = operator for copying
+	 *
+	 *   @param other object to copy
+	 */
+	PlayerInstanceAAMP& operator=(const PlayerInstanceAAMP& other) = delete;
 
 	/**
 	 *   @brief Tune to a URL.

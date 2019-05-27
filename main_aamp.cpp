@@ -107,6 +107,9 @@ int getch(void)
  */
 struct AsyncEventDescriptor
 {
+	AsyncEventDescriptor() : event(), aamp(NULL)
+	{
+	}
 	AAMPEvent event;
 	PrivateInstanceAAMP* aamp;
 };
@@ -147,6 +150,9 @@ static TuneFailureMap tuneFailureMap[] =
  */
 struct ChannelInfo
 {
+	ChannelInfo() : name(), uri()
+	{
+	}
 	std::string name;
 	std::string uri;
 };
@@ -2734,22 +2740,22 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->abrCacheLife *= 1000;
 			logprintf("aamp abr cache lifetime: %ldmsec\n", gpGlobalConfig->abrCacheLife);
 		}
-		else if (sscanf(cfg, "abr-cache-length=%ld", &gpGlobalConfig->abrCacheLength) == 1)
+		else if (sscanf(cfg, "abr-cache-length=%d", &gpGlobalConfig->abrCacheLength) == 1)
 		{
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
 		}
-		else if (sscanf(cfg, "abr-cache-outlier=%ld", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
+		else if (sscanf(cfg, "abr-cache-outlier=%d", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
 			logprintf("aamp abr outlier in bytes: %ld\n", gpGlobalConfig->abrOutlierDiffBytes);
 		}
-		else if (sscanf(cfg, "abr-skip-duration=%ld", &gpGlobalConfig->abrSkipDuration) == 1)
+		else if (sscanf(cfg, "abr-skip-duration=%d", &gpGlobalConfig->abrSkipDuration) == 1)
 		{
 			VALIDATE_INT("abr-skip-duration",gpGlobalConfig->abrSkipDuration, DEFAULT_ABR_SKIP_DURATION)
 			logprintf("aamp abr skip duration: %d\n", gpGlobalConfig->abrSkipDuration);
 		}
-		else if (sscanf(cfg, "abr-nw-consistency=%ld", &gpGlobalConfig->abrNwConsistency) == 1)
+		else if (sscanf(cfg, "abr-nw-consistency=%d", &gpGlobalConfig->abrNwConsistency) == 1)
 		{
 			VALIDATE_LONG("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
 			logprintf("aamp abr NetworkConsistencyCnt: %d\n", gpGlobalConfig->abrNwConsistency);
@@ -3191,7 +3197,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  *
  *   @param  streamSink - custom stream sink, NULL for default.
  */
-PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink)
+PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -3203,7 +3209,6 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink)
 	logprintf("[AAMP_JS] dlopen(\"%s\")=%p\n", szJSLib, mJSBinding_DL);
 #endif
 	aamp = new PrivateInstanceAAMP();
-	mInternalStreamSink = NULL;
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(aamp);
@@ -5540,52 +5545,26 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 /**
  * @brief PrivateInstanceAAMP Constructor
  */
-PrivateInstanceAAMP::PrivateInstanceAAMP()
+PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexAttr(),
+	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
+	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
+	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
+	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
+	video_muted(false), audio_volume(100), ave_adapter(false), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
+	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
+	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
+	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
+	lastTuneType(eTUNETYPE_NEW_NORMAL), m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
+	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
+	mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
+	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
 {
 	LazilyLoadConfigIfNeeded();
-	mpStreamAbstractionAAMP = NULL;
-	mFormat = FORMAT_INVALID;
-	mAudioFormat = FORMAT_INVALID;
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-	mDownloadsEnabled = true;
-	mStreamSink = NULL;
-	mbDownloadsBlocked = false;
-	streamerIsActive = false;
-	seek_pos_seconds = -1;
-	rate = 0;
 	strcpy(language,"en");
-	mMaxLanguageCount = 0;
-	mPersistedProfileIndex	= 0;
-	mTSBEnabled     =       false;
-	mIscDVR = false;
-	mLiveOffset = AAMP_LIVE_OFFSET;
-	mNewLiveOffsetflag = false;
-	zoom_mode = VIDEO_ZOOM_FULL;
-	pipeline_paused = false;
-	trickStartUTCMS = -1;
-	playStartUTCMS = 0;
-	durationSeconds = 0.0;
-	mReportProgressPosn = 0.0;
-	mReportProgressTime=0;
-	culledSeconds = 0.0;
-	maxRefreshPlaylistIntervalSecs = DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS / 1000;
-	initialTuneTimeMs = 0;
-	lastTuneType = eTUNETYPE_NEW_NORMAL;
-	fragmentCollectorThreadID = 0;
-	audio_volume = 100;
-	m_fd = -1;
-	mIsLive = false;
-	mTuneCompleted = false;
-	mFirstTune = true;
-	mState = eSTATE_RELEASED;
-	mProcessingDiscontinuity = false;
-	mDiscontinuityTuneOperationInProgress = false;
-	mProcessingAdInsertion = false;
-	mSeekOperationInProgress = false;
 	lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 	lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
-	mAvailableBandwidth = 0;
-	mCurrentDrm = eDRM_NONE;
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -5597,7 +5576,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
 		httpRespHeaders[i].data.clear();
 	}
-	mEventListener = NULL;
 	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
 	{
 		mEventListeners[i] = NULL;
@@ -5618,33 +5596,16 @@ PrivateInstanceAAMP::PrivateInstanceAAMP()
 			break;
 		}
 	}
-	mIsRetuneInProgress = false;
 	pthread_mutex_unlock(&gMutex);
-	discardEnteringLiveEvt = false;
-	licenceFromManifest = false;
-	mPlayingAd = false;
-	mAdPosition = 0;
 	mAdUrl[0] = 0;
-	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
 	// Add Connection: Keep-Alive custom header - DELIA-26832
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
-	mIsFirstRequestToFOG = false;
-	mDiscontinuityTuneOperationId = 0;
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 
-    /* START: Added As Part of DELIA-28363 and DELIA-28247 */
-    IsTuneTypeNew = false;
-    /* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
-	mIsLocalPlayback = false;
-	previousAudioType = eAUDIO_UNKNOWN;
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-	mNetworkProxy = NULL;
-	mLicenseProxy = NULL;
-	mCacheStoredSize = 0;
 }
 
 

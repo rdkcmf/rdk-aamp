@@ -51,6 +51,8 @@ public:
 	void WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err);
 	AesDec();
 	~AesDec();
+	AesDec(const AesDec&) = delete;
+	AesDec& operator=(const AesDec&) = delete;
 
 private:
 

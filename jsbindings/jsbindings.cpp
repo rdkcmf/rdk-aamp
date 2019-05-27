@@ -643,6 +643,15 @@ public:
 		JSValueUnprotect(_aamp->_ctx, _jsCallback);
 	}
 
+	/**
+	 * @brief AAMP_JSListener Copy Constructor
+	 */
+	AAMP_JSListener(const AAMP_JSListener&) = delete;
+
+	/**
+	 * @brief AAMP_JSListener Assignment operator overloading
+	 */
+	AAMP_JSListener& operator=(const AAMP_JSListener&) = delete;
 
 	/**
 	 * @brief Dispatch JS event for the corresponding AAMP event
