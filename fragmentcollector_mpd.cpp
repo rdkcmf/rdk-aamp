@@ -90,10 +90,8 @@ struct PeriodInfo {
 	uint64_t startTime;
 	double duration;
 
-	PeriodInfo() {
-		periodId = "";
-		startTime = 0;
-		duration = 0.0;
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0)
+	{
 	}
 };
 
@@ -131,9 +129,8 @@ public:
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), endTimeReached(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
-			adaptationSetId(0)
+			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization("")
 	{
-		mContext = context;
 		memset(&fragmentDescriptor, 0, sizeof(FragmentDescriptor));
 	}
 
@@ -141,6 +138,16 @@ public:
 	 * @brief MediaStreamContext Destructor
 	 */
 	~MediaStreamContext(){}
+
+	/**
+	 * @brief MediaStreamContext Copy Constructor
+	 */
+	 MediaStreamContext(const MediaStreamContext&) = delete;
+
+	/**
+	 * @brief MediaStreamContext Assignment operator overloading
+	 */
+	 MediaStreamContext& operator=(const MediaStreamContext&) = delete;
 
 
 	/**
@@ -334,6 +341,12 @@ public:
  */
 struct HeaderFetchParams
 {
+	HeaderFetchParams() : context(NULL), pMediaStreamContext(NULL), initialization(""), fragmentduration(0),
+		isinitialization(false), discontinuity(false)
+	{
+	}
+	HeaderFetchParams(const HeaderFetchParams&) = delete;
+	HeaderFetchParams& operator=(const HeaderFetchParams&) = delete;
 	class PrivateStreamAbstractionMPD *context;
 	struct MediaStreamContext *pMediaStreamContext;
 	string initialization;
@@ -379,6 +392,8 @@ class PrivateStreamAbstractionMPD
 public:
 	PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	~PrivateStreamAbstractionMPD();
+	PrivateStreamAbstractionMPD(const PrivateStreamAbstractionMPD&) = delete;
+	PrivateStreamAbstractionMPD& operator=(const PrivateStreamAbstractionMPD&) = delete;
 	void SetEndPos(double endPosition);
 	void Start();
 	void Stop();
@@ -474,38 +489,18 @@ private:
  * @param seekpos Seek positon
  * @param rate playback rate
  */
-PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate)
+PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate) : aamp(aamp),
+	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seekpos), rate(rate), fragmentCollectorThreadID(0), createDRMSessionThreadID(0),
+	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLive(true), mContext(context),
+	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0), lastProcessedKeyId(NULL),
+	lastProcessedKeyIdLen(0), mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
+	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPeriodId(""), mPushEncInitFragment(false),
+	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo()
 {
 	this->aamp = aamp;
-	seekPosition = seekpos;
-	this->rate = rate;
-	fragmentCollectorThreadID = 0;
-	createDRMSessionThreadID = 0;
-	mpd = NULL;
-	fragmentCollectorThreadStarted = false;
-	drmSessionThreadStarted = false;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
-	mNumberOfTracks = 0;
-	mCurrentPeriodIdx = 0;
-	mEndPosition = 0;
-	mIsLive = true;
-	mContext = context;
-	mStreamInfo = NULL;
 	mContext->GetABRManager().clearProfiles();
-	mPrevStartTimeSeconds = 0;
-	mPrevLastSegurlOffset = 0;
-	mPeriodEndTime = 0;
-	mPeriodStartTime = 0;
-	lastProcessedKeyId = NULL;
-	lastProcessedKeyIdLen = 0;
-	mFirstPTS = 0;
-	mAudioType = eAUDIO_UNKNOWN;
-	mPushEncInitFragment = false;
-	mMinUpdateDurationMs = DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS;
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
-	mPrevAdaptationSetCount = 0;
-	mIsFogTSB = false;
-	mIsIframeTrackPresent = false;
 };
 
 
@@ -4912,7 +4907,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp)
+StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp), mPriv(NULL)
 {
 	mPriv = new PrivateStreamAbstractionMPD( this, aamp, seek_pos, rate);
 	trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
