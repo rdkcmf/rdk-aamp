@@ -52,6 +52,9 @@ extern "C"
  */
 struct AAMP_JSController : public PrivAAMPStruct_JS
 {
+	AAMP_JSController() : _aampSessionID(0), _closedCaptionEnabled(false), _licenseServerUrl()
+	{
+	}
 	int _aampSessionID;
 	bool _closedCaptionEnabled;
 	std::string _licenseServerUrl;

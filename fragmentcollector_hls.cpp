@@ -3844,18 +3844,17 @@ static void *FragmentCollector(void *arg)
 * @param enableThrottle[in] throttle enable/disable flag
 * @return void
 ***************************************************************************/
-StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp)
+StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
+	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
+	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
+	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mediaCount(0), newTune(true)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled\n");
 #endif
 	trickplayMode = false;
 
-	maxIntervalBtwPlaylistUpdateMs = DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS;
-
-	this->seekPosition = seekpos;
 	logprintf("hls fragment collector seekpos = %f\n", seekpos);
-	this->rate = rate;
 	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
 		this->trickplayMode = false;
@@ -3864,20 +3863,11 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	{
 		this->trickplayMode = true;
 	}
-	this->enableThrottle = enableThrottle;
-	firstFragmentDecrypted = false;
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
-	mediaCount = 0;
-	allowsCache = false;
-	newTune = true;
-	segDLFailCount = 0;
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	memset(streamInfo, 0, sizeof(*streamInfo));
-	mStartTimestampZero = false;
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
-	lastSelectedProfileIndex = 0;
-	mNumberOfTracks = 0;
 }
 /***************************************************************************
 * @fn TrackState
@@ -3902,26 +3892,21 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
 		mInjectInitFragment(true), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false), mForceProcessDrmMetadata(false),
 		mDuration(0), mLastMatchedDiscontPosition(-1), mCulledSeconds(0),
-		mDiscontinuityIndexCount(0), mSyncAfterDiscontinuityInProgress(false)
+		mDiscontinuityIndexCount(0), mSyncAfterDiscontinuityInProgress(false), playlist(),
+		index(), targetDurationSeconds(1), mDeferredDrmKeyMaxTime(0), startTimeForPlaylistSync(),
+		context(parent), fragmentEncrypted(false), mKeyTagChanged(false), mLastKeyTagIdx(0), mDrmInfo(),
+		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
+		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false)
 {
-	this->context = parent;
-	targetDurationSeconds = 1; // avoid tight loop
-	mDeferredDrmKeyMaxTime = 0;
 	effectiveUrl[0] = 0;
 	playlistUrl[0] = 0;
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
 	fragmentURIFromIndex[0] = 0;
 	memset(&startTimeForPlaylistSync, 0, sizeof(struct timeval));
-	fragmentEncrypted = false;
-	mKeyTagChanged = false;
 	memset(&mDrmMetaDataIndex, 0, sizeof(mDrmMetaDataIndex));
 	memset(&mDrmInfo, 0, sizeof(mDrmInfo));
-	mDrmMetaDataIndexPosition = 0;
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
-	mPlaylistType = ePLAYLISTTYPE_UNDEFINED;
-	mReachedEndListTag = false;
-
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);

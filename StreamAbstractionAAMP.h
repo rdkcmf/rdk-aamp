@@ -101,6 +101,16 @@ public:
 	virtual ~MediaTrack();
 
 	/**
+	* @brief MediaTrack Copy Constructor
+	*/
+	MediaTrack(const MediaTrack&) = delete;
+
+	/**
+	* @brief MediaTrack assignment operator overloading
+	*/
+	MediaTrack& operator=(const MediaTrack&) = delete;
+
+	/**
 	 * @brief Start fragment injector loop
 	 *
 	 * @return void
@@ -343,6 +353,16 @@ public:
 	 * @brief StreamAbstractionAAMP destructor.
 	 */
 	virtual ~StreamAbstractionAAMP();
+
+	/**
+	* @brief StreamAbstractionAAMP Copy Constructor
+	*/
+	StreamAbstractionAAMP(const StreamAbstractionAAMP&) = delete;
+
+	/**
+	* @brief StreamAbstractionAAMP assignment operator overloading
+	*/
+	StreamAbstractionAAMP& operator=(const StreamAbstractionAAMP&) = delete;
 
 	/**
 	 * @brief  Dump profiles for debugging.

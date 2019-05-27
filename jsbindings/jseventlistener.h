@@ -45,6 +45,8 @@ public:
 
 	AAMP_JSEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
 	~AAMP_JSEventListener();
+	AAMP_JSEventListener(const AAMP_JSEventListener&) = delete;
+	AAMP_JSEventListener& operator=(const AAMP_JSEventListener&) = delete;
 
 	void Event(const AAMPEvent& e);
 

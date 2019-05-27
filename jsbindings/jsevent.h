@@ -50,6 +50,8 @@ public:
 
 	AAMPJSEvent();
 	AAMPJSEvent(const char *type, bool bubble, bool cancelable);
+	AAMPJSEvent(const AAMPJSEvent&) = delete;
+	AAMPJSEvent& operator=(const AAMPJSEvent&) = delete;
 	~AAMPJSEvent();
 
 	void initEvent(const char *type, bool bubble, bool cancelable);
