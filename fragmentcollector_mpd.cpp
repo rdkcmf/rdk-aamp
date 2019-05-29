@@ -2914,25 +2914,6 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 {
 	std::vector<Node*> subNodes = root->GetSubNodes();
 
-	// Does the MPD element specify a content identifier?
-	const std::string& contentID = (mpd != NULL) ? mpd->GetId() : "";
-	if (!contentID.empty()) {
-		std::ostringstream s;
-		s << "#EXT-X-CONTENT-IDENTIFIER:" << contentID;
-
-		std::string content = s.str();
-		AAMPLOG_INFO("TimedMetadata: @%1.3f %s\n", 0.0f, content.c_str());
-
-		for (int i = 0; i < aamp->subscribedTags.size(); i++)
-		{
-			const std::string& tag = aamp->subscribedTags.at(i);
-			if (tag == "#EXT-X-CONTENT-IDENTIFIER") {
-				aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
-				break;
-			}
-		}
-	}
-
 	uint64_t periodStartMS = 0;
 	uint64_t periodDurationMS = 0;
 
@@ -2987,7 +2968,8 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 				std::string name;
 				std::string ns;
 				ParseXmlNS(infoNode->GetName(), ns, name);
-				if (name == "ContentIdentifier") {
+				const std::string& infoNodeType = infoNode->GetAttributeValue("type");
+				if (name == "ContentIdentifier" && infoNodeType == "URI") {
 					if (infoNode->HasAttribute("value")) {
 						const std::string& contentID = infoNode->GetAttributeValue("value");
 
