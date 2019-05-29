@@ -1385,7 +1385,7 @@ static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, StreamOutputFor
 	source = gst_element_factory_make("appsrc", NULL);
 	if (NULL == source)
 	{
-		logprintf("AAMPGstPlayer_SetupStream Cannot create source\n");
+		logprintf("AAMPGstPlayer_GetAppSrc Cannot create source\n");
 		return NULL;
 	}
 	InitializeSource( _this, G_OBJECT(source) );
@@ -1474,7 +1474,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 #ifdef USE_GST1
 		logprintf("AAMPGstPlayer_SetupStream - using playbin\n");
 		stream->sinkbin = gst_element_factory_make("playbin", NULL);
-		if (_this->privateContext->using_westerossink)
+		if (_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
 		{
 			logprintf("AAMPGstPlayer_SetupStream - using westerossink\n");
 			GstElement* vidsink = gst_element_factory_make("westerossink", NULL);
