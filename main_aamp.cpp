@@ -81,7 +81,6 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
-
 /**
  * @brief get a character for console
  * @retval user input character
@@ -3544,7 +3543,9 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  *
  *   @param[in]  streamSink - custom stream sink, NULL for default.
  */
-PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
+	, std::function< void(uint8_t *, int, int, int) > exportFrames
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -3558,7 +3559,11 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink) : aamp(NULL), mIn
 	aamp = new PrivateInstanceAAMP();
 	if (NULL == streamSink)
 	{
-		mInternalStreamSink = new AAMPGstPlayer(aamp);
+		mInternalStreamSink = new AAMPGstPlayer(aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+		, exportFrames
+#endif
+		);
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
