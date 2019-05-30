@@ -26,6 +26,7 @@
 #include "aampgstplayer.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
+#include <gst/app/gstappsink.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -34,9 +35,10 @@
 #include <pthread.h>
 #include <atomic>
 
+
 #ifdef __APPLE__
-#include "gst/video/videooverlay.h"
-#import "cocoa_window.h"
+	#include "gst/video/videooverlay.h"
+	guintptr (*gCbgetWindowContentView)() = NULL;
 #endif
 
 #ifdef AAMP_MPD_DRM
@@ -193,7 +195,11 @@ static gboolean buffering_timeout (gpointer data);
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
-AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL)
+AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	, std::function< void(uint8_t *, int, int, int) > exportFrames
+#endif
+	) : aamp(NULL) , privateContext(NULL)
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
@@ -205,7 +211,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	else
 		privateContext->using_westerossink = true;
 	this->aamp = aamp;
-
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	this->cbExportYUVFrame = exportFrames;
+#endif
 	CreatePipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
@@ -681,6 +689,60 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+
+/**
+ * @brief Callback function to get video frames
+ * @param[in] object - pointer to appsink instance triggering "new-sample" signal
+ * @param[in] _this  - pointer to AAMPGstPlayer instance
+ * @retval GST_FLOW_OK
+ */
+GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this)
+{
+	GstSample *sample;
+	GstBuffer *buffer;
+	GstMapInfo map;
+
+	if(_this && _this->cbExportYUVFrame)
+	{
+		sample = gst_app_sink_pull_sample (GST_APP_SINK (object));
+		if (sample)
+		{
+			int width, height;
+			GstCaps *caps = gst_sample_get_caps(sample);
+			GstStructure *capsStruct = gst_caps_get_structure(caps,0);
+			gst_structure_get_int(capsStruct,"width",&width);
+			gst_structure_get_int(capsStruct,"height",&height);
+			//logprintf("StrCAPS=%s\n", gst_caps_to_string(caps));
+			buffer = gst_sample_get_buffer (sample);
+			if (buffer)
+			{
+				if (gst_buffer_map(buffer, &map, GST_MAP_READ))
+				{
+					_this->cbExportYUVFrame(map.data, map.size, width, height);
+
+					gst_buffer_unmap(buffer, &map);
+				}
+				else
+				{
+					logprintf("%s:%d buffer map failed\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("%s:%d buffer NULL\n", __FUNCTION__, __LINE__);
+			}
+			gst_sample_unref (sample);
+		}
+		else
+		{
+			logprintf("%s:%d sample NULL\n", __FUNCTION__, __LINE__);
+		}
+	}
+	return GST_FLOW_OK;
+}
+#endif
+
 /**
  * @brief Callback invoked when facing an underflow
  * @param[in] object pointer to element raising the callback
@@ -1154,14 +1216,18 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		break;
 #endif
 #ifdef __APPLE__
-    case GST_MESSAGE_ELEMENT:
-        if (gst_is_video_overlay_prepare_window_handle_message(msg))
-        {
-            logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu\n",getWindowContentView());
-            gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), getWindowContentView());
-            gst_message_unref (msg);
-        }
-        break;
+	case GST_MESSAGE_ELEMENT:
+		if (
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+				(nullptr == _this->cbExportYUVFrame) &&
+#endif
+			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
+		{
+			logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu\n",(*gCbgetWindowContentView)());
+			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
+			gst_message_unref (msg);
+		}
+		break;
 #endif
 	default:
 		break;
@@ -1467,7 +1533,24 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 			g_object_set(vidsink, "secure-video", TRUE, NULL);
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
-        }
+		}
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+		else if(_this->cbExportYUVFrame)
+		{
+			if (eMEDIATYPE_VIDEO == streamId)
+			{
+				logprintf("AAMPGstPlayer_SetupStream - using appsink\n");
+				GstElement* appsink = gst_element_factory_make("appsink", NULL);
+				assert(appsink);
+				GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "I420", NULL);
+				gst_app_sink_set_caps (GST_APP_SINK(appsink), caps);
+				g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "sync", TRUE, NULL);
+				g_signal_connect (appsink, "new-sample", G_CALLBACK (AAMPGstPlayer::AAMPGstPlayer_OnVideoSample), _this);
+				g_object_set(stream->sinkbin, "video-sink", appsink, NULL);
+				_this->privateContext->video_sink = appsink;
+			}
+		}
+#endif
 #else
 		logprintf("AAMPGstPlayer_SetupStream - using playbin2\n");
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);

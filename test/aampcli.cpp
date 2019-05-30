@@ -22,6 +22,26 @@
  * @brief Stand alone AAMP player with command line interface.
  */
 
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+#ifdef __APPLE__
+	#define GL_SILENCE_DEPRECATION
+	#include <OpenGL/gl3.h>
+	#include <GLUT/glut.h>
+#else	//Linux
+	#include <GL/glew.h>
+	#include <GL/gl.h>
+	#include <GL/freeglut.h>
+#endif
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#endif
+
+#ifdef __APPLE__
+#import <cocoa_window.h>
+#endif
+#include <stdlib.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <list>
 #include <string.h>
@@ -35,10 +55,6 @@
 #include "manager.hpp"
 #include "libIBus.h"
 #include "libIBusDaemon.h"
-#endif
-
-#ifdef __APPLE__
-#import <cocoa_window.h>
 #endif
 
 #define MAX_BUFFER_LENGTH 4096
@@ -480,6 +496,277 @@ static void * run_commnds(void *arg)
     return NULL;
 }
 
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+#define ATTRIB_VERTEX 0
+#define ATTRIB_TEXTURE 1
+
+typedef struct{
+	int width = 0;
+	int height = 0;
+	uint8_t *yuvBuffer = NULL;
+	std::mutex mutex;
+}AppsinkData;
+
+static AppsinkData appsinkData;
+
+GLuint mProgramID;
+GLuint id_y, id_u, id_v; // texture id
+GLuint textureUniformY, textureUniformU,textureUniformV;
+static GLuint _vertexArray;
+static GLuint _vertexBuffer[2];
+static const int FPS = 60;
+GLfloat currentAngleOfRotation = 0.0;
+
+static const char *VSHADER =
+	"attribute vec2 vertexIn;"
+	"attribute vec2 textureIn;"
+	"varying vec2 textureOut;"
+	"uniform mat4 trans;"
+	"void main() {"
+		"gl_Position = trans * vec4(vertexIn,0, 1);"
+		"textureOut = textureIn;"
+	"}";
+
+static const char *FSHADER =
+	"#ifdef GL_ES \n"
+		"  precision mediump float; \n"
+	"#endif \n"
+	"varying vec2 textureOut;"
+	"uniform sampler2D tex_y;"
+	"uniform sampler2D tex_u;"
+	"uniform sampler2D tex_v;"
+	"void main() {"
+		"vec3 yuv;"
+		"vec3 rgb;"
+		"yuv.x = texture2D(tex_y, textureOut).r;"
+		"yuv.y = texture2D(tex_u, textureOut).r - 0.5;"
+		"yuv.z = texture2D(tex_v, textureOut).r - 0.5;"
+		"rgb = mat3( 1, 1, 1, 0, -0.39465, 2.03211, 1.13983, -0.58060,  0) * yuv;"
+		"gl_FragColor = vec4(rgb, 1);"
+	"}";
+
+static GLuint LoadShader( GLenum type )
+{
+	GLuint shaderHandle = 0;
+	const char *sources[1];
+
+	if(GL_VERTEX_SHADER == type)
+	{
+		sources[0] = VSHADER;
+	}
+	else
+	{
+		sources[0] = FSHADER;
+	}
+
+	if( sources[0] )
+	{
+		shaderHandle = glCreateShader(type);
+		glShaderSource(shaderHandle, 1, sources, 0);
+		glCompileShader(shaderHandle);
+		GLint compileSuccess;
+		glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &compileSuccess);
+		if (compileSuccess == GL_FALSE)
+		{
+			GLchar msg[1024];
+			glGetShaderInfoLog(shaderHandle, sizeof(msg), 0, &msg[0]);
+			logprintf( "%s\n", msg );
+		}
+	}
+
+	return shaderHandle;
+}
+
+void InitShaders()
+{
+	GLint linked;
+
+	GLint vShader = LoadShader(GL_VERTEX_SHADER);
+	GLint fShader = LoadShader(GL_FRAGMENT_SHADER);
+	mProgramID = glCreateProgram();
+	glAttachShader(mProgramID,vShader);
+	glAttachShader(mProgramID,fShader);
+
+	glBindAttribLocation(mProgramID, ATTRIB_VERTEX, "vertexIn");
+	glBindAttribLocation(mProgramID, ATTRIB_TEXTURE, "textureIn");
+	glLinkProgram(mProgramID);
+	glValidateProgram(mProgramID);
+
+	glGetProgramiv(mProgramID, GL_LINK_STATUS, &linked);
+	if( linked == GL_FALSE )
+	{
+		GLint logLen;
+		glGetProgramiv(mProgramID, GL_INFO_LOG_LENGTH, &logLen);
+		GLchar *msg = (GLchar *)malloc(sizeof(GLchar)*logLen);
+		glGetProgramInfoLog(mProgramID, logLen, &logLen, msg );
+		printf( "%s\n", msg );
+		free( msg );
+	}
+	glUseProgram(mProgramID);
+	glDeleteShader(vShader);
+	glDeleteShader(fShader);
+
+	//Get Uniform Variables Location
+	textureUniformY = glGetUniformLocation(mProgramID, "tex_y");
+	textureUniformU = glGetUniformLocation(mProgramID, "tex_u");
+	textureUniformV = glGetUniformLocation(mProgramID, "tex_v");
+
+	typedef struct _vertex
+	{
+		float p[2];
+		float uv[2];
+	} Vertex;
+
+	static const Vertex vertexPtr[4] =
+	{
+		{{-1,-1}, {0.0,1 } },
+		{{ 1,-1}, {1,1 } },
+		{{ 1, 1}, {1,0.0 } },
+		{{-1, 1}, {0.0,0.0} }
+	};
+	static const unsigned short index[6] =
+	{
+		0,1,2, 2,3,0
+	};
+
+	glGenVertexArrays(1, &_vertexArray);
+	glBindVertexArray(_vertexArray);
+	glGenBuffers(2, _vertexBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertexPtr), vertexPtr, GL_STATIC_DRAW );
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _vertexBuffer[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index), index, GL_STATIC_DRAW );
+	glVertexAttribPointer(ATTRIB_VERTEX, 2, GL_FLOAT, GL_FALSE,
+							sizeof(Vertex), (const GLvoid *)offsetof(Vertex,p) );
+	glEnableVertexAttribArray(ATTRIB_VERTEX);
+
+	glVertexAttribPointer(ATTRIB_TEXTURE, 2, GL_FLOAT, GL_FALSE,
+						  sizeof(Vertex), (const GLvoid *)offsetof(Vertex, uv ) );
+	glEnableVertexAttribArray(ATTRIB_TEXTURE);
+	glBindVertexArray(0);
+
+	glGenTextures(1, &id_y);
+	glBindTexture(GL_TEXTURE_2D, id_y);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &id_u);
+	glBindTexture(GL_TEXTURE_2D, id_u);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glGenTextures(1, &id_v);
+	glBindTexture(GL_TEXTURE_2D, id_v);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+void glRender(void){
+	/** Input in I420 (YUV420) format.
+	  * Buffer structure:
+	  * ----------
+	  * |        |
+	  * |   Y    | size = w*h
+	  * |        |
+	  * |________|
+	  * |   U    |size = w*h/4
+	  * |--------|
+	  * |   V    |size = w*h/4
+	  * ----------*
+	  */
+	int pixel_w = 0;
+	int pixel_h = 0;
+	uint8_t *yuvBuffer = NULL;
+	unsigned char *yPlane, *uPlane, *vPlane;
+
+	{
+		std::lock_guard<std::mutex> lock(appsinkData.mutex);
+		yuvBuffer = appsinkData.yuvBuffer;
+		appsinkData.yuvBuffer = NULL;
+		pixel_w = appsinkData.width;
+		pixel_h = appsinkData.height;
+	}
+	if(yuvBuffer)
+	{
+		yPlane = yuvBuffer;
+		uPlane = yPlane + (pixel_w*pixel_h);
+		vPlane = uPlane + (pixel_w*pixel_h)/4;
+
+		glClearColor(0.0,0.0,0.0,0.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		//Y
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, id_y);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, pixel_w, pixel_h, 0, GL_RED, GL_UNSIGNED_BYTE, yPlane);
+		glUniform1i(textureUniformY, 0);
+
+		//U
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, id_u);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, pixel_w/2, pixel_h/2, 0, GL_RED, GL_UNSIGNED_BYTE, uPlane);
+		glUniform1i(textureUniformU, 1);
+
+		//V
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, id_v);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, pixel_w/2, pixel_h/2, 0, GL_RED, GL_UNSIGNED_BYTE, vPlane);
+		glUniform1i(textureUniformV, 2);
+
+		//Rotate
+		glm::mat4 trans = glm::rotate(
+			glm::mat4(1.0f),
+			currentAngleOfRotation * 360,
+			glm::vec3(1.0f, 1.0f, 1.0f)
+		);
+		GLint uniTrans = glGetUniformLocation(mProgramID, "trans");
+		glUniformMatrix4fv(uniTrans, 1, GL_FALSE, glm::value_ptr(trans));
+
+		glBindVertexArray(_vertexArray);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0 );
+		glBindVertexArray(0);
+
+		glutSwapBuffers();
+		delete yuvBuffer;
+	}
+}
+
+void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
+{
+	uint8_t* frameBuf = new uint8_t[size];
+	memcpy(frameBuf, buffer, size);
+
+	{
+		std::lock_guard<std::mutex> lock(appsinkData.mutex);
+		if(appsinkData.yuvBuffer)
+		{
+			logprintf("Drops frame.\n");
+			delete appsinkData.yuvBuffer;
+		}
+		appsinkData.yuvBuffer = frameBuf;
+		appsinkData.width = width;
+		appsinkData.height = height;
+	}
+}
+
+void timer(int v) {
+	currentAngleOfRotation += 0.0001;
+	if (currentAngleOfRotation >= 1.0)
+	{
+		currentAngleOfRotation = 0.0;
+	}
+	glutPostRedisplay();
+
+	glutTimerFunc(1000/FPS, timer, v);
+}
+#endif
+
 /**
  * @brief
  * @param argc
@@ -519,7 +806,12 @@ int main(int argc, char **argv)
 
 	InitPlayerLoop(0,NULL);
 
-	mSingleton = new PlayerInstanceAAMP();
+	mSingleton = new PlayerInstanceAAMP(
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+			NULL
+			,updateYUVFrame
+#endif
+			);
 #ifdef LOG_CLI_EVENTS
 	myEventListener = new myAAMPEventListener();
 	mSingleton->RegisterEvents(myEventListener);
@@ -545,13 +837,32 @@ int main(int argc, char **argv)
 		fclose(f);
 	}
 
-#ifdef __APPLE__
-    pthread_t cmdThreadId;
-    pthread_create(&cmdThreadId,NULL,run_commnds,NULL);
-    createAndRunCocoaWindow();
-    mSingleton->Stop();
-    delete mSingleton;
-#else
-    run_commnds(NULL);
+	pthread_t cmdThreadId;
+	pthread_create(&cmdThreadId,NULL,run_commnds,NULL);
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	// Render frames in graphics plane using opengl
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutInitWindowPosition(80, 80);
+	glutInitWindowSize(640, 480);
+	glutCreateWindow("AAMP Texture Player");
+	logprintf("OpenGL Version[%s] GLSL Version[%s]\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+#ifndef __APPLE__
+	glewInit();
 #endif
+	InitShaders();
+	glutDisplayFunc(glRender);
+	glutTimerFunc(40, timer, 0);
+
+	glutMainLoop();
+#else
+	// Render frames in video plane - default behavior
+#ifdef __APPLE__
+	createAndRunCocoaWindow();
+#endif
+#endif
+	void *value_ptr = NULL;
+	pthread_join(cmdThreadId, &value_ptr);
+	mSingleton->Stop();
+	delete mSingleton;
 }
