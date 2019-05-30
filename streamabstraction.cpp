@@ -423,7 +423,7 @@ bool MediaTrack::InjectFragment()
 #endif
 		if (cachedFragment->fragment.ptr)
 		{
-			StreamAbstractionAAMP*  context = GetContext();
+			StreamAbstractionAAMP* context = GetContext();
 #ifdef AAMP_DEBUG_INJECT
 			if ((1 << type) & AAMP_DEBUG_INJECT)
 			{
@@ -447,15 +447,19 @@ bool MediaTrack::InjectFragment()
 			}
 			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
-				logprintf("%s:%d - track %s- notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d - track %s - notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
 				cachedFragment->discontinuity = false;
 				ptsError = false;
 				stopInjection = aamp->Discontinuity((MediaType) type);
+
 				/*For muxed streams, give discontinuity for audio track as well*/
-				if (!context->GetMediaTrack(eTRACK_AUDIO)->enabled)
+				MediaTrack* audio = context->GetMediaTrack(eTRACK_AUDIO);
+
+				if (audio && !audio->enabled)
 				{
 					aamp->Discontinuity(eMEDIATYPE_AUDIO);
 				}
+
 				if (stopInjection)
 				{
 					ret = false;
@@ -471,6 +475,7 @@ bool MediaTrack::InjectFragment()
 			{
 				SignalTrickModeDiscontinuity();
 			}
+
 			if (!stopInjection)
 			{
 #ifdef AAMP_DEBUG_INJECT
@@ -1309,7 +1314,6 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
  */
 void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 {
-	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	if (fragmentParsed)
 	{
 		mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
