@@ -2969,7 +2969,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root)
 				std::string ns;
 				ParseXmlNS(infoNode->GetName(), ns, name);
 				const std::string& infoNodeType = infoNode->GetAttributeValue("type");
-				if (name == "ContentIdentifier" && infoNodeType == "URI") {
+				if (name == "ContentIdentifier" && (infoNodeType == "URI" || infoNodeType == "URN")) {
 					if (infoNode->HasAttribute("value")) {
 						const std::string& contentID = infoNode->GetAttributeValue("value");
 
