@@ -23,6 +23,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import "cocoa_window.h"
+extern guintptr (*gCbgetWindowContentView)();
 
 @interface VideoWindow: NSWindow <NSApplicationDelegate>
 {
@@ -32,6 +33,9 @@
 - (id) initializeWindow:(NSRect) cordinates;
 @end
 
+static VideoWindow *gCocoaWindow=nil;
+static NSApplication* application;
+
 @implementation VideoWindow
 
 - (id) initializeWindow:(NSRect)cordinates
@@ -40,7 +44,7 @@
                             styleMask: (NSWindowStyleMaskClosable | NSWindowStyleMaskTitled | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable)
                               backing: NSBackingStoreBuffered defer: NO screen: nil];
 
-    [[NSApplication sharedApplication] setDelegate:self];
+    [application setDelegate:self];
     [self setReleasedWhenClosed:NO];
     m_windowActive = TRUE;
     [self setTitle:@"AAMP Test Player"];
@@ -60,14 +64,16 @@
     [self orderFront:self];
 }
 
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication {
+    return YES;
+}
+
 - (gboolean) isActive
 {
     return m_windowActive;
 }
 
 @end
-
-static VideoWindow *gCocoaWindow=nil;
 
 guintptr getWindowContentView()
 {
@@ -82,15 +88,13 @@ int createAndRunCocoaWindow()
     windowCordinates.origin.x = 0;
     windowCordinates.origin.y = 0;
 
-    [NSApplication sharedApplication];
+    application = [NSApplication sharedApplication];
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     gCocoaWindow = [[VideoWindow alloc] initializeWindow:windowCordinates];
 
-    [gCocoaWindow orderFront:gCocoaWindow];
-    while ([gCocoaWindow isActive])
-    {
-        NSEvent *winEvent = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:[NSDate dateWithTimeIntervalSinceNow:1] inMode:NSDefaultRunLoopMode dequeue:YES];
-        if (winEvent)
-            [NSApp sendEvent:winEvent];
-    }
+    [gCocoaWindow orderFront:nil];
+    [gCocoaWindow setLevel: NSNormalWindowLevel];
+    gCbgetWindowContentView = &getWindowContentView;
+    [application run];
     return 0;
 }
