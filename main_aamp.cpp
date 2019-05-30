@@ -105,7 +105,12 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	aamp = new PrivateInstanceAAMP();
 	if (NULL == streamSink)
 	{
-		mInternalStreamSink = new AAMPGstPlayer(aamp);
+		mInternalStreamSink = new AAMPGstPlayer(aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+                , exportFrames
+#endif
+		);
+
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);

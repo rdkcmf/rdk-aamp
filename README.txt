@@ -194,6 +194,8 @@ CLI-specific commands:
 help		show usage notes
 http://...	tune to specified URL
 <number>	tune to specified channel (based on canned aamp channel map)
+next        tune to next virtual channel
+prev        tune to previous virtual channel
 seek <sec>	time-based seek within current content (stub)
 ff32		set desired trick speed to 32x
 ff16		set desired trick speed to 16x
@@ -214,6 +216,10 @@ bps <val>   Set video bitrate in bps
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
 *<Channel Number> <Channel Name> <Channel URL>
 
+or
+
+To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.csv
+<Channel Number>,<Channel Name>,<Channel URL>
 ================================================================================================
 Following line can be added as a header while making CSV with profiler data.
 
