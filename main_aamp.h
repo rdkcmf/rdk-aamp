@@ -39,6 +39,7 @@
 #define MAINAAMP_H
 
 #include <memory>
+#include <functional>
 #include <vector>
 #include <string>
 
@@ -701,8 +702,11 @@ public:
 	 *   @brief PlayerInstanceAAMP Constructor.
 	 *
 	 *   @param  streamSink - custom stream sink, NULL for default.
+	 *   @param  exportFrames - Callback function to export video frames of signature 'void fn(uint8_t *yuvBuffer, int size, int pixel_w, int pixel_h)'
 	 */
-	PlayerInstanceAAMP(StreamSink* streamSink = NULL);
+	PlayerInstanceAAMP(StreamSink* streamSink = NULL
+			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
+			);
 
 	/**
 	 *   @brief PlayerInstanceAAMP Destructor.
