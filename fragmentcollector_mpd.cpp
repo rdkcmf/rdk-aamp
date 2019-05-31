@@ -44,6 +44,7 @@
 #include <ctime>
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
+#include <math.h>
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -1701,7 +1702,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					double fragmentDuration = ((double)duration)/timeScale;
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
 					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
-					bool skipFlag = true;
+					bool skipFlag = true; //  added by BCOM to avoid AV sync issues
 					if ((pMediaStreamContext->type == eTRACK_AUDIO) && (nextPTS>mFirstPTS))
 					{
 						if ( ((nextPTS - mFirstPTS) >= ((fragmentDuration)/2.0)) &&
@@ -1738,8 +1739,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							}
 						}
 					}
-					else
-					{
+					if (skipTime == 0 || fabs(skipTime) < fragmentDuration || !skipFlag)
+					{ // last iteration
 						if (updateFirstPTS)
 						{
 							AAMPLOG_INFO("%s:%d [%s] newPTS %f, nextPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS);
