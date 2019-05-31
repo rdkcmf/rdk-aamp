@@ -43,6 +43,7 @@
 #include <ctime>
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
+#include <math.h>
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -1669,8 +1670,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							}
 						}
 					}
-					else
-					{
+					if (fabs(skipTime) < fragmentDuration || !skipFlag)
+					{ // last iteration
 						if (updateFirstPTS)
 						{
 							double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
