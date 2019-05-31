@@ -43,6 +43,7 @@
 #include <ctime>
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
+#include <math.h>
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -1672,8 +1673,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							}
 						}
 					}
-					else
-					{
+					if (fabs(skipTime) < fragmentDuration || !skipFlag)
+					{ // last iteration
 						if (updateFirstPTS)
 						{
 							AAMPLOG_INFO("%s:%d [%s] newPTS %f, nextPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS);
