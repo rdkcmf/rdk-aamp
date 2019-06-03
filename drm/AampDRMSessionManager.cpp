@@ -49,16 +49,15 @@
 #define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
 static const char *sessionTypeName[] = {"video", "audio"};
-DrmSessionContext AampDRMSessionManager::drmSessionContexts[MAX_DRM_SESSIONS] = {{dataLength : 0, data : NULL, drmSession : NULL}																		,{dataLength : 0, data : NULL, drmSession : NULL}};
-KeyID AampDRMSessionManager::cachedKeyIDs[MAX_DRM_SESSIONS] = {{len : 0, data : NULL, creationTime : 0},{len : 0, data : NULL, creationTime : 0}};
 
-char* AampDRMSessionManager::accessToken = NULL;
-int AampDRMSessionManager::accessTokenLen = 0;
-SessionMgrState AampDRMSessionManager::sessionMgrState = SessionMgrState::eSESSIONMGR_ACTIVE;
+AampDRMSessionManager* AampDRMSessionManager::_sessionMgr = NULL;
 
-static pthread_mutex_t accessTokenMutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t session_mutex[2] = {PTHREAD_MUTEX_INITIALIZER,PTHREAD_MUTEX_INITIALIZER};
-static pthread_mutex_t initDataMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t sessionMgrMutex = PTHREAD_MUTEX_INITIALIZER;
+
+KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
+{
+}
+
 
 #ifdef USE_SECCLIENT
 /**
@@ -98,7 +97,9 @@ static string getFormattedLicenseServerURL(string url)
 /**
  *  @brief      AampDRMSessionManager constructor.
  */
-AampDRMSessionManager::AampDRMSessionManager()
+AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(NULL), cachedKeyIDs(NULL), accessToken(NULL),
+		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
+		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 {
 }
 
@@ -117,9 +118,9 @@ AampDRMSessionManager::~AampDRMSessionManager()
 void AampDRMSessionManager::clearSessionData()
 {
 	logprintf("%s:%d AampDRMSessionManager:: Clearing session data\n", __FUNCTION__, __LINE__);
-	for(int i = 0 ; i < MAX_DRM_SESSIONS; i++)
+	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if(drmSessionContexts[i].drmSession != NULL)
+		if(drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
 			drmSessionContexts[i].drmSession->clearDecryptContext();
 			delete drmSessionContexts[i].data;
@@ -128,13 +129,48 @@ void AampDRMSessionManager::clearSessionData()
 			delete drmSessionContexts[i].drmSession;
 			drmSessionContexts[i].drmSession = NULL;
 		}
-		if(cachedKeyIDs[i].data != NULL)
+		if(cachedKeyIDs != NULL && cachedKeyIDs[i].data != NULL)
 		{
 			delete cachedKeyIDs[i].data;
 			cachedKeyIDs[i].data = NULL;
 			cachedKeyIDs[i].len = 0;
 		}
 	}
+
+	if (drmSessionContexts != NULL)
+	{
+		delete[] drmSessionContexts;
+		drmSessionContexts = NULL;
+	}
+	if (cachedKeyIDs != NULL)
+	{
+		delete[] cachedKeyIDs;
+		cachedKeyIDs = NULL;
+	}
+}
+
+/**
+ * @brief	To get the singleton session manager instance.
+ *
+ * @return	session manager.
+ */
+AampDRMSessionManager* AampDRMSessionManager::getInstance()
+{
+	pthread_mutex_lock(&sessionMgrMutex);
+	if(NULL == _sessionMgr)
+	{
+		_sessionMgr = new AampDRMSessionManager();
+	}
+	if(NULL == _sessionMgr->drmSessionContexts)
+	{
+		_sessionMgr->drmSessionContexts = new DrmSessionContext[gpGlobalConfig->dash_MaxDRMSessions];
+	}
+	if(NULL == _sessionMgr->cachedKeyIDs)
+	{
+		_sessionMgr->cachedKeyIDs = new KeyID[gpGlobalConfig->dash_MaxDRMSessions];
+	}
+	pthread_mutex_unlock(&sessionMgrMutex);
+	return _sessionMgr;
 }
 
 /**
@@ -144,9 +180,9 @@ void AampDRMSessionManager::clearSessionData()
  */
 void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 {
-	pthread_mutex_lock(&initDataMutex);
+	pthread_mutex_lock(&cachedKeyMutex);
 	sessionMgrState = state;
-	pthread_mutex_unlock(&initDataMutex);
+	pthread_mutex_unlock(&cachedKeyMutex);
 }
 
 
@@ -157,8 +193,8 @@ void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
  */
 void AampDRMSessionManager::clearFailedKeyIds()
 {
-	pthread_mutex_lock(&initDataMutex);
-	for(int i = 0 ; i < MAX_DRM_SESSIONS; i++)
+	pthread_mutex_lock(&cachedKeyMutex);
+	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
 		if(cachedKeyIDs[i].data != NULL && cachedKeyIDs[i].isFailedKeyId)
 		{
@@ -166,9 +202,11 @@ void AampDRMSessionManager::clearFailedKeyIds()
 			cachedKeyIDs[i].data = NULL;
 			cachedKeyIDs[i].len = 0;
 			cachedKeyIDs[i].isFailedKeyId = false;
+			cachedKeyIDs[i].creationTime = 0;
 		}
+		cachedKeyIDs[i].isPrimaryKeyId = false;
 	}
-	pthread_mutex_unlock(&initDataMutex);
+	pthread_mutex_unlock(&cachedKeyMutex);
 }
 
 /**
@@ -745,7 +783,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const char* systemId, const unsigned char * initDataPtr,
 		uint16_t dataLength, MediaType streamType,
-		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPEvent *e)
+		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPEvent *e, bool isPrimarySession)
 {
 	KeyState code = KEY_CLOSED;
 	long responseCode = -1;
@@ -755,6 +793,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	int keyIdLen = 0;
 	string destinationURL;
 	DrmData * key = NULL;
+	bool keySlotFound = false;
+	bool isCachedKeyId = false;
+	int sessionSlot = 0;
 
 	if(gpGlobalConfig->logging.debug)
 	{
@@ -764,20 +805,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			cout <<(char)initDataPtr[i];
 		cout << endl;
 	}
-	int sessionType = 0;
+
 	e->data.dash_drmmetadata.accessStatus = "accessAttributeStatus";
 	e->data.dash_drmmetadata.accessStatus_value = 3;
 	e->data.dash_drmmetadata.responseCode = 0;
 
-	if(eMEDIATYPE_AUDIO == streamType)
-	{
-		sessionType = AUDIO_SESSION;
-	}
-	else if (eMEDIATYPE_VIDEO == streamType)
-	{
-		sessionType = VIDEO_SESSION;
-	}
-	else
+	if(!(eMEDIATYPE_VIDEO == streamType || eMEDIATYPE_AUDIO == streamType))
 	{
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_UNSUPPORTED_STREAM_TYPE;
 		return NULL;
@@ -820,125 +853,168 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		return NULL;
 	}
 
-	pthread_mutex_lock(&initDataMutex);
+	pthread_mutex_lock(&cachedKeyMutex);
 
 	if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState)
 	{
 		AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
 		free(keyId);
-		pthread_mutex_unlock(&initDataMutex);
+		pthread_mutex_unlock(&cachedKeyMutex);
 		return NULL;
 	}
-	/*Check if audio/video session for keyid already exists or is in progress of being created
-	*Else clear oldest session and create new one
-	*/
-	int otherSession = (sessionType + 1) % 2;
-	bool sessionFound = true;
-	if (keyIdLen == cachedKeyIDs[otherSession].len && 0 == memcmp(cachedKeyIDs[otherSession].data, keyId, keyIdLen))
+
+	/*Find drmSession slot by going through cached keyIds */
+
+	/* Check if requested keyId is already cached*/
+	for (; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
 	{
-		if(gpGlobalConfig->logging.debug)
+		if (keyIdLen == cachedKeyIDs[sessionSlot].len && 0 == memcmp(cachedKeyIDs[sessionSlot].data, keyId, keyIdLen))
 		{
-			logprintf("%s:%d %s session (created/inprogress) with same keyID %s, can reuse same for %s\n",
-					__FUNCTION__, __LINE__, sessionTypeName[otherSession], keyId, sessionTypeName[sessionType]);
+		//	if(gpGlobalConfig->logging.debug)
+			{
+				logprintf("%s:%d  Session created/inprogress with same keyID %s at slot %d, can reuse same for %s\n",
+							__FUNCTION__, __LINE__, keyId, sessionSlot, sessionTypeName[streamType]);
+			}
+			keySlotFound = true;
+			isCachedKeyId = true;
+			break;
 		}
-		sessionType = otherSession;
 	}
-	else if(!(keyIdLen == cachedKeyIDs[sessionType].len && 0 == memcmp(cachedKeyIDs[sessionType].data, keyId, keyIdLen)))
+
+	if(!keySlotFound)
 	{
-		logprintf("%s:%d No active session found with keyId %s, proceeding to create new session\n", __FUNCTION__, __LINE__, keyId);
-		sessionFound = false;
-		/*
-		 * Check if both sessions have valid KeyIDs
-		 * if yes proceed to clear the oldest session
-		 */
-		if(cachedKeyIDs[otherSession].creationTime < cachedKeyIDs[sessionType].creationTime)
+		/*Key Id not in cached list so we need to find out oldest slot to use;
+		 * Oldest slot may be used by current playback which is marked primary
+		 * Avoid selecting that slot*/
+
+		/*First select the first slot that is not primary*/
+		for (int iter = 0; iter < gpGlobalConfig->dash_MaxDRMSessions; iter++)
 		{
-			sessionType = otherSession;
+			if(!cachedKeyIDs[iter].isPrimaryKeyId)
+			{
+				keySlotFound = true;
+				sessionSlot = iter;
+				break;
+			}
 		}
 
-		if(cachedKeyIDs[sessionType].data != NULL)
+		/*Check if there's an older slot */
+		for (int iter = sessionSlot + 1; iter < gpGlobalConfig->dash_MaxDRMSessions; iter++)
 		{
-			delete cachedKeyIDs[sessionType].data;
+			if(cachedKeyIDs[iter].creationTime < cachedKeyIDs[sessionSlot].creationTime)
+			{
+				sessionSlot = iter;
+			}
 		}
-		
-		cachedKeyIDs[sessionType].len = keyIdLen;
-		cachedKeyIDs[sessionType].isFailedKeyId = false;
-		cachedKeyIDs[sessionType].data = new unsigned char[keyIdLen];
-		memcpy(reinterpret_cast<void*>(cachedKeyIDs[sessionType].data),
-        reinterpret_cast<const void*>(keyId), keyIdLen);
-		cachedKeyIDs[sessionType].creationTime = aamp_GetCurrentTimeMS();
-	}
-	pthread_mutex_unlock(&initDataMutex);
 
-	pthread_mutex_lock(&session_mutex[sessionType]);
+		if(keySlotFound)
+		{
+		//	if(gpGlobalConfig->logging.debug)
+			{
+				logprintf("%s:%d  Selected slot %d for keyId %s sessionType %s\n",
+							__FUNCTION__, __LINE__, sessionSlot, keyId, sessionTypeName[streamType]);
+			}
+		}
+		else
+		{
+			//@TODO It should not come to this unless license rotation is involved
+			//add new error code for this
+			logprintf("%s:%d  Unable to find keySlot for keyId %s sessionType %s, max sessions supported %d\n",
+							__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType], gpGlobalConfig->dash_MaxDRMSessions);
+			free(keyId);
+			pthread_mutex_unlock(&cachedKeyMutex);
+			return NULL;
+		}
+	}
+
+	if(!isCachedKeyId)
+	{
+		if(cachedKeyIDs[sessionSlot].data != NULL)
+		{
+			delete cachedKeyIDs[sessionSlot].data;
+		}
+
+		cachedKeyIDs[sessionSlot].len = keyIdLen;
+		cachedKeyIDs[sessionSlot].isFailedKeyId = false;
+		cachedKeyIDs[sessionSlot].data = new unsigned char[keyIdLen];
+		memcpy(reinterpret_cast<void*>(cachedKeyIDs[sessionSlot].data),
+									reinterpret_cast<const void*>(keyId), keyIdLen);
+	}
+	cachedKeyIDs[sessionSlot].creationTime = aamp_GetCurrentTimeMS();
+	cachedKeyIDs[sessionSlot].isPrimaryKeyId = isPrimarySession;
+
+	pthread_mutex_unlock(&cachedKeyMutex);
+
+
+	pthread_mutex_lock(&(drmSessionContexts[sessionSlot].sessionMutex));
 	aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_PREPROC);
 	//logprintf("%s:%d Locked session mutex for %s\n", __FUNCTION__, __LINE__, sessionTypeName[sessionType]);
-	if(drmSessionContexts[sessionType].drmSession == NULL)
+	if(drmSessionContexts[sessionSlot].drmSession == NULL)
 	{
-		drmSessionContexts[sessionType].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
+		drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
 	}
-	else if(drmSessionContexts[sessionType].drmSession->getKeySystem() != string(keySystem))
+	else if(drmSessionContexts[sessionSlot].drmSession->getKeySystem() != string(keySystem))
 	{
-		AAMPLOG_WARN("%s:%d Switching DRM from %s to %s\n", __FUNCTION__, __LINE__, drmSessionContexts[sessionType].drmSession->getKeySystem().c_str(), keySystem);
-		delete drmSessionContexts[sessionType].drmSession;
-		drmSessionContexts[sessionType].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
+		AAMPLOG_WARN("%s:%d Switching DRM from %s to %s\n", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), keySystem);
+		delete drmSessionContexts[sessionSlot].drmSession;
+		drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
 	}
 	else
 	{
-			if(keyIdLen == drmSessionContexts[sessionType].dataLength)
+			if(keyIdLen == drmSessionContexts[sessionSlot].dataLength)
 			{
-				if ((0 == memcmp(drmSessionContexts[sessionType].data, keyId, keyIdLen))
-						&& (drmSessionContexts[sessionType].drmSession->getState()
+				if ((0 == memcmp(drmSessionContexts[sessionSlot].data, keyId, keyIdLen))
+						&& (drmSessionContexts[sessionSlot].drmSession->getState()
 								== KEY_READY))
 				{
 					AAMPLOG_INFO("%s:%d Found drm session READY with same keyID %s - Reusing drm session for %s\n",
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
-					pthread_mutex_unlock(&session_mutex[sessionType]);
+					pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 					free(keyId);
-					return drmSessionContexts[sessionType].drmSession;
+					return drmSessionContexts[sessionSlot].drmSession;
 				}
 			}
 
-			if(sessionFound && NULL == contentMetadataPtr)
+			if(isCachedKeyId && NULL == contentMetadataPtr)
 			{
 				AAMPLOG_INFO("%s:%d Aborting session creation for keyId %s: StreamType %s, since previous try failed\n",
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
-				cachedKeyIDs[sessionType].isFailedKeyId = true;
-				pthread_mutex_unlock(&session_mutex[sessionType]);
+				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
+				pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 				free(keyId);
 				return NULL;
 			}
-			drmSessionContexts[sessionType].drmSession->clearDecryptContext();
+			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
 	}
 
-	if(drmSessionContexts[sessionType].drmSession)
+	if(drmSessionContexts[sessionSlot].drmSession)
 	{
-		code = drmSessionContexts[sessionType].drmSession->getState();
+		code = drmSessionContexts[sessionSlot].drmSession->getState();
 	}
 	if (code != KEY_INIT)
 	{
 		logprintf("%s:%d DRM initialization failed : Key State %d \n", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&session_mutex[sessionType]);
+		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_INIT_FAILED;
 		return NULL;
 	}
 
 
-	drmSessionContexts[sessionType].drmSession->generateAampDRMSession(initDataPtr, dataLength);
-	code = drmSessionContexts[sessionType].drmSession->getState();
+	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(initDataPtr, dataLength);
+	code = drmSessionContexts[sessionSlot].drmSession->getState();
 	if (code != KEY_INIT)
 	{
 		logprintf("%s:%d DRM init data binding failed: Key State %d \n", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&session_mutex[sessionType]);
+		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_DATA_BIND_FAILED;
 		return NULL;
 	}
 
-	DrmData * licenceChallenge = drmSessionContexts[sessionType].drmSession->aampGenerateKeyRequest(
+	DrmData * licenceChallenge = drmSessionContexts[sessionSlot].drmSession->aampGenerateKeyRequest(
 			destinationURL);
-	code = drmSessionContexts[sessionType].drmSession->getState();
+	code = drmSessionContexts[sessionSlot].drmSession->getState();
 	if (code == KEY_PENDING)
 	{
 		aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
@@ -1196,7 +1272,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 #endif
 			}
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_POSTPROC);
-			drmSessionContexts[sessionType].drmSession->aampDRMProcessKey(key);
+			drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(key);
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_POSTPROC);
 		}
 		else
@@ -1243,22 +1319,22 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 
 	delete licenceChallenge;
-	code = drmSessionContexts[sessionType].drmSession->getState();
+	code = drmSessionContexts[sessionSlot].drmSession->getState();
 
 	if (code == KEY_READY)
 	{
 		logprintf("%s:%d Key Ready for %s stream\n", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-		if(drmSessionContexts[sessionType].data != NULL)
+		if(drmSessionContexts[sessionSlot].data != NULL)
 		{
-			delete drmSessionContexts[sessionType].data;
+			delete drmSessionContexts[sessionSlot].data;
 		}
-		drmSessionContexts[sessionType].dataLength = keyIdLen;
-		drmSessionContexts[sessionType].data = new unsigned char[keyIdLen];
-		memcpy(reinterpret_cast<void*>(drmSessionContexts[sessionType].data),
+		drmSessionContexts[sessionSlot].dataLength = keyIdLen;
+		drmSessionContexts[sessionSlot].data = new unsigned char[keyIdLen];
+		memcpy(reinterpret_cast<void*>(drmSessionContexts[sessionSlot].data),
 		reinterpret_cast<const void*>(keyId),keyIdLen);
-		pthread_mutex_unlock(&session_mutex[sessionType]);
+		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
-		return drmSessionContexts[sessionType].drmSession;
+		return drmSessionContexts[sessionSlot].drmSession;
 	}
 	else if (code == KEY_ERROR)
 	{
@@ -1277,7 +1353,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 	}
 
-	pthread_mutex_unlock(&session_mutex[sessionType]);
+	pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 	free(keyId);
 	return NULL;
 }

@@ -3112,6 +3112,17 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("max-playlist-cache", gpGlobalConfig->gMaxPlaylistCacheSize, MAX_PLAYLIST_CACHE_SIZE);
 			logprintf("aamp max-playlist-cache: %ld\n", gpGlobalConfig->gMaxPlaylistCacheSize);
 		}
+		else if(sscanf(cfg, "dash-max-drm-sessions=%d", &gpGlobalConfig->dash_MaxDRMSessions) == 1)
+		{
+			// Read value in KB , convert it to bytes
+			if(gpGlobalConfig->dash_MaxDRMSessions < MIN_DASH_DRM_SESSIONS || gpGlobalConfig->dash_MaxDRMSessions > MAX_DASH_DRM_SESSIONS)
+			{
+				logprintf("Out of range value for dash-max-drm-sessions, setting to %d;Expected Range (%d - %d)\n",
+						MIN_DASH_DRM_SESSIONS, MIN_DASH_DRM_SESSIONS, MAX_DASH_DRM_SESSIONS);
+				gpGlobalConfig->dash_MaxDRMSessions = MIN_DASH_DRM_SESSIONS;
+			}
+			logprintf("aamp dash-max-drm-sessions: %d\n", gpGlobalConfig->dash_MaxDRMSessions);
+		}
 		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tempUserAgent))
 		{
 			if(tempUserAgent)
@@ -3390,7 +3401,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		aamp->Stop();
 #ifdef AAMP_MPD_DRM
-		AampDRMSessionManager::clearSessionData();
+		AampDRMSessionManager::getInstance()->clearSessionData();
 #endif /*AAMP_MPD_DRM*/
 		delete aamp;
 	}
