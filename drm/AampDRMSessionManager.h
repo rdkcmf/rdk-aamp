@@ -36,7 +36,6 @@
 #include "sec_client.h"
 #endif
 
-#define MAX_DRM_SESSIONS 2
 #define VIDEO_SESSION 0
 #define AUDIO_SESSION 1
 #define KEYID_TAG_START "<KID>"
@@ -50,7 +49,12 @@ struct DrmSessionContext
 {
 	size_t dataLength;
 	unsigned char* data;
+	pthread_mutex_t sessionMutex;
 	AampDrmSession * drmSession;
+
+	DrmSessionContext() : dataLength(0), data(NULL), sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL)
+	{
+	}
 };
 
 /**
@@ -64,6 +68,9 @@ struct KeyID
 	unsigned char* data;
 	long long creationTime;
 	bool isFailedKeyId;
+	bool isPrimaryKeyId;
+
+	KeyID();
 };
 
 /**
@@ -85,39 +92,49 @@ class AampDRMSessionManager
 {
 
 private:
-
-	static DrmSessionContext drmSessionContexts[MAX_DRM_SESSIONS];
-	static KeyID cachedKeyIDs[MAX_DRM_SESSIONS];
-	static size_t write_callback(char *ptr, size_t size, size_t nmemb,
-			void *userdata);
-	static char* accessToken;
-	static int accessTokenLen;
-	static SessionMgrState sessionMgrState;
-public:
-
-	void initializeDrmSessions();
+	static AampDRMSessionManager* _sessionMgr;
+	DrmSessionContext *drmSessionContexts;
+	KeyID *cachedKeyIDs;
+	char* accessToken;
+	int accessTokenLen;
+	SessionMgrState sessionMgrState;
+	pthread_mutex_t accessTokenMutex;
+	pthread_mutex_t cachedKeyMutex;
 
 	AampDRMSessionManager();
+
+	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
+	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
+
+	static size_t write_callback(char *ptr, size_t size, size_t nmemb,
+			void *userdata);
+public:
+
+	static AampDRMSessionManager* getInstance();
+
+	void initializeDrmSessions();
 
 	~AampDRMSessionManager();
 
 	AampDrmSession * createDrmSession(const char* systemId,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp, AAMPEvent *e);
+
 	AampDrmSession * createDrmSession(const char* systemId,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
-			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e);
+			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e,bool isPrimarySession = false);
 
 	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
 
-	static void clearSessionData();
 
-	static void clearAccessToken();
+	void clearSessionData();
 
-	static void clearFailedKeyIds();
+	void clearAccessToken();
 
-	static void setSessionMgrState(SessionMgrState state);
+	void clearFailedKeyIds();
 
-	static const char* getAccessToken(int &tokenLength, long &error_code);
+	void setSessionMgrState(SessionMgrState state);
+
+	const char* getAccessToken(int &tokenLength, long &error_code);
 };
 
 unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,

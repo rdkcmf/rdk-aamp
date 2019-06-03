@@ -109,6 +109,10 @@
 #define MAX_PLAYLIST_CACHE_SIZE    (2*1024*1024) // Approx 2MB -> 2 video profiles + one audio profile + one iframe profile, 25-50K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
+//Upper and lower limit for dash drm sessions
+#define MIN_DASH_DRM_SESSIONS 2
+#define MAX_DASH_DRM_SESSIONS 30
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -531,6 +535,7 @@ public:
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
+	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 public:
 
 	/**
@@ -563,13 +568,14 @@ public:
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
+		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
-                // considering round trip delay to remove overlay
-                // onStreamPlaying is sent optimistically in advance
+        // considering round trip delay to remove overlay
+        // onStreamPlaying is sent optimistically in advance
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 	}
 
