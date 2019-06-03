@@ -112,6 +112,9 @@
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
+//Upper and lower limit for dash drm sessions
+#define MIN_DASH_DRM_SESSIONS 2
+#define MAX_DASH_DRM_SESSIONS 30
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
@@ -550,6 +553,7 @@ public:
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
+	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 public:
 
 	/**
@@ -578,6 +582,7 @@ public:
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
+		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, disableSslVerifyPeer(true)
@@ -585,8 +590,8 @@ public:
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
-                // considering round trip delay to remove overlay
-                // onStreamPlaying is sent optimistically in advance
+        // considering round trip delay to remove overlay
+        // onStreamPlaying is sent optimistically in advance
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 		mSubtitleLanguage = std::string("en");
 	}

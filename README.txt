@@ -170,6 +170,8 @@ max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Si
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 sslverifypeer=1	Enable TLS certificate verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
+dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30
+						will default to 2 if out of range value is given
 
 =================================================================================================================
 Overriding channels in aamp.cfg
