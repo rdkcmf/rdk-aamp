@@ -117,6 +117,9 @@
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
+//Upper and lower limit for dash drm sessions
+#define MIN_DASH_DRM_SESSIONS 2
+#define MAX_DASH_DRM_SESSIONS 30
 
 //#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
@@ -558,6 +561,7 @@ public:
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
+	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 public:
 
 	/**
@@ -586,6 +590,7 @@ public:
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
+		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, disableSslVerifyPeer(true)
@@ -596,8 +601,8 @@ public:
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
-                // considering round trip delay to remove overlay
-                // onStreamPlaying is sent optimistically in advance
+        // considering round trip delay to remove overlay
+        // onStreamPlaying is sent optimistically in advance
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
 		mSubtitleLanguage = std::string("en");
 	}
