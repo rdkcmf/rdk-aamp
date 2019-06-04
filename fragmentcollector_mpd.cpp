@@ -1739,7 +1739,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							}
 						}
 					}
-					if (skipTime == 0 || fabs(skipTime) < fragmentDuration || !skipFlag)
+					if (fabs(skipTime) < fragmentDuration || !skipFlag)
 					{ // last iteration
 						if (updateFirstPTS)
 						{
