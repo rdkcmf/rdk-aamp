@@ -36,32 +36,6 @@
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-
-/**
- * @brief Signal key acquired to listener
- * @param arg drm status listener
- * @retval 0
- */
-static int drmSignalKeyAquired(void * arg)
-{
-	AesDec * aesDec = (AesDec*)arg;
-	aesDec->SignalKeyAcquired();
-	return 0;
-}
-
-
-/**
- * @brief Signal drm error to listener
- * @param arg drm status listener
- * @retval 0
- */
-static int drmSignalError(void * arg)
-{
-	AesDec * aesDec = (AesDec*)arg;
-	aesDec->SignalDrmError();
-	return 0;
-}
-
 /**
  * @brief key acquistion thread
  * @param arg AesDec pointer
@@ -80,20 +54,22 @@ static void * acquire_key(void* arg)
  */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
-
-	mpAamp->DisableDownloads();
-	if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
+	//If downloads are disabled, don't send error event upstream
+	if (mpAamp->DownloadsAreEnabled())
 	{
-		char description[128] = {};
-		sprintf(description, "AAMP: DRM Failure");
-		mpAamp->SendErrorEvent(drmFailure, description);
+		mpAamp->DisableDownloads();
+		if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
+		{
+			char description[128] = {};
+			sprintf(description, "AAMP: DRM Failure");
+			mpAamp->SendErrorEvent(drmFailure, description);
+		}
+		else
+		{
+			mpAamp->SendErrorEvent(drmFailure);
+		}
 	}
-	else
-	{
-		mpAamp->SendErrorEvent(drmFailure);
-	}
-
-	PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
+	SignalDrmError();
 	logprintf("AesDec::NotifyDRMError: drmState:%d\n", mDrmState );
 }
 
@@ -131,6 +107,9 @@ void AesDec::AcquireKey()
 {
 	char tempEffectiveUrl[MAX_URI_LENGTH];
 	long http_error;
+	bool keyAcquisitionStatus = false;
+	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
+
 	if (aamp_pthread_setname(pthread_self(), "aampAesKey"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
@@ -142,26 +121,35 @@ void AesDec::AcquireKey()
 		if (AES_128_KEY_LEN_BYTES == mAesKeyBuf.len)
 		{
 			logprintf("%s:%d: Key fetch success len = %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
-			mDrmState = eDRM_KEY_ACQUIRED;
-
-			PrivateInstanceAAMP::AddIdleTask(drmSignalKeyAquired, this);
+			keyAcquisitionStatus = true;
 		}
 		else
 		{
 			logprintf("%s:%d: Error Key fetch - size %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
-			mDrmState = eDRM_KEY_FAILED;
-			aamp_Free(&mAesKeyBuf.ptr);
+			failureReason = AAMP_TUNE_INVALID_DRM_KEY;
 		}
 	}
 	else
 	{
-		mDrmState = eDRM_KEY_FAILED;
 		logprintf("%s:%d: Key fetch failed\n", __FUNCTION__, __LINE__);
+		if (http_error == CURLE_OPERATION_TIMEDOUT)
+		{
+			failureReason = AAMP_TUNE_LICENCE_TIMEOUT;
+		}
+		else
+		{
+			failureReason = AAMP_TUNE_LICENCE_REQUEST_FAILED;
+		}
 	}
-	if(eDRM_KEY_FAILED == mDrmState)
+
+	if(keyAcquisitionStatus)
 	{
-		aamp_Free(&mAesKeyBuf.ptr);
-		NotifyDRMError(AAMP_TUNE_FAILED_TO_GET_KEYID);
+		SignalKeyAcquired();
+	}
+	else
+	{
+		aamp_Free(&mAesKeyBuf.ptr); //To cleanup previous successful key if any
+		NotifyDRMError(failureReason);
 	}
 }
 
@@ -214,7 +202,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
-	if (mDrmState == eDRM_ACQUIRING_KEY )
+	if (mDrmState == eDRM_ACQUIRING_KEY)
 	{
 		logprintf("AesDec::%s:%d acquiring key in progress\n",__FUNCTION__, __LINE__);
 		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
@@ -234,6 +222,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	}
 	mDrmUrl = strdup(drmInfo->uri);
 	mDrmState = eDRM_ACQUIRING_KEY;
+	mPrevDrmState = eDRM_INITIALIZED;
 	if (-1 == mCurlInstance)
 	{
 		mCurlInstance = AAMP_TRACK_COUNT;
@@ -303,7 +292,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	DrmReturn err = eDRM_ERROR;
 
 	pthread_mutex_lock(&mMutex);
-	if (mDrmState == eDRM_ACQUIRING_KEY )
+	if (mDrmState == eDRM_ACQUIRING_KEY)
 	{
 		WaitForKeyAcquireCompleteUnlocked(timeInMs, err);
 	}
@@ -368,7 +357,9 @@ void AesDec::Release()
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
-	if (mDrmState == eDRM_ACQUIRING_KEY )
+	//We wait for license acquisition to complete. Once license acquisition is complete
+	//the appropriate state will be set to mDrmState and hence RestoreKeyState will be a no-op.
+	if (mDrmState == eDRM_ACQUIRING_KEY || mPrevDrmState == eDRM_ACQUIRING_KEY)
 	{
 		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
 	}
@@ -404,7 +395,10 @@ void AesDec::CancelKeyWait()
 {
 	pthread_mutex_lock(&mMutex);
 	//save the current state in case required to restore later.
-	mPrevDrmState = mDrmState;
+	if (mDrmState != eDRM_KEY_FLUSH)
+	{
+		mPrevDrmState = mDrmState;
+	}
 	//required for demuxed assets where the other track might be waiting on mMutex lock.
 	mDrmState = eDRM_KEY_FLUSH;
 	pthread_cond_broadcast(&mCond);
