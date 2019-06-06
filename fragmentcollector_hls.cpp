@@ -630,9 +630,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
-#ifndef CONTENT_4K_SUPPORTED
-					if ((streamInfo->resolution.width <= 1920) && (streamInfo->resolution.height <= 1080))
-#endif
 					mAbrManager.addProfile({
 						streamInfo->isIframeTrack,
 						streamInfo->bandwidthBitsPerSecond,

@@ -28,6 +28,7 @@
 #include "AampDRMutils.h"
 #include <string>
 #include <stdint.h>
+#include <gst/gst.h>
 using namespace std;
 
 #define PLAYREADY_PROTECTION_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
@@ -96,7 +97,11 @@ public:
 	 * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
 	 * @retval Returns status of decrypt request.
 	 */
+#if defined(USE_OPENCDM_ADAPTER)
+	virtual int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer) = 0;
+#else
 	virtual int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData) = 0;
+#endif
 
 	/**
 	 * @brief Get the current state of DRM Session.
@@ -126,5 +131,9 @@ public:
 	 * @retval DRM system uuid
 	 */
 	string getKeySystem();
+
+#if defined(USE_OPENCDM_ADAPTER)
+	virtual void setKeyId(const char* keyId, int32_t keyLen) = 0;
+#endif
 };
 #endif
