@@ -30,10 +30,10 @@
 using namespace std;
 
 /**
- * @class OpenCDMSession
+ * @class AAMPOCDMSession
  * @brief Open CDM DRM session
  */
-class OpenCDMSession : public AampDrmSession
+class AAMPOCDMSession : public AampDrmSession
 {
 
 private:
@@ -47,10 +47,10 @@ private:
 	void initAampDRMSession();
 
 public:
-    OpenCDMSession(string& keySystem);
-	~OpenCDMSession();
-	OpenCDMSession(const OpenCDMSession&) = delete;
-	OpenCDMSession& operator=(const OpenCDMSession&) = delete;
+    AAMPOCDMSession(string& keySystem);
+	~AAMPOCDMSession();
+	AAMPOCDMSession(const AAMPOCDMSession&) = delete;
+	AAMPOCDMSession& operator=(const AAMPOCDMSession&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
 			uint32_t f_cbInitData);
 	DrmData * aampGenerateKeyRequest(string& destinationURL);
