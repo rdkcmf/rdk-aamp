@@ -62,11 +62,13 @@ AampOutputProtection::AampOutputProtection()
     // Get initial HDCP status
     SetHDMIStatus();
 
+#ifdef IARM_MGR
     // Register IARM callbacks
     logprintf("%s : registering DSMGR events...\n", __FUNCTION__);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG, HDMIEventHandler);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS, HDMIEventHandler);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE, ResolutionHandler);
+#endif //IARM_MGR
 }
 
 /**
@@ -76,11 +78,13 @@ AampOutputProtection::~AampOutputProtection()
 {
     DEBUG_FUNC;
 
-    // Register IARM callbacks
+#ifdef IARM_MGR
+    // Remove IARM callbacks
     logprintf("%s : unregistering DSMGR events...\n", __FUNCTION__);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG, HDMIEventHandler);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS, HDMIEventHandler);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE, ResolutionHandler);
+#endif //IARM_MGR
 
     s_pAampOP = NULL;
 
@@ -150,7 +154,7 @@ GstElement* AampOutputProtection::FindElement(GstElement *element, const char* t
 
 
 /**
- * @brief Check if source is UHD, by checking dimentions from Video decoder
+ * @brief Check if source is UHD using video decoder dimensions
  * @retval true, if source is UHD, otherwise false
  */
 bool AampOutputProtection::IsSourceUHD()
@@ -159,7 +163,7 @@ bool AampOutputProtection::IsSourceUHD()
 
 //    DEBUG_FUNC;
 
-#ifdef USE_SAGE_SVP
+#ifdef CONTENT_4K_SUPPORTED
     static gint     sourceHeight    = 0;
     static gint     sourceWidth     = 0;
     GstElement*     videoDec        = NULL;
@@ -197,6 +201,7 @@ bool AampOutputProtection::IsSourceUHD()
  */
 void AampOutputProtection::SetHDMIStatus()
 {
+#ifdef IARM_MGR
     bool                    isConnected              = false;
     bool                    isHDCPCompliant          = false;
     bool                    isHDCPEnabled            = true;
@@ -246,6 +251,11 @@ void AampOutputProtection::SetHDMIStatus()
         m_hdcpCurrentProtocol = dsHDCP_VERSION_1X;
         logprintf("%s : GetHDCPVersion: Did not detect HDCP version defaulting to 1.4 (%d)\n", __FUNCTION__, m_hdcpCurrentProtocol);
     }
+#else
+    // No video output on device mark HDCP protection as valid
+    m_hdcpCurrentProtocol = dsHDCP_VERSION_1X;
+    m_isHDCPEnabled = true;
+#endif // IARM_MGR
 
     return;
 }
@@ -339,7 +349,7 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 }
 #endif
 
-
+#ifdef IARM_MGR
 /**
  * @brief IARM event handler for HDCP and HDMI hot plug events
  * @param owner
@@ -426,6 +436,7 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
     pInstance->Release();
 }
 
+#endif //IARM_MGR
 
 /**
  * @brief Check if  AampOutputProcectionInstance active

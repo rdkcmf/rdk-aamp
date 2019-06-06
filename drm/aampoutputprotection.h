@@ -27,6 +27,7 @@
 
 #include <pthread.h>
 
+#ifdef IARM_MGR
 // IARM
 #include "manager.hpp"
 #include "host.hpp"
@@ -39,6 +40,14 @@
 #include "dsMgr.h"
 #include "dsDisplay.h"
 #include <iarmUtil.h>
+
+#else
+#include <stdint.h>
+typedef int dsHdcpProtocolVersion_t;
+#define dsHDCP_VERSION_MAX      30
+#define dsHDCP_VERSION_2X       22
+#define dsHDCP_VERSION_1X       14
+#endif // IARM_MGR
 
 #include <stdio.h>
 #include <gst/gst.h>
@@ -163,11 +172,13 @@ public:
                                               const DRM_VOID *data);
 #endif
 
+#ifdef IARM_MGR
     // IARM Callbacks
 
     static void HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 
     static void ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+#endif //IARM_MGR
 
     // State functions
 
