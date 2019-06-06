@@ -702,6 +702,13 @@ public:
 	 */
 	virtual void StartInjection(void) = 0;
 
+	/**
+	 *   @brief Check if current stream is muxed
+	 *
+	 *   @return true if current stream is muxed
+	 */
+	bool IsMuxedStream();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

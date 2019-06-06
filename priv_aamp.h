@@ -2641,6 +2641,12 @@ public:
 	 */
 	std::string  getServiceZone();
 
+	/**
+	 *   @brief Check if current stream is muxed
+	 *
+	 *   @return true if current stream is muxed
+	 */
+	bool IsMuxedStream();
 
 private:
 
