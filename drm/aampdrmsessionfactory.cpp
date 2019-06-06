@@ -23,7 +23,9 @@
 */
 
 #include "aampdrmsessionfactory.h"
-#ifdef USE_OPENCDM
+#if defined(USE_OPENCDM_ADAPTER)
+#include "opencdmsessionadapter.h"
+#elif defined(USE_OPENCDM)
 #include "opencdmsession.h"
 #else
 #include "playreadydrmsession.h"
@@ -43,7 +45,7 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
 	{
 #ifdef USE_OPENCDM
         std::string key_system = PLAYREADY_KEY_SYSTEM_STRING;
-        drmSession = new OpenCDMSession(key_system);
+        drmSession = new AAMPOCDMSession(key_system);
 #else
 		drmSession = new PlayReadyDRMSession();
 #endif
@@ -51,7 +53,7 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
     {
 #ifdef USE_OPENCDM
         std::string key_system = WIDEVINE_KEY_SYSTEM_STRING;
-        drmSession = new OpenCDMSession(key_system);
+        drmSession = new AAMPOCDMSession(key_system);
 #endif
     }
 	return drmSession;
