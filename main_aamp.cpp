@@ -6840,6 +6840,21 @@ void PrivateInstanceAAMP::SignalTrickModeDiscontinuity()
 }
 
 /**
+ *   @brief Check if current stream is muxed
+ *
+ *   @return true if current stream is muxed
+ */
+bool PrivateInstanceAAMP::IsMuxedStream()
+{
+	bool ret = false;
+	if (mpStreamAbstractionAAMP)
+	{
+		ret = mpStreamAbstractionAAMP->IsMuxedStream();
+	}
+	return ret;
+}
+
+/**
  * @}
  */
 

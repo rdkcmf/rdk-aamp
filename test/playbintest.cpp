@@ -116,7 +116,7 @@ static void setPause(bool pause, int idx= 0)
 	}
 }
 
-static void changeChannel(const char* uri, int idx= 0)
+static void stop(int idx = 0)
 {
 	GstStateChangeReturn ret;
 	ret = gst_element_set_state(playbin[idx], GST_STATE_NULL);
@@ -124,6 +124,12 @@ static void changeChannel(const char* uri, int idx= 0)
 	{
 		g_printerr("gst_element_set_state failed\n");
 	}
+}
+
+static void changeChannel(const char* uri, int idx= 0)
+{
+	GstStateChangeReturn ret;
+	stop(idx);
 	g_object_set(playbin[idx], "uri", uri, NULL);
 	setPause(false);
 }
@@ -206,6 +212,10 @@ static void process_command(char* cmd)
 	{
 		seek(value);
 	}
+	else if (strcmp(cmd, "stop") == 0)
+	{
+		stop();
+	}
 }
 
 static void* ui_thread(void * arg)
@@ -255,9 +265,11 @@ static gboolean handle_bus_message(GstBus *bus, GstMessage *msg, void* arg)
 			gst_message_parse_state_changed(msg, &old, &now, &pending);
 			if (g_print_states || memcmp(GST_OBJECT_NAME(GST_MESSAGE_SRC(msg)), "playbin", 7) == 0)
 			{
-				GST_FIXME( "**PLAYBINTEST: element %s state change : %s -> %s . pending state %s\n", GST_ELEMENT_NAME(GST_MESSAGE_SRC(msg)),
+				g_print( "**PLAYBINTEST: element %s state change : %s -> %s . pending state %s\n", GST_ELEMENT_NAME(GST_MESSAGE_SRC(msg)),
 						gst_element_state_get_name(old), gst_element_state_get_name(now), gst_element_state_get_name(pending) );
 			}
+			GST_DEBUG_BIN_TO_DOT_FILE((GstBin *)playbin[0], GST_DEBUG_GRAPH_SHOW_ALL, "playbintest");
+
 			if (now == GST_STATE_PLAYING && memcmp(GST_OBJECT_NAME(GST_MESSAGE_SRC(msg)), "brcmvideosink", 13) == 0)
 			{ // video scaling patch
 				/*
