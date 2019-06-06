@@ -36,32 +36,6 @@
 
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-
-/**
- * @brief Signal key acquired to listener
- * @param arg drm status listener
- * @retval 0
- */
-static int drmSignalKeyAquired(void * arg)
-{
-	AesDec * aesDec = (AesDec*)arg;
-	aesDec->SignalKeyAcquired();
-	return 0;
-}
-
-
-/**
- * @brief Signal drm error to listener
- * @param arg drm status listener
- * @retval 0
- */
-static int drmSignalError(void * arg)
-{
-	AesDec * aesDec = (AesDec*)arg;
-	aesDec->SignalDrmError();
-	return 0;
-}
-
 /**
  * @brief key acquistion thread
  * @param arg AesDec pointer
@@ -80,7 +54,6 @@ static void * acquire_key(void* arg)
  */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
-
 	mpAamp->DisableDownloads();
 	if(AAMP_TUNE_UNTRACKED_DRM_ERROR == drmFailure)
 	{
@@ -93,7 +66,7 @@ void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 		mpAamp->SendErrorEvent(drmFailure);
 	}
 
-	PrivateInstanceAAMP::AddIdleTask(drmSignalError, this);
+	SignalDrmError();
 	logprintf("AesDec::NotifyDRMError: drmState:%d\n", mDrmState );
 }
 
@@ -131,6 +104,9 @@ void AesDec::AcquireKey()
 {
 	char tempEffectiveUrl[MAX_URI_LENGTH];
 	long http_error;
+	bool keyAcquisitionStatus = false;
+	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
+
 	if (aamp_pthread_setname(pthread_self(), "aampAesKey"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
@@ -142,26 +118,35 @@ void AesDec::AcquireKey()
 		if (AES_128_KEY_LEN_BYTES == mAesKeyBuf.len)
 		{
 			logprintf("%s:%d: Key fetch success len = %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
-			mDrmState = eDRM_KEY_ACQUIRED;
-
-			PrivateInstanceAAMP::AddIdleTask(drmSignalKeyAquired, this);
+			keyAcquisitionStatus = true;
 		}
 		else
 		{
 			logprintf("%s:%d: Error Key fetch - size %d\n", __FUNCTION__, __LINE__, (int)mAesKeyBuf.len);
-			mDrmState = eDRM_KEY_FAILED;
-			aamp_Free(&mAesKeyBuf.ptr);
+			failureReason = AAMP_TUNE_INVALID_DRM_KEY;
 		}
 	}
 	else
 	{
-		mDrmState = eDRM_KEY_FAILED;
 		logprintf("%s:%d: Key fetch failed\n", __FUNCTION__, __LINE__);
+		if (http_error == CURLE_OPERATION_TIMEDOUT)
+		{
+			failureReason = AAMP_TUNE_LICENCE_TIMEOUT;
+		}
+		else
+		{
+			failureReason = AAMP_TUNE_LICENCE_REQUEST_FAILED;
+		}
 	}
-	if(eDRM_KEY_FAILED == mDrmState)
+
+	if(keyAcquisitionStatus)
 	{
-		aamp_Free(&mAesKeyBuf.ptr);
-		NotifyDRMError(AAMP_TUNE_FAILED_TO_GET_KEYID);
+		SignalKeyAcquired();
+	}
+	else
+	{
+		aamp_Free(&mAesKeyBuf.ptr); //To cleanup previous successful key if any
+		NotifyDRMError(failureReason);
 	}
 }
 
@@ -224,7 +209,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 
 	if (mDrmUrl)
 	{
-		if ((eDRM_KEY_ACQUIRED == mDrmState) && (0 == strcmp(mDrmUrl, drmInfo->uri)))
+		if ((eDRM_KEY_ACQUIRED == mDrmState || eDRM_ACQUIRING_KEY == mDrmState) && (0 == strcmp(mDrmUrl, drmInfo->uri)))
 		{
 			logprintf("AesDec::%s:%d same url:%s - not acquiring key\n",__FUNCTION__, __LINE__, mDrmUrl);
 			pthread_mutex_unlock(&mMutex);
