@@ -723,7 +723,6 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	m_indexAudio = false;
 	videoComponentCount = 0;
 	audioComponentCount = 0;
-	dataComponentCount = 0;
 	m_patCounter = m_pmtCounter = 0;
 	m_haveFirstPTS = false;
 	m_versionPAT = 0;
@@ -757,7 +756,6 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	int compBufLen = MAX_PIDS*sizeof(RecordingComponent);
 	memset(videoComponents, 0, compBufLen);
 	memset(audioComponents, 0, compBufLen);
-	memset(dataComponents, 0, compBufLen);
 	m_startPosition = -1.0;
 	m_track = track;
 	m_demuxInitialized = false;
@@ -945,13 +943,12 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 
 	memset(videoComponents, 0, sizeof(videoComponents));
 	memset(audioComponents, 0, sizeof(audioComponents));
-	memset(dataComponents, 0, sizeof(dataComponents));
 
 	memset(dataDescTags, 0, sizeof(dataDescTags));
 
 	memset(work, 0, sizeof(work));
 
-	videoComponentCount = audioComponentCount = dataComponentCount = 0;
+	videoComponentCount = audioComponentCount = 0;
 
 	// Program loop starts after program info descriptor and continues
 	// to the CRC at the end of the section
@@ -1043,68 +1040,9 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 				WARNING("Warning: RecordContext: pmt contains more than %d audio PIDs\n", MAX_PIDS);
 			}
 			break;
-		case 0x01: // MPEG1 Video
-		case 0x05: // ISO 13818-1 private sections
-		case 0x06: // ISO 13818-1 PES private data
-		case 0x07: // ISO 13522 MHEG
-		case 0x08: // ISO 13818-1 DSM-CC
-		case 0x09: // ISO 13818-1 auxiliary
-		case 0x0a: // ISO 13818-6 multi-protocol encap
-		case 0x0b: // ISO 13818-6 DSM-CC U-N msgs
-		case 0x0c: // ISO 13818-6 stream descriptors
-		case 0x0d: // SO 13818-6 sections
-		case 0x0e: // ISO 13818-1 auxiliary
-		case 0x10: // MPEG4 Video
-		case 0x12: // MPEG-4 generic
-		case 0x13: // ISO 14496-1 SL-packetized
-		case 0x14: // ISO 13818-6 Synchronized Download Protocol
-		case 0x85: // ATSC Program ID
-		case 0x92: // DVD_SPU vls Subtitle
-		case 0xA0: // MSCODEC Video
-		case 0xea: // Private ES (VC-1)
+
 		default:
-			if ((streamType == 0x6) || (streamType >= 0x80))
-			{
-				if (dataComponentCount < MAX_PIDS)
-				{
-					dataComponents[dataComponentCount].pid = pid;
-					dataComponents[dataComponentCount].elemStreamType = streamType;
-
-					if (len)
-					{
-						int descIdx, maxIdx, descTagsCount = 0;
-						unsigned char descrTag, descrLen;
-						char *pDescTag = (char *)&dataDescTags[dataComponentCount];
-
-						descIdx = 5;
-						maxIdx = descIdx + len;
-
-						while (descIdx < maxIdx)
-						{
-							descrTag = programInfo[descIdx];
-							descrLen = programInfo[descIdx + 1];
-							descIdx += (2 + descrLen);
-
-							pDescTag[descTagsCount++] = descrTag;
-
-							if (descTagsCount >= MAX_DESCRIPTOR)
-							{
-								WARNING("More then expected descriptor found \n");
-								break;
-							}
-						}
-					}
-					++dataComponentCount;
-				}
-				else
-				{
-					WARNING("Warning: RecordContext: pmt contains more than %d data PIDs\n", MAX_PIDS);
-				}
-			}
-			else
-			{
-				WARNING("Warning: RecordContext: pmt contains unsupported stream type %X\n", streamType);
-			}
+			DEBUG("RecordContext: pmt contains unused stream type 0x%x\n", streamType);
 			break;
 		}
 		programInfo += (5 + len);
@@ -3308,14 +3246,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 				}
 				if (i < audioComponentCount) continue;
 			}
-
-			for (i = 0; i < dataComponentCount; ++i)
-			{
-				if (pcrPid == dataComponents[i].pid) pcrPidFound = true;
-				if (pmtPid == dataComponents[i].pid) break;
-			}
-			if (i < dataComponentCount) continue;
-
 			break;
 		}
 	}
@@ -3338,11 +3268,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 				INFO("It is possibly MC Channel..");
 				m_isMCChannel = true;
 			}
-		}
-
-		for (i = 0; i < dataComponentCount; ++i)
-		{
-			if (pcrPid == dataComponents[i].pid) pcrPidFound = true;
 		}
 	}
 
@@ -3373,10 +3298,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 		{
 			pcrPid = audioComponents[0].pid;
 		}
-		else if (dataComponentCount)
-		{
-			pcrPid = dataComponents[0].pid;
-		}
 		else
 		{
 			pcrPid = 0x1fff;
@@ -3402,28 +3323,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 					pmtSize += (3 + nameLen);
 				}
 			}
-		}
-		pmtSize += dataComponentCount * 5;
-
-		if (dataComponentCount)
-		{
-			int totalDesc = 0;
-			for (j = 0; j<dataComponentCount; j++)
-			{
-				unsigned char *pDescTag = (unsigned char *)&dataComponents[j].descriptorTags;
-				int descCount = 0;
-				while (*(pDescTag + descCount))
-				{
-					if (descCount >= MAX_DESCRIPTOR)
-					{
-						WARNING("Desc count more then expteced :%d\n", descCount);
-						break;
-					}
-					totalDesc++;
-					descCount++;
-				}
-			}
-			pmtSize += totalDesc * 2;
 		}
 
 		pmtSize += 4; //crc
@@ -3586,37 +3485,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 					putPmtByte(pmtPacket, pi, 0x00, pmtPid);
 				}
 			}
-			for (j = 0; j < dataComponentCount; ++j)
-			{
-				int dataPid = dataComponents[j].pid;
-				putPmtByte(pmtPacket, pi, dataComponents[j].elemStreamType, pmtPid);
-				byte = (0xE0 | (unsigned char)((dataPid >> 8) & 0x1F));
-				putPmtByte(pmtPacket, pi, byte, pmtPid);
-				byte = (unsigned char)(0xFF & dataPid);
-				putPmtByte(pmtPacket, pi, byte, pmtPid);
-				putPmtByte(pmtPacket, pi, 0xF0, pmtPid);
-				int pi_len = pi;
-				putPmtByte(pmtPacket, pi, 0x00, pmtPid);
-
-				if (dataComponents[j].descriptorTags)
-				{
-					unsigned char *pDescTag = (unsigned char *)&dataComponents[j].descriptorTags;
-					int descCount = 0;
-					while (*(pDescTag + descCount))
-					{
-						if (descCount >= MAX_DESCRIPTOR)
-						{
-							WARNING("Desc count more then expteced :%d\n", descCount);
-							break;
-						}
-						putPmtByte(pmtPacket, pi, *(pDescTag + descCount), pmtPid); //desc tag
-						putPmtByte(pmtPacket, pi, 0, pmtPid);   // desc len as 0
-						descCount++;
-					}
-					putPmtByte(pmtPacket, pi_len, descCount * 2, pmtPid); //2 = 1byte for tag and 1 byte for length
-				}
-			}
-
 			// Calculate crc
 			unsigned char *crcData = &patpmt[m_packetSize + m_ttsSize + 5];
 			int crcLenTotal = pmtSize - m_ttsSize - 5 - 4;
@@ -3683,12 +3551,6 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 					TRACE1("audio %04x\n", audioPid);
 					m_pidFilter[audioPid] = 1;
 				}
-				for (i = 0; i < dataComponentCount; ++i)
-				{
-					int dataPid = dataComponents[i].pid;
-					TRACE1("data %04x\n", dataPid);
-					m_pidFilter[dataPid] = 1;
-				}
 				TRACE4("\n");
 			}
 
@@ -3698,9 +3560,9 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 
 	m_patCounter = m_pmtCounter = 0;
 
-	INFO("TSProcessor::generatePATandPMT: trick %d prognum %d pmtpid: %X pcrpid: %X pmt section len %d video %d audio %d data %d\n",
+	INFO("TSProcessor::generatePATandPMT: trick %d prognum %d pmtpid: %X pcrpid: %X pmt section len %d video %d audio %d\n",
 		trick, prognum, pmtPid, pcrPid, pmtSectionLen,
-		videoComponentCount, audioComponentCount, dataComponentCount);
+		videoComponentCount, audioComponentCount);
 
 	return result;
 }
