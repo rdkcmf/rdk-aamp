@@ -953,6 +953,50 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_AnomalyReport
+ * @brief
+ */
+class AAMP_JSListener_MetricsData : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_DRMMetadata Constructor
+         * @param aamp
+         * @param type
+         * @param jsCallback
+         */
+		AAMP_JSListener_MetricsData(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+        {
+        }
+
+        /**
+         * @brief
+         * @param e
+         * @param context
+         * @param eventObj
+         * @retval None
+         */
+        void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+        {
+                JSStringRef strJSObj;
+
+                strJSObj = JSStringCreateWithUTF8CString("metricType");
+                JSObjectSetProperty(context, eventObj, strJSObj, JSValueMakeNumber(context, e.data.metricsData.type), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(strJSObj);
+
+                strJSObj = JSStringCreateWithUTF8CString("traceID");
+                JSObjectSetProperty(context, eventObj, strJSObj, aamp_CStringToJSValue(context, e.data.metricsData.metricUUID), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(strJSObj);
+
+                strJSObj = JSStringCreateWithUTF8CString("metricData");
+                JSObjectSetProperty(context, eventObj, strJSObj, aamp_CStringToJSValue(context, e.data.metricsData.data), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(strJSObj);
+        }
+};
+
+
+/**
  * @class AAMP_JSListener_CCHandleReceived
  * @brief Event listener impl for CC_HANDLE_RECEIVED AAMP event
  */
@@ -1289,6 +1333,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	{
 		pListener = new AAMP_JSListener_AnomalyReport(aamp, type, jsCallback);
 	}
+	else if (type == AAMP_EVENT_REPORT_METRICS_DATA)
+	{
+		pListener = new AAMP_JSListener_MetricsData(aamp, type, jsCallback);
+	}
 	else if (type == AAMP_EVENT_DRM_METADATA)
 	{
 		pListener = new AAMP_JSListener_DRMMetadata(aamp, type, jsCallback);
@@ -1502,6 +1550,7 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 	if (argumentCount == 1 || argumentCount == 2)
 	{
 		char* contentType = NULL;
+		char* strTraceId = NULL;
 		bool bFinalAttempt = false;
 		bool bFirstAttempt = true;
 		if (argumentCount == 2 && JSValueIsObject(context, arguments[1]))
@@ -1512,6 +1561,14 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 			if (JSValueIsString(context, paramValue))
 			{
 				contentType = aamp_JSValueToCString(context, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("traceId");
+			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsString(context, paramValue))
+			{
+				strTraceId = aamp_JSValueToCString(context, paramValue, NULL);
 			}
 			JSStringRelease(paramName);
 
@@ -1533,12 +1590,17 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		}
 
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
-		pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt);
+		pAAMP->_aamp->Tune(url, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
 		delete [] url;
 		if (contentType)
 		{
 			delete[] contentType;
+		}
+
+		if (strTraceId)
+		{
+			delete[] strTraceId;
 		}
 	}
 	else

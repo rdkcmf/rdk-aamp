@@ -68,6 +68,9 @@
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
+// checks if current state is going to use IFRAME ( Fragment/Playlist )
+#define IS_FOR_IFRAME(type) ((type == eTRACK_VIDEO) && (aamp->rate != AAMP_NORMAL_PLAY_RATE))
+
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -1554,6 +1557,12 @@ void TrackState::FetchFragment()
 		}
 		cachedFragment->duration = duration;
 		cachedFragment->position = position;
+
+		long lbwd = this->GetCurrentBandWidth() * 8;
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+								lbwd,
+								http_error,this->effectiveUrl,cachedFragment->duration);
 	}
 	else
 	{
@@ -2363,6 +2372,20 @@ void TrackState::RefreshPlaylist(void)
 	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
 	if (aamp->RetrieveFromPlaylistCache(playlistUrl, &playlist, effectiveUrl) == false) {
 		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
+		//update videoend info
+		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
+		if(IS_FOR_IFRAME(type))
+		{
+			actualType = eMEDIATYPE_PLAYLIST_IFRAME;
+		}
+		else if (type == eTRACK_AUDIO )
+		{
+			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
+		}
+
+		aamp->UpdateVideoEndMetrics( actualType,
+								(this->GetCurrentBandWidth()*8),
+								http_error,effectiveUrl);
 	}
 	if (playlist.len)
 	{ // download successful
@@ -2916,6 +2939,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		do
 		{
 			aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 			if (this->mainManifest.len)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -3580,6 +3605,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				bool bFiledownloaded = false;
 				if (aamp->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
+					//update videoend info
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -4419,6 +4446,9 @@ void TrackState::FetchPlaylist()
 	{
 		MediaType mType = (this->type == eTRACK_AUDIO)?eMEDIATYPE_PLAYLIST_AUDIO:eMEDIATYPE_PLAYLIST_VIDEO;
 		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, mType);
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),(this->GetCurrentBandWidth()*8),
+									http_error,effectiveUrl);
 		if(playlist.len)
 		{
 			aamp->profiler.ProfileEnd(bucketId);
@@ -4749,11 +4779,27 @@ bool TrackState::FetchInitFragment(long &http_code)
 			char fragmentUrl[MAX_URI_LENGTH];
 			aamp_ResolveURL(fragmentUrl, effectiveUrl, uri.c_str());
 			char tempEffectiveUrl[MAX_URI_LENGTH];
+			tempEffectiveUrl[0] = 0;
 			WaitForFreeFragmentAvailable();
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			logprintf("%s:%d fragmentUrl = %s \n", __FUNCTION__, __LINE__, fragmentUrl);
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false, (MediaType) (type));
+
+			MediaType actualType = eMEDIATYPE_INIT_VIDEO ;
+			if(IS_FOR_IFRAME(type))
+			{
+				actualType = eMEDIATYPE_INIT_IFRAME;
+			}
+			else if (type == eTRACK_AUDIO )
+			{
+				actualType = eMEDIATYPE_INIT_AUDIO ;
+			}
+
+			aamp->UpdateVideoEndMetrics( actualType,
+									(this->GetCurrentBandWidth() *8),
+									http_code,effectiveUrl);
+
 			if (!fetched)
 			{
 				logprintf("%s:%d aamp_GetFile failed\n", __FUNCTION__, __LINE__);

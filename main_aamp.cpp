@@ -72,6 +72,7 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 
+
 /**
  * @brief
  * @param paramName
@@ -108,8 +109,61 @@ int getch(void)
  */
 struct AsyncEventDescriptor
 {
+    
+    AsyncEventDescriptor() : event(), aamp(NULL)
+	{
+	}
+
+	AsyncEventDescriptor( const AsyncEventDescriptor & newObj) : AsyncEventDescriptor()
+	{
+		this->event = newObj.event;
+		this->aamp = newObj.aamp;
+	}
+
+	AsyncEventDescriptor& operator=(const AsyncEventDescriptor& newObj)
+	{
+		this->event = newObj.event;
+		this->aamp = newObj.aamp;
+
+		return *this;
+	}
+
 	AAMPEvent event;
 	PrivateInstanceAAMP* aamp;
+
+	virtual ~AsyncEventDescriptor() {}
+};
+
+/**
+ * @struct AsyncVideoEndEventDescriptor
+ * @brief Used in asynchronous aamp data event notification logic
+ * new struct created to handle memory deletion
+ */
+struct AsyncMetricsEventDescriptor : public AsyncEventDescriptor
+{
+	AsyncMetricsEventDescriptor(MetricsDataType type, char * data, std::string & uuid)
+	{
+		event.type = AAMP_EVENT_REPORT_METRICS_DATA;
+		event.data.metricsData.data = data;
+		event.data.metricsData.type = type;
+
+		if(!uuid.empty() && (uuid.size() < METRIC_UUID_BUFF_LEN))
+		{
+			strcpy(event.data.metricsData.metricUUID,uuid.c_str());
+		}
+		else
+		{
+			event.data.metricsData.metricUUID[0] = 0;
+		}
+	}
+
+	virtual ~AsyncMetricsEventDescriptor()
+	{
+		if(event.data.metricsData.data)
+		{
+			free(event.data.metricsData.data);
+		}
+	}
 };
 
 static TuneFailureMap tuneFailureMap[] =
@@ -1623,6 +1677,49 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 }
 
 /**
+ *   @brief Converts lang index to Audio Track type
+ *
+ *   @param[in] int - Audio Lang Index
+ *   @return VideoStatTrackType
+ */
+VideoStatTrackType PrivateInstanceAAMP::ConvertAudioIndexToVideoStatTrackType(int Index)
+{
+	VideoStatTrackType type = VideoStatTrackType::STAT_UNKNOWN;
+	switch(Index)
+	{
+		case 0 :
+		{
+			type = VideoStatTrackType::STAT_AUDIO_1;
+		}
+		break;
+		case 1 :
+		{
+			type = VideoStatTrackType::STAT_AUDIO_2;
+		}
+		break;
+		case 2:
+		{
+			type = VideoStatTrackType::STAT_AUDIO_3;
+		}
+		break;
+		case 3 :
+		{
+			type = VideoStatTrackType::STAT_AUDIO_4;
+		}
+		break;
+		case 4 :
+		{
+			type = VideoStatTrackType::STAT_AUDIO_5;
+		}
+		break;
+
+		default:
+			break;
+	}
+	return type;
+}
+
+/**
  * @brief Store language list of stream
  * @param maxLangCount count of language item to be stored
  * @param langlist Array of languges
@@ -1639,6 +1736,10 @@ void PrivateInstanceAAMP::StoreLanguageList(int maxLangCount , char langlist[][M
 	{
 		strncpy(mLanguageList[cnt],langlist[cnt],MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
+		if( this->mVideoEnd )
+		{
+			mVideoEnd->Setlanguage(ConvertAudioIndexToVideoStatTrackType(cnt),langlist[cnt]);
+		}
 	}
 }
 
@@ -3493,7 +3594,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 
 	if (newTune)
-	{ // initialize defaults
+	{
+		// send previouse tune VideoEnd Metrics data
+		// this is done here because events are cleared on stop and there is chance that event may not get sent
+		SendVideoEndEvent();
+
+
+		// initialize defaults
 		if (!mPlayingAd)
 		{
 			SetState(eSTATE_INITIALIZING);
@@ -3632,7 +3739,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -3640,7 +3747,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt);
+	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
 }
 
 
@@ -3650,7 +3757,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
 
@@ -3831,6 +3938,16 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mfirstTuneFmt = mIsDash?1:0;
 	}
 	TuneHelper(tuneType);
+	// do not change location of this set, it should be done after sending perviouse VideoEnd data which
+	// is done in TuneHelper->SendVideoEndEvent function.
+	if(pTraceID)
+	{
+		this->mTraceUUID = pTraceID;
+	}
+	else
+	{
+		this->mTraceUUID = "unknown";
+	}
 }
 
 std::string  PrivateInstanceAAMP::GetContentTypString()
@@ -3988,12 +4105,12 @@ void PrivateInstanceAAMP::SyncEnd(void)
  * @param fileType media type of the file
  * @retval buffer containing file, free using aamp_Free
  */
-char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance, const char *range, MediaType fileType)
+char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code,MediaType fileType)
 {
 	profiler.ProfileBegin(bucketType);
-	char effectiveUrl[MAX_URI_LENGTH];
+
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
-	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, NULL, range, curlInstance, true, fileType))
+	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, range, curlInstance, true, fileType))
 	{
 		profiler.ProfileError(bucketType);
 	}
@@ -4016,11 +4133,11 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl,char *effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	char effectiveUrl[MAX_URI_LENGTH];
+
 	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
 	{
 		ret = false;
@@ -5231,6 +5348,7 @@ void PrivateInstanceAAMP::Stop()
 		logprintf("PrivateInstanceAAMP::%s() - timedMetadata.size - %d\n", __FUNCTION__, timedMetadata.size());
 		timedMetadata.clear();
 	}
+
 	pthread_mutex_unlock(&mLock);
 	seek_pos_seconds = -1;
 	culledSeconds = 0;
@@ -5547,7 +5665,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 /**
  * @brief PrivateInstanceAAMP Constructor
  */
-PrivateInstanceAAMP::PrivateInstanceAAMP()
+PrivateInstanceAAMP::PrivateInstanceAAMP() : mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID()
 {
 	LazilyLoadConfigIfNeeded();
 	mpStreamAbstractionAAMP = NULL;
@@ -5809,6 +5927,301 @@ bool PrivateInstanceAAMP::SendTunedEvent()
 	return ret;
 }
 
+/**
+ *   @brief Send VideoEndEvent
+ *
+ *   @return success or failure
+ */
+bool PrivateInstanceAAMP::SendVideoEndEvent()
+{
+	bool ret = false;
+	char * strVideoEndJson = NULL;
+	// Required for protecting mVideoEnd object
+	pthread_mutex_lock(&mLock);
+	if(mVideoEnd)
+	{
+		//Update VideoEnd Data
+		if(mTimeAtTopProfile > 0)
+		{
+			// Losing milisecons of data in conversion from double to long
+			mVideoEnd->SetTimeAtTopProfile(mTimeAtTopProfile);
+			mVideoEnd->SetTimeToTopProfile(mTimeToTopProfile);
+		}
+		mVideoEnd->SetTotalDuration(mPlaybackDuration);
+
+		// re initialize for next tune collection
+		mTimeToTopProfile = 0;
+		mTimeAtTopProfile = 0;
+		mPlaybackDuration = 0;
+
+		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
+		strVideoEndJson = mVideoEnd->ToJsonString();
+
+		delete mVideoEnd;
+		
+		if(strVideoEndJson)
+		{
+			AAMPLOG_INFO("VideoEnd:%s", strVideoEndJson);
+		}
+	}
+	
+	mVideoEnd = new CVideoStat();
+
+	pthread_mutex_unlock(&mLock);
+
+	if(strVideoEndJson)
+	{
+		if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_REPORT_METRICS_DATA])
+		{
+			AsyncMetricsEventDescriptor* e = new AsyncMetricsEventDescriptor(MetricsDataType::AAMP_DATA_VIDEO_END,strVideoEndJson,this->mTraceUUID);
+
+			ScheduleEvent(e);
+			ret = true;
+		}
+		else
+		{
+			free(strVideoEndJson);
+		}
+	}
+	
+	return ret;
+
+}
+
+
+/**
+ *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+ *
+ *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+ *   @param[in]  bitrate - bitrate ( bits per sec )
+ *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+ *   @param[in]  strUrl :  URL in case of faulures
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration)
+{
+	AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f n", mediaType, bitrate , curlOrHTTPCode,mTimeAtTopProfile ,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration);
+
+	// ignore for write and aborted errors
+	// these are generated after trick play options,
+	if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
+	{
+
+
+		VideoStatDataType dataType = VideoStatDataType::VE_DATA_UNKNOWN;
+
+		VideoStatTrackType trackType = VideoStatTrackType::STAT_UNKNOWN;
+		VideoStatCountType eCountType = VideoStatCountType::COUNT_UNKNOWN;
+
+	/*	COUNT_UNKNOWN,
+		COUNT_LIC_TOTAL,
+		COUNT_LIC_ENC_TO_CLR,
+		COUNT_LIC_CLR_TO_ENC,
+		COUNT_STALL,
+		COUNT_4XX,
+		COUNT_5XX,
+		COUNT_CURL, // all other curl errors except timeout
+		COUNT_CURL_TIMEOUT,
+		COUNT_SUCCESS*/
+
+		if (curlOrHTTPCode < 100)
+		{
+
+			if( curlOrHTTPCode == CURLE_OPERATION_TIMEDOUT)
+			{
+				eCountType = COUNT_CURL_TIMEOUT;
+			}
+			else
+			{
+				eCountType = COUNT_CURL;
+			}
+		}
+		else if (curlOrHTTPCode == 200 || curlOrHTTPCode == 206)
+		{
+			//success
+			eCountType = COUNT_SUCCESS;
+		}
+		else if (curlOrHTTPCode >= 500 )
+		{
+			eCountType = COUNT_5XX;
+		}
+		else // everything else is 4XX
+		{
+			eCountType = COUNT_4XX;
+		}
+
+
+		switch(mediaType)
+		{
+			case eMEDIATYPE_MANIFEST:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_MAIN;
+			}
+				break;
+
+			case eMEDIATYPE_PLAYLIST_VIDEO:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+			}
+				break;
+
+			case eMEDIATYPE_PLAYLIST_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+			}
+				break;
+
+			case eMEDIATYPE_PLAYLIST_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = STAT_IFRAME;
+			}
+				break;
+
+			case eMEDIATYPE_VIDEO:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+				// always Video fragment will be from same thread so mutex required
+
+// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
+				//Is success
+				if (eCountType == COUNT_SUCCESS  && duration > 0)
+				{
+					long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
+					if(maxBitrateSupported == bitrate)
+					{
+						mTimeAtTopProfile += duration;
+					}
+
+					if(mTimeAtTopProfile == 0) // we havent achived top profile yet
+					{
+						mTimeToTopProfile += duration; // started at top profile
+					}
+
+					mPlaybackDuration += duration;
+				}
+
+			}
+				break;
+			case eMEDIATYPE_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+			}
+				break;
+			case eMEDIATYPE_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_IFRAME;
+			}
+				break;
+
+			case eMEDIATYPE_INIT_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_IFRAME;
+			}
+				break;
+
+			case eMEDIATYPE_INIT_VIDEO:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+			}
+				break;
+
+			case eMEDIATYPE_INIT_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+			}
+				break;
+			default:
+				break;
+		}
+
+
+		// Required for protecting mVideoStat object
+		if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
+				&& trackType != VideoStatTrackType::STAT_UNKNOWN
+				&& eCountType != VideoStatCountType::COUNT_UNKNOWN )
+		{
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
+			{
+				mVideoEnd->Increment_Data(dataType,trackType,eCountType,bitrate);
+				if(eCountType != COUNT_SUCCESS && strUrl)
+				{
+					//set failure url
+					mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
+				}
+			}
+			pthread_mutex_unlock(&mLock);
+
+		}
+		else
+		{
+			AAMPLOG_INFO("PrivateInstanceAAMP::%s - Could Not update VideoEnd Event dataType:%d trackType:%d eCountType:%d\n", __FUNCTION__,
+					dataType,trackType,eCountType);
+		}
+	}
+}
+
+
+/**
+ *   @brief updates abr metrics to VideoStat object,
+ *
+ *   @param[in]  AAMPAbrInfo - abr info
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
+{
+	//only for Ramp down case
+	if(info.desiredProfileIndex < info.currentProfileIndex)
+	{
+		AAMPLOG_INFO("UpdateVideoEnd:abrinfo currIdx:%d desiredIdx:%d for:%d",  info.currentProfileIndex,info.desiredProfileIndex,info.abrCalledFor);
+
+		if(info.abrCalledFor == AAMPAbrType::AAMPAbrBandwidthUpdate)
+		{
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
+			{
+				mVideoEnd->Increment_AbrNetworkDropCount();
+			}
+			pthread_mutex_unlock(&mLock);
+		}
+		else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
+				|| info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
+		{
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
+			{
+				mVideoEnd->Increment_AbrErrorDropCount();
+			}
+			pthread_mutex_unlock(&mLock);
+		}
+	}
+}
+
+
+
+/**
+ *   @brief updates download metrics to VideoEnd object,
+ *
+ *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+ *   @param[in]  bitrate - bitrate
+ *   @param[in]  curlOrHTTPErrorCode - download curl or http error
+ *   @param[in]  strUrl :  URL in case of faulures
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl)
+{
+	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0);
+}
 
 /**
  * @brief Check if fragment Buffering is required before playing.
@@ -6221,6 +6634,15 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 {
 	strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
 	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+
+	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
+	{
+		if(strncmp(mLanguageList[cnt],language,MAX_LANGUAGE_TAG_LENGTH) == 0)
+		{
+			mCurrentLanguageIndex = cnt;
+			break;
+		}
+	}
 }
 
 /**
