@@ -299,8 +299,8 @@ class TSProcessor
       unsigned char *m_pmtCollector; //!< A buffer pointer to hold PMT data at the time of examining TS buffer
       bool m_scrambledWarningIssued;
       bool m_checkContinuity;
-      int videoComponentCount, audioComponentCount, dataComponentCount;
-      RecordingComponent videoComponents[MAX_PIDS], audioComponents[MAX_PIDS], dataComponents[MAX_PIDS];
+      int videoComponentCount, audioComponentCount;
+      RecordingComponent videoComponents[MAX_PIDS], audioComponents[MAX_PIDS];
 
       long long m_actualStartPTS;
 
