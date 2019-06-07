@@ -1507,3 +1507,24 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 	logprintf("%s:%d - Added time for deferred license acquisition  %d \n", __FUNCTION__, __LINE__, (int)ret);
 	return ret;
 }
+
+/**
+ *   @brief Check if current stream is muxed
+ *
+ *   @return true if current stream is muxed
+ */
+bool StreamAbstractionAAMP::IsMuxedStream()
+{
+	bool ret = false;
+
+	if ((!gpGlobalConfig->bAudioOnlyPlayback) && (AAMP_NORMAL_PLAY_RATE == aamp->rate))
+	{
+		MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
+		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+		if (!audio || !video || !audio->enabled || !video->enabled)
+		{
+			ret = true;
+		}
+	}
+	return ret;
+}
