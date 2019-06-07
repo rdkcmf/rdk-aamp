@@ -649,6 +649,16 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "-X-ADVERTISING"))
 				{ // placeholder for advertising zone for linear (soon to be deprecated)
 				}
+				else if (startswith(&ptr, "-UPLYNK-LIVE"))
+				{ // related to uplynk streaming service
+				}
+				else if (startswith(&ptr, "-X-START:TIME-OFFSET="))
+				{ // i.e. "TIME-OFFSET=2.336, PRECISE=YES" - specifies the preferred point in the video to start playback; not yet supported
+					if (atof(ptr) != 0)
+					{
+						logprintf("WARNING:found EXT-X-START tag with TIME-OFFSET=%s\n",ptr);
+					}
+				}
 				else 
 				{
 					std::string unknowTag= ptr;
@@ -1077,9 +1087,11 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-FOG"))
 				{
 				}
+				else if (startswith(&ptr,"-UPLYNK-LIVE"))
+				{//tag related to uplynk streaming service
+				}
 				else if (startswith(&ptr, "-X-START:"))
-				{ // sling
-					//"TIME-OFFSET=2.336, PRECISE=YES"
+				{
 				}
 				else if (startswith(&ptr, "-X-XCAL-CONTENTMETADATA"))
 				{ // placeholder for new Super8 DRM Agnostic Metadata
