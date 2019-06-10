@@ -774,14 +774,14 @@ static gboolean buffering_timeout (gpointer data)
 		*/
 		if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
 		{
-			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d\n", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent);
+			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u\n", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 			privateContext->buffering_in_progress = false;
 			_this->DumpDiagnostics();
 			_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
 		}
 		else if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
 		{
-			logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u\n", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1));
+			logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  bytes %u  frames %u\n", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), bytes, frames);
 			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 			_this->privateContext->buffering_in_progress = false;
 		}
@@ -2564,7 +2564,7 @@ void AAMPGstPlayer::Flush(double position, int rate)
 
 	if (privateContext->eosCallbackIdleTaskPending)
 	{
-		logprintf("AAMPGstPlayer::%s %d > Remove eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
+		logprintf("AAMPGstPlayer::%s:%d Remove eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
 		g_source_remove(privateContext->eosCallbackIdleTaskId);
 		privateContext->eosCallbackIdleTaskId = 0;
 		privateContext->eosCallbackIdleTaskPending = false;
@@ -2572,7 +2572,7 @@ void AAMPGstPlayer::Flush(double position, int rate)
 
 	if (privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
 	{
-		logprintf("AAMPGstPlayer::%s %d > Remove ptsCheckForEosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+		logprintf("AAMPGstPlayer::%s:%d Remove ptsCheckForEosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
 		g_source_remove(privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
 		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
 	}
@@ -2585,35 +2585,73 @@ void AAMPGstPlayer::Flush(double position, int rate)
 	{
 		if (privateContext->pipeline == NULL)
 		{
-			logprintf("%s(): Pipeline is NULL\n", __FUNCTION__);
+			logprintf("AAMPGstPlayer::%s:%d Pipeline is NULL\n", __FUNCTION__, __LINE__);
 			return;
 		}
 
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
+		bool bPauseNeeded = false;
+
 		gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+
 		if (current != GST_STATE_PLAYING && current != GST_STATE_PAUSED)
 		{
-			logprintf("%s(): Pipeline is not in playing/paused state, hence resetting it\n", __FUNCTION__);
+			logprintf("AAMPGstPlayer::%s:%d Pipeline is not in playing/paused state, hence resetting it\n", __FUNCTION__, __LINE__);
 			Stop(true);
 			return;
 		}
 		else
 		{
-			logprintf("%s(): Pipeline is in %s state position %f\n", __FUNCTION__, gst_element_state_get_name(current), position);
+			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+
+			if ((aamp->getStreamType() < 20) && (current == GST_STATE_PAUSED))
+			{
+				/*
+				 * Changing the Pipeline state to GST_STATE_PLAYING temporarily to keep Gstreamer continue sending data to Decoder during gst_element_seek().
+				 * Reason : Because if Pipeline is in GST_STATE_PAUSED state then the Gstreamer will stop sending data to the decoder during gst_element_seek() call.
+				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for buffered bytes (or)
+				 * frames result in 0 count; that results internal retune during Video Buffering.
+				 */
+				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+
+				if (gst_element_set_state(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+				{
+					logprintf("AAMPGstPlayer::%s:%d Pipeline state change (PLAYING) failed\n", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					bPauseNeeded = true;
+				}
+			}
 		}
+
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		{
 			privateContext->stream[i].resetPosition = true;
 			privateContext->stream[i].flush = true;
 			privateContext->stream[i].eosReached = false;
 		}
-		AAMPLOG_INFO("TestStreamer::%s - pipeline flush seek - start = %f\n", __FUNCTION__, position);
+
+		AAMPLOG_INFO("AAMPGstPlayer::%s:%d Pipeline flush seek - start = %f\n", __FUNCTION__, __LINE__, position);
+
 		if (!gst_element_seek(privateContext->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
 		{
 			logprintf("Seek failed\n");
 		}
+
+		if (bPauseNeeded)
+		{
+			/* Reseting Pipeline state to Paused from Playing */
+			logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PLAYING -> PAUSED )\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+
+			if (gst_element_set_state(privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
+			{
+				logprintf("AAMPGstPlayer::%s:%d Pipeline state change (PAUSED) failed\n", __FUNCTION__, __LINE__);
+			}
+		}
+
 	}
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
