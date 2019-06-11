@@ -44,6 +44,7 @@
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
 #include <math.h>
+#include "AampCacheHandler.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -2802,7 +2803,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
-	if (aamp->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
+	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
 	{
 		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 		retrievedPlaylistFromCache = true;
@@ -2900,7 +2901,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 							aamp->SetIsLive(mIsLive);
 							if (!retrievedPlaylistFromCache)
 							{
-								aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(),mIsLive);
+								AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(),mIsLive);
 							}
 						}
 						else
