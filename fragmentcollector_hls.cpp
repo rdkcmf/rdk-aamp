@@ -47,7 +47,7 @@
 #include <openssl/sha.h>
 #include <set>
 #include "HlsDrmBase.h"
-
+#include "AampCacheHandler.h"
 #ifdef AAMP_VANILLA_AES_SUPPORT
 #include "aamp_aes.h"
 #endif
@@ -2314,7 +2314,7 @@ void TrackState::IndexPlaylist()
 		}
 		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
 		aamp->SetIsLive(context->IsLive());
-		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,IsLive(),(MediaType)type);
+		AampCacheHandler::GetInstance()->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,IsLive(),(MediaType)type);
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2478,7 +2478,7 @@ void TrackState::RefreshPlaylist(void)
 	}
 
 	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
-	if (aamp->RetrieveFromPlaylistCache(playlistUrl, &playlist, effectiveUrl) == false) {
+	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(playlistUrl, &playlist, effectiveUrl) == false) {
 		aamp->GetFile(playlistUrl, &playlist, effectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
 	}
 	if (playlist.len)
@@ -3198,7 +3198,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
 	}
 
-	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
+	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
 	{
 		logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 	}
@@ -3214,7 +3214,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
+				AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -3361,7 +3361,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		bool trackPLDownloadThreadStarted = false;
 		if (audio->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(audio->playlistUrl, &audio->playlist, audio->effectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(audio->playlistUrl, &audio->playlist, audio->effectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3387,7 +3387,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (video->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(video->playlistUrl, &video->playlist, video->effectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(video->playlistUrl, &video->playlist, video->effectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3398,7 +3398,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (subtitle->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(subtitle->playlistUrl, &subtitle->playlist, subtitle->effectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(subtitle->playlistUrl, &subtitle->playlist, subtitle->effectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d subtitle playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3997,12 +3997,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo[iframeStreamIdx].uri);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist\n", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
-				if (aamp->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
+				if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
+					AampCacheHandler::GetInstance()->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else
