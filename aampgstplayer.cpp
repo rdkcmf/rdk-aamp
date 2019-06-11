@@ -619,8 +619,8 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && memcmp(name, "brcmvideodecoder", 16) == 0) || 
-			( _this->privateContext->using_westerossink && memcmp(name, "westerossink", 12) == 0);
+	return	(!_this->privateContext->using_westerossink && strcmp(name, "brcmvideodecoder") == 0) ||
+			( _this->privateContext->using_westerossink && strcmp(name, "westerossink") == 0);
 }
 
 /**
@@ -631,8 +631,8 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && memcmp(name, "brcmvideosink", 13) == 0) || // brcmvideosink0, brcmvideosink1, ...
-			( _this->privateContext->using_westerossink && memcmp(name, "westerossink", 12) == 0);
+	return	(!_this->privateContext->using_westerossink && strcmp(name, "brcmvideosink") == 0) || // brcmvideosink0, brcmvideosink1, ...
+			( _this->privateContext->using_westerossink && strcmp(name, "westerossink") == 0);
 }
 
 /**
@@ -644,8 +644,8 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
 	return	(!_this->privateContext->using_westerossink && !_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
-			(memcmp(name, "brcmvideodecoder", 16) == 0 || memcmp(name, "brcmaudiodecoder", 16) == 0)) || 
-			(_this->privateContext->using_westerossink && memcmp(name, "westerossink", 12) == 0);
+			(strcmp(name, "brcmvideodecoder") == 0 || strcmp(name, "brcmaudiodecoder") == 0)) ||
+			(_this->privateContext->using_westerossink && strcmp(name, "westerossink") == 0);
 }
 
 /**
@@ -696,7 +696,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		type = eMEDIATYPE_VIDEO;
 	}
-	else if (memcmp(GST_ELEMENT_NAME(object), "brcmaudiodecoder", 16) == 0)
+	else if (strcmp(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == 0)
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
@@ -750,7 +750,7 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
 	}
-	else if (memcmp(GST_ELEMENT_NAME(object), "brcmaudiodecoder", 16) == 0)
+	else if (strcmp(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == 0)
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_AUDIO);
 	}
@@ -907,7 +907,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
 					g_object_set(msg->src, "enable-reject-preroll", FALSE, NULL);
 				}
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "brcmaudiosink", 13) == 0)
+				else if (strcmp(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == 0)
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
 
@@ -1079,7 +1079,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 
 #else
-			if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink", 16) == 0)
+			if (strcmp(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == 0)
 			{
 				_this->privateContext->audio_sink = (GstElement *) msg->src;
 
@@ -1091,9 +1091,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			else
 			{
 #ifndef INTELCE_USE_VIDRENDSINK
-				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidsink", 14) == 0)
+				if (strcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidsink") == 0)
 #else
-				if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink", 18) == 0)
+				if (strcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink") == 0)
 #endif
 				{
 					AAMPGstPlayerPriv *privateContext = _this->privateContext;
@@ -1111,12 +1111,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					logprintf("AAMPGstPlayer setting video mute %d\n", privateContext->videoMuted);
 					g_object_set(msg->src, "mute", privateContext->videoMuted, NULL);
 				}
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec", 17) == 0)
+				else if (strcmp(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec") == 0)
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
 				}
 #ifdef INTELCE_USE_VIDRENDSINK
-				else if (memcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc", 15) == 0)
+				else if (strcmp(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc") == 0)
 				{
 					_this->privateContext->video_pproc = (GstElement *) msg->src;
 					logprintf("AAMPGstPlayer setting rectangle %s\n", _this->privateContext->videoRectangle);
@@ -1132,8 +1132,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 			  AAMP is added as a property of playready plugin
 			*/
-			if(memcmp(GST_OBJECT_NAME(msg->src), GstPluginNamePR, strlen(GstPluginNamePR)) == 0 ||
-			   memcmp(GST_OBJECT_NAME(msg->src), GstPluginNameWV, strlen(GstPluginNameWV)) == 0)
+			if(strcmp(GST_OBJECT_NAME(msg->src), GstPluginNamePR) == 0 ||
+			   strcmp(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == 0 )
 			{
 				logprintf("AAMPGstPlayer setting aamp instance for %s decryptor\n", GST_OBJECT_NAME(msg->src));
 				GValue val = { 0, };
