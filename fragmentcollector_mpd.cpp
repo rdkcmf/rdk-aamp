@@ -41,6 +41,7 @@
 #include <libxml/xmlreader.h>
 #include <math.h>
 #include <algorithm>
+#include "AampCacheHandler.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -3059,10 +3060,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
 	std::string manifestUrl = aamp->GetManifestUrl();
+	
+	// take the original url before it gets changed in GetFile
+	std::string origManifestUrl = manifestUrl;
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
-	if (aamp->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
+	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
 	{
 		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 		retrievedPlaylistFromCache = true;
@@ -3143,9 +3147,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			this->mpd = mpd;
 			mIsLive = !(mpd->GetType() == "static");
 			aamp->SetIsLive(mIsLive);
-			if (!retrievedPlaylistFromCache)
+			if (!retrievedPlaylistFromCache && !mIsLive)
 			{
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(),mIsLive);
+				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
 			}
 		}
 		else

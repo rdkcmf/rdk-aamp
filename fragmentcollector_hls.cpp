@@ -47,7 +47,7 @@
 #include <openssl/sha.h>
 #include <set>
 #include "HlsDrmBase.h"
-
+#include "AampCacheHandler.h"
 #ifdef AAMP_VANILLA_AES_SUPPORT
 #include "aamp_aes.h"
 #endif
@@ -2289,7 +2289,10 @@ void TrackState::IndexPlaylist()
 		}
 		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
 		aamp->SetIsLive(context->IsLive());
-		aamp->InsertToPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl,IsLive(),(MediaType)type);
+		if(!IsLive())
+		{
+			AampCacheHandler::GetInstance()->InsertToPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl,IsLive(),(MediaType)type);
+		}
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2441,7 +2444,14 @@ void TrackState::RefreshPlaylist(void)
 	}
 
 	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
-	if (aamp->RetrieveFromPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl) == false) {
+	bool bCacheRead = false;
+	if (!IsLive())
+	{
+		bCacheRead = AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl);
+	}
+	// failed to read from cache , then download it 
+	if(!bCacheRead)
+	{
 		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
@@ -3176,7 +3186,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
 	}
 
-	if (aamp->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
+	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
 	{
 		logprintf("StreamAbstractionAAMP_HLS::%s:%d Main manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 	}
@@ -3184,6 +3194,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest\n", __FUNCTION__, __LINE__);
+		// take the original url before its gets changed in GetFile
+		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
@@ -3191,7 +3203,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 			traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-			aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
+			AampCacheHandler::GetInstance()->InsertToPlaylistCache(mainManifestOrigUrl, &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 		}
 		else
 		{
@@ -3336,7 +3348,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		bool trackPLDownloadThreadStarted = false;
 		if (audio->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(audio->mPlaylistUrl, &audio->playlist, audio->mEffectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(audio->mPlaylistUrl, &audio->playlist, audio->mEffectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3362,7 +3374,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (video->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(video->mPlaylistUrl, &video->playlist, video->mEffectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(video->mPlaylistUrl, &video->playlist, video->mEffectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3373,7 +3385,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (subtitle->enabled)
 		{
-			if (aamp->RetrieveFromPlaylistCache(subtitle->mPlaylistUrl, &subtitle->playlist, subtitle->mEffectiveUrl))
+			if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(subtitle->mPlaylistUrl, &subtitle->playlist, subtitle->mEffectiveUrl))
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d subtitle playlist retrieved from cache\n", __FUNCTION__, __LINE__);
 			}
@@ -3972,14 +3984,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo[iframeStreamIdx].uri);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist\n", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
-				if (aamp->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
+				if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
 					//update videoend info
 					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
+					AampCacheHandler::GetInstance()->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else

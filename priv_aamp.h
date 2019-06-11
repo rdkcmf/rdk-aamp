@@ -109,7 +109,7 @@
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
 #define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
 // HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
-#define MAX_PLAYLIST_CACHE_SIZE    (2*1024*1024) // Approx 2MB -> 2 video profiles + one audio profile + one iframe profile, 25-50K MainManifest
+#define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
 // VSS Service Zone identifier in url 
@@ -328,35 +328,6 @@ struct AAMPAbrInfo
 	AAMPNetworkErrorType errorType;
 	int errorCode;
 };
-
-/**
- * @brief PlayListCachedData structure to store playlist data
- */
-typedef struct playlistcacheddata{
-	std::string mEffectiveUrl;
-	GrowableBuffer* mCachedBuffer;
-	MediaType mFileType;
-
-	playlistcacheddata() : mEffectiveUrl(""), mCachedBuffer(NULL), mFileType(eMEDIATYPE_DEFAULT)
-	{
-	}
-
-	playlistcacheddata(const playlistcacheddata& p) : mEffectiveUrl(p.mEffectiveUrl), mCachedBuffer(p.mCachedBuffer), mFileType(p.mFileType)
-	{
-		mCachedBuffer->ptr = p.mCachedBuffer->ptr;
-		mCachedBuffer->len = p.mCachedBuffer->len;
-		mCachedBuffer->avail = p.mCachedBuffer->avail;
-	}
-
-	playlistcacheddata& operator=(const playlistcacheddata &p)
-	{
-		mEffectiveUrl = p.mEffectiveUrl;
-		mCachedBuffer = p.mCachedBuffer;
-		mFileType = p.mFileType;
-		return *this;
-	}
-
-}PlayListCachedData;
 
 
 /**
@@ -2485,45 +2456,6 @@ public:
 	void SetLiveOffset(int SetLiveOffset);
 
 	/**
-	 *   @brief Insert playlist into cache
-	 *
-	 *   @param[in] url - URL
-	 *   @param[in] buffer - Pointer to growable buffer
-	 *   @param[in] effectiveUrl - Final URL
-	 *   @param[in] trackLiveStatus - Live Status of the track inserted
-	 *   @param[in] fileType - Type of the file inserted
-     *
-	 *   @return void
-	 */
-	void InsertToPlaylistCache(std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
-
-	/**
-	 *   @brief Retrieve playlist from cache
-	 *
-	 *   @param[in] url - URL
-	 *   @param[out] buffer - Pointer to growable buffer
-	 *   @param[out] effectiveUrl - Final URL
-	 *   @return true: found, false: not found
-	 */
-	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
-
-	/**
-	 *   @brief Clear playlist cache
-	 *
-	 *   @return void
-	 */
-	void ClearPlaylistCache();
-
-	/**
-	 *   @brief AllocatePlaylistCacheSlot Freeup Playlist cache for new playlist caching
-	 *   @param[in] fileType - Indicate the type of playlist to store/remove
-	 *   @param[in] newLen  - Size required to store new playlist
-	 *
-	 *   @return bool Success or Failure
-	 */
-	bool AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen);
-
-	/**
 	 *   @brief Set stall error code
 	 *
 	 *   @param[in] errorCode - Stall error code
@@ -2973,10 +2905,6 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
-	int mCacheStoredSize;
-	typedef std::unordered_map<std::string, PlayListCachedData *> PlaylistCache ;
-	typedef std::unordered_map<std::string, PlayListCachedData *>::iterator PlaylistCacheIter;
-	PlaylistCache mPlaylistCache;
 	std::map<gint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
