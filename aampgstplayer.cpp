@@ -24,7 +24,6 @@
 
 
 #include "aampgstplayer.h"
-#include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
 #include <string.h>
 #include <assert.h>
@@ -123,7 +122,9 @@ struct AAMPGstPlayerPriv
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
 #endif
 	GstElement *video_dec; //Video decoder used by pipeline.
+	gulong video_dec_handler_id; //Video decoder callback handler ID
 	GstElement *audio_dec; //Audio decoder used by pipeline.
+	gulong audio_dec_handler_id; //Audio decoder callback handler ID
 	GstElement *video_sink; //Video sink used by pipeline.
 	GstElement *audio_sink; //Audio sink used by pipeline.
 #ifdef INTELCE_USE_VIDRENDSINK
@@ -206,6 +207,8 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	CreatePipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+	privateContext->video_dec_handler_id = 0;
+	privateContext->audio_dec_handler_id = 0;
 }
 
 
@@ -855,6 +858,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				gst_element_state_get_name(old_state),
 				gst_element_state_get_name(new_state),
 				gst_element_state_get_name(pending_state));
+
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
 #if defined(INTELCE) || (defined(__APPLE__))
@@ -877,7 +881,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 #endif
 				analyze_streams(_this);
 
-				if (gpGlobalConfig->logging.gst )
+				if (gpGlobalConfig->logging.gst)
 				{
 					GST_DEBUG_BIN_TO_DOT_FILE((GstBin *)_this->privateContext->pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "myplayer");
 					// output graph to .dot format which can be visualized with Graphviz tool if:
@@ -1067,14 +1071,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
-					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
-									G_CALLBACK(AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder), _this);
+					_this->privateContext->video_dec_handler_id = g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback", G_CALLBACK(AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder), _this);
 				}
 				else
 				{
 					_this->privateContext->audio_dec = (GstElement *) msg->src;
-					g_signal_connect(msg->src, "first-audio-frame-callback",
-									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+					_this->privateContext->audio_dec_handler_id = g_signal_connect(_this->privateContext->audio_dec, "first-audio-frame-callback", G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
 
@@ -1426,6 +1428,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
 		privateContext->video_dec = NULL;
+		privateContext->video_dec_handler_id = 0;
 #if !defined(INTELCE) || defined(INTELCE_USE_VIDRENDSINK)
 		privateContext->video_sink = NULL;
 #endif
@@ -1437,6 +1440,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	else if (mediaType == eMEDIATYPE_AUDIO)
 	{
 		privateContext->audio_dec = NULL;
+		privateContext->audio_dec_handler_id = 0;
 		privateContext->audio_sink = NULL;
 	}
 	logprintf("AAMPGstPlayer::TearDownStream:  exit mediaType = %d\n", mediaType);
@@ -1979,18 +1983,55 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	}
 }
 
-void AAMPGstPlayer::DisconnectCallbacks()
+/**
+ * @brief Disconnect the decoder callback from gst
+ *
+ */
+ void AAMPGstPlayer::DisconnectCallbacks()
 {
-	if(privateContext->video_dec)
+	if(IsDecoderCallbackHandlerValid(privateContext->video_dec, privateContext->video_dec_handler_id, eMEDIATYPE_VIDEO))
 	{
 		g_signal_handlers_disconnect_by_data(privateContext->video_dec, this);
 	}
-	if(privateContext->audio_dec)
+	else
+	{
+		logprintf("%s:%d Ignoring Disconnect, since video decoder callback is not linked with gst before!!\n", __FUNCTION__, __LINE__);
+	}
+
+	if(IsDecoderCallbackHandlerValid(privateContext->audio_dec, privateContext->audio_dec_handler_id, eMEDIATYPE_AUDIO))
 	{
 		g_signal_handlers_disconnect_by_data(privateContext->audio_dec, this);
 	}
+	else
+	{
+		logprintf("%s:%d Ignoring Disconnect, since audio decoder callback is not linked with gst before!!\n", __FUNCTION__, __LINE__);
+	}
 }
 
+/**
+ * @brief Check whether decoder callback is linked with gst before disconnect.
+ *
+ * @param[in] dec          Decoder base which can be used by the pipeline
+ * @param[in] handler_id   Handler ID of connected callback
+ * @param[in] mediaType	   Mediatype of the decoder
+ *
+ * @retval bool            If the decoder callback is linked prior, then its TRUE otherview the result will be FALSE.
+ */
+bool AAMPGstPlayer::IsDecoderCallbackHandlerValid(GstElement *dec, gulong handler_id, MediaType mediaType)
+{
+	bool retValue = FALSE;
+
+	if (dec && handler_id != 0 && g_signal_handler_is_connected(dec, handler_id))
+	{
+		retValue = TRUE;
+	}
+	else
+	{
+		logprintf("%s:%d [WARN] %s decoder callback is not linked with Gst!! handler-id [%lu] decoder-ptr [%p] \n", __FUNCTION__, __LINE__, ((mediaType == eMEDIATYPE_VIDEO) ? "Video" : "Audio"), handler_id, dec);
+	}
+
+	return retValue;
+}
 
 /**
  * @brief Stop playback and any idle handlers active at the time

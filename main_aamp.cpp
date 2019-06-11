@@ -4663,42 +4663,48 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
  */
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
-	logprintf("aamp_SetLanguage(%s)->(%s)\n",aamp->language, language);
+	logprintf("%s:%d Language (%s)->(%s)\n", __FUNCTION__, __LINE__, aamp->language, language);
 
-        if (strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-                return;
+    if (strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) != 0)
+    {
+		PrivAAMPState state;
 
-	PrivAAMPState state;
-	aamp->GetState(state);
-	// There is no active playback session, save the language for later
-	if (state == eSTATE_IDLE)
-	{
-		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set prior to tune start\n", language);
-		return;
-	}
+		aamp->GetState(state);
 
-	// check if language is supported in manifest languagelist
-	if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
-	{
-		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set\n", language);
-		if (aamp->mpStreamAbstractionAAMP)
+		// There is no active playback session, save the language for later
+		if (state == eSTATE_IDLE)
 		{
-			logprintf("aamp_SetLanguage(%s) retuning\n", language);
-
-			aamp->discardEnteringLiveEvt = true;
-
-			aamp->seek_pos_seconds = aamp->GetPositionMs()/1000.0;
-			aamp->TeardownStream(false);
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-
-			aamp->discardEnteringLiveEvt = false;
+			aamp->UpdateAudioLanguageSelection(language);
+			logprintf("%s:%d Language (%s) set prior to tune start\n", __FUNCTION__, __LINE__, language);
 		}
-	}
-	else
-		logprintf("aamp_SetLanguage(%s) not supported in manifest\n", language);
+		else
+		{
+			// check if language is supported in manifest languagelist
+			if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
+			{
+				aamp->UpdateAudioLanguageSelection(language);
 
+				logprintf("%s:%d Language (%s) updated on aamp instance\n", __FUNCTION__, __LINE__, language);
+
+				if (aamp->mpStreamAbstractionAAMP)
+				{
+					logprintf("%s:%d Resulting language(%s) change on playback\n", __FUNCTION__, __LINE__, language);
+
+					aamp->discardEnteringLiveEvt = true;
+
+					aamp->seek_pos_seconds = aamp->GetPositionMs()/1000.0;
+					aamp->TeardownStream(false);
+					aamp->TuneHelper(eTUNETYPE_SEEK);
+
+					aamp->discardEnteringLiveEvt = false;
+				}
+			}
+			else
+			{
+				logprintf("%s:%d Language (%s) not supported in manifest\n", __FUNCTION__, __LINE__, language);
+			}
+		}
+    }
 }
 
 

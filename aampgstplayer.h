@@ -27,6 +27,7 @@
 
 #include <stddef.h>
 #include "priv_aamp.h"
+#include <gst/gst.h>
 
 /**
  * @struct AAMPGstPlayerPriv
@@ -84,6 +85,7 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
+	bool IsDecoderCallbackHandlerValid(GstElement *dec, gulong handler_id, MediaType mediaType);
 };
 
 #endif // AAMPGSTPLAYER_H
