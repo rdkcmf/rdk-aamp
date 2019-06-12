@@ -2448,6 +2448,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
 #endif
+
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+	{
+		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+	}
+
 	AAMPStatusType ret = UpdateMPD();
 	if (ret == eAAMPSTATUS_OK)
 	{
@@ -2463,11 +2469,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			ParseISO8601Duration( tempString.c_str(), durationMs);
 			mpdDurationAvailable = true;
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - MPD duration str %s val %" PRIu64 " seconds\n", __FUNCTION__, __LINE__, tempString.c_str(), durationMs/1000);
-		}
-
-		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
-		{
-			aamp->SetCurlTimeout(gpGlobalConfig->fragmentDLTimeout, i);
 		}
 
 		mIsLive = !(mpd->GetType() == "static");
