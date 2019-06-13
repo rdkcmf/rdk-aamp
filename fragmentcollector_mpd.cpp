@@ -4562,32 +4562,46 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					}
 					lastLiveFlag = mIsLive;
 					/*Discontinuity handling on period change*/
-					if ( periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
+					if (periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
 							(gpGlobalConfig->mpdDiscontinuityHandlingCdvr || (!aamp->IsInProgressCDVR())))
 					{
 						MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 						ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
-						if (!segmentTemplate)
+						bool ignoreDiscontinuity = false;
+
+						if (!trickPlay)
 						{
-							segmentTemplate = pMediaStreamContext->representation->GetSegmentTemplate();
+							ignoreDiscontinuity = (mMediaStreamContext[eMEDIATYPE_AUDIO] && !mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->isFragmentInjectorThreadStarted());
 						}
-						if (segmentTemplate)
+
+						if(ignoreDiscontinuity)
 						{
-							uint64_t segmentStartTime = GetFirstSegmentStartTime(period);
-							if (nextSegmentTime != segmentStartTime)
-							{
-								logprintf("PrivateStreamAbstractionMPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
-								discontinuity = true;
-								mFirstPTS = (double)segmentStartTime/segmentTemplate->GetTimescale();
-							}
-							else
-							{
-								logprintf("PrivateStreamAbstractionMPD::%s:%d No discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
-							}
+							logprintf("%s:%d Error! Audio or Video track missing in period, ignoring discontinuity\n",	__FUNCTION__, __LINE__);
 						}
 						else
 						{
-							traceprintf("PrivateStreamAbstractionMPD::%s:%d Segment template not available\n", __FUNCTION__, __LINE__);
+							if (!segmentTemplate)
+							{
+								segmentTemplate = pMediaStreamContext->representation->GetSegmentTemplate();
+							}
+							if (segmentTemplate)
+							{
+								uint64_t segmentStartTime = GetFirstSegmentStartTime(period);
+								if (nextSegmentTime != segmentStartTime)
+								{
+									logprintf("PrivateStreamAbstractionMPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
+									discontinuity = true;
+									mFirstPTS = (double)segmentStartTime/segmentTemplate->GetTimescale();
+								}
+								else
+								{
+									logprintf("PrivateStreamAbstractionMPD::%s:%d No discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " \n", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
+								}
+							}
+							else
+							{
+								traceprintf("PrivateStreamAbstractionMPD::%s:%d Segment template not available\n", __FUNCTION__, __LINE__);
+							}
 						}
 					}
 					FetchAndInjectInitialization(discontinuity);

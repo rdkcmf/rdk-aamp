@@ -233,6 +233,7 @@ public:
 	 */
 	bool IsDiscontinuityProcessed() { return discontinuityProcessed; }
 
+	bool isFragmentInjectorThreadStarted( ) {  return fragmentInjectorThreadStarted;}
 	void MonitorBufferHealth();
 
 	void ScheduleBufferHealthMonitor();
@@ -278,6 +279,7 @@ protected:
 
 
 	static int GetDeferTimeMs(long maxTimeSeconds);
+
 
 	/**
 	 * @brief To be implemented by derived classes if discontinuity on trick-play is to be notified.
