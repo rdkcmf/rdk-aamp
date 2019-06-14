@@ -1171,6 +1171,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			//logprintf("mediaUsage is %s\n", mediaUsage);
 			//logprintf("sessionToken is %s\n", sessionToken);
 			unsigned int attemptCount = 0;
+			int sleepTime = gpGlobalConfig->licenseRetryWaitTime;
+                        if(sleepTime<=0) sleepTime = 100;
 			while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 			{
 				attemptCount++;
@@ -1181,13 +1183,15 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 									licenseRequest, strlen(licenseRequest), keySystem, mediaUsage,
 									secclientSessionToken,
 									&licenseResponse, &licenseResponseLength, &refreshDuration, &statusInfo);
-				if (sec_client_result >= 500 && sec_client_result < 600
-						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
+
+				if (((sec_client_result >= 500 && sec_client_result < 600)||
+					(sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
+					&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 				{
 					logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d\n", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
 					if (licenseResponse) SecClient_FreeResource(licenseResponse);
 					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.\n", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
-					mssleep(gpGlobalConfig->licenseRetryWaitTime);
+					mssleep(sleepTime);
 				}
 				else
 				{
