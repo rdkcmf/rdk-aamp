@@ -526,7 +526,9 @@ static void *FragmentInjector(void *arg)
 	{
 		logprintf("%s:%d: pthread_setname_np failed\n", __FUNCTION__, __LINE__);
 	}
+	track->fragmentInjectorThreadExited = false;
 	track->RunInjectLoop();
+	track->fragmentInjectorThreadExited = true;
 	return NULL;
 }
 
@@ -598,8 +600,28 @@ void MediaTrack::RunInjectLoop()
 		}
 	}
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
+
+	SignalAudioInjectorIncaseOnWait();
 }
 
+/**
+ * @brief To check and signal audio injection if that is in wait state to catch up video.
+ */
+void MediaTrack::SignalAudioInjectorIncaseOnWait(void)
+{
+	MediaTrack *audio = GetContext()->GetMediaTrack(eTRACK_AUDIO);
+
+	/* This condition is to handle a race condition -
+	 * where audio injector in wait to catch up video track, video track is completed and no further fragments to catch up; it exited its process,
+	 * in that case no body is there to signal the audio injector thread to release from the pthread_cond_wait().
+	 * The below code will signal audio injector thread if it is already in wait when video track exiting its process.
+	 */
+	if(eTRACK_VIDEO == type && audio && audio->isAudioInWait2CatchVideo)
+	{
+		logprintf("%s:%d Force signal audio injection, since video injection is done..\n", __FUNCTION__, __LINE__);
+		GetContext()->ReassessAndResumeAudioTrack(true);
+	}
+}
 
 /**
  * @brief Stop inject loop of track
@@ -689,7 +711,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
-		mutex(), fragmentFetched(), fragmentInjected()
+		mutex(), fragmentFetched(), fragmentInjected(), fragmentInjectorThreadExited(false), isAudioInWait2CatchVideo(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -777,13 +799,16 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	pthread_mutex_lock(&mLock);
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double videoDuration = video->GetTotalInjectedDuration();
-	if ((audioDuration > (videoDuration +  video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !abortWait)
+
+	if ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !abortWait && !video->fragmentInjectorThreadExited)
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f\n",
 			__FUNCTION__, __LINE__, audioDuration, videoDuration);
 #endif
+		audio->isAudioInWait2CatchVideo = true;
 		pthread_cond_wait(&mCond, &mLock);
+		audio->isAudioInWait2CatchVideo = false;
 	}
 	pthread_mutex_unlock(&mLock);
 }

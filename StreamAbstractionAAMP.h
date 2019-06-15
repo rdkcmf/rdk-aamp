@@ -153,6 +153,13 @@ public:
 	void RunInjectLoop();
 
 	/**
+	 * @brief To check whether audio injection in wait state to catch up video.
+	 *
+	 * @return void
+	 */
+	void SignalAudioInjectorIncaseOnWait(void);
+
+	/**
 	 * @brief Update cache after fragment fetch
 	 *
 	 * @return void
@@ -288,6 +295,8 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
+	bool fragmentInjectorThreadExited;  /**< Fragment injector's thread exited or not*/
+	bool isAudioInWait2CatchVideo;          /**< Flag used to determine whether the audio injection is in wait state to catch up video*/
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
