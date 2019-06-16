@@ -293,6 +293,7 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
+	bool fragmentInjectorThreadExited;  /**< Fragment injector's thread exited or not*/
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
