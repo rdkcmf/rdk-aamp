@@ -4615,8 +4615,13 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					{
 						MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 						ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
-						bool ignoreDiscontinuity = (!mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled) &&
-														mMediaStreamContext[eMEDIATYPE_AUDIO]->isFragmentInjectorThreadStarted();
+						bool ignoreDiscontinuity = false;
+
+						if (!trickPlay)
+						{
+							ignoreDiscontinuity = (mMediaStreamContext[eMEDIATYPE_AUDIO] && !mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->isFragmentInjectorThreadStarted());
+						}
+
 						if(ignoreDiscontinuity)
 						{
 							logprintf("%s:%d Error! Audio or Video track missing in period, ignoring discontinuity\n",	__FUNCTION__, __LINE__);
