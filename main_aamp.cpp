@@ -50,12 +50,6 @@
 #include <string>
 #include <vector>
 #include <list>
-#ifdef AAMP_CC_ENABLED
-#include "ccDataReader.h"
-#include "vlCCConstants.h"
-#include "cc_util.h"
-#include "vlGfxScreen.h"
-#endif
 #include "AampCacheHandler.h"
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
@@ -244,87 +238,6 @@ static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
 
-#ifdef AAMP_CC_ENABLED
-
-//Required for now, since we use config params to switch CC on/off
-
-/**
- * @brief Checks if CC enabled in config params
- * @retval true if CC is enabled
- */
-bool aamp_IsCCEnabled(void)
-{
-	if (gpGlobalConfig)
-	{
-		return gpGlobalConfig->aamp_GetCCStatus();
-	}
-
-	return false;
-}
-
-
-/**
- * @brief Initialize CC resource. Rendering is disabled by default
- * @param handle decoder handle
- * @retval 0 on sucess, -1 on failure
- */
-int aamp_CCStart(void *handle)
-{
-	int ret = -1;
-	static bool initStatus = false;
-	if (!initStatus)
-	{
-		vlGfxInit(0);
-		ret = vlMpeosCCManagerInit();
-		if (ret != 0)
-		{
-			return ret;
-		}
-		initStatus = true;
-	}
-
-	if (handle == NULL)
-	{
-		return -1;
-	}
-
-	media_closeCaptionStart((void *)handle);
-
-	//set CC off initially
-	ret = ccSetCCState(CCStatus_OFF, 0);
-
-	return ret;
-}
-
-
-/**
- * @brief Destroy CC resource
- */
-void aamp_CCStop(void)
-{
-	media_closeCaptionStop();
-}
-
-
-/**
- * @brief Start CC Rendering
- * @retval 0 on success
- */
-int aamp_CCShow(void)
-{
-	return ccSetCCState(CCStatus_ON, 0);
-}
-
-
-/**
- * @brief Stop CC Rendering
- * @retval 0 on success
- */
-int aamp_CCHide(void)
-{
-	return ccSetCCState(CCStatus_OFF, 0);
-}
-#endif // AAMP_CC_ENABLED
 
 /**
  * @brief Get ID of DRM system
@@ -2937,13 +2850,6 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_LONG("networkTimeout", gpGlobalConfig->networkTimeout, CURL_FRAGMENT_DL_TIMEOUT)
 			logprintf("networkTimeout=%ld\n", gpGlobalConfig->networkTimeout);
 		}
-#ifdef AAMP_CC_ENABLED
-		else if (strcmp(cfg, "cc") == 0)
-		{
-			gpGlobalConfig->bEnableCC = !gpGlobalConfig->bEnableCC;
-			logprintf("CC Status %s\n", gpGlobalConfig->bEnableCC ? "on" : "off");
-		}
-#endif
 		else if (strcmp(cfg, "dash-ignore-base-url-if-slash") == 0)
 		{
 			gpGlobalConfig->dashIgnoreBaseURLIfSlash = true;
