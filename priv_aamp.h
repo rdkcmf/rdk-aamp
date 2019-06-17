@@ -464,7 +464,6 @@ public:
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
 	bool SAP;                   /**< Enable/Disable Secondary Audio Program*/
-	bool bEnableCC;             /**< Enable/Disable Closed Caption*/
 	bool noFog;                 /**< Disable FOG*/
 	int mapMPD;                 /**< Mapping of HLS to MPD: 0=Disable, 1=Rename m3u8 to mpd, 2=COAM mapping, 3='*-nat-*.comcast.net/' to 'ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net/'*/
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
@@ -543,11 +542,6 @@ public:
 	 * @brief GlobalConfigAAMP Constructor
 	 */
 	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
-#ifdef AAMP_CC_ENABLED
-		bEnableCC(true),
-#else
-        bEnableCC(false),
-#endif
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
 #endif
@@ -611,16 +605,6 @@ public:
 	}
 
 	/**
-	 * @brief Get closed caption status
-	 *
-	 * @return Enabled/Disabled
-	 */
-	bool aamp_GetCCStatus(void)
-	{
-		return bEnableCC;
-	}
-
-	/**
 	@brief Sets user agent string
 	*
 	* @return none
@@ -634,17 +618,6 @@ public:
 		}
 		pUserAgentString =(char*) malloc(iLen);
 		sprintf(pUserAgentString, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);
-	}
-
-	/**
-	 * @brief Turning closed caption ON/OFF
-	 *
-	 * @param[in] on - New CC status
-	 * @return void
-	 */
-	void aamp_SetCCStatus(bool on)
-	{
-		bEnableCC = on;
 	}
 };
 
@@ -726,49 +699,6 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @return DRM system name
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
-
-#ifdef AAMP_CC_ENABLED
-
-/**
- * @brief Checks if CC enabled in config params
- *
- * @return void
- */
-bool aamp_IsCCEnabled(void);
-
-/**
- * @brief Initialize CC resource. Rendering is disabled by default
- *
- * @param[in] handle
- * @return void
- */
-int aamp_CCStart(void *handle);
-
-
-/**
- * @brief Destroy CC resource
- *
- * @return void
- */
-void aamp_CCStop(void);
-
-
-/**
- * @brief Start CC Rendering
- *
- * @return void
- */
-int aamp_CCShow(void);
-
-
-/**
- * @brief Stop CC Rendering
- *
- * @return void
- */
-int aamp_CCHide(void);
-
-#endif //AAMP_CC_ENABLED
 
 /**
  * @brief Bucket types of AAMP profiler
