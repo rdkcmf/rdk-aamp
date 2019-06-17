@@ -52,11 +52,10 @@ extern "C"
  */
 struct AAMP_JSController : public PrivAAMPStruct_JS
 {
-	AAMP_JSController() : _aampSessionID(0), _closedCaptionEnabled(false), _licenseServerUrl()
+	AAMP_JSController() : _aampSessionID(0), _licenseServerUrl()
 	{
 	}
 	int _aampSessionID;
-	bool _closedCaptionEnabled;
 	std::string _licenseServerUrl;
 };
 
@@ -64,47 +63,6 @@ struct AAMP_JSController : public PrivAAMPStruct_JS
  * @brief Global AAMP_JSController object
  */
 AAMP_JSController* _globalController = NULL;
-
-#ifdef AAMP_CC_ENABLED
-//TODO: Fix Race between gstaamp and AAMP_JSController for reading CC config.
-//AAMP_JSController is invoked earlier than gstaamp. Whereas gstaamp loads aamp.cfg
-
-/**
- * @brief Get the CC config option
- * @retval true if CC is enabled
- */
-static bool aamp_getClosedCaptionConfig()
-{
-	return aamp_IsCCEnabled();
-}
-
-
-/**
- * @brief Set the CC status for a AAMP_JSController instance
- * @param[in] obj instance of AAMP_JSController
- * @param[in] status status of CC (visible/hidden)
- */
-static void aamp_setClosedCaptionStatus(AAMP_JSController *obj, bool status)
-{
-	if(!aamp_IsCCEnabled())
-	{
-		return;
-	}
-
-	LOG("Set CC status : %d \n", status);
-	if(status == true)
-	{
-		obj->_closedCaptionEnabled = true;
-		aamp_CCShow();
-	}
-	else
-	{
-		obj->_closedCaptionEnabled = false;
-		aamp_CCHide();
-	}
-
-}
-#endif
 
 
 /**
@@ -123,17 +81,6 @@ void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 	_globalController->_aamp = aamp;
 	_globalController->_aampSessionID = sessionID;
 
-#ifdef AAMP_CC_ENABLED
-	// Load CC related configuration values to JSObject
-	if (aamp_getClosedCaptionConfig() == true)
-	{
-		_globalController->_closedCaptionEnabled = true;
-	}
-        else
-	{
-		_globalController->_closedCaptionEnabled = false;
-	}
-#endif
 	if (_globalController->_listeners.size() > 0)
 	{
 		std::multimap<AAMPEventType, void*>::iterator listenerIter;
@@ -199,7 +146,8 @@ static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context,
 		return JSValueMakeUndefined(context);
 	}
 
-	return JSValueMakeBoolean(context, obj->_closedCaptionEnabled);
+	ERROR("[AAMP_JSController] %s() AAMP_JSController.closedCaptionEnabled has been deprecated!!\n", __FUNCTION__);
+	return JSValueMakeBoolean(context, false);
 }
 
 
@@ -220,23 +168,15 @@ static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObj
 	if (obj == NULL)
 	{
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP_JSController.closedCaptionEnabled on instances of AAMP_JSController");
-		return false;
 	}
 	else if (!JSValueIsBoolean(context, value))
 	{
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP_JSController.closedCaptionEnabled' - value passed is not boolean");
-		return false;
 
 	}
 
-#ifdef AAMP_CC_ENABLED
-	bool status = JSValueToBoolean (context, value);
-	aamp_setClosedCaptionStatus(obj, status);
-#else
-	*exception = aamp_GetException(context, AAMPJS_GENERIC_ERROR, "CC is not configured in aamp!");
+	ERROR("[AAMP_JSController] %s() AAMP_JSController.closedCaptionEnabled has been deprecated!!\n", __FUNCTION__);
 	return false;
-#endif
-	return true;
 }
 
 
