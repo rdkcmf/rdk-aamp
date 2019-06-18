@@ -18,22 +18,30 @@
 */
 
 var controlObj = null;
+var bitrateList = [];
 
 function playPause() {
     console.log("playPause");
-    // If it was a trick play operation
-    if ( playbackSpeeds[playbackRateIndex] != 1 ) {
-        // Change to normal speed
-        playerObj.play();
+
+    if (playerState === playerStatesEnum.idle) {
+        //Play first video when clicking Play button first time
+        document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
+        loadUrl(urls[0]);
     } else {
-        if (playerState === playerStatesEnum.paused) {
-            // Play the video
+        // If it was a trick play operation
+        if ( playbackSpeeds[playbackRateIndex] != 1 ) {
+            // Change to normal speed
             playerObj.play();
-        } else { // Pause the video
-            playerObj.pause();
+        } else {
+            if (playerState === playerStatesEnum.paused) {
+                // Play the video
+                playerObj.play();
+            } else { // Pause the video
+                playerObj.pause();
+            }
         }
+        playbackRateIndex = playbackSpeeds.indexOf(1);
     }
-    playbackRateIndex = playbackSpeeds.indexOf(1);
 };
 
 function mutePlayer() {
@@ -41,12 +49,12 @@ function mutePlayer() {
         // Mute
         playerObj.setVolume(0);
         mutedStatus = true;
-        document.getElementById("muteIcon").src = "icons/mute.png";
+        document.getElementById("muteIcon").src = "../icons/mute.png";
     } else {
         // Unmute
         playerObj.setVolume(100);
         mutedStatus = false;
-        document.getElementById("muteIcon").src = "icons/unMute.png";
+        document.getElementById("muteIcon").src = "../icons/unMute.png";
     }
 };
 
@@ -55,14 +63,18 @@ function toggleCC() {
         // CC ON
         XREReceiver.onEvent("onClosedCaptions", { enable: true });
         ccStatus = true;
-        document.getElementById("ccIcon").src = "icons/ccOn.png";
+        document.getElementById("ccIcon").src = "../icons/closedCaptioning.png";
     } else {
         // CC OFF
         XREReceiver.onEvent("onClosedCaptions", { enable: false });
         ccStatus = false;
-        document.getElementById("ccIcon").src = "icons/ccOff.png";
+        document.getElementById("ccIcon").src = "../icons/closedCaptioningDisabled.png";
     }
 };
+
+function goToHome() {
+    window.location.href = "../index.html";
+}
 
 function skipTime(tValue) {
     //if no video is loaded, this throws an exception
@@ -78,11 +90,11 @@ function skipTime(tValue) {
 }
 
 function skipBackward() {
-    skipTime(-10);
+    skipTime(-300);
 };
 
 function skipForward() {
-    skipTime(10);
+    skipTime(300);
 };
 
 function fastrwd() {
@@ -112,42 +124,40 @@ function getVideo() {
     var fileURLContent = document.getElementById("videoURLs").value; // get select field
     if (fileURLContent != "") {
         var newFileURLContent = fileURLContent;
-        //video.src = newFileURLContent;
+        document.getElementById("contentURL").innerHTML = "URL: " + fileURLContent;
         //get the selected index of the URL List
         var selectedURL = document.getElementById("videoURLs");
         var optionIndex = selectedURL.selectedIndex;
         //set the index to the selected field
         document.getElementById("videoURLs").selectedIndex = optionIndex;
 
-        console.log("Loading:" + newFileURLContent);
+        console.log(newFileURLContent);
         resetPlayer();
         resetUIOnNewAsset();
-        loadUrl(newFileURLContent);
-
-        console.log("After Load:" + newFileURLContent);
+        
+        for ( urlIndex = 0; urlIndex < urls.length; urlIndex++) {
+            if (newFileURLContent === urls[urlIndex].url) {
+                console.log("FOUND at index: " + urlIndex);
+                loadUrl(urls[urlIndex]);
+                break;
+            }
+        }
     } else {
         errMessage("Enter a valid video URL"); // fail silently
     }
 }
 
-function deleteVideo() {
-    var fileURL = document.getElementById("videoURLs").value; // get select field
-    if (fileURL != "") {
-        var delURL = document.getElementById("videoURLs");
-        var selectPos = delURL.selectedIndex;
-        var selectOption = delURL.options;
-        //"Index: " + selectOption[selectPos].index + " is " + selectOption[selectPos].text
-        var storedURLs = JSON.parse(sessionStorage.getItem("URLItems"));
-        storedURLs.splice(selectPos,1);
-        sessionStorage.setItem("URLItems", JSON.stringify(storedURLs));
-        delURL.remove(delURL.selectedIndex);
-        //Display Delete modal
-        var delModal = document.getElementById('deleteModal');
-        document.getElementById("deleteContent").innerHTML = fileURL;
-        delModal.style.display = "block";
-        setTimeout(function() {
-            delModal.style.display = "none";
-        }, 3000);
+//function to toggle Overlay widget
+function toggleOverlay() {
+    var overlay = document.getElementById('overlayModal');
+    var urlMod = document.getElementById('urlModal');
+    document.getElementById("logCheck").checked = !document.getElementById("logCheck").checked;
+    if(document.getElementById("logCheck").checked) {
+        overlay.style.display = "block";
+        urlMod.style.display = "block";
+    } else {
+        overlay.style.display = "none";
+        urlMod.style.display = "none";
     }
 }
 
@@ -171,16 +181,6 @@ function loadPrevAsset() {
     loadUrl(urls[urlIndex]);
 }
 
-function bufferingDisplay(buffering) {
-    // Get the buffer div
-    var bufferShow = document.getElementById("bufferWidget");
-    if (buffering === true) {
-        bufferShow.style.display = "block";
-    } else {
-        bufferShow.style.display = "none";
-    }
-}
-
 var HTML5PlayerControls = function() {
     var that = this;
     this.init = function() {
@@ -193,35 +193,35 @@ var HTML5PlayerControls = function() {
         this.skipFwdButton = document.getElementById("skipForwardButton");
         this.fwdButton = document.getElementById("fastForwardButton");
         this.muteButton = document.getElementById("muteVideoButton");
-        this.ccButton = document.getElementById("ccToggleButton");
-        this.setButton = document.getElementById("settingButton");
+        this.ccButton = document.getElementById("ccButton");
+        this.autoVideoLogButton = document.getElementById("autoLogButton");
+        this.homeContentButton = document.getElementById('homeButton');
 
         // Sliders
         this.seekBar = document.getElementById("seekBar");
         this.videoFileList = document.getElementById("videoURLs");
-        this.loadVideoButton = document.getElementById("loadButton");
-        this.deleteVideoButton = document.getElementById("deleteButton");
-        this.helpContentButton = document.getElementById('helpButton');
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.setButton, this.videoFileList, this.loadVideoButton, this.deleteVideoButton, this.helpContentButton];
+        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.videoFileList, this.autoVideoLogButton, this.homeContentButton ];
         this.currentPos = 0;
         this.dropDownListVisible = false;
-        this.dropDownBitrateListVisible = false;
         this.selectListIndex = 0;
         this.selectBitrateListIndex = 0;
         this.prevObj = null;
         this.addFocus();
         this.seekBar.style.backgroundColor = "red";
 
+        document.getElementById('ffModal').style.display = "none";
+        document.getElementById('ffSpeed').style.display = "none";
+
         // Event listener for the play/pause button
         this.playButton.addEventListener("click", function() {
             playPause();
         });
 
-        // show listener for the
-        this.helpContentButton.addEventListener("click", function() {
-            showhide();
+        // Event listener for the home button
+        this.homeContentButton.addEventListener("click", function() {
+            goToHome();
         });
 
         // Event listener for the mute button
@@ -271,25 +271,14 @@ var HTML5PlayerControls = function() {
         this.seekBar.addEventListener("keyup", function() {
             playerObj.play();
         });
-
-        this.loadVideoButton.addEventListener("click", getVideo, false);
     };
 
     this.reset = function() {
 
         var value = 0;
-        this.playButton.src = "icons/play.png";
+        this.playButton.src = "../icons/play.png";
         this.seekBar.value = value;
         this.seekBar.style.width = value+"%";
-
-        //Reset bitrate list
-        this.setButton.innerHTML = "";
-        var options = document.createElement("option");
-        options.value = "0";
-        options.text = "Auto";
-        options.selected = true;
-        this.setButton.add(options);
-
     };
 
     this.keyLeft = function() {
@@ -308,9 +297,9 @@ var HTML5PlayerControls = function() {
         } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
-            this.currentObj = this.setButton;
+            this.currentObj = this.videoFileList;
             //move focus to the first element in the top navigation bar
-            this.currentPos = this.components.indexOf(this.setButton);
+            this.currentPos = this.components.indexOf(this.videoFileList);
             this.addFocus();
         }
     };
@@ -320,7 +309,7 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if (this.dropDownBitrateListVisible) {
             this.nextBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.setButton) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.loadVideoButton) || (this.components[this.currentPos] == this.deleteVideoButton) || (this.components[this.currentPos] == this.helpContentButton)) {
+        } else if ((this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -348,24 +337,6 @@ var HTML5PlayerControls = function() {
         this.videoFileList.options[this.selectListIndex].selected = true;
     };
 
-    this.prevBitrateSelect = function() {
-        if (this.selectBitrateListIndex > 0) {
-            this.selectBitrateListIndex--;
-        } else {
-            this.selectBitrateListIndex = this.setButton.options.length - 1;
-        }
-        this.setButton.options[this.selectBitrateListIndex].selected = true;
-    };
-
-    this.nextBitrateSelect = function() {
-        if (this.selectBitrateListIndex < this.setButton.options.length - 1) {
-            this.selectBitrateListIndex++;
-        } else {
-            this.selectBitrateListIndex = 0;
-        }
-        this.setButton.options[this.selectBitrateListIndex].selected = true;
-    };
-
     this.showDropDown = function() {
         this.dropDownListVisible = true;
         var n = this.videoFileList.options.length;
@@ -377,21 +348,6 @@ var HTML5PlayerControls = function() {
         this.videoFileList.size = 1;
     };
 
-    this.showBitrateDropDown = function() {
-        this.dropDownBitrateListVisible = true;
-        var n = this.setButton.options.length;
-        this.setButton.size = n;
-    };
-
-    this.hideBitrateDropDown = function() {
-        this.dropDownBitrateListVisible = false;
-        this.setButton.size = 1;
-        var newBitrate = document.getElementById("settingButton").value;
-        if (newBitrate != "") {
-            console.log("bitrate: "  + newBitrate)
-            playerObj.setVideoBitrate(newBitrate);
-        }
-    };
 
     this.ok = function() {
         switch (this.currentPos) {
@@ -417,28 +373,18 @@ var HTML5PlayerControls = function() {
                     toggleCC();
                     break;
             case 7:
-                    if (this.dropDownBitrateListVisible == false) {
-                        this.showBitrateDropDown();
-                    } else {
-                        this.hideBitrateDropDown();
-                    }
-                    break;
-            case 8:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
                         this.hideDropDown();
+		                getVideo();
                     }
                     break;
+            case 8:      
+                    toggleOverlay();
+                    break;
             case 9:
-                    getVideo();
-                    break;
-            case 10:
-                    deleteVideo();
-                    break;
-            case 11:
-                    showhide();
-                    break;
+                    goToHome();
         };
     };
 
@@ -482,7 +428,7 @@ var HTML5PlayerControls = function() {
 
     this.keyEventHandler = function(e, type) {
         var keyCode = e.which || e.keyCode;
-        console.log(keyCode);
+        console.log("UVE Pressed keycode" + keyCode);
         e.preventDefault();
         if (type == "keydown") {
             switch (keyCode) {
@@ -502,33 +448,32 @@ var HTML5PlayerControls = function() {
                         this.ok();
                         break;
                 case 88: // X
+		        case 34:
                         skipBackward();
                         break;
                 case 90: // Z
+		        case 33:
                         skipForward();
                         break;
                 case 32:
                         this.ok();
                         break;
+		        case 179:
                 case 80: // P
                         playPause();
                         break;
                 case 113: // F2
                         mutePlayer();
                         break;
-                case 114: // F3
-                        showhide();
-                        break;
                 case 82: // R
+		        case 227:
                         fastrwd();
                         break;
                 case 70: // F
+		        case 228:
                         fastfwd();
                         break;
                 case 117: // F6
-                        overlayDisplay();
-                        break;
-                case 118: // F7
                         overlayController();
                         break;
                 case 85: // U
@@ -542,26 +487,6 @@ var HTML5PlayerControls = function() {
             }
         }
         return false;
-    }
-};
-
-function showhide() {
-    // Get the modal
-    var modal = document.getElementById('myModal');
-    modal.style.display = "block";
-    setTimeout(function() {
-        modal.style.display = "none";
-    }, 5000);
-};
-
-function overlayDisplay() {
-    // Get the modal
-    var modal = document.getElementById('overlayModal');
-    //modal.style.display = "block";
-    if(modal.style.display == "block") {
-        modal.style.display = "none";
-    } else {
-        modal.style.display = "block";
     }
 };
 
@@ -582,12 +507,12 @@ function overlayController() {
 };
 
 function createBitrateList(availableBitrates) {
+    bitrateList = [];
     for (var iter = 0; iter < availableBitrates.length; iter++) {
-        var option = document.createElement("option");
-        option.value = availableBitrates[iter];
-        option.text = Math.round(availableBitrates[iter]/1000) + "kbps";
-        settingButton.add(option);
+        bitrate = (availableBitrates[iter] / 1000000).toFixed(1);
+        bitrateList.push(bitrate);
     }
+    document.getElementById("availableBitratesList").innerHTML = bitrateList;
 };
 
 function showTrickmodeOverlay(speed) {
@@ -609,7 +534,7 @@ function showTrickmodeOverlay(speed) {
     }, 2000);
 };
 
-// Convert video time to hh:mm:ss format
+// Convert seconds to hours
 function convertSStoHr(videoTime) {
     var hhTime = Math.floor(videoTime / 3600);
     var mmTime = Math.floor((videoTime - (hhTime * 3600)) / 60);
@@ -626,14 +551,12 @@ function convertSStoHr(videoTime) {
 
 function resetUIOnNewAsset(){
     controlObj.reset();
-    document.getElementById("playState").innerHTML = "PAUSED";
-    document.getElementById("muteIcon").src = "icons/unMute.png";
+    document.getElementById("muteIcon").src = "../icons/unMute.png";
     document.getElementById("currentDuration").innerHTML = "00:00:00";
     document.getElementById("totalDuration").innerHTML = "00:00:00";
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
-    bufferingDisplay(true);
 };
 
 function initPlayerControls() {
@@ -650,25 +573,16 @@ function initPlayerControls() {
     document.getElementById('controlDiv').style.display = "block";
     document.getElementById('controlDivNext').style.display = "block";
 
-    //to refreash URL select field on every reload
-    var storedURLs = JSON.parse(sessionStorage.getItem("URLItems"));
-    var videoURLs = document.getElementById("videoURLs");
-    if(storedURLs) {
-        //to remove all current options of videoURLs
-        while (videoURLs.firstChild) {
-            videoURLs.removeChild(videoURLs.firstChild);
-        }
-        //iteratively adding all the options in session storage to videoURLs
-        var option = document.createElement("option");
-        option.disabled = true;
-        option.value = "";
-        option.text = "Select video URL:";
-        videoURLs.add(option);
+    //to hide the anomaly overlay widget initially
+    document.getElementById("logCheck").checked = false;
 
-        for (var iter = 0; iter < storedURLs.length; iter++) {
+    //to load URL select field
+	if(urls) {
+        // Iteratively adding all the options to videoURLs
+        for (var iter = 0; iter < urls.length; iter++) {
             var option = document.createElement("option");
-            option.value = storedURLs[iter];
-            option.text = storedURLs[iter];
+            option.value = urls[iter].url;
+            option.text = urls[iter].name;
             videoURLs.add(option);
         }
     }

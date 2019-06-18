@@ -36,7 +36,7 @@ C. General setup:
          c. To launch reference player, use Comcast's Chariot App (https://send2chariot.xreapps.net:8443/send2chariot/#/send/html)
            c.1 Fill in X1 Device ID (from XRAY)
            c.2 Select "Chariot XRE" for Launch Type
-           c.3 fill in URL to launch (i.e. http://localhost:50050/UVEReferencePlayer/index.html)
+           c.3 fill in URL to launch (i.e. http://localhost:50050/ReferencePlayer/index.html)
            c.4 Specify "Default" for Browser Type
            c.5 Select "Mute Player"
            c.6 Select "Use Background"
@@ -66,6 +66,7 @@ E. Folder structure
      -index.html                     // Homepage of HTML reference player
    -index.html                       // Homepage of reference player
    -ReferencePlayer.js               // JS  code for Homepage and redirection to respective reference players
+   -URLs.js                          // JS code to give URLs
    -ReferencePlayerStyle.css         // CSS for Homepage and its UI
 
 F. Appendix
@@ -100,7 +101,7 @@ b. /opt/xrehtmlappswhitelist.conf
     },
     {
       "name" : "AAMP Reference Player",
-      "url" : "localhost:50050/UVEReferencePlayer/index.html"
+      "url" : "localhost:50050/ReferencePlayer/index.html"
     }
   ]
 }
