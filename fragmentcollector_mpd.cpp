@@ -3830,6 +3830,9 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
+#ifndef CONTENT_4K_SUPPORTED
+						if ( ( mStreamInfo[idx].resolution.width < 1920 ) && ( mStreamInfo[idx].resolution.height < 1080) )
+#endif
 						mContext->GetABRManager().addProfile({
 							mStreamInfo[idx].isIframeTrack,
 							mStreamInfo[idx].bandwidthBitsPerSecond,
