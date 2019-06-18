@@ -197,6 +197,7 @@ class AAMPPlayer {
      * URI of the Media being played by the Video Engine
      */
     load(url) {
+		console.log("Url received: " + url);
         this.url = url;
         this.player.load(url);
     }
@@ -446,7 +447,7 @@ class AAMPPlayer {
     setVideoZoom(videoZoom) {
         this.player.setVideoZoom(videoZoom);
     }
-
+    
     /**
      * Get UVE API version
      */
