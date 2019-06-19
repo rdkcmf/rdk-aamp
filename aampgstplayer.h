@@ -50,7 +50,6 @@ public:
 	void Stop(bool keepLastFrame);
 	void DumpStatus(void);
 	void Flush(double position, int rate);
-	void SelectAudio(int index);
 	bool Pause(bool pause);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
