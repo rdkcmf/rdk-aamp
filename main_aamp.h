@@ -524,13 +524,6 @@ public:
 	 */
 	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE){}
 
-	/**
-	 *   @brief Select audio track
-	 *
-	 *   @param[in]  index
-	 *   @return void
-	 */
-	virtual void SelectAudio(int index){}
 
 	/**
 	 *   @brief Enabled or disable playback pause
