@@ -55,6 +55,11 @@ using namespace media;
 #endif /*!NO_AVE_DRM*/
 
 static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t aveDrmIndividualizationCond = PTHREAD_COND_INITIALIZER;
+static bool aveDrmIndividualizationInProgress = false;
+static bool aveDrmIndividualized = false;
+
+#define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 4
 
 #ifdef AVE_DRM
 
@@ -719,6 +724,13 @@ void AveDrm::SetState(DRMState state)
 	mDrmState = state;
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
+	pthread_mutex_lock(&aveDrmManagerMutex);
+	if (!aveDrmIndividualized)
+	{
+		aveDrmIndividualized = true;
+		pthread_cond_broadcast(&aveDrmIndividualizationCond);
+	}
+	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 /**
  * @brief GetState Function to return current DRM State
@@ -968,6 +980,27 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 
 	if(drmMetaDataKeyRequested)
 	{
+		if(!aveDrmIndividualized)
+		{
+			if(aveDrmIndividualizationInProgress)
+			{
+				struct timespec ts;
+				struct timeval tv;
+				logprintf("DELIA-33528 sleep for %d secs for individualization\n", AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS);
+				gettimeofday(&tv, NULL);
+				ts.tv_sec = tv.tv_sec + AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS;
+				ts.tv_nsec = (long)(tv.tv_usec * 1000);
+				if(0 != pthread_cond_timedwait(&aveDrmIndividualizationCond, &aveDrmManagerMutex, &ts))
+				{
+					logprintf("AesDec::%s:%d wait for individualization timed out, continue to acquire key\n", __FUNCTION__, __LINE__);
+					aveDrmIndividualized = true;
+				}
+			}
+			else
+			{
+				aveDrmIndividualizationInProgress = true;
+			}
+		}
 		logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]\n",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
 		sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType);
 	}
