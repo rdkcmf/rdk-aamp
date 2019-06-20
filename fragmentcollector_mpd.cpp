@@ -591,10 +591,11 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
  * @param[out] selectedRepType type of desired representation
  * @retval index of desired representation
  */
-static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedRepType, uint32_t &selectedRepBandwidth)
+static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedRepType)
 {
 	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
 	int selectedRepIdx = -1;
+	uint32_t selectedRepBandwidth = 0;
 	// check for codec defined in Adaptation Set
 	const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
 	for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
@@ -623,7 +624,7 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 			audioType = eAUDIO_DDPLUS;
 #endif
 		}
-		else if( codecValue == "aac" || codecValue.find("mp4") != std::string::npos )
+		else // if( codecValue == "aac" || codecValue.find("mp4") != std::string::npos ) // needed?
 		{
 			audioType = eAUDIO_AAC;
 		}
@@ -640,7 +641,6 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 			(selectedRepType != eAUDIO_AAC && audioType == eAUDIO_AAC && gpGlobalConfig->disableEC3) // force AAC
 			)
 		{
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d SelectedRepIndex : %d ,selectedRepType : %d, selectedRepBandwidth: %d, audioType : %d, bandwidth : %d\n", __FUNCTION__, __LINE__, selectedRepIdx, selectedRepType, selectedRepBandwidth, audioType, bandwidth);
 			selectedRepIdx = representationIndex;
 			selectedRepType = audioType;
 			selectedRepBandwidth = bandwidth;
@@ -2658,12 +2658,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		UpdateLanguageList();
 		StreamSelection(true);
 
-		if(mAudioType == eAUDIO_UNKNOWN)
-		{
-			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
-			aamp->SendErrorEvent(AAMP_TUNE_UNSUPPORTED_AUDIO_TYPE);
-		}
-		else if(mNumberOfTracks)
+		if(mNumberOfTracks)
 		{
 			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
 			TunedEventConfig tunedEventConfig =  mIsLive ?
@@ -3541,7 +3536,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		mMediaStreamContext[i]->enabled = false;
 		std::string selectedLanguage;
 		bool isIframeAdaptationAvailable = false;
-		uint32_t selRepBandwidth = 0;
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -3563,7 +3557,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 							{
 								internalSelRepType = eAUDIO_UNKNOWN;
 							}
-							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType, selRepBandwidth);
+							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType);
 							if(desiredCodecIdx != -1 )
 							{
 								otherLanguageSelected = false;
@@ -3578,7 +3572,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 						else if(internalSelRepType == eAUDIO_UNKNOWN || otherLanguageSelected)
 						{
 							// Got first Adap with diff language , store it now until we find another matching lang adaptation
-							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType, selRepBandwidth);
+							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType);
 							if(desiredCodecIdx != -1)
 							{
 								otherLanguageSelected = true;
@@ -4463,8 +4457,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 								else if (mAudioType != eAUDIO_UNKNOWN)
 								{
 									AudioType selectedAudioType = eAUDIO_UNKNOWN;
-									uint32_t selectedRepBandwidth = 0;
-									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth);
+									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType);
 									if(selectedAudioType != mAudioType)
 									{
 										continue;
