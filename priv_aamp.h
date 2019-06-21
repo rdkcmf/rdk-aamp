@@ -1495,7 +1495,6 @@ public:
 	VideoZoomMode zoom_mode;
 	bool video_muted;
 	int audio_volume;
-	bool ave_adapter;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
 
