@@ -112,6 +112,7 @@ typedef enum
 	AAMP_TUNE_LICENCE_REQUEST_FAILED,       /**< DRM license got invalid response */
 	AAMP_TUNE_INVALID_DRM_KEY,              /**< DRM reporting invalid license key */
 	AAMP_TUNE_UNSUPPORTED_STREAM_TYPE,      /**< Unsupported stream type */
+	AAMP_TUNE_UNSUPPORTED_AUDIO_TYPE,       /**< Unsupported audio type in manifest */
 	AAMP_TUNE_FAILED_TO_GET_KEYID,          /**< Failed to parse key id from init data*/
 	AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN,   /**< Failed to get session token from AuthService*/
 	AAMP_TUNE_CORRUPT_DRM_DATA,             /**< DRM failure due to corrupt drm data, self heal might clear further errors*/
