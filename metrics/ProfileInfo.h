@@ -24,7 +24,7 @@
 #define AAMP_SRC_PROFILEINFO_H
 
 #include "FragmentStatistics.h"
-#include "LicenseStatistics.h"
+#include "LicnStatistics.h"
 
 /*
  *  Stores Track types, With respect to Video Stat
@@ -62,8 +62,6 @@ class CProfileInfo
 private:
 	CHTTPStatistics * mpManifestStat;
 	CFragmentStatistics * mpFragmentStat;
-	CLicenseStatistics * mplicenseStatistics;
-
 public:
 
 	/**
@@ -73,7 +71,7 @@ public:
          *
 	 *   @return None
 	 */
-	CProfileInfo() : mpManifestStat(NULL),mpFragmentStat(NULL),mplicenseStatistics(NULL)
+	CProfileInfo() : mpManifestStat(NULL),mpFragmentStat(NULL)
 	{
 
 	}
@@ -88,11 +86,6 @@ public:
 		if(newObj.mpFragmentStat)
 		{
 			this->mpFragmentStat = new CFragmentStatistics(*newObj.mpFragmentStat);
-		}
-
-		if(newObj.mplicenseStatistics)
-		{
-			mplicenseStatistics = new CLicenseStatistics(*newObj.mplicenseStatistics);
 		}
 	}
 
@@ -128,21 +121,6 @@ public:
 			}
 		}
 
-		if(newObj.mplicenseStatistics)
-		{
-			mplicenseStatistics = GetLicenseStat(); // Allocate if required
-
-			*mplicenseStatistics = *newObj.mplicenseStatistics;
-		}
-		else
-		{
-			if(mplicenseStatistics)
-			{
-				delete mplicenseStatistics;
-				mplicenseStatistics = NULL;
-			}
-		}
-
 		return *this;
 	}
 
@@ -162,10 +140,6 @@ public:
 		if(mpFragmentStat)
 		{
 			delete mpFragmentStat;
-		}
-		if(mplicenseStatistics)
-		{
-			delete mplicenseStatistics;
 		}
 	}
 
@@ -199,22 +173,6 @@ public:
 			mpFragmentStat = new CFragmentStatistics();
 		}
 		return mpFragmentStat;
-	}
-
-	/**
-	 *   @brief Returns License stat and allocates if not allocated.
-	 *
-	 *   @param[in]  NONE
-         *
-	 *   @return CLicenseStatistics pointer
-	 */
-	CLicenseStatistics * GetLicenseStat()
-	{
-		if(!mplicenseStatistics)
-		{
-			mplicenseStatistics = new CLicenseStatistics();
-		}
-		return mplicenseStatistics;
 	}
 
 	/**

@@ -205,7 +205,6 @@ enum HttpHeaderType
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
 	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
-	eHTTPHEADERTYPE_BITRATE,    /**< Bitrate info from fog */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -1536,7 +1535,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
+	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL, int * fogError = NULL);
 
 	/**
 	 * @brief get Media Type in string
@@ -1557,7 +1556,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
+	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
 
 	/**
 	 * @brief Download fragment
@@ -1571,7 +1570,7 @@ public:
 	 * @param[out] http_code - HTTP error code
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL, int * fogError = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2566,7 +2565,6 @@ public:
 	 */
 	bool IsMuxedStream();
 
-
 	/**
 	 *   @brief updates download metrics to VideoStat object,
 	 *
@@ -2579,14 +2577,35 @@ public:
 	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl);
 
 	/**
-	 *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	 *   @brief updates time shift buffer status
 	 *
-	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
-	 *   @param[in]  bitrate - bitrate ( bits per sec )
-	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
-     *   @param[in]  strUrl :  URL in case of faulures
+	 *   @param[in]  btsbAvailable - true if TSB supported
 	 *   @return void
 	 */
+	void UpdateVideoEndTsbStatus(bool btsbAvailable);
+
+	/**
+	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	*
+	*  @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	*   @param[in]  bitrate - bitrate ( bits per sec )
+	*   @param[in]  curlOrHTTPErrorCode - download curl or http error
+	*   @param[in]  strUrl :  URL in case of faulures
+	*   @param[in] keyChanged : if DRM key changed then it is set to true
+	*   @param[in] isEncrypted : if fragment is encrypted then it is set to true
+	*   @return void
+	*/
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration, bool keyChanged, bool isEncrypted);
+    
+	/**
+	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
+	*
+	*   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	*   @param[in]  bitrate - bitrate ( bits per sec )
+	*   @param[in]  curlOrHTTPErrorCode - download curl or http error
+	*   @param[in]  strUrl :  URL in case of faulures
+	*   @return void
+	*/
 	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration);
 
 

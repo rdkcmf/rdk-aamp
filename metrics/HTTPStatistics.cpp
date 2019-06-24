@@ -19,6 +19,13 @@
 
 #include "HTTPStatistics.h"
 
+#define TAG_HTTP_4XX_ERRORS			"4"  	// Count of HTTP-4XX Errors
+#define TAG_HTTP_5XX_ERRORS			"5"  	// Count of HTTP-5XX Errors
+#define TAG_CURL_TIMEOUT_ERRORS			"t"  	// Count of Curl Timeout Errors
+#define TAG_CURL_ERRORS				"c"  	// Count of Other Curl Errors
+#define TAG_SUCCESS				"s"		// Count of Successful downloads
+
+
 /**
  *   @brief  Increment stat count
  *
@@ -74,24 +81,50 @@ void CHTTPStatistics::IncrementCount(VideoStatCountType type)
 cJSON * CHTTPStatistics::ToJson() const
 {
 
+	bool bDataAdded = false;
 	cJSON *monitor = cJSON_CreateObject();
+	cJSON * jsonObj =  NULL;
 	if(monitor)
 	{
-// todo avoid adding to json if counts are ZERO
-		cJSON * jsonObj =  cJSON_CreateNumber(mHttp4xxCount);
-		cJSON_AddItemToObject(monitor, "4xx", jsonObj);
 
-		jsonObj =  cJSON_CreateNumber(mCurlCount);
-		cJSON_AddItemToObject(monitor, "curl", jsonObj);
 
-		jsonObj =  cJSON_CreateNumber(mTimeOutCount);
-		cJSON_AddItemToObject(monitor, "timeout", jsonObj);
+		if(mHttp4xxCount > 0 )
+		{
+			jsonObj = cJSON_CreateNumber(mHttp4xxCount);
+			cJSON_AddItemToObject(monitor, TAG_HTTP_4XX_ERRORS, jsonObj);
+		}
 
-		jsonObj =  cJSON_CreateNumber(mSuccessCount);
-		cJSON_AddItemToObject(monitor, "success", jsonObj);
+		if(mCurlCount > 0)
+		{
+			jsonObj =  cJSON_CreateNumber(mCurlCount);
+			cJSON_AddItemToObject(monitor, TAG_CURL_ERRORS, jsonObj);
+		}
 
-		jsonObj =  cJSON_CreateNumber(http5xxCount);
-		cJSON_AddItemToObject(monitor, "5xx", jsonObj);
+		if(mTimeOutCount >0)
+		{
+			jsonObj =  cJSON_CreateNumber(mTimeOutCount);
+			cJSON_AddItemToObject(monitor, TAG_CURL_TIMEOUT_ERRORS, jsonObj);
+		}
+
+		if(http5xxCount >0)
+		{
+			jsonObj =  cJSON_CreateNumber(http5xxCount);
+			cJSON_AddItemToObject(monitor, TAG_HTTP_5XX_ERRORS, jsonObj);
+		}
+
+		if(mSuccessCount > 0 )
+		{
+			jsonObj =  cJSON_CreateNumber(mSuccessCount);
+			cJSON_AddItemToObject(monitor, "TAG_SUCCESS", jsonObj);
+		}
+
+	}
+
+	if(jsonObj == NULL)
+	{
+		//None of the data got added so delete
+		cJSON_Delete(monitor);
+		monitor = NULL;
 	}
 
 	return monitor;

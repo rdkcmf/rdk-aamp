@@ -1327,7 +1327,7 @@ char *TrackState::FindMediaForSequenceNumber()
 * @param decryption_error[out] decryption error
 * @return bool true on success else false 
 ***************************************************************************/
-bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
+bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError)
 {
 #ifdef TRACE
 		logprintf("FetchFragmentHelper Enter: pos %f start %f frag-duration %f fragmentURI %s\n",
@@ -1460,6 +1460,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 
 			if (cachedFragment->fragment.len && fragmentEncrypted)
 			{
+				// DrmDecrypt resets mKeyTagChanged , take a back up here to give back to caller
+				bKeyChanged = mKeyTagChanged;
 				{	
 					traceprintf("%s:%d [%s] uri %s - calling  DrmDecrypt()\n", __FUNCTION__, __LINE__, name, fragmentURI);
 					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
@@ -1557,7 +1559,9 @@ void TrackState::FetchFragment()
 	AAMPLOG_INFO("%s:%d: %s\n", __FUNCTION__, __LINE__, name);
 	//DELIA-33346 -- always set the rampdown flag to false .
 	context->mCheckForRampdown = false;
-	if (false == FetchFragmentHelper(http_error, decryption_error) && aamp->DownloadsAreEnabled() )
+        bool bKeyChanged = false;
+        int iFogErrorCode = -1;
+	if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode) && aamp->DownloadsAreEnabled() )
 	{
 		if (fragmentURI )
 		{
@@ -1593,6 +1597,13 @@ void TrackState::FetchFragment()
 			// if real problem exists, underflow will eventually be detected/reported
 			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track \n", __FUNCTION__, __LINE__, name);
 		}
+
+		long lbwd = this->GetCurrentBandWidth() * 8;
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+								lbwd,
+								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->effectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
+
 		return;
 	}
 	CachedFragment* cachedFragment = GetFetchBuffer(false);
@@ -1623,7 +1634,7 @@ void TrackState::FetchFragment()
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
-								http_error,this->effectiveUrl,cachedFragment->duration);
+								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->effectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
 	}
 	else
 	{

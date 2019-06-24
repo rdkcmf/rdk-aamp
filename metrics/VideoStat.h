@@ -32,6 +32,7 @@
 typedef std::map<long, CProfileInfo> MapProfileInfo;
 
 typedef std::map<VideoStatTrackType, MapProfileInfo>  MapStreamInfo; // collection of all Audip/Video/Profile info
+typedef std::map<VideoStatTrackType, CLicenseStatistics>  MapLicenceInfo; // Licence stats for each track
 
 class CVideoStat
 {
@@ -43,7 +44,9 @@ private:
 	long long mTotalVideoDuration;
 	int mAbrNetworkDropCount;
 	int mAbrErrorDropCount;
+	bool mbTsb;
 	
+	MapLicenceInfo mMapLicenseInfo;
 	MapStreamInfo mMapStreamInfo;
 	std::map<VideoStatTrackType,std::string> mMapLang;
 
@@ -56,7 +59,7 @@ public:
 	 *   @return None
 	 */
 	CVideoStat() : mTmeToTopProfile(0), mTimeAtTopProfile(0),mTotalVideoDuration(0), mAbrNetworkDropCount(COUNT_NONE), mAbrErrorDropCount (COUNT_NONE),
-					mMapStreamInfo(),mMapLang()
+					mMapStreamInfo(),mMapLang(),mMapLicenseInfo(),mbTsb(false)
 	{
 
 	}
@@ -156,15 +159,14 @@ public:
 	void Increment_Manifest_Count(VideoStatTrackType eType, VideoStatCountType eCountType, long bitrate);
 	
 	/**
-	 *   @brief Increment License stats
+	 *   @brief   Records License stat based on isEncypted
 	 *
-	 *   @param[in] VideoStatTrackType - Indicates track for which Increment required
-	 *    @param[in] VideoStatCountType - Type of count type
-	 *    bitrate : profile bitrate
-	 *
+	 *   @param[in] VideoStatTrackType - Indicates track
+	 *   @param[in] isEncypted - Indicates clear(false) or encrypted ( true)
+     *   @param[in] isKeyChanged - indicates if key is changed for encrypted fragment
 	 *   @return None
 	 */
-	void Increment_License_Count(VideoStatTrackType eType, VideoStatCountType eCountType, long bitrate);
+	void Record_License_EncryptionStat(VideoStatTrackType eType, bool isEncypted, bool isKeyChanged);
 
 	/**
 	 *   @brief Increment stats ,
@@ -182,7 +184,6 @@ public:
 	 *   @brief Sets URL for failed download fragments
 	 *
 	 *   @param[in]  long long time
-         *
 	 *   @return None
 	 */
 	void SetFailedFragmentUrl(VideoStatTrackType eType, long bitrate, std::string url);
@@ -192,10 +193,17 @@ public:
 	 *
 	 *   @param[in]  VideoStatTrackType - Audio Track
 	 *   @param[in]  std::string lang string
-         *
 	 *   @return None
 	 */
 	void Setlanguage(VideoStatTrackType eType, std::string strLang);
+
+	/**
+	 *   @brief sets time shift buffer status
+	 *
+	 *   @param[in]  bEnable = true means Tsb used.
+	 *   @return None
+	 */
+	void SetTsbStatus(bool bEnable) { mbTsb = bEnable;}
 
 
 	/**

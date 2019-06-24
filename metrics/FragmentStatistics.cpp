@@ -17,8 +17,11 @@
  * limitations under the License.
 */
 
-#include "LicenseStatistics.h"
+#include "FragmentStatistics.h"
 
+#define TAG_URL					"u"		// URL of last failed download
+#define TAG_NORMAL_FRAGMENT_STAT		"n"		// Normal Fragment Stats
+#define TAG_NORMAL_INIT_FRAGMENT_STAT		"i"		// Init Fragment Stats ( used in case of DASH )
 /**
  *   @brief  Converts class object data to Json object
  *
@@ -26,50 +29,46 @@
  *
  *   @return cJSON pointer
  */
-cJSON * CLicenseStatistics::ToJson() const
+cJSON * CFragmentStatistics::ToJson() const
 {
 	cJSON *monitor = cJSON_CreateObject();
+	cJSON * jsonObj = NULL;
 	if(monitor)
 	{
-		cJSON * jsonObj =  cJSON_CreateNumber(mTotalRotations);
-		cJSON_AddItemToObject(monitor, "mTotalRotations", jsonObj);
 
-		jsonObj =  cJSON_CreateNumber(mTotalEncryptedToClear);
-		cJSON_AddItemToObject(monitor, "totalEncToClr", jsonObj);
+		if(!m_url.empty())
+		{
+			jsonObj = cJSON_CreateString(m_url.c_str());
+			cJSON_AddItemToObject(monitor, TAG_URL, jsonObj);
+		}
 
-		jsonObj =  cJSON_CreateNumber(mTotalClearToEncrypted);
-		cJSON_AddItemToObject(monitor, "totalClrToEnc", jsonObj);
+		if(pNormalFragmentStat)
+		{
+			jsonObj = pNormalFragmentStat->ToJson();
+			if(jsonObj)
+			{
+				cJSON_AddItemToObject(monitor, TAG_NORMAL_FRAGMENT_STAT, jsonObj);
+			}
+		}
 
+		if(pInitFragmentStat)
+		{
+			jsonObj = pInitFragmentStat->ToJson();
+
+			if(jsonObj)
+			{
+				cJSON_AddItemToObject(monitor, TAG_NORMAL_INIT_FRAGMENT_STAT, jsonObj);
+			}
+		}
+
+		if(jsonObj == NULL)
+		{
+			//nothing is added to monitor
+			//delete monitor
+			cJSON_Delete(monitor);
+			monitor = NULL;
+		}
 	}
 	return monitor;
 }
 
-
-/**
- *   @brief  Increments License stat count
- *   @param[in]  VideoStatCountType
- *
- *   @return None
- */
-void CLicenseStatistics::IncrementCount(VideoStatCountType type)
-{
-	switch (type) {
-			case COUNT_LIC_TOTAL:
-			{
-				mTotalRotations++;
-			}
-				break;
-			case COUNT_LIC_ENC_TO_CLR:
-			{
-				mTotalEncryptedToClear++;
-			}
-				break;
-			case COUNT_LIC_CLR_TO_ENC:
-			{
-				mTotalClearToEncrypted++;
-			}
-				break;
-			default:
-				break;
-		}
-}
