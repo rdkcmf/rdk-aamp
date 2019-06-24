@@ -1463,9 +1463,9 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 
 					if(eDRM_SUCCESS != drmReturn)
 					{
-						logprintf("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d\n", fragmentURI, segDrmDecryptFailCount);
 						if (aamp->DownloadsAreEnabled())
 						{
+							logprintf("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d\n", fragmentURI, segDrmDecryptFailCount);
 							if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
 							{
 								decryption_error = true;
@@ -1554,9 +1554,9 @@ void TrackState::FetchFragment()
 	AAMPLOG_INFO("%s:%d: %s\n", __FUNCTION__, __LINE__, name);
 	//DELIA-33346 -- always set the rampdown flag to false .
 	context->mCheckForRampdown = false;
-	if (false == FetchFragmentHelper(http_error, decryption_error))
+	if (false == FetchFragmentHelper(http_error, decryption_error) && aamp->DownloadsAreEnabled() )
 	{
-		if (fragmentURI)
+		if (fragmentURI )
 		{
 			context->lastSelectedProfileIndex = context->currentProfileIndex;
 			// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
@@ -1589,8 +1589,6 @@ void TrackState::FetchFragment()
 			// technically not an error - live manifest may simply not have updated yet
 			// if real problem exists, underflow will eventually be detected/reported
 			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track \n", __FUNCTION__, __LINE__, name);
-			fflush(stdout); // needed?
-			//abort();
 		}
 		return;
 	}

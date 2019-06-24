@@ -510,9 +510,13 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 			free(decryptedData.buf);
 		}
 	}
+	else if (eDRM_KEY_FLUSH == mDrmState)
+	{          
+		AAMPLOG_WARN("AveDrm::%s:%d[%p]  Decryption cancelled\n", __FUNCTION__, __LINE__, this);
+	}
 	else
 	{
-		logprintf( "AveDrm::%s:%d[%p]  aamp:key acquisition failure! mDrmState = %d\n", __FUNCTION__, __LINE__, this, (int)mDrmState);
+		AAMPLOG_ERR( "AveDrm::%s:%d[%p]  aamp:key acquisition failure! mDrmState = %d\n", __FUNCTION__, __LINE__, this, (int)mDrmState);
 	}
 	pthread_mutex_unlock(&mutex);
 	return err;
