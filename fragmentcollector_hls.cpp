@@ -1407,7 +1407,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 							{
 								decryption_error = true;
 								logprintf("FetchFragmentHelper : drm_Decrypt failed due to license acquisition timeout\n");
-								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT, NULL, false);
+								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT, NULL, true);
 							}
 							else
 							{

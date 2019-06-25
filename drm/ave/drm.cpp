@@ -59,7 +59,7 @@ static pthread_cond_t aveDrmIndividualizationCond = PTHREAD_COND_INITIALIZER;
 static bool aveDrmIndividualizationInProgress = false;
 static bool aveDrmIndividualized = false;
 
-#define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 4
+#define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 8
 
 #ifdef AVE_DRM
 
@@ -155,6 +155,14 @@ public:
 	void NotifyInitSuccess()
 	{ // callback from successful pDrmAdapter->Initialize
 		//log_current_time("NotifyInitSuccess\n");
+		pthread_mutex_lock(&aveDrmManagerMutex);
+		if (!aveDrmIndividualized)
+		{
+			aveDrmIndividualized = true;
+			pthread_cond_broadcast(&aveDrmIndividualizationCond);
+			logprintf("Got the notification from AVE after license acquired successfully\n");
+		}
+		pthread_mutex_unlock(&aveDrmManagerMutex);
 		gint callbackID = PrivateInstanceAAMP::AddHighIdleTask(drmSignalKeyAquired, this);
 		if(callbackID > 0)
 		{
@@ -732,13 +740,6 @@ void AveDrm::SetState(DRMState state)
 	mDrmState = state;
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
-	pthread_mutex_lock(&aveDrmManagerMutex);
-	if (!aveDrmIndividualized)
-	{
-		aveDrmIndividualized = true;
-		pthread_cond_broadcast(&aveDrmIndividualizationCond);
-	}
-	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 /**
  * @brief GetState Function to return current DRM State
@@ -995,7 +996,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 			{
 				struct timespec ts;
 				struct timeval tv;
-				logprintf("DELIA-33528 sleep for %d secs for individualization\n", AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS);
+				logprintf("Wait for ave notification on drm key aquired for first metadata\n");
 				gettimeofday(&tv, NULL);
 				ts.tv_sec = tv.tv_sec + AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS;
 				ts.tv_nsec = (long)(tv.tv_usec * 1000);
