@@ -74,12 +74,31 @@ using namespace dash::helpers;
  */
 struct FragmentDescriptor
 {
-	const char *manifestUrl;
+	std::string manifestUrl;
 	const std::vector<IBaseUrl *>*baseUrls;
 	uint32_t Bandwidth;
 	char RepresentationID[MAX_ID_SIZE]; // todo: retrieve from representation instead of making a copy
 	uint64_t Number;
 	uint64_t Time;
+
+	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0)
+	{
+	}
+    
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), Number(p.Number), Time(p.Time)
+	{
+		strncpy(RepresentationID, p.RepresentationID, strlen(p.RepresentationID));
+	}
+
+	FragmentDescriptor& operator=(const FragmentDescriptor &p)
+	{
+		manifestUrl = p.manifestUrl;
+		baseUrls = p.baseUrls;
+		strncpy(RepresentationID, p.RepresentationID, strlen(p.RepresentationID));
+		Bandwidth = p.Bandwidth;
+		Number = p.Number;
+		Time = p.Time;
+	}
 };
 
 /**
@@ -106,8 +125,8 @@ static const char *mMediaTypeName[] = { "video", "audio" };
 #else
 #define HARVEST_BASE_PATH "aamp-harvest/"
 #endif
-static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor *fragmentDescriptor, std::string media);
-static void WriteFile(char* fileName, const char* data, int len);
+static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media);
+static void WriteFile(std::string fileName, const char* data, int len);
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
 
 /**
@@ -195,7 +214,7 @@ public:
 	 * @param discontinuity true if fragment is discontinuous
 	 * @retval true on success
 	 */
-	bool CacheFragment(const char *fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
+	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		, std::string media = 0
 #endif
@@ -220,8 +239,7 @@ public:
 		}
 		else
 		{
-			char effectiveUrl[MAX_URI_LENGTH];
-			effectiveUrl[0] = 0;
+			std::string effectiveUrl;
 			int iFogError = -1;
 			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
 						range, actualType, &http_code, &bitrate, & iFogError);
@@ -260,7 +278,7 @@ public:
 				logprintf("%s:%d LoadFragment failed\n", __FUNCTION__, __LINE__);
 				if (initSegment)
 				{
-					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s\n", __FUNCTION__, __LINE__, fragmentUrl);
+					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s\n", __FUNCTION__, __LINE__, fragmentUrl.c_str());
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 				}
 				else
@@ -278,7 +296,7 @@ public:
 					{
 						mContext->mCheckForRampdown = true;
 						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile\n",
-								__FUNCTION__, __LINE__, fragmentUrl, segDLFailCount);
+								__FUNCTION__, __LINE__, fragmentUrl.c_str(), segDLFailCount);
 					}
 					else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
 					{
@@ -293,10 +311,10 @@ public:
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 			if (aamp->HarvestFragments())
 			{
-				char fileName[MAX_URI_LENGTH];
-				strcpy(fileName, fragmentUrl);
+				std::string fileName;
+				fileName.assign(fragmentUrl);
 				GetFilePath(fileName, &fragmentDescriptor, media);
-				logprintf("%s:%d filePath %s\n", __FUNCTION__, __LINE__, fileName);
+				logprintf("%s:%d filePath %s\n", __FUNCTION__, __LINE__, fileName.c_str());
 				WriteFile(fileName, cachedFragment->fragment.ptr, cachedFragment->fragment.len);
 			}
 #endif
@@ -310,7 +328,7 @@ public:
 			}
 			if ((1 << type) & AAMP_DEBUG_INJECT)
 			{
-				strcpy(cachedFragment->uri, fragmentUrl);
+				cachedFragment->uri.assign(fragmentUrl);
 			}
 #endif
 			segDLFailCount = 0;
@@ -853,7 +871,7 @@ static int replace(std::string& str, const std::string& from, const std::string&
  * @param fragmentDescriptor descriptor
  * @param media media information string
  */
-static void GetFragmentUrl( char fragmentUrl[MAX_URI_LENGTH], const FragmentDescriptor *fragmentDescriptor, std::string media)
+static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
 	std::string constructedUri;
 	if (fragmentDescriptor->baseUrls->size() > 0)
@@ -901,7 +919,7 @@ static void GetFragmentUrl( char fragmentUrl[MAX_URI_LENGTH], const FragmentDesc
  * @param fragmentDescriptor fragment descriptor
  * @param media string containing media info
  */
-static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor *fragmentDescriptor, std::string media)
+static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
 	std::string constructedUri = HARVEST_BASE_PATH;
 	constructedUri += media;
@@ -909,7 +927,7 @@ static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor 
 	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
 	replace(constructedUri, "Number", fragmentDescriptor->Number);
 	replace(constructedUri, "Time", fragmentDescriptor->Time);
-	strcpy(filePath, constructedUri.c_str());
+	filePath = constructedUri;
 }
 
 
@@ -919,29 +937,28 @@ static void GetFilePath(char filePath[MAX_URI_LENGTH], const FragmentDescriptor 
  * @param data buffer
  * @param len length of buffer
  */
-static void WriteFile(char* fileName, const char* data, int len)
+static void WriteFile(std::string fileName, const char* data, int len)
 {
-	struct stat st = { 0 };
-	for (unsigned int i = 0; i < strlen(fileName); i++)
+	std::size_t pos = fileName.rfind('/');
+	std::string dirpath = fileName.substr(0, pos);
+	DIR *d = opendir(dirpath.c_str());
+	if (!d)
 	{
-		if (fileName[i] == '/')
-		{
-			fileName[i] = '\0';
-			if (-1 == stat(fileName, &st))
-			{
-				mkdir(fileName, 0777);
-			}
-			fileName[i] = '/';
-		}
+		mkdir(dirpath.c_str(), 0777);
 	}
-	FILE *fp = fopen(fileName, "wb");
-	if (NULL == fp)
+	else
+		closedir(d);
+
+	std::ofstream f(fileName, std::ofstream::binary);
+	if (f.good())
 	{
-		logprintf("File open failed. outfile = %s \n", fileName);
-		return;
+		f.write(data, len);
+		f.close();
 	}
-	fwrite(data, len, 1, fp);
-	fclose(fp);
+	else
+	{
+		logprintf("File open failed. outfile = %s \n", fileName.c_str());
+	}
 }
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
 
@@ -959,13 +976,13 @@ static void WriteFile(char* fileName, const char* data, int len)
 bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity)
 { // given url, synchronously download and transmit associated fragment
 	bool retval = true;
-	char fragmentUrl[MAX_URI_LENGTH];
+	std::string fragmentUrl;
 	GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, media);
 	size_t len = 0;
 	float position;
 	if(isInitializationSegment)
 	{
-		if(!(pMediaStreamContext->initialization.empty()) && (0 == strcmp(pMediaStreamContext->initialization.c_str(),(const char*)fragmentUrl))&& !discontinuity)
+		if(!(pMediaStreamContext->initialization.empty()) && (0 == pMediaStreamContext->initialization.compare(fragmentUrl))&& !discontinuity)
 		{
 			AAMPLOG_TRACE("We have pushed the same initailization segment for %s skipping\n", mMediaTypeName[pMediaStreamContext->type]);
 			return retval;
@@ -996,7 +1013,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 #endif
 	))
 	{
-		logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+		logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 		retval = false;
 	}
 	else
@@ -1336,7 +1353,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 		ISegmentBase *segmentBase = pMediaStreamContext->representation->GetSegmentBase();
 		if (segmentBase)
 		{ // single-segment
-			char fragmentUrl[MAX_URI_LENGTH];
+			std::string fragmentUrl;
 			GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
 			if (!pMediaStreamContext->index_ptr)
 			{ // lazily load index
@@ -1346,8 +1363,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
-				char effectiveUrl[MAX_URI_LENGTH];
-				effectiveUrl[0] =0;
+				std::string effectiveUrl;
 				long http_code;
 				int iFogError = -1;
 				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
@@ -1395,7 +1411,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					AAMPLOG_INFO("%s:%d %s [%s]\n", __FUNCTION__, __LINE__,mMediaTypeName[pMediaStreamContext->mediaType], range);
 					if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
 					{
-						logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+						logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 					}
 					pMediaStreamContext->fragmentTime += fragmentDuration;
 					pMediaStreamContext->fragmentOffset += referenced_size;
@@ -1428,12 +1444,12 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					std::map<string,string> rawAttributes = segmentList->GetRawAttributes();
 					if(rawAttributes.find("customlist") == rawAttributes.end()) //"CheckForFogSegmentList")
 					{
-						char fragmentUrl[MAX_URI_LENGTH];
+						std::string fragmentUrl;
 						GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor,  segmentURL->GetMediaURI());
 						AAMPLOG_INFO("%s [%s]\n", mMediaTypeName[pMediaStreamContext->mediaType], segmentURL->GetMediaRange().c_str());
 						if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, segmentURL->GetMediaRange().c_str() ))
 						{
-							logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+							logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 						}
 					}
 					else //We are procesing the custom segment list provided by Fog for DASH TSB
@@ -1897,7 +1913,7 @@ static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
  * @param url manifest url
  * @retval xml node
  */
-static Node* ProcessNode(xmlTextReaderPtr *reader, char *url)
+static Node* ProcessNode(xmlTextReaderPtr *reader, std::string url)
 {
 	int type = xmlTextReaderNodeType(*reader);
 
@@ -2469,7 +2485,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	AAMPStatusType ret = UpdateMPD();
 	if (ret == eAAMPSTATUS_OK)
 	{
-		char *manifestUrl = (char *)aamp->GetManifestUrl();
+		std::string manifestUrl = aamp->GetManifestUrl();
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
@@ -2811,7 +2827,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
 	int downloadAttempt = 0;
-	char *manifestUrl = aamp->GetManifestUrl();
+	std::string manifestUrl = aamp->GetManifestUrl();
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
@@ -2835,6 +2851,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 
 			if (gotManifest)
 			{
+				aamp->mManifestUrl = manifestUrl;
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				if (mContext->mNetworkDownDetected)
 				{
@@ -2870,9 +2887,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 		if (gotManifest)
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		char fileName[1024] = {'\0'};
-		strcat(fileName, HARVEST_BASE_PATH);
-		strcat(fileName, "manifest.mpd");
+		std::string fileName = HARVEST_BASE_PATH;
+		fileName.append("manifest.mpd");
 		WriteFile( fileName, manifest.ptr, manifest.len);
 #endif
 			// parse xml
@@ -2954,13 +2970,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 
 	if( ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR || ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
 	{
-	    if(NULL != manifest.ptr && NULL != manifestUrl)
+	    if(NULL != manifest.ptr && !manifestUrl.empty())
 	    {
             int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
             char temp[MANIFEST_TEMP_DATA_LENGTH];
             strncpy(temp, manifest.ptr, tempDataLen);
             temp[tempDataLen] = 0x00;
-	        logprintf("ERROR: Invalid Playlist URL: %s ret:%d\n", manifestUrl,ret);
+	        logprintf("ERROR: Invalid Playlist URL: %s ret:%d\n", manifestUrl.c_str(),ret);
 	        logprintf("ERROR: Invalid Playlist DATA: %s \n", temp);
 	    }
         aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
@@ -4273,14 +4289,14 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 #ifdef DEBUG_TIMELINE
 							logprintf("init %s %d..%d\n", mMediaTypeName[pMediaStreamContext->mediaType], start, fin);
 #endif
-							char fragmentUrl[MAX_URI_LENGTH];
+							std::string fragmentUrl;
 							GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
 								if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0, range.c_str(), true ))
 								{
-									logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+									logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 								}
 							}
 						}
@@ -4365,7 +4381,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 #endif
 								if (!range.empty())
 								{
-									char fragmentUrl[MAX_URI_LENGTH];
+									std::string fragmentUrl;
 									GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
 									AAMPLOG_INFO("%s [%s]\n", mMediaTypeName[pMediaStreamContext->mediaType],
 											range.c_str());
@@ -4374,7 +4390,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 										pMediaStreamContext->profileChanged = false;
 										if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0.0, range.c_str(), true ))
 										{
-											logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl, pMediaStreamContext->fragmentTime);
+											logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f\n", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 										}
 									}
 								}
@@ -4464,7 +4480,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 							std::string initialization = segmentTemplate->Getinitialization();
 							if (!initialization.empty())
 							{
-								char fragmentUrl[MAX_URI_LENGTH];
+								std::string fragmentUrl;
 								struct FragmentDescriptor * fragmentDescriptor = (struct FragmentDescriptor *) malloc(sizeof(struct FragmentDescriptor));
 								memset(fragmentDescriptor, 0, sizeof(FragmentDescriptor));
 								fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;

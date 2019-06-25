@@ -27,7 +27,7 @@ AampCacheHandler * AampCacheHandler::mInstance = NULL;
  * @param buffer Contains the playlist
  * @param effectiveUrl Effective URL of playlist
  */
-void AampCacheHandler::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType)
+void AampCacheHandler::InsertToPlaylistCache(std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType)
 {
 	PlayListCachedData *tmpData;
 	pthread_mutex_lock(&mMutex);
@@ -66,8 +66,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 					tmpData->mCachedBuffer = new GrowableBuffer();
 					memset (tmpData->mCachedBuffer, 0, sizeof(GrowableBuffer));
 					aamp_AppendBytes(tmpData->mCachedBuffer, buffer->ptr, buffer->len );
-					tmpData->mEffectiveUrl= new char[MAX_URI_LENGTH];
-					strncpy(tmpData->mEffectiveUrl, effectiveUrl, MAX_URI_LENGTH);
+					tmpData->mEffectiveUrl = effectiveUrl;
 					tmpData->mFileType = fileType;
 					mPlaylistCache[url] = tmpData;
 					mCacheStoredSize += buffer->len;
@@ -87,11 +86,11 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
  * @param[out] effectiveUrl effective URL of retrieved playlist
  * @retval true if playlist is successfully retrieved.
  */
-bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[])
+bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl)
 {
 	GrowableBuffer* buf = NULL;
 	bool ret;
-	char* eUrl;
+	std::string eUrl;
 	pthread_mutex_lock(&mMutex);
 	PlaylistCacheIter it = mPlaylistCache.find(url);
 	if (it != mPlaylistCache.end())
@@ -101,7 +100,7 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
 		eUrl = tmpData->mEffectiveUrl;
 		buffer->len = 0;
 		aamp_AppendBytes(buffer, buf->ptr, buf->len );
-		strncpy(effectiveUrl,eUrl, MAX_URI_LENGTH);
+		effectiveUrl = eUrl;
 		traceprintf("%s:%d : url %s found\n", __FUNCTION__, __LINE__, url.c_str());
 		ret = true;
 	}
@@ -126,7 +125,6 @@ void AampCacheHandler::ClearPlaylistCache()
 	{
 		PlayListCachedData *tmpData = it->second;
 		aamp_Free(&tmpData->mCachedBuffer->ptr);
-		delete[] tmpData->mEffectiveUrl;
 		delete tmpData->mCachedBuffer;
 		delete tmpData;
 	}
@@ -167,7 +165,6 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 			}
 			freedSize += tmpData->mCachedBuffer->len;
 			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete[] tmpData->mEffectiveUrl;
 			delete tmpData->mCachedBuffer;
 			delete tmpData;
 			Iter = mPlaylistCache.erase(Iter);
@@ -184,7 +181,6 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 			}
 			freedSize += tmpData->mCachedBuffer->len;
 			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete[] tmpData->mEffectiveUrl;
 			delete tmpData->mCachedBuffer;
 			delete tmpData;
 			Iter = mPlaylistCache.erase(Iter);
