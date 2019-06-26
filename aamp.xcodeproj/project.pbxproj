@@ -10,18 +10,13 @@
 		5E461A30209B8B8900683077 /* priv_aamp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = priv_aamp.h; sourceTree = "<group>"; };
 		5E4FA8752097C6140068DEAC /* fragmentcollector_hls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fragmentcollector_hls.h; sourceTree = "<group>"; };
 		5E4FA8762097C6140068DEAC /* aampgstplayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aampgstplayer.h; sourceTree = "<group>"; };
-		5E4FA8772097C6140068DEAC /* gstaampinit.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gstaampinit.cpp; sourceTree = "<group>"; };
 		5E4FA8782097C6140068DEAC /* streamabstraction.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = streamabstraction.cpp; sourceTree = "<group>"; };
-		5E4FA8792097C6140068DEAC /* gstaampsrc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gstaampsrc.cpp; sourceTree = "<group>"; };
-		5E4FA87A2097C6140068DEAC /* gstaamp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gstaamp.h; sourceTree = "<group>"; };
-		5E4FA87B2097C6140068DEAC /* gstaamp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = gstaamp.cpp; sourceTree = "<group>"; };
 		5E4FA87C2097C6140068DEAC /* base16.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = base16.h; sourceTree = "<group>"; };
 		5E4FA87D2097C6140068DEAC /* aampgstplayer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = aampgstplayer.cpp; sourceTree = "<group>"; };
 		5E4FA87E2097C6140068DEAC /* fragmentcollector_hls.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fragmentcollector_hls.cpp; sourceTree = "<group>"; };
 		5E4FA87F2097C6140068DEAC /* fragmentcollector_mpd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fragmentcollector_mpd.h; sourceTree = "<group>"; };
 		5E4FA8802097C6140068DEAC /* fragmentcollector_mpd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fragmentcollector_mpd.cpp; sourceTree = "<group>"; };
 		5E4FA8812097C6140068DEAC /* main_aamp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = main_aamp.h; sourceTree = "<group>"; };
-		5E4FA8822097C6150068DEAC /* gstaampsrc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = gstaampsrc.h; sourceTree = "<group>"; };
 		5E4FA8832097C6150068DEAC /* base16.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = base16.cpp; sourceTree = "<group>"; };
 		5E4FA8842097C6150068DEAC /* StreamAbstractionAAMP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StreamAbstractionAAMP.h; sourceTree = "<group>"; };
 		5E4FA8852097C6150068DEAC /* _base64.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = _base64.h; sourceTree = "<group>"; };
@@ -31,6 +26,7 @@
 		5E4FA8892097C6150068DEAC /* tsprocessor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = tsprocessor.h; sourceTree = "<group>"; };
 		5E56643F2098E7E60021EDB1 /* cocoa_window.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = cocoa_window.mm; sourceTree = "<group>"; };
 		5E5664402098E7E60021EDB1 /* cocoa_window.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = cocoa_window.h; sourceTree = "<group>"; };
+		5E9CB170220F58DC00920F99 /* test */ = {isa = PBXFileReference; lastKnownFileType = folder; path = test; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -50,14 +46,10 @@
 				5E4FA8752097C6140068DEAC /* fragmentcollector_hls.h */,
 				5E4FA8802097C6140068DEAC /* fragmentcollector_mpd.cpp */,
 				5E4FA87F2097C6140068DEAC /* fragmentcollector_mpd.h */,
-				5E4FA87B2097C6140068DEAC /* gstaamp.cpp */,
-				5E4FA87A2097C6140068DEAC /* gstaamp.h */,
-				5E4FA8772097C6140068DEAC /* gstaampinit.cpp */,
-				5E4FA8792097C6140068DEAC /* gstaampsrc.cpp */,
-				5E4FA8822097C6150068DEAC /* gstaampsrc.h */,
 				5E4FA8882097C6150068DEAC /* main_aamp.cpp */,
 				5E4FA8812097C6140068DEAC /* main_aamp.h */,
 				5E4FA8782097C6140068DEAC /* streamabstraction.cpp */,
+				5E9CB170220F58DC00920F99 /* test */,
 				5E4FA8842097C6150068DEAC /* StreamAbstractionAAMP.h */,
 				5E4FA8862097C6150068DEAC /* tsprocessor.cpp */,
 				5E4FA8892097C6150068DEAC /* tsprocessor.h */,

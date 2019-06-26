@@ -12,6 +12,7 @@ This document contains the instructions to setup and debug stand alone AAMP (aam
 
 ```c
 xcode-select --install
+sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_<version>.pkg -target /
 ```
 **3. Install GStreamer packages**
 
@@ -79,6 +80,17 @@ echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \
 
 ```c
 brew install ossp-uuid
+```
+**9. Install aampabr**
+
+```c
+git clone https://code.rdkcentral.com/r/rdk/components/generic/aampabr aampabr
+cd aampabr
+mkdir build
+cd build
+cmake ..
+make
+make install
 ```
 ##Build and execute aamp-cli
 **1. Open aamp.xcodeproj in Xcode**
