@@ -155,6 +155,14 @@ public:
 	void NotifyInitSuccess()
 	{ // callback from successful pDrmAdapter->Initialize
 		//log_current_time("NotifyInitSuccess\n");
+		pthread_mutex_lock(&aveDrmManagerMutex);
+		if (!aveDrmIndividualized)
+		{
+			aveDrmIndividualized = true;
+			pthread_cond_broadcast(&aveDrmIndividualizationCond);
+			logprintf("Got the notification from AVE after license acquired successfully\n");
+		}
+		pthread_mutex_unlock(&aveDrmManagerMutex);
 		gint callbackID = PrivateInstanceAAMP::AddHighIdleTask(drmSignalKeyAquired, this);
 		if(callbackID > 0)
 		{
@@ -736,13 +744,6 @@ void AveDrm::SetState(DRMState state)
 	mDrmState = state;
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
-	pthread_mutex_lock(&aveDrmManagerMutex);
-	if (!aveDrmIndividualized)
-	{
-		aveDrmIndividualized = true;
-		pthread_cond_broadcast(&aveDrmIndividualizationCond);
-	}
-	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 /**
  * @brief GetState Function to return current DRM State
