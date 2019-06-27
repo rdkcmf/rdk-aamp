@@ -53,7 +53,7 @@ extern "C"
 
 	JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context);
 
-	JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent);
+	JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS=0);
 }
 
 /**
@@ -68,6 +68,7 @@ struct AAMP_JS
 
 	JSObjectRef _eventType;
 	JSObjectRef _subscribedTags;
+	JSObjectRef _promiseCallback;	/* Callback function for JS promise resolve/reject.*/
 };
 
 
@@ -378,7 +379,7 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 	for (int32_t i = 0; i < length; i++)
 	{
 		TimedMetadata item = privAAMP->timedMetadata.at(i);
-		JSObjectRef ref = AAMP_JS_CreateTimedMetadata(context, item._timeMS, item._name.c_str(), item._content.c_str());
+		JSObjectRef ref = AAMP_JS_CreateTimedMetadata(context, item._timeMS, item._name.c_str(), item._content.c_str(), item._id.c_str(), item._durationMS);
 		array[i] = ref;
 	}
 
@@ -660,19 +661,33 @@ public:
 	 */
 	void Event(const AAMPEvent& e)
 	{
-		if(e.type != AAMP_EVENT_PROGRESS)//log all events except progress which spams
+		if(e.type != AAMP_EVENT_PROGRESS && e.type != AAMP_EVENT_AD_PLACEMENT_PROGRESS)//log all events except progress which spams
 			ERROR("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, e.type, _jsCallback);
 
 		JSObjectRef eventObj = JSObjectMake(_aamp->_ctx, Event_class_ref(), NULL);
 		if (eventObj) {
-                       JSValueProtect(_aamp->_ctx, eventObj);
-                       JSObjectSetPrivate(eventObj, (void*)&e);
-                       setEventProperties(e, _aamp->_ctx, eventObj);
-                       JSValueRef args[1] = { eventObj };
-                       JSObjectCallAsFunction(_aamp->_ctx, _jsCallback, NULL, 1, args, NULL);
-                       JSValueUnprotect(_aamp->_ctx, eventObj);
-               }
-        }
+			JSValueProtect(_aamp->_ctx, eventObj);
+			JSObjectSetPrivate(eventObj, (void*)&e);
+			setEventProperties(e, _aamp->_ctx, eventObj);
+			JSValueRef args[1] = { eventObj };
+			if (e.type == AAMP_EVENT_AD_RESOLVED)
+			{
+				if (_aamp->_promiseCallback != NULL)
+				{
+					JSObjectCallAsFunction(_aamp->_ctx, _aamp->_promiseCallback, NULL, 1, args, NULL);
+				}
+				else
+				{
+					ERROR("[AAMP_JS] %s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, _aamp->_ctx, _aamp->_promiseCallback);
+				}
+			}
+			else
+			{
+				JSObjectCallAsFunction(_aamp->_ctx, _jsCallback, NULL, 1, args, NULL);
+			}
+			JSValueUnprotect(_aamp->_ctx, eventObj);
+		}
+	}
 
 	/**
 	 * @brief Set JS event properties
@@ -1105,7 +1120,7 @@ public:
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
-		JSObjectRef timedMetadata = AAMP_JS_CreateTimedMetadata(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent);
+		JSObjectRef timedMetadata = AAMP_JS_CreateTimedMetadata(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent, e.data.timedMetadata.id, e.data.timedMetadata.durationMilliSeconds);
         	if (timedMetadata) {
                 	JSValueProtect(context, timedMetadata);
 			JSStringRef name = JSStringCreateWithUTF8CString("timedMetadata");
@@ -1189,6 +1204,286 @@ public:
 		JSStringRef name = JSStringCreateWithUTF8CString("playbackSpeeds");
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+	}
+};
+
+
+/**
+ * @class AAMP_JSListener_AdResolved
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdResolved : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdResolved Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdResolved(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("resolvedStatus");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeBoolean(context, e.data.adResolved.resolveStatus), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("placementId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adResolved.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("placementStartTime");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adResolved.startMS), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("placementDuration");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adResolved.durationMs), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdReservationStart
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdReservationStart : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdReservationStart Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdReservationStart(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adbreakId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adReservation.adBreakId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adReservation.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdReservationEnd
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdReservationEnd : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdReservationEnd Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdReservationEnd(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adbreakId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adReservation.adBreakId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adReservation.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdPlacementStart
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdPlacementStart : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdPlacementStart Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdPlacementStart(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdPlacementEnd
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdPlacementEnd : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdPlacementEnd Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdPlacementEnd(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdProgress
+ * @brief Event listener impl for REPORT_AD_PROGRESS AAMP event
+ */
+class AAMP_JSListener_AdProgress : public AAMP_JSListener
+{
+public:
+
+	/**
+	 * @brief AAMP_JSListener_AdProgress Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_JSListener_AdProgress(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+         *
+	 * @param[in] e         AAMP event object
+	 * @param[in] context   JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
+ * @class AAMP_JSListener_AdPlacementEror
+ * @brief Event listener impl for AD_RESOLVED AAMP event
+ */
+class AAMP_JSListener_AdPlacementEror : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_AdPlacementEror Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_AdPlacementEror(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("adId");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("error");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.adPlacement.errorCode), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 };
 
@@ -1302,6 +1597,34 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if (type == AAMP_EVENT_DRM_METADATA)
 	{
 		pListener = new AAMP_JSListener_DRMMetadata(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_RESOLVED)
+	{
+		pListener = new AAMP_JSListener_AdResolved(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_RESERVATION_START)
+	{
+		pListener = new AAMP_JSListener_AdReservationStart(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_RESERVATION_END)
+	{
+		pListener = new AAMP_JSListener_AdReservationEnd(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_PLACEMENT_START)
+	{
+		pListener = new AAMP_JSListener_AdPlacementStart(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_PLACEMENT_END)
+	{
+		pListener = new AAMP_JSListener_AdPlacementEnd(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_PLACEMENT_PROGRESS)
+	{
+		pListener = new AAMP_JSListener_AdProgress(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_AD_PLACEMENT_ERROR)
+	{
+		pListener = new AAMP_JSListener_AdPlacementEror(aamp, type, jsCallback);
 	}
 	else
 	{
@@ -2257,6 +2580,187 @@ static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef func
         return JSValueMakeUndefined(context);
 }
 
+/**
+ * @brief Callback invoked from JS to set alternate playback content URLs
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	ERROR("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.SetAlternateContents() on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 2)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.SetAlternateContent' - 1 argument required");
+	}
+	else
+	{
+		/*
+		 * Parmater format
+		 "reservationObject": object {
+		 	"reservationId": "773701056",
+			"reservationBehavior": number
+			"placementRequest": {
+			 "id": string,
+		         "pts": number,
+		         "url": "",
+		     },
+		 },
+		 "promiseCallback": function
+	 	 */
+		char *reservationId = NULL;
+		int reservationBehavior = -1;
+		char *adId = NULL;
+		long adPTS = -1;
+		char *adURL = NULL;
+		if (JSValueIsObject(context, arguments[0]))
+		{
+			//Parse the ad object
+			JSObjectRef reservationObject = JSValueToObject(context, arguments[0], NULL);
+			if (reservationObject == NULL)
+			{
+				ERROR("[AAMP_JS] %s() Unable to convert argument to JSObject", __FUNCTION__);
+				return JSValueMakeUndefined(context);
+			}
+			JSStringRef propName = JSStringCreateWithUTF8CString("reservationId");
+			JSValueRef propValue = JSObjectGetProperty(context, reservationObject, propName, NULL);
+			if (JSValueIsString(context, propValue))
+			{
+				reservationId = aamp_JSValueToCString(context, propValue, NULL);
+			}
+			JSStringRelease(propName);
+
+			propName = JSStringCreateWithUTF8CString("reservationBehavior");
+			propValue = JSObjectGetProperty(context, reservationObject, propName, NULL);
+			if (JSValueIsNumber(context, propValue))
+			{
+				reservationBehavior = JSValueToNumber(context, propValue, NULL);
+			}
+			JSStringRelease(propName);
+
+			propName = JSStringCreateWithUTF8CString("placementRequest");
+			propValue = JSObjectGetProperty(context, reservationObject, propName, NULL);
+			if (JSValueIsObject(context, propValue))
+			{
+				JSObjectRef adObject = JSValueToObject(context, propValue, NULL);
+
+				JSStringRef adPropName = JSStringCreateWithUTF8CString("id");
+				JSValueRef adPropValue = JSObjectGetProperty(context, adObject, adPropName, NULL);
+				if (JSValueIsString(context, adPropValue))
+				{
+					adId = aamp_JSValueToCString(context, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+
+				adPropName = JSStringCreateWithUTF8CString("pts");
+				adPropValue = JSObjectGetProperty(context, adObject, adPropName, NULL);
+				if (JSValueIsNumber(context, adPropValue))
+				{
+					adPTS = (long) JSValueToNumber(context, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+
+				adPropName = JSStringCreateWithUTF8CString("url");
+				adPropValue = JSObjectGetProperty(context, adObject, adPropName, NULL);
+				if (JSValueIsString(context, adPropValue))
+				{
+					adURL = aamp_JSValueToCString(context, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+			}
+			JSStringRelease(propName);
+		}
+
+		JSObjectRef callbackObj = JSValueToObject(context, arguments[1], NULL);
+
+		if (callbackObj != NULL && JSObjectIsFunction(context, callbackObj))
+		{
+			if (pAAMP->_promiseCallback)
+			{
+				JSValueUnprotect(context, pAAMP->_promiseCallback);
+			}
+			pAAMP->_promiseCallback = callbackObj;
+			JSValueProtect(context, pAAMP->_promiseCallback);
+			std::string adBreakId(reservationId);
+			std::string adIdStr(adId);
+			std::string url(adURL);
+			ERROR("[AAMP_JS] Calling pAAMP->_aamp->SetAlternateContents with promiseCallback:%p", callbackObj);
+			pAAMP->_aamp->SetAlternateContents(adBreakId, adIdStr, url);
+		}
+		else
+		{
+			ERROR("[AAMP_JS] %s() Unable to parse the promiseCallback argument", __FUNCTION__);
+		}
+		if (reservationId)
+		{
+			delete[] reservationId;
+		}
+		if (adURL)
+		{
+			delete[] adURL;
+		}
+		if (adId)
+		{
+			delete[] adId;
+		}
+	}
+	return JSValueMakeUndefined(context);
+}
+
+/**
+ * @brief Notify AAMP that the reservation is complete
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	ERROR("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.notifyReservationCompletion() on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 2)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.notifyReservationCompletion' - 1 argument required");
+	}
+	else
+	{
+		const char * reservationId = aamp_JSValueToCString(context, arguments[0], exception);
+		long time = (long) JSValueToNumber(context, arguments[1], exception);
+		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
+		//the ads to the period duration or not depending on time param
+		ERROR("[AAMP_JS] %s(): Called reservation close for periodId:%s and time:%d", __FUNCTION__, reservationId, time);
+		delete[] reservationId;
+	}
+	return JSValueMakeUndefined(context);
+}
 
 /**
  * @brief Callback invoked from JS to set linear trickplay FPS
@@ -2484,6 +2988,8 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setDownloadStallTimeout", AAMP_setDownloadStallTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setDownloadStartTimeout", AAMP_setDownloadStartTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setNetworkTimeout", AAMP_setNetworkTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setAlternateContent", AAMP_setAlternateContent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "notifyReservationCompletion", AAMP_notifyReservationCompletion, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
@@ -2516,6 +3022,9 @@ static void AAMP_finalize(JSObjectRef thisObject)
 		JSValueUnprotect(pAAMP->_ctx, pAAMP->_eventType);
 		if(pAAMP->_subscribedTags) {
 			JSValueUnprotect(pAAMP->_ctx, pAAMP->_subscribedTags);
+		}
+		if(pAAMP->_promiseCallback) {
+			JSValueUnprotect(pAAMP->_ctx, pAAMP->_promiseCallback);
 		}
 	}
 
@@ -2841,7 +3350,7 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
  * @param[in] szContent metadata associated with the tag
  * @retval JSObject of TimedMetadata generated
  */
-JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent)
+JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS)
 {
 	JSStringRef name;
 
@@ -2853,6 +3362,18 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 
 		name = JSStringCreateWithUTF8CString("time");
 		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, std::round(timeMS)), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		if(!strcmp(szName,"SCTE35") && id && *id != '\0')
+		{
+			name = JSStringCreateWithUTF8CString("reservationId");
+			JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, id), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+			bGenerateID = false;
+		}
+
+		name = JSStringCreateWithUTF8CString("duration");
+		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, (int)durationMS), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
 
 		name = JSStringCreateWithUTF8CString("name");
@@ -3011,6 +3532,8 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 	JSValueProtect(jsContext, pAAMP->_eventType);
 
 	pAAMP->_subscribedTags = NULL;
+	pAAMP->_promiseCallback = NULL;
+	AAMP_JSListener::AddEventListener(pAAMP, AAMP_EVENT_AD_RESOLVED, NULL);
 
 	JSObjectRef classObj = JSObjectMake(jsContext, AAMP_class_ref(), pAAMP);
 	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);

@@ -38,9 +38,10 @@
 #ifndef MAINAAMP_H
 #define MAINAAMP_H
 
+#include <memory>
 #include <vector>
 #include <string>
-
+#include <string.h>
 #include <stddef.h>
 #include "vttCue.h"
 
@@ -83,6 +84,13 @@ typedef enum
 	AAMP_EVENT_DRM_METADATA,
 	AAMP_EVENT_REPORT_ANOMALY,       /**< Playback Anomaly reporting */
 	AAMP_EVENT_WEBVTT_CUE_DATA,     /**< WebVTT Cue data */
+	AAMP_EVENT_AD_RESOLVED,         /**< Ad fulfill status */
+	AAMP_EVENT_AD_RESERVATION_START,/**< Adbreak playback starts */
+	AAMP_EVENT_AD_RESERVATION_END,  /**< Adbreak playback ends */
+	AAMP_EVENT_AD_PLACEMENT_START,  /**< Ad playback starts */
+	AAMP_EVENT_AD_PLACEMENT_END,    /**< Ad playback ends */
+	AAMP_EVENT_AD_PLACEMENT_ERROR,  /**< Ad playback error */
+	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -179,6 +187,7 @@ typedef enum
 #define MAX_LANGUAGE_COUNT 4
 #define MAX_LANGUAGE_TAG_LENGTH 4
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
+#define AD_ID_LENGTH 32
 #define MAX_BITRATE_COUNT 10
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
 #define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
@@ -262,8 +271,16 @@ struct AAMPEvent
 		 */
 		struct
 		{
+			/*
+			 * Temporary fix for DELIA-37985:
+			 * szName    = additionalEventData[0]
+			 * id        = additionalEventData[1]
+			 * szContent = additionalEventData[2]
+			 */
 			const char* szName;         /**< Metadata name */
+			const char* id;             /**< Id of the timedMetadata */
 			double timeMilliseconds;    /**< Playback position - relative to tune time - starts at zero */
+			double durationMilliSeconds;/**< Duration of the timed event. */
 			const char* szContent;      /**< Metadata content */
 		} timedMetadata;
 
@@ -327,12 +344,46 @@ struct AAMPEvent
 		{
 			VTTCue* cueData;
 		} cue;
+
+		/**
+		 * @brief Structure for ad fulfill status event
+		 */
+		struct
+		{
+			bool resolveStatus;
+			char adId[AD_ID_LENGTH];
+			uint64_t startMS;
+			uint64_t durationMs;
+		} adResolved;
+
+		/**
+		 * @brief Structure for ad reservation events
+		 */
+		struct
+		{
+			char adBreakId[AD_ID_LENGTH];     /**< Reservation Id */
+			uint64_t position;
+		} adReservation;
+
+		/**
+		 * @brief Structure for ad placement events
+		 */
+		struct
+		{
+			char adId[AD_ID_LENGTH];     /**< Placement Id */
+			uint32_t position;			/**<Ad Position relative to Reservation Start */
+			uint32_t offset;			/**<Ad start offset */
+			uint32_t duration;
+			int errorCode;
+		} adPlacement;
 	} data;
+
+	std::vector<std::string> additionalEventData;
 
 	/**
 	 * @brief AAMPEvent Constructor
 	 */
-	AAMPEvent() : type(), data()
+	AAMPEvent() : type(), data(),additionalEventData()
 	{
 	}
 
@@ -340,8 +391,38 @@ struct AAMPEvent
 	 * @brief AAMPEvent Constructor
 	 * @param[in]  Event type
 	 */
-	AAMPEvent(AAMPEventType t) : type(t), data()
+	AAMPEvent(AAMPEventType t) : type(t), data(),additionalEventData()
 	{
+	}
+
+	/**
+	 * @brief Copy Constructor
+	 */
+	AAMPEvent(const AAMPEvent &e): type(e.type), data(e.data),additionalEventData(e.additionalEventData)
+	{
+		if(AAMP_EVENT_TIMED_METADATA == type && additionalEventData.size() >= 3)
+		{
+			data.timedMetadata.szName = additionalEventData[0].c_str();
+			data.timedMetadata.id = additionalEventData[1].c_str();
+			data.timedMetadata.szContent = additionalEventData[2].c_str();
+		}
+	}
+
+	/**
+	 * @brief Overloaded assignment operator
+	 */
+	AAMPEvent& operator=(const AAMPEvent &e)
+	{
+		type = e.type;
+		memcpy(&data, &(e.data), sizeof(data));
+		additionalEventData = e.additionalEventData;
+		if(AAMP_EVENT_TIMED_METADATA == type && additionalEventData.size() >= 3)
+		{
+			data.timedMetadata.szName = additionalEventData[0].c_str();
+			data.timedMetadata.id = additionalEventData[1].c_str();
+			data.timedMetadata.szContent = additionalEventData[2].c_str();
+		}
+		return *this;
 	}
 };
 
@@ -425,6 +506,8 @@ enum DRMSystems
 	eDRM_Vanilla_AES,       /**< Vanilla AES */
 	eDRM_MAX_DRMSystems     /**< Drm system count */
 };
+
+using AdObject = std::pair<std::string, std::string>;
 
 /**
  *  @brief Auth Token Failure codes
@@ -1062,6 +1145,15 @@ public:
 	 *   @return void
 	 */
 	void SetPreferredSubtitleLanguage(const char* language);
+
+	/*
+	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
+	 *
+	 *   @param[in] Adbreak's unique identifier.
+	 *   @param[in] Individual Ad's id
+	 *   @param[in] Ad URL
+	 */
+	void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

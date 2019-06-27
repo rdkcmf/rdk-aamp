@@ -60,6 +60,13 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
 	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
+	{ AAMP_EVENT_AD_RESOLVED, "adResolved"},
+	{ AAMP_EVENT_AD_RESERVATION_START, "reservationStart" },
+	{ AAMP_EVENT_AD_RESERVATION_END, "reservationEnd" },
+	{ AAMP_EVENT_AD_PLACEMENT_START, "placementStart" },
+	{ AAMP_EVENT_AD_PLACEMENT_END, "placementEnd" },
+	{ AAMP_EVENT_AD_PLACEMENT_PROGRESS, "placementProgress" },
+	{ AAMP_EVENT_AD_PLACEMENT_ERROR, "placementError" },
 	{ (AAMPEventType)0, "" }
 };
 
@@ -95,6 +102,13 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
 	{ AAMP_EVENT_WEBVTT_CUE_DATA, "vttCueDataListener" },
+	{ AAMP_EVENT_AD_RESOLVED, "adResolved"},
+	{ AAMP_EVENT_AD_RESERVATION_START, "reservationStart" },
+	{ AAMP_EVENT_AD_RESERVATION_END, "reservationEnd" },
+	{ AAMP_EVENT_AD_PLACEMENT_START, "placementStart" },
+	{ AAMP_EVENT_AD_PLACEMENT_END, "placementEnd" },
+	{ AAMP_EVENT_AD_PLACEMENT_PROGRESS, "placementProgress" },
+	{ AAMP_EVENT_AD_PLACEMENT_ERROR, "placementError" },
 	{ (AAMPEventType)0, "" }
 };
 
