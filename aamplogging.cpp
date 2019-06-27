@@ -418,11 +418,13 @@ bool AampLogManager::isLogworthyErrorCode(int errorCode)
  */
 void logprintf(const char *format, ...)
 {
+	int len = 0;
 	va_list args;
 	va_start(args, format);
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-	vsnprintf(gDebugPrintBuffer, MAX_DEBUG_LOG_BUFF_SIZE, format, args);
+	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER]");
+	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 
 	va_end(args);
