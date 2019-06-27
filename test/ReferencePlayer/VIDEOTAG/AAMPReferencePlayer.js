@@ -37,6 +37,7 @@ window.onload = function() {
 
     var ccStatus = false;
     var firstPlay = true;
+    var bitrateList = [];
     video.playbackRate = 1;
 
 	if(urls) {
@@ -65,8 +66,16 @@ window.onload = function() {
     function playPause() {
         console.log("playPause");
         if(firstPlay) {
-            document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
-            video.src = urls[0].url;
+            var firstURL;
+            if(urls[0].url.startsWith("https")) {
+                firstURL = urls[0].url.replace(/^https:\/\//i, 'aamps://');
+            } else if(urls[0].url.startsWith("http")) {
+                firstURL = urls[0].url.replace(/^http:\/\//i, 'aamp://');
+            } else {
+                firstURL = urls[0].url;
+            }
+            document.getElementById("contentURL").innerHTML = "URL: " + firstURL;
+            video.src = firstURL;
             firstPlay = false;
         }
         // If it is a trick play operation
@@ -169,21 +178,7 @@ window.onload = function() {
     };
 
     function fastfwd() {
-        switch(video.playbackRate) {
-            case 1:
-                video.playbackRate *= 4;
-                break;
-            case 4:
-                video.playbackRate *= 4;
-                break;
-            case 16:
-                video.playbackRate *= 2;
-                break;
-            case 32:
-                video.playbackRate *= 2;
-                break;
-        }
-        document.getElementById("playOrPauseIcon").src = "../icons/play.png";
+        console.log("Fast Forward not supported");
     };
 
     function overlayController() {
@@ -566,11 +561,22 @@ window.onload = function() {
         XREReceiver.onEvent("onDecoderAvailable", { decoderHandle: event.decoderHandle });
     }
     
+    function mediaMetadataParsed(event) {
+        console.log("mediaMetadataParsed event received: " + JSON.stringify(event));
+        bitrateList = [];
+        for (var iter = 0; iter < event.bitrates.length; iter++) {
+            bitrate = (event.bitrates[iter] / 1000000).toFixed(1);
+            bitrateList.push(bitrate);
+        }
+        document.getElementById("availableBitratesList").innerHTML = bitrateList;
+    }
+
     if (typeof(window.AAMP_JSController) !== "undefined") {
         console.log("Registering event listeners to AAMP_JSController");
         window.AAMP_JSController.addEventListener("playbackStarted", onTunedEvent);
         window.AAMP_JSController.addEventListener("playbackFailed", onTuneFailedEvent);
         window.AAMP_JSController.addEventListener("playbackStateChanged", onStatusChangedEvent);
         window.AAMP_JSController.addEventListener("decoderAvailable", decoderHandleAvailable);
+        window.AAMP_JSController.addEventListener("mediaMetadata", mediaMetadataParsed);
     }
 }
