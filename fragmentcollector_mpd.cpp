@@ -2621,22 +2621,18 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				if(aamp->IsLiveAdjustRequired())
 				{
 					duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
-					if(mCurrentPeriodIdx > 0)
-					{
-						currentPeriodStart = ((double)durationMs / 1000) - duration;
-					}
+					currentPeriodStart = ((double)durationMs / 1000) - duration;
 					offsetFromStart = duration - aamp->mLiveOffset;
+					while(offsetFromStart < 0 && mCurrentPeriodIdx > 0)
+					{
+						logprintf("%s:%d Adjusting to live offset offsetFromStart %f, mCurrentPeriodIdx %d\n", __FUNCTION__, __LINE__, offsetFromStart, mCurrentPeriodIdx);
+						mCurrentPeriodIdx--;
+						duration = (double)GetPeriodDuration(mpd->GetPeriods().at(mCurrentPeriodIdx)) / 1000;
+						currentPeriodStart = currentPeriodStart - duration;
+						offsetFromStart = offsetFromStart + duration;
+					}
 					logprintf("%s:%d duration %f durationMs %f mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f \n", __FUNCTION__, __LINE__,
                                  duration, (double)durationMs / 1000, mCurrentPeriodIdx, currentPeriodStart, offsetFromStart);
-				}
-				else
-				{
-					uint64_t  periodStartMs = 0;
-					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-					std::string tempString = period->GetStart();
-					ParseISO8601Duration( tempString.c_str(), periodStartMs);
-					currentPeriodStart = (double)periodStartMs/1000;
-					offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
 				}
 				if (offsetFromStart < 0)
 				{
