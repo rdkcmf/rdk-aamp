@@ -104,6 +104,14 @@ static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_TRACK_COUNT] =
 	{PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO};
 
+#ifdef AVE_DRM
+extern "C"
+{
+//setCustomLicensePayload is new extension to AVE's DRM library, required to be populated with Virtual Stream Stitcher (VSS) content 
+extern void setCustomLicensePayLoad(const char* customData);
+}
+#endif
+
 /***************************************************************************
 * @fn startswith
 * @brief Function to check if string is start of main string
@@ -571,6 +579,10 @@ static void * TrackPLDownloader(void *arg)
 void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 {
 	mAbrManager.clearProfiles();
+#ifdef AVE_DRM
+	//clear previouse data
+	setCustomLicensePayLoad(NULL);
+#endif
 	while (ptr)
 	{
 		char *next = mystrpbrk(ptr);
@@ -634,8 +646,31 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "M3U"))
 				{
 				}
-				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER"))
+				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
 				{
+#ifdef AVE_DRM
+					std::string vssServiceZone = aamp->getServiceZone();
+
+					if(!vssServiceZone.empty())
+					{
+						char * ptrContentID = ptr;
+
+						if(startswith(&ptr, "urn:merlin:linear:stream:"))
+						{
+							std::string vssData = " \"client:accessAttributes\": [\"content:xcal:virtualStreamId\",\"";
+							vssData.append(ptr);
+							vssData.append("\",\"device:xcal:serviceZone\",\"");
+							vssData.append(vssServiceZone);
+							vssData.append("\"]");
+							setCustomLicensePayLoad(vssData.c_str());
+							AAMPLOG_INFO("%s:%d: custom vss data:%s\n", __FUNCTION__, __LINE__,vssData.c_str());
+						}
+						else
+						{
+							AAMPLOG_WARN("%s:%d: Invalid VirtualStreamID:%s\n", __FUNCTION__, __LINE__, ptrContentID);
+						}
+					}
+#endif
 				}
 				else if (startswith(&ptr, "-X-FOG"))
 				{

@@ -109,6 +109,11 @@
 #define MAX_PLAYLIST_CACHE_SIZE    (2*1024*1024) // Approx 2MB -> 2 video profiles + one audio profile + one iframe profile, 25-50K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
+// VSS Service Zone identifier in url 
+#define VSS_MARKER			"?sz="
+#define VSS_MARKER_FOG		"\%3Fsz\%3D"
+
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -2657,6 +2662,12 @@ public:
 	 */
 	void SignalTrickModeDiscontinuity();
 
+	/**
+	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @return std::string
+	 */
+	std::string & getServiceZone() { return mServiceZone; }
+
 
 private:
 
@@ -2666,6 +2677,13 @@ private:
 	 *   @return void
 	 */
 	static void LazilyLoadConfigIfNeeded(void);
+
+	/**
+	 *   @brief updates mServiceZone ( service zone) member with string extracted from locator &sz URI parameter
+	 *   @param  url - stream url with vss service zone info as query string
+	 *   @return std::string
+	 */
+	void ExtractServiceZone(const char * url);
 
 	/**
 	 *   @brief Schedule Event
@@ -2725,6 +2743,8 @@ private:
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
 	char *mLicenseProxy;                /**< proxy for license acquisition */
+	// VSS license parameters
+	std::string mServiceZone; // part of url
 };
 
 #endif // PRIVAAMP_H
