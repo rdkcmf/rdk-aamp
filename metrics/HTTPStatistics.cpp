@@ -115,7 +115,7 @@ cJSON * CHTTPStatistics::ToJson() const
 		if(mSuccessCount > 0 )
 		{
 			jsonObj =  cJSON_CreateNumber(mSuccessCount);
-			cJSON_AddItemToObject(monitor, "TAG_SUCCESS", jsonObj);
+			cJSON_AddItemToObject(monitor, TAG_SUCCESS, jsonObj);
 		}
 
 	}
