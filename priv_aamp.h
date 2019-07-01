@@ -478,7 +478,7 @@ public:
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
-	long fragmentDLTimeout;                 /**< Fragment download timeout*/
+	long networkTimeout;                 /**< Fragment download timeout*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
@@ -539,7 +539,7 @@ public:
 		playlistsParallelFetch(false), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), adPositionSec(0), adURL(0),abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
-		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),fragmentDLTimeout(CURL_FRAGMENT_DL_TIMEOUT),
+		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeout(CURL_FRAGMENT_DL_TIMEOUT),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
 		preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
