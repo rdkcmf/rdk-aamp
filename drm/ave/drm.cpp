@@ -59,7 +59,7 @@ static pthread_cond_t aveDrmIndividualizationCond = PTHREAD_COND_INITIALIZER;
 static bool aveDrmIndividualizationInProgress = false;
 static bool aveDrmIndividualized = false;
 
-#define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 4
+#define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 8
 
 #ifdef AVE_DRM
 
@@ -995,7 +995,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 			{
 				struct timespec ts;
 				struct timeval tv;
-				logprintf("DELIA-33528 sleep for %d secs for individualization\n", AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS);
+				logprintf("Wait for ave notification on drm key aquired for first metadata\n");
 				gettimeofday(&tv, NULL);
 				ts.tv_sec = tv.tv_sec + AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS;
 				ts.tv_nsec = (long)(tv.tv_usec * 1000);
