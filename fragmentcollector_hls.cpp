@@ -2945,7 +2945,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
 
     /* START: Added As Part of DELIA-28363 and DELIA-28247 */
-    aamp->IsTuneTypeNew = false;
+	aamp->IsTuneTypeNew = newTune;
     /* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 	TSProcessor* audioQueuedPC = NULL;
@@ -3025,11 +3025,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		logprintf("Selected BitRate: %ld, Max BitRate: %ld\n", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
-		if(newTune &&
-			(streamInfo[currentProfileIndex].bandwidthBitsPerSecond < GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
-		{
-			aamp->IsTuneTypeNew = newTune;
-		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
