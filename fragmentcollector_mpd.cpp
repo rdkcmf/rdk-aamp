@@ -2874,7 +2874,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 			if (gpGlobalConfig->logging.trace)
 			{
 				aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-				logprintf("%s\n", manifest.ptr);
+				printf("%s\n", manifest.ptr);
 			}
 			aamp_Free(&manifest.ptr);
 			mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
