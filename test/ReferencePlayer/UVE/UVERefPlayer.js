@@ -19,8 +19,8 @@
 
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
-//Default DRM config for AAMP
-var defaultDrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
+//Comcast DRM config for AAMP
+var comcastDrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
 //AAMP initConfig is used to pass certain predefined config params to AAMP
 //Commented out values are not implemented for now
@@ -45,7 +45,7 @@ var defaultInitConfig = {
     /**
      * start position for playback (ms)
      */
-    offset: 0,
+    offset: 15,
 
     /**
      * network request timeout (ms)
@@ -86,45 +86,17 @@ var defaultInitConfig = {
      */
     liveOffset: 15,
 
-    /**
+	/**
      * drmConfig for the playback
      */
 
-    drmConfig: defaultDrmConfig //For sample structure defaultDrmConfig
-
-    /**
-     *  network proxy to use
-     */
-    //networkProxy: string;
-
-    /**
-     *  network proxy to use for license requests
-     */
-    //licenseProxy: string;
-
-    /**
-     * timeout value for download to start after connect in seconds
-     */
-    //downloadStallTimeout: number;
-
-    /**
-     * timeout value for download stall detection in seconds
-     */
-    //downloadStallTimeout: number;
+    drmConfig: comcastDrmConfig //For sample structure comcastDrmConfig
 };
-
-var urls = [
-     { url: "http://ccr.col-jitp2.xcr.comcast.net/omg01/323/429/EST_ReadyPlayerOneHD_E9180038_mezz_LVLH04.mpd", resolveUrl: "", useDefaultDrmConfig: true },
-     { url: "https://s3.dualstack.us-east-1.amazonaws.com/expo-first-vpc-vod-fragments/552d2/LG114_COMCAST_12858_(12858_ISMUSP).ism/LG114_COMCAST_12858_(12858_ISMUSP).mpd", resolveUrl: "https://vimond-rest-api.ha.expo-first.vimondtv.com/api/web/asset/12858/play?protocol=ISM", useDefaultDrmConfig: false },
-    { url: "http://amssamples.streaming.mediaservices.windows.net/683f7e47-bd83-4427-b0a3-26a6c4547782/BigBuckBunny.ism/manifest(format=mpd-time-csf)", resolveUrl: "", useDefaultDrmConfig: false }
-];
-
 
 var playerState = playerStatesEnum.idle;
 var playbackRateIndex = playbackSpeeds.indexOf(1);
 var urlIndex = 0;
 var mutedStatus = false;
-var ccStatus = false;
 var playerObj = null;
 
 window.onload = function() {
@@ -132,7 +104,7 @@ window.onload = function() {
     resetPlayer();
     resetUIOnNewAsset();
 
-    loadUrl(urls[urlIndex]);
+    //loadUrl(urls[urlIndex]);
 }
 
 function playbackStateChanged(event) {
@@ -180,20 +152,15 @@ function mediaSpeedChanged(event) {
         }
 
         if (currentRate === 1) {
-            document.getElementById("playOrPauseIcon").src = "icons/pause.png";
-            document.getElementById("playState").innerHTML = "PLAYING";
+            document.getElementById("playOrPauseIcon").src = "../icons/pause.png";
         } else {
-            document.getElementById("playOrPauseIcon").src = "icons/play.png";
-            if (currentRate === 0) {
-                document.getElementById("playState").innerHTML = "PAUSED";
-            } else if (currentRate > 1) {
-                document.getElementById("playState").innerHTML = "FAST FORWARD";
-            } else if (currentRate < 0) {
-                document.getElementById("playState").innerHTML = "FAST REWIND";
-            }
+            document.getElementById("playOrPauseIcon").src = "../icons/play.png";
         }
-        document.getElementById("speedX").innerHTML = currentRate;
     }
+}
+
+function bitrateChanged(event) {
+    console.log("bitrate changed event: " + JSON.stringify(event));
 }
 
 function mediaPlaybackFailed(event) {
@@ -227,9 +194,7 @@ function mediaProgressUpdate(event) {
 }
 
 function mediaPlaybackStarted() {
-    bufferingDisplay(false);
-    document.getElementById("playOrPauseIcon").src = "icons/pause.png";
-    document.getElementById("playState").innerHTML = "PLAYING";
+    document.getElementById("playOrPauseIcon").src = "../icons/pause.png";
 
     var availableVBitrates = playerObj.getVideoBitrates();
     if (availableVBitrates !== undefined) {
@@ -239,9 +204,9 @@ function mediaPlaybackStarted() {
 
 function mediaPlaybackBuffering(event) {
     if (event.buffering === true){
-        bufferingDisplay(true);
+        //bufferingDisplay(true);
     } else {
-        bufferingDisplay(false);
+        //bufferingDisplay(false);
     }
 }
 
@@ -256,6 +221,9 @@ function decoderHandleAvailable(event) {
 
 // helper functions
 function resetPlayer() {
+    if (playerState !== playerStatesEnum.idle) {
+        playerObj.stop();
+    }
     if (playerObj !== null) {
         playerObj.destroy();
         playerObj = null;
@@ -265,12 +233,13 @@ function resetPlayer() {
     playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
     playerObj.addEventListener("playbackCompleted", mediaEndReached);
     playerObj.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
+    playerObj.addEventListener("bitrateChanged", bitrateChanged);
     playerObj.addEventListener("playbackFailed", mediaPlaybackFailed);
     playerObj.addEventListener("mediaMetadata", mediaMetadataParsed);
     playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
     playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
     playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
+    //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
     playerState = playerStatesEnum.idle;
@@ -278,38 +247,13 @@ function resetPlayer() {
 }
 
 function loadUrl(urlObject) {
-    if (urlObject.resolveUrl.length !== 0) {
-        httpRequest = new XMLHttpRequest();
-        httpRequest.open('GET', urlObject.resolveUrl);
-        httpRequest.setRequestHeader('Accept', 'application/json');
-        httpRequest.setRequestHeader('x-vimond-tenant', 'NAB2017');
-        httpRequest.send();
-        httpRequest.onreadystatechange = function() {
-            if (httpRequest.readyState === 4 && httpRequest.status === 200) {
-                console.log(httpRequest.responseText);
-                var obj = JSON.parse(httpRequest.responseText);
-                var drmConfigName = null;
-                var drmName = obj.playback.items.item.license['@name'];
-                if (drmName.indexOf('playready') !== -1) {
-                    drmConfigName = "com.microsoft.playready";
-                }
-                var licenseUrl = obj.playback.items.item.license['@uri'];
-                console.log("licenseUrl: " + licenseUrl);
-                var drmConfiguration = '{' + '"' + drmConfigName + '"' + ':"' + licenseUrl + '",' + '"preferredKeysystem":"' + drmConfigName + '"' +'}';
-                console.log("drmConfig: " + drmConfiguration);
-                var initConfiguration = defaultInitConfig;
-                initConfiguration.drmConfig = JSON.parse(drmConfiguration);
-                playerObj.initConfig(initConfiguration);
-                playerObj.load(urlObject.url);
-            }
-        }
-    } else if (urlObject.useDefaultDrmConfig === true) {
-        defaultInitConfig.drmConfig = defaultDrmConfig;
+	console.log("UrlObject received: " + urlObject);
+    if (urlObject.useComcastDrmConfig === true) {
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {
-        defaultInitConfig.drmConfig = null;
-        playerObj.initConfig(defaultInitConfig);
+        var initConfiguration = defaultInitConfig;
+        initConfiguration.drmConfig = null;
         playerObj.load(urlObject.url);
     }
 }
