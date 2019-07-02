@@ -49,6 +49,7 @@ typedef struct playlistcacheddata{
 		mEffectiveUrl = p.mEffectiveUrl;
 		mCachedBuffer = p.mCachedBuffer;
 		mFileType = p.mFileType;
+		return *this;
 	}
 
 }PlayListCachedData;

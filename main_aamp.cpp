@@ -3222,7 +3222,7 @@ static void ProcessConfigEntry(std::string cfg)
 				{
 					//Populate channel map from aamp.cfg
 					// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
-					logprintf("aamp override:\n%s\n", cfg);
+					logprintf("aamp override:\n%s\n", cfg.c_str());
 					ChannelInfo channelInfo;
 					std::stringstream iss(cfg.substr(1));
 					std::string token;

@@ -70,7 +70,7 @@ void AampCacheHandler::InsertToPlaylistCache(std::string url, const GrowableBuff
 					tmpData->mFileType = fileType;
 					mPlaylistCache[url] = tmpData;
 					mCacheStoredSize += buffer->len;
-					AAMPLOG_INFO("[%s][%d]  Inserted. url %s %s\n", __FUNCTION__, __LINE__, url.c_str(),effectiveUrl);
+					AAMPLOG_INFO("[%s][%d]  Inserted. url %s %s\n", __FUNCTION__, __LINE__, url.c_str(),effectiveUrl.c_str());
 				}
 			}
 		}

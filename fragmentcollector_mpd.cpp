@@ -98,6 +98,7 @@ struct FragmentDescriptor
 		Bandwidth = p.Bandwidth;
 		Number = p.Number;
 		Time = p.Time;
+		return *this;
 	}
 };
 
