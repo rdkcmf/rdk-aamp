@@ -113,6 +113,11 @@
 #define MIN_DASH_DRM_SESSIONS 2
 #define MAX_DASH_DRM_SESSIONS 30
 
+// VSS Service Zone identifier in url 
+#define VSS_MARKER			"?sz="
+#define VSS_MARKER_FOG		"\%3Fsz\%3D"
+
+
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -2629,6 +2634,12 @@ public:
 	 *   @return Bool True on new tune
 	 */
 	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
+
+	/**
+	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @return std::string
+	 */
+	std::string  getServiceZone();
 
 
 private:

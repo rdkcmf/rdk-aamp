@@ -3786,7 +3786,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
 
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
-	mIsVSS = (strstr(mainManifestUrl, "?sz=") || strstr(mainManifestUrl, "\%3Fsz\%3D"));
+	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
@@ -3911,6 +3911,35 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mfirstTuneFmt = mIsDash?1:0;
 	}
 	TuneHelper(tuneType);
+}
+
+/**
+ *   @brief return service zone, extracted from locator &sz URI parameter
+ *   @return std::string
+ */
+std::string PrivateInstanceAAMP::getServiceZone()
+{
+    std::string strServiceZone;
+    if(mIsVSS)
+    {
+        const char * vssURL = tunedManifestUrl;
+
+        vssURL = strstr(vssURL, VSS_MARKER);
+        vssURL += strlen(VSS_MARKER);
+
+        const char * nextQueryParameter = strstr(vssURL, "&");
+
+        if(nextQueryParameter)
+        {
+            int iServiceZoneLen = (nextQueryParameter - vssURL);
+            strServiceZone = string(vssURL,iServiceZoneLen);
+        }
+        else
+        {
+            strServiceZone = vssURL;
+        }
+    }
+    return strServiceZone;
 }
 
 std::string  PrivateInstanceAAMP::GetContentTypString()
