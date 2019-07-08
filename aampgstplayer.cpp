@@ -1411,6 +1411,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d \n", (int)mediaType);
 		if (privateContext->pipeline)
 		{
+			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 			/* set the playbin state to NULL before detach it */
 			if (stream->sinkbin && (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL)))
 			{
@@ -2075,6 +2076,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	{
 		GstState current;
 		GstState pending;
+		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 #ifndef INTELCE
 		DisconnectCallbacks();
 #endif
