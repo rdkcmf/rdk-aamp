@@ -677,7 +677,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 							std::string vssData = " \"client:accessAttributes\": [\"content:xcal:virtualStreamId\",\"";
 							vssData.append(ptr);
 							vssData.append("\",\"device:xcal:serviceZone\",\"");
-							vssData.append(aamp->getServiceZone());
+							vssData.append(vssServiceZone);
 							vssData.append("\"]");
 							setCustomLicensePayLoad(vssData.c_str());
 							AAMPLOG_INFO("%s:%d: custom vss data:%s\n", __FUNCTION__, __LINE__,vssData.c_str());

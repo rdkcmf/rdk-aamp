@@ -3866,6 +3866,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
+	mServiceZone.clear(); //clear the value if present
 
 	SetContentType(mainManifestUrl, contentType);
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
@@ -3977,6 +3978,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
+	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
+	ExtractServiceZone(manifestUrl);
+
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
@@ -3988,31 +3992,54 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 /**
  *   @brief return service zone, extracted from locator &sz URI parameter
+ *   @param  url - stream url with vss service zone info as query string
  *   @return std::string
  */
-std::string PrivateInstanceAAMP::getServiceZone()
+void PrivateInstanceAAMP::ExtractServiceZone(const char *url)
 {
-    std::string strServiceZone;
-    if(mIsVSS)
-    {
-        const char * vssURL = tunedManifestUrl;
+	if(mIsVSS && url)
+	{
+		const char * vssURL = NULL;
+		char * tempRedirectedURL = NULL;
 
-        vssURL = strstr(vssURL, VSS_MARKER);
-        vssURL += strlen(VSS_MARKER);
+		if(mTSBEnabled)
+		{
+			tempRedirectedURL = strdup(url);
+			DeFog(tempRedirectedURL);
+			vssURL = (const char *) tempRedirectedURL;
+		}
+		else
+		{
+			vssURL = url;
+		}
 
-        const char * nextQueryParameter = strstr(vssURL, "&");
+		vssURL = strstr(vssURL, VSS_MARKER);
 
-        if(nextQueryParameter)
-        {
-            int iServiceZoneLen = (nextQueryParameter - vssURL);
-            strServiceZone = string(vssURL,iServiceZoneLen);
-        }
-        else
-        {
-            strServiceZone = vssURL;
-        }
-    }
-    return strServiceZone;
+		if(vssURL)
+		{
+			vssURL += strlen(VSS_MARKER);
+			const char * nextQueryParameter = strstr(vssURL, "&");
+			if(nextQueryParameter)
+			{
+				int iServiceZoneLen = (nextQueryParameter - vssURL);
+				mServiceZone = string(vssURL,iServiceZoneLen);
+			}
+			else
+			{
+				mServiceZone = vssURL;
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP::%s - ERROR: url does not have vss marker :%s \n", __FUNCTION__,url);
+		}
+
+		if(tempRedirectedURL)
+		{
+			free(tempRedirectedURL);
+		}
+	}
+
 }
 
 std::string  PrivateInstanceAAMP::GetContentTypString()
@@ -5766,6 +5793,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
+	mServiceZone(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL), mTuneType(eTUNETYPE_NEW_NORMAL)
 {
 	LazilyLoadConfigIfNeeded();

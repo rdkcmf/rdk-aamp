@@ -2646,7 +2646,7 @@ public:
 	 *   @brief  return service zone, extracted from locator &sz URI parameter
 	 *   @return std::string
 	 */
-	std::string  getServiceZone();
+	std::string & getServiceZone() { return mServiceZone; }
 
 	/**
 	 *   @brief Check if current stream is muxed
@@ -2677,6 +2677,13 @@ private:
 	 *   @return void
 	 */
 	static void LazilyLoadConfigIfNeeded(void);
+
+	/**
+	 *   @brief updates mServiceZone ( service zone) member with string extracted from locator &sz URI parameter
+	 *   @param  url - stream url with vss service zone info as query string
+	 *   @return std::string
+	 */
+	void ExtractServiceZone(const char * url);
 
 	/**
 	 *   @brief Schedule Event
@@ -2732,6 +2739,8 @@ private:
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
 	char *mLicenseProxy;                /**< proxy for license acquisition */
+	// VSS license parameters
+	std::string mServiceZone; // part of url
 };
 
 #endif // PRIVAAMP_H
