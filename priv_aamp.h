@@ -2675,6 +2675,24 @@ public:
 	 */
 	bool IsMuxedStream();
 
+	/**
+	 * @brief Stop injection for a track.
+	 * Called from StopInjection
+	 *
+	 * @param[in] Media type
+	 * @return void
+	 */
+	void StopTrackInjection(MediaType type);
+
+	/**
+	 * @brief Resume injection for a track.
+	 * Called from StartInjection
+	 *
+	 * @param[in] Media type
+	 * @return void
+	 */
+	void ResumeTrackInjection(MediaType type);
+
 private:
 
 	/**
@@ -2751,6 +2769,8 @@ private:
 	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
+
+	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 };
 
 #endif // PRIVAAMP_H
