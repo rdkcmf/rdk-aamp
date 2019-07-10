@@ -3717,14 +3717,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
 
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
-	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
 	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
-	mServiceZone.clear(); //clear the value if present
 
 	SetContentType(mainManifestUrl, contentType);
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
@@ -3836,9 +3834,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
 
-	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
-	ExtractServiceZone(manifestUrl);
-
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
@@ -3846,58 +3841,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mfirstTuneFmt = mIsDash?1:0;
 	}
 	TuneHelper(tuneType);
-}
-
-/**
- *   @brief return service zone, extracted from locator &sz URI parameter
- *   @param  url - stream url with vss service zone info as query string
- *   @return std::string
- */
-void PrivateInstanceAAMP::ExtractServiceZone(const char *url)
-{
-	if(mIsVSS && url)
-	{
-		const char * vssURL = NULL;
-		char * tempRedirectedURL = NULL;
-
-		if(mTSBEnabled)
-		{
-			tempRedirectedURL = strdup(url);
-			DeFog(tempRedirectedURL);
-			vssURL = (const char *) tempRedirectedURL;
-		}
-		else
-		{
-			vssURL = url;
-		}
-
-		vssURL = strstr(vssURL, VSS_MARKER);
-
-		if(vssURL)
-		{
-			vssURL += strlen(VSS_MARKER);
-			const char * nextQueryParameter = strstr(vssURL, "&");
-			if(nextQueryParameter)
-			{
-				int iServiceZoneLen = (nextQueryParameter - vssURL);
-				mServiceZone = std::string(vssURL,iServiceZoneLen);
-			}
-			else
-			{
-				mServiceZone = vssURL;
-			}
-		}
-		else
-		{
-			AAMPLOG_ERR("PrivateInstanceAAMP::%s - ERROR: url does not have vss marker :%s \n", __FUNCTION__,url);
-		}
-
-		if(tempRedirectedURL)
-		{
-			free(tempRedirectedURL);
-		}
-	}
-
 }
 
 std::string  PrivateInstanceAAMP::GetContentTypString()
@@ -4634,29 +4577,7 @@ char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
  */
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
-	DRMSystems currentDRM = aamp->GetCurrentDRM();
-	const char *drmName = "";
-	switch(currentDRM)
-	{
-		case eDRM_WideVine:
-			drmName = "WideVine";
-			break;
-		case eDRM_CONSEC_agnostic:
-			drmName = "CONSEC_agnostic";
-			break;
-		case eDRM_PlayReady:
-			drmName = "PlayReady";
-			break;
-		case eDRM_Adobe_Access:
-			drmName = "Adobe_Access";
-			break;
-		case eDRM_Vanilla_AES:
-			drmName = "Vanilla_AES";
-			break;
-		default:
-			break;
-	}
-	return drmName;
+	return aamp->GetCurrentDRM();
 }
 
 
@@ -4665,9 +4586,28 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
  *
  *   @return current drm
  */
-DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
+const char* PrivateInstanceAAMP::GetCurrentDRM(void)
 {
-	return mCurrentDrm;
+	switch(mCurrentDrm)
+	{
+		case eDRM_WideVine:
+			return "WideVine";
+			break;
+		case eDRM_CONSEC_agnostic:
+			return "CONSEC_agnostic";
+			break;
+		case eDRM_PlayReady:
+			return "PlayReady";
+			break;
+		case eDRM_Adobe_Access:
+			return "Adobe_Access";
+			break;
+		case eDRM_Vanilla_AES:
+			return "Vanilla_AES";
+			break;
+		default:
+			return "";
+	}
 }
 
 /**
@@ -5622,12 +5562,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
-	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
+	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0),
 	lastTuneType(eTUNETYPE_NEW_NORMAL), m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
-        mServiceZone(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
 {
 	LazilyLoadConfigIfNeeded();
@@ -5778,20 +5717,6 @@ void PrivateInstanceAAMP::AddIdleTask(IdleTask task, void* arg)
 
 
 /**
- * @brief Add high priority idle task
- *
- * @note task shall return 0 to be removed, 1 to be repeated
- *
- * @param[in] task task function pointer
- * @param[in] arg passed as parameter during idle task execution
- */
-gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask)
-{
-	gint callbackID = g_idle_add_full(G_PRIORITY_HIGH_IDLE, task, (gpointer)arg, dtask);
-	return callbackID;
-}
-
-/**
  * @brief Check if sink cache is empty
  * @param mediaType type of track
  * @retval true if sink cache is empty
@@ -5895,8 +5820,7 @@ void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
 	else
 	{
 		mPendingAsyncEvents[id] = true;
-	}
-	pthread_mutex_unlock(&mLock);
+	}	pthread_mutex_unlock(&mLock);
 }
 
 
@@ -6031,12 +5955,12 @@ void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
  * @param effectiveUrl Effective URL of playlist
  */
 
-void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType)
+void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,MediaType fileType)
 {
 	PlayListCachedData *tmpData;
 	// First check point , Caching is allowed only if its VOD and for Main Manifest(HLS) for both VOD/Live
 	// For Main manifest , fileType will bypass storing for live content
-	if(trackLiveStatus==false || fileType==eMEDIATYPE_MANIFEST)
+	if(!IsLive() || fileType==eMEDIATYPE_MANIFEST)
 	{
 
 		PlaylistCacheIter it = mPlaylistCache.find(url);

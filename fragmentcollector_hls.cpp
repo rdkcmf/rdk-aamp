@@ -58,16 +58,25 @@
 #define CHAR_LF 0x0a // '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
+#define DRM_DECRYPT_RETRY_COUNT 2
+#define DRM_DECRYPT_RETRY_TIMEOUT 5000
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
-#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
-#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
-#define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
-#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
-#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /*!< Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
+#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define DRM_SHA1_HASH_LEN 40
+#define DRM_IV_LEN 16
+#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /* 12 secs Increase from 10 to 12 sec(DELIA-33528) */
+#define MAX_SEQ_NUMBER_LAG_COUNT 50 /* Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
+#define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 
+//Global variables to persist drm related info for particular tune/vod
+static unsigned char gCMSha1Hash[DRM_SHA1_HASH_LEN] = {0};
+static DrmMetadata gDrmMetadata = {0, 0};
+static DrmInfo gDrmInfo = {eMETHOD_NONE, false, NULL, NULL};
+static HlsDrmBase* gDrm = NULL;
+static bool gDrmContexSet = false;
+static pthread_mutex_t gDrmMutex = PTHREAD_MUTEX_INITIALIZER;
+static int gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME; /** max time to wait for license acquisition before report error **/
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -76,6 +85,15 @@ struct FormatMap
 {
 	const char* codec;
 	StreamOutputFormat format;
+};
+/**
+* \struct	DrmMetadataNode
+* \brief	DrmMetadataNode structure for DRM Metadata/Hash storage
+*/
+struct DrmMetadataNode
+{
+	DrmMetadata metaData;
+	char* sha1Hash;
 };
 
 /// Variable initialization for various audio formats 
@@ -103,14 +121,6 @@ static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 /// Variable initialization for media decrypt buckets
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_TRACK_COUNT] =
 	{PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO};
-
-#ifdef AVE_DRM
-extern "C"
-{
-//setCustomLicensePayload is new extension to AVE's DRM library, required to be populated with Virtual Stream Stitcher (VSS) content 
-extern void setCustomLicensePayLoad(const char* customData);
-}
-#endif
 
 /***************************************************************************
 * @fn startswith
@@ -236,26 +246,18 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		{ // used by DAI
 			if(ts->fragmentEncrypted)
 			{
-				if (!ts->mIndexingInProgress)
-				{
-					logprintf("Track %s encrypted to clear \n", ts->name);
-				}
+				logprintf("Track %s encrypted to clear \n", ts->name);
 				ts->fragmentEncrypted = false;
-				ts->UpdateDrmCMSha1Hash(NULL);
 			}
 		}
 		else if (SubStringMatch(valuePtr, fin, "AES-128"))
 		{
 			if(!ts->fragmentEncrypted)
 			{
-				if (!ts->mIndexingInProgress)
-				{
-					AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
-				}
+				AAMPLOG_WARN("Track %s clear to encrypted \n", ts->name);
 				ts->fragmentEncrypted = true;
 			}
 			ts->mDrmInfo.method = eMETHOD_AES_128;
-			ts->mKeyTagChanged = true;
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES"))
 		{
@@ -528,29 +530,6 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 	}
 }
 
-static bool ParseTimeFromProgramDateTime(const char* ptr, struct timeval &programDateTimeVal )
-{
-	bool retVal = false;
-	struct tm timeinfo;
-	int ms = 0;
-	memset(&timeinfo, 0, sizeof(timeinfo));
-	/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-	int ret = sscanf(ptr, "%d-%d-%dT%d:%d:%d.%d", &timeinfo.tm_year, &timeinfo.tm_mon,
-			&timeinfo.tm_mday, &timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec, &ms);
-	if (ret >= 6)
-	{
-		timeinfo.tm_year -= 1900;
-		programDateTimeVal.tv_sec = mktime(&timeinfo);
-		programDateTimeVal.tv_usec = ms * 1000;
-		retVal = true;
-	}
-	else
-	{
-		logprintf("Parse error on DATE-TIME: %*s ret = %d\n", 30, ptr, ret);
-	}
-	return retVal;
-}
-
 /***************************************************************************
 * @fn TrackPLDownloader
 * @brief Thread function for download 
@@ -579,10 +558,6 @@ static void * TrackPLDownloader(void *arg)
 void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 {
 	mAbrManager.clearProfiles();
-#ifdef AVE_DRM
-	//clear previouse data
-	setCustomLicensePayLoad(NULL);
-#endif
 	while (ptr)
 	{
 		char *next = mystrpbrk(ptr);
@@ -646,31 +621,8 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "M3U"))
 				{
 				}
-				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
+				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER"))
 				{
-#ifdef AVE_DRM
-					std::string vssServiceZone = aamp->getServiceZone();
-
-					if(!vssServiceZone.empty())
-					{
-						char * ptrContentID = ptr;
-
-						if(startswith(&ptr, "urn:merlin:linear:stream:"))
-						{
-							std::string vssData = " \"client:accessAttributes\": [\"content:xcal:virtualStreamId\",\"";
-							vssData.append(ptr);
-							vssData.append("\",\"device:xcal:serviceZone\",\"");
-							vssData.append(vssServiceZone);
-							vssData.append("\"]");
-							setCustomLicensePayLoad(vssData.c_str());
-							AAMPLOG_INFO("%s:%d: custom vss data:%s\n", __FUNCTION__, __LINE__,vssData.c_str());
-						}
-						else
-						{
-							AAMPLOG_WARN("%s:%d: Invalid VirtualStreamID:%s\n", __FUNCTION__, __LINE__, ptrContentID);
-						}
-					}
-#endif
 				}
 				else if (startswith(&ptr, "-X-FOG"))
 				{
@@ -766,7 +718,7 @@ char *TrackState::GetFragmentUriFromIndex()
 
 		const IndexNode *lastIndexNode = &index[indexCount - 1];
 		double seekWindowEnd = lastIndexNode->completionTimeSecondsFromStart - aamp->mLiveOffset; 
-		if (IsLive() && playTarget > seekWindowEnd)
+		if (aamp->IsLive() && playTarget > seekWindowEnd)
 		{
 			logprintf("%s - rate - %f playTarget(%f) > seekWindowEnd(%f), forcing EOS\n",
                                 __FUNCTION__, context->rate, playTarget, seekWindowEnd);
@@ -880,27 +832,7 @@ char *TrackState::GetFragmentUriFromIndex()
 		else
 		{
 			fragmentEncrypted = true;
-			// for each iframe , need to see if KeyTag changed and get the drminfo .
-			// Get the key Index position .
-			int keyIndexPosn = idxNode->drmMetadataIdx;
-			if(keyIndexPosn != mLastKeyTagIdx)
-			{
-				logprintf("%s:%d:[%d] KeyTable Size [%d] keyIndexPosn[%d] lastKeyIdx[%d]\n",__FUNCTION__,__LINE__,type,mKeyHashTable.size(),keyIndexPosn,mLastKeyTagIdx);
-				if(keyIndexPosn < mKeyHashTable.size() && mKeyHashTable[keyIndexPosn].mKeyTagStr.size())
-				{
-					// ParseAttrList function modifies the input string ,hence cannot pass mKeyTagStr
-					// modifying const memory will cause crash . So had to copy locally
-					char* key =(char*) malloc (mKeyHashTable[keyIndexPosn].mKeyTagStr.size());
-                                        memcpy(key,mKeyHashTable[keyIndexPosn].mKeyTagStr.c_str(),mKeyHashTable[keyIndexPosn].mKeyTagStr.size());
-
-					//logprintf("%s:%d:[%d] Parse the Key attribute for new KeyIndex[%d][%s] \n",__FUNCTION__,__LINE__,type,keyIndexPosn,mKeyHashTable[keyIndexPosn].mShaID.c_str());
-					ParseAttrList((char *)key, ParseKeyAttributeCallback, this);
-					free(key);
-				}
-				mKeyTagChanged = true;
-				mLastKeyTagIdx = keyIndexPosn;
-			}
-
+			mDrmMetaDataIndexPosition = idxNode->drmMetadataIdx;
 		}
 	}
 	else
@@ -914,17 +846,16 @@ char *TrackState::GetFragmentUriFromIndex()
 /***************************************************************************
 * @fn GetNextFragmentUriFromPlaylist
 * @brief Function to get next fragment URI from playlist based on playtarget
-* @param ignoreDiscontinuity Ignore discontinuity
+*		 
 * @return string fragment URI pointer
 ***************************************************************************/
-char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
+char *TrackState::GetNextFragmentUriFromPlaylist()
 {
 	char *ptr = fragmentURI;
 	char *rc = NULL;
 	int byteRangeLength = 0; // default, when optional byterange offset is left unspecified
 	int byteRangeOffset = 0;
 	bool discontinuity = false;
-	const char* programDateTime = NULL;
 
 	traceprintf ("GetNextFragmentUriFromPlaylist : playTarget %f playlistPosition %f fragmentURI %p\n", playTarget, playlistPosition, fragmentURI);
 	if (playTarget < 0)
@@ -978,6 +909,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					else
 					{
 						playlistPosition = 0;
+						discontinuity = false;
 					}
 					fragmentDurationSeconds = atof(ptr);
 #ifdef TRACE
@@ -1013,21 +945,31 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{ // associates following media URI with absolute date/time
 					// if used, should supplement any EXT-X-DISCONTINUITY tags
+//#ifdef TRACE
 					AAMPLOG_TRACE("Got EXT-X-PROGRAM-DATE-TIME: %s \n", ptr);
-					if (context->mNumberOfTracks > 1)
+					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
+					if (startTimeForPlaylistSync.tv_sec == 0 && startTimeForPlaylistSync.tv_usec == 0)
 					{
-						programDateTime = ptr;
-						// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
-						if (startTimeForPlaylistSync.tv_sec == 0 && startTimeForPlaylistSync.tv_usec == 0)
+						struct tm timeinfo;
+						int ms;
+						memset(&timeinfo, 0, sizeof(timeinfo));
+						/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
+						int ret = sscanf(ptr, "%d-%d-%dT%d:%d:%d.%d", &timeinfo.tm_year, &timeinfo.tm_mon,
+								&timeinfo.tm_mday, &timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec, &ms);
+						if (ret == 7)
 						{
-							/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-							bool ret = ParseTimeFromProgramDateTime(ptr, startTimeForPlaylistSync);
-							if (ret)
-							{
-								AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %ld.%06ld\n",
-										ptr ,startTimeForPlaylistSync.tv_sec,
-										(long)startTimeForPlaylistSync.tv_usec);
-							}
+							timeinfo.tm_year -= 1900;
+							startTimeForPlaylistSync.tv_sec = mktime(&timeinfo);
+							startTimeForPlaylistSync.tv_usec = ms * 1000;
+//#ifdef TRACE
+							AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %s ==> %ld.%06ld\n",
+									ptr, asctime(&timeinfo),startTimeForPlaylistSync.tv_sec,
+									startTimeForPlaylistSync.tv_usec);
+//#endif
+						}
+						else
+						{
+							logprintf("Parse error on DATE-TIME: %s ret = %d\n", ptr, ret);
 						}
 					}
 				}
@@ -1053,11 +995,20 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-ENDLIST"))
 				{ // indicates that no more media segments are available
 					logprintf("#EXT-X-ENDLIST\n");
-					mReachedEndListTag = true;
+					context->hasEndListTag = true;
 				}
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
+					logprintf("#EXT-X-DISCONTINUITY in track[%d]\n", type);
 					discontinuity = true;
+
+					TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
+					TrackState *other = context->trackState[otherType];
+					if (other->enabled && !other->HasDiscontinuityAroundPosition(playTarget))
+					{
+						logprintf("Ignoring discontinuity as %s track does not have discontinuity\n", other->name);
+						discontinuity = false;
+					}
 				}
 				else if (startswith(&ptr, "-X-I-FRAMES-ONLY"))
 				{
@@ -1125,15 +1076,6 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-ADVERTISING"))
 				{ // placeholder for advertising zone for linear (soon to be deprecated)
 				}
-				else if (startswith(&ptr, "-X-SOURCE-STREAM"))
-				{ // placeholder for vss source stream id
-				}
-				else if (startswith(&ptr, "-X-X1-LIN-CK"))
-				{ // placeholder for deferred drm information
-				}
-				else if (startswith(&ptr, "-X-SCTE35"))
-				{ // placeholder for DAI tag processing
-				}
 				else 
 				{
 					std::string unknowTag= ptr;
@@ -1154,74 +1096,13 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					//logprintf("Return fragment %s playlistPosition %f playTarget %f\n", ptr, playlistPosition, playTarget);
 					this->byteRangeOffset = byteRangeOffset;
 					this->byteRangeLength = byteRangeLength;
-					if (discontinuity)
-					{
-						if (!ignoreDiscontinuity)
-						{
-							logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] playTarget %f total mCulledSeconds %f\n", __FUNCTION__, __LINE__, type, playTarget, mCulledSeconds);
-							TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
-							TrackState *other = context->trackState[otherType];
-							if (other->enabled)
-							{
-								double diff;
-								double position;
-								double playPosition = playTarget - mCulledSeconds;
-								if (!programDateTime)
-								{
-									position = playPosition;
-								}
-								else
-								{
-									struct timeval programDateTimeVal;
-									bool ret = ParseTimeFromProgramDateTime(programDateTime, programDateTimeVal);
-									if (ret)
-									{
-										AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %ld.%06ld\n",
-												ptr ,programDateTimeVal.tv_sec,
-												(long)programDateTimeVal.tv_usec);
-									}
-									position = programDateTimeVal.tv_sec + (double)programDateTimeVal.tv_usec/1000000;
-									logprintf("%s:%d [%s] Discontinuity - position from program-date-time %f\n", __FUNCTION__, __LINE__, name, position);
-								}
-								if (!other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition))
-								{
-									logprintf("%s:%d [%s] Ignoring discontinuity as %s track does not have discontinuity\n", __FUNCTION__, __LINE__, name, other->name);
-									discontinuity = false;
-								}
-								else if (programDateTime)
-								{
-									logprintf("%s:%d [%s] diff %f \n", __FUNCTION__, __LINE__, name, diff);
-									/*If other track's discontinuity is in advanced position, diff is positive*/
-									if (diff > fragmentDurationSeconds/2 )
-									{
-										/*Skip fragment*/
-										logprintf("%s:%d [%s] Discontinuity - other track's discontinuity time greater by %f. updating playTarget %f to %f\n",
-												__FUNCTION__, __LINE__, name, diff, playTarget, playlistPosition + diff);
-										mSyncAfterDiscontinuityInProgress = true;
-										playTarget = playlistPosition + diff;
-										discontinuity = false;
-										programDateTime = NULL;
-										ptr = next;
-										continue;
-									}
-								}
-							}
-						}
-						else
-						{
-							discontinuity = false;
-						}
-					}
-					this->discontinuity = discontinuity || mSyncAfterDiscontinuityInProgress;
-					mSyncAfterDiscontinuityInProgress = false;
-					traceprintf("%s:%d [%s] Discontinuity - %d\n", __FUNCTION__, __LINE__, name, (int)this->discontinuity);
+					this->discontinuity = discontinuity;
 					rc = ptr;
 					break;
 				}
 				else
 				{
 					discontinuity = false;
-					programDateTime = NULL;
 					// logprintf("Skipping fragment %s playlistPosition %f playTarget %f\n", ptr, playlistPosition, playTarget);
 				}
 			}
@@ -1270,7 +1151,7 @@ char *TrackState::FindMediaForSequenceNumber()
 			{ // URI
 				if (seq >= mediaSequenceNumber)
 				{
-					if ((mDrmKeyTagCount >1) && key)
+					if (mCMSha1Hash && key)
 					{
 						ParseAttrList(key, ParseKeyAttributeCallback, this);
 					}
@@ -1340,19 +1221,19 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (fragmentURI != NULL)
 			{
 				playTarget = playlistPosition + fragmentDurationSeconds;
-				if (IsLive())
+				if (aamp->IsLive())
 				{
 					context->CheckForPlaybackStall(true);
 				}
 			}
 			else
 			{
-				if ((!IsLive() || mReachedEndListTag) && (playlistPosition != -1))
+				if ((ePLAYLISTTYPE_VOD == context->playlistType || context->hasEndListTag) && (playlistPosition != -1))
 				{
-					logprintf("aamp play to end. playTarget %f fragmentURI %p ReachedEndListTag %d Type %d\n", playTarget, fragmentURI, mReachedEndListTag,type);
+					logprintf("aamp play to end. playTarget %f fragmentURI %p hasEndListTag %d\n", playTarget, fragmentURI, context->hasEndListTag);
 					eosReached = true;
 				}
-				else if (IsLive() && type == eTRACK_VIDEO)
+				else if (aamp->IsLive() && type == eTRACK_VIDEO)
 				{
 					context->CheckForPlaybackStall(false);
 				}
@@ -1364,7 +1245,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			char fragmentUrl[MAX_URI_LENGTH];
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			aamp_ResolveURL(fragmentUrl, effectiveUrl, fragmentURI);
-			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d\n", fragmentUrl, fragmentEncrypted, (int)discontinuity);
+			traceprintf("Got next fragment url %s fragmentEncrypted %d\n", fragmentUrl, fragmentEncrypted);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
 			const char *range;
@@ -1430,19 +1311,19 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error)
 			if (cachedFragment->fragment.len && fragmentEncrypted)
 			{
 				{	
-					traceprintf("%s:%d [%s] uri %s - calling  DrmDecrypt()\n", __FUNCTION__, __LINE__, name, fragmentURI);
-					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
+					bool decrypted = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
 
-					if(eDRM_SUCCESS != drmReturn)
+					if(!decrypted)
 					{
+
 						logprintf("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d\n", fragmentURI, segDrmDecryptFailCount);
 						if (aamp->DownloadsAreEnabled())
 						{
-							if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+							if (gDrmLicenseAcqWaitTime <= 0)
 							{
 								decryption_error = true;
 								logprintf("FetchFragmentHelper : drm_Decrypt failed due to license acquisition timeout\n");
-								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT, NULL, true);
+								aamp->SendErrorEvent(AAMP_TUNE_LICENCE_TIMEOUT);
 							}
 							else
 							{
@@ -1511,7 +1392,7 @@ void TrackState::FetchFragment()
 	int timeoutMs = -1;
 	long http_error = 0;
 	bool decryption_error = false;
-	if (IsLive())
+	if (aamp->IsLive())
 	{
 		timeoutMs = context->maxIntervalBtwPlaylistUpdateMs - (int) (aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 		if(timeoutMs < 0)
@@ -1699,13 +1580,7 @@ void TrackState::FlushIndex()
 	index.len = 0;
 	index.avail = 0;
 	currentIdx = -1;
-	mDrmKeyTagCount = 0;
-	mLastKeyTagIdx = -1;
-	mDeferredDrmKeyMaxTime = 0;
-	mKeyHashTable.clear();
-	mDiscontinuityIndexCount = 0;
-	aamp_Free(&mDiscontinuityIndex.ptr);
-	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
+	mPeriodPositionIndex.clear();
 	if (mDrmMetaDataIndexCount)
 	{
 		traceprintf("TrackState::%s:%d [%s]mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, name,
@@ -1741,265 +1616,26 @@ void TrackState::FlushIndex()
 	}
 	mInitFragmentInfo = NULL;
 }
-
-/***************************************************************************
-* @fn ComputeDeferredKeyRequestTime
-* @brief Function to compute Deferred key request time for VSS Stream Meta data
-***************************************************************************/
-void TrackState::ComputeDeferredKeyRequestTime()
-{
-	// This function will be called only if special tag -X-X1-LIN is present to differ the Key acquisition
-	//  on random value based on the Max refresh time interval
-	// From gathered information , Meta data gets added to playlist and then Key tag follows after certain time interval
-	// defined in X-X1-LIN tag . So if a new Meta appears , before the KeyTag comes up , Key need to be acquired on a random
-	// timeout.
-	// Assumption 1:There is no deferring required between 2 or more meta present in the playlist if there is equivalent KeyTag
-	// 				with Sha is present .For all the Metas with KeyTags , key request will happen immediately
-	// Assumption 2 not considered : Not sure if new Meta gets added always at the end or can get it added in any index ,
-	//			 either by Fog or Source server. So going worst case, if it can added any position , need to run the loop completely
-
-	bool foundFlag = false;
-	if(mDrmMetaDataIndexCount > 1)
-	{
-		DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-		int foundMetaCounter = 0;
-		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-		{
-			// Check if the Meta is already present with AveDrmManager. If there its already configured for deferred time,no need to add again
-			// If not present , check if Key Tag is present or not .
-			// a)if Key tag present , then no deferring . Key requested immediately.
-			// b)if Key tag not present , then calculate deferred time
-			if(AveDrmManager::IsMetadataAvailable(drmMetadataNode[idx].sha1Hash) == -1)
-			{
-				foundFlag = false;
-				// checking Hash availability in KeyTags
-				KeyHashTableIter iter = mKeyHashTable.begin();
-				for(;iter != mKeyHashTable.end();iter++)
-				{
-					if(iter->mShaID.size() && (0 == memcmp(iter->mShaID.c_str(), drmMetadataNode[idx].sha1Hash , DRM_SHA1_HASH_LEN)))
-					{
-						// Key tag present , not to defer
-						foundFlag = true;
-						foundMetaCounter++;
-						break;
-					}
-				}
-
-				if(!foundFlag)
-				{
-					// Found new Meta with no key Mapping. Need to defer key request for this Meta
-					int deferredTimeMs = GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
-					drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
-
-					logprintf("[%s][%d][%s] Found New Meta[%d] without KeyTag mapping.Defer license request[%d]\n",
-						__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
-				}
-				else
-				{
-					// This is preventive measure to avoid overloading of DRM and cpu.
-					// For any reason process crashes and comes back ,fog may give complete TSB with so many
-					// Metadata with KeyTag available. This will cause sudden rush of Meta add and key requset
-					// Differ the key in staggered manner. If particular Meta-Key is needed for decrypt, then it will
-					// be requested on Emergency mode
-					if(foundMetaCounter > 2)
-					{
-						int deferredTimeMs = GetDeferTimeMs(30);
-						drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
-						logprintf("[%s][%d][%s] Found New Meta[%d] with KeyTag mapping.Deferring license request due to load[%d]\n",__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
-					}
-				}
-			}
-		}
-	}
-}
-
-/***************************************************************************
-* @fn ProcessDrmMetadata
-* @brief Process Drm Metadata after indexing
-***************************************************************************/
-void TrackState::ProcessDrmMetadata()
-{
-
-	// This function after indexplaylist to be called , this will store the metadata into AveDrmManager
-	// Storing will not invoke key request . If meta already present , no update happens
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	if(mDrmMetaDataIndexCount)
-	{
-		// WARNING ::: Dont put condition here for optimizaion , if Metaavailable !!!!
-		// Meta may be added for other track . Also this is the method by which DrmManger knows Meta
-		// is still available after refresh . Else it will flush out the Meta from DrmManager thinking
-		// Source removed the source
-		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-		{
-			traceprintf("%s:%d:[%s] Setting  metadata for index %d/%d\n", __FUNCTION__, __LINE__,name, idx,mDrmMetaDataIndexCount);
-			AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[idx],(int)type);
-		}
-	}
-}
-
-/***************************************************************************
-* @fn InitiateDRMKeyAcquisition
-* @brief Function to initiate key request for all Meta data
-***************************************************************************/
-void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
-{
-	// WARNING :: Dont put optimization condition here to check if MetaAvailable or KeyAvailable.
-	// This is the call by which DrmManager runs the loops to initiate key request for deferred
-
-	// Initiate Key Request will happen after every refresh for all the Meta as there is no pre-refresh data stored to compare
-	// Inside AveDrmManager, check is done if Key is already acquired or not . Also if any deferred request is needed or not
-	// Second caller of this function is SetDrmContext,if Key is not acquired then for specific meta index key request is made
-	//logprintf("%s:%d:[%s] mDrmMetaDataIndexCount %d \n", __FUNCTION__, __LINE__,name, mDrmMetaDataIndexCount);
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	long long currentTime = aamp_GetCurrentTimeMS();
-	bool retStatus = true;
-	// Function to initiate key request with DRM
-	// if indexPosn == -1 , its required to check for all the Metadata stored in the list
-	// 		this call will be made after playlist update .
-	// if indexPosn != -1 , its required to initiate key request immediately for particular Meta
-	if(mDrmMetaDataIndexCount > 0)
-	{
-		// if it is for Adobe DRM only , upfront Key request is done ,
-		// If Clear , nothing to do
-		if(indexPosn == -1)
-		{
-			for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-			{
-				// Request key for all Meta's received in playlist refresh .
-				// Deferring logic is with DRM Manager ..lets make it little more intelligent instead of FragCollector
-				// doing all checks n calculcation .
-				// Every refresh of playlist , DRM Meta will calculate new refresh time and request. DRM Manager knows the
-				// first request with deferred time , so it will request key when time comes.
-				traceprintf("%s:%d:[%s]Request DRM Key for indexPosn[%d]\n",__FUNCTION__, __LINE__,name,idx);
-				retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[idx],(int)type);
-				if(retStatus == false)
-					break;
-			}
-		}
-		else
-		{
-			// on an emergency may have to request Key for certain index only
-			logprintf("%s:%d:[%s]Request DRM Key immediately for indexPosn[%d]\n",__FUNCTION__, __LINE__,name,indexPosn);
-			retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[indexPosn],(int)type,true);
-		}
-
-		if(retStatus == false)
-		{
-			// Something wrong , why should AveDrmManager return false when Key is requested,
-			// May be Meta is not stored before requesting Key or Meta may not be available for ShaId looking for
-			logprintf("%s:%d:[%s] Failure to Get Key \n",__FUNCTION__, __LINE__,name);
-			aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
-		}
-	}
-}
-
-/***************************************************************************
-* @fn SetDrmContext
-* @brief Function to set DRM Context when KeyTag changes
-* @return None
-***************************************************************************/
-void TrackState::SetDrmContext()
-{
-	// Set the appropriate DrmContext for Decryption
-	// This function need to be called where KeyMethod != None is found after indexplaylist
-	// or when new KeyMethod is found , None to AES or between AES with different Method
-	// or between KeyMethond when IV or URL changes (for Vanilla AES)
-
-	bool drmContextUpdated = false;
-	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-
-	if(drmMetadataIdx)
-	{
-		logprintf("TrackState::[%s][%s] Enter mCMSha1Hash [%p] mDrmMetaDataIndexPosition %d\n", __FUNCTION__,name, mCMSha1Hash,
-			mDrmMetaDataIndexPosition);
-		// Get the DRM Instance based on current Sha1
-		// a) If Multi Key involved mCMSha1Hash will have value ,based on which DRM Instance is picked
-		// b) If Single Key invloved (no mCMSha1Hash), but with diff Meta for audio and video , based on track type appropriate DRM instance picked
-		// c) If Single Key involved (no mCMSha1Hash) , audio/video having same meta, AveDrmManager will get the the only on Drm Instance
-		mDrm = AveDrmManager::GetAveDrm(mCMSha1Hash,type);
-		if(mDrm && mDrm->GetState() != DRMState::eDRM_KEY_ACQUIRED)
-			{
-				// Need of the hour ,initiate the key before the decrypt function is called
-				logprintf("%s:%d:[%s] Initiating Key Request as Key is not available for index [%d]\n",__FUNCTION__,__LINE__,name,mDrmMetaDataIndexPosition);
-				InitiateDRMKeyAcquisition(mDrmMetaDataIndexPosition);
-			}
-	}
-	else
-	{
-#ifdef AAMP_VANILLA_AES_SUPPORT
-		AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
-		mDrm = AesDec::GetInstance();
-#else
-		logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
-#endif
-	}
-	if(mDrm)
-	{
-		mDrm->SetDecryptInfo(aamp, &mDrmInfo);
-	}
-}
-
-/***************************************************************************
-* @fn GetNextLineStart
-* @brief Function to get start of the next line
-* @param[in] ptr buffer to do the operation
-* @return start of the next line
-***************************************************************************/
-static char* GetNextLineStart(char* ptr)
-{
-	ptr = strchr(ptr, CHAR_LF);
-	if( ptr )
-	{
-	    ptr++;
-	}
-	return ptr;
-}
-
-/***************************************************************************
-* @fn FindLineLength
-* @brief Function to get the length of line.
-* @param[in] ptr start of line
-* @return length of line
-***************************************************************************/
-static size_t FindLineLength(const char* ptr)
-{
-	size_t len;
-        /*
-        Lines in a Playlist file are terminated by either a single line feed
-        character or a carriage return character followed by an line feed
-        */
-	const char * delim = strchr(ptr, CHAR_LF);
-	if (delim)
-	{
-		len = delim-ptr;
-		if (delim > ptr && delim[-1] == CHAR_CR)
-		{
-			len--;
-		}
-	}
-	else
-	{
-		len = strlen(ptr);
-	}
-	return len;
-}
-
 /***************************************************************************
 * @fn IndexPlaylist
 * @brief Function to parse playlist 
 *		 
 * @return double total duration from playlist
 ***************************************************************************/
-void TrackState::IndexPlaylist()
+double TrackState::IndexPlaylist()
 {
 	double totalDuration = 0.0;
+	char * playlistBackup = NULL;
 	traceprintf("%s:%d Enter \n", __FUNCTION__, __LINE__);
-	pthread_mutex_lock(&mPlaylistMutex);
+
 	FlushIndex();
-	mIndexingInProgress = true;
+
 	if (playlist.ptr )
 	{
 		char *ptr;
+
+		//ptr = strstr(playlist.ptr, "#EXTM3U");
+
 		if(memcmp(playlist.ptr,"#EXTM3U",7)!=0)
 		{
 		    int tempDataLen = (MANIFEST_TEMP_DATA_LENGTH - 1);
@@ -2009,183 +1645,184 @@ void TrackState::IndexPlaylist()
 		    logprintf("ERROR: Invalid Playlist URL:%s \n", playlistUrl);
 		    logprintf("ERROR: Invalid Playlist DATA:%s \n", temp);
 		    aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-		    mDuration = totalDuration;
-		    pthread_cond_signal(&mPlaylistIndexed);
-		    pthread_mutex_unlock(&mPlaylistMutex);
-		    return;
+
+		    return totalDuration;
 		}
+
+		// TODO: may be more efficient to do the following scans as we walk the file
+
+		ptr = strstr(playlist.ptr, "#EXT-X-MEDIA-SEQUENCE:");
+		if (ptr)
+		{
+			ptr += 22;
+			indexFirstMediaSequenceNumber = atoll(ptr);
+		}
+		else
+		{ // for Sling content
+			logprintf("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
+			ptr = playlist.ptr;
+			indexFirstMediaSequenceNumber = 0;
+		}
+
+		ptr = strstr(playlist.ptr, "#EXT-X-TARGETDURATION:");
+		if( ptr )
+		{
+			ptr += 22;
+			targetDurationSeconds = atof(ptr);
+			AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
+		}
+
+		ptr = strstr(playlist.ptr, "#EXT-X-MAP:");
+		if( ptr )
+		{
+			mInitFragmentInfo = ptr + 11;
+			logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
+		}
+
 		DrmMetadataNode drmMetadataNode;
+		playlistBackup = (char*) malloc(playlist.len);
+		memcpy(playlistBackup, playlist.ptr, playlist.len);
+		ptr = playlist.ptr;
+		do
+		{
+			char *drmPtr = NULL;
+			ptr = strstr(ptr, "#EXT-X-FAXS-CM:");
+			if (ptr)
+			{
+				drmPtr = ptr+strlen("#EXT-X-FAXS-CM:");
+				traceprintf("aamp: #EXT-X-FAXS-CM:\n");
+
+				char * delim = strchr(ptr, CHAR_LF);
+				if (delim)
+				{
+					if (delim > ptr && delim[-1] == CHAR_CR)
+					{
+						delim--;
+					}
+					*delim = '\0';
+					ptr = delim + 1;
+				}
+				else
+				{
+					ptr = NULL;
+				}
+				unsigned char hash[SHA_DIGEST_LENGTH] = {0};
+				drmMetadataNode.metaData.metadataPtr =  base64_Decode(drmPtr, &drmMetadataNode.metaData.metadataSize);
+				SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
+				drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
+#ifdef TRACE
+				logprintf("%s:%d [%s] drmMetadataNode[%d].sha1Hash -- ", __FUNCTION__, __LINE__, name, mDrmMetaDataIndexCount);
+				for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
+				{
+					printf("%c", drmMetadataNode.sha1Hash[i]);
+				}
+				printf("\n");
+#endif
+
+				aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
+				traceprintf("%s:%d mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, mDrmMetaDataIndex.ptr);
+				mDrmMetaDataIndexCount++;
+			}
+		}
+		while (ptr);
+		if (mDrmMetaDataIndexCount > 1)
+		{
+			traceprintf("%s:%d Indexed %d drm metadata\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexCount);
+		}
+		memcpy(playlist.ptr, playlistBackup, playlist.len);
+
+		ptr = strstr(playlist.ptr, "#EXT-X-PLAYLIST-TYPE:");
+		if (ptr)
+		{
+			ptr += 21;
+			// EVENT or VOD (optional); VOD if playlist will never change
+			if (startswith(&ptr, "VOD"))
+			{
+				logprintf("aamp: EXT-X-PLAYLIST-TYPE - VOD\n");
+				context->playlistType = ePLAYLISTTYPE_VOD;
+			}
+			else if (startswith(&ptr, "EVENT"))
+			{
+				logprintf("aamp: EXT-X-PLAYLIST-TYPE = EVENT\n");
+				context->playlistType = ePLAYLISTTYPE_EVENT;
+			}
+			else
+			{
+				aamp_Error("unknown PLAYLIST-TYPE");
+			}
+		}
+
+		if (context->playlistType != ePLAYLISTTYPE_VOD)
+		{
+			ptr = strstr(playlist.ptr, "#EXT-X-ENDLIST");
+			if (ptr)
+			{
+				if (context->playlistType == ePLAYLISTTYPE_UNDEFINED)
+				{
+					logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE\n");
+				}
+				else
+				{
+					logprintf("aamp: Found EXT-X-ENDLIST with ePLAYLISTTYPE_EVENT\n");
+				}
+				//required to avoid live adjust kicking in
+				logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present\n");
+				context->playlistType = ePLAYLISTTYPE_VOD;
+			}
+		}
+
+		aamp->SetIsLive(context->playlistType != ePLAYLISTTYPE_VOD);
+		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,(MediaType)type);
+	}
+
+	{ // build new index
 		IndexNode node;
 		node.completionTimeSecondsFromStart = 0.0;
 		node.pFragmentInfo = NULL;
+		char *ptr = playlist.ptr;
 		int drmMetadataIdx = -1;
-		bool deferDrmTagPresent = false;
-		const char* deferDrmVal = NULL;
-		bool endOfTopTags = false;
-		bool mediaSequence = false;
-		const char* programDateTimeIdxOfFragment = NULL;
-		bool discontinuity = false;
-		ptr = GetNextLineStart(playlist.ptr);
 		while (ptr)
 		{
-			if(startswith(&ptr,"#EXT"))
+			// If enableSubscribedTags is true, examine each '#EXT' tag.
+			ptr = strstr(ptr, "#EXT");
+			if(ptr)
 			{
-				if (startswith(&ptr,"INF:"))
+				if (strncmp(ptr + 4, "INF:", 4) == 0)
 				{
-					if (discontinuity)
-					{
-						logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] indexCount %d periodPosition %f\n", __FUNCTION__, __LINE__, type, indexCount, totalDuration);
-						DiscontinuityIndexNode discontinuityIndexNode;
-						discontinuityIndexNode.fragmentIdx = indexCount;
-						discontinuityIndexNode.position = totalDuration;
-						discontinuityIndexNode.programDateTime = programDateTimeIdxOfFragment;
-						aamp_AppendBytes(&mDiscontinuityIndex, &discontinuityIndexNode, sizeof(DiscontinuityIndexNode));
-						mDiscontinuityIndexCount++;
-						discontinuity = false;
-					}
-					programDateTimeIdxOfFragment = NULL;
-					node.pFragmentInfo = ptr-8;//Point to beginning of #EXTINF
+					node.pFragmentInfo = ptr;
 					indexCount++;
+					ptr += 8; // skip #EXTINF:
 					totalDuration += atof(ptr);
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
 					aamp_AppendBytes(&index, &node, sizeof(node));
 				}
-				else if(startswith(&ptr,"-X-MEDIA-SEQUENCE:"))
-				{
-					indexFirstMediaSequenceNumber = atoll(ptr);
-					mediaSequence = true;
-				}
-				else if(startswith(&ptr,"-X-TARGETDURATION:"))
-				{
-					targetDurationSeconds = atof(ptr);
-					AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f\n", targetDurationSeconds);
-				}
-				else if(startswith(&ptr,"-X-X1-LIN-CK:"))
-				{
-					// get the deferred drm key acquisition time
-					mDeferredDrmKeyMaxTime = atoi(ptr);
-					AAMPLOG_INFO("%s:%d: #EXT-X-LIN [%d]\n",__FUNCTION__, __LINE__, mDeferredDrmKeyMaxTime);
-				}
-				else if(startswith(&ptr,"-X-MAP:"))
-				{
-					mInitFragmentInfo = ptr;
-					logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
-				}
-				else if(startswith(&ptr,"-X-PLAYLIST-TYPE:"))
-				{
-					// EVENT or VOD (optional); VOD if playlist will never change
-					if (startswith(&ptr, "VOD"))
-					{
-						logprintf("aamp: EXT-X-PLAYLIST-TYPE - VOD\n");
-						mPlaylistType = ePLAYLISTTYPE_VOD;
-					}
-					else if (startswith(&ptr, "EVENT"))
-					{
-						logprintf("aamp: EXT-X-PLAYLIST-TYPE = EVENT\n");
-						mPlaylistType = ePLAYLISTTYPE_EVENT;
-					}
-					else
-					{
-						aamp_Error("unknown PLAYLIST-TYPE");
-					}
-				}
-				else if(startswith(&ptr,"-X-FAXS-CM:"))
-				{
-					size_t srcLen;
-					traceprintf("aamp: #EXT-X-FAXS-CM:\n");
-					srcLen = FindLineLength(ptr);
-					unsigned char hash[SHA_DIGEST_LENGTH] = {0};
-					drmMetadataNode.deferredInterval = mDeferredDrmKeyMaxTime;
-					drmMetadataNode.drmKeyReqTime = 0;
-					drmMetadataNode.metaData.metadataPtr =  base64_Decode(ptr, &drmMetadataNode.metaData.metadataSize, srcLen);
-					SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
-					drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
-	#ifdef TRACE
-					logprintf("%s:%d [%s] drmMetadataNode[%d].sha1Hash -- ", __FUNCTION__, __LINE__, name, mDrmMetaDataIndexCount);
-					for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
-					{
-						printf("%c", drmMetadataNode.sha1Hash[i]);
-					}
-					printf("\n");
-	#endif
-					aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
-					traceprintf("%s:%d mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, mDrmMetaDataIndex.ptr);
-					mDrmMetaDataIndexCount++;
-				}
-				else if(startswith(&ptr,"-X-DISCONTINUITY"))
+				else if (strncmp(ptr + 4, "-X-DISCONTINUITY", 16) == 0)
 				{
 					if (0 != totalDuration)
 					{
-						discontinuity = true;
+						logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] indexCount %d periodPosition %f\n", __FUNCTION__, __LINE__, type, indexCount, totalDuration);
+						mPeriodPositionIndex[indexCount] = totalDuration;
 					}
 				}
-				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
+				else if (strncmp(ptr + 4, "-X-KEY:", 7) == 0)
 				{
-					programDateTimeIdxOfFragment = ptr;
-					traceprintf("Got EXT-X-PROGRAM-DATE-TIME: %.*s \n", 30, programDateTimeIdxOfFragment);
-				}
-				else if (startswith(&ptr, "-X-KEY:"))
-				{
-					size_t len;
 					traceprintf("aamp: EXT-X-KEY\n");
-					len = FindLineLength(ptr);
-					char* key =(char*) malloc (len+1);
-					memcpy(key,ptr,len);
-					key[len]='\0';
-
-					// Need to store the Key tag to a list . Needs listed below
-					// a) When a new Meta is added , its hash need to be compared
-					//with available keytags to determine if its a deferred KeyAcquisition or not(VSS)
-					// b) If there is a stream with varying IV in keytag with single Meta,
-					// check if during trickplay drmInfo is considered .
-					KeyTagStruct keyinfo;
-					keyinfo.mKeyStartDuration = totalDuration;
-					keyinfo.mKeyTagStr.resize(len);
-					memcpy((char*)keyinfo.mKeyTagStr.data(),key,len);
-
-					ParseAttrList(key, ParseKeyAttributeCallback, this);
-					//Each fragment should store the corresponding keytag indx to decrypt, MetaIdx may work with
-					// adobe mapping , then if or any attribute of Key tag is different ?
-					// At present , second Key parsing is done inside GetNextFragmentUriFromPlaylist(that saved)
-					//Need keytag idx to pick the corresponding keytag and get drmInfo,so that second parsing can be removed
-					//drmMetadataIdx = mDrmMetaDataIndexPosition;
-					drmMetadataIdx = mDrmKeyTagCount;
+					ptr += strlen("#EXT-X-KEY:");
+					char* delim = strchr(ptr, CHAR_LF);
+					if (delim)
+					{
+						*delim = '\0';
+					}
+					ParseAttrList(ptr, ParseKeyAttributeCallback, this);
+					//int prtOffset = ptr-
+					//TODO optimize this
+					memcpy(playlist.ptr, playlistBackup, playlist.len);
+					drmMetadataIdx = mDrmMetaDataIndexPosition;
 					if(!fragmentEncrypted)
 					{
 						drmMetadataIdx = -1;
-						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
-					}
-
-					// mCMSha1Hash is populated after ParseAttrList , hence added here
-					if(mCMSha1Hash)
-					{
-						keyinfo.mShaID.resize(DRM_SHA1_HASH_LEN);
-						memcpy((char*)keyinfo.mShaID.data(), mCMSha1Hash, DRM_SHA1_HASH_LEN);
-					}
-					mKeyHashTable.push_back(keyinfo);
-					mKeyTagChanged = false;
-
-					free (key);
-					mDrmKeyTagCount++;
-				}
-				else if (startswith(&ptr,"-X-ENDLIST"))
-				{
-					// ENDLIST found .Check playlist tag with vod was missing or not.If playlist still undefined
-					// mark it as VOD
-					if (IsLive())
-					{
-						if (mPlaylistType == ePLAYLISTTYPE_UNDEFINED)
-						{
-							logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE\n");
-						}
-						else
-						{
-							logprintf("aamp: Found EXT-X-ENDLIST with ePLAYLISTTYPE_EVENT\n");
-						}
-						//required to avoid live adjust kicking in
-						logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present\n");
-						mPlaylistType = ePLAYLISTTYPE_VOD;
+						logprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p\n", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
 					}
 				}
 				else if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
@@ -2194,97 +1831,45 @@ void TrackState::IndexPlaylist()
 					{
 						int len = aamp->subscribedTags.at(i).length();
 						const char* data = aamp->subscribedTags.at(i).data();
-						if (strncmp(ptr, data + 4, len - 4) == 0)
+						if (strncmp(ptr + 4, data + 4, len - 4) == 0)
 						{
-							int nb = (int)FindLineLength(ptr);
+							char *fin = strchr(ptr, CHAR_LF);
+							if (fin)
+							{
+								if (fin > ptr && fin[-1] == CHAR_CR)
+								{
+									fin--;
+								}
+							}
+							else
+							{
+								fin = strchr(ptr, '\0');
+							}
+							int nb = fin - ptr;
 							// logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'\n", i, totalDuration, nb, ptr);
 							aamp->ReportTimedMetadata(totalDuration * 1000, data, ptr, nb);
 							break;
 						}
 					}
 				}
-			}
-			ptr=GetNextLineStart(ptr);
+				ptr += 4; // skip #EXT
+		    }
 		}
-
-		if (mDrmMetaDataIndexCount > 1)
-		{
-			logprintf("%s:%d[%d] Indexed %d drm metadata\n", __FUNCTION__, __LINE__,type, mDrmMetaDataIndexCount);
-		}
-
-		// DELIA-33434
-		// Update DRM Manager for stored indexes so that it can be removed after playlist update
-		// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
-		// SetMetadata is not called across playlist update , hence Update is not needed
-		// Have to check for normal playback only. SAP Audio in VSS sometimes having total different
-		// Meta set from video.So when iframe manifest is parsed, audio Meta shouldnt be cleared.
-		// Trickplay is for short duration , when back to normal rate,it will flush iframe specific Metas 
-		if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			AveDrmManager::UpdateBeforeIndexList(name,(int)type);
-		}
-
-		if(mediaSequence==false)
-		{ // for Sling content
-			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag\n");
-			ptr = playlist.ptr;
-			indexFirstMediaSequenceNumber = 0;
-		}
-		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
-		aamp->SetIsLive(context->IsLive());
-		aamp->InsertToPlaylistCache(playlistUrl, &playlist, effectiveUrl,IsLive(),(MediaType)type);
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
 		}
+	}
 
+	if(playlistBackup)
+	{
+		free(playlistBackup);
 	}
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-
-	if(mDeferredDrmKeyMaxTime != 0)
-	{
-		// Special stream with Deferred DRM Key Acquisition required
-		ComputeDeferredKeyRequestTime();
-	}
-	// No condition checks for call . All checks n balances inside the module
-	// which is been called.
-	// Store the all the Metadata received from playlist indexing .
-	// IF already stored , AveDrmManager will ignore it
-	// ProcessDrmMetadata -> to be called only from one place , after playlist indexing. Not to call from other places
-	aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-	ProcessDrmMetadata();
-	// Initiating key request for Meta present.If already key received ,call will be ignored.
-	InitiateDRMKeyAcquisition();
-	// default MetaIndex is 0 , for single Meta . If Multi Meta is there ,then Hash is the criteria
-	// for selection
-	mDrmMetaDataIndexPosition = 0;
-
-	if (mDrmKeyTagCount > 0)
-	{
-		if (mDrmMetaDataIndexCount > 0)
-		{
-			aamp->setCurrentDrm(eDRM_Adobe_Access);
-		}
-		else
-		{
-			aamp->setCurrentDrm(eDRM_Vanilla_AES);
-		}
-	}
-	firstIndexDone = true;
-	mIndexingInProgress = false;
 	traceprintf("%s:%d Exit indexCount %d mDrmMetaDataIndexCount %d\n", __FUNCTION__, __LINE__, indexCount, mDrmMetaDataIndexCount);
-	mDuration = totalDuration;
-	// DELIA-33434
-	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
-	// SetMetadata is not called across playlist update hence flush is not needed
-	if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		AveDrmManager::FlushAfterIndexList(name,(int)type);
-	}
-	pthread_cond_signal(&mPlaylistIndexed);
-	pthread_mutex_unlock(&mPlaylistMutex);
+	return totalDuration;
 }
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -2355,8 +1940,6 @@ void TrackState::ABRProfileChanged()
 	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
 	refreshPlaylist = true;
 	mInjectInitFragment = true;
-	/*For some VOD assets, different video profiles have different DRM meta-data.*/
-	mForceProcessDrmMetadata = true;
 	pthread_mutex_unlock(&mutex);
 }
 /***************************************************************************
@@ -2412,14 +1995,14 @@ void TrackState::RefreshPlaylist(void)
 		{
 			printf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
-		IndexPlaylist();
-		if( mDuration > 0.0f )
+		double totalDuration = IndexPlaylist();
+		if( totalDuration > 0.0f )
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		    const char* prefix = (type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
 		    context->HarvestFile(playlistUrl, &playlist, false, prefix);
 #endif
-		    if (IsLive())
+		    if (ePLAYLISTTYPE_VOD != context->playlistType)
 		    {
 		        fragmentURI = FindMediaForSequenceNumber();
 		    }
@@ -2464,11 +2047,10 @@ void TrackState::RefreshPlaylist(void)
 			}
 		}
 	}
-	double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
-	double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-	mCulledSeconds += culled;
 	if (eTRACK_VIDEO == type)
 	{
+		double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
+		double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
 #ifdef WIN32
 		logprintf("post-refresh %fs before %lld (%f)\n\n", newSecondsBeforePlayPoint, commonPlayPosition, culled);
 #endif
@@ -2634,61 +2216,17 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	}
 	return format;
 }
-
-/***************************************************************************
-* @fn IsLive
-* @brief Function to check if both tracks in demuxed HLS are in live mode
-*
-* @return True if both or any track in live mode
-***************************************************************************/
-bool StreamAbstractionAAMP_HLS::IsLive()
-{
-	// Check for both the tracks if its in Live state
-	// In Demuxed content , Hot CDVR playlist update for audio n video happens at a small time delta
-	// To avoid missing contents ,until both tracks are not moved to VOD , stream has to be in Live mode
-	bool retValIsLive = false;
-	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
-	{
-		TrackState *track = trackState[iTrack];
-		if(track && track->Enabled())
-		{
-			retValIsLive |= track->IsLive();	
-		}
-	}
-	return retValIsLive;
-}
-
-
 /***************************************************************************
 * @fn SyncVODTracks
 * @brief Function to synchronize time between audio & video for VOD stream
-*
-* @return eAAMPSTATUS_OK on success
+*		 
+* @return void
 ***************************************************************************/
-AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
+
+void StreamAbstractionAAMP_HLS::SyncVODTracks()
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
-	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
-
-	/*If video playTarget is just before a discontinuity, move playTarget to the discontinuity position*/
-	DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
-	for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
-	{
-		double diff = videoDiscontinuityIndex[i].position - video->playTarget;
-		if (diff > 0)
-		{
-			if (diff < video->targetDurationSeconds)
-			{
-				logprintf("%s:%d video track -  playTarget [%f]->[%f] targetDurationSeconds %f\n",
-				        __FUNCTION__, __LINE__, video->playTarget, videoDiscontinuityIndex[i].position,
-				        video->targetDurationSeconds);
-				video->playTarget = videoDiscontinuityIndex[i].position;
-			}
-			break;
-		}
-	}
-
 	if (audio->GetNumberOfPeriods() == video->GetNumberOfPeriods())
 	{
 		int periodIdx;
@@ -2701,7 +2239,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 			if (0 != audioPeriodStart )
 			{
 				audio->playTarget = audioPeriodStart + offsetFromPeriod;
-				retVal = eAAMPSTATUS_OK;
 			}
 			else
 			{
@@ -2714,30 +2251,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 		logprintf("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
 	}
 	logprintf("%s Exit : audio track start %f, vid track start %f\n", __FUNCTION__, audio->playTarget, video->playTarget );
-	return retVal;
 }
-
 /***************************************************************************
-* @fn SyncTracks
-* @brief Function to synchronize time between A/V for Live/Event assets
-* @param useProgramDateTimeIfAvailable use program date time tag to sync if available
-* @return eAAMPSTATUS_OK on success
+* @fn SyncVODTracks
+* @brief Function to synchronize time between audio & video for VOD stream
+*		 
+* @param trackDuration[in] track duration for audio/video 
+* @return void
 ***************************************************************************/
-AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAvailable)
+AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(double trackDuration[])
 {
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	bool startTimeAvailable = true;
-	bool syncedUsingSeqNum = false;
+	bool syncUsingStartTime = false;
 	long long mediaSequenceNumber[AAMP_TRACK_COUNT];
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
-	double diffBetweenStartTimes = 0;
 	for(int i = 0; i<AAMP_TRACK_COUNT; i++)
 	{
 		TrackState *ts = trackState[i];
-		ts->fragmentURI = trackState[i]->GetNextFragmentUriFromPlaylist(true); //To parse track playlist
-		/*Update playTarget to playlistPostion to correct the seek position to start of a fragment*/
-		ts->playTarget = ts->playlistPosition;
+		ts->fragmentURI = trackState[i]->GetNextFragmentUriFromPlaylist(); //To parse track playlist
 		logprintf("syncTracks loop : track[%d] pos %f start %f frag-duration %f trackState->fragmentURI %s ts->nextMediaSequenceNumber %lld\n", i, ts->playlistPosition, ts->playTarget, ts->fragmentDurationSeconds, ts->fragmentURI, ts->nextMediaSequenceNumber);
 		if (ts->startTimeForPlaylistSync.tv_sec == 0)
 		{
@@ -2749,9 +2282,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 
 	if (startTimeAvailable)
 	{
-		diffBetweenStartTimes = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec
+		const double diff = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec
 			+ (float)(trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_usec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_usec) / 1000000;
-		if (!useProgramDateTimeIfAvailable)
+		syncUsingStartTime = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
+		if (!syncUsingStartTime)
 		{
 			if (video->targetDurationSeconds != audio->targetDurationSeconds)
 			{
@@ -2762,22 +2296,66 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 			{
 				double diffBasedOnSeqNumber = (mediaSequenceNumber[eMEDIATYPE_AUDIO]
 				        - mediaSequenceNumber[eMEDIATYPE_VIDEO]) * video->fragmentDurationSeconds;
-				if (fabs(diffBasedOnSeqNumber - diffBetweenStartTimes) > video->fragmentDurationSeconds)
+				if (fabs(diffBasedOnSeqNumber - diff) > video->fragmentDurationSeconds)
 				{
 					logprintf("%s:%d WARNING - inconsistency between startTime and seqno  startTime diff %f diffBasedOnSeqNumber %f\n",
-					        __FUNCTION__, __LINE__, diffBetweenStartTimes, diffBasedOnSeqNumber);
+					        __FUNCTION__, __LINE__, diff, diffBasedOnSeqNumber);
 				}
 			}
 		}
+		else if (diff > 0 )
+		{
+			TrackState *ts = trackState[eMEDIATYPE_VIDEO];
+			if (diff > (ts->fragmentDurationSeconds / 2))
+			{
+				if (trackDuration[eMEDIATYPE_VIDEO] > (ts->playTarget + diff))
+				{
+					logprintf("%s:%d Audio track in front, catchup videotrack\n", __FUNCTION__, __LINE__);
+					ts->playTarget += diff;
+					ts->playTargetOffset = diff;
+				}
+				else
+				{
+					logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__, diff, ts->playTarget, trackDuration[eMEDIATYPE_VIDEO]);
+					syncUsingStartTime = false;
+				}
+			}
+			else
+			{
+				logprintf("syncTracks : Skip playTarget updation diff %f, vid track start %f fragmentDurationSeconds %f\n", diff, ts->playTarget, ts->fragmentDurationSeconds);
+			}
+		}
+		else if (diff < 0)
+		{
+			TrackState *ts = trackState[eMEDIATYPE_AUDIO];
+			if (fabs(diff) > (ts->fragmentDurationSeconds / 2))
+			{
+				if (trackDuration[eMEDIATYPE_AUDIO] > (ts->playTarget - diff))
+				{
+					logprintf("%s:%d Video track in front, catchup audio track\n", __FUNCTION__, __LINE__);
+					ts->playTarget -= diff;
+					ts->playTargetOffset = -diff;
+				}
+				else
+				{
+					logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__, diff, ts->playTarget, trackDuration[eMEDIATYPE_AUDIO]);
+					syncUsingStartTime = false;
+				}
+			}
+			else
+			{
+				logprintf("syncTracks : Skip playTarget updation diff %f, aud track start %f fragmentDurationSeconds %f\n", fabs(diff), ts->playTarget, ts->fragmentDurationSeconds);
+			}
+		}
 
-		if((diffBetweenStartTimes < -10 || diffBetweenStartTimes > 10))
+		if((diff < -10 || diff > 10))
 		{
 			logprintf("syncTracks diff debug : Audio start time sec : %ld  Video start time sec : %ld \n",
 			trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec,
 			trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec);
 		}
 	}
-	if (!startTimeAvailable || !useProgramDateTimeIfAvailable)
+	if (!syncUsingStartTime)
 	{
 		MediaType mediaType;
 #ifdef TRACE
@@ -2803,22 +2381,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 		}
 		if (laggingTS)
 		{
-			if (startTimeAvailable && (diff > MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC))
+			logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
+					__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
+					trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
+
+			if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
 			{
-				logprintf("%s:%d - falling back to synchronization based on start time as diff = %lld\n", __FUNCTION__, __LINE__, diff);
-			}
-			else if ((diff <= MAX_SEQ_NUMBER_LAG_COUNT) && (diff > 0))
-			{
-				logprintf("%s:%d sync using sequence number. diff [%lld] A [%lld] V [%lld] a-f-uri [%s] v-f-uri [%s]\n", __FUNCTION__,
-						__LINE__, diff, mediaSequenceNumber[eMEDIATYPE_AUDIO], mediaSequenceNumber[eMEDIATYPE_VIDEO],
-						trackState[eMEDIATYPE_AUDIO]->fragmentURI, trackState[eMEDIATYPE_VIDEO]->fragmentURI);
 				while (diff > 0)
 				{
 					laggingTS->playTarget += laggingTS->fragmentDurationSeconds;
 					laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
 					if (laggingTS->fragmentURI)
 					{
-						laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist(true);
+						laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist();
 					}
 					else
 					{
@@ -2826,80 +2401,18 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 					}
 					diff--;
 				}
-				syncedUsingSeqNum = true;
 			}
 			else
 			{
-				logprintf("%s:%d Lag in '%s' seq no, diff[%lld] > maxValue[%d]\n",
+				logprintf("%s:%d [ERROR] ** Lag in '%s' seq no, diff[%lld] > maxValue[%d], cannot play this content.!!\n",
 						__FUNCTION__, __LINE__, ((eMEDIATYPE_VIDEO == mediaType) ? "video" : "audio"), diff, MAX_SEQ_NUMBER_LAG_COUNT);
+
+				retval = eAAMPSTATUS_SEQUENCE_NUMBER_ERROR;
 			}
 		}
 		else
 		{
 			logprintf("%s:%d No lag in seq no b/w AV\n", __FUNCTION__, __LINE__);
-			syncedUsingSeqNum = true;
-		}
-	}
-
-	if (!syncedUsingSeqNum)
-	{
-		if (startTimeAvailable)
-		{
-			if (diffBetweenStartTimes > 0)
-			{
-				TrackState *ts = trackState[eMEDIATYPE_VIDEO];
-				if (diffBetweenStartTimes > (ts->fragmentDurationSeconds / 2))
-				{
-					if (video->mDuration > (ts->playTarget + diffBetweenStartTimes))
-					{
-						logprintf("%s:%d Audio track in front, catchup videotrack\n", __FUNCTION__, __LINE__);
-						ts->playTarget += diffBetweenStartTimes;
-						ts->playTargetOffset = diffBetweenStartTimes;
-					}
-					else
-					{
-						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, video->mDuration);
-						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
-					}
-				}
-				else
-				{
-					logprintf("syncTracks : Skip playTarget updation diff %f, vid track start %f fragmentDurationSeconds %f\n",
-					        diffBetweenStartTimes, ts->playTarget, ts->fragmentDurationSeconds);
-				}
-			}
-			else if (diffBetweenStartTimes < 0)
-			{
-				TrackState *ts = trackState[eMEDIATYPE_AUDIO];
-				if (fabs(diffBetweenStartTimes) > (ts->fragmentDurationSeconds / 2))
-				{
-					if (audio->mDuration > (ts->playTarget - diffBetweenStartTimes))
-					{
-						logprintf("%s:%d Video track in front, catchup audio track\n", __FUNCTION__, __LINE__);
-						ts->playTarget -= diffBetweenStartTimes;
-						ts->playTargetOffset = -diffBetweenStartTimes;
-					}
-					else
-					{
-						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f\n", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, audio->mDuration);
-						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
-					}
-				}
-				else
-				{
-					logprintf(
-					        "syncTracks : Skip playTarget updation diff %f, aud track start %f fragmentDurationSeconds %f\n",
-					        fabs(diffBetweenStartTimes), ts->playTarget, ts->fragmentDurationSeconds);
-				}
-			}
-		}
-		else
-		{
-			logprintf("%s:%d Could not sync using seq num and start time not available., cannot play this content.!!\n",
-			        __FUNCTION__, __LINE__);
-			retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
 		}
 	}
 	logprintf("syncTracks Exit : audio track start %f, vid track start %f\n", trackState[eMEDIATYPE_AUDIO]->playTarget, trackState[eMEDIATYPE_VIDEO]->playTarget );
@@ -2917,7 +2430,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_GENERIC_ERROR;
 	bool needMetadata = true;
-	mTuneType = tuneType;
 	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
 
     /* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -2925,12 +2437,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
     /* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 	TSProcessor* audioQueuedPC = NULL;
+	double totalDuration[AAMP_TRACK_COUNT] = { 0, 0 };
 	long http_error;
 
 	memset(&mainManifest, 0, sizeof(mainManifest));
 	if (newTune)
 	{
-		AveDrmManager::ResetAll();
+		pthread_mutex_lock(&gDrmMutex);
+		gDrmContexSet = false;
+		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
+		pthread_mutex_unlock(&gDrmMutex);
 	}
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -2954,7 +2470,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
+				aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),eMEDIATYPE_MANIFEST);
 				break;
 			}
 			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
@@ -3037,7 +2553,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				if(ts->streamOutputFormat != FORMAT_NONE)
 				{
 					ts->enabled = true;
-					mNumberOfTracks++;
 				}
 				else
 				{
@@ -3143,8 +2658,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				const char* prefix = (iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-";
 				HarvestFile(ts->playlistUrl, &ts->playlist, false, prefix);
 #endif
-				ts->IndexPlaylist();
-				if (ts->mDuration == 0.0f)
+				totalDuration[iTrack] = ts->IndexPlaylist();
+				if (totalDuration[iTrack] == 0.0f)
 				{
 					break;
 				}
@@ -3176,7 +2691,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							isIframeTrackPresent = true;
 						}
 					}
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, isIframeTrackPresent);
+					aamp->SendMediaMetadataEvent((totalDuration[iTrack] * 1000.0), langList, bitrateList, hasDrm, isIframeTrackPresent);
 
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
@@ -3368,7 +2883,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
-		if ((video->enabled && video->mDuration == 0.0f) || (audio->enabled && audio->mDuration == 0.0f))
+		if ((video->enabled && totalDuration[eMEDIATYPE_VIDEO] == 0.0f) || (audio->enabled && totalDuration[eMEDIATYPE_AUDIO] == 0.0f))
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d Track Duration is 0. Cannot play this content\n", __FUNCTION__, __LINE__);
 			return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
@@ -3397,7 +2912,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
-		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType)  && aamp->IsLiveAdjustRequired() && (aamp->IsLive());
+		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && (this->playlistType == ePLAYLISTTYPE_UNDEFINED) && aamp->IsLiveAdjustRequired();
 		if ((eTUNETYPE_SEEKTOLIVE == tuneType) && aamp->IsLive())
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d eTUNETYPE_SEEKTOLIVE, reset playTarget and enable liveAdjust\n",__FUNCTION__,__LINE__);
@@ -3409,7 +2924,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		else if (((eTUNETYPE_SEEK == tuneType) || (eTUNETYPE_RETUNE == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType)) && (this->rate > 0))
 		{
-			double seekWindowEnd = video->mDuration;
+			double seekWindowEnd = totalDuration[eMEDIATYPE_VIDEO];
 			if(aamp->IsLive())
 			{
 				seekWindowEnd -= aamp->mLiveOffset ; 
@@ -3447,59 +2962,42 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		if (audio->enabled)
 		{
-			if (!aamp->IsLive())
+
+			if ( ePLAYLISTTYPE_VOD == playlistType )
 			{
-				SyncTracksForDiscontinuity();
+				SyncVODTracks();
 			}
 			else
-			{
-				if(!gpGlobalConfig->bAudioOnlyPlayback)
-				{
-					bool syncDone = false;
-					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == audio->mDiscontinuityIndexCount))
-					{
-						if (eAAMPSTATUS_OK == SyncTracksForDiscontinuity())
-						{
-							syncDone = true;
-						}
-					}
-					if (!syncDone)
-					{
-						bool useProgramDateTimeIfAvailable = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
-						/*For VSS streams, use program-date-time if available*/
-						if (aamp->mIsVSS)
-						{
-							logprintf("StreamAbstractionAAMP_HLS::%s:%d : VSS stream\n", __FUNCTION__, __LINE__);
-							useProgramDateTimeIfAvailable = true;
-						}
-						AAMPStatusType retValue = SyncTracks(useProgramDateTimeIfAvailable);
-						if (eAAMPSTATUS_OK != retValue)
-						{
-							return retValue;
-						}
-					}
-				}
-			}
+            {
+                if(!gpGlobalConfig->bAudioOnlyPlayback){
+                    AAMPStatusType retValue = SyncTracks(totalDuration);
+
+                    if (eAAMPSTATUS_OK != retValue)
+                    {
+                        return retValue;
+                    }
+                }
+            }
 		}
 		if (liveAdjust)
 		{
 			int offsetFromLive = aamp->mLiveOffset ; 
 	
-			if (video->mDuration > (offsetFromLive + video->playTargetOffset))
+			if ( totalDuration[eMEDIATYPE_VIDEO] > (offsetFromLive + video->playTargetOffset))
 			{
 				//DELIA-28451
 				// a) Get OffSet to Live for Video and Audio separately. 
 				// b) Set to minimum value among video /audio instead of setting to 0 position
 				int offsetToLiveVideo,offsetToLiveAudio,offsetToLive;
-				offsetToLiveVideo = offsetToLiveAudio = video->mDuration - offsetFromLive - video->playTargetOffset;
-				if (audio->enabled)
+				offsetToLiveVideo = offsetToLiveAudio = totalDuration[eMEDIATYPE_VIDEO] - offsetFromLive - video->playTargetOffset;
+				if(audio->enabled)
 				{ 
 					offsetToLiveAudio = 0;
 					// if audio is not having enough total duration to adjust , then offset value set to 0
-					if( audio->mDuration > (offsetFromLive + audio->playTargetOffset))
-						offsetToLiveAudio = audio->mDuration - offsetFromLive -  audio->playTargetOffset;
+					if( totalDuration[eMEDIATYPE_AUDIO] > (offsetFromLive + audio->playTargetOffset))
+				   		offsetToLiveAudio = totalDuration[eMEDIATYPE_AUDIO] - offsetFromLive -  audio->playTargetOffset;
 					else
-						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%d] + AplayTargetOffset[%f]) A-target[%f]", audio->mDuration,offsetFromLive,audio->playTargetOffset,audio->playTarget);
+						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%d] + AplayTargetOffset[%f]) A-target[%f]",		                           totalDuration[eMEDIATYPE_AUDIO],offsetFromLive,audio->playTargetOffset,audio->playTarget);
 				}
 				// pick the min of video/audio offset
 				offsetToLive = (std::min)(offsetToLiveVideo,offsetToLiveAudio);
@@ -3517,83 +3015,47 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			else
 			{
 				logprintf("aamp: live adjust not possible VTotal[%f] < (VoffsetFromLive[%d] + VplayTargetOffset[%f]) V-target[%f]", 
-					video->mDuration,offsetFromLive,video->playTargetOffset,video->playTarget);
+					totalDuration[eMEDIATYPE_VIDEO],offsetFromLive,video->playTargetOffset,video->playTarget); 
 			}
 			//Set live adusted position to seekPosition
 			seekPosition = video->playTarget;
 		}
-		/*Adjust for discontinuity*/
-		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
-		{
-			int discontinuityIndexCount = video->mDiscontinuityIndexCount;
-			if (discontinuityIndexCount > 0)
-			{
-				if (discontinuityIndexCount == audio->mDiscontinuityIndexCount)
-				{
-					if (liveAdjust)
-					{
-						SyncTracksForDiscontinuity();
-					}
-					float videoPrevDiscontinuity = 0;
-					float audioPrevDiscontinuity = 0;
-					float videoNextDiscontinuity;
-					float audioNextDiscontinuity;
-					DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*)video->mDiscontinuityIndex.ptr;
-					DiscontinuityIndexNode* audioDiscontinuityIndex = (DiscontinuityIndexNode*)audio->mDiscontinuityIndex.ptr;
-					for (int i = 0; i <= discontinuityIndexCount; i++)
-					{
-						if (i < discontinuityIndexCount)
-						{
-							videoNextDiscontinuity = videoDiscontinuityIndex[i].position;
-							audioNextDiscontinuity = audioDiscontinuityIndex[i].position;
-						}
-						else
-						{
-							videoNextDiscontinuity = aamp->GetDurationMs() / 1000;
-							audioNextDiscontinuity = videoNextDiscontinuity;
-						}
-						if ((videoNextDiscontinuity > (video->playTarget + 5))
-						        && (audioNextDiscontinuity > (audio->playTarget + 5)))
-						{
-
-							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : video->playTarget %f videoPrevDiscontinuity %f videoNextDiscontinuity %f\n",
-									__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity, videoNextDiscontinuity);
-							logprintf( "StreamAbstractionAAMP_HLS::%s:%d : audio->playTarget %f audioPrevDiscontinuity %f audioNextDiscontinuity %f\n",
-									__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity, audioNextDiscontinuity);
-							if (video->playTarget < videoPrevDiscontinuity)
-							{
-								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [video] playTarget(%f) advance to discontinuity(%f)\n",
-										__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity);
-								video->playTarget = videoPrevDiscontinuity;
-							}
-							if (audio->playTarget < audioPrevDiscontinuity)
-							{
-								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [audio] playTarget(%f) advance to discontinuity(%f)\n",
-										__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity);
-								audio->playTarget = audioPrevDiscontinuity;
-							}
-							break;
-						}
-						videoPrevDiscontinuity = videoNextDiscontinuity;
-						audioPrevDiscontinuity = audioNextDiscontinuity;
-					}
-				}
-				else
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size %d audioPeriodPositionIndex.size %d\n",
-							__FUNCTION__, __LINE__, video->mDiscontinuityIndexCount, audio->mDiscontinuityIndexCount);
-				}
-			}
-			else
-			{
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0\n", __FUNCTION__, __LINE__);
-			}
-		}
-
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((rate == AAMP_NORMAL_PLAY_RATE) && ((!audio->enabled) || audio->playContext));
+		if( newTune )
+		{
+			TrackState *encTs = NULL;
+			if (video->enabled && video->mDrmInfo.method == eMETHOD_AES_128)
+			{
+				encTs = video;
+			}
+			else if (audio->enabled && audio->mDrmInfo.method == eMETHOD_AES_128)
+			{
+				encTs = audio;
+			}
+			if (encTs)
+			{
+				if (!encTs->mCMSha1Hash)
+				{
+					logprintf("%s:%d new tune, initializing DRM\n", __FUNCTION__, __LINE__);
+					aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
+					encTs->mDrmMetaDataIndexPosition = 0;
+					pthread_mutex_lock(&gDrmMutex);
+					encTs->SetDrmContextUnlocked();
+					pthread_mutex_unlock(&gDrmMutex);
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d : mCMSha1Hash present\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d : Not encrypted\n", __FUNCTION__, __LINE__);
+			}
+		}
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
@@ -3610,7 +3072,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
-					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,aamp->IsLive(),eMEDIATYPE_IFRAME);
+					aamp->InsertToPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl,eMEDIATYPE_IFRAME);
 					traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Cached iframe playlist\n", __FUNCTION__, __LINE__);
 				}
 				else
@@ -3702,7 +3164,7 @@ void TrackState::RunFetchLoop()
 				}
 			}
 
-			if (IsLive())
+			if (ePLAYLISTTYPE_VOD != context->playlistType)
 			{
 				int timeSinceLastPlaylistDownload = (int) (aamp_GetCurrentTimeMS()
 				        - lastPlaylistDownloadTimeMS);
@@ -3729,7 +3191,7 @@ void TrackState::RunFetchLoop()
 		// reached end of vod stream
 		//teststreamer_EndOfStreamReached();
 
-		if (eosReached || mReachedEndListTag || !context->aamp->DownloadsAreEnabled())
+		if (eosReached || context->hasEndListTag || !context->aamp->DownloadsAreEnabled())
 		{
 			AbortWaitForCachedFragment(false);
 			break;
@@ -3780,8 +3242,8 @@ void TrackState::RunFetchLoop()
 					static int bufferlowCnt;
 					if((bufferlowCnt++ & 5) == 0)
 					{ 
-						logprintf("%s:%d: Buffer is running low(%ld).Type(%d) Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
-							__FUNCTION__, __LINE__, bufferAvailable,type,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
+						logprintf("%s:%d: Buffer is running low(%ld).Refreshing playlist(%d).Target(%f) PlayPosition(%lld) End(%lld)\n",
+							__FUNCTION__, __LINE__, bufferAvailable,minDelayBetweenPlaylistUpdates,playTarget,currentPlayPosition,endPositionAvailable);
 					}
 				}
 			}
@@ -3797,8 +3259,8 @@ void TrackState::RunFetchLoop()
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			AAMPLOG_INFO("%s:%d aamp playlist end refresh type(%d) bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n",
-					__FUNCTION__, __LINE__, type,bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
+			AAMPLOG_INFO("%s:%d: aamp playlist end refresh bufferMs(%ld) playtarget(%f) delay(%d) End(%lld) PlayPosition(%lld)\n",
+					__FUNCTION__, __LINE__, bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
 		RefreshPlaylist();
@@ -3808,7 +3270,7 @@ void TrackState::RunFetchLoop()
 
 		/* Added to handle an edge case for cdn failover, where we found valid sub-manifest but no valid fragments.
 		 * In this case we have to stall the playback here. */
-		if( fragmentURI == NULL && IsLive() && type == eTRACK_VIDEO)
+		if( fragmentURI == NULL && aamp->IsLive() && type == eTRACK_VIDEO)
 		{
 			AAMPLOG_FAILOVER("%s:%d: fragmentURI is NULL, playback may stall in few seconds..\n", __FUNCTION__, __LINE__);
 			context->CheckForPlaybackStall(false);
@@ -3846,8 +3308,8 @@ static void *FragmentCollector(void *arg)
 ***************************************************************************/
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
-	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
-	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mediaCount(0), newTune(true)
+	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false),
+	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mediaCount(0), newTune(true), playlistType(ePLAYLISTTYPE_UNDEFINED),hasEndListTag(false)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled\n");
@@ -3888,14 +3350,13 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
-		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
-		mInjectInitFragment(true), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false), mForceProcessDrmMetadata(false),
-		mDuration(0), mLastMatchedDiscontPosition(-1), mCulledSeconds(0),
-		mDiscontinuityIndexCount(0), mSyncAfterDiscontinuityInProgress(false), playlist(),
-		index(), targetDurationSeconds(1), mDeferredDrmKeyMaxTime(0), startTimeForPlaylistSync(),
-		context(parent), fragmentEncrypted(false), mKeyTagChanged(false), mLastKeyTagIdx(0), mDrmInfo(),
-		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
-		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false)
+		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),
+		mInjectInitFragment(true), mInitFragmentInfo(NULL),
+		playlist(),
+		index(), targetDurationSeconds(1),  startTimeForPlaylistSync(),
+		context(parent), fragmentEncrypted(false), mDrmInfo(),
+		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(),
+		mPeriodPositionIndex()
 {
 	effectiveUrl[0] = 0;
 	playlistUrl[0] = 0;
@@ -3905,10 +3366,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	memset(&startTimeForPlaylistSync, 0, sizeof(struct timeval));
 	memset(&mDrmMetaDataIndex, 0, sizeof(mDrmMetaDataIndex));
 	memset(&mDrmInfo, 0, sizeof(mDrmInfo));
-	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
-	pthread_cond_init(&mPlaylistIndexed, NULL);
-	pthread_mutex_init(&mPlaylistMutex, NULL);
-	pthread_mutex_init(&mTrackDrmMutex, NULL);
+	mPeriodPositionIndex.clear();
 }
 /***************************************************************************
 * @fn ~TrackState
@@ -3931,21 +3389,15 @@ TrackState::~TrackState()
 	if (mCMSha1Hash)
 	{
 		free(mCMSha1Hash);
-		mCMSha1Hash = NULL;
 	}
 	if (mDrmInfo.iv)
 	{
 		free(mDrmInfo.iv);
-		mDrmInfo.iv = NULL;
 	}
 	if (mDrmInfo.uri)
 	{
 		free(mDrmInfo.uri);
-		mDrmInfo.uri = NULL;
 	}
-	pthread_cond_destroy(&mPlaylistIndexed);
-	pthread_mutex_destroy(&mPlaylistMutex);
-	pthread_mutex_destroy(&mTrackDrmMutex);
 }
 /***************************************************************************
 * @fn Stop
@@ -3956,7 +3408,6 @@ TrackState::~TrackState()
 void TrackState::Stop()
 {
 	AbortWaitForCachedFragment(true);
-
 	if (playContext)
 	{
 		playContext->abort();
@@ -4056,47 +3507,38 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
 
-	//This is purposefully kept in a separate loop to avoid being hung
-	//on pthread_join of fragmentCollectorThread
-	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	//To force release gDrmMutex mutex held by drm_Decrypt in case of clearChannelData
+	if(gDrm)
 	{
-		TrackState *track = trackState[iTrack];
-		if(track && track->Enabled())
-		{
-			track->CancelDrmOperation(clearChannelData);
-		}
+		gDrm->CancelKeyWait();
 	}
 
+	if(clearChannelData)
+	{
+		pthread_mutex_lock(&gDrmMutex);
+		if(gDrm)
+		{
+			gDrm->Release();
+		}
+		gDrmContexSet = false;
+		memset(gCMSha1Hash, 0, DRM_SHA1_HASH_LEN);
+		pthread_mutex_unlock(&gDrmMutex);
+	}
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
-
-		/*Stop any waits for other track's playlist update*/
-		TrackState *otherTrack = trackState[(iTrack == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO];
-		if(otherTrack && otherTrack->Enabled())
-		{
-			otherTrack->StopWaitForPlaylistRefresh();
-		}
-
 		if(track && track->Enabled())
 		{
 			track->Stop();
-			if (!clearChannelData)
-			{
-				//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
-				track->RestoreDrmState();
-			}
 		}
 	}
-
-	if (clearChannelData && aamp->GetCurrentDRM() == eDRM_Adobe_Access)
-	{
-		AveDrmManager::CancelKeyWaitAll();
-		AveDrmManager::ReleaseAll();
-		AveDrmManager::ResetAll();
-	}
-
 	aamp->EnableDownloads();
+
+	//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
+	if (gDrm && !clearChannelData)
+	{
+		gDrm->RestoreKeyState();
+	}
 }
 /***************************************************************************
 * @fn DumpProfiles
@@ -4213,39 +3655,70 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 * @param bucketTypeFragmentDecrypt[in] ProfilerBucketType enum
 * @return bool true if successfully decrypted 
 ***************************************************************************/
-DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
+bool TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
 {
+		bool ret = true;
+		int retryCount = 0;
 		DrmReturn drmReturn = eDRM_ERROR;
-
-		pthread_mutex_lock(&mTrackDrmMutex);
-		if (aamp->DownloadsAreEnabled())
+		ret = false;
+		while (retryCount < DRM_DECRYPT_RETRY_COUNT && drmReturn != eDRM_SUCCESS && aamp->DownloadsAreEnabled())
 		{
-			// Update the DRM Context , if current active Drm Session is not received (mDrm)
-			// or if Key Tag changed ( either with hash change )
-			// For DAI scenaio-> Clear to Encrypted or Encrypted to Clear can happen.
-			//      For Encr to clear,not to set SetDrmContext
-			//      For Clear to Encr,SetDrmContext is called.If same hash then not SetDecrypto called
-			if (fragmentEncrypted && (!mDrm || mKeyTagChanged))
+			drmReturn = eDRM_ERROR;
+			pthread_mutex_lock(&gDrmMutex);
+			if (mCMSha1Hash)
 			{
-				SetDrmContext();
-				mKeyTagChanged = false;
+				traceprintf("%s:%d [%s]mDrmMetaDataIndex.ptr %p\n", __FUNCTION__, __LINE__, name, mDrmMetaDataIndex.ptr);
+				assert(mDrmMetaDataIndexCount);
+				assert(mDrmMetaDataIndexPosition > -1);
+				SetDrmContextUnlocked();
 			}
-			if(mDrm)
+			else if ((eMETHOD_AES_128 ==mDrmInfo.method ) && ( 0 == mDrmMetaDataIndexCount))
 			{
-				drmReturn = mDrm->Decrypt(bucketTypeFragmentDecrypt, cachedFragment->fragment.ptr,
-						cachedFragment->fragment.len, MAX_LICENSE_ACQ_WAIT_TIME);
+				SetDrmContextUnlocked();
+			}
+			if(gDrm)
+			{
+				// Max wait time allowed for license acquisition expired
+				if (gDrmLicenseAcqWaitTime <= 0)
+				{
+					ret = false;
+					pthread_mutex_unlock(&gDrmMutex);
+					break;
+				}
 
+				drmReturn = gDrm->Decrypt(bucketTypeFragmentDecrypt, cachedFragment->fragment.ptr,
+						cachedFragment->fragment.len, DRM_DECRYPT_RETRY_TIMEOUT);
+
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
+				{
+					gDrmLicenseAcqWaitTime -= DRM_DECRYPT_RETRY_TIMEOUT;
+					logprintf("StreamAbstractionAAMP_HLS::%s eDRM_KEY_ACQUSITION_TIMEOUT retryCount %d, remainingTime %d secs\n",
+						__FUNCTION__, retryCount, (gDrmLicenseAcqWaitTime < 0) ? 0 : gDrmLicenseAcqWaitTime);
+				}
+			}
+			pthread_mutex_unlock(&gDrmMutex);
+			if (drmReturn != eDRM_SUCCESS)
+			{
+				if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn && gDrmLicenseAcqWaitTime > 0)
+				{
+					retryCount++;
+					continue;
+				}
+				ret = false;
+				break;
+			}
+			else
+			{
+				ret = true;
 			}
 		}
-		pthread_mutex_unlock(&mTrackDrmMutex);
 
-		if (drmReturn != eDRM_SUCCESS)
+		if (ret == false)
 		{
 			aamp->profiler.ProfileError(bucketTypeFragmentDecrypt, drmReturn);
 		}
-		return drmReturn;
+		return ret;
 }
-
 /***************************************************************************
 * @fn GetContext
 * @brief Function to get current StreamAbstractionAAMP instance value 
@@ -4268,6 +3741,148 @@ MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
 	return trackState[(int)type];
 }
 /***************************************************************************
+* @fn SetDrmContextUnlocked
+* @brief Function to set DRM Context value based on DRM Metadata 
+*		 
+* @return void
+***************************************************************************/
+void TrackState::SetDrmContextUnlocked()
+{
+	bool drmContextUpdated = false;
+	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
+	DrmMetadata *drmMetadata = NULL;
+	if(mDrmMetaDataIndexCount > 0)
+	{
+		drmMetadata = &drmMetadataIdx[mDrmMetaDataIndexPosition].metaData;
+		assert(drmMetadata->metadataPtr);
+	}
+	traceprintf("TrackState::%s Enter mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__, mCMSha1Hash,
+	        mDrmMetaDataIndexPosition);
+	bool drmChanged = true;
+
+	/*If metadata hash is present, set drm context only if hash/iv is different from currently set ones*/
+	if (gDrmContexSet)
+	{
+		if (mCMSha1Hash)
+		{
+			if (0 == memcmp(mCMSha1Hash, gCMSha1Hash, DRM_SHA1_HASH_LEN))
+			{
+				if (gDrmInfo.iv)
+				{
+					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
+					{
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						drmChanged = false;
+					}
+					else
+					{
+						logprintf("StreamAbstractionAAMP_HLS::%s:%d iv different\n", __FUNCTION__, __LINE__);
+					}
+				}
+				else
+				{
+					logprintf("StreamAbstractionAAMP_HLS::%s:%d gDrmInfo.iv NULL\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash different\n", __FUNCTION__, __LINE__);
+			}
+		}
+		else if (nullptr == drmMetadata)
+		{
+			if (gDrmMetadata.metadataPtr)
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s:%d AVE->AES vanilla\n", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				if (gDrmInfo.iv)
+				{
+					if (0 == memcmp(mDrmInfo.iv, gDrmInfo.iv, DRM_IV_LEN))
+					{
+						traceprintf("StreamAbstractionAAMP_HLS::%s:%d CMSha1Hash, IV not changed\n", __FUNCTION__, __LINE__);
+						if (gDrmInfo.uri)
+						{
+							if (0 == strcmp(mDrmInfo.uri, gDrmInfo.uri))
+							{
+								traceprintf("StreamAbstractionAAMP_HLS::%s:%d URI not changed\n", __FUNCTION__, __LINE__);
+								drmChanged = false;
+							}
+							else
+							{
+								logprintf("StreamAbstractionAAMP_HLS::%s:%d uri different\n", __FUNCTION__, __LINE__);
+							}
+						}
+					}
+					else
+					{
+						logprintf("StreamAbstractionAAMP_HLS::%s:%d iv different\n", __FUNCTION__, __LINE__);
+					}
+				}
+			}
+		}
+		else
+		{
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d mCMSha1Hash NULL\n", __FUNCTION__, __LINE__);
+			drmChanged = false;
+		}
+	}
+	if (drmChanged)
+	{
+		if (!gDrmInfo.iv)
+		{
+			gDrmInfo.iv = (unsigned char *) malloc(DRM_IV_LEN);
+		}
+		memcpy(gDrmInfo.iv, mDrmInfo.iv, DRM_IV_LEN);
+		if (gDrmInfo.uri)
+		{
+			free(gDrmInfo.uri);
+		}
+		gDrmInfo.uri = strdup(mDrmInfo.uri);
+		if (gDrmMetadata.metadataPtr)
+		{
+			free(gDrmMetadata.metadataPtr);
+			gDrmMetadata.metadataPtr = nullptr;
+		}
+		if (gDrm)
+		{
+			gDrm = nullptr;
+		}
+		gDrmInfo.method = mDrmInfo.method;
+		if (drmMetadata)
+		{
+			gDrmMetadata.metadataPtr = (unsigned char *) malloc(drmMetadata->metadataSize);
+			memcpy(gDrmMetadata.metadataPtr, drmMetadata->metadataPtr, drmMetadata->metadataSize);
+			gDrmMetadata.metadataSize = drmMetadata->metadataSize;
+			gDrm = AveDrm::GetInstance();
+			if (mCMSha1Hash)
+			{
+				memcpy(gCMSha1Hash, mCMSha1Hash, DRM_SHA1_HASH_LEN);
+			}
+			aamp->setCurrentDrm(eDRM_Adobe_Access);
+			logprintf("%s:%s Setting DRM mCMSha1Hash %p mDrmMetaDataIndexPosition %d\n", __FUNCTION__,name, mCMSha1Hash,mDrmMetaDataIndexPosition);
+		}
+		else
+		{
+#ifdef AAMP_VANILLA_AES_SUPPORT
+			AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Get AesDec\n", __FUNCTION__, __LINE__);
+			gDrm = AesDec::GetInstance();
+			aamp->setCurrentDrm(eDRM_Vanilla_AES);
+#else
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d AAMP_VANILLA_AES_SUPPORT not defined\n", __FUNCTION__, __LINE__);
+#endif
+		}
+		if(gDrm)
+		{
+			gDrm->SetContext(aamp, &gDrmMetadata, &gDrmInfo);
+			gDrmContexSet = true;
+			// Reset license acqusition wait time
+			gDrmLicenseAcqWaitTime = MAX_LICENSE_ACQ_WAIT_TIME;
+		}
+	}
+}
+/***************************************************************************
 * @fn UpdateDrmCMSha1Hash
 * @brief Function to Update SHA1 Id for DRM Metadata 
 *		 
@@ -4277,52 +3892,38 @@ MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 {
 	bool drmDataChanged = false;
-	if (NULL == ptr)
-	{
-		if (mCMSha1Hash)
-		{
-			free(mCMSha1Hash);
-			mCMSha1Hash = NULL;
-		}
-	}
-	else if (mCMSha1Hash)
+	if (mCMSha1Hash)
 	{
 		if (0 != memcmp(ptr, (char*) mCMSha1Hash, DRM_SHA1_HASH_LEN))
 		{
-			if (!mIndexingInProgress)
+			logprintf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
+			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
 			{
-				printf("%s:%d [%s] Different DRM metadata hash. old - ", __FUNCTION__, __LINE__, name);
-				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
-				{
-					printf("%c", mCMSha1Hash[i]);
-				}
-				printf(" new - ");
-				for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
-				{
-					printf("%c", ptr[i]);
-				}
-				printf("\n");
+				printf("%c", mCMSha1Hash[i]);
 			}
+			printf(" new - ");
+			for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
+			{
+				printf("%c", ptr[i]);
+			}
+			printf("\n");
 			drmDataChanged = true;
 			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		}
-		else if (!mIndexingInProgress)
+		else
 		{
 			AAMPLOG_INFO("%s:%d Same DRM Metadata\n", __FUNCTION__, __LINE__);
 		}
 	}
 	else
 	{
-		if (!mIndexingInProgress)
+		AAMPLOG_INFO("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
+		for (int i = 0; i< DRM_SHA1_HASH_LEN; i++)
 		{
-			printf("%s:%d [%s] New DRM metadata hash - ", __FUNCTION__, __LINE__, name);
-			for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
-			{
-				printf("%c", ptr[i]);
-			}
-			printf("\n");
+			printf("%c", ptr[i]);
 		}
-		mCMSha1Hash = (char*)malloc(DRM_SHA1_HASH_LEN);
+		printf("\n");
+		mCMSha1Hash = (unsigned char*)malloc(DRM_SHA1_HASH_LEN);
 		memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
 		drmDataChanged = true;
 	}
@@ -4336,10 +3937,7 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			{
 				if (0 == memcmp(mCMSha1Hash, drmMetadataNode[i].sha1Hash, DRM_SHA1_HASH_LEN))
 				{
-					if (!mIndexingInProgress)
-					{
-						AAMPLOG_INFO("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
-					}
+					AAMPLOG_INFO("%s:%d mDrmMetaDataIndexPosition %d->%d\n", __FUNCTION__, __LINE__, mDrmMetaDataIndexPosition, i);
 					mDrmMetaDataIndexPosition = i;
 					break;
 				}
@@ -4353,7 +3951,7 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			{
 				if (drmMetadataNode[j].sha1Hash)
 				{
-					printf("%s:%d drmMetadataNode[%d].sha1Hash -- \n", __FUNCTION__, __LINE__, j);
+					logprintf("%s:%d drmMetadataNode[%d].sha1Hash -- \n", __FUNCTION__, __LINE__, j);
 					for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
 					{
 						printf("%c", drmMetadataNode[j].sha1Hash[i]);
@@ -4487,39 +4085,40 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 	periodIdx = -1;
 	offsetFromPeriodStart = 0;
 	int idx;
-	double prevCompletionTimeSecondsFromStart = 0;
 	assert(context->rate > 0);
 	for (idx = 0; idx < indexCount; idx++)
 	{
 		const IndexNode *node = &index[idx];
-		if (node->completionTimeSecondsFromStart > playTarget)
+		if (node->completionTimeSecondsFromStart >= playTarget)
 		{
 			logprintf("%s Found node - rate %f completionTimeSecondsFromStart %f playTarget %f\n", __FUNCTION__,
 			        context->rate, node->completionTimeSecondsFromStart, playTarget);
 			idxNode = node;
 			break;
 		}
-		prevCompletionTimeSecondsFromStart = node->completionTimeSecondsFromStart;
 	}
 	if (idxNode)
 	{
 		if (idx > 0)
 		{
-			offsetFromPeriodStart = prevCompletionTimeSecondsFromStart;
+			offsetFromPeriodStart = index[idx].completionTimeSecondsFromStart;
 			double periodStartPosition = 0;
-			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
-			for (int i = 0; i < mDiscontinuityIndexCount; i++)
+			int periodItr = 0;
+			std::map<int, double>::iterator it = mPeriodPositionIndex.begin();
+			while (it != mPeriodPositionIndex.end())
 			{
-				traceprintf("TrackState::%s [%s] Loop periodItr %d idx %d first %d second %f\n", __FUNCTION__, name, i, idx,
-				        discontinuityIndex[i].fragmentIdx, discontinuityIndex[i].position);
-				if (discontinuityIndex[i].fragmentIdx > idx)
+				traceprintf("TrackState::%s [%s] Loop periodItr %d idx %d first %d second %f\n", __FUNCTION__, name, periodItr, idx,
+				        it->first, it->second);
+				if (it->first > idx)
 				{
 					logprintf("TrackState::%s [%s] Found periodItr %d idx %d first %d offsetFromPeriodStart %f\n",
-					        __FUNCTION__, name, i, idx, discontinuityIndex[i].fragmentIdx, periodStartPosition);
+					        __FUNCTION__, name, periodItr, idx, it->first, periodStartPosition);
 					break;
 				}
-				periodIdx = i;
-				periodStartPosition = discontinuityIndex[i].position;
+				periodIdx = periodItr;
+				periodItr++;
+				periodStartPosition = it->second;
+				it++;
 			}
 			offsetFromPeriodStart -= periodStartPosition;
 		}
@@ -4542,18 +4141,17 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 {
 	double offset = 0;
 	logprintf("TrackState::%s [%s] periodIdx %d periodCount %d\n", __FUNCTION__, name, periodIdx,
-	        (int) mDiscontinuityIndexCount);
-	if (periodIdx < mDiscontinuityIndexCount)
+	        (int) mPeriodPositionIndex.size());
+	if (periodIdx < mPeriodPositionIndex.size())
 	{
 		int count = 0;
-		DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
-		for (int i = 0; i < mDiscontinuityIndexCount; i++)
+		for (std::map<int, double>::iterator it = mPeriodPositionIndex.begin(); it != mPeriodPositionIndex.end(); ++it)
 		{
 			if (count == periodIdx)
 			{
-				offset = discontinuityIndex[i].position;
+				offset = it->second;
 				logprintf("TrackState::%s [%s] offset %f periodCount %d\n", __FUNCTION__, name, offset,
-				        (int) mDiscontinuityIndexCount);
+				        (int) mPeriodPositionIndex.size());
 				break;
 			}
 			else
@@ -4565,7 +4163,7 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 	else
 	{
 		logprintf("TrackState::%s [%s] WARNING periodIdx %d periodCount %d\n", __FUNCTION__, name, periodIdx,
-		        mDiscontinuityIndexCount);
+		        mPeriodPositionIndex.size());
 	}
 	return offset;
 }
@@ -4577,114 +4175,40 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 ***************************************************************************/
 int TrackState::GetNumberOfPeriods()
 {
-	return mDiscontinuityIndexCount;
+	return (int)mPeriodPositionIndex.size();
 }
 
 /***************************************************************************
 * @fn HasDiscontinuityAroundPosition
 * @brief Check if discontinuity present around given position
 * @param[in] position Position to check for discontinuity
-* @param[out] diffBetweenDiscontinuities discontinuity position minus input position
 * @return true if discontinuity present around given position
 ***************************************************************************/
-bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition)
+bool TrackState::HasDiscontinuityAroundPosition(double position)
 {
 	bool discontinuityPending = false;
-	double low = position - DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
-	double high = position + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
-	int playlistRefreshCount = 0;
-	diffBetweenDiscontinuities = DBL_MAX;
-	pthread_mutex_lock(&mPlaylistMutex);
-	while (aamp->DownloadsAreEnabled())
+	pthread_mutex_lock(&mutex);
+	if (0 != mPeriodPositionIndex.size())
 	{
-		if (0 != mDiscontinuityIndexCount)
+		double low = position - DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
+		double high = position + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS;
+		std::map<int, double>::iterator it = mPeriodPositionIndex.begin();
+		while (it != mPeriodPositionIndex.end())
 		{
-			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
-			for (int i = 0; i < mDiscontinuityIndexCount; i++)
+			traceprintf("%s:%d low %f high %f position %f discontinuity %f\n", __FUNCTION__, __LINE__, low, high, position, it->second);
+			if ( low < it->second && high > it->second )
 			{
-				if ((mLastMatchedDiscontPosition < 0)
-						|| (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
-				{
-					if (!useStartTime)
-					{
-						traceprintf ("%s:%d low %f high %f position %f discontinuity %f\n", __FUNCTION__, __LINE__, low, high, position, discontinuityIndex[i].position);
-						if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
-						{
-							mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-							discontinuityPending = true;
-							break;
-						}
-					}
-					else
-					{
-						struct timeval programDateTimeVal;
-						if (ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime, programDateTimeVal))
-						{
-							double discPos = programDateTimeVal.tv_sec + (double) programDateTimeVal.tv_usec/1000000;
-							logprintf ("%s:%d low %f high %f position %f discontinuity %f\n", __FUNCTION__, __LINE__, low, high, position, discPos);
-
-							if (low < discPos && high > discPos)
-							{
-								double diff = discPos - position;
-								discontinuityPending = true;
-								if (fabs(diff) < fabs(diffBetweenDiscontinuities))
-								{
-									diffBetweenDiscontinuities = diff;
-									mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-								}
-								else
-								{
-									break;
-								}
-							}
-						}
-					}
-				}
+				discontinuityPending = true;
+				break;
 			}
+			it++;
 		}
 		if (!discontinuityPending)
 		{
-			logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d\n", __FUNCTION__, __LINE__,
-					name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useStartTime);
-			if (IsLive())
-			{
-				int maxPlaylistRefreshCount;
-				bool liveNoTSB;
-				if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
-				{
-					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
-					liveNoTSB = false;
-				}
-				else
-				{
-					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
-					liveNoTSB = true;
-				}
-				if ((playlistRefreshCount < maxPlaylistRefreshCount)
-						&& (liveNoTSB || (mDuration < (playPosition + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS))))
-				{
-					logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f\n", __FUNCTION__,
-					        __LINE__, name, mDuration, mCulledSeconds);
-					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-					logprintf("%s:%d Wait for %s playlist update over\n", __FUNCTION__, __LINE__, name);
-					playlistRefreshCount++;
-				}
-				else
-				{
-					break;
-				}
-			}
-			else
-			{
-				break;
-			}
-		}
-		else
-		{
-			break;
+			logprintf("%s:%d Discontinuity not found in window low %f high %f position %f\n", __FUNCTION__, __LINE__, low, high, position);
 		}
 	}
-	pthread_mutex_unlock(&mPlaylistMutex);
+	pthread_mutex_unlock(&mutex);
 	return discontinuityPending;
 }
 
@@ -4858,59 +4382,3 @@ void StreamAbstractionAAMP_HLS::StartInjection(void)
 		}
 	}
 }
-
-/***************************************************************************
-* @fn StopWaitForPlaylistRefresh
-* @brief Stop wait for playlist refresh
-*
-* @return void
-***************************************************************************/
-void TrackState::StopWaitForPlaylistRefresh()
-{
-	logprintf("%s:%d track [%s]\n", __FUNCTION__, __LINE__, name);
-	pthread_mutex_lock(&mPlaylistMutex);
-	pthread_cond_signal(&mPlaylistIndexed);
-	pthread_mutex_unlock(&mPlaylistMutex);
-}
-
-/***************************************************************************
-* @fn CancelDrmOperation
-* @brief Cancel all DRM operations
-*
-* @param[in] clearDRM flag indicating if DRM resources to be freed or not
-* @return void
-***************************************************************************/
-void TrackState::CancelDrmOperation(bool clearDRM)
-{
-	//Calling mDrm is required for AES encrypted assets which doesn't have AveDrmManager
-	if (mDrm)
-	{
-		//To force release mTrackDrmMutex mutex held by drm_Decrypt in case of clearDRM
-		mDrm->CancelKeyWait();
-		if (clearDRM && aamp->GetCurrentDRM() != eDRM_Adobe_Access)
-		{
-			pthread_mutex_lock(&mTrackDrmMutex);
-			mDrm->Release();
-			pthread_mutex_unlock(&mTrackDrmMutex);
-		}
-	}
-}
-
-/***************************************************************************
-* @fn RestoreDrmState
-* @brief Restore DRM states
-*
-* @return void
-***************************************************************************/
-void TrackState::RestoreDrmState()
-{
-	if (mDrm)
-	{
-		mDrm->RestoreKeyState();
-	}
-}
-
-/**
- * @}
- */
-

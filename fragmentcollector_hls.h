@@ -35,7 +35,6 @@
 #ifndef FRAGMENTCOLLECTOR_HLS_H
 #define FRAGMENTCOLLECTOR_HLS_H
 
-#include <memory>
 #include "StreamAbstractionAAMP.h"
 #include "tsprocessor.h"
 #include "drm.h"
@@ -50,9 +49,12 @@
 #define CHAR_LF 0x0a // '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
+#define DRM_DECRYPT_RETRY_COUNT 2
+#define DRM_DECRYPT_RETRY_TIMEOUT 5000
 #define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
+#define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
 #define AAMP_AUDIO_FORMAT_MAP_LEN 7
 #define AAMP_VIDEO_FORMAT_MAP_LEN 3
@@ -109,36 +111,6 @@ struct IndexNode
 };
 
 /**
-*	\struct	KeyTagStruct
-* 	\brief	KeyTagStruct structure to store all Keytags with Hash
-*/
-struct KeyTagStruct
-{
-	KeyTagStruct() : mShaID(""), mKeyStartDuration(0), mKeyTagStr("")
-	{
-	}
-	std::string mShaID;		/**< ShaID of Key tag */
-	double mKeyStartDuration;		/**< duration in playlist where Keytag starts */
-	std::string mKeyTagStr;			/**< String to store key tag,needed for trickplay */
-};
-
-/**
-*	\struct	DiscontinuityIndexNode
-* 	\brief	Index Node structure for Discontinuity Index
-*/
-struct DiscontinuityIndexNode
-{
-	int fragmentIdx;	         /**< Idx of fragment in index table*/
-	double position;	         /**< Time of index from start */
-	const char* programDateTime; /**Program Date time */
-};
-
-
-/**
- * @}
- */
-
-/**
  * \class TrackState
  * \brief State Machine for each Media Track
  *
@@ -162,17 +134,19 @@ public:
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
-	void IndexPlaylist();
+	double IndexPlaylist();
 	/// Function to handle Profile change after ABR  
 	void ABRProfileChanged(void);
 	/// Function to get next fragment URI for download 
-	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false);
+	char *GetNextFragmentUriFromPlaylist();
 	/// Function to update IV value from DRM information 
 	void UpdateDrmIV(const char *ptr);
 	/// Function to update SHA1 ID from DRM information
 	void UpdateDrmCMSha1Hash(const char *ptr);
+	/// Function to set the DRM Metadata into Adobe DRM Layer 
+	void SetDrmContextUnlocked();
 	/// Function to decrypt the fragment data 
-	DrmReturn DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
+	bool DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
 	/// Function to fetch the Playlist file
 	void FetchPlaylist();
 	/**
@@ -199,7 +173,7 @@ public:
 	int GetNumberOfPeriods();
 
 	/// Check if discontinuity present around given position
-	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition);
+	bool HasDiscontinuityAroundPosition(double position);
 
 	/**
 	 * @brief Start fragment injection
@@ -210,21 +184,6 @@ public:
 	 * @brief Stop fragment injection
 	 */
 	void StopInjection();
-
-	/// Stop wait for playlist refresh
-	void StopWaitForPlaylistRefresh();
-
-	/**
-	 * @brief Cancel DRM operations
-	 */
-	void CancelDrmOperation(bool clearDRM);
-
-	/**
-	 * @brief Restore DRM state
-	 */
-	void RestoreDrmState();
-	/// Function to check the IsLive status of track. Kept Public as its called from StreamAbstraction
-	bool IsLive()  { return (ePLAYLISTTYPE_VOD != mPlaylistType);}
 
 private:
 	/// Function to get fragment URI based on Index 
@@ -245,14 +204,7 @@ private:
 	char *FindMediaForSequenceNumber();
 	/// Fetch and inject init fragment
 	bool FetchInitFragment(long &http_code);
-	/// Process Drm Metadata after indexing
-	void ProcessDrmMetadata();
-	/// Function to check for deferred licensing
-	void ComputeDeferredKeyRequestTime();
-	/// Function to get DRM License key
-	void InitiateDRMKeyAcquisition(int indexPosn=-1);
-	/// Function to set the DRM Metadata into Adobe DRM Layer for decryption
-	void SetDrmContext();
+
 public:
 	char effectiveUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
 	char playlistUrl[MAX_URI_LENGTH]; 		/**< uri associated with downloaded playlist */
@@ -274,7 +226,7 @@ public:
 	double playTarget; /**< initially relative seek time (seconds) based on playlist window, but updated as a play_target */
 
 	double targetDurationSeconds; /**< copy of \#EXT-X-TARGETDURATION to manage playlist refresh frequency */
-	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
+
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
 	TSProcessor* playContext; /**< state for s/w demuxer / pts/pcr restamper module */
 	struct timeval startTimeForPlaylistSync; /**< used for time-based track synchronization when switching between playlists */
@@ -282,42 +234,20 @@ public:
 	bool discontinuity; /**< Set when discontinuity is found in track*/
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
 	bool fragmentEncrypted; /**< In DAI, ad fragments can be clear. Set if current fragment is encrypted*/
-	bool mKeyTagChanged;	/**< Flag to indicate Key tag got changed for decryption context setting */
-	int mLastKeyTagIdx ;     /**< Variable to hold the last keyTag index,to check if key tag changed */
-	struct DrmInfo mDrmInfo;	/**< Structure variable to hold Drm Information */
-	char* mCMSha1Hash;	/**< variable to store ShaID*/
+	struct DrmInfo mDrmInfo;	/**< Struture variable to hold Drm Information */
+	unsigned char* mCMSha1Hash;	/**< variable to store ShaID*/
 	long long mDrmTimeStamp;	/**< variable to store Drm Time Stamp */
 	int mDrmMetaDataIndexPosition;	/**< Variable to store Drm Meta data Index position*/
 	GrowableBuffer mDrmMetaDataIndex;  /**< DrmMetadata records for associated playlist */
 	int mDrmMetaDataIndexCount; /**< number of DrmMetadata records in currently indexed playlist */
-	int mDrmKeyTagCount;  /**< number of EXT-X-KEY tags present in playlist */
-	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
-	GrowableBuffer mDiscontinuityIndex;  /**< discontinuity start position mapping of associated playlist */
-	int mDiscontinuityIndexCount; /**< number of records in discontinuity position index */
-	double mDuration;  /** Duration of the track*/
-	typedef std::vector<KeyTagStruct> KeyHashTable;
-	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
-	KeyHashTable mKeyHashTable;
-
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
 	pthread_t fragmentCollectorThreadID;	/**< Thread Id for Fragment  collector Thread */
 	bool fragmentCollectorThreadStarted;	/**< Flag indicating if fragment collector thread started or not*/
 	int manifestDLFailCount;				/**< Manifest Download fail count for retry*/
-	bool firstIndexDone;                    /**< Indicates if first indexing is done*/
-	std::shared_ptr<HlsDrmBase> mDrm;       /**< DRM decrypt context*/
-	bool mDrmLicenseRequestPending;         /**< Indicates if DRM License Request is Pending*/
+	std::map<int, double> mPeriodPositionIndex;  /**< period start position mapping of associated playlist */
 	bool mInjectInitFragment;               /**< Indicates if init fragment injection is required*/
 	const char* mInitFragmentInfo;          /**< Holds init fragment Information index*/
-	bool mForceProcessDrmMetadata;          /**< Indicates if processing drm metadata to be forced on indexing*/
-	pthread_mutex_t mPlaylistMutex;         /**< protect playlist update */
-	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
-	pthread_mutex_t mTrackDrmMutex;         /**< protect DRM Interactions for the track */
-	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
-	double mCulledSeconds;                  /**< Total culled duration */
-	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
-	PlaylistType mPlaylistType;		/**< Playlist Type */
-	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
 };
 
 class StreamAbstractionAAMP_HLS;
@@ -371,7 +301,12 @@ public:
 	TrackState* trackState[AAMP_TRACK_COUNT];		/**< array to store all tracks of a stream */
 	float rate;										/**< Rate of playback  */
 	float maxIntervalBtwPlaylistUpdateMs;			/**< Interval between playlist update */
+
+	PlaylistType playlistType;						/**< Playlist Type */
+	bool hasEndListTag;								/**< Flag indicating if End list is present or not */
+
 	GrowableBuffer mainManifest;					/**< Main manifest buffer holder */
+
 	bool allowsCache;								/**< Flag indicating if playlist needs to be cached or not */
 
 	HlsStreamInfo streamInfo[MAX_PROFILE];			/**< Array to store multiple stream information */
@@ -385,7 +320,6 @@ public:
 	bool firstFragmentDecrypted;					/**< Flag indicating if first fragment is decrypted for stream */
 	bool mStartTimestampZero;						/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
 	bool newTune;									/**< Flag to indicate new tune  */
-	int mNumberOfTracks;							/**< Number of media tracks.*/
 	/// Function to parse Main manifest 
 	void ParseMainManifest(char *ptr);
 	/// Function to get playlist URI for the track type 
@@ -400,17 +334,16 @@ public:
 	void StopInjection(void);
 	/// Start injection of fragments.
 	void StartInjection(void);
-	/// Function to check for live status comparing both playlist ( audio & video).Kept public as its called from outside StreamAbstraction class
-	bool IsLive();
 
 protected:
 	/// Function to get StreamInfo stucture based on the index input
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
-	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
-	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
-	AAMPStatusType SyncTracksForDiscontinuity();
+	AAMPStatusType SyncTracks( double trackDuration[]);
+	/// Function to Synchronize timing of Audio /Video for Vod streams 
+	void SyncVODTracks();
+	
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 };

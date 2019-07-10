@@ -61,23 +61,14 @@ class HlsDrmBase
 public:
 
 	/**
-	 * @brief Set DRM specific meta-data
+	 * @brief prepare for decryption - individualization & license acquisition
 	 *
 	 * @param aamp AAMP instance to be associated with this decryptor
 	 * @param metadata DRM specific metadata
+	 * @param drmInfo Drm information
 	 * @retval 0 on success
 	 */
-	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata,int trackType) = 0;
-
-	/**
-	 * @brief Set information required for decryption
-	 *
-	 * @param aamp AAMP instance to be associated with this decryptor
-	 * @param drmInfo Drm information
-	 * @retval eDRM_SUCCESS on success
-	 */
-	virtual DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo) = 0;
-
+	virtual int SetContext( class PrivateInstanceAAMP *aamp, void* metadata, const struct DrmInfo *drmInfo) = 0;
 
 	/**
 	 * @brief Decrypts an encrypted buffer
@@ -104,16 +95,7 @@ public:
 	 * audio/video TrackState in case DRM data is persisted
 	 */
 	virtual void RestoreKeyState() = 0;
-	/**
-	* @brief AcquireKey Function to get DRM Key
-	*
-	*/
-	virtual void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType) = 0;
-	/**
-	* @brief GetState Function to get current DRM state
-	*
-	*/
-	virtual DRMState GetState() = 0;
+
 	/**
 	 * @brief HlsDrmBase Destructor
 	 */

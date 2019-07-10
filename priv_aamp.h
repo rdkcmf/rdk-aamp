@@ -109,11 +109,6 @@
 #define MAX_PLAYLIST_CACHE_SIZE    (2*1024*1024) // Approx 2MB -> 2 video profiles + one audio profile + one iframe profile, 25-50K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
-// VSS Service Zone identifier in url 
-#define VSS_MARKER			"?sz="
-#define VSS_MARKER_FOG		"\%3Fsz\%3D"
-
-
 /*1 for debugging video track, 2 for audio track and 3 for both*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
 
@@ -193,7 +188,7 @@ enum AAMPStatusType
 	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
 	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
 	eAAMPSTATUS_SEEK_RANGE_ERROR,
-	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR
+	eAAMPSTATUS_SEQUENCE_NUMBER_ERROR
 };
 
 
@@ -1226,7 +1221,7 @@ public:
 	void ProfileError(ProfilerBucketType type, int result = -1)
 	{
 		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete && !(0==bucket->tStart))
+		if (!bucket->complete)
 		{
 			bucket->errorCount++;
 			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
@@ -1248,7 +1243,7 @@ public:
 	void ProfileEnd( ProfilerBucketType type )
 	{
 		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete && !(0==bucket->tStart))
+		if (!bucket->complete)
 		{
 			bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
 			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
@@ -1324,14 +1319,6 @@ public:
  * @return Idle task status
  */
 typedef int(*IdleTask)(void* arg);
-
-/**
- * @brief Function pointer for the destroy task
- *
- * @param[in] arg - Arguments
- *
- */
-typedef void(*DestroyTask)(void * arg);
 
 /**
  * @brief To store Set Cookie: headers and X-Reason headers in HTTP Response
@@ -1534,7 +1521,6 @@ public:
 	bool mIsRetuneInProgress;
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
-	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 
 	/**
 	 * @brief Curl initialization function
@@ -2256,15 +2242,6 @@ public:
 	 *   @return void
 	 */
 	static void AddIdleTask(IdleTask task, void* arg);
-	/**
-	*   @brief Add high priority idle task to the gstreamer
-	*
-	*   @param[in] task - Task
-	*   @param[in] arg - Arguments
-	*
-	*   @return void
-	*/
-	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
 
 	/**
 	 *   @brief Check sink cache empty
@@ -2386,12 +2363,9 @@ public:
 	 *   @param[in] url - URL
 	 *   @param[in] buffer - Pointer to growable buffer
 	 *   @param[in] effectiveUrl - Final URL
-	 *   @param[in] trackLiveStatus - Live Status of the track inserted
-	 *   @param[in] fileType - Type of the file inserted
-     *
 	 *   @return void
 	 */
-	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
+	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,MediaType fileType=eMEDIATYPE_DEFAULT);
 
 	/**
 	 *   @brief Retrieve playlist from cache
@@ -2496,7 +2470,7 @@ public:
 	 *
 	 *   @return current drm
 	 */
-	DRMSystems GetCurrentDRM();
+	const char* GetCurrentDRM();
 
 	/**
 	 *   @brief Set DRM type
@@ -2662,12 +2636,6 @@ public:
 	 */
 	void SignalTrickModeDiscontinuity();
 
-	/**
-	 *   @brief  return service zone, extracted from locator &sz URI parameter
-	 *   @return std::string
-	 */
-	std::string & getServiceZone() { return mServiceZone; }
-
 
 private:
 
@@ -2677,13 +2645,6 @@ private:
 	 *   @return void
 	 */
 	static void LazilyLoadConfigIfNeeded(void);
-
-	/**
-	 *   @brief updates mServiceZone ( service zone) member with string extracted from locator &sz URI parameter
-	 *   @param  url - stream url with vss service zone info as query string
-	 *   @return std::string
-	 */
-	void ExtractServiceZone(const char * url);
 
 	/**
 	 *   @brief Schedule Event
@@ -2743,8 +2704,6 @@ private:
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
 	char *mLicenseProxy;                /**< proxy for license acquisition */
-	// VSS license parameters
-	std::string mServiceZone; // part of url
 };
 
 #endif // PRIVAAMP_H
