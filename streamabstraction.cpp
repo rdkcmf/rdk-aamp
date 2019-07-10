@@ -337,7 +337,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 {
 	bool ret;
 	pthread_mutex_lock(&mutex);
-	if ((numberOfFragmentsCached == 0) && (!abort))
+	if ((numberOfFragmentsCached == 0) && !(abort || abortInject))
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
@@ -357,7 +357,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 			__FUNCTION__, __LINE__, name, fragmentIdxToInject, numberOfFragmentsCached);
 	}
 #endif
-	ret = !(abort || (numberOfFragmentsCached == 0));
+	ret = !(abort || abortInject || (numberOfFragmentsCached == 0));
 	pthread_mutex_unlock(&mutex);
 	return ret;
 }
@@ -367,7 +367,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
  * @brief Aborts wait for fragment.
  * @param[in] immediate Indicates immediate abort as in a seek/ stop
  */
-void MediaTrack::AbortWaitForCachedFragment( bool immediate)
+void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 {
 	pthread_mutex_lock(&mutex);
 	if (immediate)
@@ -385,6 +385,23 @@ void MediaTrack::AbortWaitForCachedFragment( bool immediate)
 	pthread_mutex_unlock(&mutex);
 }
 
+
+/**
+ * @brief Aborts wait for cached fragment.
+ */
+void MediaTrack::AbortWaitForCachedFragment()
+{
+	pthread_mutex_lock(&mutex);
+	abortInject = true;
+#ifdef AAMP_DEBUG_FETCH_INJECT
+	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
+	{
+		logprintf("%s:%d [%s] signal fragmentInjected condition\n", __FUNCTION__, __LINE__, name);
+	}
+#endif
+	pthread_cond_signal(&fragmentFetched);
+	pthread_mutex_unlock(&mutex);
+}
 
 
 /**
@@ -547,9 +564,7 @@ static void *FragmentInjector(void *arg)
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
-	track->fragmentInjectorThreadExited = false;
 	track->RunInjectLoop();
-	track->fragmentInjectorThreadExited = true;
 	return NULL;
 }
 
@@ -561,6 +576,7 @@ static void *FragmentInjector(void *arg)
 void MediaTrack::StartInjectLoop()
 {
 	abort = false;
+	abortInject = false;
 	discontinuityProcessed = false;
 	assert(!fragmentInjectorThreadStarted);
 	if (0 == pthread_create(&fragmentInjectorThreadID, NULL, &FragmentInjector, this))
@@ -620,29 +636,10 @@ void MediaTrack::RunInjectLoop()
 			}
 		}
 	}
+	abortInject = true;
 	AAMPLOG_WARN("fragment injector done. track %s\n", name);
-
-	SignalAudioInjectorIncaseOnWait();
 }
 
-/**
- * @brief To check and signal audio injection if that is in wait state to catch up video.
- */
-void MediaTrack::SignalAudioInjectorIncaseOnWait(void)
-{
-	MediaTrack *audio = GetContext()->GetMediaTrack(eTRACK_AUDIO);
-
-	/* This condition is to handle a race condition -
-	 * where audio injector in wait to catch up video track, video track is completed and no further fragments to catch up; it exited its process,
-	 * in that case no body is there to signal the audio injector thread to release from the pthread_cond_wait().
-	 * The below code will signal audio injector thread if it is already in wait when video track exiting its process.
-	 */
-	if(eTRACK_VIDEO == type && audio && audio->isAudioInWait2CatchVideo)
-	{
-		logprintf("%s:%d Force signal audio injection, since video injection is done..\n", __FUNCTION__, __LINE__);
-		GetContext()->ReassessAndResumeAudioTrack(true);
-	}
-}
 
 /**
  * @brief Stop inject loop of track
@@ -732,7 +729,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
-		mutex(), fragmentFetched(), fragmentInjected(), fragmentInjectorThreadExited(false), isAudioInWait2CatchVideo(false)
+		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -789,13 +786,9 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 	if( audio && video )
 	{
 		pthread_mutex_lock(&mLock);
-		if(abort)
-		{ // DELIA-34897
-			abortWait = true;
-		}
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
-		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abortWait)
+		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort)
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -817,19 +810,39 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 
+	struct timespec ts;
+	struct timeval tv;
+	int waitTimeInMs = 100;
+	int ret = 0;
+
 	pthread_mutex_lock(&mLock);
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double videoDuration = video->GetTotalInjectedDuration();
 
-	if ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !abortWait && !video->fragmentInjectorThreadExited)
+	while ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !video->IsInjectionAborted())
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f\n",
 			__FUNCTION__, __LINE__, audioDuration, videoDuration);
 #endif
-		audio->isAudioInWait2CatchVideo = true;
-		pthread_cond_wait(&mCond, &mLock);
-		audio->isAudioInWait2CatchVideo = false;
+		gettimeofday(&tv, NULL);
+		ts.tv_sec = time(NULL) + waitTimeInMs / 1000;
+		ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (waitTimeInMs % 1000));
+		ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+		ts.tv_nsec %= (1000 * 1000 * 1000);
+
+		ret = pthread_cond_timedwait(&mCond, &mLock, &ts);
+
+		if (ret == 0)
+		{
+			break;
+		}
+#ifndef WIN32
+		if (ret != ETIMEDOUT)
+		{
+			logprintf("%s:%d error while calling pthread_cond_timedwait - %s\n", __FUNCTION__, __LINE__, strerror(ret));
+		}
+#endif
 	}
 	pthread_mutex_unlock(&mLock);
 }
@@ -844,7 +857,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
-		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), abortWait(false), aamp(aamp),
+		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
 		mAbrManager()
