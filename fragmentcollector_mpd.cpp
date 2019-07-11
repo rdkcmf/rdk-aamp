@@ -4507,14 +4507,10 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					if (periodChanged)
 					{
 						mCurrentPeriodIdx = iPeriod;
-						//We are moving to new period so reset the lastsegment time
 						//for VOD and cDVR
 						logprintf("%s:%d Period(%d/%d) IsLive(%d) IsCdvr(%d) \n",__FUNCTION__,__LINE__,
 							mCurrentPeriodIdx,numPeriods,mIsLive,aamp->IsInProgressCDVR());
-						for (int i = 0; i < mNumberOfTracks; i++)
-						{
-							mMediaStreamContext[i]->lastSegmentTime = 0;
-						}
+						periodChanged = false;
 					}
 
 					IPeriod * period = mpd->GetPeriods().at(mCurrentPeriodIdx);
@@ -4534,6 +4530,11 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						mPeriodId = period->GetId();
 						mPrevAdaptationSetCount = adaptationSetCount;
 						logprintf("playing period %d/%d\n", iPeriod, (int)numPeriods);
+						//We are moving to new period so reset the lastsegment time
+						for (int i = 0; i < mNumberOfTracks; i++)
+						{
+							mMediaStreamContext[i]->lastSegmentTime = 0;
+						}
 						requireStreamSelection = true;
 						periodChanged = true;
 					}
