@@ -276,6 +276,9 @@ protected:
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 
+
+	static int GetDeferTimeMs(long maxTimeSeconds);
+
 	/**
 	 * @brief To be implemented by derived classes if discontinuity on trick-play is to be notified.
 	 *
@@ -609,6 +612,7 @@ public:
 	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
 	bool mNetworkDownDetected;              /**< Network down status indicator */
 	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
+	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
 
 
 	/**

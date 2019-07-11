@@ -2847,7 +2847,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD()
 							aamp->SetIsLive(mIsLive);
 							if (!retrievedPlaylistFromCache)
 							{
-								aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl());
+								aamp->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(),mIsLive);
 							}
 						}
 						else

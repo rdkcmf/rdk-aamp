@@ -155,13 +155,50 @@ void AesDec::AcquireKey()
 
 
 /**
- * @brief prepare for decryption - individualization & license acquisition
+ * @brief Set DRM meta-data. Stub implementation
  *
  * @param aamp AAMP instance to be associated with this decryptor
  * @param metadata - Ignored
- * @param drmInfo DRM information
+ *
+ * @retval eDRM_SUCCESS
  */
-int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo *drmInfo)
+DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType)
+{
+	return eDRM_SUCCESS;
+}
+
+/**
+ * @brief AcquireKey Function to acquire key . Stub implementation
+ *
+ * @param[in] aamp       AAMP instance to be associated with this decryptor
+ * @param[in] metadata   Ignored
+ *
+ * @retval None
+ */
+void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+{
+
+}
+
+/**
+ * @brief GetState Function to get current DRM State
+ *
+ *
+ * @retval DRMState
+ */
+DRMState AesDec::GetState()
+{
+	return mDrmState;
+}
+
+/**
+ * @brief Set information required for decryption
+ *
+ * @param aamp AAMP instance to be associated with this decryptor
+ * @param drmInfo Drm information
+ * @retval eDRM_SUCCESS on success
+ */
+DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
@@ -179,7 +216,7 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 		{
 			logprintf("AesDec::%s:%d same url:%s - not acquiring key\n",__FUNCTION__, __LINE__, mDrmUrl);
 			pthread_mutex_unlock(&mMutex);
-			return 0;
+			return eDRM_SUCCESS;
 		}
 		free(mDrmUrl);
 	}
@@ -216,9 +253,8 @@ int AesDec::SetContext( PrivateInstanceAAMP *aamp, void* metadata, const DrmInfo
 	}
 	pthread_mutex_unlock(&mMutex);
 	AAMPLOG_INFO("AesDec::%s:%d drmState:%d \n",__FUNCTION__, __LINE__, mDrmState);
-	return ret;
+	return err;
 }
-
 
 /**
  * @brief Wait for key acquisition completion
@@ -385,20 +421,17 @@ void AesDec::RestoreKeyState()
 	pthread_mutex_unlock(&mMutex);
 }
 
-
-AesDec* AesDec::mInstance = nullptr;
-
-
+std::shared_ptr<AesDec> AesDec::mInstance = nullptr;
 
 /**
  * @brief Get singleton instance
  */
-AesDec* AesDec::GetInstance()
+std::shared_ptr<AesDec> AesDec::GetInstance()
 {
 	pthread_mutex_lock(&mutex);
 	if (nullptr == mInstance)
 	{
-		mInstance = new AesDec();
+		mInstance = std::make_shared<AesDec>();
 	}
 	pthread_mutex_unlock(&mutex);
 	return mInstance;
