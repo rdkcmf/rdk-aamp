@@ -328,7 +328,7 @@ void AampLogManager::LogDRMError(int major, int minor)
 /**
  * @brief Log ABR info for triage purpose
  * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
- * @retuen void
+ * @return void
  */
 void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 {
@@ -338,7 +338,7 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 		std::string profile;
 		std::string symptom;
 
-		if (pstAbrInfo->desiredProfileIndex > pstAbrInfo->currentProfileIndex)
+		if (pstAbrInfo->desiredBandwidth > pstAbrInfo->currentBandwidth)
 		{
 			profile = "higher";
 			symptom = "video quality may increase";
@@ -353,7 +353,7 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 		{
 			case AAMPAbrBandwidthUpdate:
 			{
-				reason = (pstAbrInfo->desiredProfileIndex > pstAbrInfo->currentProfileIndex) ? "bandwidth is good enough" : "not enough bandwidth";
+				reason = (pstAbrInfo->desiredBandwidth > pstAbrInfo->currentBandwidth) ? "bandwidth is good enough" : "not enough bandwidth";
 			}
 				break; /* AAMPAbrBandwidthUpdate */
 
