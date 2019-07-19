@@ -1511,6 +1511,7 @@ public:
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
+	bool mlogAdPlayback; /*flag to check for Ad playback and help logging*/
 
 	/**
 	 * @brief Curl initialization function
