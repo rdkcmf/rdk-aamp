@@ -153,13 +153,6 @@ public:
 	void RunInjectLoop();
 
 	/**
-	 * @brief To check whether audio injection in wait state to catch up video.
-	 *
-	 * @return void
-	 */
-	void SignalAudioInjectorIncaseOnWait(void);
-
-	/**
 	 * @brief Update cache after fragment fetch
 	 *
 	 * @return void
@@ -175,12 +168,12 @@ public:
 	bool WaitForFreeFragmentAvailable( int timeoutMs = -1);
 
 	/**
-	 * @brief Abort the waiting for cached fragments
+	 * @brief Abort the waiting for cached fragments and free fragment slot
 	 *
 	 * @param[in] immediate - Forced or lazy abort
 	 * @return void
 	 */
-	void AbortWaitForCachedFragment( bool immediate);
+	void AbortWaitForCachedAndFreeFragment(bool immediate);
 
 	/**
 	 * @brief Notifies profile changes to subclasses
@@ -244,6 +237,20 @@ public:
 	 * @return current buffer health status
 	 */
 	BufferHealthStatus GetBufferHealthStatus() { return bufferStatus; };
+
+	/**
+	 * @brief Abort the waiting for cached fragments immediately
+	 *
+	 * @return void
+	 */
+	void AbortWaitForCachedFragment();
+
+	/**
+	 * @brief Check whether track data injection is aborted
+	 *
+	 * @return true if injection is aborted, false otherwise
+	 */
+	bool IsInjectionAborted() { return (abort || abortInject); }
 protected:
 
 	/**
@@ -300,14 +307,13 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
-	bool fragmentInjectorThreadExited;  /**< Fragment injector's thread exited or not*/
-	bool isAudioInWait2CatchVideo;          /**< Flag used to determine whether the audio injection is in wait state to catch up video*/
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
 	bool abort;                         /**< Abort all operations if flag is set*/
 	pthread_mutex_t mutex;              /**< protection of track variables accessed from multiple threads */
 	bool ptsError;                      /**< flag to indicate if last injected fragment has ptsError */
+	bool abortInject;                   /**< Abort inject operations if flag is set*/
 private:
 	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
@@ -778,7 +784,6 @@ private:
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
-	bool abortWait;
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

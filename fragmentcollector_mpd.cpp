@@ -3405,7 +3405,7 @@ void * FragmentDownloader(void *arg)
 					if(!downloadParams->context->aamp->IsLive() && downloadParams->playingLastPeriod)
 					{
 						downloadParams->pMediaStreamContext->eosReached = true;
-						downloadParams->pMediaStreamContext->AbortWaitForCachedFragment(false);
+						downloadParams->pMediaStreamContext->AbortWaitForCachedAndFreeFragment(false);
 					}
 					AAMPLOG_INFO("%s:%d %s EOS - Exit fetch loop\n", __FUNCTION__, __LINE__, downloadParams->pMediaStreamContext->name);
 					break;
@@ -4788,14 +4788,14 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							if(vEos)
 							{
 								mMediaStreamContext[eMEDIATYPE_VIDEO]->eosReached = true;
-								mMediaStreamContext[eMEDIATYPE_VIDEO]->AbortWaitForCachedFragment(false);
+								mMediaStreamContext[eMEDIATYPE_VIDEO]->AbortWaitForCachedAndFreeFragment(false);
 							}
 							if(audioEnabled)
 							{
 								if(mMediaStreamContext[eMEDIATYPE_AUDIO]->eos)
 								{
 									mMediaStreamContext[eMEDIATYPE_AUDIO]->eosReached = true;
-									mMediaStreamContext[eMEDIATYPE_AUDIO]->AbortWaitForCachedFragment(false);
+									mMediaStreamContext[eMEDIATYPE_AUDIO]->AbortWaitForCachedAndFreeFragment(false);
 								}
 							}
 							else
@@ -5094,7 +5094,7 @@ void PrivateStreamAbstractionMPD::Stop()
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
 		if(track && track->Enabled())
 		{
-			track->AbortWaitForCachedFragment(true);
+			track->AbortWaitForCachedAndFreeFragment(true);
 			track->StopInjectLoop();
 		}
 	}
@@ -5422,7 +5422,8 @@ void PrivateStreamAbstractionMPD::StopInjection(void)
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
 		if(track && track->Enabled())
 		{
-			track->AbortWaitForCachedFragment(true);
+			track->AbortWaitForCachedFragment();
+			aamp->StopTrackInjection((MediaType) iTrack);
 			track->StopInjectLoop();
 		}
 	}
@@ -5434,7 +5435,6 @@ void PrivateStreamAbstractionMPD::StopInjection(void)
 */
 void StreamAbstractionAAMP_MPD::StartInjection(void)
 {
-	abortWait = false;
 	mPriv->StartInjection();
 }
 
@@ -5449,6 +5449,7 @@ void PrivateStreamAbstractionMPD::StartInjection(void)
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
 		if(track && track->Enabled())
 		{
+			aamp->ResumeTrackInjection((MediaType) iTrack);
 			track->StartInjectLoop();
 		}
 	}
