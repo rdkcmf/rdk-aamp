@@ -725,58 +725,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 	return retval;
 } // ParseMainManifest
 
-#ifdef AAMP_REWIND_PLAYLIST_SUPPORTED
-static char *RewindPlaylist(TrackState *trackState)
-{ // TODO: deprecate?
-  // Right now, disabled under a compile-time macro
-	char *ptr = trackState->fragmentURI;
-	char *rc = NULL;
-	while (ptr > trackState->playlist.ptr)
-	{
-		ptr--;
-		/*Undo NULL char insertions*/
-		if (*ptr == 0x00)
-		{
-			if (*(ptr + 1) == CHAR_LF)
-			{
-				*ptr = CHAR_CR;
-			}
-			else
-			{
-				*ptr = CHAR_LF;
-			}
-
-		}
-		char * start = ptr;
-		if (startswith(&start, "#EXTINF:"))
-		{
-			if (0 < trackState->playlistPosition)
-			{
-				trackState->playlistPosition -= atof(start);
-				trackState->nextMediaSequenceNumber--;
-#ifdef TRACE
-				logprintf("Rew - EXTINF - trackState->playlistPosition updated to %f\n", trackState->playlistPosition);
-#endif
-				if (trackState->playlistPosition < trackState->playTarget)
-				{
-					rc = ptr;
-					break;
-				}
-			}
-			else
-			{
-#ifdef TRACE
-				logprintf("Rew - EXTINF - trackState->playlistPosition reset to %f\n", trackState->playlistPosition);
-#endif
-				trackState->playlistPosition = -1;
-				rc = ptr;
-				break;
-			}
-		}
-	}
-	return rc;
-}
-#endif
 
 /***************************************************************************
 * @fn GetFragmentUriFromIndex
@@ -784,9 +732,9 @@ static char *RewindPlaylist(TrackState *trackState)
 *		 
 * @return string fragment URI pointer
 ***************************************************************************/
-char *TrackState::GetFragmentUriFromIndex()
+const char *TrackState::GetFragmentUriFromIndex()
 {
-	char * uri = NULL;
+	const char * uri = NULL;
 	const IndexNode *index = (IndexNode *) this->index.ptr;
 	const IndexNode *idxNode = NULL;
 	int idx;
@@ -893,7 +841,7 @@ char *TrackState::GetFragmentUriFromIndex()
 			}
 			int urlLen = urlEnd - fragmentInfo;
 			mFragmentURIFromIndex.assign(fragmentInfo, urlLen);
-			uri = const_cast<char*> (mFragmentURIFromIndex.c_str());
+			uri = mFragmentURIFromIndex.c_str();
 		}
 		else
 		{
@@ -969,20 +917,12 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		//logprintf("[PLAYLIST_POSITION!= -1]\n");
 		ptr += strlen(fragmentURI) + 1;
 	}
-#ifdef AAMP_REWIND_PLAYLIST_SUPPORTED
-	if (playlistPosition > playTarget)
-	{
-		logprintf("%s - playlistPosition[%f] > playTarget[%f] [REWIND]\n", __FUNCTION__, playlistPosition, playTarget);
-		ptr = RewindPlaylist(this);
-	}
-#else
 	if ((playlistPosition > playTarget) && (fragmentDurationSeconds > PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS) &&
 		((playlistPosition - playTarget) > fragmentDurationSeconds))
 	{
 		logprintf("%s - playlistPosition[%f] > playTarget[%f] more than last fragmentDurationSeconds[%f]\n",
 					__FUNCTION__, playlistPosition, playTarget, fragmentDurationSeconds);
 	}
-#endif
 	//logprintf("%s: before loop, ptr = %p fragmentURI %p\n", __FUNCTION__, ptr, fragmentURI);
 	while (ptr)
 	{
@@ -1330,14 +1270,14 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 		logprintf("FetchFragmentHelper Enter: pos %f start %f frag-duration %f fragmentURI %s\n",
 				playlistPosition, playTarget, fragmentDurationSeconds, fragmentURI );
 #endif
-		assert (fragmentURI);
+	const char *uri = NULL;
 		if (context->trickplayMode && ABRManager::INVALID_PROFILE != context->GetIframeTrack())
 		{
-			fragmentURI = GetFragmentUriFromIndex();
+			uri = GetFragmentUriFromIndex();
 			double delta = context->rate / context->mTrickPlayFPS;
 			if (context->rate < 0)
 			{ // rewind
-				if (!fragmentURI || (playTarget == 0))
+				if (!uri || (playTarget == 0))
 				{
 					logprintf("aamp rew to beginning\n");
 					eosReached = true;
@@ -1353,7 +1293,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			}
 			else
 			{// fast-forward
-				if (!fragmentURI)
+				if (!uri)
 				{
 					logprintf("aamp ffw to end\n");
 					eosReached = true;
@@ -1367,6 +1307,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			fragmentURI = GetNextFragmentUriFromPlaylist();
 			if (fragmentURI != NULL)
 			{
+				uri = fragmentURI;
 				playTarget = playlistPosition + fragmentDurationSeconds;
 				if (IsLive())
 				{
@@ -1387,11 +1328,11 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			}
 		}
 
-		if (fragmentURI)
+		if (uri)
 		{
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
-			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI);
+			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri);
 			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d\n", fragmentUrl, fragmentEncrypted, (int)discontinuity);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);

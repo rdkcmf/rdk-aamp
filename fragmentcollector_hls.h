@@ -228,7 +228,7 @@ public:
 
 private:
 	/// Function to get fragment URI based on Index 
-	char *GetFragmentUriFromIndex();
+	const char *GetFragmentUriFromIndex();
 	/// Function to flush all the downloads done 
 	void FlushIndex();
 	/// Function to Fetch the fragment and inject for playback 

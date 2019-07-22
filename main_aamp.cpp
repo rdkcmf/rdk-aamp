@@ -3639,8 +3639,10 @@ void PlayerInstanceAAMP::Stop(void)
  * @brief de-fog playback URL to play directly from CDN instead of fog
  * @param[in][out] dst Buffer containing URL
  */
-static void DeFog(char *dst)
+static void DeFog(std::string& url)
 {
+	char *dst = NULL, *head = NULL;
+	head = dst = strdup(url.c_str());
 	const char *src = strstr(dst, "&recordedUrl=");
 	if (src)
 	{
@@ -3669,6 +3671,11 @@ static void DeFog(char *dst)
 				*dst++ = c;
 			}
 		}
+	}
+	if(head != NULL)
+	{
+		url = head;
+		free(head);
 	}
 }
 
@@ -3917,7 +3924,6 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
-
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 	if (NULL == mStreamSink)
@@ -4015,9 +4021,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 			mIsDash = true;
 			if (!gpGlobalConfig->fogSupportsDash )
 			{
-				char* tmpmManifestUrl = const_cast <char*>(mManifestUrl.c_str());
-				DeFog(tmpmManifestUrl);
-				mManifestUrl = tmpmManifestUrl;
+				DeFog(mManifestUrl);
 			}
 
 			bool urlReplaced = false;
@@ -4059,7 +4063,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		
 		if (gpGlobalConfig->noFog)
 		{
-			DeFog(const_cast<char*> (mManifestUrl.c_str()));
+			DeFog(mManifestUrl);
 		}
 	
 		if (gpGlobalConfig->forceEC3)
@@ -7111,10 +7115,7 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 	traceprintf("%s::mManifestUrl: %s\n",__FUNCTION__,mManifestUrl.c_str());
 	if(isrecordedUrl)
 	{
-		char* tmpmTunedManifestUrl = const_cast <char*>(mTunedManifestUrl.c_str());
-		
-		DeFog(tmpmTunedManifestUrl);
-		mTunedManifestUrl = tmpmTunedManifestUrl;
+		DeFog(mTunedManifestUrl);
 		mTunedManifestUrl.replace(0,4,"_fog");
 	}
 
