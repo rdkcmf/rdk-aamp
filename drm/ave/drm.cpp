@@ -55,6 +55,7 @@ using namespace media;
 #endif /*!NO_AVE_DRM*/
 
 static pthread_mutex_t aveDrmManagerMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t aveDrmIndividualizationMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t aveDrmIndividualizationCond = PTHREAD_COND_INITIALIZER;
 static bool aveDrmIndividualizationInProgress = false;
 static bool aveDrmIndividualized = false;
@@ -155,14 +156,14 @@ public:
 	void NotifyInitSuccess()
 	{ // callback from successful pDrmAdapter->Initialize
 		//log_current_time("NotifyInitSuccess\n");
-		pthread_mutex_lock(&aveDrmManagerMutex);
+		logprintf("Got the notification from AVE after license acquired successfully\n");
+		pthread_mutex_lock(&aveDrmIndividualizationMutex);
 		if (!aveDrmIndividualized)
 		{
 			aveDrmIndividualized = true;
 			pthread_cond_broadcast(&aveDrmIndividualizationCond);
-			logprintf("Got the notification from AVE after license acquired successfully\n");
 		}
-		pthread_mutex_unlock(&aveDrmManagerMutex);
+		pthread_mutex_unlock(&aveDrmIndividualizationMutex);
 		gint callbackID = PrivateInstanceAAMP::AddHighIdleTask(drmSignalKeyAquired, this);
 		if(callbackID > 0)
 		{
@@ -567,6 +568,17 @@ void AveDrm::CancelKeyWait()
 	mDrmState = eDRM_KEY_FLUSH;
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
+	
+	
+	pthread_mutex_lock(&aveDrmIndividualizationMutex);
+	pthread_cond_broadcast(&aveDrmIndividualizationCond);
+	if(aveDrmIndividualized == false)
+	{
+       		 aveDrmIndividualizationInProgress = false;
+	}
+	
+	pthread_mutex_unlock(&aveDrmIndividualizationMutex);
+	logprintf("Exit AveDrm::CancelKeyWait\n");
 }
 
 
@@ -994,6 +1006,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 
 	if(drmMetaDataKeyRequested)
 	{
+		pthread_mutex_lock(&aveDrmIndividualizationMutex);
 		if(!aveDrmIndividualized)
 		{
 			if(aveDrmIndividualizationInProgress)
@@ -1004,7 +1017,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 				gettimeofday(&tv, NULL);
 				ts.tv_sec = tv.tv_sec + AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS;
 				ts.tv_nsec = (long)(tv.tv_usec * 1000);
-				if(0 != pthread_cond_timedwait(&aveDrmIndividualizationCond, &aveDrmManagerMutex, &ts))
+				if(0 != pthread_cond_timedwait(&aveDrmIndividualizationCond, &aveDrmIndividualizationMutex, &ts))
 				{
 					logprintf("AesDec::%s:%d wait for individualization timed out, continue to acquire key\n", __FUNCTION__, __LINE__);
 					aveDrmIndividualized = true;
@@ -1015,8 +1028,13 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 				aveDrmIndividualizationInProgress = true;
 			}
 		}
-		logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]\n",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
-		sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType);
+		pthread_mutex_unlock(&aveDrmIndividualizationMutex);
+		DRMState currState = sAveDrmManager[metaIdx]->mDrm->GetState();
+		if(currState != DRMState::eDRM_KEY_FLUSH)
+		{
+			logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]\n",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
+			sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType);
+		}
 	}
 
 	if(!drmMetaFound)
