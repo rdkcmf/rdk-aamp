@@ -2196,11 +2196,6 @@ void TrackState::IndexPlaylist()
 				}
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
-					if(!aamp->mlogAdPlayback)
-					{
-						aamp->mlogAdPlayback = true;
-						AAMPLOG_WARN("AD PLAYBACK start %s,%d\n",__FUNCTION__,__LINE__);
-					}
 					if (0 != totalDuration)
 					{
 						discontinuity = true;

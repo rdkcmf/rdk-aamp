@@ -1006,11 +1006,6 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		ProcessPendingDiscontinuity();
 		DeliverAdEvents();
 		logprintf("PrivateInstanceAAMP::%s:%d  EOS due to discontinuity handled\n", __FUNCTION__, __LINE__);
-		if(mlogAdPlayback)
-		{
-			AAMPLOG_WARN("AD PLAYBACK end::%s:%d \n", __FUNCTION__, __LINE__);
-			mlogAdPlayback = false;
-		}
 	}
 }
 
@@ -5890,7 +5885,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mServiceZone(),
 	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
-	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL), mTuneType(eTUNETYPE_NEW_NORMAL), mlogAdPlayback(false)
+	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL), mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")

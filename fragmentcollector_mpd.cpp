@@ -4000,11 +4000,6 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 				const std::string& value = node->GetAttributeValue("value");
 				if (!value.empty()) {
 					AdID = value;
-					if(!aamp->mlogAdPlayback)
-					{
-						aamp->mlogAdPlayback = true;
-						AAMPLOG_WARN("AD PLAYBACK start %s,%d\n",__FUNCTION__,__LINE__);
-					}
 
 					// Check if we need to make AdID a quoted-string
 					if (AdID.find(',') != std::string::npos) {
