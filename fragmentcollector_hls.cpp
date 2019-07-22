@@ -1991,10 +1991,12 @@ void TrackState::RefreshPlaylist(void)
 		}
 		aamp_Free(&tempBuff.ptr);
 		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operationsaamp_AppendNulTerminator(&this->mainManifest); // make safe for cstring operations
+#ifdef TRACE
 		if (gpGlobalConfig->logging.trace)
 		{
 			printf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
+#endif
 		double totalDuration = IndexPlaylist();
 		if( totalDuration > 0.0f )
 		{
