@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <cmath>
 
 #include "jsutils.h"
 #include "main_aamp.h"
@@ -2722,7 +2723,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 		bool bGenerateID = true;
 
 		name = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, (int)timeMS), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, std::round(timeMS)), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
 
 		name = JSStringCreateWithUTF8CString("name");
