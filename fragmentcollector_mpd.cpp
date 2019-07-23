@@ -707,7 +707,17 @@ static int GetVideoAdaptaionMinResolution(IAdaptationSet *adaptationSet, uint32_
 		const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
 		uint32_t width = rep->GetWidth();
 		uint32_t height = rep->GetHeight();
-		if(width < minWidth || height < minHeight)
+
+		const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+		const std::vector<string> codecs = rep->GetCodecs();
+		string codecValue="";
+		if(codecs.size())
+			codecValue=codecs.at(0);
+		else if(adapCodecs.size())
+			codecValue = adapCodecs.at(0);
+
+		//Ignore vp8 and vp9 codec video profiles(webm)
+		if((width < minWidth || height < minHeight) && (codecValue.find("vp") == std::string::npos))
 		{
 			minWidth = width;
 			minHeight = height;
@@ -3809,13 +3819,13 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								minVideoRepWidth = numeric_limits<uint32_t>::max();
 								minVideoRepHeight = numeric_limits<uint32_t>::max();
 								videoRepresentationIdx = GetVideoAdaptaionMinResolution(adaptationSet, minVideoRepWidth, minVideoRepHeight);
-								AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Adaptation Set[%d] minVideoRepWidth : %d minVideoRepHeight : %d\n",__FUNCTION__, __LINE__, iAdaptationSet, minVideoRepWidth, minVideoRepHeight);
 								if (videoRepresentationIdx != -1)
 								{
 #ifndef CONTENT_4K_SUPPORTED
 									if (minVideoRepWidth <= 1920 && minVideoRepHeight <= 1080)
 #endif
 									selAdaptationSetIndex =	iAdaptationSet;
+									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet);
 								}
 								if(!newTune)
 								{
