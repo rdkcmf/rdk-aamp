@@ -502,6 +502,13 @@ public:
 	void SetTsbBandwidth(long tsbBandwidth){ mTsbBandwidth = tsbBandwidth;}
 
 	/**
+	 *   @brief When TSB is involved, use this to get bandwidth to be reported.
+	 *
+	 *   @return Bandwidth of the track.
+	 */
+	long GetTsbBandwidth() { return mTsbBandwidth ;}
+
+	/**
 	 *   @brief Set elementary stream type change status for reconfigure the pipeline.
 	 *
 	 *   @param[in]  None

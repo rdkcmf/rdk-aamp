@@ -1633,7 +1633,9 @@ void TrackState::FetchFragment()
 			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track \n", __FUNCTION__, __LINE__, name);
 		}
 
-		long lbwd = this->GetCurrentBandWidth() * 8;
+		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+		// hence getting from context which is updated in FetchFragmentHelper
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
@@ -1665,7 +1667,10 @@ void TrackState::FetchFragment()
 		cachedFragment->duration = duration;
 		cachedFragment->position = position;
 
-		long lbwd = this->GetCurrentBandWidth() * 8;
+		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+		// hence getting from context which is updated in FetchFragmentHelper
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
+
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
