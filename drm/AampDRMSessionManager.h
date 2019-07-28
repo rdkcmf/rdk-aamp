@@ -76,6 +76,7 @@ typedef enum{
 	eSESSIONMGR_ACTIVE
 }SessionMgrState;
 
+
 /**
  *  @class	AampDRMSessionManager
  *  @brief	Controller for managing DRM sessions.
@@ -116,7 +117,7 @@ public:
 
 	static void setSessionMgrState(SessionMgrState state);
 
-	static const char* getAccessToken(int *tokenLength);
+	static const char* getAccessToken(int &tokenLength, long &error_code);
 };
 
 unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,
