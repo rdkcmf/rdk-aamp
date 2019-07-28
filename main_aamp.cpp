@@ -3553,14 +3553,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (eTUNETYPE_LAST == tuneType)
 	{
-		tuneType = lastTuneType;
+		tuneType = mTuneType;
 	}
 	else
 	{
-		lastTuneType = tuneType;
+		mTuneType = tuneType;
 	}
 
-	newTune = ((eTUNETYPE_NEW_NORMAL == tuneType) || (eTUNETYPE_NEW_SEEK == tuneType));
+	newTune = IsNewTune();
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
@@ -5692,12 +5692,12 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
 	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	lastTuneType(eTUNETYPE_NEW_NORMAL), m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
         mServiceZone(),
-	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
+	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
