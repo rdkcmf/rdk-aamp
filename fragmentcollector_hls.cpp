@@ -2549,6 +2549,9 @@ void TrackState::RefreshPlaylist(void)
 const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, StreamOutputFormat* format)
 {
 	const char *playlistURI = NULL;
+	const char* group = NULL;
+	HlsStreamInfo* streamInfo = NULL;
+
 	switch (trackType)
 	{
 	case eTRACK_VIDEO:
@@ -2560,8 +2563,8 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 		break;
 
 	case eTRACK_AUDIO:
-		HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
-		const char* group = streamInfo->audio;
+		streamInfo = &this->streamInfo[this->currentProfileIndex];
+		group = streamInfo->audio;
 		if (group)
 		{
 			logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s\n", group, aamp->language);
@@ -2579,7 +2582,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 //	#ifdef TRACE
 						logprintf("GetPlaylistURI checking if preferred language '%s' matches media[%d] language '%s'\n", aamp->language, i, this->mediaInfo[i].language);
 //	#endif
-						if ( (aamp->language[0] && strncmp(aamp->language, this->mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH)==0) || (langChecks == 1 && this->mediaInfo[i].isDefault) )
+						if ((aamp->language[0] && this->mediaInfo[i].language && strncmp(aamp->language, this->mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH)==0) || (langChecks == 1 && this->mediaInfo[i].isDefault))
 						{
 							foundAudio = true;
 							if(langChecks == 1)
@@ -2587,7 +2590,10 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 								//save what language we have selected, defaulting to english
 								logprintf("%s updating aamp->language from %s to %s mediaInfo[i].language %s\n", __FUNCTION__, aamp->language, this->mediaInfo[i].language ? this->mediaInfo[i].language : "en", mediaInfo[i].language);
 								aamp->UpdateAudioLanguageSelection((this->mediaInfo[i].language ? this->mediaInfo[i].language : "en"));
-								logprintf("GetPlaylistURI : language not found. Instead, select default of %s\n", aamp->language);
+								if(!this->mediaInfo[i].language)
+								{
+									logprintf("GetPlaylistURI : language not found. Instead, select default of %s\n", aamp->language);
+								}
 							}
 							playlistURI = this->mediaInfo[i].uri;
 							logprintf("GetPlaylistURI language found uri %s\n", playlistURI);
@@ -2635,6 +2641,8 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 	}
 	return playlistURI;
 }
+
+
 /***************************************************************************
 * @fn GetFormatFromFragmentExtension
 * @brief Function to get media format based on fragment extension
