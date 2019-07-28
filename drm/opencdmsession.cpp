@@ -148,7 +148,7 @@ struct Rpc_Secbuf_Info {
 //The following flag is used to use old or new(wpeframework) OpenCDM implementation
 #define USE_NEW_OPENCDM 1
 
-OpenCDMSession::OpenCDMSession(string& keySystem) :
+AAMPOCDMSession::AAMPOCDMSession(string& keySystem) :
 		AampDrmSession(keySystem),
 		m_eKeyState(KEY_INIT), 
 		m_pOutputProtection(NULL),
@@ -157,17 +157,17 @@ OpenCDMSession::OpenCDMSession(string& keySystem) :
 		decryptMutex(),
 		m_sessionID()
 {
-	logprintf("OpenCDMSession :: enter \n");
+	logprintf("AAMPOCDMSession :: enter \n");
 	pthread_mutex_init(&decryptMutex,NULL);
 
 	initAampDRMSession();
 
 	// Get output protection pointer
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
-	logprintf("OpenCDMSession :: exit \n");
+	logprintf("AAMPOCDMSession :: exit \n");
 }
 
-void OpenCDMSession::initAampDRMSession()
+void AAMPOCDMSession::initAampDRMSession()
 {
 	logprintf("initAampDRMSession :: enter \n");
 	if (m_pOpencdm == NULL) {
@@ -178,7 +178,7 @@ void OpenCDMSession::initAampDRMSession()
 	logprintf("initAampDRMSession :: exit \n");
 }
 
-void OpenCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
+void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
 	logprintf("generateAampDRMSession :: enter \n");
@@ -193,7 +193,7 @@ void OpenCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 #endif    
 }
 
-OpenCDMSession::~OpenCDMSession()
+AAMPOCDMSession::~AAMPOCDMSession()
 {
 	logprintf("[HHH]OCDMSession destructor called! keySystem %s\n", m_keySystem.c_str());
 	pthread_mutex_destroy(&decryptMutex);
@@ -224,7 +224,7 @@ OpenCDMSession::~OpenCDMSession()
 }
 
 
-DrmData * OpenCDMSession::aampGenerateKeyRequest(string& destinationURL)
+DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 {
 	DrmData * result = NULL;
 
@@ -279,7 +279,7 @@ DrmData * OpenCDMSession::aampGenerateKeyRequest(string& destinationURL)
 }
 
 
-int OpenCDMSession::aampDRMProcessKey(DrmData* key)
+int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 {
 	int retvalue = -1;
 
@@ -305,7 +305,7 @@ int OpenCDMSession::aampDRMProcessKey(DrmData* key)
 #endif
 }
 
-int OpenCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
+int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
 {
 #ifdef USE_SAGE_SVP
@@ -363,12 +363,12 @@ int OpenCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 }
 
-KeyState OpenCDMSession::getState()
+KeyState AAMPOCDMSession::getState()
 {
 	return m_eKeyState;
 }
 
-void OpenCDMSession:: clearDecryptContext()
+void AAMPOCDMSession:: clearDecryptContext()
 {
 	logprintf("[HHH] clearDecryptContext.\n");
 
@@ -383,3 +383,4 @@ void OpenCDMSession:: clearDecryptContext()
 	if(m_pOpencdm) m_pOpencdm->Close();
 	m_eKeyState = KEY_INIT;
 }
+
