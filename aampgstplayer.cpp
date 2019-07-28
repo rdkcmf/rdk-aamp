@@ -2946,6 +2946,7 @@ void AAMPGstPlayer::SignalTrickModeDiscontinuity()
 		{
 			logprintf("%s:%d Sent aamp-tm-disc event\n", __FUNCTION__, __LINE__);
 		}
+		gst_object_unref(sourceEleSrcPad);
 	}
 }
 
