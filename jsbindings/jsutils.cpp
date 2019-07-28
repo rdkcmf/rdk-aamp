@@ -56,9 +56,9 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_ENTERING_LIVE, "enteringLive"},
 	{ AAMP_EVENT_BITRATE_CHANGED, "bitrateChanged"},
 	{ AAMP_EVENT_TIMED_METADATA, "timedMetadata"},
-	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_STATE_CHANGED, "statusChanged"},
 	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
+	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
 	{ (AAMPEventType)0, "" }
 };
@@ -92,6 +92,8 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_AD_BREAKS_CHANGED, "contentBreaksChanged"},
 	{ AAMP_EVENT_AD_STARTED, "contentStarted"},
 	{ AAMP_EVENT_AD_COMPLETED, "contentCompleted"},
+	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
+	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
 	{ (AAMPEventType)0, "" }
 };
 
@@ -296,24 +298,6 @@ AAMPEventType aamp_getEventTypeFromName(const char* szName)
 
 
 /**
- * @brief Convert AAMP event type to JS event string
- * @param[in] szName AAMP event type
- * @retval JS event name corresponding to AAMP event
- */
-const char* aamp_getNameFromEventType(AAMPEventType type)
-{
-	if (type > 0 && type < AAMP_MAX_NUM_EVENTS)
-	{
-		return aamp_eventTypes[type].szName;
-	}
-	else
-	{
-		return NULL;
-	}
-}
-
-
-/**
  * @brief To dispatch a JS event
  * @param[in] context JS execution context
  * @param[in] callback function to which event has to be dispatched as an arg
@@ -336,7 +320,7 @@ void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObject
  */
 AAMPEventType aampPlayer_getEventTypeFromName(const char* szName)
 {
-//TODO: Need separate event list to avoid breaking existing viper impl. Unify later
+//TODO: Need separate event list for now to avoid breaking existing viper impl. Unify later
 	AAMPEventType eventType = AAMP_MAX_NUM_EVENTS;
 	int numEvents = sizeof(aampPlayer_eventTypes) / sizeof(aampPlayer_eventTypes[0]);
 
