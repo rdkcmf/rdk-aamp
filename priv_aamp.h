@@ -2639,6 +2639,12 @@ public:
 	 */
 	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
 
+	/**
+	 *   @brief Check if current stream is muxed
+	 *
+	 *   @return true if current stream is muxed
+	 */
+	bool IsMuxedStream();
 
 private:
 
