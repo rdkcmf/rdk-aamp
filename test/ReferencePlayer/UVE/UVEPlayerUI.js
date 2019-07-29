@@ -19,6 +19,7 @@
 
 var controlObj = null;
 var bitrateList = [];
+var ccStatus = false;
 
 function playPause() {
     console.log("playPause");
