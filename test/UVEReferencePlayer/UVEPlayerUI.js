@@ -389,7 +389,7 @@ var HTML5PlayerControls = function() {
         var newBitrate = document.getElementById("settingButton").value;
         if (newBitrate != "") {
             console.log("bitrate: "  + newBitrate)
-            mediaPlayer.setVideoBitrate(newBitrate);
+            playerObj.setVideoBitrate(newBitrate);
         }
     };
 
