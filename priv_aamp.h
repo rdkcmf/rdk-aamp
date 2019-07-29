@@ -2666,6 +2666,24 @@ public:
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
 
+	/**
+	 * @brief Stop injection for a track.
+	 * Called from StopInjection
+	 *
+	 * @param[in] Media type
+	 * @return void
+	 */
+	void StopTrackInjection(MediaType type);
+
+	/**
+	 * @brief Resume injection for a track.
+	 * Called from StartInjection
+	 *
+	 * @param[in] Media type
+	 * @return void
+	 */
+	void ResumeTrackInjection(MediaType type);
+
 private:
 
 	/**
@@ -2745,6 +2763,8 @@ private:
 	double mTimeToTopProfile;
 	double mTimeAtTopProfile;
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
+
+	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 };
 
 #endif // PRIVAAMP_H

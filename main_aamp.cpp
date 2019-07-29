@@ -1287,9 +1287,9 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 	int elapsedMs = 0;
 	while (mbDownloadsBlocked || mbTrackDownloadsBlocked[track])
 	{
-		if (!mDownloadsEnabled)
+		if (!mDownloadsEnabled || mTrackInjectionBlocked[track])
 		{
-			logprintf("PrivateInstanceAAMP::%s interrupted\n", __FUNCTION__);
+			logprintf("PrivateInstanceAAMP::%s interrupted. mDownloadsEnabled:%d mTrackInjectionBlocked:%d\n", __FUNCTION__, mDownloadsEnabled, mTrackInjectionBlocked[track]);
 			break;
 		}
 		if (cb && periodMs)
@@ -5335,25 +5335,6 @@ void PrivateInstanceAAMP::EnableDownloads()
  */
 void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 {
-#if 0 // #ifdef WIN32 (needed workaround?)
-	while (timeInMs > 0)
-	{
-		if (aamp_DownloadsAreEnabled())
-		{
-			struct timespec req, rem;
-			int sliceMs = 10;
-			req.tv_sec = sliceMs / 1000;
-			req.tv_nsec = (sliceMs % 1000) * 1000000;
-			nanosleep(&req, &rem);
-			timeInMs -= sliceMs;
-		}
-		else
-		{
-			logprintf("interrupted!\n");
-			break;
-		}
-	}
-#else
 	if (timeInMs > 0)
 	{
 		struct timespec ts;
@@ -5381,7 +5362,6 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 		}
 		pthread_mutex_unlock(&mLock);
 	}
-#endif
 }
 
 
@@ -5870,8 +5850,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
-	lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
-	lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -5892,6 +5870,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		mbTrackDownloadsBlocked[i] = false;
+		mTrackInjectionBlocked[i] = false;
+		lastUnderFlowTimeMs[i] = 0;
 	}
 
 	pthread_mutex_lock(&gMutex);
@@ -7222,6 +7202,56 @@ void PrivateInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 	{
 		gpGlobalConfig->curlDownloadStartTimeout = startTimeout;
 	}
+}
+
+/**
+ * @brief Stop injection for a track.
+ * Called from StopInjection
+ *
+ * @param[in] Media type
+ * @return void
+ */
+void PrivateInstanceAAMP::StopTrackInjection(MediaType type)
+{
+#ifdef AAMP_DEBUG_FETCH_INJECT
+	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
+	{
+		logprintf ("PrivateInstanceAAMP::%s Enter. type = %d\n", __FUNCTION__, (int) type);
+	}
+#endif
+	if (!mTrackInjectionBlocked[type])
+	{
+		AAMPLOG_TRACE("PrivateInstanceAAMP::%s for type %s\n", __FUNCTION__, (type == eMEDIATYPE_AUDIO) ? "audio" : "video");
+		pthread_mutex_lock(&mLock);
+		mTrackInjectionBlocked[type] = true;
+		pthread_mutex_unlock(&mLock);
+	}
+	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d\n", __FUNCTION__, (int) type);
+}
+
+/**
+ * @brief Resume injection for a track.
+ * Called from StartInjection
+ *
+ * @param[in] Media type
+ * @return void
+ */
+void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
+{
+#ifdef AAMP_DEBUG_FETCH_INJECT
+	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
+	{
+		logprintf ("PrivateInstanceAAMP::%s Enter. type = %d\n", __FUNCTION__, (int) type);
+	}
+#endif
+	if (mTrackInjectionBlocked[type])
+	{
+		AAMPLOG_TRACE("PrivateInstanceAAMP::%s for type %s\n", __FUNCTION__, (type == eMEDIATYPE_AUDIO) ? "audio" : "video");
+		pthread_mutex_lock(&mLock);
+		mTrackInjectionBlocked[type] = false;
+		pthread_mutex_unlock(&mLock);
+	}
+	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d\n", __FUNCTION__, (int) type);
 }
 
 /**

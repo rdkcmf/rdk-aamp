@@ -3875,7 +3875,7 @@ void TrackState::RunFetchLoop()
 
 		if (eosReached || mReachedEndListTag || !context->aamp->DownloadsAreEnabled())
 		{
-			AbortWaitForCachedFragment(false);
+			AbortWaitForCachedAndFreeFragment(false);
 			break;
 		}
 		if (lastPlaylistDownloadTimeMS)
@@ -4099,7 +4099,7 @@ TrackState::~TrackState()
 ***************************************************************************/
 void TrackState::Stop()
 {
-	AbortWaitForCachedFragment(true);
+	AbortWaitForCachedAndFreeFragment(true);
 
 	if (playContext)
 	{
@@ -4980,7 +4980,8 @@ void StreamAbstractionAAMP_HLS::StopInjection(void)
 ***************************************************************************/
 void TrackState::StopInjection()
 {
-	AbortWaitForCachedFragment(true);
+	AbortWaitForCachedFragment();
+	aamp->StopTrackInjection((MediaType) type);
 	if (playContext)
 	{
 		playContext->abort();
@@ -4996,6 +4997,7 @@ void TrackState::StopInjection()
 ***************************************************************************/
 void TrackState::StartInjection()
 {
+	aamp->ResumeTrackInjection((MediaType) type);
 	if (playContext)
 	{
 		playContext->reset();
@@ -5011,7 +5013,6 @@ void TrackState::StartInjection()
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::StartInjection(void)
 {
-	abortWait = false;
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
