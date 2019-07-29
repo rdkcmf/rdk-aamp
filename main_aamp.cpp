@@ -882,7 +882,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
 void PrivateInstanceAAMP::SendDRMMetaData(const AAMPEvent &e)
 {
 
-        SendEventSync(e);
+        SendEventAsync(e);
         logprintf("SendDRMMetaData name = %s value = %x\n",e.data.dash_drmmetadata.accessStatus,e.data.dash_drmmetadata.accessStatus_value);
 }
 
@@ -5628,7 +5628,16 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 				(long)(eventData.data.timedMetadata.timeMilliseconds),
 				eventData.data.timedMetadata.szContent);
 		}
-		SendEventSync(eventData);
+		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35"))
+		{
+			/* JSPP performs non-trivial operations on receiving the SCTE35 signal.
+			   Sending it as a sync event may result in a browser crash. */
+			SendEventAsync(eventData);
+		}
+		else
+		{
+			SendEventSync(eventData);
+		}
 	}
 }
 
