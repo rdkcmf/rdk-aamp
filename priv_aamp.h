@@ -619,6 +619,7 @@ public:
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
+	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -671,6 +672,7 @@ public:
 		,enableBulkTimedMetaReport(eUndefinedState)
 		,mAsyncTuneConfig(eUndefinedState)
 		,mWesterosSinkConfig(eUndefinedState)
+		,aampRemovePersistent(0)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
