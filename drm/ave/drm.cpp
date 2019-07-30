@@ -200,36 +200,38 @@ public:
 				snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Authorization failure majorError = %d, minorError = %d",(int)majorError, (int)minorError);
 			}
 			break;
-			
 		case 3321:
-			/* This was added to avoid the crash in ave drm due to deleting 
-			the persistant folder DELIA-34306
-			*/
-			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: Individualization server down majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
-			break;
 		case 3322:
 		case 3328:
 			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
-			
-			/*
- 			 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
-			 * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
-			 * in the next tune attempt, this could clear tune error scenarios
-			 * due to corrupt drm data.
- 			*/
-			FILE *sentinelFile;
-			sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
-			
-			if(sentinelFile)
+
+			/* Enter if remove_Persistent flag is not set */
+			if(!gpGlobalConfig->aampRemovePersistent)
 			{
-				fclose(sentinelFile);
+				/*
+				 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
+				 * ASCPDriver.cpp and regenrate cert files in /opt/persistent/adobe
+				 * in the next tune attempt, this could clear tune error scenarios
+				 * due to corrupt drm data.
+				 */
+				FILE *sentinelFile;
+				sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
+				if(sentinelFile)
+				{
+					logprintf("DRMListener::%s:%d, Sentinel File created in AAMP\n",__FUNCTION__, __LINE__);
+					fclose(sentinelFile);
+				}
+				else
+				{
+					logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s",__FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
+				}
 			}
 			else
 			{
-				logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s",
-				__FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
+				logprintf("DRMListener::%s:%d, Remove drm folder from AAMP\n",__FUNCTION__, __LINE__);
+				system("rm -fr /opt/persistent/adobe/drm/");
 			}
-			
+
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt drm data; majorError = %d, minorError = %d",											(int)majorError, (int)minorError);
 			break;
 		case 3307:
