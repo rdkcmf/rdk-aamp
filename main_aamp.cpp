@@ -4052,6 +4052,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
 			logprintf("maxBitrate=%d", gpGlobalConfig->maxBitrate);
 		}
+		else if (ReadConfigNumericHelper(cfg, "remove_Persistent=", gpGlobalConfig->aampRemovePersistent) == 1)
+		{
+			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');

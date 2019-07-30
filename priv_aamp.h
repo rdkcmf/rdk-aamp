@@ -656,6 +656,7 @@ public:
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
+	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
 	long minBitrate;		/*** Minimum bandwidth of playback profile */
@@ -714,6 +715,7 @@ public:
 		,abrBufferCheckEnabled(eUndefinedState)
 		,useNewDiscontinuity(eUndefinedState)
 		,mAsyncTuneConfig(eUndefinedState)
+		,aampRemovePersistent(0)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
