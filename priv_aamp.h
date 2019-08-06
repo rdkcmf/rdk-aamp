@@ -550,6 +550,7 @@ public:
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
+	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
 public:
 
 	/**
@@ -581,7 +582,7 @@ public:
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
-		, enableClientDai(false), playAdFromCDN(false)
+		, enableClientDai(false), playAdFromCDN(false), disableSslVerifyPeer(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

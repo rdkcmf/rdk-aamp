@@ -2049,7 +2049,15 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
-			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+			if(gpGlobalConfig->disableSslVerifyPeer)
+			{
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+			}
+			else
+			{
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+			}
 
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
@@ -3204,6 +3212,11 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->playAdFromCDN = (value == 1);
 			logprintf("Ad playback from CDN only: %s\n", gpGlobalConfig->playAdFromCDN ? "ON" : "OFF");
 		}
+		else if (sscanf(cfg, "sslverifypeer=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->disableSslVerifyPeer = (value == 0);
+			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
+		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{
 			if (cfg[0] == '*')
@@ -3229,6 +3242,7 @@ static void ProcessConfigEntry(char *cfg)
 				}
 			}
 		}
+
 	}
 }
 
