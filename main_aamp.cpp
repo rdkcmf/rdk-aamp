@@ -1919,7 +1919,15 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
-			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+			if(gpGlobalConfig->disableSslVerifyPeer)
+			{
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+			}
+			else
+			{
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+			}
 
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
@@ -3016,6 +3024,11 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
 			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d\n", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 		}
+		else if (sscanf(cfg, "sslverifypeer=%d\n", &value) == 1)
+		{
+			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
+			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
+		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
 		{
 			if (cfg[0] == '*')
@@ -3041,6 +3054,7 @@ static void ProcessConfigEntry(char *cfg)
 				}
 			}
 		}
+
 	}
 }
 

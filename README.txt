@@ -166,6 +166,7 @@ iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe 
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+sslverifypeer=1	Enable TLS certificate verification.
 
 =================================================================================================================
 Overriding channels in aamp.cfg
