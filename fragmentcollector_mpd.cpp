@@ -3004,7 +3004,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 {
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
-	int downloadAttempt = 0;
 	char *manifestUrl = aamp->GetManifestUrl();
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
@@ -3014,112 +3013,99 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache\n", __FUNCTION__, __LINE__);
 		retrievedPlaylistFromCache = true;
 	}
-	while( downloadAttempt < 2)
+	if (!retrievedPlaylistFromCache)
 	{
-		if (!retrievedPlaylistFromCache)
-		{
-			long http_error = 0;
-			downloadAttempt++;
-			memset(&manifest, 0, sizeof(manifest));
-			aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
-			gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+		long http_error = 0;
+		memset(&manifest, 0, sizeof(manifest));
+		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
+		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
 
-			//update videoend info
-			aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
-
-			if (gotManifest)
-			{
-				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
-				if (mContext->mNetworkDownDetected)
-				{
-					mContext->mNetworkDownDetected = false;
-				}
-			}
-			else if (aamp->DownloadsAreEnabled())
-			{
-				if(downloadAttempt < 2 && 404 == http_error)
-				{
-					continue;
-				}
-				aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
-				if (this->mpd != NULL && (CURLE_OPERATION_TIMEDOUT == http_error || CURLE_COULDNT_CONNECT == http_error))
-				{
-					//Skip this for first ever update mpd request
-					mContext->mNetworkDownDetected = true;
-					logprintf("PrivateStreamAbstractionMPD::%s Ignore curl timeout\n", __FUNCTION__);
-					ret = AAMPStatusType::eAAMPSTATUS_OK;
-					break;
-				}
-				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
-				logprintf("PrivateStreamAbstractionMPD::%s - manifest download failed\n", __FUNCTION__);
-				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
-				break;
-			}
-		}
-		else
-		{
-			gotManifest = true;
-		}
+		//update videoend info
+		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
 
 		if (gotManifest)
 		{
+			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
+			if (mContext->mNetworkDownDetected)
+			{
+				mContext->mNetworkDownDetected = false;
+			}
+		}
+		else if (aamp->DownloadsAreEnabled())
+		{
+			aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
+			if (this->mpd != NULL && (CURLE_OPERATION_TIMEDOUT == http_error || CURLE_COULDNT_CONNECT == http_error))
+			{
+				//Skip this for first ever update mpd request
+				mContext->mNetworkDownDetected = true;
+				logprintf("PrivateStreamAbstractionMPD::%s Ignore curl timeout\n", __FUNCTION__);
+				ret = AAMPStatusType::eAAMPSTATUS_OK;
+			}
+			else
+			{
+				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
+				logprintf("PrivateStreamAbstractionMPD::%s - manifest download failed\n", __FUNCTION__);
+				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
+			}
+		}
+	}
+	else
+	{
+		gotManifest = true;
+	}
+
+	if (gotManifest)
+	{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			char fileName[1024] = {'\0'};
-			strcat(fileName, HARVEST_BASE_PATH);
-			strcat(fileName, "manifest.mpd");
-			WriteFile( fileName, manifest.ptr, manifest.len);
+		char fileName[1024] = {'\0'};
+		strcat(fileName, HARVEST_BASE_PATH);
+		strcat(fileName, "manifest.mpd");
+		WriteFile( fileName, manifest.ptr, manifest.len);
 #endif
 
 //Enable to harvest MPD file
 //Save the last 3 MPDs
 #ifdef HARVEST_MPD
-			static int counter = 0;
-			string fileSuffix = to_string(counter % 3);
-			counter++;
-			string fullPath = "/opt/logs/ProcessNodeError.txt" + fileSuffix;
-			logprintf("Saving manifest to %s\n",fullPath.c_str());
-			FILE *outputFile = fopen(fullPath.c_str(), "w");
-			fwrite(manifest.ptr, manifest.len, 1, outputFile);
-			fprintf(outputFile,"\n\n\nEndofManifest\n\n\n");
-			fclose(outputFile);
+		static int counter = 0;
+		string fileSuffix = to_string(counter % 3);
+		counter++;
+		string fullPath = "/opt/logs/ProcessNodeError.txt" + fileSuffix;
+		logprintf("Saving manifest to %s\n",fullPath.c_str());
+		FILE *outputFile = fopen(fullPath.c_str(), "w");
+		fwrite(manifest.ptr, manifest.len, 1, outputFile);
+		fprintf(outputFile,"\n\n\nEndofManifest\n\n\n");
+		fclose(outputFile);
 #endif
 
-			MPD* mpd = nullptr;
-			ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
-			logprintf("%s:%d Created MPD[%p]\n", __FUNCTION__, __LINE__, mpd);
-			if (eAAMPSTATUS_OK == ret)
+		MPD* mpd = nullptr;
+		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
+		logprintf("%s:%d Created MPD[%p]\n", __FUNCTION__, __LINE__, mpd);
+		if (eAAMPSTATUS_OK == ret)
+		{
+			if (this->mpd)
 			{
-				if (this->mpd)
-				{
-					delete this->mpd;
-				}
-				this->mpd = mpd;
-				mIsLive = !(mpd->GetType() == "static");
-				aamp->SetIsLive(mIsLive);
-				if (!retrievedPlaylistFromCache)
-				{
-					AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(), mIsLive);
-				}
+				delete this->mpd;
 			}
-			else
+			this->mpd = mpd;
+			mIsLive = !(mpd->GetType() == "static");
+			aamp->SetIsLive(mIsLive);
+			if (!retrievedPlaylistFromCache)
 			{
-				logprintf("%s:%d Error while processing MPD, GetMpdFromManfiest returned %d\n", __FUNCTION__, __LINE__, ret);
-				if(downloadAttempt < 2)
-				{
-					retrievedPlaylistFromCache = false;
-					continue;
-				}
+				AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(), mIsLive);
 			}
-
-			aamp_Free(&manifest.ptr);
-			mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 		}
 		else
 		{
-			logprintf("aamp: error on manifest fetch\n");
-			ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
+			logprintf("%s:%d Error while processing MPD, GetMpdFromManfiest returned %d\n", __FUNCTION__, __LINE__, ret);
+			retrievedPlaylistFromCache = false;
 		}
-		break;
+
+		aamp_Free(&manifest.ptr);
+		mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
+	}
+	else if (AAMPStatusType::eAAMPSTATUS_OK != ret)
+	{
+		logprintf("aamp: error on manifest fetch\n");
 	}
 
 	if( ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR || ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
