@@ -3214,7 +3214,7 @@ static void ProcessConfigEntry(char *cfg)
 		}
 		else if (sscanf(cfg, "sslverifypeer=%d\n", &value) == 1)
 		{
-			gpGlobalConfig->disableSslVerifyPeer = (value == 0);
+			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
 			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
 		}
 		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)

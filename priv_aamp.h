@@ -582,7 +582,7 @@ public:
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
-		, enableClientDai(false), playAdFromCDN(false), disableSslVerifyPeer(false)
+		, enableClientDai(false), playAdFromCDN(false), disableSslVerifyPeer(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
