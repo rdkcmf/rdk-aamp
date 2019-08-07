@@ -58,7 +58,6 @@
 #define CHAR_LF 0x0a // '\n'
 #define BOOLSTR(boolValue) (boolValue?"true":"false")
 #define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
-#define MAX_MANIFEST_DOWNLOAD_RETRY 3
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
@@ -3064,24 +3063,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest\n", __FUNCTION__, __LINE__);
-		int manifestDLFailCount = 0;
-		do
+		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+		//update videoend info
+		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
+		if (this->mainManifest.len)
 		{
-			aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
-			//update videoend info
-			aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
-			if (this->mainManifest.len)
-			{
-				aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
-				traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-				AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
-				break;
-			}
-			logprintf("Manifest download failed : failure count : %d : http response : %d\n", manifestDLFailCount, (int) http_error);
-			usleep(500000);
-			manifestDLFailCount += 1;
+			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
+			traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
+			AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 		}
-		while (MAX_MANIFEST_DOWNLOAD_RETRY > manifestDLFailCount && 404 == http_error);
+		else
+		{
+			logprintf("Manifest download failed : http response : %d\n", (int) http_error);
+		}
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
 	{
