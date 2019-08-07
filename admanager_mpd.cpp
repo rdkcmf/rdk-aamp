@@ -387,28 +387,18 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 {
 	MPD* adMpd = NULL;
 	GrowableBuffer manifest;
-	int downloadAttempt = 0;
 	bool gotManifest = false;
 	long http_error = 0;
 	std::string effectiveUrl;
-	while (downloadAttempt < 2)
+	memset(&manifest, 0, sizeof(manifest));
+	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+	if (gotManifest)
 	{
-		downloadAttempt++;
-		memset(&manifest, 0, sizeof(manifest));
-		gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
-		if (gotManifest)
-		{
-			break;
-		}
-		else if (mAamp->DownloadsAreEnabled())
-		{
-			if (downloadAttempt < 2 && 404 == http_error)
-			{
-				continue;
-			}
-			logprintf("PrivateCDAIObjectMPD::%s - manifest download failed\n", __FUNCTION__);
-			break;
-		}
+		AAMPLOG_TRACE("PrivateCDAIObjectMPD::%s - manifest download success\n", __FUNCTION__);
+	}
+	else if (mAamp->DownloadsAreEnabled())
+	{
+		AAMPLOG_ERR("PrivateCDAIObjectMPD::%s - manifest download failed\n", __FUNCTION__);
 	}
 
 	if (gotManifest)
