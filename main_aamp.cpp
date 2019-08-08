@@ -1402,21 +1402,27 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
     if (std::string::npos != header.find(FOG_REASON_STRING))
     {
         httpHeader->type = eHTTPHEADERTYPE_FOG_REASON;
-        logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+        // due to \r Journal print logger is not printing the log instead it prints
+        // blob data print e.g "43B blob data"
+        // hence replacing it, fog reason is printed later in the code
+        replace( header.begin(), header.end(), '\r', ' ' );
+
         startPos = header.find(FOG_REASON_STRING) + strlen(FOG_REASON_STRING);
         endPos = header.length() - 1;
     }
 	else if (std::string::npos != header.find("X-Reason:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
-		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+		// due to \r Journal print logger is not printing the log instead it prints
+		// blob data print e.g "43B blob data"
+		// hence replacing it, x reason is printed later in the code
+		replace( header.begin(), header.end(), '\r', ' ' );
 		startPos = header.find("X-Reason:") + strlen("X-Reason:");
 		endPos = header.length() - 1;
 	}
 	else if (std::string::npos != header.find("X-Bitrate:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_BITRATE;
-		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
 		startPos = header.find("X-Bitrate:") + strlen("X-Bitrate:");
 		endPos = header.length() - 1;
 	}
@@ -1442,7 +1448,16 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 			}
 			std::string contentLengthStr = header.substr(contentLengthStartPosition);
 			int contentLength = std::stoi(contentLengthStr);
-			traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, header.c_str(), contentLengthStr.c_str(), contentLength);
+
+			if(gpGlobalConfig->logging.trace)
+			{
+				// due to \r Journal print logger is not printing the log instead it prints
+				// blob data print e.g "43B blob data"
+				// hence replacing it,
+				replace( header.begin(), header.end(), '\r', ' ' );
+				traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, header.c_str(), contentLengthStr.c_str(), contentLength);
+			}
+
 			/*contentLength can be zero for redirects*/
 			if (contentLength > 0)
 			{
@@ -1468,7 +1483,14 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		//Append a delimiter ";"
 		httpHeader->data += ';';
 
-		traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+		if(gpGlobalConfig->logging.trace)
+		{
+			// due to \r Journal print logger is not printing the log instead it prints
+			// blob data print e.g "43B blob data"
+			// hence replacing it,
+			replace( header.begin(), header.end(), '\r', ' ' );
+			traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+		}
 	}
 	return len;
 }
