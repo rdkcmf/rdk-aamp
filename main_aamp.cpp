@@ -3154,6 +3154,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
 			logprintf("mpd-discontinuity-handling-cdvr=%d\n", value);
 		}
+		else if(ReadConfigStringHelper(cfg, "ck-license-server-url=", (const char**)&gpGlobalConfig->ckLicenseServerURL))
+		{
+			logprintf("Clear Key license-server-url=%s\n", gpGlobalConfig->ckLicenseServerURL);
+		}
 		else if(ReadConfigStringHelper(cfg, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
 		{
 			gpGlobalConfig->licenseServerLocalOverride = true;
@@ -6830,6 +6834,10 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 	else if (type == eDRM_WideVine)
 	{
 		serverUrl = &(gpGlobalConfig->wvLicenseServerURL);
+	}
+	else if(type == eDRM_ClearKey)
+	{
+		serverUrl = &(gpGlobalConfig->ckLicenseServerURL);
 	}
 	else
 	{

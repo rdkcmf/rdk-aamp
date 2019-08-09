@@ -56,6 +56,7 @@
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
 #define PLAYREADY_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
 #define WIDEVINE_SYSTEM_ID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+#define CLEARKEY_SYSTEM_ID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 #define DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS 3000
 #define TIMELINE_START_RESET_DIFF 4000000000
 #define MAX_DELAY_BETWEEN_MPD_UPDATE_MS (6000)
@@ -473,7 +474,7 @@ struct DrmSessionParams
 	int initDataLen;
 	MediaType stream_type;
 	PrivateInstanceAAMP *aamp;
-	bool isWidevine;
+	DRMSystems drmType;
 	unsigned char *contentMetadata;
 };
 
@@ -2327,14 +2328,19 @@ void *CreateDRMSession(void *arg)
 	unsigned char *contentMetadata = sessionParams->contentMetadata;
 	AampDrmSession *drmSession = NULL;
 	const char * systemId = WIDEVINE_SYSTEM_ID;
-	if (sessionParams->isWidevine)
+	if (sessionParams->drmType == eDRM_WideVine)
 	{
 		logprintf("Found Widevine encryption from manifest\n");
 	}
-	else
+	else if(sessionParams->drmType == eDRM_PlayReady)
 	{
 		logprintf("Found Playready encryption from manifest\n");
 		systemId = PLAYREADY_SYSTEM_ID;
+	}
+	else if(sessionParams->drmType == eDRM_ClearKey)
+	{
+		logprintf("Found ClearKey encryption from manifest\n");
+		systemId = CLEARKEY_SYSTEM_ID;
 	}
 	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
 	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
@@ -2379,10 +2385,12 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 	unsigned char* data   = NULL;
 	unsigned char* wvData = NULL;
 	unsigned char* prData = NULL;
+	unsigned char* ckData = NULL;
 	size_t dataLength     = 0;
 	size_t wvDataLength   = 0;
+	size_t ckDataLength   = 0;
 	size_t prDataLength   = 0;
-	bool isWidevine       = false;
+	DRMSystems drmType    = eDRM_NONE;
 	unsigned char* contentMetadata = NULL;
 
 	AAMPLOG_TRACE("[HHH]contentProt.size=%d\n", contentProt.size());
@@ -2403,7 +2411,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			if(dataLength != 0)
 			{
 				int contentMetadataLen = 0;
-				contentMetadata = _extractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
+				contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
 				if(gpGlobalConfig->logging.trace)
 				{
 					logprintf("content metadata from PSSH; length %d\n", contentMetadataLen);
@@ -2443,27 +2451,51 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			}
 			continue;
 		}
+
+		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(CLEARKEY_SYSTEM_ID) != string::npos)
+		{
+			logprintf("[HHH]ClearKey system ID found!\n");
+			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
+			string psshData = node.at(0)->GetText();
+			ckData = base64_Decode(psshData.c_str(), &ckDataLength);
+			mContext->hasDrm = true;
+			if(gpGlobalConfig->logging.trace)
+			{
+				logprintf("init data from manifest; length %d\n", prDataLength);
+				DumpBlob(prData, prDataLength);
+			}
+			continue;
+		}
 	}
 
-	// Choose widevine if both widevine and playready contentprotectiondata sections are presenet.
-	// TODO: We need to add more flexible selection logic here (using aamp.cfg etc)
 	if(wvData != NULL && wvDataLength > 0 && ((DRMSystems)gpGlobalConfig->preferredDrm == eDRM_WideVine || prData == NULL))
 	{
-		isWidevine = true;
+		drmType = eDRM_WideVine;
 		data = wvData;
 		dataLength = wvDataLength;
 
 		if(prData){
 			free(prData);
 		}
+		if(ckData){
+			free(ckData);
+		}
 	}else if(prData != NULL && prDataLength > 0)
 	{
-		isWidevine = false;
+		drmType = eDRM_PlayReady;
 		data = prData;
 		dataLength = prDataLength;
 		if(wvData){
 			free(wvData);
 		}
+		if(ckData){
+			free(ckData);
+		}	
+	}else if(ckData != NULL && ckDataLength > 0)
+	{
+		drmType = eDRM_ClearKey;
+		data = ckData;
+		dataLength = ckDataLength;
 	}
 
 	if(dataLength != 0)
@@ -2471,7 +2503,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		int keyIdLen = 0;
 		unsigned char* keyId = NULL;
 		aamp->licenceFromManifest = true;
-		keyId = _extractKeyIdFromPssh((const char*)data, dataLength, &keyIdLen, isWidevine);
+		keyId = aamp_ExtractKeyIdFromPssh((const char*)data, dataLength, &keyIdLen, drmType);
 
 
 		if (!(keyIdLen == lastProcessedKeyIdLen && 0 == memcmp(lastProcessedKeyId, keyId, keyIdLen)))
@@ -2481,7 +2513,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			sessionParams->initDataLen = dataLength;
 			sessionParams->stream_type = mediaType;
 			sessionParams->aamp = aamp;
-			sessionParams->isWidevine = isWidevine;
+			sessionParams->drmType = drmType;
 			sessionParams->contentMetadata = contentMetadata;
 
 			if(drmSessionThreadStarted) //In the case of license rotation
@@ -2511,7 +2543,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				}
 				lastProcessedKeyId =  keyId;
 				lastProcessedKeyIdLen = keyIdLen;
-				aamp->setCurrentDrm(isWidevine?eDRM_WideVine:eDRM_PlayReady);
+				aamp->setCurrentDrm(drmType);
 			}
 			else
 			{

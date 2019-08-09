@@ -38,8 +38,6 @@
 
 #define VIDEO_SESSION 0
 #define AUDIO_SESSION 1
-#define KEYID_TAG_START "<KID>"
-#define KEYID_TAG_END "</KID>"
 
 /**
  *  @struct	DrmSessionContext
@@ -136,10 +134,5 @@ public:
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 };
-
-unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,
-											const char* startStr, const char* endStr, int *len);
-unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int *len, bool isWidevine);
-unsigned char * _extractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len);
 
 #endif
