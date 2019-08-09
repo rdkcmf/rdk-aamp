@@ -549,6 +549,7 @@ public:
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
 	char *prLicenseServerURL;               /**< Playready License server URL*/
 	char *wvLicenseServerURL;               /**< Widevine License server URL*/
+	char *ckLicenseServerURL;				/**< ClearKey License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
 	long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
@@ -589,7 +590,7 @@ public:
 		reportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
-		prLicenseServerURL(NULL), wvLicenseServerURL(NULL)
+		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
