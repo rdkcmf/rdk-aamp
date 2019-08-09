@@ -56,6 +56,7 @@
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
 #define PLAYREADY_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
 #define WIDEVINE_SYSTEM_ID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+#define CLEARKEY_SYSTEM_ID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 #define DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS 3000
 #define TIMELINE_START_RESET_DIFF 4000000000
 #define MAX_DELAY_BETWEEN_MPD_UPDATE_MS (6000)
@@ -473,7 +474,7 @@ struct DrmSessionParams
 	int initDataLen;
 	MediaType stream_type;
 	PrivateInstanceAAMP *aamp;
-	bool isWidevine;
+	DRMSystems drmType;
 	unsigned char *contentMetadata;
 };
 
@@ -727,6 +728,36 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 	return selectedRepIdx;
 }
 
+/**
+ * @brief Get representation index of desired video codec
+ * @param adaptationSet Adaptation set object
+ * @param[out] selectedRepIdx index of desired representation
+ * @retval index of desired representation
+ */
+static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
+{
+	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+	int selectedRepIdx = -1;
+	for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+	{
+		const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+
+		const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+		const std::vector<string> codecs = rep->GetCodecs();
+		string codecValue="";
+		if(codecs.size())
+			codecValue=codecs.at(0);
+		else if(adapCodecs.size())
+			codecValue = adapCodecs.at(0);
+
+		//Ignore vp8 and vp9 codec video profiles(webm)
+		if(codecValue.find("vp") == std::string::npos)
+		{
+			selectedRepIdx = representationIndex;
+		}
+	}
+	return selectedRepIdx;
+}
 
 /**
  * @brief Check if adaptation set is of a given media type
@@ -2309,14 +2340,19 @@ void *CreateDRMSession(void *arg)
 	unsigned char *contentMetadata = sessionParams->contentMetadata;
 	AampDrmSession *drmSession = NULL;
 	const char * systemId = WIDEVINE_SYSTEM_ID;
-	if (sessionParams->isWidevine)
+	if (sessionParams->drmType == eDRM_WideVine)
 	{
 		logprintf("Found Widevine encryption from manifest\n");
 	}
-	else
+	else if(sessionParams->drmType == eDRM_PlayReady)
 	{
 		logprintf("Found Playready encryption from manifest\n");
 		systemId = PLAYREADY_SYSTEM_ID;
+	}
+	else if(sessionParams->drmType == eDRM_ClearKey)
+	{
+		logprintf("Found ClearKey encryption from manifest\n");
+		systemId = CLEARKEY_SYSTEM_ID;
 	}
 	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
 	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
@@ -2360,10 +2396,12 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 	unsigned char* data   = NULL;
 	unsigned char* wvData = NULL;
 	unsigned char* prData = NULL;
+	unsigned char* ckData = NULL;
 	size_t dataLength     = 0;
 	size_t wvDataLength   = 0;
+	size_t ckDataLength   = 0;
 	size_t prDataLength   = 0;
-	bool isWidevine       = false;
+	DRMSystems drmType    = eDRM_NONE;
 	unsigned char* contentMetadata = NULL;
 
 	AAMPLOG_TRACE("[HHH]contentProt.size=%d\n", contentProt.size());
@@ -2384,7 +2422,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			if(dataLength != 0)
 			{
 				int contentMetadataLen = 0;
-				contentMetadata = _extractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
+				contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
 				if(gpGlobalConfig->logging.trace)
 				{
 					logprintf("content metadata from PSSH; length %d\n", contentMetadataLen);
@@ -2424,27 +2462,51 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			}
 			continue;
 		}
+
+		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(CLEARKEY_SYSTEM_ID) != string::npos)
+		{
+			logprintf("[HHH]ClearKey system ID found!\n");
+			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
+			string psshData = node.at(0)->GetText();
+			ckData = base64_Decode(psshData.c_str(), &ckDataLength);
+			mContext->hasDrm = true;
+			if(gpGlobalConfig->logging.trace)
+			{
+				logprintf("init data from manifest; length %d\n", prDataLength);
+				DumpBlob(prData, prDataLength);
+			}
+			continue;
+		}
 	}
 
-	// Choose widevine if both widevine and playready contentprotectiondata sections are presenet.
-	// TODO: We need to add more flexible selection logic here (using aamp.cfg etc)
 	if(wvData != NULL && wvDataLength > 0 && ((DRMSystems)gpGlobalConfig->preferredDrm == eDRM_WideVine || prData == NULL))
 	{
-		isWidevine = true;
+		drmType = eDRM_WideVine;
 		data = wvData;
 		dataLength = wvDataLength;
 
 		if(prData){
 			free(prData);
 		}
+		if(ckData){
+			free(ckData);
+		}
 	}else if(prData != NULL && prDataLength > 0)
 	{
-		isWidevine = false;
+		drmType = eDRM_PlayReady;
 		data = prData;
 		dataLength = prDataLength;
 		if(wvData){
 			free(wvData);
 		}
+		if(ckData){
+			free(ckData);
+		}	
+	}else if(ckData != NULL && ckDataLength > 0)
+	{
+		drmType = eDRM_ClearKey;
+		data = ckData;
+		dataLength = ckDataLength;
 	}
 
 	if(dataLength != 0)
@@ -2452,7 +2514,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		int keyIdLen = 0;
 		unsigned char* keyId = NULL;
 		aamp->licenceFromManifest = true;
-		keyId = _extractKeyIdFromPssh((const char*)data, dataLength, &keyIdLen, isWidevine);
+		keyId = aamp_ExtractKeyIdFromPssh((const char*)data, dataLength, &keyIdLen, drmType);
 
 
 		if (!(keyIdLen == lastProcessedKeyIdLen && 0 == memcmp(lastProcessedKeyId, keyId, keyIdLen)))
@@ -2462,7 +2524,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			sessionParams->initDataLen = dataLength;
 			sessionParams->stream_type = mediaType;
 			sessionParams->aamp = aamp;
-			sessionParams->isWidevine = isWidevine;
+			sessionParams->drmType = drmType;
 			sessionParams->contentMetadata = contentMetadata;
 
 			if(drmSessionThreadStarted) //In the case of license rotation
@@ -2492,7 +2554,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				}
 				lastProcessedKeyId =  keyId;
 				lastProcessedKeyIdLen = keyIdLen;
-				aamp->setCurrentDrm(isWidevine?eDRM_WideVine:eDRM_PlayReady);
+				aamp->setCurrentDrm(drmType);
 			}
 			else
 			{
@@ -3993,6 +4055,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		mMediaStreamContext[i]->enabled = false;
 		std::string selectedLanguage;
 		bool isIframeAdaptationAvailable = false;
+		int videoRepresentationIdx;
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -4087,8 +4150,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 							if (!IsIframeTrack(adaptationSet))
 							{
 								// Got Video , confirmed its not iframe adaptation
-								selAdaptationSetIndex =	iAdaptationSet;
-								AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet);
+								videoRepresentationIdx = GetDesiredVideoCodecIndex(adaptationSet);
+								if (videoRepresentationIdx != -1)
+								{
+									selAdaptationSetIndex = iAdaptationSet;
+									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
+								}
 								if(!newTune)
 								{
 									if(GetProfileCount() == adaptationSet->GetRepresentation().size())
@@ -4127,6 +4194,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					}
 				}
 			}
+		}
+
+		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && (eMEDIATYPE_VIDEO != i) && selAdaptationSetIndex >= 0)
+		{
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown\n", __FUNCTION__, __LINE__);
+			mAudioType = eAUDIO_AAC; // assuming content is still playable
 		}
 
 		// end of adaptation loop

@@ -524,6 +524,7 @@ enum DRMSystems
 	eDRM_CONSEC_agnostic,   /**< CONSEC Agnostic DRM */
 	eDRM_Adobe_Access,      /**< Adobe Access */
 	eDRM_Vanilla_AES,       /**< Vanilla AES */
+	eDRM_ClearKey,          /**< Clear key */
 	eDRM_MAX_DRMSystems     /**< Drm system count */
 };
 

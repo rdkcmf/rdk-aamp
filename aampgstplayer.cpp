@@ -164,6 +164,7 @@ struct AAMPGstPlayerPriv
 
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
 static const char* GstPluginNameWV = "aampwidevinedecryptor";
+static const char* GstPluginNameCK = "aampclearkeydecryptor";
 
 /**
  * @brief Called from the mainloop when a message is available on the bus
@@ -1122,7 +1123,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			  AAMP is added as a property of playready plugin
 			*/
 			if(startswith(GST_OBJECT_NAME(msg->src), GstPluginNamePR) == true ||
-			   startswith(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == true)
+			   startswith(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == true ||
+			   startswith(GST_OBJECT_NAME(msg->src), GstPluginNameCK) == true) 
 			{
 				logprintf("AAMPGstPlayer setting aamp instance for %s decryptor\n", GST_OBJECT_NAME(msg->src));
 				GValue val = { 0, };
@@ -2800,7 +2802,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available; reloading aamp plugin\n", __FUNCTION__, __LINE__, GstPluginNamePR);
+		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available; reloading aamp plugin\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 		GstPlugin * plugin = gst_plugin_load_by_name ("aamp");
 		if(plugin)
 		{
@@ -2808,7 +2810,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		}
 		pluginFeature = gst_registry_lookup_feature(registry, GstPluginNamePR);
 		if(pluginFeature == NULL)
-			logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNamePR);
+			AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 	}
 	if(pluginFeature)
 	{
@@ -2816,7 +2818,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		gst_registry_add_feature (registry, pluginFeature);
 
 
-		logprintf("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNamePR);
+		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNamePR);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
@@ -2825,11 +2827,24 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		logprintf("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNameWV);
+		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNameWV);
 	}
 	else
 	{
-		logprintf("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNameWV);
+		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNameWV);
+		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
+		gst_object_unref(pluginFeature);
+	}
+
+	pluginFeature = gst_registry_lookup_feature(registry, GstPluginNameCK);
+
+	if (pluginFeature == NULL)
+	{
+		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available\n", __FUNCTION__, __LINE__, GstPluginNameCK);
+	}
+	else
+	{
+		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111\n", __FUNCTION__, __LINE__, GstPluginNameCK);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}

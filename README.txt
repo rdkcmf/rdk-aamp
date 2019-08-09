@@ -143,6 +143,7 @@ hls-av-sync-use-start-time=1 Use EXT-X-PROGRAM-DATE to synchronize audio and vid
 playlists-parallel-fetch=1 Fetch audio and video playlists in parallel. Disabled in default configuration.
 pre-fetch-iframe-playlist=1 Pre-fetch iframe playlist for VOD. Enabled by default.
 license-server-url=<serverUrl> URL to be used for license requests for encrypted(PR/WV) assets.
+ck-license-server-url=<serverUrl> URL to be used for Clear Key license requests.
 license-retry-wait-time=<x in milli seconds> Wait time before retrying again for DRM license, having value <=0 would disable retry.
 vod-trickplay-fps=<x> Specify the framerate for VOD trickplay (defaults to 4)
 linear-trickplay-fps=<x> Specify the framerate for Linear trickplay (defaults to 8)
