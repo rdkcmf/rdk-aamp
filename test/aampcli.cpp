@@ -41,6 +41,7 @@
 #import <cocoa_window.h>
 #endif
 
+#define MAX_BUFFER_LENGTH 4096
 static PlayerInstanceAAMP *mSingleton;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 
@@ -467,7 +468,7 @@ static void ProcessCliCommand(char *cmd)
 
 static void * run_commnds(void *arg)
 {
-    char cmd[MAX_URI_LENGTH * 2];
+    char cmd[MAX_BUFFER_LENGTH];
     ShowHelp();
     char *ret = NULL;
     do
@@ -536,7 +537,7 @@ int main(int argc, char **argv)
 	if (f)
 	{
 		logprintf("opened aampcli.cfg\n");
-		char buf[MAX_URI_LENGTH * 2];
+		char buf[MAX_BUFFER_LENGTH];
 		while (fgets(buf, sizeof(buf), f))
 		{
 			ProcessCLIConfEntry(buf);
