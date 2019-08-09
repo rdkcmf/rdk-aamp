@@ -57,7 +57,7 @@ struct CachedFragment
 	bool discontinuity;         /**< PTS discontinuity status */
 	int profileIndex;           /**< Profile index; Updated internally */
 #ifdef AAMP_DEBUG_INJECT
-	char uri[MAX_URI_LENGTH];   /**< Fragment url */
+	std::string uri;   /**< Fragment url */
 #endif
 };
 

@@ -48,6 +48,7 @@
 #define MAC_STRING_LEN 12
 #define URAND_STRING_LEN 16
 #define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
+#define MAX_BUFF_LENGTH 4096 
 
 using namespace std;
 
@@ -1458,7 +1459,7 @@ static bool getEstbMac(char* mac)
 	if (fp)
 	{
 		logprintf("%s:%d - opened /etc/device.properties\n", __FUNCTION__, __LINE__);
-		char buf[MAX_URI_LENGTH * 2];
+		char buf[MAX_BUFF_LENGTH];
 		while (fgets(buf, sizeof(buf), fp))
 		{
 			if(strstr(buf, "ESTB_INTERFACE") != NULL)
