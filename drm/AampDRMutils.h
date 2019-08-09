@@ -31,6 +31,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "main_aamp.h"
+#include "priv_aamp.h"
+
 /**
  * @class DrmData
  * @brief To hold DRM key, license request etc.
@@ -57,5 +60,16 @@ public:
 	void addData(unsigned char * data, int dataLength);
 
 };
+
+char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
+
+unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
+
+unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
+                                            const char* startStr, const char* endStr, int *len);
+
+unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem);
+
+unsigned char * aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len);
 
 #endif

@@ -242,6 +242,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 	{
 		char *prLicenseServerURL = NULL;
 		char *wvLicenseServerURL = NULL;
+		char *ckLicenseServerURL = NULL;
 		char *keySystem = NULL;
 		bool ret = false;
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.microsoft.playready", prLicenseServerURL);
@@ -260,6 +261,15 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			privObj->_aamp->SetLicenseServerURL(wvLicenseServerURL, eDRM_WideVine);
 
 			delete[] wvLicenseServerURL;
+		}
+
+		ret = ParseJSPropAsString(ctx, drmConfigObj, "org.w3.clearkey", ckLicenseServerURL);
+		if (ret)
+		{
+			ERROR("%s(): ClearKey License Server URL config param received - %s", __FUNCTION__, ckLicenseServerURL);
+			privObj->_aamp->SetLicenseServerURL(ckLicenseServerURL, eDRM_ClearKey);
+
+			delete[] ckLicenseServerURL;
 		}
 
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "preferredKeysystem", keySystem);

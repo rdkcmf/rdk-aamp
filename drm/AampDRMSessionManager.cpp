@@ -28,7 +28,6 @@
 #include <pthread.h>
 #include "_base64.h"
 #include <iostream>
-#include <uuid/uuid.h>
 
 //#define LOG_TRACE 1
 #define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"
@@ -488,257 +487,6 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 }
 
 /**
- *  @brief		Find the position of substring in cleaned PSSH data.
- *  			Cleaned PSSH data, is PSSH data from which empty bytes are removed.
- *  			Used while extracting keyId or content meta data from PSSH.
- *
- *  @param[in]	psshData - Pointer to cleaned PSSH data.
- *  @param[in]	dataLength - Length of cleaned PSSH data.
- *  @param[in]	pos - Search start position.
- *  @param[in]	subStr - Pointer to substring to be searched.
- *  @param[out]	substrStartPos - Default NULL; If not NULL, gets updated with end
- *  			position of the substring in Cleaned PSSH; -1 if not found.
- *  @return		Start position of substring in cleaned PSSH; -1 if not found.
- */
-int _findSubstr(const char* psshData, int dataLength, int pos, const char* substr, int *substrStartPos = NULL)
-{
-	int subStrLen = strlen(substr);
-	int psshIter = pos;
-	int subStrIter = 0;
-	bool strMatched = false;
-	while (psshIter < dataLength - (subStrLen - 1))
-	{
-		if (psshData[psshIter] == substr[subStrIter])
-		{
-			if(substrStartPos && subStrIter == 0)
-			{
-				*substrStartPos = psshIter;
-			}
-			subStrIter++;
-			if (subStrIter == subStrLen)
-			{
-				strMatched = true;
-				break;
-			}
-		}
-		else
-		{
-			subStrIter = 0;
-		}
-		psshIter++;
-	}
-
-	if(strMatched)
-	{
-		return psshIter;
-	}
-	else
-	{
-		if(substrStartPos)
-		{
-			*substrStartPos = -1;
-		}
-		return -1;
-	}
-}
-
-/**
- *  @brief		Swap the bytes at given positions.
- *
- *  @param[in, out]	bytes - Pointer to byte block where swapping is done.
- *  @param[in]	pos1, pos2 - Swap positions.
- *  @return		void.
- */
-void Swap(unsigned char *bytes, int pos1, int pos2)
-{
-	unsigned char temp = bytes[pos1];
-	bytes[pos1] = bytes[pos2];
-	bytes[pos2] = temp;
-}
-
-/**
- *  @brief		Convert endianness of 16 byte block.
- *
- *  @param[in]	original - Pointer to source byte block.
- *  @param[out]	guidBytes - Pointer to destination byte block.
- *  @return		void.
- */
-void ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
-{
-	memcpy(guidBytes, original, 16);
-	Swap(guidBytes, 0, 3);
-	Swap(guidBytes, 1, 2);
-	Swap(guidBytes, 4, 5);
-	Swap(guidBytes, 6, 7);
-}
-
-/**
- *  @brief		Extract the keyId from PSSH data.
- *  			Different procedures are used for PlayReady and WideVine.
- *
- *  @param[in]	psshData - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of keyId.
- *  @param[in]	isWidevine - Flag to indicate WV.
- *  @return		Pointer to extracted keyId.
- *  @note		Memory for keyId is dynamically allocated, deallocation
- *				should be handled at the caller side.
- */
-unsigned char * _extractKeyIdFromPssh(const char* psshData, int dataLength, int *len, bool isWidevine)
-{
-	unsigned char* key_id = NULL;
-
-	if(isWidevine)
-	{
-		//The following 2 are for Widevine
-		//PSSH version 0
-		//4+4+4+16(system id)+4(data size)+2(unknown byte + keyid size)
-		uint32_t header = 33;
-		uint8_t  key_id_size = (uint8_t)psshData[header];
-		key_id = (unsigned char*)malloc(key_id_size + 1);
-		memset(key_id, 0, key_id_size + 1);
-		strncpy(reinterpret_cast<char*>(key_id), psshData + header + 1, key_id_size);
-		*len = (int)key_id_size;
-		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, key_id, key_id_size);
-		if(gpGlobalConfig->logging.trace)
-		{
-			DumpBlob(key_id, key_id_size);
-		}
-
-	}else{
-
-		int keyIdLen = 0;
-		unsigned char *keydata = _extractDataFromPssh(psshData, dataLength, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen);
-
-		AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, keydata, keyIdLen);
-
-		size_t decodedDataLen = 0;
-		unsigned char* decodedKeydata = base64_Decode((const char *) keydata, &decodedDataLen);
-		if(decodedDataLen != 16)
-		{
-			logprintf("invalid key size found while extracting PR KeyID: %d\n", decodedDataLen);
-			free (keydata);
-			free (decodedKeydata);
-			return NULL;
-		}
-
-		unsigned char *swappedKeydata = (unsigned char*)malloc(16);
-
-		ConvertEndianness(decodedKeydata, swappedKeydata);
-
-		key_id = (unsigned char *)calloc(37, sizeof(char));
-		uuid_t *keyiduuid = (uuid_t *) swappedKeydata;
-		uuid_unparse_lower(*keyiduuid, reinterpret_cast<char*>(key_id));
-
-		*len = 37;
-
-		free (keydata);
-		free (decodedKeydata);
-		free (swappedKeydata);
-	}
-
-	AAMPLOG_INFO("%s:%d KeyId : %s\n", __FUNCTION__, __LINE__,key_id);
-
-	return key_id;
-}
-
-//4+4+4+16(system id)+4(data size)
-/**
- *  @brief		Extract WideVine content meta data from Comcast DRM
- *  			Agnostic PSSH header. Might not work with WideVine PSSH header
- *
- *  @param[in]	Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of content meta data.
- *  @return		Extracted ContentMetaData.
- *  @note		Memory for ContentMetaData is dynamically allocated, deallocation
- *				should be handled at the caller side.
- */
-unsigned char * _extractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len)
-{
-	uint32_t header = 28;
-	unsigned char* content_id = NULL;
-	uint32_t  content_id_size =
-                    (uint32_t)((psshData[header] & 0x000000FFu) << 24 |
-                               (psshData[header+1] & 0x000000FFu) << 16 |
-                               (psshData[header+2] & 0x000000FFu) << 8 |
-                               (psshData[header+3] & 0x000000FFu));
-
-	AAMPLOG_INFO("%s:%d content meta data length  : %d\n", __FUNCTION__, __LINE__,content_id_size);
-
-	content_id = (unsigned char*)malloc(content_id_size + 1);
-	memset(content_id, 0, content_id_size + 1);
-	strncpy(reinterpret_cast<char*>(content_id), psshData + header + 4, content_id_size);
-//	logprintf("%s:%d content meta data : %s\n", __FUNCTION__, __LINE__,content_id);
-
-	*len = (int)content_id_size;
-	return content_id;
-}
-//End of special for Widevine
-
-/**
- *  @brief		Extract content meta data or keyID from given PSSH data.
- *  			For example for content meta data,
- *  			When strings are given as "ckm:policy xmlns:ckm="urn:ccp:ckm"" and "ckm:policy"
- *  			<ckm:policy xmlns:ckm="urn:ccp:ckm">we need the contents from here</ckm:policy>
- *
- *  			PSSH is cleaned of empty bytes before extraction steps, since from manifest the
- *  			PSSH data is in 2 bytes. Data dump looking like below, so direct string comparison
- *  			would strstr fail.
-
- *				000003c0 (0x14d3c0): 3c 00 63 00 6b 00 6d 00 3a 00 70 00 6f 00 6c 00  <.c.k.m.:.p.o.l.
- *				000003d0 (0x14d3d0): 69 00 63 00 79 00 20 00 78 00 6d 00 6c 00 6e 00  i.c.y. .x.m.l.n.
- *				000003e0 (0x14d3e0): 73 00 3a 00 63 00 6b 00 6d 00 3d 00 22 00 75 00  s.:.c.k.m.=.".u.
- *				000003f0 (0x14d3f0): 72 00 6e 00 3a 00 63 00 63 00 70 00 3a 00 63 00  r.n.:.c.c.p.:.c.
- *				00000400 (0x14d400): 6b 00 6d 00 22 00 3e 00 65 00 79 00 4a 00 34 00  k.m.".>.e.y.J.4.
- *				00000410 (0x14d410): 4e 00 58 00 51 00 6a 00 55 00 7a 00 49 00 31 00  N.X.Q.j.U.z.I.1.
- *				00000420 (0x14d420): 4e 00 69 00 49 00 36 00 49 00 6c 00 64 00 51 00  N.i.I.6.I.l.d.Q.
- *
- *  @param[in]	Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	startStr, endStr - Pointer to delimiter strings.
- *  @param[out]	len - Gets updated with length of content meta data.
- *  @return		Extracted data between delimiters; NULL if not found.
- *  @note		Memory of returned data is dynamically allocated, deallocation
- *				should be handled at the caller side.
- */
-unsigned char * _extractDataFromPssh(const char* psshData, int dataLength,
-		const char* startStr, const char* endStr, int *len) {
-	int endPos = -1;
-	int startPos = -1;
-	unsigned char* contentMetaData = NULL;
-
-	//Clear the 00  bytes
-	char* cleanedPssh = (char*) malloc(dataLength);
-	int cleanedPsshLen = 0;
-	for(int itr = 0; itr < dataLength; itr++)
-	{
-		if(psshData[itr] != 0)
-		{
-			//cout<<psshData[itr];
-			cleanedPssh[cleanedPsshLen++] = psshData[itr];
-		}
-	}
-
-	startPos = _findSubstr(cleanedPssh, cleanedPsshLen, 0, startStr);
-
-	if(startPos >= 0)
-	{
-		_findSubstr(cleanedPssh, cleanedPsshLen, startPos, endStr, &endPos);
-		if(endPos > 0 && startPos < endPos)
-		{
-			*len = endPos - startPos - 1;
-			contentMetaData = (unsigned char*)malloc(*len + 1);
-			memset(contentMetaData, 0, *len + 1);
-			strncpy(reinterpret_cast<char*>(contentMetaData),reinterpret_cast<char*>(cleanedPssh + startPos + 1), *len);
-			//logprintf("%s:%d Content Meta data length  : %d\n", __FUNCTION__, __LINE__,*len);
-		}
-	}
-	free(cleanedPssh);
-	return contentMetaData;
-}
-
-/**
  *  @brief		Overloaded version of createDrmSession where contentMetadataPtr is not there
  *  			Called from gstaampopencdmiplugins.
  *
@@ -815,11 +563,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 
 	const char *keySystem = NULL;
-	bool isWidevine = false;
+	DRMSystems drmType = eDRM_NONE;
 	logprintf("%s:%d systemId is %s \n", __FUNCTION__, __LINE__, systemId);
 	if (!strncmp(systemId, PLAYREADY_PROTECTION_SYSTEM_ID, sizeof(PLAYREADY_PROTECTION_SYSTEM_ID)))
 	{
 		AAMPLOG_INFO("%s:%d [HHH]systemId is PLAYREADY\n", __FUNCTION__, __LINE__);
+		drmType = eDRM_PlayReady;
 #ifdef USE_SECCLIENT
 		keySystem = SEC_CLIENT_PLAYREADY_KEYSYSTEMID;
 #else
@@ -834,7 +583,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		keySystem = WIDEVINE_KEY_SYSTEM_STRING;
 #endif
 		AAMPLOG_INFO("%s:%d [HHH]systemId is Widevine\n", __FUNCTION__, __LINE__);
-		isWidevine = true;
+		drmType = eDRM_WideVine;
+	}
+	else if (!strncmp(systemId, CLEARKEY_PROTECTION_SYSTEM_ID, sizeof(CLEARKEY_PROTECTION_SYSTEM_ID)))
+	{
+		keySystem = CLEAR_KEY_SYSTEM_STRING;
+		drmType = eDRM_ClearKey;
 	}
 	else
 	{
@@ -842,7 +596,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 	logprintf("keysystem is %s\n", keySystem);
 
-	keyId = _extractKeyIdFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength, &keyIdLen, isWidevine);
+	keyId = aamp_ExtractKeyIdFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength, &keyIdLen, drmType);
 
 	if (keyId == NULL)
 	{
@@ -1043,21 +797,25 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		//For WV _extractWVContentMetadataFromPssh() won't work at this point
 		//Since the content meta data is with Agnostic DRM PSSH.
-		else if (!isWidevine)
+		else if (drmType == eDRM_PlayReady)
 		{
-				contentMetaData = _extractDataFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength,COMCAST_DRM_METADATA_TAG_START, COMCAST_DRM_METADATA_TAG_END, &contentMetaDataLen);
+				contentMetaData = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength,COMCAST_DRM_METADATA_TAG_START, COMCAST_DRM_METADATA_TAG_END, &contentMetaDataLen);
 		}
 
 		bool isComcastStream = false;
 
 		char *externLicenseServerURL = NULL;
-		if (gpGlobalConfig->prLicenseServerURL && !isWidevine)
+		if (gpGlobalConfig->prLicenseServerURL && drmType == eDRM_PlayReady)
 		{
 			externLicenseServerURL = gpGlobalConfig->prLicenseServerURL;
 		}
-		else if (gpGlobalConfig->wvLicenseServerURL && isWidevine)
+		else if (gpGlobalConfig->wvLicenseServerURL && drmType == eDRM_WideVine)
 		{
 			externLicenseServerURL = gpGlobalConfig->wvLicenseServerURL;
+		}
+		else if (gpGlobalConfig->ckLicenseServerURL && drmType == eDRM_ClearKey)
+		{
+			externLicenseServerURL = gpGlobalConfig->ckLicenseServerURL;
 		}
 		else if (gpGlobalConfig->licenseServerURL)
 		{
