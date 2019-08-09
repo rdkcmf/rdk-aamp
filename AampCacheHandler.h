@@ -28,10 +28,30 @@
 /**
  * @brief PlayListCachedData structure to store playlist data
  */
-typedef struct {
-	char *mEffectiveUrl;
+typedef struct playlistcacheddata{
+	std::string mEffectiveUrl;
 	GrowableBuffer* mCachedBuffer;
 	MediaType mFileType;
+
+	playlistcacheddata() : mEffectiveUrl(""), mCachedBuffer(NULL), mFileType(eMEDIATYPE_DEFAULT)
+	{
+	}
+
+	playlistcacheddata(const playlistcacheddata& p) : mEffectiveUrl(p.mEffectiveUrl), mCachedBuffer(p.mCachedBuffer), mFileType(p.mFileType)
+	{
+		mCachedBuffer->ptr = p.mCachedBuffer->ptr;
+		mCachedBuffer->len = p.mCachedBuffer->len;
+		mCachedBuffer->avail = p.mCachedBuffer->avail;
+	}
+
+	playlistcacheddata& operator=(const playlistcacheddata &p)
+	{
+		mEffectiveUrl = p.mEffectiveUrl;
+		mCachedBuffer = p.mCachedBuffer;
+		mFileType = p.mFileType;
+		return *this;
+	}
+
 }PlayListCachedData;
 
 
@@ -123,7 +143,7 @@ public:
      *
 	 *   @return void
 	 */
-	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
+	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
 
 	/**
 	 *   @brief Retrieve playlist from cache
@@ -133,7 +153,7 @@ public:
 	 *   @param[out] effectiveUrl - Final URL
 	 *   @return true: found, false: not found
 	 */
-	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[]);
+	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
 
 	// Copy constructor and Copy assignment disabled 
 	AampCacheHandler(const AampCacheHandler&) = delete;

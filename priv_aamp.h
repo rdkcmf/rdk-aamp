@@ -55,7 +55,6 @@
 #define AAMP_PACKED __attribute__((__packed__))
 #endif
 
-#define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
@@ -650,7 +649,7 @@ extern GlobalConfigAAMP *gpGlobalConfig;
  * @param[in] uri - File path
  * @return void
  */
-void aamp_ResolveURL(char *dst, const char *base, const char *uri);
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
 
 /**
  * @brief Get current time from epoch is milliseconds
@@ -725,7 +724,7 @@ const char * GetDrmSystemName(DRMSystems drmSystem);
  *
  */
 
-bool UrlEncode(const char *inSrc, std::string &outStr);
+bool UrlEncode(std::string inStr, std::string &outStr);
 
 /**
  * @}
@@ -1465,8 +1464,8 @@ public:
 	// To store Set Cookie: headers and X-Reason headers in HTTP Response
 	httpRespHeaderData httpRespHeaders[MAX_CURL_INSTANCE_COUNT];
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
-	char manifestUrl[MAX_URI_LENGTH];
-	char tunedManifestUrl[MAX_URI_LENGTH];
+	std::string  mManifestUrl;
+	std::string mTunedManifestUrl;
 
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -1581,7 +1580,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL, int * fogError = NULL);
+	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL, int * fogError = NULL);
 
 	/**
 	 * @brief get Media Type in string
@@ -1602,7 +1601,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
+	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
 
 	/**
 	 * @brief Download fragment
@@ -1616,7 +1615,7 @@ public:
 	 * @param[out] http_code - HTTP error code
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, char *effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL, int * fogError = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL, int * fogError = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2048,9 +2047,9 @@ public:
 	 *
 	 *   @return Manifest URL
 	 */
-	char *GetManifestUrl(void)
+	std::string& GetManifestUrl(void)
 	{
-		return manifestUrl;
+		return mManifestUrl;
 	}
 
 	/**
@@ -2061,8 +2060,7 @@ public:
 	 */
 	void SetManifestUrl(const char *url)
 	{
-		strncpy(manifestUrl, url, MAX_URI_LENGTH);
-		manifestUrl[MAX_URI_LENGTH-1]='\0';
+		mManifestUrl.assign(url);
 	}
 
 	/**
@@ -2560,7 +2558,7 @@ public:
 	 *   @param[in] fragmentUrl fragment Url
 	 *   @returns Sequence Number if found in fragment Url else 0
 	 */
-	long long GetSeqenceNumberfromURL(const char *fragmentUrl);
+	long long GetSeqenceNumberfromURL(std::string fragmentUrl);
 
 	/**
 	 *   @brief To set the initial bitrate value.
@@ -2695,7 +2693,7 @@ public:
      *   @param[in]  strUrl :  URL in case of faulures
 	 *   @return void
 	 */
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string &strUrl);
 
 	/**
 	 *   @brief updates time shift buffer status
@@ -2716,7 +2714,7 @@ public:
 	*   @param[in] isEncrypted : if fragment is encrypted then it is set to true
 	*   @return void
 	*/
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration, bool keyChanged, bool isEncrypted);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string &strUrl, double duration, bool keyChanged, bool isEncrypted);
     
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -2727,7 +2725,7 @@ public:
 	*   @param[in]  strUrl :  URL in case of faulures
 	*   @return void
 	*/
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, const char * strUrl, double duration);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string &strUrl, double duration);
 
 
 	/**
@@ -2779,7 +2777,7 @@ private:
 	 *   @param  url - stream url with vss service zone info as query string
 	 *   @return std::string
 	 */
-	void ExtractServiceZone(const char * url);
+	void ExtractServiceZone(std::string url);
 
 	/**
 	 *   @brief Schedule Event
