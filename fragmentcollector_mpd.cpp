@@ -53,7 +53,6 @@
  */
 
 
-#define MAX_ID_SIZE 1024
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
 #define PLAYREADY_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
 #define WIDEVINE_SYSTEM_ID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
@@ -74,24 +73,23 @@ struct FragmentDescriptor
 	std::string manifestUrl;
 	const std::vector<IBaseUrl *>*baseUrls;
 	uint32_t Bandwidth;
-	char RepresentationID[MAX_ID_SIZE]; // todo: retrieve from representation instead of making a copy
+	std::string RepresentationID; 
 	uint64_t Number;
 	uint64_t Time;
 
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0)
+	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID("")
 	{
 	}
     
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), Number(p.Number), Time(p.Time)
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time)
 	{
-		strncpy(RepresentationID, p.RepresentationID, strlen(p.RepresentationID));
 	}
 
 	FragmentDescriptor& operator=(const FragmentDescriptor &p)
 	{
 		manifestUrl = p.manifestUrl;
 		baseUrls = p.baseUrls;
-		strncpy(RepresentationID, p.RepresentationID, strlen(p.RepresentationID));
+		RepresentationID.assign(p.RepresentationID);
 		Bandwidth = p.Bandwidth;
 		Number = p.Number;
 		Time = p.Time;
@@ -151,7 +149,6 @@ public:
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment()
 	{
-		memset(&fragmentDescriptor, 0, sizeof(FragmentDescriptor));
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
 
@@ -365,7 +362,7 @@ public:
 				fragmentDescriptor.baseUrls = &representation->GetBaseURLs();
 			}
 			fragmentDescriptor.Bandwidth = representation->GetBandwidth();
-			strcpy(fragmentDescriptor.RepresentationID, representation->GetId().c_str());
+			fragmentDescriptor.RepresentationID.assign(representation->GetId());
 			profileChanged = true;
 		}
 		else
@@ -4182,7 +4179,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			{
 				pMediaStreamContext->fragmentDescriptor.Bandwidth = pMediaStreamContext->representation->GetBandwidth();
 			}
-			strcpy(pMediaStreamContext->fragmentDescriptor.RepresentationID, pMediaStreamContext->representation->GetId().c_str());
+			pMediaStreamContext->fragmentDescriptor.RepresentationID.assign(pMediaStreamContext->representation->GetId());
 			pMediaStreamContext->fragmentDescriptor.Time = 0;
 			ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
 			if(!segmentTemplate)
@@ -4677,8 +4674,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 							if (!initialization.empty())
 							{
 								std::string fragmentUrl;
-								struct FragmentDescriptor * fragmentDescriptor = (struct FragmentDescriptor *) malloc(sizeof(struct FragmentDescriptor));
-								memset(fragmentDescriptor, 0, sizeof(FragmentDescriptor));
+								FragmentDescriptor *fragmentDescriptor = new FragmentDescriptor();
 								fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;
 								IRepresentation *representation = NULL;
 								size_t representionIndex = 0;
@@ -4721,14 +4717,14 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 										}
 									}
 								}
-								strcpy(fragmentDescriptor->RepresentationID, representation->GetId().c_str());
+								fragmentDescriptor->RepresentationID.assign(representation->GetId());
 								GetFragmentUrl(fragmentUrl,fragmentDescriptor , initialization);
 								if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())
 								{
 									logprintf("%s %d Pushing encrypted header for %s\n", __FUNCTION__, __LINE__, mMediaTypeName[i]);
 									mMediaStreamContext[i]->CacheFragment(fragmentUrl, i, mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
 								}
-								free(fragmentDescriptor);
+								delete fragmentDescriptor;
 								encryptionFound = true;
 							}
 						}
