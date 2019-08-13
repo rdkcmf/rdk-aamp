@@ -78,8 +78,9 @@ public:
 	 *   @param[in] adId - Individual Ad's id
 	 *   @param[in] url - Ad URL
 	 *   @param[in] startMS - Ad start time in milliseconds
+	 *   @param[in] breakdur - Adbreak's duration in MS
 	 */
-	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0){}
+	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0, uint32_t breakdur=0){}
 };
 
 
