@@ -24,6 +24,7 @@
 
 #include "admanager_mpd.h"
 #include "fragmentcollector_mpd.h"
+#include <inttypes.h>
 
 #include <algorithm>
 
@@ -52,9 +53,9 @@ CDAIObjectMPD::~CDAIObjectMPD()
 /**
  * @}
  */
-void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS)
+void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur)
 {
-	mPrivObj->SetAlternateContents(periodId, adId, url, startMS);
+	mPrivObj->SetAlternateContents(periodId, adId, url, startMS, breakdur);
 }
 
 
@@ -106,7 +107,7 @@ void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodId
 		if ((mPlacementObj.pendingAdbrkId != it->first) && (mCurPlayingBreakId != it->first) &&//We should not remove the pending/playing adbreakObj
 				(newPeriodIds.end() == std::find(newPeriodIds.begin(), newPeriodIds.end(), it->first))) {
 			auto &adBrkObj = *it;
-			logprintf("%s:%d [CDAI] Removing the period[%s] from mAdBreaks.\n", __FUNCTION__, __LINE__, adBrkObj.first.c_str());
+			AAMPLOG_INFO("%s:%d [CDAI] Removing the period[%s] from mAdBreaks.\n", __FUNCTION__, __LINE__, adBrkObj.first.c_str());
 			auto adNodes = adBrkObj.second.ads;
 			for(AdNode &ad: *adNodes)
 			{
@@ -252,7 +253,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 							//Printing the placement positions
 							std::stringstream ss;
 							ss<<"{AdbreakId: "<<mPlacementObj.pendingAdbrkId;
-							ss<<", duration: "<<abObj.duration;
+							ss<<", duration: "<<abObj.adsDuration;
 							ss<<", endPeriodId: "<<abObj.endPeriodId;
 							ss<<", endPeriodOffset: "<<abObj.endPeriodOffset;
 							ss<<", #Ads: "<<abObj.ads->size() << ",[";
@@ -274,7 +275,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 								}
 							}
 							ss<<"]}";
-							logprintf("%s:%d [CDAI] Placement Done: %s.\n", __FUNCTION__, __LINE__, ss.str().c_str());
+							AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.\n", __FUNCTION__, __LINE__, ss.str().c_str());
 							break;
 						}
 					}
@@ -310,7 +311,7 @@ int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &
 				auto adIt = curP2Ad.offset2Ad.find(floorKey);
 				if(curP2Ad.offset2Ad.end() == adIt)
 				{
-					//Considering only Ad start
+					//Need in cases like the current offset=29.5sec, next adAdSart=30.0sec
 					int ceilKey = floorKey + OFFSET_ALIGN_FACTOR;
 					adIt = curP2Ad.offset2Ad.find(ceilKey);
 				}
@@ -350,13 +351,24 @@ int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &
 				}
 			}
 
-			if(-1 == adIdx && abObj.endPeriodId == periodId && (uint64_t)(offSet*1000) >= abObj.endPeriodOffset)
+			if(continuePlay && -1 == adIdx && abObj.endPeriodId == periodId && (uint64_t)(offSet*1000) >= abObj.endPeriodOffset)
 			{
 				breakId = "";	//AdState should not stick to IN_ADBREAK after Adbreak ends.
 			}
 		}
 	}
 	return adIdx;
+}
+
+bool PrivateCDAIObjectMPD::CheckForAdTerminate(double currOffset)
+{
+	uint64_t fragOffset = (uint64_t)(currOffset * 1000);
+	if(fragOffset >= (mCurAds->at(mCurAdIdx).duration + OFFSET_ALIGN_FACTOR))
+	{
+		//Current Ad is playing beyond the AdBreak + OFFSET_ALIGN_FACTOR
+		return true;
+	}
+	return false;
 }
 
 bool PrivateCDAIObjectMPD::isPeriodInAdbreak(const std::string &periodId)
@@ -446,10 +458,10 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 					{
 						Node* child = children.at(i);
 						const std::string& name = child->GetName();
-						logprintf("PrivateCDAIObjectMPD::%s - child->name %s\n", __FUNCTION__, name.c_str());
+						AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - child->name %s\n", __FUNCTION__, name.c_str());
 						if (name == "Period")
 						{
-							logprintf("PrivateCDAIObjectMPD::%s - found period\n", __FUNCTION__);
+							AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - found period\n", __FUNCTION__);
 							std::vector<Node *> children = child->GetSubNodes();
 							bool hasBaseUrl = false;
 							for (size_t i = 0; i < children.size(); i++)
@@ -481,7 +493,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 								baseUrl->SetName("BaseURL");
 								baseUrl->SetType(Text);
 								baseUrl->SetText(baseUrlStr);
-								logprintf("PrivateCDAIObjectMPD::%s - manual adding BaseURL Node [%p] text %s\n",
+								AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - manual adding BaseURL Node [%p] text %s\n",
 								        __FUNCTION__, baseUrl, baseUrl->GetText().c_str());
 								child->AddSubNode(baseUrl);
 							}
@@ -525,7 +537,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 {
 	bool adStatus = false;
 	uint64_t startMS = 0;
-	uint64_t durationMs = 0;
+	uint32_t durationMs = 0;
 	bool finalManifest = false;
 	MPD *ad = GetAdMPD(mAdFulfillObj.url, finalManifest, true);
 	if(ad)
@@ -538,8 +550,14 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			std::shared_ptr<std::vector<AdNode>> adBreakAssets = adbreakObj.ads;
 			durationMs = aamp_GetDurationFromRepresentation(ad);
 
-			startMS = adbreakObj.duration;
-			adbreakObj.duration += durationMs;
+			startMS = adbreakObj.adsDuration;
+			uint32_t availSpace = adbreakObj.brkDuration - startMS;
+			if(availSpace < durationMs)
+			{
+				AAMPLOG_WARN("%s:%d: Adbreak's available space[%lu] < Ad's Duration[%lu]. Trimming the Ad.\n", __FUNCTION__, __LINE__, availSpace, durationMs);
+				durationMs = availSpace;
+			}
+			adbreakObj.adsDuration += durationMs;
 
 			std::string bPeriodId = "";		//BasePeriodId will be filled on placement
 			int bOffset = -1;				//BaseOffset will be filled on placement
@@ -561,12 +579,12 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			}
 			if(!finalManifest)
 			{
-				logprintf("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.\n", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.\n", __FUNCTION__, __LINE__);
 				delete ad;
 				ad = NULL;
 			}
 			adBreakAssets->emplace_back(AdNode{false, false, mAdFulfillObj.adId, mAdFulfillObj.url, durationMs, bPeriodId, bOffset, ad});
-			logprintf("%s:%d: New Ad[Id=%s, url=%s] successfully added.\n", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
+			AAMPLOG_WARN("%s:%d: New Ad[Id=%s, url=%s] successfully added.\n", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
 
 			adStatus = true;
 		}
@@ -583,7 +601,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 	mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, adStatus, startMS, durationMs);
 }
 
-void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS)
+void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur)
 {
 	if("" == adId || "" == url)
 	{
@@ -592,7 +610,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 		if(!(isAdBreakObjectExist(periodId)))
 		{
 			auto adBreakAssets = std::make_shared<std::vector<AdNode>>();
-			mAdBreaks.emplace(periodId, AdBreakObject{0, adBreakAssets, "", 0});	//Fix the duration after getting the Ad
+			mAdBreaks.emplace(periodId, AdBreakObject{breakdur, adBreakAssets, "", 0, 0});	//Fix the duration after getting the Ad
 			Period2AdData &pData = mPeriodMap[periodId];
 			pData.adBreakId = periodId;
 		}
@@ -605,14 +623,30 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 			int rc = pthread_join(mAdObjThreadID, NULL);
 			mAdObjThreadID = 0;
 		}
-		mAdFulfillObj.periodId = periodId;
-		mAdFulfillObj.adId = adId;
-		mAdFulfillObj.url = url;
-		int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
-		if(ret != 0)
+		if(isAdBreakObjectExist(periodId))
 		{
-			logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.\n", __FUNCTION__, __LINE__, errno, strerror(errno));
-			mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, false, 0, 0);
+			auto &adbreakObj = mAdBreaks[periodId];
+			int ret = 0;
+			if(adbreakObj.brkDuration <= adbreakObj.adsDuration)
+			{
+				AAMPLOG_WARN("%s:%d - No more space left in the Adbreak. Rejecting the promise.\n", __FUNCTION__, __LINE__);
+				ret = -1;
+			}
+			else
+			{
+				mAdFulfillObj.periodId = periodId;
+				mAdFulfillObj.adId = adId;
+				mAdFulfillObj.url = url;
+				int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
+				if(ret != 0)
+				{
+					logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.\n", __FUNCTION__, __LINE__, errno, strerror(errno));
+				}
+			}
+			if(ret != 0)
+			{
+				mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, false, 0, 0);
+			}
 		}
 	}
 }

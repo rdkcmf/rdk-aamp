@@ -145,7 +145,7 @@ public:
 			MediaTrack(type, aamp, name),
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-			eos(false), fragmentTime(0),targetDnldPosition(0), index_ptr(NULL), index_len(0),
+			eos(false), fragmentTime(0), periodStartOffset(0), targetDnldPosition(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment()
 	{
@@ -394,6 +394,7 @@ public:
 	GrowableBuffer mDownloadedFragment;
 
 	double fragmentTime;
+	double periodStartOffset;
 	double targetDnldPosition;
 	char *index_ptr;
 	size_t index_len;
@@ -2912,12 +2913,16 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if(0 != mCurrentPeriodIdx)
 			{
 				seekPosition += currentPeriodStart;
-				for (int i = 0; i < mNumberOfTracks; i++)
+			}
+			for (int i = 0; i < mNumberOfTracks; i++)
+			{
+				if(0 != mCurrentPeriodIdx)
 				{
 					mMediaStreamContext[i]->fragmentTime = seekPosition;
 				}
+				mMediaStreamContext[i]->periodStartOffset = currentPeriodStart;
 			}
-			AAMPLOG_INFO("%s:%d  offsetFromStart(%f) seekPosition(%f) \n",__FUNCTION__,__LINE__,offsetFromStart,seekPosition);
+			AAMPLOG_INFO("%s:%d offsetFromStart(%f) seekPosition(%f) currentPeriodStart(%f)\n",__FUNCTION__,__LINE__, offsetFromStart,seekPosition, currentPeriodStart);
 			if (newTune )
 			{
 				std::vector<long> bitrateList;
@@ -4187,6 +4192,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 				pMediaStreamContext->timeLineIndex = 0;
 			pMediaStreamContext->fragmentRepeatCount = 0;
 			pMediaStreamContext->fragmentOffset = 0;
+			pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
 			pMediaStreamContext->eos = false;
 			if(0 == pMediaStreamContext->fragmentDescriptor.Bandwidth || !aamp->IsTSBSupported())
 			{
@@ -4847,7 +4853,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							if(mBasePeriodId == mpd->GetPeriods().at(iPeriod)->GetId())
 							{
 								mCurrentPeriodIdx = iPeriod;
-								logprintf("%s:%d [CDAI] Landed at the periodId[%d] \n",__FUNCTION__,__LINE__,mCurrentPeriodIdx);
+								AAMPLOG_INFO("%s:%d [CDAI] Landed at the periodId[%d] \n",__FUNCTION__,__LINE__,mCurrentPeriodIdx);
 								break;
 							}
 						}
@@ -4925,7 +4931,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						mLiveEndPosition = duration + mCulledSeconds;
 						if(mCdaiObject->mContentSeekOffset)
 						{
-							logprintf("CDAI: Resuming channel playback at PeriodID[%s] at Position[%lf]\n", currentPeriodId.c_str(), mCdaiObject->mContentSeekOffset);
+							AAMPLOG_INFO("%s:%d [CDAI]: Resuming channel playback at PeriodID[%s] at Position[%lf]\n",	__FUNCTION__, __LINE__, currentPeriodId.c_str(), mCdaiObject->mContentSeekOffset);
 							//This seek should not be reflected in the fragmentTime, since we have already cached
 							//same duration of ad content; So keep a copy of current fragmentTime so that it can be
 							//updated back when seek is done
@@ -5047,6 +5053,15 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 									{
 										mContext->CheckForPlaybackStall(false);
 									}
+
+									if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
+											&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
+									{
+										//Ensuring that Ad playback doesn't go beyond Adbreak
+										AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]\n",
+															__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
+										pMediaStreamContext->eos = true;
+									}
 								}
 							}
 							// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
@@ -5133,7 +5148,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						if((rate < 0 && mBasePeriodOffset <= 0 ) ||
 								(rate > 0 && curPeriod.filled && curPeriod.duration <= (uint64_t)(mBasePeriodOffset * 1000)))
 						{
-							logprintf("%s:%d CDAI: BasePeriod[%s] completed @%lf. Changing to next \n",__FUNCTION__,__LINE__, mBasePeriodId.c_str(),mBasePeriodOffset);
+							AAMPLOG_INFO("%s:%d [CDAI]: BasePeriod[%s] completed @%lf. Changing to next \n",__FUNCTION__,__LINE__, mBasePeriodId.c_str(),mBasePeriodOffset);
 							break;
 						}
 						else if(lastPrdOffset != mBasePeriodOffset && AdState::IN_ADBREAK_AD_NOT_PLAYING == mCdaiObject->mAdState)
@@ -5861,7 +5876,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 					{
 						if(!(mCdaiObject->mAdBreaks[brkId].ads->at(adIdx).invalid))
 						{
-							logprintf("%s:%d CDAI: STARTING ADBREAK[%s] AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, brkId.c_str(), adIdx, mBasePeriodId.c_str());
+							AAMPLOG_WARN("%s:%d [CDAI]: STARTING ADBREAK[%s] AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, brkId.c_str(), adIdx, mBasePeriodId.c_str());
 							mCdaiObject->mCurAds = mCdaiObject->mAdBreaks[brkId].ads;
 
 							mCdaiObject->mCurAdIdx = adIdx;
@@ -5872,7 +5887,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 						}
 						else
 						{
-							logprintf("%s:%d CDAI: AdIdx[%d] in the AdBreak[%s] is invalid. Skipping.\n",__FUNCTION__,__LINE__, adIdx, brkId.c_str());
+							AAMPLOG_WARN("%s:%d [CDAI]: AdIdx[%d] in the AdBreak[%s] is invalid. Skipping.\n",__FUNCTION__,__LINE__, adIdx, brkId.c_str());
 						}
 						reservationEvt2Send = AAMP_EVENT_AD_RESERVATION_START;
 						adbreakId2Send = brkId;
@@ -5881,7 +5896,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 
 					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
 					{
-						logprintf("%s:%d CDAI: BasePeriodId[%s] in Adbreak. But Ad not available.\n",__FUNCTION__,__LINE__, mBasePeriodId.c_str());
+						AAMPLOG_WARN("%s:%d [CDAI]: BasePeriodId[%s] in Adbreak. But Ad not available.\n",__FUNCTION__,__LINE__, mBasePeriodId.c_str());
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
 					}
 					stateChanged = true;
@@ -5895,9 +5910,14 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 				int adIdx = mCdaiObject->CheckForAdStart((AAMP_NORMAL_PLAY_RATE == rate), mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
 				if(-1 != adIdx && mCdaiObject->mAdBreaks[brkId].ads)
 				{
+					if(0 == adIdx && 0 != mBasePeriodOffset)
+					{
+						//Ad is ready; but it is late. Invalidate.
+						mCdaiObject->mAdBreaks[brkId].ads->at(0).invalid = true;
+					}
 					if(!(mCdaiObject->mAdBreaks[brkId].ads->at(adIdx).invalid))
 					{
-						logprintf("%s:%d CDAI: AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, adIdx, mBasePeriodId.c_str());
+						AAMPLOG_WARN("%s:%d [CDAI]: AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, adIdx, mBasePeriodId.c_str());
 						mCdaiObject->mCurAds = mCdaiObject->mAdBreaks[brkId].ads;
 
 						mCdaiObject->mCurAdIdx = adIdx;
@@ -5915,7 +5935,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 				}
 				else if(brkId.empty())
 				{
-					logprintf("%s:%d CDAI: ADBREAK[%s] ENDED. Playing the basePeriod[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str());
+					AAMPLOG_WARN("%s:%d [CDAI]: ADBREAK[%s] ENDED. Playing the basePeriod[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str());
 					mCdaiObject->mCurPlayingBreakId = "";
 					mCdaiObject->mCurAds = nullptr;
 					mCdaiObject->mCurAdIdx = -1;
@@ -5928,7 +5948,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 		case AdState::IN_ADBREAK_AD_PLAYING:
 			if(AdEvent::AD_FINISHED == evt)
 			{
-				logprintf("%s:%d CDAI: Ad[idx=%d] finished at Period[%s]. Waiting to catchup the base offset..\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
+				AAMPLOG_WARN("%s:%d [CDAI]: Ad[idx=%d] finished at Period[%s]. Waiting to catchup the base offset..\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
 				mCdaiObject->mAdState = AdState::IN_ADBREAK_WAIT2CATCHUP;
 
 				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_END;
@@ -5941,7 +5961,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 			else if(AdEvent::AD_FAILED == evt)
 			{
 				mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid = true;
-				logprintf("%s:%d CDAI: Ad[idx=%d] Playback failed. Going to the base period[%s] at offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str(), mBasePeriodOffset);
+				logprintf("%s:%d [CDAI]: Ad[idx=%d] Playback failed. Going to the base period[%s] at offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str(), mBasePeriodOffset);
 				mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING; //TODO: Vinod, It should be IN_ADBREAK_WAIT2CATCHUP, But you need to fix the catchup check logic.
 
 				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_ERROR;	//Followed by AAMP_EVENT_AD_PLACEMENT_END
@@ -5964,7 +5984,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 		case AdState::IN_ADBREAK_WAIT2CATCHUP:
 			if(-1 == mCdaiObject->mCurAdIdx)
 			{
-				logprintf("%s:%d CDAI: AdIdx[-1]. BUG! BUG!! BUG!!! We should not come here.\n",__FUNCTION__,__LINE__);
+				logprintf("%s:%d [CDAI]: AdIdx[-1]. BUG! BUG!! BUG!!! We should not come here.\n",__FUNCTION__,__LINE__);
 				mCdaiObject->mCurPlayingBreakId = "";
 				mCdaiObject->mCurAds = nullptr;
 				mCdaiObject->mCurAdIdx = -1;
@@ -5981,7 +6001,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 					break;
 				}
 				//Wait till placement of current ad is completed
-				logprintf("%s:%d CDAI: Current Ad placement Completed. Ready to play next Ad.\n",__FUNCTION__,__LINE__);
+				AAMPLOG_WARN("%s:%d [CDAI]: Current Ad placement Completed. Ready to play next Ad.\n",__FUNCTION__,__LINE__);
 				mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_READY2PLAY;
 			}
 		case AdState::IN_ADBREAK_AD_READY2PLAY:
@@ -5997,12 +6017,12 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 				{
 					if(mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid)
 					{
-						logprintf("%s:%d CDAI: AdIdx[%d] in invalid. Skipping!!.\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx);
+						AAMPLOG_WARN("%s:%d [CDAI]: AdIdx[%d] in invalid. Skipping!!.\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx);
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
 					}
 					else
 					{
-						logprintf("%s:%d CDAI: Next AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
+						AAMPLOG_WARN("%s:%d [CDAI]: Next AdIdx[%d] Found at Period[%s].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_PLAYING;
 
 						for(int i=0; i<mCdaiObject->mCurAdIdx; i++)
@@ -6037,7 +6057,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 						} //else, it should play the mBasePeriodId
 						mCdaiObject->mContentSeekOffset = 0; //Should continue tricking from the end of the previous period.
 					}
-					logprintf("%s:%d CDAI: All Ads in the ADBREAK[%s] FINISHED. Playing the basePeriod[%s] at Offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str(), mCdaiObject->mContentSeekOffset);
+					AAMPLOG_WARN("%s:%d [CDAI]: All Ads in the ADBREAK[%s] FINISHED. Playing the basePeriod[%s] at Offset[%lf].\n",__FUNCTION__,__LINE__, mCdaiObject->mCurPlayingBreakId.c_str(), mBasePeriodId.c_str(), mCdaiObject->mContentSeekOffset);
 					reservationEvt2Send = AAMP_EVENT_AD_RESERVATION_END;
 					adbreakId2Send = mCdaiObject->mCurPlayingBreakId;
 					sendImmediate = curAdFailed;	//Current Ad failed. Hence may not get discontinuity from gstreamer.
@@ -6054,7 +6074,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 	}
 	if(stateChanged)
 	{
-		logprintf("%s:%d [CDAI]: State changed from [%s] => [%s].\n",__FUNCTION__,__LINE__, ADSTATE_STR[static_cast<int>(oldState)],ADSTATE_STR[static_cast<int>(mCdaiObject->mAdState)]);
+		AAMPLOG_WARN("%s:%d [CDAI]: State changed from [%s] => [%s].\n",__FUNCTION__,__LINE__, ADSTATE_STR[static_cast<int>(oldState)],ADSTATE_STR[static_cast<int>(mCdaiObject->mAdState)]);
 
 		mAdPlayingFromCDN = false;
 		if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
