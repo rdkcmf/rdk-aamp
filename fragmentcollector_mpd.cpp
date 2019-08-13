@@ -525,6 +525,8 @@ public:
 	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
+	long GetMaxTSBBandwidth() { return mMaxTSBBandwidth; }
+	bool IsTSBUsed() { return mIsFogTSB; }
 private:
 	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false);
@@ -585,6 +587,11 @@ private:
 	double mBasePeriodOffset;
 	PrivateCDAIObjectMPD *mCdaiObject;
 
+	// DASH does not use abr manager to store the supported bandwidth values,
+	// hence storing max TSB bandwith in this variable which will be used for VideoEnd Metric data via
+	// StreamAbstractionAAMP::GetMaxBitrate function,
+	long mMaxTSBBandwidth;
+
 	double mLiveEndPosition;
 	double mCulledSeconds;
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
@@ -607,6 +614,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
+	,mMaxTSBBandwidth(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -4087,6 +4095,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					}
 					mContext->GetABRManager().clearProfiles();
 					mBitrateIndexMap.clear();
+					mMaxTSBBandwidth = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
 						Representation* representation = representations.at(idx);
@@ -4096,6 +4105,11 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
 						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
 						delete representation;
+
+						if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
+						{
+							mMaxTSBBandwidth = mStreamInfo[idx].bandwidthBitsPerSecond;
+						}
 					}
 					pMediaStreamContext->representationIndex = 0; //Fog custom mpd has a single representation
 					IRepresentation* representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(0);
@@ -5734,6 +5748,26 @@ std::vector<long> PrivateStreamAbstractionMPD::GetAudioBitrates(void)
 std::vector<long> StreamAbstractionAAMP_MPD::GetVideoBitrates(void)
 {
 	return mPriv->GetVideoBitrates();
+}
+
+/*
+* @brief Gets Max Bitrate avialable for current playback.
+* @ret long MAX video bitrates
+*/
+long StreamAbstractionAAMP_MPD::GetMaxBitrate()
+{
+	long maxBitrate = 0;
+	if(mPriv->IsTSBUsed())
+	{
+		maxBitrate = mPriv->GetMaxTSBBandwidth();
+	}
+	else
+	{
+
+		maxBitrate = StreamAbstractionAAMP::GetMaxBitrate();
+	}
+
+	return maxBitrate;
 }
 
 

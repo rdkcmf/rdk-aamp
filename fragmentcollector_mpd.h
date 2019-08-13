@@ -70,6 +70,7 @@ public:
 	int GetBWIndex(long bitrate) override;
 	std::vector<long> GetVideoBitrates(void) override;
 	std::vector<long> GetAudioBitrates(void) override;
+	long GetMaxBitrate(void) override;
 	void StopInjection(void) override;
 	void StartInjection(void) override;
 	

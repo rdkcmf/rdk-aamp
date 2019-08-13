@@ -669,7 +669,7 @@ public:
 	 *
 	 *   @return max bandwidth
 	 */
-	long GetMaxBitrate(){
+	virtual long GetMaxBitrate(){
 		return mAbrManager.getBandwidthOfProfile(mAbrManager.getMaxBandwidthProfile());
 	}
 
