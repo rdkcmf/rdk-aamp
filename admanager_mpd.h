@@ -54,7 +54,7 @@ public:
 		return mPrivObj;
 	}
 
-	virtual void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url, uint64_t startMS=0) override;
+	virtual void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url, uint64_t startMS=0, uint32_t breakdur=0) override;
 };
 
 
@@ -114,18 +114,19 @@ struct AdNode {
  * @brief AdBreak's metadata
  */
 struct AdBreakObject{
-	uint32_t duration;
+	uint32_t brkDuration;
 	std::shared_ptr<std::vector<AdNode>> ads;
 	std::string endPeriodId;
 	uint64_t endPeriodOffset;	//Last ad's end position stretches till here
+	uint32_t adsDuration;
 
-	AdBreakObject() : duration(0), ads(), endPeriodId(), endPeriodOffset(0)
+	AdBreakObject() : brkDuration(0), ads(), endPeriodId(), endPeriodOffset(0), adsDuration(0)
 	{
 	}
 
-	AdBreakObject(uint32_t duration, std::shared_ptr<std::vector<AdNode>> ads, std::string endPeriodId,
-	uint64_t endPeriodOffset)
-	: duration(duration), ads(ads), endPeriodId(endPeriodId), endPeriodOffset(endPeriodOffset)
+	AdBreakObject(uint32_t _duration, std::shared_ptr<std::vector<AdNode>> _ads, std::string _endPeriodId,
+	uint64_t _endPeriodOffset, uint32_t _adsDuration)
+	: brkDuration(_duration), ads(_ads), endPeriodId(_endPeriodId), endPeriodOffset(_endPeriodOffset), adsDuration(_adsDuration)
 	{
 	}
 };
@@ -216,7 +217,7 @@ public:
 	PrivateCDAIObjectMPD(const PrivateCDAIObjectMPD&) = delete;
 	PrivateCDAIObjectMPD& operator= (const PrivateCDAIObjectMPD&) = delete;
 
-	void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS);
+	void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur=0);
 	void FulFillAdObject();
 	MPD*  GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
 	void InsertToPeriodMap(IPeriod *period);
@@ -227,6 +228,7 @@ public:
 	void ClearMaps();
 	void  PlaceAds(dash::mpd::IMPD *mpd);
 	int CheckForAdStart(bool continuePlay, const std::string &periodId, double offSet, std::string &breakId, double &adOffset);
+	bool CheckForAdTerminate(double fragmentTime);
 	inline bool isPeriodInAdbreak(const std::string &periodId);
 };
 
