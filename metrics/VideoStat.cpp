@@ -70,10 +70,6 @@ char * CVideoStat::ToJsonString() const
 
 		cJSON * jsonObj = NULL;
 
-		jsonObj = cJSON_CreateString(VIDEO_END_DATA_VERSION);
-		cJSON_AddItemToObject(monitor, TAG_VERSION, jsonObj);
-
-
 		if(mTmeToTopProfile > 0 )
 		{
 			jsonObj =  cJSON_CreateNumber(mTmeToTopProfile);
@@ -102,12 +98,6 @@ char * CVideoStat::ToJsonString() const
 		{
 			jsonObj =  cJSON_CreateNumber(mAbrErrorDropCount);
 			cJSON_AddItemToObject(monitor, TAG_ABR_ERR_DROP, jsonObj);
-		}
-
-		if(mbTsb)
-		{
-			jsonObj =  cJSON_CreateNumber(1);
-			cJSON_AddItemToObject(monitor, TAG_TSB_AVAILIBLITY, jsonObj);
 		}
 
 		bool isDataAdded = false;
@@ -184,8 +174,22 @@ char * CVideoStat::ToJsonString() const
 				cJSON_Delete(profiles);
 			}
 		}
-		
-		strRet = cJSON_PrintUnformatted(monitor);
+
+		// monitor->child will be NULL if none of above data is added to monitor
+		if(monitor->child)
+		{
+			jsonObj = cJSON_CreateString(VIDEO_END_DATA_VERSION);
+			cJSON_AddItemToObject(monitor, TAG_VERSION, jsonObj);
+
+			if(mbTsb)
+			{
+				jsonObj =  cJSON_CreateNumber(1);
+				cJSON_AddItemToObject(monitor, TAG_TSB_AVAILIBLITY, jsonObj);
+			}
+
+			strRet = cJSON_PrintUnformatted(monitor);
+		}
+
 		cJSON_Delete(monitor);
 	}
 
