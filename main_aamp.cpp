@@ -2418,7 +2418,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if (!match.str(1).empty())
 						{
 							*fogError = std::stoi(match.str(1));
-							logprintf("Received FOG-Reason fogError: '%d'", *fogError);
+							AAMPLOG_INFO("Received FOG-Reason fogError: '%d'", *fogError);
 						}
 					}
 				}
@@ -2433,7 +2433,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if (!match.str(1).empty())
 						{
 							effectiveUrl.assign(match.str(1).c_str());
-							logprintf("Received FOG-Reason effectiveUrl: '%s'", effectiveUrl.c_str());
+							AAMPLOG_INFO("Received FOG-Reason effectiveUrl: '%s'", effectiveUrl.c_str());
 						}
 					}
 				}
@@ -2446,7 +2446,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 
 		if (bitrate && (context.bitrate > 0))
 		{
-			logprintf("Received getfile Bitrate : %ld", context.bitrate);
+			AAMPLOG_INFO("Received getfile Bitrate : %ld", context.bitrate);
 			*bitrate = context.bitrate;
 		}
 		pthread_mutex_lock(&mLock);

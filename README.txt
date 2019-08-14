@@ -223,7 +223,7 @@ version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,Manifes
 version#4
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune
 
-MicroEvents Acronyms
+MicroEvents Information
 =====================
 Common:
 ct = Content Type
@@ -261,48 +261,41 @@ d = Duration till the completion of event
 o = Output of Event (200:Success, Non 200:Error Code)
 
 
-VideoEnd Event Acronyms
-=======================
-"vr" = version of video end event
-tt = time to reach top profile
-ta = time for which video remain on top profile
-d = time for which playback was done, this is measured at the time of fragment download , hence play-back duration may be slightly less due to g-streamer and aamp buffers
-dn = Step down profile count happened due to Bad network bandwidth
-de = Step down profile count happened due to Bad download errors/failures
-t = indicates if TSB used for playback,
-m =  Main manifest
-v = Video Profile
+VideoEnd Event Information
+==========================
+vr = version of video end event (currently "1.0")
+tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
+ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
+d = duration - estimate of total playback duration.  Note that this is based on fragments downloaded/injected - user may interrupt buffered playback with seek/stop, causing estimates to skew higher in edge cases.
+dn = Download step-downs due to bad Network bandwidth
+de = Download step-downs due to Error handling ramp-down/retry logic
+t = indicates that FOG time shift buffer (TSB) was used for playback
+m =  main manifest
+v = video Profile
 i = Iframe Profile
-a1 = Audio track 1
-a2 = Audio track 2
-a3 = Audio track 3
-a4 = Audio track 4
-a5 = Audio track 5
+a1 = audio track 1
+a2 = audio track 2
+a3 = audio track 3
+...
 u = Unknown Profile or track type
 
-l = Supported language
-p = Encapsulates Different Profile available in stream
-ls = License statistics
+l = supported languages
+p = profile-specific metrics encapsulation
+ls = license statistics
 
+ms = manifest statistics
+fs = fragment statistics
 
-ms = Manifest Stats
-fs = Fragment Stats
+r = total license rotations / stream switches
+e = encrypted to clear switches
+c = clear to encrypted switches
 
-r = Total License rotation or stream switches
-e = Total Encrypted to Clear Switch
-c = Total Clear  to Encrypted Switch
+4 = HTTP-4XX error count
+5 = HTTP-5XX error count
+t = CURL timeout error count
+c = CURL error count (other)
+s = successful download count
 
-4 = Count of HTTP-4XX Errors
-5 = Count of HTTP-5XX Errors
-t = Count of Curl Timeout Errors
-c = Count of Other Curl Errors
-s = Count of Successful downloads
-
-u = URL of last failed download
-n = Normal Fragment Stats
-i = Init Fragment Stats ( used in case of DASH )
-
-
-
-
-
+u = URL of most recent (last) failed download
+n = normal fragment statistics
+i = "init" fragment statistics (used in case of DASH and fragmented mp4)
