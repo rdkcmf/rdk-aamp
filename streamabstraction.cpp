@@ -434,7 +434,19 @@ bool MediaTrack::InjectFragment()
 				}
 			}
 #endif
-			if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
+			if (type == eTRACK_SUBTITLE && cachedFragment->discontinuity)
+			{
+				logprintf("%s:%d [%s] notifying discontinuity to parser!\n", __FUNCTION__, __LINE__, name);
+				if (mSubtitleParser)
+				{
+					mSubtitleParser->reset();
+					stopInjection = true;
+					discontinuityProcessed = true;
+					ret = false;
+				}
+				cachedFragment->discontinuity = false;
+			}
+			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
 				logprintf("%s:%d - track %s - notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
 				cachedFragment->discontinuity = false;
@@ -473,15 +485,25 @@ bool MediaTrack::InjectFragment()
 					logprintf("%s:%d [%s] Inject uri %s\n", __FUNCTION__, __LINE__, name, cachedFragment->uri);
 				}
 #endif
+				if (type == eTRACK_SUBTITLE)
+				{
+					if (mSubtitleParser)
+					{
+						mSubtitleParser->processData(cachedFragment->fragment.ptr, cachedFragment->fragment.len, cachedFragment->position, cachedFragment->duration);
+					}
+				}
+				else
+				{
 #ifndef SUPRESS_DECODE
 #ifndef FOG_HAMMER_TEST // support aamp stress-tests of fog without video decoding/presentation
-				InjectFragmentInternal(cachedFragment, fragmentDiscarded);
+					InjectFragmentInternal(cachedFragment, fragmentDiscarded);
 #endif
 #endif
-				if (GetContext()->mIsFirstBuffer && !fragmentDiscarded)
-				{
-					GetContext()->mIsFirstBuffer = false;
-					aamp->NotifyFirstBufferProcessed();
+					if (GetContext()->mIsFirstBuffer && !fragmentDiscarded)
+					{
+						GetContext()->mIsFirstBuffer = false;
+						aamp->NotifyFirstBufferProcessed();
+					}
 				}
 				if (eTRACK_VIDEO == type)
 				{
@@ -596,7 +618,6 @@ void MediaTrack::StartInjectLoop()
  */
 void MediaTrack::RunInjectLoop()
 {
-	const bool isAudioTrack = (eTRACK_AUDIO == type);
 	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
 	if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
@@ -617,7 +638,7 @@ void MediaTrack::RunInjectLoop()
 		{
 			keepInjecting = false;
 		}
-		if (notifyFirstFragment)
+		if (notifyFirstFragment && type != eTRACK_SUBTITLE)
 		{
 			notifyFirstFragment = false;
 			GetContext()->NotifyFirstFragmentInjected();
@@ -627,13 +648,17 @@ void MediaTrack::RunInjectLoop()
 		// and hence balancing fetch/inject not needed for CDVR
 		if(!gpGlobalConfig->bAudioOnlyPlayback && !aamp->IsCDVRContent())
 		{
-			if(isAudioTrack)
+			if(eTRACK_AUDIO == type)
 			{
 				GetContext()->WaitForVideoTrackCatchup();
 			}
-			else
+			else if (eTRACK_VIDEO == type)
 			{
 				GetContext()->ReassessAndResumeAudioTrack(false);
+			}
+			else if (eTRACK_SUBTITLE == type)
+			{
+				GetContext()->WaitForAudioTrackCatchup();
 			}
 		}
 	}
@@ -729,7 +754,8 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
-		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false)
+		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
+		mSubtitleParser(NULL)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -859,12 +885,13 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager()
+		mAbrManager(), mSubCond()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
+	pthread_cond_init(&mSubCond, NULL);
 
 	// Set default init bitrate according to the config.
 	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
@@ -883,6 +910,7 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 {
 	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
 	pthread_cond_destroy(&mCond);
+	pthread_cond_destroy(&mSubCond);
 	pthread_mutex_destroy(&mLock);
 	AAMPLOG_INFO("Exit StreamAbstractionAAMP::%s\n", __FUNCTION__);
 }
@@ -1572,4 +1600,82 @@ bool StreamAbstractionAAMP::IsMuxedStream()
 		}
 	}
 	return ret;
+}
+
+
+/**
+ *   @brief Waits subtitle track injection until caught up with muxed/audio track.
+ *   Used internally by injection logic
+ */
+void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
+{
+	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+
+	//Check if its muxed a/v
+	if (audio && !audio->enabled)
+	{
+		audio = GetMediaTrack(eTRACK_VIDEO);
+	}
+
+	struct timespec ts;
+	struct timeval tv;
+	int waitTimeInMs = 100;
+	int ret = 0;
+
+	pthread_mutex_lock(&mLock);
+	double audioDuration = audio->GetTotalInjectedDuration();
+	double subtitleDuration = subtitle->GetTotalInjectedDuration();
+
+	//Allow subtitles to be ahead by 5 seconds compared to audio
+	while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 5.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
+	{
+		traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f\n", subtitleDuration, audioDuration);
+#ifdef AAMP_DEBUG_FETCH_INJECT
+		logprintf("\n%s:%d waiting for mSubCond - subtitleDuration %f audioDuration %f\n",
+			__FUNCTION__, __LINE__, subtitleDuration, audioDuration);
+#endif
+		gettimeofday(&tv, NULL);
+		ts.tv_sec = time(NULL) + waitTimeInMs / 1000;
+		ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (waitTimeInMs % 1000));
+		ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+		ts.tv_nsec %= (1000 * 1000 * 1000);
+
+		ret = pthread_cond_timedwait(&mSubCond, &mLock, &ts);
+
+		if (ret == 0)
+		{
+			break;
+		}
+#ifndef WIN32
+		if (ret != ETIMEDOUT)
+		{
+			logprintf("%s:%d error while calling pthread_cond_timedwait - %s\n", __FUNCTION__, __LINE__, strerror(ret));
+		}
+#endif
+		audioDuration = audio->GetTotalInjectedDuration();
+	}
+	pthread_mutex_unlock(&mLock);
+}
+
+
+/**
+ *   @brief Unblocks subtitle track injection if downloads are stopped
+ *
+ */
+void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup()
+{
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+	if (subtitle && subtitle->enabled)
+	{
+		pthread_mutex_lock(&mLock);
+		if (!aamp->DownloadsAreEnabled())
+		{
+			pthread_cond_signal(&mSubCond);
+#ifdef AAMP_DEBUG_FETCH_INJECT
+			logprintf("%s:%d signalling mSubCond\n", __FUNCTION__, __LINE__);
+#endif
+		}
+		pthread_mutex_unlock(&mLock);
+	}
 }

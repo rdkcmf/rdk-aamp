@@ -32,6 +32,7 @@
 
 #include <ABRManager.h>
 #include <glib.h>
+#include "subtitleParser.h"
 
 
 /**
@@ -40,7 +41,8 @@
 typedef enum
 {
 	eTRACK_VIDEO,   /**< Video track */
-	eTRACK_AUDIO    /**< Audio track */
+	eTRACK_AUDIO,    /**< Audio track */
+	eTRACK_SUBTITLE  /**< Subtitle track */
 } TrackType;
 
 /**
@@ -307,6 +309,7 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
+	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
@@ -333,6 +336,7 @@ private:
 
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
+
 };
 
 
@@ -740,6 +744,30 @@ public:
 	 *   @param[in] cdaiObj - Pointer to Client Side DAI object.
 	 */
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) {};
+
+	/**
+	 *   @brief Receives base PTS for the current playback
+	 *
+	 *   @param[in] pts - pts value
+	 */
+	virtual void NotifyBasePTS(unsigned long long pts) = 0;
+
+	/**
+	 *   @brief Waits subtitle track injection until caught up with audio track.
+	 *          Used internally by injection logic
+	 *
+	 *   @param None
+	 *   @return void
+	 */
+	void WaitForAudioTrackCatchup(void);
+
+	/**
+	 *   @brief Unblock subtitle track injector if downloads are stopped
+	 *
+	 *   @return void
+	 */
+	void AbortWaitForAudioTrackCatchup(void);
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -774,6 +802,7 @@ private:
 
 	pthread_mutex_t mLock;              /**< lock for A/V track catchup logic*/
 	pthread_cond_t mCond;               /**< condition for A/V track catchup logic*/
+	pthread_cond_t mSubCond;            /**< condition for Audio/Subtitle track catchup logic*/
 
 	// abr variables
 	long mCurrentBandwidth;             /**< stores current bandwidth*/

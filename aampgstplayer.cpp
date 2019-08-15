@@ -269,7 +269,11 @@ static void analyze_streams(AAMPGstPlayer *_this)
  */
 static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
 {
-	if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
+	if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+	{
+		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE); // signal fragment downloader thread
+	}
+	else if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
 	{
 		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
 	}
@@ -287,7 +291,11 @@ static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
  */
 static void enough_data(GstElement *source, AAMPGstPlayer * _this)
 {
-	if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
+	if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+	{
+		_this->aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE); // signal fragment downloader thread
+	}
+	else if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
 	{
 		_this->aamp->StopTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
 	}
@@ -445,13 +453,18 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	GstCaps * caps;
 	if (object == G_OBJECT(_this->privateContext->stream[eMEDIATYPE_VIDEO].sinkbin))
 	{
-		logprintf("Found source for bin1\n");
+		logprintf("Found source for video\n");
 		mediaType = eMEDIATYPE_VIDEO;
+	}
+	else if (object == G_OBJECT(_this->privateContext->stream[eMEDIATYPE_AUDIO].sinkbin))
+	{
+		logprintf("Found source for audio\n");
+		mediaType = eMEDIATYPE_AUDIO;
 	}
 	else
 	{
-		logprintf("Found source for bin2\n");
-		mediaType = eMEDIATYPE_AUDIO;
+		logprintf("Found source for subtitle\n");
+		mediaType = eMEDIATYPE_SUBTITLE;
 	}
 	stream = &_this->privateContext->stream[mediaType];
 	g_object_get(orig, pspec->name, &stream->source, NULL);
@@ -1809,6 +1822,7 @@ void AAMPGstPlayer::Stream()
  * @brief Configure pipeline based on A/V formats
  * @param[in] format video format
  * @param[in] audioFormat audio format
+ * @param[in] bESChangeStatus
  */
 void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)
 {
@@ -1816,6 +1830,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
+	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_NONE;
 
 #ifdef AAMP_STOP_SINK_ON_SEEK
 	privateContext->rate = aamp->rate;
@@ -1956,6 +1971,10 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 		if (AAMP_NORMAL_PLAY_RATE != privateContext->rate)
 		{
 			AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_AUDIO].source);
+			if (privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+			{
+				AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_SUBTITLE].source);
+			}
 		}
 	}
 }
@@ -2060,6 +2079,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 #endif
 	TearDownStream(eMEDIATYPE_VIDEO);
 	TearDownStream(eMEDIATYPE_AUDIO);
+	TearDownStream(eMEDIATYPE_SUBTITLE);
 	DestroyPipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	privateContext->lastKnownPTS = 0;

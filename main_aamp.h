@@ -43,6 +43,7 @@
 #include <string>
 
 #include <stddef.h>
+#include "vttCue.h"
 
 /*! \mainpage
  *
@@ -90,6 +91,7 @@ typedef enum
 	AAMP_EVENT_AD_PLACEMENT_END,    /**< Ad playback ends */
 	AAMP_EVENT_AD_PLACEMENT_ERROR,  /**< Ad playback error */
 	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
+	AAMP_EVENT_WEBVTT_CUE_DATA,     /**< WebVTT Cue data */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -377,6 +379,14 @@ struct AAMPEvent
 			uint32_t duration;
 			int errorCode;
 		} adPlacement;
+
+		/**
+		 *
+		 */
+		struct
+		{
+			VTTCue* cueData;
+		} cue;
 	} data;
 
 	/**
@@ -424,15 +434,18 @@ enum MediaType
 {
 	eMEDIATYPE_VIDEO,               /**< Type video */
 	eMEDIATYPE_AUDIO,               /**< Type audio */
+	eMEDIATYPE_SUBTITLE,            /**< Type subtitle */
 	eMEDIATYPE_MANIFEST,            /**< Type manifest */
 	eMEDIATYPE_LICENCE,             /**< Type license */
 	eMEDIATYPE_IFRAME,              /**< Type iframe */
 	eMEDIATYPE_INIT_VIDEO,          /**< Type video init fragment */
 	eMEDIATYPE_INIT_AUDIO,          /**< Type audio init fragment */
+	eMEDIATYPE_INIT_SUBTITLE,          /**< Type audio init fragment */
 	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
 	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
-	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
-	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
+	eMEDIATYPE_PLAYLIST_IFRAME,	/**< Type Iframe playlist */
+	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
+	eMEDIATYPE_INIT_IFRAME,		/**< Type IFRAME init fragment */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 
@@ -449,8 +462,9 @@ enum StreamOutputFormat
 	FORMAT_AUDIO_ES_EC3,    /**< Dolby Digital Plus Elementary Stream */
 	FORMAT_AUDIO_ES_ATMOS,   /**< ATMOS Audio stream */
 	FORMAT_VIDEO_ES_H264,   /**< MPEG-4 Video Elementary Stream */
-    FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
+	FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
 	FORMAT_VIDEO_ES_MPEG2,  /**< MPEG-2 Video Elementary Stream */
+	FORMAT_SUBTITLE_WEBVTT, /**< WebVTT subtitle Stream */
 	FORMAT_NONE             /**< Unknown Format */
 };
 

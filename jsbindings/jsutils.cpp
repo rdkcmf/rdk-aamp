@@ -109,6 +109,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_AD_PLACEMENT_END, "placementEnd" },
 	{ AAMP_EVENT_AD_PLACEMENT_PROGRESS, "placementProgress" },
 	{ AAMP_EVENT_AD_PLACEMENT_ERROR, "placementError" },
+	{ AAMP_EVENT_WEBVTT_CUE_DATA, "vttCueDataListener" },
 	{ (AAMPEventType)0, "" }
 };
 

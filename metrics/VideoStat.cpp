@@ -43,6 +43,7 @@
 #define TAG_AUDIO_3					"a3"	// Audio track 3
 #define TAG_AUDIO_4					"a4"	// Audio track 4
 #define TAG_AUDIO_5					"a5"	// Audio track 5
+#define TAG_SUBTITLE					"s"		// Subtitle Profile
 #define TAG_UNKNOWN					"u"		// Unknown Profile or track type
 
 #define TAG_SUPPORTED_LANG				"l"		// Supported language
@@ -366,6 +367,13 @@ std::string CVideoStat::TrackTypeToString(VideoStatTrackType type) const
 			strRetVal =TAG_AUDIO_5;
 		}
 			break;
+
+		case STAT_SUBTITLE:
+		{
+			strRetVal = TAG_SUBTITLE;
+		}
+			break;
+
 		default:
 			strRetVal = TAG_UNKNOWN;
 			break;
