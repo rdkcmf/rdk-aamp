@@ -40,7 +40,8 @@ typedef enum E_VideoStatTrackType {
 	STAT_AUDIO_2,
 	STAT_AUDIO_3,
 	STAT_AUDIO_4,
-	STAT_AUDIO_5
+	STAT_AUDIO_5,
+	STAT_SUBTITLE
 
 } VideoStatTrackType;
 

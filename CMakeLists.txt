@@ -74,7 +74,7 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 find_package (Threads REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes metrics)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes metrics subtitle)
 include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${CURL_INCLUDE_DIRS})
 include_directories(${GSTREAMERBASE_INCLUDE_DIRS})
@@ -84,7 +84,7 @@ include_directories(${OPENSSL_INCLUDE_DIRS})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES base16.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp)
+set(LIBAAMP_SOURCES base16.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp subtitle/webvttParser.cpp)
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")
@@ -253,4 +253,4 @@ install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)
 
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
-install(FILES drm/AampDRMSessionManager.h drm/AampDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h metrics/VideoStat.h metrics/HTTPStatistics.h metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h DESTINATION include)
+install(FILES drm/AampDRMSessionManager.h drm/AampDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h metrics/VideoStat.h metrics/HTTPStatistics.h metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h subtitle/vttCue.h DESTINATION include)

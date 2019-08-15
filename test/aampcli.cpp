@@ -301,7 +301,7 @@ static void ProcessCLIConfEntry(char *cfg)
 				{
 					if (isNumber(token))
 						channelInfo.channelNumber = atoi(token);
-					else if (memcmp(token, "http", 4) == 0)
+					else if (memcmp(token, "http", 4) == 0 || memcmp(token, "https", 5) == 0)
 							channelInfo.uri = token;
 					else
 						channelInfo.name = token;

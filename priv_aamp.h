@@ -55,7 +55,7 @@
 #define AAMP_PACKED __attribute__((__packed__))
 #endif
 
-#define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
+#define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
 #define AAMP_DAI_CURL_IDX (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)                                /**< CURL Index for DAI */
@@ -121,8 +121,8 @@
 #define MAX_DASH_DRM_SESSIONS 30
 
 //#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
-/*1 for debugging video track, 2 for audio track and 3 for both*/
-/*#define AAMP_DEBUG_FETCH_INJECT 0x01*/
+/*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
+/*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
 
 
 /**
@@ -746,15 +746,19 @@ typedef enum
 
 	PROFILE_BUCKET_PLAYLIST_VIDEO,      /**< Video playlist download bucket*/
 	PROFILE_BUCKET_PLAYLIST_AUDIO,      /**< Audio playlist download bucket*/
+	PROFILE_BUCKET_PLAYLIST_SUBTITLE,   /**< Subtitle playlist download bucket*/
 
 	PROFILE_BUCKET_INIT_VIDEO,          /**< Video init fragment download bucket*/
 	PROFILE_BUCKET_INIT_AUDIO,          /**< Audio init fragment download bucket*/
+	PROFILE_BUCKET_INIT_SUBTITLE,       /**< Subtitle fragment download bucket*/
 
 	PROFILE_BUCKET_FRAGMENT_VIDEO,      /**< Video fragment download bucket*/
 	PROFILE_BUCKET_FRAGMENT_AUDIO,      /**< Audio fragment download bucket*/
+	PROFILE_BUCKET_FRAGMENT_SUBTITLE,   /**< Subtitle fragment download bucket*/
 
 	PROFILE_BUCKET_DECRYPT_VIDEO,       /**< Video decryption bucket*/
 	PROFILE_BUCKET_DECRYPT_AUDIO,       /**< Audio decryption bucket*/
+	PROFILE_BUCKET_DECRYPT_SUBTITLE,    /**< Audio decryption bucket*/
 
 	PROFILE_BUCKET_LA_TOTAL,            /**< License acquisition total bucket*/
 	PROFILE_BUCKET_LA_PREPROC,          /**< License acquisition pre-processing bucket*/
@@ -1387,6 +1391,8 @@ public:
 	{
 		switch (mediaType)
 		{
+		case eMEDIATYPE_SUBTITLE:
+			return isInitializationSegment ? PROFILE_BUCKET_INIT_SUBTITLE : PROFILE_BUCKET_FRAGMENT_SUBTITLE;
 		case eMEDIATYPE_VIDEO:
 			return isInitializationSegment ? PROFILE_BUCKET_INIT_VIDEO : PROFILE_BUCKET_FRAGMENT_VIDEO;
 		case eMEDIATYPE_AUDIO:
@@ -1541,6 +1547,7 @@ public:
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
+	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 
 	/**
 	 * @brief Curl initialization function
@@ -2499,6 +2506,14 @@ public:
 	void UpdateAudioLanguageSelection(const char *lang);
 
 	/**
+	 *   @brief Update subtitle language selection
+	 *
+	 *   @param[in] lang - Language
+	 *   @return void
+	 */
+	void UpdateSubtitleLanguageSelection(const char *lang);
+
+	/**
 	 *   @brief Get stream type
 	 *
 	 *   @return Stream type
@@ -2793,6 +2808,20 @@ public:
 	 * @return void
 	 */
 	void ResumeTrackInjection(MediaType type);
+
+	/**
+	 *   @brief Receives base PTS for the current playback
+	 *
+	 *   @param[in]  pts - pts value
+	 */
+	void NotifyBasePTS(unsigned long long pts);
+
+	/**
+	 *   @brief To send webvtt cue as an event
+	 *
+	 *   @param[in]  cue - vtt cue object
+	 */
+	void SendVTTCueDataAsEvent(VTTCue* cue);
 
 private:
 

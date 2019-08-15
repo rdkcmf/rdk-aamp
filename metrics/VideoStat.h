@@ -163,7 +163,7 @@ public:
 	 *
 	 *   @param[in] VideoStatTrackType - Indicates track
 	 *   @param[in] isEncypted - Indicates clear(false) or encrypted ( true)
-     *   @param[in] isKeyChanged - indicates if key is changed for encrypted fragment
+	 *   @param[in] isKeyChanged - indicates if key is changed for encrypted fragment
 	 *   @return None
 	 */
 	void Record_License_EncryptionStat(VideoStatTrackType eType, bool isEncypted, bool isKeyChanged);
