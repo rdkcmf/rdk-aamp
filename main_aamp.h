@@ -42,6 +42,7 @@
 #include <string>
 
 #include <stddef.h>
+#include "vttCue.h"
 
 /*! \mainpage
  *
@@ -81,6 +82,7 @@ typedef enum
 	AAMP_EVENT_AD_COMPLETED,        /**< Ad playback completed */
 	AAMP_EVENT_DRM_METADATA,
 	AAMP_EVENT_REPORT_ANOMALY,       /**< Playback Anomaly reporting */
+	AAMP_EVENT_WEBVTT_CUE_DATA,     /**< WebVTT Cue data */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -318,6 +320,13 @@ struct AAMPEvent
 			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];     /**< Supported playback speeds */
 		} speedsChanged;
 
+		/**
+		 *
+		 */
+		struct
+		{
+			VTTCue* cueData;
+		} cue;
 	} data;
 
 	/**
@@ -362,13 +371,16 @@ enum MediaType
 {
 	eMEDIATYPE_VIDEO,               /**< Type video */
 	eMEDIATYPE_AUDIO,               /**< Type audio */
+	eMEDIATYPE_SUBTITLE,            /**< Type subtitle */
 	eMEDIATYPE_MANIFEST,            /**< Type manifest */
 	eMEDIATYPE_LICENCE,             /**< Type license */
 	eMEDIATYPE_IFRAME,              /**< Type iframe */
 	eMEDIATYPE_INIT_VIDEO,          /**< Type video init fragment */
 	eMEDIATYPE_INIT_AUDIO,          /**< Type audio init fragment */
+	eMEDIATYPE_INIT_SUBTITLE,          /**< Type audio init fragment */
 	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
 	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
+	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 
@@ -385,8 +397,9 @@ enum StreamOutputFormat
 	FORMAT_AUDIO_ES_EC3,    /**< Dolby Digital Plus Elementary Stream */
 	FORMAT_AUDIO_ES_ATMOS,   /**< ATMOS Audio stream */
 	FORMAT_VIDEO_ES_H264,   /**< MPEG-4 Video Elementary Stream */
-    FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
+	FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
 	FORMAT_VIDEO_ES_MPEG2,  /**< MPEG-2 Video Elementary Stream */
+	FORMAT_SUBTITLE_WEBVTT, /**< WebVTT subtitle Stream */
 	FORMAT_NONE             /**< Unknown Format */
 };
 
@@ -1041,6 +1054,14 @@ public:
 	 *   @param[in] curl download start timeout
 	 */
 	void SetDownloadStartTimeout(long startTimeout);
+
+	/**
+	 *   @brief Set preferred subtitle language.
+	 *
+	 *   @param[in]  language - Language of text track.
+	 *   @return void
+	 */
+	void SetPreferredSubtitleLanguage(const char* language);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

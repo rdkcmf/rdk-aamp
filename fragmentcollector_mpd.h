@@ -51,6 +51,8 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	void StopInjection(void);
 	void StartInjection(void);
+
+	void NotifyBasePTS(unsigned long long pts) { };
 protected:
 	StreamInfo* GetStreamInfo(int idx);
 private:

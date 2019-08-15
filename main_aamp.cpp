@@ -971,6 +971,10 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 static void AsyncEventDestroyNotify(gpointer user_data)
 {
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
+	if (e->event.type == AAMP_EVENT_WEBVTT_CUE_DATA)
+	{
+		delete e->event.data.cue.cueData;
+	}
 	delete e;
 }
 
@@ -1229,7 +1233,7 @@ void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
  */
 void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track)
 { // called from FragmentCollector thread; blocks until gstreamer wants data
-	traceprintf( "PrivateInstanceAAMP::%s Enter. type = %d\n", __FUNCTION__, track);
+	traceprintf("PrivateInstanceAAMP::%s Enter. type = %d and downloads:%d\n", __FUNCTION__, track, mbTrackDownloadsBlocked[track]);
 	int elapsedMs = 0;
 	while (mbDownloadsBlocked || mbTrackDownloadsBlocked[track])
 	{
@@ -1249,7 +1253,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 		}
 		InterruptableMsSleep(10);
 	}
-	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d\n", __FUNCTION__, track);
+	traceprintf("PrivateInstanceAAMP::%s Exit. type = %d\n", __FUNCTION__, track);
 }
 
 
@@ -1880,6 +1884,9 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 		case eMEDIATYPE_AUDIO:
 		case eMEDIATYPE_INIT_AUDIO:
 			return "AUDIO";
+		case eMEDIATYPE_SUBTITLE:
+		case eMEDIATYPE_INIT_SUBTITLE:
+			return "SUBTITLE";
 		case eMEDIATYPE_MANIFEST:
 			return "MANIFEST";
 		case eMEDIATYPE_LICENCE:
@@ -1887,9 +1894,11 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 		case eMEDIATYPE_IFRAME:
 			return "IFRAME";
 		case eMEDIATYPE_PLAYLIST_VIDEO:
-		    return "PLAYLIST_VIDEO";
+			return "PLAYLIST_VIDEO";
 		case eMEDIATYPE_PLAYLIST_AUDIO:
-		    return "PLAYLIST_AUDIO";
+			return "PLAYLIST_AUDIO";
+		case eMEDIATYPE_PLAYLIST_SUBTITLE:
+			return "PLAYLIST_SUBTITLE";
 		default:
 			return "Unknown";
 	}
@@ -2220,7 +2229,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					long long SequenceNo = GetSeqenceNumberfromURL(remoteUrl);
 					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s\n",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl);
 				}
-				ret             =       true;
+				ret = true;
 			}
 		}
 		else
@@ -2630,6 +2639,11 @@ static int ReadConfigStringHelper(const char *bufPtr, const char *prefixPtr, con
         { // skip any whitespace
             bufPtr++;
         }
+	if (*valueCopyPtr != NULL)
+	{
+		free((void *)*valueCopyPtr);
+		*valueCopyPtr = NULL;
+	}
         *valueCopyPtr = strdup(bufPtr);
         if (*valueCopyPtr)
         {
@@ -2654,7 +2668,7 @@ static void ProcessConfigEntry(char *cfg)
 
 		double seconds = 0;
 		int value;
-        	char * tempUserAgent =NULL;
+		char * tmpValue = NULL;
 		if (sscanf(cfg, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
 		{
 			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
@@ -3014,22 +3028,22 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("max-playlist-cache", gpGlobalConfig->gMaxPlaylistCacheSize, MAX_PLAYLIST_CACHE_SIZE);
 			logprintf("aamp max-playlist-cache: %ld\n", gpGlobalConfig->gMaxPlaylistCacheSize);
 		}
-		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tempUserAgent))
+		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tmpValue))
 		{
-			if(tempUserAgent)
+			if(tmpValue)
 			{
-				if(strlen(tempUserAgent) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
+				if(strlen(tmpValue) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
 				{
-					logprintf("user-agent=%s\n", tempUserAgent);
-					gpGlobalConfig->aamp_SetBaseUserAgentString(tempUserAgent);
+					logprintf("user-agent=%s\n", tmpValue);
+					gpGlobalConfig->aamp_SetBaseUserAgentString(tmpValue);
 				}
 				else
 				{
 					logprintf("user-agent len is more than %d , Hence Ignoring \n", AAMP_USER_AGENT_MAX_CONFIG_LEN);
 				}
  
-				free(tempUserAgent);
-				tempUserAgent = NULL;
+				free(tmpValue);
+				tmpValue = NULL;
 			}
 		}
 		else if (sscanf(cfg, "wait-time-before-retry-http-5xx-ms=%d", &gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
@@ -3051,6 +3065,23 @@ static void ProcessConfigEntry(char *cfg)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld\n", gpGlobalConfig->curlDownloadStartTimeout);
+		}
+		else if(ReadConfigStringHelper(cfg, "subtitle-language=", (const char**)&tmpValue))
+		{
+			if(tmpValue)
+			{
+				if(strlen(tmpValue) < MAX_LANGUAGE_TAG_LENGTH)
+				{
+					logprintf("subtitle-language=%s\n", tmpValue);
+					gpGlobalConfig->mSubtitleLanguage = std::string(tmpValue);
+				}
+				else
+				{
+					logprintf("subtitle-language len is more than %d , Hence Ignoring \n", MAX_LANGUAGE_TAG_LENGTH);
+				}
+				free(tmpValue);
+				tmpValue = NULL;
+			}
 		}
 		else if (cfg[0] == '*')
 		{
@@ -4200,9 +4231,12 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buff
  */
 void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 {
-	SyncBegin();
-	mStreamSink->EndOfStreamReached(mediaType);
-	SyncEnd();
+	if (mediaType != eMEDIATYPE_SUBTITLE)
+	{
+		SyncBegin();
+		mStreamSink->EndOfStreamReached(mediaType);
+		SyncEnd();
+	}
 }
 
 
@@ -5096,6 +5130,34 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 	aamp->SetDownloadStartTimeout(startTimeout);
 }
 
+/**
+ *   @brief Set preferred subtitle language.
+ *
+ *   @param[in]  language - Language of text track.
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
+{
+	AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)\n", __FUNCTION__, __LINE__, aamp->mSubLanguage, language);
+
+	if (strncmp(language, aamp->mSubLanguage, MAX_LANGUAGE_TAG_LENGTH) == 0)
+		return;
+
+	PrivAAMPState state;
+	aamp->GetState(state);
+	// There is no active playback session, save the language for later
+	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
+	{
+		aamp->UpdateSubtitleLanguageSelection(language);
+		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set prior to tune start\n", __FUNCTION__, __LINE__, language);
+	}
+	else
+	{
+		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d discard \"%s\" language set, since in the middle of playback\n", __FUNCTION__, __LINE__, language);
+	}
+}
+
+
 
 /**
  *   @brief Set video rectangle.
@@ -5694,7 +5756,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
+	memset(language, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strcpy(language,"en");
+	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
+	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -6310,6 +6375,17 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 }
 
+
+/**
+ * @brief Update subtitle language selection
+ * @param lang string corresponding to language
+ */
+void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
+{
+	strncpy(mSubLanguage, lang, MAX_LANGUAGE_TAG_LENGTH);
+	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+}
+
 /**
  * @brief Get current stream type
  * @retval 10 - HLS/Clear
@@ -6525,6 +6601,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 
 	logprintf("aamp: sending metadata event and duration update %f\n", ((double)durationMs)/1000);
 	SendEventAsync(event);
+	//TODO: Send the list of available audio tracks and text tracks if listeners are registered.
 }
 
 /**
@@ -6738,6 +6815,9 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 		case eMEDIATYPE_AUDIO:
 			pbt = PROFILE_BUCKET_FRAGMENT_AUDIO;
 			break;
+		case eMEDIATYPE_SUBTITLE:
+			pbt = PROFILE_BUCKET_FRAGMENT_SUBTITLE;
+			break;
 		case eMEDIATYPE_MANIFEST:
 			pbt = PROFILE_BUCKET_MANIFEST;
 			break;
@@ -6747,11 +6827,17 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 		case eMEDIATYPE_INIT_AUDIO:
 			pbt = PROFILE_BUCKET_INIT_AUDIO;
 			break;
+		case eMEDIATYPE_INIT_SUBTITLE:
+			pbt = PROFILE_BUCKET_INIT_SUBTITLE;
+			break;
 		case eMEDIATYPE_PLAYLIST_VIDEO:
 			pbt = PROFILE_BUCKET_PLAYLIST_VIDEO;
 			break;
 		case eMEDIATYPE_PLAYLIST_AUDIO:
 			pbt = PROFILE_BUCKET_PLAYLIST_AUDIO;
+			break;
+		case eMEDIATYPE_PLAYLIST_SUBTITLE:
+			pbt = PROFILE_BUCKET_PLAYLIST_SUBTITLE;
 			break;
 		default:
 			pbt = (ProfilerBucketType)fileType;
@@ -6929,6 +7015,46 @@ void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
 		pthread_mutex_unlock(&mLock);
 	}
 	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d\n", __FUNCTION__, (int) type);
+}
+
+/**
+ *   @brief Receives base PTS for the current playback
+ *
+ *   @param[in]  pts - pts value
+ */
+void PrivateInstanceAAMP::NotifyBasePTS(unsigned long long pts)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->NotifyBasePTS(pts);
+	}
+}
+
+/**
+ *   @brief To send webvtt cue as an event
+ *
+ *   @param[in]  cue - vtt cue object
+ */
+void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
+{
+	//This function is called from an idle handler and hence we call SendEventSync
+	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA])
+	{
+		AAMPEvent ev;
+		ev.type = AAMP_EVENT_WEBVTT_CUE_DATA;
+		ev.data.cue.cueData = cue;
+		SendEventSync(ev);
+	}
+}
+
+/**
+ *   @brief To check if subtitles are enabled
+ *
+ *   @return bool - true if subtitles are enabled
+ */
+bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
+{
+	return (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
 }
 
 /**

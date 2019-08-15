@@ -301,14 +301,18 @@ public:
 	 * @param[in] basePTS new base PTS
 	 * @param[in] final true if base PTS is finalized
 	 */
-	void setBasePTS(unsigned long long basePTS, bool final)
+	void setBasePTS(unsigned long long basePTS, bool isFinal)
 	{
 		if (!trickmode)
 		{
-			NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)final);
+			NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)isFinal);
+			if (isFinal)
+			{
+				aamp->NotifyBasePTS(basePTS);
+			}
 		}
 		base_pts = basePTS;
-		finalized_base_pts = final;
+		finalized_base_pts = isFinal;
 	}
 
 	/**

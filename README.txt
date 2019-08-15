@@ -169,6 +169,7 @@ playready-output-protection=1  enable HDCP output protection for DASH-PlayReady 
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 sslverifypeer=1	Enable TLS certificate verification.
+subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 
 =================================================================================================================
 Overriding channels in aamp.cfg

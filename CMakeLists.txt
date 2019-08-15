@@ -62,7 +62,7 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 find_package (Threads REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes subtitle)
 include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${CURL_INCLUDE_DIRS})
 include_directories(${GSTREAMERBASE_INCLUDE_DIRS})
@@ -70,7 +70,7 @@ include_directories(${LIBDASH_INCLUDE_DIRS})
 include_directories(${LibXml2_INCLUDE_DIRS})
 include_directories(${OPENSSL_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES base16.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp)
+set(LIBAAMP_SOURCES base16.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp)
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")
@@ -227,4 +227,4 @@ install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)
 
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
-install(FILES drm/AampDRMSessionManager.h drm/AampDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h DESTINATION include)
+install(FILES drm/AampDRMSessionManager.h drm/AampDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h subtitle/vttCue.h DESTINATION include)
