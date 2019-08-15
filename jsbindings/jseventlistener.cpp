@@ -26,6 +26,7 @@
 #include "jseventlistener.h"
 #include "jsevent.h"
 #include "jsutils.h"
+#include "vttCue.h"
 
 
 /**
@@ -497,6 +498,53 @@ public:
 
 
 /**
+ * @class AAMP_Listener_VTTCueData
+ *
+ * @brief Event listener impl for AAMP_EVENT_WEBVTT_CUE_DATA event.
+ */
+class AAMP_Listener_VTTCueData : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_VTTCueData Constructor
+	 *
+         * @param[in] aamp instance of PrivAAMPStruct_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_VTTCueData(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+         *
+	 * @param[in]  e        AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+                JSStringRef prop;
+		VTTCue *cue = ev.data.cue.cueData;
+
+                prop = JSStringCreateWithUTF8CString("start");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mStart), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+
+                prop = JSStringCreateWithUTF8CString("duration");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mDuration), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+
+                prop = JSStringCreateWithUTF8CString("text");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, cue->mText.c_str()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -590,6 +638,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_REPORT_ANOMALY:
 			pListener = new AAMP_Listener_AnomalyReport(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_WEBVTT_CUE_DATA:
+			pListener = new AAMP_Listener_VTTCueData(obj, type, jsCallback);
 			break;
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);

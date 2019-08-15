@@ -66,6 +66,7 @@ enum ConfigParamType
 	ePARAM_LICENSEREQPROXY,
 	ePARAM_DOWNLOADSTALLTIMEOUT,
 	ePARAM_DOWNLOADSTARTTIMEOUT,
+	ePARAM_SUBTITLELANGUAGE,
 	ePARAM_MAX_COUNT
 };
 
@@ -101,6 +102,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_LICENSEREQPROXY, "licenseProxy" },
 	{ ePARAM_DOWNLOADSTALLTIMEOUT, "downloadStallTimeout" },
 	{ ePARAM_DOWNLOADSTARTTIMEOUT, "downloadStartTimeout" },
+	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -385,6 +387,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_AUDIOLANGUAGE:
 			case ePARAM_NETWORKPROXY:
 			case ePARAM_LICENSEREQPROXY:
+			case ePARAM_SUBTITLELANGUAGE:
 				ret = ParseJSPropAsString(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsString);
 				break;
 			case ePARAM_DRMCONFIG:
@@ -437,6 +440,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_DOWNLOADSTARTTIMEOUT:
 					privObj->_aamp->SetDownloadStartTimeout((long) valueAsNumber);
+					break;
+				case ePARAM_SUBTITLELANGUAGE:
+					privObj->_aamp->SetPreferredSubtitleLanguage(valueAsString);
+					delete[] valueAsString;
 					break;
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:

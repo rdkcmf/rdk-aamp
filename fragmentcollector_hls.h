@@ -401,6 +401,9 @@ public:
 	/// Function to check for live status comparing both playlist ( audio & video).Kept public as its called from outside StreamAbstraction class
 	bool IsLive();
 
+	/// Function to notify base pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
+	void NotifyBasePTS(unsigned long long pts);
+
 protected:
 	/// Function to get StreamInfo stucture based on the index input
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}

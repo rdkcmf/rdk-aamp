@@ -97,7 +97,28 @@ struct PeriodInfo {
 };
 
 
-static const char *mMediaTypeName[] = { "video", "audio" };
+static const char *mMediaTypeName[] = { "video", "audio", "text" };
+
+struct lang3to2struct_t {
+	const char *lang3;
+	const char *lang2;
+};
+
+static lang3to2struct_t langPairs[] = {
+		{ "eng", "en" },
+		{ "spa", "es" },
+		{ "fra", "fr" },
+		{ "fre", "fr" },
+		{ "ger", "de" },
+		{ "deu", "de" },
+		{ "ita", "it" },
+		{ "pol", "pl" },
+		{ "por", "pt" },
+		{ "dut", "nl" },
+		{ "rus", "ru" },
+		{ "vie", "vi" },
+		{ NULL, NULL }
+};
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 #ifdef USE_PLAYERSINKBIN
@@ -563,6 +584,13 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
 			return true;
 		}
 		break;
+
+	case eMEDIATYPE_SUBTITLE:
+		if (mimeType == "text/vtt")
+		{
+			return true;
+		}
+		break;
 	}
 	return false;
 }
@@ -921,6 +949,25 @@ static void WriteFile(char* fileName, const char* data, int len)
 	fclose(fp);
 }
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
+
+static std::string ConvertLanguage3to2(std::string inputLang)
+{
+	std::string outputLang = inputLang;
+	//Support ISO 639-2 to ISO 639-1 conversion right now
+	if (inputLang.size() == 3)
+	{
+		for(int i = 0; langPairs[i].lang3 != NULL ; i++)
+		{
+			if (strncmp(inputLang.c_str(), langPairs[i].lang3, 3) == 0)
+			{
+				outputLang = std::string(langPairs[i].lang2);
+				break;
+			}
+		}
+		traceprintf("After ConvertLanguage3to2: lang = %s\n", outputLang.c_str());
+	}
+	return outputLang;
+}
 
 /**
  * @brief Fetch and cache a fragment
@@ -2420,6 +2467,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	{
 		char *manifestUrl = (char *)aamp->GetManifestUrl();
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
+		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application\n", __FUNCTION__, __LINE__);
+			numTracks--;
+		}
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -3448,11 +3500,17 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
+
 	mNumberOfTracks = 0;
 
 	IPeriod *period = NULL;
 	bool periodAdaptSetfound = true;
 	size_t numPeriods = mpd->GetPeriods().size();
+
+	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
+	{
+		numTracks--;
+	}
 
 	do
 	{
@@ -3500,7 +3558,44 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			{
 				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
-					if (eMEDIATYPE_AUDIO == i)
+					if (eMEDIATYPE_SUBTITLE == i)
+					{
+						std::string lang = ConvertLanguage3to2(adaptationSet->GetLang());
+						if (lang == aamp->mSubLanguage)
+						{
+							//We support only plain text vtt for now
+							const char* supportedMimeType = "text/vtt";
+							std::string adaptationMimeType = adaptationSet->GetMimeType();
+							if (!adaptationMimeType.empty())
+							{
+								if (adaptationMimeType == supportedMimeType)
+								{
+									selAdaptationSetIndex = iAdaptationSet;
+									selRepresentationIndex = 0;
+								}
+							}
+							else
+							{
+								const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+								for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+								{
+									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+									std::string mimeType = rep->GetMimeType();
+									if (!mimeType.empty() && (mimeType == supportedMimeType))
+									{
+										selAdaptationSetIndex = iAdaptationSet;
+										selRepresentationIndex = representationIndex;
+									}
+								}
+							}
+							if (selAdaptationSetIndex != iAdaptationSet)
+							{
+								//Even though language matched, mimeType is missing or not supported right now. Log for now
+								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!\n", __FUNCTION__, __LINE__, lang.c_str());
+							}
+						}
+					}
+					else if (eMEDIATYPE_AUDIO == i)
 					{
 						std::string lang = adaptationSet->GetLang();
 						internalSelRepType = selectedRepType;
@@ -4981,6 +5076,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
+	AbortWaitForAudioTrackCatchup();
 	mPriv->Stop();
 	aamp->EnableDownloads();
 }

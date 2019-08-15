@@ -94,6 +94,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_AD_COMPLETED, "contentCompleted"},
 	{ AAMP_EVENT_DRM_METADATA, "drmMetadata"},
 	{ AAMP_EVENT_REPORT_ANOMALY, "anomalyReport" },
+	{ AAMP_EVENT_WEBVTT_CUE_DATA, "vttCueDataListener" },
 	{ (AAMPEventType)0, "" }
 };
 
