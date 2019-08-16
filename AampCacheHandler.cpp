@@ -27,9 +27,9 @@ AampCacheHandler * AampCacheHandler::mInstance = NULL;
  * @param buffer Contains the playlist
  * @param effectiveUrl Effective URL of playlist
  */
-void AampCacheHandler::InsertToPlaylistCache(std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType)
+void AampCacheHandler::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType)
 {
-	PlayListCachedData *tmpData;
+	PlayListCachedData *tmpData,*newtmpData;
 	pthread_mutex_lock(&mMutex);
 
 	// First check point , Caching is allowed only if its VOD and for Main Manifest(HLS) for both VOD/Live
@@ -66,11 +66,32 @@ void AampCacheHandler::InsertToPlaylistCache(std::string url, const GrowableBuff
 					tmpData->mCachedBuffer = new GrowableBuffer();
 					memset (tmpData->mCachedBuffer, 0, sizeof(GrowableBuffer));
 					aamp_AppendBytes(tmpData->mCachedBuffer, buffer->ptr, buffer->len );
+
 					tmpData->mEffectiveUrl = effectiveUrl;
 					tmpData->mFileType = fileType;
 					mPlaylistCache[url] = tmpData;
 					mCacheStoredSize += buffer->len;
-					AAMPLOG_INFO("[%s][%d]  Inserted. url %s %s\n", __FUNCTION__, __LINE__, url.c_str(),effectiveUrl.c_str());
+					AAMPLOG_INFO("[%s][%d]  Inserted. url %s\n", __FUNCTION__, __LINE__, url.c_str());
+					// There are cases where Main url and effective url will be different ( for Main manifest)
+					// Need to store both the entries with same content data 
+					// When retune happens within aamp due to failure , effective url wll be asked to read from cached manifest
+					// When retune happens from JS , regular Main url will be asked to read from cached manifest. 
+					// So need to have two entries in cache table but both pointing to same CachedBuffer (no space is consumed for storage)
+					{						
+						// if n only there is diff in url , need to store both
+						if(url != effectiveUrl)
+						{
+							newtmpData = new PlayListCachedData();
+							// Not to allocate for Cachebuffer again , use the same buffer as above
+							newtmpData->mCachedBuffer = tmpData->mCachedBuffer;
+							newtmpData->mEffectiveUrl = effectiveUrl;
+							// This is a duplicate entry
+							newtmpData->mDuplicateEntry = true;
+							newtmpData->mFileType = fileType;
+							mPlaylistCache[effectiveUrl] = newtmpData;
+							AAMPLOG_INFO("[%s][%d]Added an effective url entry %s\n", __FUNCTION__, __LINE__, effectiveUrl.c_str());
+						}
+					}
 				}
 			}
 		}
@@ -124,8 +145,11 @@ void AampCacheHandler::ClearPlaylistCache()
 	for (;it != mPlaylistCache.end(); it++)
 	{
 		PlayListCachedData *tmpData = it->second;
-		aamp_Free(&tmpData->mCachedBuffer->ptr);
-		delete tmpData->mCachedBuffer;
+		if(!tmpData->mDuplicateEntry)
+		{
+			aamp_Free(&tmpData->mCachedBuffer->ptr);
+			delete tmpData->mCachedBuffer;
+		}
 		delete tmpData;
 	}
 	mCacheStoredSize = 0;

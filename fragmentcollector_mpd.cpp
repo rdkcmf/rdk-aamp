@@ -3060,6 +3060,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
 	std::string manifestUrl = aamp->GetManifestUrl();
+	
+	// take the original url before it gets changed in GetFile
+	std::string origManifestUrl = manifestUrl;
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
@@ -3144,9 +3147,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			this->mpd = mpd;
 			mIsLive = !(mpd->GetType() == "static");
 			aamp->SetIsLive(mIsLive);
-			if (!retrievedPlaylistFromCache)
+			if (!retrievedPlaylistFromCache && !mIsLive)
 			{
-				AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &manifest, aamp->GetManifestUrl(), mIsLive);
+				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive);
 			}
 		}
 		else
