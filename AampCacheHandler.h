@@ -32,12 +32,13 @@ typedef struct playlistcacheddata{
 	std::string mEffectiveUrl;
 	GrowableBuffer* mCachedBuffer;
 	MediaType mFileType;
+	bool mDuplicateEntry;
 
-	playlistcacheddata() : mEffectiveUrl(""), mCachedBuffer(NULL), mFileType(eMEDIATYPE_DEFAULT)
+	playlistcacheddata() : mEffectiveUrl(""), mCachedBuffer(NULL), mFileType(eMEDIATYPE_DEFAULT),mDuplicateEntry(false)
 	{
 	}
 
-	playlistcacheddata(const playlistcacheddata& p) : mEffectiveUrl(p.mEffectiveUrl), mCachedBuffer(p.mCachedBuffer), mFileType(p.mFileType)
+	playlistcacheddata(const playlistcacheddata& p) : mEffectiveUrl(p.mEffectiveUrl), mCachedBuffer(p.mCachedBuffer), mFileType(p.mFileType),mDuplicateEntry(p.mDuplicateEntry)
 	{
 		mCachedBuffer->ptr = p.mCachedBuffer->ptr;
 		mCachedBuffer->len = p.mCachedBuffer->len;
@@ -49,6 +50,7 @@ typedef struct playlistcacheddata{
 		mEffectiveUrl = p.mEffectiveUrl;
 		mCachedBuffer = p.mCachedBuffer;
 		mFileType = p.mFileType;
+		mDuplicateEntry = p.mDuplicateEntry;
 		return *this;
 	}
 

@@ -2258,7 +2258,10 @@ void TrackState::IndexPlaylist()
 		}
 		// DELIA-35008 When setting live status to stream , check the playlist type of both video/audio(demuxed)
 		aamp->SetIsLive(context->IsLive());
-		AampCacheHandler::GetInstance()->InsertToPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl,IsLive(),(MediaType)type);
+		if(!IsLive())
+		{
+			AampCacheHandler::GetInstance()->InsertToPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl,IsLive(),(MediaType)type);
+		}
 		if(eTRACK_VIDEO == type)
 		{
 			aamp->UpdateDuration(totalDuration);
@@ -2410,7 +2413,14 @@ void TrackState::RefreshPlaylist(void)
 	}
 
 	// DELIA-34993 -> Refresh playlist gets called on ABR profile change . For VOD if already present , pull from cache. 
-	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl) == false) {
+	bool bCacheRead = false;
+	if (!IsLive())
+	{
+		bCacheRead = AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(mPlaylistUrl, &playlist, mEffectiveUrl);
+	}
+	// failed to read from cache , then download it 
+	if(!bCacheRead)
+	{
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
 		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
@@ -2992,6 +3002,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest\n", __FUNCTION__, __LINE__);
+		// take the original url before its gets changed in GetFile
+		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
@@ -2999,7 +3011,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 			traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloaded manifest\n", __FUNCTION__, __LINE__);
-			AampCacheHandler::GetInstance()->InsertToPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
+			AampCacheHandler::GetInstance()->InsertToPlaylistCache(mainManifestOrigUrl, &mainManifest, aamp->GetManifestUrl(),false,eMEDIATYPE_MANIFEST);
 		}
 		else
 		{
