@@ -75,8 +75,6 @@ typedef enum {
 #define GSTPLAYERSINKBIN_EVENT_ERROR_VIDEO_PTS 0x08
 #define GSTPLAYERSINKBIN_EVENT_ERROR_AUDIO_PTS 0x09
 
-#define USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
-
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
@@ -122,11 +120,9 @@ struct AAMPGstPlayerPriv
 	guint64 total_bytes;
 	gint n_audio; //Number of audio tracks.
 	gint current_audio; //Offset of current audio track.
-#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 	guint firstProgressCallbackIdleTaskId; //ID of idle handler created for notifying first progress event.
 	std::atomic<bool> firstProgressCallbackIdleTaskPending; //Set if any first progress callback is pending.
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
-#endif
 	GstElement *video_dec; //Video decoder used by pipeline.
 	GstElement *audio_dec; //Audio decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
@@ -442,43 +438,6 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	gst_caps_unref(caps);
 }
 
-#ifdef DEBUG_GST_MESSAGE_TAG
-
-/**
- * @brief Calls this function for each tag inside the tag list
- * @param[in] list the GstTagList
- * @param[in] tag a name of a tag in list
- * @param[in] user_data user data provided when registering callback
- */
-static void print_tag( const GstTagList * list, const gchar * tag, gpointer user_data)
-{
-	guint count = gst_tag_list_get_tag_size(list, tag);
-	for ( guint i = 0; i < count; i++)
-	{
-		gchar *str = NULL;
-		if (gst_tag_get_type(tag) == G_TYPE_STRING)
-		{
-			if (!gst_tag_list_get_string_index(list, tag, i, &str))
-			{
-				g_assert_not_reached();
-			}
-		}
-		else
-		{
-			str = g_strdup_value_contents(gst_tag_list_get_value_index(list, tag, i));
-		}
-		if (i == 0)
-		{
-			g_print("  %15s: %s\n", gst_tag_get_nick(tag), str);
-		}
-		else
-		{
-			g_print("                 : %s\n", str);
-		}
-		g_free(str);
-	}
-}
-#endif
 
 
 /**
@@ -511,7 +470,6 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
-#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 
 
 /**
@@ -543,7 +501,6 @@ static gboolean IdleCallback(gpointer user_data)
 	logprintf("%s:%d current %d, periodicProgressCallbackIdleTaskId %d \n", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 	return G_SOURCE_REMOVE;
 }
-#endif
 
 /**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
@@ -571,7 +528,6 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				privateContext->firstFrameCallbackIdleTaskId = 0;
 			}
 		}
-#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 		if (privateContext->firstProgressCallbackIdleTaskId == 0)
 		{
 			privateContext->firstProgressCallbackIdleTaskPending = true;
@@ -582,7 +538,6 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				privateContext->firstProgressCallbackIdleTaskId = 0;
 			}
 		}
-#endif
 	}
 }
 
@@ -593,11 +548,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
  * @param[in] arg1 array of arguments
  * @param[in] _this pointer to AAMPGstPlayer instance
  */
-static void AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder(GstElement* object, guint arg0, gpointer arg1,
+static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint arg0, gpointer arg1,
 	AAMPGstPlayer * _this)
 
 {
-	logprintf("AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder. got First Video Frame\n");
+	logprintf("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame\n");
 	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 
 }
@@ -872,9 +827,9 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				_this->aamp->NotifyFirstFrameReceived();
 #endif
 
-#if defined(USE_IDLE_LOOP_FOR_PROGRESS_REPORTING) && (defined(INTELCE))
+#if defined(INTELCE)
 				//Note: Progress event should be sent after the decoderAvailable event only.
-				//BRCM platform sends progress event after AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder.
+				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
 				{
 					_this->privateContext->firstProgressCallbackIdleTaskId = g_idle_add(IdleCallback, _this);
@@ -910,15 +865,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
 					g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
 					g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
-					g_object_set(msg->src, "enable-reject-preroll", FALSE, NULL);
 				}
 				else if (memcmp(GST_OBJECT_NAME(msg->src), "brcmaudiosink", 13) == 0)
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
 
 					_this->setVolumeOrMuteUnMute();
-
-					g_object_set(msg->src, "enable_reject_preroll", FALSE, NULL);
 				}
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
@@ -977,15 +929,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		break;
 
 	case GST_MESSAGE_TAG:
-#ifdef DEBUG_GST_MESSAGE_TAG
-		logprintf("GST_MESSAGE_TAG\n");
-		{
-			GstTagList *tags = NULL;
-			gst_message_parse_tag(msg, &tags);
-			gst_tag_list_foreach(tags, print_tag, NULL);
-			gst_tag_list_free(tags);
-		}
-#endif
 		break;
 
 	case GST_MESSAGE_QOS:
@@ -1073,7 +1016,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
-									G_CALLBACK(AAMPGstPlayer_OnVideoFirstFrameBrcmVidDecoder), _this);
+									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
 				}
 				else
 				{
@@ -2035,7 +1978,6 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	{
 		privateContext->firstFrameReceived = false;
 	}
-#ifdef USE_IDLE_LOOP_FOR_PROGRESS_REPORTING
 	if (privateContext->firstProgressCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove firstProgressCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->firstProgressCallbackIdleTaskId);
@@ -2055,7 +1997,6 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		g_source_remove(privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
 		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
 	}
-#endif
 	if (this->privateContext->eosCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove eosCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
@@ -2283,23 +2224,6 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	logprintf("exiting AAMPGstPlayer_FlushEvent\n");
 	aamp->SyncEnd();
 }
-
-
-/**
- * @brief Select a particular audio track (for playbin)
- * @param[in] index index of audio track to be selected
- */
-void AAMPGstPlayer::SelectAudio(int index)
-{
-#ifdef SUPPORT_MULTI_AUDIO
-	if (index >= 0 && index < appContext->n_audio)
-	{
-		privateContext->current_audio = index;
-		g_object_set(privateContext->stream[eMEDIATYPE_VIDEO].sinkbin, "current-audio", privateContext->current_audio, NULL);
-	}
-#endif
-}
-
 
 /**
  * @brief Get playback position in MS
