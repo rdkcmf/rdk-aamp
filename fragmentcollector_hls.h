@@ -318,6 +318,7 @@ private:
 	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
 	PlaylistType mPlaylistType;		/**< Playlist Type */
 	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
+	bool mByteOffsetCalculation;            /**< Flag used to calculte byte offset from byte length for fragmented streams */
 };
 
 class StreamAbstractionAAMP_HLS;

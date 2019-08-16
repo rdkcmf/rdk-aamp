@@ -1002,6 +1002,12 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 						byteRangeOffset = atoi(offsetDelim);
 					}
 					byteRangeLength = atoi(temp);
+					mByteOffsetCalculation = true;
+					if (0 != byteRangeLength && 0 == byteRangeOffset)
+					{
+						byteRangeOffset = this->byteRangeOffset + this->byteRangeLength;
+					}
+					AAMPLOG_TRACE("%s:%d byteRangeOffset:%d Last played fragment Offset:%d byteRangeLength:%d Last fragment Length:%d\n\n", __FUNCTION__,__LINE__, byteRangeOffset, this->byteRangeOffset, byteRangeLength, this->byteRangeLength);
 				}
 				else if (startswith(&ptr, "-X-TARGETDURATION:"))
 				{ // max media segment duration; required; appears once
@@ -1161,6 +1167,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					//logprintf("Return fragment %s playlistPosition %f playTarget %f\n", ptr, playlistPosition, playTarget);
 					this->byteRangeOffset = byteRangeOffset;
 					this->byteRangeLength = byteRangeLength;
+					mByteOffsetCalculation = false;
 					if (discontinuity)
 					{
 						if (!ignoreDiscontinuity)
@@ -1227,6 +1234,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				}
 				else
 				{
+					if(mByteOffsetCalculation)
+					{
+						byteRangeOffset += byteRangeLength;
+					}
 					discontinuity = false;
 					programDateTime = NULL;
 					// logprintf("Skipping fragment %s playlistPosition %f playTarget %f\n", ptr, playlistPosition, playTarget);
@@ -2584,7 +2595,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 //	#ifdef TRACE
 						logprintf("GetPlaylistURI checking if preferred language '%s' matches media[%d] language '%s'\n", aamp->language, i, this->mediaInfo[i].language);
 //	#endif
-						if ((aamp->language[0] && this->mediaInfo[i].language && strncmp(aamp->language, this->mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH)==0) || (langChecks == 1 && this->mediaInfo[i].isDefault))
+						if ((aamp->language[0] && this->mediaInfo[i].language && strncmp(aamp->language, this->mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH)==0) || (langChecks == 1 && (this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect)))
 						{
 							foundAudio = true;
 							if(langChecks == 1)
@@ -4268,7 +4279,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		index(), targetDurationSeconds(1), mDeferredDrmKeyMaxTime(0), startTimeForPlaylistSync(),
 		context(parent), fragmentEncrypted(false), mKeyTagChanged(false), mLastKeyTagIdx(0), mDrmInfo(),
 		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
-		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false)
+		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
+		mByteOffsetCalculation(false)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
