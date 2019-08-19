@@ -4256,7 +4256,7 @@ double PrivateStreamAbstractionMPD::GetCulledSeconds()
 						{
 							uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
 							culled += ((double)timeDiff / (double)timescale);
-							logprintf("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f\n", __FUNCTION__, __LINE__,
+							AAMPLOG_INFO("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f\n", __FUNCTION__, __LINE__,
 												prevPeriodInfo.periodId.c_str(), prevPeriodInfo.startTime, currFirstPeriodInfo.startTime, culled);
 						}
 						break;
@@ -4786,7 +4786,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
-			logprintf("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);
+			AAMPLOG_INFO("MPD has %d periods current period index %d\n", numPeriods, mCurrentPeriodIdx);
 			while(iPeriod < numPeriods && iPeriod >= 0 && !exitFetchLoop)
 			{
 				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
@@ -4916,7 +4916,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 						if(culled > 0)
 						{
-							logprintf("%s:%d Culled seconds = %f\n", __FUNCTION__, __LINE__, culled);
+							AAMPLOG_INFO("%s:%d Culled seconds = %f\n", __FUNCTION__, __LINE__, culled);
 							aamp->UpdateCullingState(culled);
 							mCulledSeconds += culled;
 						}
@@ -5290,7 +5290,7 @@ NEEDFRAGMENTS:
 			//Periods could be added or removed, So select period based on periodID
 			//If period ID not found in MPD that means it got culled, in that case select
 			// first period
-			logprintf("Updating period index after mpd refresh\n");
+			AAMPLOG_INFO("Updating period index after mpd refresh\n");
 			vector<IPeriod *> periods = mpd->GetPeriods();
 			int iter = periods.size() - 1;
 			mCurrentPeriodIdx = 0;
