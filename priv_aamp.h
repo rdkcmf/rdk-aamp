@@ -550,6 +550,7 @@ public:
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
+	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 public:
 
 	/**
@@ -582,6 +583,7 @@ public:
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, enableClientDai(false), playAdFromCDN(false), disableSslVerifyPeer(true)
+		,mEnableVideoEndEvent(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

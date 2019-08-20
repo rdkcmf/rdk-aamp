@@ -169,6 +169,7 @@ wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5x
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30
 						will default to 2 if out of range value is given
 sslverifypeer=1	Enable TLS certificate verification.
+enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -285,7 +286,6 @@ ls = license statistics
 ms = manifest statistics
 fs = fragment statistics
 
-r = total license rotations / stream switches
 e = encrypted to clear switches
 c = clear to encrypted switches
 
