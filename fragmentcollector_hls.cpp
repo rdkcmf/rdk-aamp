@@ -68,7 +68,7 @@
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
-#define IS_FOR_IFRAME(type) ((type == eTRACK_VIDEO) && (aamp->rate != AAMP_NORMAL_PLAY_RATE))
+#define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
 /**
 * \struct	FormatMap
@@ -1537,6 +1537,7 @@ void TrackState::FetchFragment()
 	context->mCheckForRampdown = false;
         bool bKeyChanged = false;
         int iFogErrorCode = -1;
+	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 	if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode) && aamp->DownloadsAreEnabled() )
 	{
 		if (fragmentURI )
@@ -1578,7 +1579,7 @@ void TrackState::FetchFragment()
 		// hence getting from context which is updated in FetchFragmentHelper
 		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
 								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
 
@@ -1613,7 +1614,7 @@ void TrackState::FetchFragment()
 		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
 
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
 								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
 	}
@@ -2422,10 +2423,11 @@ void TrackState::RefreshPlaylist(void)
 	// failed to read from cache , then download it 
 	if(!bCacheRead)
 	{
+		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
 		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
-		if(IS_FOR_IFRAME(type))
+		if(IS_FOR_IFRAME(iCurrentRate,type))
 		{
 			actualType = eMEDIATYPE_PLAYLIST_IFRAME;
 		}
@@ -4511,10 +4513,11 @@ void TrackState::FetchPlaylist()
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
+		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 		MediaType mType = (this->type == eTRACK_AUDIO)?eMEDIATYPE_PLAYLIST_AUDIO:eMEDIATYPE_PLAYLIST_VIDEO;
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, mType);
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),(this->GetCurrentBandWidth()*8),
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),(this->GetCurrentBandWidth()*8),
 									http_error,mEffectiveUrl);
 		if(playlist.len)
 		{
@@ -4849,11 +4852,12 @@ bool TrackState::FetchInitFragment(long &http_code)
 			WaitForFreeFragmentAvailable();
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			logprintf("%s:%d fragmentUrl = %s \n", __FUNCTION__, __LINE__, fragmentUrl.c_str());
+			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false, (MediaType) (type));
 
 			MediaType actualType = eMEDIATYPE_INIT_VIDEO ;
-			if(IS_FOR_IFRAME(type))
+			if(IS_FOR_IFRAME(iCurrentRate,type))
 			{
 				actualType = eMEDIATYPE_INIT_IFRAME;
 			}

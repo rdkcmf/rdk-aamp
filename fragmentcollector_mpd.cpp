@@ -238,10 +238,11 @@ public:
 		{
 			std::string effectiveUrl;
 			int iFogError = -1;
+			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
 						range, actualType, &http_code, &bitrate, & iFogError);
 
-			if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
+			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 			{
 				actualType = eMEDIATYPE_IFRAME;
 				if(actualType == eMEDIATYPE_INIT_VIDEO)
@@ -1437,9 +1438,10 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				std::string effectiveUrl;
 				long http_code;
 				int iFogError = -1;
+				int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
 
-				if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
+				if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 				{
 					actualType = eMEDIATYPE_IFRAME;
 					if(actualType == eMEDIATYPE_INIT_VIDEO)

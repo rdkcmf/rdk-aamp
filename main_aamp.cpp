@@ -2875,6 +2875,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->fogSupportsDash = (value != 0);
 			logprintf("fog-dash=%d\n", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "enable_videoend_event=", value) == 1)
+		{
+			gpGlobalConfig->mEnableVideoEndEvent = (value==1);
+			logprintf("enable_videoend_event=%d\n", gpGlobalConfig->mEnableVideoEndEvent);
+		}
 		else if (ReadConfigNumericHelper(cfg, "fog=", value) == 1)
 		{
 			gpGlobalConfig->noFog = (value==0);
@@ -3869,7 +3874,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	{
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
-		SendVideoEndEvent();
+		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
+		if(gpGlobalConfig->mEnableVideoEndEvent)
+		{
+			SendVideoEndEvent();
+		}
 
 		// initialize defaults
 		SetState(eSTATE_INITIALIZING);
@@ -6272,13 +6281,16 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
-	pthread_mutex_lock(&mLock);
-	if(mVideoEnd)
+	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
 	{
+		pthread_mutex_lock(&mLock);
+		if(mVideoEnd)
+		{
 
-		mVideoEnd->SetTsbStatus(btsbAvailable);
+			mVideoEnd->SetTsbStatus(btsbAvailable);
+		}
+		pthread_mutex_unlock(&mLock);
 	}
-	pthread_mutex_unlock(&mLock);
 }
     
 
@@ -6293,178 +6305,181 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, bool keyChanged, bool isEncrypted)
 {
-	AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f keyChan:%d encry:%d",
+	if(gpGlobalConfig->mEnableVideoEndEvent)
+	{
+		AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f keyChan:%d encry:%d",
 			mediaType, bitrate , curlOrHTTPCode,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration,keyChanged,isEncrypted );
 
-	// ignore for write and aborted errors
-	// these are generated after trick play options,
-	if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
-	{
-
-
-		VideoStatDataType dataType = VideoStatDataType::VE_DATA_UNKNOWN;
-
-		VideoStatTrackType trackType = VideoStatTrackType::STAT_UNKNOWN;
-		VideoStatCountType eCountType = VideoStatCountType::COUNT_UNKNOWN;
-
-	/*	COUNT_UNKNOWN,
-		COUNT_LIC_TOTAL,
-		COUNT_LIC_ENC_TO_CLR,
-		COUNT_LIC_CLR_TO_ENC,
-		COUNT_STALL,
-		COUNT_4XX,
-		COUNT_5XX,
-		COUNT_CURL, // all other curl errors except timeout
-		COUNT_CURL_TIMEOUT,
-		COUNT_SUCCESS*/
-
-		if (curlOrHTTPCode < 100)
+		// ignore for write and aborted errors
+		// these are generated after trick play options,
+		if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
 		{
 
-			if( curlOrHTTPCode == CURLE_OPERATION_TIMEDOUT)
+
+			VideoStatDataType dataType = VideoStatDataType::VE_DATA_UNKNOWN;
+
+			VideoStatTrackType trackType = VideoStatTrackType::STAT_UNKNOWN;
+			VideoStatCountType eCountType = VideoStatCountType::COUNT_UNKNOWN;
+
+		/*	COUNT_UNKNOWN,
+			COUNT_LIC_TOTAL,
+			COUNT_LIC_ENC_TO_CLR,
+			COUNT_LIC_CLR_TO_ENC,
+			COUNT_STALL,
+			COUNT_4XX,
+			COUNT_5XX,
+			COUNT_CURL, // all other curl errors except timeout
+			COUNT_CURL_TIMEOUT,
+			COUNT_SUCCESS*/
+
+			if (curlOrHTTPCode < 100)
 			{
-				eCountType = COUNT_CURL_TIMEOUT;
+
+				if( curlOrHTTPCode == CURLE_OPERATION_TIMEDOUT)
+				{
+					eCountType = COUNT_CURL_TIMEOUT;
+				}
+				else
+				{
+					eCountType = COUNT_CURL;
+				}
+			}
+			else if (curlOrHTTPCode == 200 || curlOrHTTPCode == 206)
+			{
+				//success
+				eCountType = COUNT_SUCCESS;
+			}
+			else if (curlOrHTTPCode >= 500 )
+			{
+				eCountType = COUNT_5XX;
+			}
+			else // everything else is 4XX
+			{
+				eCountType = COUNT_4XX;
+			}
+
+
+			switch(mediaType)
+			{
+				case eMEDIATYPE_MANIFEST:
+				{
+					dataType = VideoStatDataType::VE_DATA_MANIFEST;
+					trackType = VideoStatTrackType::STAT_MAIN;
+				}
+					break;
+
+				case eMEDIATYPE_PLAYLIST_VIDEO:
+				{
+					dataType = VideoStatDataType::VE_DATA_MANIFEST;
+					trackType = VideoStatTrackType::STAT_VIDEO;
+				}
+					break;
+
+				case eMEDIATYPE_PLAYLIST_AUDIO:
+				{
+					dataType = VideoStatDataType::VE_DATA_MANIFEST;
+					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+				}
+					break;
+
+				case eMEDIATYPE_PLAYLIST_IFRAME:
+				{
+					dataType = VideoStatDataType::VE_DATA_MANIFEST;
+					trackType = STAT_IFRAME;
+				}
+					break;
+
+				case eMEDIATYPE_VIDEO:
+				{
+					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+					trackType = VideoStatTrackType::STAT_VIDEO;
+					// always Video fragment will be from same thread so mutex required
+
+	// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
+					//Is success
+					if (eCountType == COUNT_SUCCESS  && duration > 0)
+					{
+						long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
+						if(maxBitrateSupported == bitrate)
+						{
+							mTimeAtTopProfile += duration;
+						}
+
+						if(mTimeAtTopProfile == 0) // we havent achived top profile yet
+						{
+							mTimeToTopProfile += duration; // started at top profile
+						}
+
+						mPlaybackDuration += duration;
+					}
+
+				}
+					break;
+				case eMEDIATYPE_AUDIO:
+				{
+					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+				}
+					break;
+				case eMEDIATYPE_IFRAME:
+				{
+					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+					trackType = VideoStatTrackType::STAT_IFRAME;
+				}
+					break;
+
+				case eMEDIATYPE_INIT_IFRAME:
+				{
+					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+					trackType = VideoStatTrackType::STAT_IFRAME;
+				}
+					break;
+
+				case eMEDIATYPE_INIT_VIDEO:
+				{
+					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+					trackType = VideoStatTrackType::STAT_VIDEO;
+				}
+					break;
+
+				case eMEDIATYPE_INIT_AUDIO:
+				{
+					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+				}
+					break;
+				default:
+					break;
+			}
+
+
+			// Required for protecting mVideoStat object
+			if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
+					&& trackType != VideoStatTrackType::STAT_UNKNOWN
+					&& eCountType != VideoStatCountType::COUNT_UNKNOWN )
+			{
+				pthread_mutex_lock(&mLock);
+				if(mVideoEnd)
+				{
+					mVideoEnd->Increment_Data(dataType,trackType,eCountType,bitrate);
+					if(eCountType != COUNT_SUCCESS && strUrl.c_str())
+					{
+						//set failure url
+						mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
+					}
+					if(dataType == VideoStatDataType::VE_DATA_FRAGMENT)
+					{
+						mVideoEnd->Record_License_EncryptionStat(trackType,isEncrypted,keyChanged);
+					}
+				}
+				pthread_mutex_unlock(&mLock);
+
 			}
 			else
 			{
-				eCountType = COUNT_CURL;
+				AAMPLOG_INFO("PrivateInstanceAAMP::%s - Could Not update VideoEnd Event dataType:%d trackType:%d eCountType:%d\n", __FUNCTION__,
+						dataType,trackType,eCountType);
 			}
-		}
-		else if (curlOrHTTPCode == 200 || curlOrHTTPCode == 206)
-		{
-			//success
-			eCountType = COUNT_SUCCESS;
-		}
-		else if (curlOrHTTPCode >= 500 )
-		{
-			eCountType = COUNT_5XX;
-		}
-		else // everything else is 4XX
-		{
-			eCountType = COUNT_4XX;
-		}
-
-
-		switch(mediaType)
-		{
-			case eMEDIATYPE_MANIFEST:
-			{
-				dataType = VideoStatDataType::VE_DATA_MANIFEST;
-				trackType = VideoStatTrackType::STAT_MAIN;
-			}
-				break;
-
-			case eMEDIATYPE_PLAYLIST_VIDEO:
-			{
-				dataType = VideoStatDataType::VE_DATA_MANIFEST;
-				trackType = VideoStatTrackType::STAT_VIDEO;
-			}
-				break;
-
-			case eMEDIATYPE_PLAYLIST_AUDIO:
-			{
-				dataType = VideoStatDataType::VE_DATA_MANIFEST;
-				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
-			}
-				break;
-
-			case eMEDIATYPE_PLAYLIST_IFRAME:
-			{
-				dataType = VideoStatDataType::VE_DATA_MANIFEST;
-				trackType = STAT_IFRAME;
-			}
-				break;
-
-			case eMEDIATYPE_VIDEO:
-			{
-				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-				trackType = VideoStatTrackType::STAT_VIDEO;
-				// always Video fragment will be from same thread so mutex required
-
-// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
-				//Is success
-				if (eCountType == COUNT_SUCCESS  && duration > 0)
-				{
-					long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
-					if(maxBitrateSupported == bitrate)
-					{
-						mTimeAtTopProfile += duration;
-					}
-
-					if(mTimeAtTopProfile == 0) // we havent achived top profile yet
-					{
-						mTimeToTopProfile += duration; // started at top profile
-					}
-
-					mPlaybackDuration += duration;
-				}
-
-			}
-				break;
-			case eMEDIATYPE_AUDIO:
-			{
-				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
-			}
-				break;
-			case eMEDIATYPE_IFRAME:
-			{
-				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-				trackType = VideoStatTrackType::STAT_IFRAME;
-			}
-				break;
-
-			case eMEDIATYPE_INIT_IFRAME:
-			{
-				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-				trackType = VideoStatTrackType::STAT_IFRAME;
-			}
-				break;
-
-			case eMEDIATYPE_INIT_VIDEO:
-			{
-				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-				trackType = VideoStatTrackType::STAT_VIDEO;
-			}
-				break;
-
-			case eMEDIATYPE_INIT_AUDIO:
-			{
-				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-				trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
-			}
-				break;
-			default:
-				break;
-		}
-
-
-		// Required for protecting mVideoStat object
-		if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
-				&& trackType != VideoStatTrackType::STAT_UNKNOWN
-				&& eCountType != VideoStatCountType::COUNT_UNKNOWN )
-		{
-			pthread_mutex_lock(&mLock);
-			if(mVideoEnd)
-			{
-				mVideoEnd->Increment_Data(dataType,trackType,eCountType,bitrate);
-				if(eCountType != COUNT_SUCCESS && strUrl.c_str())
-				{
-					//set failure url
-					mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
-				}
-				if(dataType == VideoStatDataType::VE_DATA_FRAGMENT) 
-				{
-					mVideoEnd->Record_License_EncryptionStat(trackType,isEncrypted,keyChanged);
-				}
-			}
-			pthread_mutex_unlock(&mLock);
-
-		}
-		else
-		{
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s - Could Not update VideoEnd Event dataType:%d trackType:%d eCountType:%d\n", __FUNCTION__,
-					dataType,trackType,eCountType);
 		}
 	}
 }
@@ -6478,29 +6493,32 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
-	//only for Ramp down case
-	if(info.desiredProfileIndex < info.currentProfileIndex)
+	if(gpGlobalConfig->mEnableVideoEndEvent)
 	{
-		AAMPLOG_INFO("UpdateVideoEnd:abrinfo currIdx:%d desiredIdx:%d for:%d",  info.currentProfileIndex,info.desiredProfileIndex,info.abrCalledFor);
+		//only for Ramp down case
+		if(info.desiredProfileIndex < info.currentProfileIndex)
+		{
+			AAMPLOG_INFO("UpdateVideoEnd:abrinfo currIdx:%d desiredIdx:%d for:%d",  info.currentProfileIndex,info.desiredProfileIndex,info.abrCalledFor);
 
-		if(info.abrCalledFor == AAMPAbrType::AAMPAbrBandwidthUpdate)
-		{
-			pthread_mutex_lock(&mLock);
-			if(mVideoEnd)
+			if(info.abrCalledFor == AAMPAbrType::AAMPAbrBandwidthUpdate)
 			{
-				mVideoEnd->Increment_AbrNetworkDropCount();
+				pthread_mutex_lock(&mLock);
+				if(mVideoEnd)
+				{
+					mVideoEnd->Increment_AbrNetworkDropCount();
+				}
+				pthread_mutex_unlock(&mLock);
 			}
-			pthread_mutex_unlock(&mLock);
-		}
-		else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
-				|| info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
-		{
-			pthread_mutex_lock(&mLock);
-			if(mVideoEnd)
+			else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
+					|| info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
 			{
-				mVideoEnd->Increment_AbrErrorDropCount();
+				pthread_mutex_lock(&mLock);
+				if(mVideoEnd)
+				{
+					mVideoEnd->Increment_AbrErrorDropCount();
+				}
+				pthread_mutex_unlock(&mLock);
 			}
-			pthread_mutex_unlock(&mLock);
 		}
 	}
 }
