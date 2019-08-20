@@ -551,6 +551,7 @@ public:
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
+	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 public:
 
 	/**
@@ -585,6 +586,7 @@ public:
 		, disableSslVerifyPeer(true)
 		,mSubtitleLanguage()
 		, enableClientDai(false), playAdFromCDN(false)
+		,mEnableVideoEndEvent(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
