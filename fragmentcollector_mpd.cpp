@@ -926,7 +926,7 @@ static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *
 	}
 	else
 	{
-		logprintf("%s:%d BaseURL not available\n", __FUNCTION__, __LINE__);
+		AAMPLOG_TRACE("%s:%d BaseURL not available\n", __FUNCTION__, __LINE__);
 	}
 	constructedUri += media;
 
