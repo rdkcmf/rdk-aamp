@@ -1313,7 +1313,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		logprintf("%s:%d Error in getting license challenge for %s stream : Key State %d \n",
 					__FUNCTION__, __LINE__, sessionTypeName[streamType], code);
-		aamp->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC);
+		aamp->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC, AAMP_TUNE_DRM_CHALLENGE_FAILED);
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_CHALLENGE_FAILED;
 	}
 

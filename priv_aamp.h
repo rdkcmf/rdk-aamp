@@ -864,6 +864,9 @@ private:
 	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
 	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
 
+	ProfilerBucketType mTuneFailBucketType;  /* ProfilerBucketType in case of error */
+	int mTuneFailErrorCode;			/* tune Fail Error Code */
+
 	/**
 	 * @brief Calculating effective time of two overlapping buckets.
 	 *
@@ -885,7 +888,8 @@ public:
 	 * @brief ProfileEventAAMP Constructor
 	 */
 	ProfileEventAAMP() : tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
-        bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(), tuneEventListMtx()
+        bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(), tuneEventListMtx(),
+	mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0)
 	{
 	}
 
@@ -970,7 +974,8 @@ public:
 				//TODO: It should be the duration relative to XRE start time.
 				<< ",\"td\":" << (tEndTime - tuneStartMonotonicBase)
 				<< ",\"st\":\"" << streamType << "\",\"u\":\"" << url
-				<< "\",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
+				<< "\",\"tf\":{" << "\"i\":" << mTuneFailBucketType << ",\"er\":" << mTuneFailErrorCode << "}"
+				<< ",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
 
 		std::lock_guard<std::mutex> lock(tuneEventListMtx);
 		for(auto &te:tuneEventList)
@@ -988,6 +993,8 @@ public:
 		outSS<<"]}";
 
 		tuneEventList.clear();
+		mTuneFailErrorCode = 0;
+		mTuneFailBucketType = PROFILE_BUCKET_MANIFEST;
 	}
 
 	/**
@@ -1004,6 +1011,8 @@ public:
 		bandwidthBitsPerSecondAudio = 0;
 		drmErrorCode = 0;
 		enabled = true;
+		mTuneFailBucketType = PROFILE_BUCKET_MANIFEST;
+		mTuneFailErrorCode = 0;
 		tuneEventList.clear();
 	}
 
@@ -1199,6 +1208,7 @@ public:
 		struct ProfilerBucket *bucket = &buckets[type];
 		if (!bucket->complete && !(0==bucket->tStart))
 		{
+			SetTuneFailCode(result, type);
 			bucket->errorCount++;
 			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
 												 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
@@ -1259,6 +1269,24 @@ public:
 		ProfileBegin(type);
 		buckets[type].complete = true;
 	}
+
+
+	/**
+	 * @brief Method to set Failure code and Bucket Type used for microevents
+	 *
+	 * @param[in] type - tune Fail Code
+	 * @param[in] type - Bucket type
+	 * @return void
+	 */
+	void SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType)
+	{
+		if(!mTuneFailErrorCode){
+			AAMPLOG_INFO("%s:%d Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d\n", __FUNCTION__, __LINE__, failBucketType, tuneFailCode);
+			mTuneFailErrorCode = tuneFailCode;
+			mTuneFailBucketType = failBucketType;
+		}
+	}
+
 };
 
 /**
