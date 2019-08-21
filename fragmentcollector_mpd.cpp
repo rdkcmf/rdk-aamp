@@ -3088,7 +3088,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{
-			aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
+			aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
 			if (this->mpd != NULL && (CURLE_OPERATION_TIMEDOUT == http_error || CURLE_COULDNT_CONNECT == http_error))
 			{
 				//Skip this for first ever update mpd request
