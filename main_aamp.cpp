@@ -2682,7 +2682,6 @@ std::string aamp_getHostFromURL(std::string url)
 	return host;
 }
 
-#define MAX_OVERRIDE 10
 
 /**
  * @brief
@@ -3278,28 +3277,25 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
 			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
 		}
-		else if (mChannelOverrideMap.size() < MAX_OVERRIDE)
+		else if (cfg.at(0) == '*')
 		{
-			if (cfg.at(0) == '*')
+			std::size_t pos = cfg.find_first_of(' ');
+			if (pos != std::string::npos)
 			{
-				std::size_t pos = cfg.find_first_of(' ');
-				if (pos != std::string::npos)
+				//Populate channel map from aamp.cfg
+				// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
+				logprintf("aamp override:\n%s\n", cfg.c_str());
+				ChannelInfo channelInfo;
+				std::stringstream iss(cfg.substr(1));
+				std::string token;
+				while (getline(iss, token, ' '))
 				{
-					//Populate channel map from aamp.cfg
-					// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
-					logprintf("aamp override:\n%s\n", cfg.c_str());
-					ChannelInfo channelInfo;
-					std::stringstream iss(cfg.substr(1));
-					std::string token;
-					while (getline(iss, token, ' '))
-					{
-						if (token.compare(0,4,"http") == 0)
-							channelInfo.uri = token;
-						else
-							channelInfo.name = token;
-					}
-					mChannelOverrideMap.push_back(channelInfo);
+					if (token.compare(0,4,"http") == 0)
+						channelInfo.uri = token;
+					else
+						channelInfo.name = token;
 				}
+				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
 	}
