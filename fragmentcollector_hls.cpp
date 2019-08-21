@@ -1418,7 +1418,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				//cleanup is done in aamp_GetFile itself
 
-				aamp->profiler.ProfileError(mediaTrackBucketTypes[type]);
+				aamp->profiler.ProfileError(mediaTrackBucketTypes[type], http_error);
 				segDLFailCount += 1;
 				if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
 				{
@@ -3200,7 +3200,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
 	{
-		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST);
+		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
 		aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 	}
 	if (this->mainManifest.len)
@@ -4040,7 +4040,7 @@ void TrackState::RunFetchLoop()
 				else
 				{
 					logprintf("%s:%d Init fragment fetch failed\n", __FUNCTION__, __LINE__);
-					aamp->profiler.ProfileError(bucketType);
+					aamp->profiler.ProfileError(bucketType, http_code);
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 				}
 			}
@@ -4847,7 +4847,7 @@ void TrackState::FetchPlaylist()
 	logprintf("TrackState::%s [%s] end\n", __FUNCTION__, name);
 	if (!playlist.len)
 	{
-		aamp->profiler.ProfileError(bucketId);
+		aamp->profiler.ProfileError(bucketId, http_error);
 	}
 }
 
