@@ -4438,7 +4438,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
 	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, range, curlInstance, true, fileType,NULL,fogError))
 	{
-		profiler.ProfileError(bucketType);
+		profiler.ProfileError(bucketType, *http_code);
 	}
 	else
 	{
@@ -4467,7 +4467,7 @@ bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::strin
 	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate,fogError))
 	{
 		ret = false;
-		profiler.ProfileError(bucketType);
+		profiler.ProfileError(bucketType, *http_code);
 	}
 	else
 	{
