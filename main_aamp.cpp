@@ -4053,8 +4053,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
-	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
-
+	AAMPLOG_TRACE("original URL: %s\n", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 	if (NULL == mStreamSink)
@@ -4223,8 +4222,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mTSBEnabled = true;
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
-	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
-
+	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
+	{
+		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
+	}
+	else
+	{
+		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)\n", mTuneAttempts, mIsDash?"DASH":"HLS");
+		printf("URL: %s\n", mManifestUrl.c_str());
+	}
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
 	ExtractServiceZone(mManifestUrl);
 
