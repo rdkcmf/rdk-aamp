@@ -147,7 +147,7 @@ public:
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), fragmentTime(0), periodStartOffset(0), targetDnldPosition(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
-			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment()
+			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment(), discontinuity(false)
 	{
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
@@ -392,6 +392,7 @@ public:
 	int fragmentOffset;
 	bool eos;
 	bool profileChanged;
+	bool discontinuity;
 	GrowableBuffer mDownloadedFragment;
 
 	double fragmentTime;
@@ -3609,6 +3610,7 @@ void * TrackDownloader(void *arg)
 				fetchParms->fragmentduration,
 				fetchParms->isinitialization, (eMEDIATYPE_AUDIO == fetchParms->pMediaStreamContext->mediaType), //CurlContext 0=Video, 1=Audio)
 				fetchParms->discontinuity);
+		fetchParms->pMediaStreamContext->discontinuity = false;
 	}
 	return NULL;
 }
@@ -4430,7 +4432,11 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 	for (int i = 0; i < numberOfTracks; i++)
 	{
 		struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
-		if(pMediaStreamContext->enabled && (pMediaStreamContext->profileChanged || discontinuity))
+		if(discontinuity && pMediaStreamContext->enabled)
+		{
+			pMediaStreamContext->discontinuity = discontinuity;
+		}
+		if(pMediaStreamContext->enabled && (pMediaStreamContext->profileChanged || pMediaStreamContext->discontinuity))
 		{
 			if (pMediaStreamContext->adaptationSet)
 			{
@@ -4462,7 +4468,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 							fetchParams->initialization = initialization;
 							fetchParams->isinitialization = true;
 							fetchParams->pMediaStreamContext = pMediaStreamContext;
-							fetchParams->discontinuity = discontinuity;
+							fetchParams->discontinuity = pMediaStreamContext->discontinuity;
 							int ret = pthread_create(&trackDownloadThreadID, NULL, TrackDownloader, fetchParams);
 							if(ret != 0)
 							{
@@ -4479,7 +4485,8 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
-								FetchFragment(pMediaStreamContext, initialization, fragmentDuration,true, (eMEDIATYPE_AUDIO == i), discontinuity);
+								FetchFragment(pMediaStreamContext, initialization, fragmentDuration,true, (eMEDIATYPE_AUDIO == i), pMediaStreamContext->discontinuity);
+								pMediaStreamContext->discontinuity = false;
 							}
 						}
 					}
