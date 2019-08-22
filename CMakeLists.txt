@@ -111,7 +111,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-multichar -std=c++11 -Wno-non-virtu
 
 if(CMAKE_IARM_MGR)
 	message("CMAKE_IARM_MGR set")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DIARM_MGR")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DIARM_MGR=1")
 endif()
 
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
@@ -147,7 +147,9 @@ add_executable(playbintest test/playbintest.cpp)
 target_link_libraries(playbintest ${PLAYBINTEST_DEPENDS})
 
 if(CMAKE_DASH_DRM)
-	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lIARMBus -lds -ldshalcli")
+	if(CMAKE_IARM_MGR)
+		set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lIARMBus -lds -ldshalcli")
+	endif()
 	if(CMAKE_USE_OPENCDM)
 		if (DEFINED SECAPI_ENGINE_BROADCOM_SAGE)
 			set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_SECAPI_BRCMHW=1")
