@@ -635,9 +635,9 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 
 		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
 		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
+		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 		logprintf("Sending error %s \n",e.data.mediaError.description);
 		SendEventAsync(e);
-		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 	}
 	else
 	{
