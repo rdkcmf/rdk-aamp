@@ -54,14 +54,26 @@ static constexpr const char *ADSTATE_STR[] =
  */
 class CDAIObject
 {
+private:
+	PrivateInstanceAAMP* mAamp;
 public:
 	/**
 	 * @brief CDAIObject constructor.
 	 */
-	CDAIObject(PrivateInstanceAAMP* aamp)
+	CDAIObject(PrivateInstanceAAMP* aamp): mAamp(aamp)
 	{
 
 	}
+
+	/**
+	* @brief CDAIObject Copy Constructor
+	*/
+	CDAIObject(const CDAIObject&) = delete;
+
+	/**
+	* @brief CDAIObject assignment operator overloading
+	*/
+	CDAIObject& operator=(const CDAIObject&) = delete;
 
 	/**
 	 * @brief CDAIObject destructor.
@@ -80,7 +92,11 @@ public:
 	 *   @param[in] startMS - Ad start time in milliseconds
 	 *   @param[in] breakdur - Adbreak's duration in MS
 	 */
-	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0, uint32_t breakdur=0){}
+	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0, uint32_t breakdur=0)
+	{
+		AAMPLOG_WARN("%s:%d Stream doesn't support CDAI. Rejecting the promise.\n", __FUNCTION__, __LINE__);
+		mAamp->SendAdResolvedEvent(adId, false, 0, 0);
+	}
 };
 
 
