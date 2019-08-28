@@ -3928,7 +3928,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		{
 			mCdaiObject = new CDAIObjectMPD(this);
 		}
-		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 #endif
 	}
 	else
@@ -3939,7 +3938,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			enableThrottle = false;
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
+		if(NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);	//Placeholder to reject the SetAlternateContents()
+		}
 	}
+	mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
+
 	mInitSuccess = true;
 	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
 	if (retVal != eAAMPSTATUS_OK)
@@ -7278,7 +7283,15 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
  */
 void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
-	mCdaiObject->SetAlternateContents(adBreakId, adId, url);
+	if(gpGlobalConfig->enableClientDai)
+	{
+		mCdaiObject->SetAlternateContents(adBreakId, adId, url);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d is called! CDAI not enabled!! Rejecting the promise.\n", __FUNCTION__, __LINE__);
+		SendAdResolvedEvent(adId, false, 0, 0);
+	}
 }
 
 /**
