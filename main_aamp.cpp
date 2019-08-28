@@ -4274,11 +4274,13 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 
 		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
 		{
-			size_t  nextQueryParameterPos = vssURL.find('&',vssURLPos + strlen(VSS_MARKER));
-			
+			vssURLPos = vssURLPos + VSS_MARKER_LEN;
+			size_t  nextQueryParameterPos = vssURL.find('&',vssURLPos);
+
 			if(nextQueryParameterPos != std::string::npos)
 			{
-				mServiceZone = vssURL.substr(vssURLPos,nextQueryParameterPos);
+				int iServiceZoneLen = (nextQueryParameterPos - vssURLPos);
+				mServiceZone = vssURL.substr(vssURLPos,iServiceZoneLen);
 			}
 			else
 			{

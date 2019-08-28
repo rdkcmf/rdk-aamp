@@ -114,6 +114,7 @@
 
 // VSS Service Zone identifier in url 
 #define VSS_MARKER			"?sz="
+#define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
 //Upper and lower limit for dash drm sessions
