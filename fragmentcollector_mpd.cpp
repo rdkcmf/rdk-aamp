@@ -733,6 +733,36 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 	return selectedRepIdx;
 }
 
+/**
+ * @brief Get representation index of desired video codec
+ * @param adaptationSet Adaptation set object
+ * @param[out] selectedRepIdx index of desired representation
+ * @retval index of desired representation
+ */
+static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
+{
+	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+	int selectedRepIdx = -1;
+	for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+	{
+		const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+
+		const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+		const std::vector<string> codecs = rep->GetCodecs();
+		string codecValue="";
+		if(codecs.size())
+			codecValue=codecs.at(0);
+		else if(adapCodecs.size())
+			codecValue = adapCodecs.at(0);
+
+		//Ignore vp8 and vp9 codec video profiles(webm)
+		if(codecValue.find("vp") == std::string::npos)
+		{
+			selectedRepIdx = representationIndex;
+		}
+	}
+	return selectedRepIdx;
+}
 
 /**
  * @brief Check if adaptation set is of a given media type
@@ -4052,6 +4082,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		std::string selectedLanguage;
 		bool isIframeAdaptationAvailable = false;
 		uint32_t selRepBandwidth = 0;
+		int videoRepresentationIdx;
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -4146,8 +4177,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 							if (!IsIframeTrack(adaptationSet))
 							{
 								// Got Video , confirmed its not iframe adaptation
-								selAdaptationSetIndex =	iAdaptationSet;
-								AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet);
+								videoRepresentationIdx = GetDesiredVideoCodecIndex(adaptationSet);
+								if (videoRepresentationIdx != -1)
+								{
+									selAdaptationSetIndex = iAdaptationSet;
+									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
+								}
 								if(!newTune)
 								{
 									if(GetProfileCount() == adaptationSet->GetRepresentation().size())
@@ -4188,7 +4223,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			}
 		}
 
-		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && selAdaptationSetIndex >= 0)
+		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && (eMEDIATYPE_VIDEO != i) && selAdaptationSetIndex >= 0)
 		{
 			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown\n", __FUNCTION__, __LINE__);
 			mAudioType = eAUDIO_AAC; // assuming content is still playable
