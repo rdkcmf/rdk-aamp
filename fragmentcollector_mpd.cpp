@@ -2103,7 +2103,7 @@ static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
 */
 AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init)
 {
-	AAMPStatusType ret = eAAMPSTATUS_OK;
+	AAMPStatusType ret = eAAMPSTATUS_GENERIC_ERROR;
 	xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
 	if (reader != NULL)
 	{
@@ -2119,6 +2119,7 @@ AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBu
 					mpd->SetFetchTime(fetchTime);
 #if 1
 					FindTimedMetadata(mpd, root, init);
+					ret = AAMPStatusType::eAAMPSTATUS_OK;
 #else
 					size_t prevPrdCnt = mCdaiObject->mAdBreaks.size();
 					FindTimedMetadata(mpd, root, init);
@@ -2137,13 +2138,18 @@ AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBu
 				}
 				delete root;
 			}
+			else if (root == NULL)
+			{
+				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+			}
+		}
+		else if (xmlTextReaderRead(reader) == -1)
+		{
+			ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 		}
 		xmlFreeTextReader(reader);
 	}
-	else
-	{
-		ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-	}
+	
 	return ret;
 }
 
