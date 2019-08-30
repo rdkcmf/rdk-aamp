@@ -173,8 +173,9 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 
 		AdBreakObject &abObj = mAdBreaks[mPlacementObj.pendingAdbrkId];
 		vector<IPeriod *> periods = mpd->GetPeriods();
-		for(auto period: periods)
+		for(int iter = 0; iter < periods.size(); iter++)
 		{
+			auto period = periods.at(iter);
 			const std::string &periodId = period->GetId();
 			//We need to check, open period is available in the manifest. Else, something wrong
 			if(mPlacementObj.openPeriodId == periodId)
@@ -183,7 +184,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 			}
 			else if(openPrdFound)
 			{
-				if(aamp_GetPeriodDuration(period) > 0)
+				if(aamp_GetPeriodDuration(mpd, iter, 0) > 0)
 				{
 					//Previous openPeriod ended. New period in the adbreak will be the new open period
 					mPeriodMap[mPlacementObj.openPeriodId].filled = true;
