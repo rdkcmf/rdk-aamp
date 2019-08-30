@@ -364,7 +364,7 @@ static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType me
 	gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_SEEKABLE);
 	if (eMEDIATYPE_VIDEO == mediaType )
 	{
-#ifdef USE_SAGE_SVP
+#ifdef CONTENT_4K_SUPPORTED
 		g_object_set(source, "max-bytes", 4194304 * 3, NULL); // 4096k * 3
 #else
 		g_object_set(source, "max-bytes", (guint64)4194304, NULL); // 4096k
@@ -372,7 +372,7 @@ static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType me
 	}
 	else
 	{
-#ifdef USE_SAGE_SVP
+#ifdef CONTENT_4K_SUPPORTED
 		g_object_set(source, "max-bytes", 512000 * 3, NULL); // 512k * 3 for audio
 #else
 		g_object_set(source, "max-bytes", (guint64)512000, NULL); // 512k for audio
@@ -1522,7 +1522,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		{
 			logprintf("AAMPGstPlayer_SetupStream - using westerossink\n");
 			GstElement* vidsink = gst_element_factory_make("westerossink", NULL);
-#ifdef USE_SAGE_SVP
+#ifdef CONTENT_4K_SUPPORTED
 			g_object_set(vidsink, "secure-video", TRUE, NULL);
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
