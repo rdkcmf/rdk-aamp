@@ -154,7 +154,7 @@ GstElement* AampOutputProtection::FindElement(GstElement *element, const char* t
 
 
 /**
- * @brief Check if source is UHD, by checking dimentions from Video decoder
+ * @brief Check if source is UHD using video decoder dimensions
  * @retval true, if source is UHD, otherwise false
  */
 bool AampOutputProtection::IsSourceUHD()
@@ -163,7 +163,7 @@ bool AampOutputProtection::IsSourceUHD()
 
 //    DEBUG_FUNC;
 
-#ifdef USE_SAGE_SVP
+#ifdef CONTENT_4K_SUPPORTED
     static gint     sourceHeight    = 0;
     static gint     sourceWidth     = 0;
     GstElement*     videoDec        = NULL;
