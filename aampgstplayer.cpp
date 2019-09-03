@@ -541,8 +541,15 @@ static gboolean IdleCallback(gpointer user_data)
 	_this->aamp->ReportProgress();
 	_this->privateContext->firstProgressCallbackIdleTaskPending = false;
 	_this->privateContext->firstProgressCallbackIdleTaskId = 0;
-	_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(gpGlobalConfig->reportProgressInterval, ProgressCallbackOnTimeout, user_data);
-	logprintf("%s:%d current %d, periodicProgressCallbackIdleTaskId %d \n", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+	if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
+	{
+		_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(gpGlobalConfig->reportProgressInterval, ProgressCallbackOnTimeout, user_data);
+		AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d \n", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+	}
+	else
+	{
+		AAMPLOG_INFO("%s:%d Progress callback already available: periodicProgressCallbackIdleTaskId %d\n", __FUNCTION__, __LINE__, _this->privateContext->periodicProgressCallbackIdleTaskId);
+	}
 	return G_SOURCE_REMOVE;
 }
 
