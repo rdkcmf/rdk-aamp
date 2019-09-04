@@ -2644,11 +2644,10 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 		{
 			streamInfo = &this->streamInfo[this->currentProfileIndex];
 			int mediaInfoIndex = -1;
-			int defaultTrackIndex = -1;
 			group = streamInfo->subtitles;
 			if (group)
 			{
-				logprintf("GetPlaylistURI : Subtitle Track: group %s, aamp->language %s\n", group, aamp->mSubLanguage);
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d Subtitle Track: group %s, aamp->mSubLanguage %s\n", __FUNCTION__, __LINE__, group, aamp->mSubLanguage);
 				for (int i = 0; i < mMediaCount; i++)
 				{
 					if (mediaInfo[i].group_id && !strncmp(mediaInfo[i].group_id, group, strlen(group)))
@@ -2662,10 +2661,6 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 								break;
 							}
 						}
-						if (mediaInfo[i].isDefault)
-						{
-							defaultTrackIndex = i;
-						}
 					}
 				}
 				if (mediaInfoIndex != -1)
@@ -2673,19 +2668,11 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 					playlistURI = mediaInfo[mediaInfoIndex].uri;
 					aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
 					*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
-					logprintf("GetPlaylistURI subtitle found uri %s and format %d\n", playlistURI, format);
-				}
-				else if (defaultTrackIndex != -1)
-				{
-					//No preferred language available, pick the default one
-					playlistURI = mediaInfo[defaultTrackIndex].uri;
-					aamp->UpdateSubtitleLanguageSelection(mediaInfo[defaultTrackIndex].language);
-					*format = (mediaInfo[defaultTrackIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
-					logprintf("GetPlaylistURI subtitle found uri %s and format %d\n", playlistURI, format);
+					logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s and format %d\n", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI, *format);
 				}
 				else
 				{
-					logprintf("GetPlaylistURI Couldn't find subtitle URI for preferred language: %s", aamp->language);
+					logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s\n", __FUNCTION__, __LINE__, aamp->mSubLanguage);
 					*format = FORMAT_NONE;
 				}
 			}
@@ -3304,6 +3291,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			TrackState *ts = trackState[iTrack];
 			ts->playlistPosition = -1;
 			ts->playTarget = seekPosition;
+			if (iTrack == eTRACK_SUBTITLE && !aamp->IsSubtitleEnabled())
+			{
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d subtitles disabled by application\n", __FUNCTION__, __LINE__);
+				ts->enabled = false;
+				ts->streamOutputFormat = FORMAT_NONE;
+				continue;
+			}
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)
 			{
@@ -3392,7 +3386,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if (!subtitle->playlist.len)
 			{
 				//This is logged as a warning. Not critical to playback
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d Subtitle playlist download failed\n", __FUNCTION__, __LINE__);
+				AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Subtitle playlist download failed\n", __FUNCTION__, __LINE__);
 				subtitle->enabled = false;
 			}
 		}
@@ -3448,6 +3442,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						//Subtitle is optional and not critical to playback
 						ts->enabled = false;
+						AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Subtitle playlist duration is zero!!\n", __FUNCTION__, __LINE__);
 					}
 					else
 					{
@@ -3962,9 +3957,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if (!audio->enabled)
 			{
 				video->fragmentURI = video->GetNextFragmentUriFromPlaylist(true);
+				video->playTarget = video->playlistPosition;
 			}
-			double offset = (video->playlistPosition - video->playTarget) * 1000.0;
-			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting offset value of %.3f\n", __FUNCTION__, __LINE__, offset);
+			double offset = (video->playlistPosition - seekPosition) * 1000.0;
+			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting setProgressEventOffset value of %.3f ms\n", __FUNCTION__, __LINE__, offset);
 			subtitle->mSubtitleParser->setProgressEventOffset(offset);
 		}
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)

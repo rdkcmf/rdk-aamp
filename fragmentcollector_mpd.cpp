@@ -2715,6 +2715,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	{
 		std::string manifestUrl = aamp->GetManifestUrl();
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
+		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application\n", __FUNCTION__, __LINE__);
+			numTracks--;
+		}
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -3766,7 +3771,13 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
+
 	mNumberOfTracks = 0;
+
+	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
+	{
+		numTracks--;
+	}
 
 	IPeriod *period = mCurrentPeriod;
 
@@ -5550,7 +5561,6 @@ void StreamAbstractionAAMP_MPD::DumpProfiles(void)
  *
  *   @param[out]  primaryOutputFormat - format of primary track
  *   @param[out]  audioOutputFormat - format of audio track
- *   @param[out]  subtitleOutputFormat - format of subtitle track
  */
 void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
