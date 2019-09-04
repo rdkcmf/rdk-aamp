@@ -171,6 +171,7 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 						will default to 2 if out of range value is given
 sslverifypeer=1	Enable TLS certificate verification.
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
+subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 
 =================================================================================================================
 Overriding channels in aamp.cfg

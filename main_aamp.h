@@ -1135,6 +1135,14 @@ public:
 	 */
 	void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url);
 
+	/**
+	 *   @brief Set preferred subtitle language.
+	 *
+	 *   @param[in]  language - Language of text track.
+	 *   @return void
+	 */
+	void SetPreferredSubtitleLanguage(const char* language);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

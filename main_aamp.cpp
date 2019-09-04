@@ -2793,11 +2793,15 @@ static int ReadConfigStringHelper(std::string buf, const char *prefixPtr, const 
 	int ret = 0;
 	if (buf.find(prefixPtr) != std::string::npos)
 	{
-		std::size_t pos = buf.find_first_not_of(prefixPtr);
-		if (pos != std::string::npos)
+		std::size_t pos = strlen(prefixPtr);
+		if (*valueCopyPtr != NULL)
 		{
-			*valueCopyPtr = strdup(buf.substr(pos).c_str());
-			if (*valueCopyPtr)
+			free((void *)*valueCopyPtr);
+			*valueCopyPtr = NULL;
+		}
+		*valueCopyPtr = strdup(buf.substr(pos).c_str());
+		if (*valueCopyPtr)
+		{
 			ret = 1;
 		}
 	}
@@ -2870,8 +2874,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 
 		double seconds = 0;
 		int value;
-		const char* strValue = NULL;
-		char * tempUserAgent = NULL;
+		char * tmpValue = NULL;
 		if (ReadConfigNumericHelper(cfg, "map-mpd=", gpGlobalConfig->mapMPD) == 1)
 		{
 			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
@@ -3243,22 +3246,22 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			}
 			logprintf("aamp dash-max-drm-sessions: %d\n", gpGlobalConfig->dash_MaxDRMSessions);
 		}
-		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tempUserAgent))
+		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tmpValue))
 		{
-			if(tempUserAgent)
+			if(tmpValue)
 			{
-				if(strlen(tempUserAgent) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
+				if(strlen(tmpValue) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
 				{
-					logprintf("user-agent=%s\n", tempUserAgent);
-					gpGlobalConfig->aamp_SetBaseUserAgentString(tempUserAgent);
+					logprintf("user-agent=%s\n", tmpValue);
+					gpGlobalConfig->aamp_SetBaseUserAgentString(tmpValue);
 				}
 				else
 				{
 					logprintf("user-agent len is more than %d , Hence Ignoring \n", AAMP_USER_AGENT_MAX_CONFIG_LEN);
 				}
  
-				free(tempUserAgent);
-				tempUserAgent = NULL;
+				free(tmpValue);
+				tmpValue = NULL;
 			}
 		}
 		else if (ReadConfigNumericHelper(cfg, "wait-time-before-retry-http-5xx-ms=", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
@@ -3290,6 +3293,23 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
 			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
+		}
+		else if(ReadConfigStringHelper(cfg, "subtitle-language=", (const char**)&tmpValue))
+		{
+			if(tmpValue)
+			{
+				if(strlen(tmpValue) < MAX_LANGUAGE_TAG_LENGTH)
+				{
+					logprintf("subtitle-language=%s\n", tmpValue);
+					gpGlobalConfig->mSubtitleLanguage = std::string(tmpValue);
+				}
+				else
+				{
+					logprintf("subtitle-language len is more than %d , Hence Ignoring \n", MAX_LANGUAGE_TAG_LENGTH);
+				}
+				free(tmpValue);
+				tmpValue = NULL;
+			}
 		}
 		else if (cfg.at(0) == '*')
 		{
@@ -5402,6 +5422,34 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 	aamp->SetDownloadStartTimeout(startTimeout);
 }
 
+/**
+ *   @brief Set preferred subtitle language.
+ *
+ *   @param[in]  language - Language of text track.
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
+{
+	AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)\n", __FUNCTION__, __LINE__, aamp->mSubLanguage, language);
+
+	if (strncmp(language, aamp->mSubLanguage, MAX_LANGUAGE_TAG_LENGTH) == 0)
+		return;
+
+	PrivAAMPState state;
+	aamp->GetState(state);
+	// There is no active playback session, save the language for later
+	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
+	{
+		aamp->UpdateSubtitleLanguageSelection(language);
+		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set prior to tune start\n", __FUNCTION__, __LINE__, language);
+	}
+	else
+	{
+		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d discard \"%s\" language set, since in the middle of playback\n", __FUNCTION__, __LINE__, language);
+	}
+}
+
+
 
 /**
  *   @brief Set video rectangle.
@@ -6027,7 +6075,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	memset(language, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strcpy(language,"en");
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
-	strcpy(mSubLanguage,"en");
+	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -6256,7 +6304,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		mTimeToTopProfile = 0;
 		mTimeAtTopProfile = 0;
 		mPlaybackDuration = 0;
-        mCurrentLanguageIndex = 0;
+		mCurrentLanguageIndex = 0;
 
 		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
 		strVideoEndJson = mVideoEnd->ToJsonString();
@@ -7703,6 +7751,16 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 		ev.data.cue.cueData = cue;
 		SendEventSync(ev);
 	}
+}
+
+/**
+ *   @brief To check if subtitles are enabled
+ *
+ *   @return bool - true if subtitles are enabled
+ */
+bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
+{
+	return (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
 }
 
 /**

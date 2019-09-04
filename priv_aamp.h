@@ -562,6 +562,7 @@ public:
 	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
+	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
 public:
 
 	/**
@@ -594,13 +595,14 @@ public:
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, enableClientDai(false), playAdFromCDN(false), disableSslVerifyPeer(true)
-		,mEnableVideoEndEvent(true)
+		,mEnableVideoEndEvent(true), mSubtitleLanguage()
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
         // considering round trip delay to remove overlay
         // onStreamPlaying is sent optimistically in advance
 		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
+		mSubtitleLanguage = std::string("en");
 	}
 
 	/**
@@ -2832,6 +2834,13 @@ public:
 	 *   @param[in]  cue - vtt cue object
 	 */
 	void SendVTTCueDataAsEvent(VTTCue* cue);
+
+	/**
+	 *   @brief To check if subtitles are enabled
+	 *
+	 *   @return bool - true if subtitles are enabled
+	 */
+	bool IsSubtitleEnabled(void);
 
 private:
 
