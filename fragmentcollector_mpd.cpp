@@ -5877,33 +5877,41 @@ void PrivateStreamAbstractionMPD::SetCDAIObject(CDAIObject *cdaiObj)
 
 bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35)
 {
-	bool ret = false;
-	std::vector<IEventStream *> eventStreams = period->GetEventStreams();
-	for(int i=0; i<eventStreams.size(); i++)
+	const std::vector<IEventStream *> &eventStreams = period->GetEventStreams();
+	for(auto &eventStream: eventStreams)
 	{
-		std::vector<IEvent *> events =  eventStreams.at(i)->GetEvents();
-		for(int j=0; j<events.size(); j++)
+		for(auto &event: eventStream->GetEvents())
 		{
-			IEvent * event = events.at(j);
 			if(event && event->GetDuration())
 			{
-				const vector<INode*> nodes = event->GetAdditionalSubNodes();
-				if(nodes.size() && "scte35:Signal" == nodes[0]->GetName())
+				for(auto &evtChild: event->GetAdditionalSubNodes())
 				{
-					uint32_t timeScale = 1;
-					if(eventStreams.at(i)->GetTimescale() > 1)
+					if("scte35:Signal" == evtChild->GetName())
 					{
-						timeScale = eventStreams.at(i)->GetTimescale();
+						for(auto &signalChild: evtChild->GetNodes())
+						{
+							if(signalChild && "scte35:Binary" == signalChild->GetName())
+							{
+								uint32_t timeScale = 1;
+								if(eventStream->GetTimescale() > 1)
+								{
+									timeScale = eventStream->GetTimescale();
+								}
+								duration = (event->GetDuration()/timeScale)*1000; //milliseconds
+								scte35 = signalChild->GetText();
+								if(scte35.length())
+								{
+									return true;
+								}
+							}
+						}
+						AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!\n",__FUNCTION__,__LINE__);
 					}
-					duration = (event->GetDuration()/timeScale)*1000; //milliseconds
-					scte35 = nodes[0]->GetText();
-					ret = true;
-					break;
 				}
 			}
 		}
 	}
-	return ret;
+	return false;
 }
 
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
