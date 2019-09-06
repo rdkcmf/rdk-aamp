@@ -3165,6 +3165,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			{
 				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive);
 			}
+			if(mIsLive && gpGlobalConfig->enableClientDai)
+			{
+				mCdaiObject->PlaceAds(mpd);
+			}
 		}
 		else
 		{
@@ -5361,8 +5365,6 @@ NEEDFRAGMENTS:
 		{
 			break;
 		}
-
-		mCdaiObject->PlaceAds(mpd);
 
 		if(mIsFogTSB)
 		{
