@@ -594,7 +594,7 @@ public:
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), disableWesteros(false),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
-		, disableSslVerifyPeer(false)
+		, disableSslVerifyPeer(true)
 		, enableClientDai(false), playAdFromCDN(false)
 		,mEnableVideoEndEvent(true)
 		,mSubtitleLanguage()
