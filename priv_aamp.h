@@ -570,6 +570,7 @@ public:
 	bool disableWesteros;                   /**< To disable westeros sink (by default this is true*/
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
+	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
 public:
 
 	/**
@@ -608,6 +609,7 @@ public:
                 ,mEnableRectPropertyCfg(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,bAsync_ontuned(false)
+		,bReportVideoPTS(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
