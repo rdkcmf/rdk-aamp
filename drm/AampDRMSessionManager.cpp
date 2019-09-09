@@ -180,9 +180,9 @@ AampDRMSessionManager* AampDRMSessionManager::getInstance()
  */
 void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 {
-	pthread_mutex_lock(&cachedKeyMutex);
+	pthread_mutex_lock(&sessionMgrMutex);
 	sessionMgrState = state;
-	pthread_mutex_unlock(&cachedKeyMutex);
+	pthread_mutex_unlock(&sessionMgrMutex);
 }
 
 
@@ -853,14 +853,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	pthread_mutex_lock(&cachedKeyMutex);
 
-	if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState)
-	{
-		AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
-		free(keyId);
-		pthread_mutex_unlock(&cachedKeyMutex);
-		return NULL;
-	}
-
 	/*Find drmSession slot by going through cached keyIds */
 
 	/* Check if requested keyId is already cached*/
@@ -976,15 +968,31 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				}
 			}
 
-			if(isCachedKeyId && NULL == contentMetadataPtr)
+			bool abortSessionRequest = false;
+			pthread_mutex_lock(&sessionMgrMutex);
+			if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState && isCachedKeyId)
+			{
+				//This means that the previous session request for the same keyId already failed
+				abortSessionRequest = true;
+				AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
+			}
+			pthread_mutex_unlock(&sessionMgrMutex);
+
+			if(!abortSessionRequest && isCachedKeyId && NULL == contentMetadataPtr)
 			{
 				AAMPLOG_INFO("%s:%d Aborting session creation for keyId %s: StreamType %s, since previous try failed\n",
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
 				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
+				abortSessionRequest = true;
+			}
+
+			if(abortSessionRequest)
+			{
 				pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 				free(keyId);
 				return NULL;
 			}
+
 			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
 	}
 
