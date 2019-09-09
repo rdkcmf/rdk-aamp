@@ -2956,7 +2956,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	sessionMgr->clearFailedKeyIds();
+	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
   #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();
@@ -5923,9 +5925,7 @@ void PrivateStreamAbstractionMPD::Stop()
 	}
 	aamp->mStreamSink->ClearProtectionEvent();
  #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
-	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
-	sessionMgr->clearFailedKeyIds();
+	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
   #endif
 }
 
