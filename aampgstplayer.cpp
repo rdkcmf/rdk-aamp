@@ -2786,6 +2786,24 @@ bool AAMPGstPlayer::CheckForPTSChange()
 }
 
 /**
+ * @brief Gets Video PTS
+ * @param none
+ * @retval Video PTS value
+ */
+long long AAMPGstPlayer::GetVideoPTS(void)
+{
+	gint64 currentPTS = 0;
+	if (privateContext->video_dec)
+	{
+		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
+		currentPTS = currentPTS * 2; // convert from 45 KHz to 90 Khz PTS
+		//logprintf( "shripad currPTS: %" G_GINT64_FORMAT "\n", currentPTS);
+	}
+
+	return (long long) currentPTS;
+}
+
+/**
  * @brief Check if cache empty for a media type
  * @param[in] mediaType stream type
  * @retval true if cache empty
