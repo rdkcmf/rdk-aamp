@@ -53,6 +53,7 @@ public:
 	bool Pause(bool pause);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
+	virtual long long GetVideoPTS(void);
 	void SetVideoRectangle(int x, int y, int w, int h);
 	bool Discontinuity( MediaType mediaType);
 	void SetVideoZoom(VideoZoomMode zoom);

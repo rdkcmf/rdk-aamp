@@ -563,6 +563,7 @@ public:
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
+	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
 public:
 
 	/**
@@ -599,6 +600,7 @@ public:
 		, enableClientDai(false), playAdFromCDN(false)
 		,mEnableVideoEndEvent(true)
 		,bAsync_ontuned(false)
+		,bReportVideoPTS(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

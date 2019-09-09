@@ -235,6 +235,7 @@ struct AAMPEvent
 			float playbackSpeed;        /**< current trick speed (1.0 for normal play rate) */
 			double startMiliseconds;    /**< time shift buffer start position (relative to tune time - starts at zero) */
 			double endMiliseconds;      /**< time shift buffer end position (relative to tune time - starts at zero) */
+			long long videoPTS; 		/**< Video Presentation 90 Khz time-stamp  */
 		} progress;
 
 		/**
@@ -634,6 +635,13 @@ public:
 	 *   @return Position in ms.
 	 */
 	virtual long GetPositionMilliseconds(void){ return 0; };
+
+	/**
+	 *   @brief Get Video 90 KHz Video PTS
+	 *
+	 *   @return video PTS
+	 */
+	virtual long long GetVideoPTS(void){ return 2; };
 
 	/**
 	 *   @brief Get closed caption handle
