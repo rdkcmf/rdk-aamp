@@ -345,15 +345,25 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			eventData.data.progress.positionMiliseconds = eventData.data.progress.startMiliseconds;
 		}
 
+		if(gpGlobalConfig->bReportVideoPTS)
+		{
+			eventData.data.progress.videoPTS = mStreamSink->GetVideoPTS();
+		}
+		else
+		{
+			eventData.data.progress.videoPTS = -1; // if -1 , this parameter wont be added to JSPP event 
+		}
+        
 		if (gpGlobalConfig->logging.progress)
 		{
 			static int tick;
-			if ((tick++ & 3) == 0)
+			if ((tick++ % 4) == 0)
 			{
-				logprintf("aamp pos: [%ld..%ld..%ld]\n",
+				logprintf("aamp pos: [%ld..%ld..%ld..%lld]\n",
 					(long)(eventData.data.progress.startMiliseconds / 1000),
 					(long)(eventData.data.progress.positionMiliseconds / 1000),
-					(long)(eventData.data.progress.endMiliseconds / 1000));
+					(long)(eventData.data.progress.endMiliseconds / 1000),
+					(long long) eventData.data.progress.videoPTS);
 			}
 		}
 		mReportProgressPosn = eventData.data.progress.positionMiliseconds;
@@ -3016,6 +3026,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
+		}
+		else if (cfg.compare("reportvideopts") == 0)
+		{
+			gpGlobalConfig->bReportVideoPTS = true;
+			logprintf("reportvideopts:%s\n", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
