@@ -5062,8 +5062,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	double delta = 0;
 	bool lastLiveFlag = false;
 	bool placeNextAd = false;
-
 	int direction = 1;
+  
 	if(rate < 0)
 		direction = -1;
 	bool adStateChange = false;
@@ -5084,6 +5084,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	do
 	{
 		bool liveMPDRefresh = false;
+          	bool waitForAdBreakCatchup= false;
 		if (mpd)
 		{
 			size_t numPeriods = mpd->GetPeriods().size();
@@ -5139,7 +5140,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 					if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
 					{
-						goto NEEDFRAGMENTS;
+						waitForAdBreakCatchup= true;
+						break;
 					}
 					if(adStateChange && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
 					{
@@ -5502,13 +5504,9 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					iPeriod--;
 				}
 			} //Loop 2: End of Period while loop
-			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
+			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static" && waitForAdBreakCatchup != true)
 			{
 				break;
-			}
-			else
-			{
-				traceprintf("PrivateStreamAbstractionMPD::%s:%d Refresh playlist\n", __FUNCTION__, __LINE__);
 			}
 		}
 		else
@@ -5516,7 +5514,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - null mpd\n", __FUNCTION__, __LINE__);
 		}
 
-NEEDFRAGMENTS:
+
 		// If it comes here , two reason a) Reached eos b) Need livempdUpdate
 		// If liveMPDRefresh is true , that means it already reached 6 sec timeout .
 		// 		No more further delay required for mpd update .
