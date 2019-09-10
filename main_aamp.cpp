@@ -3620,7 +3620,7 @@ bool PrivateInstanceAAMP::SetupPipeSession()
     if(m_fd != -1)
     {
         retVal = true; //Pipe exists
-        goto EXIT;
+        return retVal;
     }
     if(mkfifo(strAAMPPipeName, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH) == -1) {
         if(errno == EEXIST) {
@@ -3654,7 +3654,6 @@ bool PrivateInstanceAAMP::SetupPipeSession()
             retVal = true;
         }
     }
-EXIT:
     return retVal;
 }
 
