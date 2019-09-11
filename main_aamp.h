@@ -41,7 +41,7 @@
 #include <memory>
 #include <vector>
 #include <string>
-
+#include <string.h>
 #include <stddef.h>
 #include "vttCue.h"
 
@@ -288,6 +288,12 @@ struct AAMPEvent
 		 */
 		struct
 		{
+			/*
+			 * Temporary fix for DELIA-37985:
+			 * szName    = additionalEventData[0]
+			 * id        = additionalEventData[1]
+			 * szContent = additionalEventData[2]
+			 */
 			const char* szName;         /**< Metadata name */
 			const char* id;             /**< Id of the timedMetadata */
 			double timeMilliseconds;    /**< Playback position - relative to tune time - starts at zero */
@@ -389,10 +395,12 @@ struct AAMPEvent
 		} cue;
 	} data;
 
+	std::vector<std::string> additionalEventData;
+
 	/**
 	 * @brief AAMPEvent Constructor
 	 */
-	AAMPEvent() : type(), data()
+	AAMPEvent() : type(), data(),additionalEventData()
 	{
 
 	}
@@ -401,11 +409,40 @@ struct AAMPEvent
 	 * @brief AAMPEvent Constructor
 	 * @param[in]  Event type
 	 */
-	AAMPEvent(AAMPEventType t) : type(t), data()
+	AAMPEvent(AAMPEventType t) : type(t), data(),additionalEventData()
 	{
 
 	}
 
+	/**
+	 * @brief Copy Constructor
+	 */
+	AAMPEvent(const AAMPEvent &e): type(e.type), data(e.data),additionalEventData(e.additionalEventData)
+	{
+		if(AAMP_EVENT_TIMED_METADATA == type && additionalEventData.size() >= 3)
+		{
+			data.timedMetadata.szName = additionalEventData[0].c_str();
+			data.timedMetadata.id = additionalEventData[1].c_str();
+			data.timedMetadata.szContent = additionalEventData[2].c_str();
+		}
+	}
+
+	/**
+	 * @brief Overloaded assignment operator
+	 */
+	AAMPEvent& operator=(const AAMPEvent &e)
+	{
+		type = e.type;
+		memcpy(&data, &(e.data), sizeof(data));
+		additionalEventData = e.additionalEventData;
+		if(AAMP_EVENT_TIMED_METADATA == type && additionalEventData.size() >= 3)
+		{
+			data.timedMetadata.szName = additionalEventData[0].c_str();
+			data.timedMetadata.id = additionalEventData[1].c_str();
+			data.timedMetadata.szContent = additionalEventData[2].c_str();
+		}
+		return *this;
+	}
 };
 
 /**
