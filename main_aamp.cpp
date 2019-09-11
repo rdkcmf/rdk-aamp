@@ -5785,10 +5785,16 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_TIMED_METADATA;
 		eventData.data.timedMetadata.timeMilliseconds = timeMilliseconds;
-		eventData.data.timedMetadata.id = (id == NULL) ? "" : id;
 		eventData.data.timedMetadata.durationMilliSeconds = durationMS;
-		eventData.data.timedMetadata.szName = (szName == NULL) ? "" : szName;
-		eventData.data.timedMetadata.szContent = content.data();
+
+		//Temporary fix for DELIA-37985:
+		eventData.additionalEventData.push_back(std::string((szName == NULL) ? "" : szName));
+		eventData.additionalEventData.push_back(std::string((id == NULL) ? "" : id));
+		eventData.additionalEventData.push_back(std::string(content.c_str()));
+
+		eventData.data.timedMetadata.szName = eventData.additionalEventData[0].c_str();
+		eventData.data.timedMetadata.id = eventData.additionalEventData[1].c_str();
+		eventData.data.timedMetadata.szContent = eventData.additionalEventData[2].c_str();
 
 		if (gpGlobalConfig->logging.progress)
 		{
