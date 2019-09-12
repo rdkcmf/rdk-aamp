@@ -1913,10 +1913,12 @@ void PrivateInstanceAAMP::CurlTerm(int startIdx, unsigned int instanceCount)
  */
 void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , bool trickPlay,int profile)
 {
+	pthread_mutex_lock(&mLock);
 	if (mAbrBitrateData.size())
 	{
 		mAbrBitrateData.erase(mAbrBitrateData.begin(),mAbrBitrateData.end());
 	}
+	pthread_mutex_unlock(&mLock);
 	AAMPLOG_WARN("ABRMonitor-Reset::{\"Reason\":\"%s\",\"Bandwidth\":%ld,\"Profile\":%d}\n",(trickPlay)?"TrickPlay":"Tune",bitsPerSecond,profile);
 }
 
@@ -1939,6 +1941,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	std::vector< long> tmpData;
 	std::vector< long>::iterator tmpDataIter;
 	long long presentTime = aamp_GetCurrentTimeMS();
+	pthread_mutex_lock(&mLock);
 	for (bitrateIter = mAbrBitrateData.begin(); bitrateIter != mAbrBitrateData.end();)
 	{
 		//logprintf("[%s][%d] Sz[%d] TimeCheck Pre[%lld] Sto[%lld] diff[%lld] bw[%ld] \n",__FUNCTION__,__LINE__,mAbrBitrateData.size(),presentTime,(*bitrateIter).first,(presentTime - (*bitrateIter).first),(long)(*bitrateIter).second);
@@ -1953,6 +1956,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			bitrateIter++;
 		}
 	}
+	pthread_mutex_unlock(&mLock);
 
 	if (tmpData.size())
 	{	
@@ -2318,10 +2322,12 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR && (buffer->len > AAMP_ABR_THRESHOLD_SIZE))
 			{
 				{
+					pthread_mutex_lock(&mLock);
 					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,((long)(buffer->len / downloadTimeMS)*8000)));
 					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]\n",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
+					pthread_mutex_unlock(&mLock);
 				}
 			}
 		}
