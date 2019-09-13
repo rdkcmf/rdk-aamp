@@ -159,6 +159,7 @@ GlobalConfigAAMP *gpGlobalConfig;
 
 #define LOCAL_HOST_IP       "127.0.0.1"
 #define STR_PROXY_BUFF_SIZE  64
+#define AAMP_MAX_SIMULTANEOUS_INSTANCES 2
 #define AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS (20*1000LL)
 
 #define VALIDATE_INT(param_name, param_value, default_value)        \
@@ -173,14 +174,12 @@ GlobalConfigAAMP *gpGlobalConfig;
         param_value = default_value; \
     }
 
-struct gActivePrivAAMP_t
+static struct
 {
 	PrivateInstanceAAMP* pAAMP;
 	bool reTune;
 	int numPtsErrors;
-};
-
-static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP_t>();
+} gActivePrivAAMPs[AAMP_MAX_SIMULTANEOUS_INSTANCES] = { { NULL, false, 0 }, { NULL, false, 0 } };
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
@@ -3336,11 +3335,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		aamp->Stop();
 #ifdef AAMP_MPD_DRM
-		//Clear session data on clean up of last PlayerInstanceAAMP
-		if (gActivePrivAAMPs.size() == 1)
-		{
-			AampDRMSessionManager::getInstance()->clearSessionData();
-		}
+		AampDRMSessionManager::clearSessionData();
 #endif /*AAMP_MPD_DRM*/
 		delete aamp;
 	}
@@ -3349,7 +3344,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		delete mInternalStreamSink;
 	}
 #ifdef SUPPORT_JS_EVENTS 
-	if (mJSBinding_DL && gActivePrivAAMPs.empty())
+	if (mJSBinding_DL)
 	{
 		logprintf("[AAMP_JS] dlclose(%p)\n", mJSBinding_DL);
 		dlclose(mJSBinding_DL);
@@ -3486,17 +3481,16 @@ void PlayerInstanceAAMP::Stop(void)
 	aamp->SetState(eSTATE_IDLE);
 
 	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+	for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
 	{
-		if (aamp == iter->pAAMP)
+		if (aamp == gActivePrivAAMPs[i].pAAMP)
 		{
-			if (iter->reTune && aamp->mIsRetuneInProgress)
+			if (gActivePrivAAMPs[i].reTune && aamp->mIsRetuneInProgress)
 			{
 				// Wait for any ongoing re-tune operation to complete
 				pthread_cond_wait(&gCond, &gMutex);
 			}
-			iter->reTune = false;
-			break;
+			gActivePrivAAMPs[i].reTune = false;
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
@@ -5587,15 +5581,14 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP*) ptr;
 	bool activeAAMPFound = false;
 	bool reTune = false;
-	gActivePrivAAMP_t *gAAMPInstance = NULL;
+	int i;
 	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+	for ( i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
 	{
-		if (aamp == iter->pAAMP)
+		if (aamp == gActivePrivAAMPs[i].pAAMP)
 		{
-			gAAMPInstance = &(*iter);
 			activeAAMPFound = true;
-			reTune = gAAMPInstance->reTune;
+			reTune = gActivePrivAAMPs[i].reTune;
 			break;
 		}
 	}
@@ -5616,7 +5609,7 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 
 		pthread_mutex_lock(&gMutex);
 		aamp->mIsRetuneInProgress = false;
-		gAAMPInstance->reTune = false;
+		gActivePrivAAMPs[i].reTune = false;
 		pthread_cond_signal(&gCond);
 	}
 	pthread_mutex_unlock(&gMutex);
@@ -5674,12 +5667,11 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		        (errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" : "STARTTIME RESET");
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
-		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+		for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
 		{
-			if (this == iter->pAAMP)
+			if (this == gActivePrivAAMPs[i].pAAMP)
 			{
-				gActivePrivAAMP_t *gAAMPInstance = &(*iter);
-				if (gAAMPInstance->reTune)
+				if (gActivePrivAAMPs[i].reTune)
 				{
 					logprintf("PrivateInstanceAAMP::%s:%d: Already scheduled\n", __FUNCTION__, __LINE__);
 				}
@@ -5695,13 +5687,13 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							long long diffMs = (now - lastErrorReportedTimeMs);
 							if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
 							{
-								gAAMPInstance->numPtsErrors++;
+								gActivePrivAAMPs[i].numPtsErrors++;
 								logprintf("PrivateInstanceAAMP::%s:%d: numPtsErrors %d, ptsErrorThreshold %d\n",
-									__FUNCTION__, __LINE__, gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
-								if (gAAMPInstance->numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
+									__FUNCTION__, __LINE__, gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+								if (gActivePrivAAMPs[i].numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
 								{
-									gAAMPInstance->numPtsErrors = 0;
-									gAAMPInstance->reTune = true;
+									gActivePrivAAMPs[i].numPtsErrors = 0;
+									gActivePrivAAMPs[i].reTune = true;
 									logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune. diffMs %lld < threshold %lld\n",
 										__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
 									g_idle_add(PrivateInstanceAAMP_Retune, (gpointer)this);
@@ -5709,16 +5701,16 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							}
 							else
 							{
-								gAAMPInstance->numPtsErrors = 0;
+								gActivePrivAAMPs[i].numPtsErrors = 0;
 								logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since (diff %lld > threshold %lld) numPtsErrors %d, ptsErrorThreshold %d.\n",
 									__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
-									gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+									gActivePrivAAMPs[i].numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
 							}
 						}
 						else
 						{
 							const char* errorString = (errorType == eGST_ERROR_UNDERFLOW) ? "underflow" : "pts error";
-							gAAMPInstance->numPtsErrors = 0;
+							gActivePrivAAMPs[i].numPtsErrors = 0;
 							logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since first %s.\n", __FUNCTION__, __LINE__, errorString);
 						}
 						lastUnderFlowTimeMs[trackType] = now;
@@ -5726,7 +5718,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					else
 					{
 						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune errorType %d\n", __FUNCTION__, __LINE__, errorType);
-						gAAMPInstance->reTune = true;
+						gActivePrivAAMPs[i].reTune = true;
 						g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
 					}
 				}
@@ -5793,8 +5785,15 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	}
 
 	pthread_mutex_lock(&gMutex);
-	gActivePrivAAMP_t gAAMPInstance = { this, false, 0 };
-	gActivePrivAAMPs.push_back(gAAMPInstance);
+	for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
+	{
+		if (NULL == gActivePrivAAMPs[i].pAAMP)
+		{
+			gActivePrivAAMPs[i].pAAMP = this;
+			gActivePrivAAMPs[i].reTune = false;
+			break;
+		}
+	}
 	pthread_mutex_unlock(&gMutex);
 	mAdUrl[0] = 0;
 	mPendingAsyncEvents.clear();
@@ -5814,12 +5813,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 PrivateInstanceAAMP::~PrivateInstanceAAMP()
 {
 	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+	for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
 	{
-		if (this == iter->pAAMP)
+		if (this == gActivePrivAAMPs[i].pAAMP)
 		{
-			gActivePrivAAMPs.erase(iter);
-			break;
+			gActivePrivAAMPs[i].pAAMP = NULL;
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
