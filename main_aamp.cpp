@@ -1357,8 +1357,9 @@ struct CurlCallbackContext
 	GrowableBuffer *buffer;
 	httpRespHeaderData *responseHeaderData;
 	long bitrate;
+	bool downloadIsEncoded;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0)
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false)
 	{
 
 	}
@@ -1468,6 +1469,12 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 		startPos = header.find("Location:") + strlen("Location:");
 		endPos = header.length() - 1;
 	}
+  	else if (std::string::npos != header.find("Content-Encoding:"))
+	{
+          	// Enabled IsEncoded as Content-Encoding header is present
+          	// The Content-Encoding entity header incidcates media is compressed
+		context->downloadIsEncoded = true;
+	}
 	else if (0 == context->buffer->avail)
 	{
 		size_t headerStart = header.find("Content-Length:");
@@ -1502,7 +1509,7 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 			}
 		}
 	}
-
+	
 	if((startPos > 0) && (endPos > 0))
 	{
 		//Find the first character after the http header name
@@ -2329,10 +2336,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			fclose(f);
 #endif
 			double expectedContentLength = 0;
-			if (CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength > (int)buffer->len))
+			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
 			{
 				//Note: For non-compressed data, Content-Length header and buffer size should be same. For gzipped data, 'Content-Length' will be <= deflated data.
-				logprintf("AAMP content length mismatch expected %d got %d\n",(int)expectedContentLength, (int)buffer->len);
+				AAMPLOG_WARN("AAMP Content-Length=%d actual=%d\n", (int)expectedContentLength, (int)buffer->len);
 				http_code       =       416; // Range Not Satisfiable
 				ret             =       false; // redundant, but harmless
 				if (buffer->ptr)
