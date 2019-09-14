@@ -396,7 +396,7 @@ void ShowHelpSet(){
  * @class myAAMPEventListener
  * @brief
  */
-class myAAMPEventListener :public AAMPEventListener
+class myAAMPEventListener :public AAMPEventObjectListener
 {
 public:
 
@@ -404,23 +404,34 @@ public:
 	 * @brief Implementation of event callback
 	 * @param e Event
 	 */
-	void Event(const AAMPEvent & e)
+	void Event(const AAMPEventPtr& e)
 	{
-		switch (e.type)
+		switch (e->getType())
 		{
 		case AAMP_EVENT_STATE_CHANGED:
-			logprintf("AAMP_EVENT_STATE_CHANGED: %d", e.data.stateChanged.state);
-			break;
-		case AAMP_EVENT_SEEKED:
-			logprintf("AAMP_EVENT_SEEKED: new positionMs %f", e.data.seeked.positionMiliseconds);
-			break;
-		case AAMP_EVENT_MEDIA_METADATA:
-			logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
-			for( int i=0; i<e.data.metadata.languageCount; i++ )
 			{
-				logprintf( "language: %s\n", e.data.metadata.languages[i] );
+				StateChangedEventPtr ev = std::dynamic_pointer_cast<StateChangedEvent>(e);
+				logprintf("AAMP_EVENT_STATE_CHANGED: %d", ev->getState());
+				break;
 			}
-			break;
+		case AAMP_EVENT_SEEKED:
+			{
+				SeekedEventPtr ev = std::dynamic_pointer_cast<SeekedEvent>(e);
+				logprintf("AAMP_EVENT_SEEKED: new positionMs %f", ev->getPosition());
+				break;
+			}
+		case AAMP_EVENT_MEDIA_METADATA:
+			{
+				MediaMetadataEventPtr ev = std::dynamic_pointer_cast<MediaMetadataEvent>(e);
+				std::vector<std::string> languages = ev->getLanguages();
+				int langCount = ev->getLanguagesCount();
+				logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
+				for (int i = 0; i < langCount; i++)
+				{
+					logprintf("language: %s\n", languages[i]);
+				}
+				break;
+			}
 		case AAMP_EVENT_TUNED:
 			logprintf("AAMP_EVENT_TUNED");
 			break;
@@ -441,7 +452,6 @@ public:
 			break;
 		case AAMP_EVENT_PROGRESS:
 			//logprintf("AAMP_EVENT_PROGRESS");
-			//logprintf("videoBufferedMilliseconds: %.0f", e.data.progress.videoBufferedMiliseconds);
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED");
@@ -450,16 +460,20 @@ public:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
 		case AAMP_EVENT_ID3_METADATA:
-			logprintf("AAMP_EVENT_ID3_METADATA");
-
-			logprintf("ID3 payload, length %d bytes:", e.data.id3Metadata.length);
-			printf("\t");
-			for (int i = 0; i < e.data.id3Metadata.length; i++)
 			{
-				printf("%c", *(e.data.id3Metadata.data+i));
+				logprintf("AAMP_EVENT_ID3_METADATA");
+				ID3MetadataEventPtr ev = std::dynamic_pointer_cast<ID3MetadataEvent>(e);
+				std::vector<uint8_t> metadata = ev->getMetadata();
+				int len = ev->getMetadataSize();
+				logprintf("ID3 payload, length %d bytes:", len);
+				printf("\t");
+				for (int i = 0; i < len; i++)
+				{
+					printf("%c", metadata[i]);
+				}
+				printf("\n");
+				break;
 			}
-			printf("\n");
-			break;
 		default:
 			break;
 		}

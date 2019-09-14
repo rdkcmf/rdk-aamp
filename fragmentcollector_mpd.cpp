@@ -1703,7 +1703,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))
 			{
-				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%lld mPeriodStartTime %lld  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
+				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%lu mPeriodStartTime %lu  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
@@ -1935,7 +1935,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								index++;
 							}
 							pMediaStreamContext->fragmentIndex = index - 1;
-							AAMPLOG_TRACE("%s:%d PushNextFragment Exit : startTime %lld lastSegmentTime %lld index = %d", __FUNCTION__, __LINE__, startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
+							AAMPLOG_TRACE("%s:%d PushNextFragment Exit : startTime %lld lastSegmentTime %lu index = %d", __FUNCTION__, __LINE__, startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
 						}
 					}
 					if(rate > 0)
@@ -2048,7 +2048,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 	}
 	if (segmentTemplate)
 	{
-		 AAMPLOG_INFO("%s:%d Enter : Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentTime %f skipTime %f segNumber %llu", __FUNCTION__, __LINE__,pMediaStreamContext->type,
+		 AAMPLOG_INFO("%s:%d Enter : Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentTime %f skipTime %f segNumber %lu", __FUNCTION__, __LINE__,pMediaStreamContext->type,
                                 pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentTime, skipTime, pMediaStreamContext->fragmentDescriptor.Number);
 
 		gboolean firstFrag = true;
@@ -3130,13 +3130,13 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 								ParseISO8601Duration( periodStartStr.c_str(), periodStart);
 								availablilityStart = (uint64_t)ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str()) * 1000;
 								ParseISO8601Duration( minimumUpdatePeriodStr.c_str(), minUpdatePeriod);
-								AAMPLOG_INFO("%s:%d : periodStart %llu availabilityStartTime %llu minUpdatePeriod %llu mpdDownloadTime %llu", __FUNCTION__, __LINE__, periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
+								AAMPLOG_INFO("%s:%d : periodStart %lu availabilityStartTime %lu minUpdatePeriod %lu mpdDownloadTime %lu", __FUNCTION__, __LINE__, periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
 								uint64_t periodEndTime = mpdDownloadTime + minUpdatePeriod;
 								uint64_t periodStartTime = availablilityStart + periodStart;
 								durationMs = periodEndTime - periodStartTime;
 								if(durationMs <= 0)
 								{
-									AAMPLOG_WARN("%s:%d : Invalid period duration periodStartTime %llu periodEndTime %llu durationMs %llu", __FUNCTION__, __LINE__, periodStartTime, periodEndTime, durationMs);
+									AAMPLOG_WARN("%s:%d : Invalid period duration periodStartTime %lu periodEndTime %lu durationMs %lu", __FUNCTION__, __LINE__, periodStartTime, periodEndTime, durationMs);
 									durationMs = 0;
 								}
 							}
@@ -3154,7 +3154,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 								durationMs = nextPeriodStart - periodStart;
 								if(durationMs <= 0)
 								{
-									AAMPLOG_WARN("%s:%d : Invalid period duration periodStartTime %llu nextPeriodStart %llu durationMs %llu", __FUNCTION__, __LINE__, periodStart, nextPeriodStart, durationMs);
+									AAMPLOG_WARN("%s:%d : Invalid period duration periodStartTime %lu nextPeriodStart %lu durationMs %lu", __FUNCTION__, __LINE__, periodStart, nextPeriodStart, durationMs);
 									durationMs = 0;
 								}
 							}
@@ -3628,7 +3628,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		}
 		else if(mNumberOfTracks)
 		{
-			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
+			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
 			TunedEventConfig tunedEventConfig =  mIsLiveStream ?
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
@@ -5598,7 +5598,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 			if(segmentTemplate)
 			{
 				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplate->GetStartNumber();
-				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %llu", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %lu", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
 			}
 		}
 	}

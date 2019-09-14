@@ -42,8 +42,8 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 
 	aampInstance->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 
-	AAMPEvent aampEvent;
-	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, &aampEvent, aampInstance, streamType);
+	DrmMetaDataEventPtr event = std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, false);
+	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, event, aampInstance, streamType);
 	if (!mDrmSession)
 	{
 		AAMPLOG_WARN("%s:%d Failed to create Drm Session ", __FUNCTION__, __LINE__);
@@ -51,7 +51,7 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 		if (aampInstance->DownloadsAreEnabled())
 		{
 			aampInstance->DisableDownloads();
-			aampInstance->SendErrorEvent(aampEvent.data.dash_drmmetadata.failure);
+			aampInstance->SendErrorEvent(event->getFailure());
 		}
 	}
 	else

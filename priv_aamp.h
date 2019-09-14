@@ -255,17 +255,25 @@ enum AudioType
  */
 struct AsyncEventDescriptor
 {
-	AsyncEventDescriptor() : event(), aamp(NULL)
+	/**
+	 * @brief AsyncEventDescriptor constructor
+	 */
+	AsyncEventDescriptor() : event(nullptr), aamp(NULL)
 	{
 	}
 
-	AAMPEvent event;
-	PrivateInstanceAAMP* aamp;
+	/**
+	 * @brief AsyncEventDescriptor destructor
+	 */
+	virtual ~AsyncEventDescriptor()
+	{
+	}
 
 	AsyncEventDescriptor(const AsyncEventDescriptor &other) = delete;
-
 	AsyncEventDescriptor& operator=(const AsyncEventDescriptor& other) = delete;
-	virtual ~AsyncEventDescriptor() {}
+
+	AAMPEventPtr event;
+	PrivateInstanceAAMP* aamp;
 };
 
 /**
@@ -329,7 +337,7 @@ struct httpRespHeaderData {
  * @brief  Structure of the event listener list
  */
 struct ListenerData {
-	AAMPEventListener* eventListener;   /**< Event listener */
+	EventListener* eventListener;   /**< Event listener */
 	ListenerData* pNext;                /**< Next listener */
 };
 
@@ -517,7 +525,7 @@ public:
 
 	class StreamAbstractionAAMP *mpStreamAbstractionAAMP; // HLS or MPD collector
 	class CDAIObject *mCdaiObject;      // Client Side DAI Object
-	std::queue<AAMPEvent> mAdEventsQ;   // A Queue of Ad events
+	std::queue<AAMPEventPtr> mAdEventsQ;   // A Queue of Ad events
 	std::mutex mAdEventQMtx;            // Add events' queue protector
 	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mVideoFormat;
@@ -591,7 +599,7 @@ public:
 	double culledSeconds;
 	float maxRefreshPlaylistIntervalSecs;
 	long long initialTuneTimeMs;
-	AAMPEventListener* mEventListener;
+	EventListener* mEventListener;
 	double mReportProgressPosn;
 	long long mReportProgressTime;
 	long long mAdPrevProgressTime;
@@ -674,11 +682,10 @@ public:
 	/**
 	 * @brief Storing audio language list
 	 *
-	 * @param[in] maxLangCount - Language count
-	 * @param[in] langlist - Array of languages
+	 * @param[in] langlist - Vector of languages
 	 * @return void
 	 */
-	void StoreLanguageList(int maxLangCount , char langlist[][MAX_LANGUAGE_TAG_LENGTH]);
+	void StoreLanguageList(const std::vector<std::string> &langlist);
 
 	/**
 	 * @brief Checking whether audio language supported
@@ -813,7 +820,7 @@ public:
 	 * @param[in] eventListener - Event handler
 	 * @return void
 	 */
-	void AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
+	void AddEventListener(AAMPEventType eventType, EventListener* eventListener);
 
 	/**
 	 * @brief Deregister event lister
@@ -822,7 +829,7 @@ public:
 	 * @param[in] eventListener - Event handler
 	 * @return void
 	 */
-	void RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener);
+	void RemoveEventListener(AAMPEventType eventType, EventListener* eventListener);
 
 	/**
 	 * @brief Send events synchronously
@@ -830,7 +837,7 @@ public:
 	 * @param[in] e - Event object
 	 * @return void
 	 */
-	void SendEventAsync(const AAMPEvent &e);
+	void SendEventAsync(AAMPEventPtr e);
 
 	/**
 	 * @brief Handles errors and sends events to application if required.
@@ -844,14 +851,14 @@ public:
 
 	
 
-	void SendDRMMetaData(const AAMPEvent &e);
+	void SendDRMMetaData(DrmMetaDataEventPtr e);
 
 	/**
 	 * @brief Handles DRM errors and sends events to application if required.
 	 * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
 	 * @param[in] isRetryEnabled drm retry enabled
 	 */
-	void SendDrmErrorEvent(AAMPEvent *event = NULL, bool isRetryEnabled = true);
+	void SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRetryEnabled);
 
 	/**
 	 * @brief Handles download errors and sends events to application if required.
@@ -886,7 +893,7 @@ public:
 	 * @param[in] e - Event object
 	 * @return void
 	 */
-	void SendEventSync(const AAMPEvent &e);
+	void SendEventSync(AAMPEventPtr e);
 
 	/**
 	 * @brief Notify speed change
@@ -1319,7 +1326,7 @@ public:
 	 *   @param[in] eventListener - Handle to event listener
 	 *   @return void
 	 */
-	void RegisterEvents(AAMPEventListener* eventListener)
+	void RegisterEvents(EventListener* eventListener)
 	{
 		mEventListener = eventListener;
 	}
@@ -2257,10 +2264,9 @@ public:
 	/**
 	 *   @brief Sends an ID3 metadata event.
 	 *
-	 *   @param[in] data pointer to ID3 metadata
-	 *   @param[in] length length of ID3 metadata
+	 *   @param[in] data ID3 metadata
 	 */
-	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+	void SendId3MetadataEvent(std::vector<uint8_t> &data);
 
 	/**
 	 * @brief Gets the registration status of a given event
