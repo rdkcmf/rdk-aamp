@@ -4728,7 +4728,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		//Currently un-used playlist indexed event, might save some JS overhead
 		if (!gpGlobalConfig->disablePlaylistIndexEvent)
 		{
-			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
+			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
 		}
 		if (newTune)
 		{
@@ -6965,6 +6965,3 @@ void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 /**
  * @}
  */
-
-
-

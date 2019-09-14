@@ -158,6 +158,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	}
 }
 
+
 /**
  * @brief Stop playback and release resources.
  *
@@ -241,9 +242,9 @@ void PlayerInstanceAAMP::detach()
 /**
  *   @brief Register event handler.
  *
- *   @param  eventListener - pointer to implementation of AAMPEventListener to receive events.
+ *   @param  eventListener - pointer to implementation of EventListener to receive events.
  */
-void PlayerInstanceAAMP::RegisterEvents(AAMPEventListener* eventListener)
+void PlayerInstanceAAMP::RegisterEvents(EventListener* eventListener)
 {
 	aamp->RegisterEvents(eventListener);
 }
@@ -972,7 +973,7 @@ void PlayerInstanceAAMP::UnloadJS(void* context)
  *   @param  eventType - type of event.
  *   @param  eventListener - listener for the eventType.
  */
-void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
+void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	aamp->AddEventListener(eventType, eventListener);
 }
@@ -983,7 +984,7 @@ void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventList
  *   @param  eventType - type of event.
  *   @param  eventListener - listener to be removed for the eventType.
  */
-void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
+void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	aamp->RemoveEventListener(eventType, eventListener);
 }
@@ -1635,17 +1636,6 @@ const char* PlayerInstanceAAMP::GetPreferredLanguages()
 void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 {
 	aamp->SetNewAdBreakerConfig(bValue);
-}
-
-/**
- *   @brief Sends an ID3 metadata event.
- *
- *   @param[in] data pointer to ID3 metadata
- *   @param[in] length length of ID3 metadata
- */
-void PlayerInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
-{
-	aamp->SendId3MetadataEvent(data, length);
 }
 
 /**

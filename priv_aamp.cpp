@@ -152,62 +152,6 @@ struct ChannelInfo
 static std::list<ChannelInfo> mChannelOverrideMap;
 
 /**
- * @struct AsyncVideoEndEventDescriptor
- * @brief Used in asynchronous aamp data event notification logic
- * new struct created to handle memory deletion
- */
-struct AsyncMetricsEventDescriptor : public AsyncEventDescriptor
-{
-	AsyncMetricsEventDescriptor(MetricsDataType type, char * data, std::string & uuid)
-	{
-		event.type = AAMP_EVENT_REPORT_METRICS_DATA;
-		event.data.metricsData.data = data;
-		event.data.metricsData.type = type;
-
-		if(!uuid.empty() && (uuid.size() < METRIC_UUID_BUFF_LEN))
-		{
-			strcpy(event.data.metricsData.metricUUID,uuid.c_str());
-		}
-		else
-		{
-			event.data.metricsData.metricUUID[0] = 0;
-		}
-	}
-
-	virtual ~AsyncMetricsEventDescriptor()
-	{
-		if(event.data.metricsData.data)
-		{
-			free(event.data.metricsData.data);
-		}
-	}
-};
-
-/**
- * @struct AsyncMicroEventDescriptor
- * @brief Used in asynchronous aamp data event for micro event
- * new struct created to handle memory deletion
- */
-struct AsyncMicroEventDescriptor : public AsyncEventDescriptor
-{
-	AsyncMicroEventDescriptor(const char * data)
-	{
-		event.type = AAMP_EVENT_TUNE_PROFILING;
-		char *eventData = new char[strlen(data) + 1];
-		strcpy(eventData, data);
-		event.data.tuneProfile.microData = eventData;
-	}
-
-	virtual ~AsyncMicroEventDescriptor()
-	{
-		if(event.data.tuneProfile.microData)
-		{
-			delete[] event.data.tuneProfile.microData;
-		}
-	}
-};
-
-/**
  * @struct CurlCallbackContext
  * @brief context during curl callbacks
  */
@@ -439,10 +383,6 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 static void AsyncEventDestroyNotify(gpointer user_data)
 {
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	if (e->event.type == AAMP_EVENT_WEBVTT_CUE_DATA)
-	{
-		delete e->event.data.cue.cueData;
-	}
 	delete e;
 }
 
@@ -463,7 +403,7 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 	}
 	else
 	{
-		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event.type);
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event->getType());
 	}
 	e->aamp->SendEventSync(e->event);
 	return G_SOURCE_REMOVE;
@@ -2046,41 +1986,40 @@ void PrivateInstanceAAMP::SyncEnd(void)
  */
 void PrivateInstanceAAMP::ReportProgress(void)
 {
-	//if (mPlayerState.durationMilliseconds > 0)
 	if (mDownloadsEnabled)
 	{
 		ReportAdProgress();
 
-		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_PROGRESS;
-
-		eventData.data.progress.positionMiliseconds = GetPositionMilliseconds();
-		eventData.data.progress.durationMiliseconds = durationSeconds*1000.0;
+		double position = GetPositionMilliseconds();
+		double duration = durationSeconds * 1000.0;
+		float speed = pipeline_paused ? 0 : rate;
+		double start = -1;
+		double end = -1;
+		long long videoPTS = -1;
+		double bufferedDuration = 0.0;
 
 		//If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		if( mContentType == ContentType_LINEAR && !mTSBEnabled)
 		{
-			eventData.data.progress.startMiliseconds = -1;
-			eventData.data.progress.endMiliseconds = -1;
+			start = -1;
+			end = -1;
 		}
 		else
 		{
-		    eventData.data.progress.startMiliseconds = culledSeconds*1000.0;
-		    eventData.data.progress.endMiliseconds = eventData.data.progress.startMiliseconds + eventData.data.progress.durationMiliseconds;
+		    start = culledSeconds*1000.0;
+		    end = start + duration;
 		}
 
-		eventData.data.progress.playbackSpeed = pipeline_paused ? 0 : rate;
-
-		if (eventData.data.progress.positionMiliseconds > eventData.data.progress.endMiliseconds)
+		if (position > end)
 		{ // clamp end
 			//logprintf("aamp clamp end");
-			eventData.data.progress.positionMiliseconds = eventData.data.progress.endMiliseconds;
+			position = end;
 		}
-		else if (eventData.data.progress.positionMiliseconds < eventData.data.progress.startMiliseconds)
+		else if (position < start)
 		{ // clamp start
 			//logprintf("aamp clamp start");
-			eventData.data.progress.positionMiliseconds = eventData.data.progress.startMiliseconds;
+			position = start;
 		}
 
 		if(gpGlobalConfig->bReportVideoPTS)
@@ -2090,21 +2029,15 @@ void PrivateInstanceAAMP::ReportProgress(void)
 				**to video PTS received from gstreamer
 				*/
 				/*For DASH,mVideoBasePTS value will be zero */
-				eventData.data.progress.videoPTS = mStreamSink->GetVideoPTS() + mVideoBasePTS;
-		}
-		else
-		{
-			eventData.data.progress.videoPTS = -1; // if -1 , this parameter wont be added to JSPP event 
+				videoPTS = mStreamSink->GetVideoPTS() + mVideoBasePTS;
 		}
 
 		if (mpStreamAbstractionAAMP)
 		{
-			eventData.data.progress.videoBufferedMiliseconds = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec()*1000.0;
+			bufferedDuration = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec() * 1000.0;
 		}
-		else
-		{
-			eventData.data.progress.videoBufferedMiliseconds = 0.0;
-		}
+
+		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration);
         
 		if (gpGlobalConfig->logging.progress)
 		{
@@ -2112,15 +2045,15 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			if ((tick++ % 4) == 0)
 			{
 				logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
-					(long)(eventData.data.progress.startMiliseconds / 1000),
-					(long)(eventData.data.progress.positionMiliseconds / 1000),
-					(long)(eventData.data.progress.endMiliseconds / 1000),
-					(long long) eventData.data.progress.videoPTS,
-					(long)(eventData.data.progress.videoBufferedMiliseconds / 1000) );
+					(long)(start / 1000),
+					(long)(position / 1000),
+					(long)(end / 1000),
+					(long long) videoPTS,
+					(long)(bufferedDuration / 1000) );
 			}
 		}
-		mReportProgressPosn = eventData.data.progress.positionMiliseconds;
-		SendEventSync(eventData);
+		mReportProgressPosn = position;
+		SendEventSync(evt);
 		mReportProgressTime = aamp_GetCurrentTimeMS();
 	}
 }
@@ -2143,11 +2076,8 @@ void PrivateInstanceAAMP::ReportAdProgress(void)
 		}
 		mAdPrevProgressTime = curTime;
 
-		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_AD_PLACEMENT_PROGRESS;
-		strncpy(eventData.data.adPlacement.adId, mAdProgressId.c_str(), AD_ID_LENGTH);
-		eventData.data.adPlacement.position = (uint32_t)(mAdCurOffset*100)/mAdDuration;
-		SendEventSync(eventData);
+		AdPlacementEventPtr evt = std::make_shared<AdPlacementEvent>(AAMP_EVENT_AD_PLACEMENT_PROGRESS, mAdProgressId, (uint32_t)(mAdCurOffset * 100) / mAdDuration);
+		SendEventSync(evt);
 	}
 }
 
@@ -2232,7 +2162,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
  * @param eventType type of event to subscribe
  * @param eventListener listener
  */
-void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
+void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	//logprintf("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
@@ -2256,7 +2186,7 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
  * @param eventType type of event to unsubscribe
  * @param eventListener listener
  */
-void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
+void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 	{
@@ -2284,13 +2214,13 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
  * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
  * @param[in] isRetryEnabled drm retry enabled
  */
-void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPEvent *event, bool isRetryEnabled)
+void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRetryEnabled)
 {
 	if (event)
 	{
-		AAMPTuneFailure tuneFailure = event->data.dash_drmmetadata.failure;
-		long error_code = event->data.dash_drmmetadata.responseCode;
-		bool isSecClientError = event->data.dash_drmmetadata.isSecClientError;
+		AAMPTuneFailure tuneFailure = event->getFailure();
+		long error_code = event->getResponseCode();
+		bool isSecClientError = event->secclientError();
 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
@@ -2338,7 +2268,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPEvent *event, bool isRetryEnable
  * @param tuneFailure Reason of error
  * @param error_code HTTP error code/ CURLcode
  */
-void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,long error_code)
+void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, long error_code)
 {
 	AAMPTuneFailure actualFailure = tuneFailure;
 
@@ -2401,24 +2331,22 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
  */
 void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...)
 {
-    if(NULL != format)
-    {
-        va_list args;
-        va_start(args, format);
+	if(NULL != format)
+	{
+		va_list args;
+		va_start(args, format);
 
-        AAMPEvent e;
-        e.type = AAMP_EVENT_REPORT_ANOMALY;
-        char * msgData = e.data.anomalyReport.msg;
+		char msgData[MAX_ANOMALY_BUFF_SIZE];
 
-        msgData[(MAX_ANOMALY_BUFF_SIZE-1)] = 0;
-        vsnprintf(msgData, (MAX_ANOMALY_BUFF_SIZE-1), format, args);
+		msgData[(MAX_ANOMALY_BUFF_SIZE-1)] = 0;
+		vsnprintf(msgData, (MAX_ANOMALY_BUFF_SIZE-1), format, args);
 
+		AnomalyReportEventPtr e = std::make_shared<AnomalyReportEvent>(type, msgData);
 
-        e.data.anomalyReport.severity = (int)type;
-        AAMPLOG_INFO("Anomaly evt:%d msg:%s",e.data.anomalyReport.severity,msgData);
-        SendEventAsync(e);
-	va_end(args);  //CID:82734 - VARAGAS
-    }
+		AAMPLOG_INFO("Anomaly evt:%d msg:%s", e->getSeverity(), msgData);
+		SendEventAsync(e);
+		va_end(args);  //CID:82734 - VARAGAS
+	}
 }
 
 
@@ -2441,15 +2369,10 @@ void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
  */
 void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 {
-	AAMPEvent e;
-
-	e.type = AAMP_EVENT_BUFFERING_CHANGED;
+	BufferingChangedEventPtr e = std::make_shared<BufferingChangedEvent>(!bufferingStopped); /* False if Buffering End, True if Buffering Start*/
 
 	SetBufUnderFlowStatus(bufferingStopped);
-
-	e.data.bufferingChanged.buffering = !(bufferingStopped);   /* False if Buffering End, True if Buffering Start*/
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Sending Buffer Change event status (Buffering): %s", __FUNCTION__, __LINE__, ((e.data.bufferingChanged.buffering) ? "Start": "End"));
-
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Sending Buffer Change event status (Buffering): %s", __FUNCTION__, __LINE__, (e->buffering() ? "Start": "End"));
 	SendEventAsync(e);
 }
 
@@ -2488,20 +2411,18 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	pthread_mutex_unlock(&mLock);
 	if (sendErrorEvent)
 	{
-		AAMPEvent e;
-		e.type = AAMP_EVENT_TUNE_FAILED;
-		e.data.mediaError.shouldRetry = isRetryEnabled;
+		int code;
 		const char *errorDescription = NULL;
 		DisableDownloads();
 		if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 		{
 			if (tuneFailure == AAMP_TUNE_PLAYBACK_STALLED)
 			{ // allow config override for stall detection error code
-				e.data.mediaError.code = gpGlobalConfig->stallErrorCode;
+				code = gpGlobalConfig->stallErrorCode;
 			}
 			else
 			{
-				e.data.mediaError.code = tuneFailureMap[tuneFailure].code;
+				code = tuneFailureMap[tuneFailure].code;
 			}
 			if(description)
 			{
@@ -2514,20 +2435,19 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		}
 		else
 		{
-			e.data.mediaError.code = tuneFailureMap[AAMP_TUNE_FAILURE_UNKNOWN].code;
+			code = tuneFailureMap[AAMP_TUNE_FAILURE_UNKNOWN].code;
 			errorDescription = tuneFailureMap[AAMP_TUNE_FAILURE_UNKNOWN].description;
 		}
 
-		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
-		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
-		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
+		MediaErrorEventPtr e = std::make_shared<MediaErrorEvent>(tuneFailure, code, errorDescription, isRetryEnabled);
+		SendAnomalyEvent(ANOMALY_ERROR, "Error[%d]:%s", tuneFailure, e->getDescription().c_str());
 		if (!mAppName.empty())
 		{
-			logprintf("%s PLAYER[%d] APP: %s Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str(), e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] APP: %s Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str(), e->getDescription().c_str());
 		}
 		else
 		{
-			logprintf("%s PLAYER[%d] Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e->getDescription().c_str());
 		}
 
 		if (rate != AAMP_NORMAL_PLAY_RATE)
@@ -2548,19 +2468,22 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
  * @brief Send event asynchronously to listeners
  * @param e event
  */
-void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
+void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
 {
-	if (mEventListener || mEventListeners[0] || mEventListeners[e.type])
+	AAMPEventType eventType = e->getType();
+	if (mEventListener || mEventListeners[0] || mEventListeners[eventType])
 	{
 		AsyncEventDescriptor* aed = new AsyncEventDescriptor();
 		aed->event = e;
 		ScheduleEvent(aed);
-		if(e.type != AAMP_EVENT_PROGRESS)
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__,e.type);
+		if(eventType != AAMP_EVENT_PROGRESS)
+		{
+			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, eventType);
+		}
 	}
 	else
 	{
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Failed to send event type  %d", __FUNCTION__, __LINE__,e.type);
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Failed to send event type  %d", __FUNCTION__, __LINE__, eventType);
 	}
 }
 
@@ -2569,27 +2492,27 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
  * @brief Send event synchronously to listeners
  * @param e event
  */
-void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
+void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
 {
-	if(e.type != AAMP_EVENT_PROGRESS)
+	AAMPEventType eventType = e->getType();
+	if (eventType != AAMP_EVENT_PROGRESS)
 	{
-		if (e.type != AAMP_EVENT_STATE_CHANGED)
+		if (eventType != AAMP_EVENT_STATE_CHANGED)
 		{
-			AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, e.type);
+			AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, eventType);
 		}
 		else
 		{
-			AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, e.type, e.data.stateChanged.state);
+			AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
 		}
 	}
 
 	//TODO protect mEventListener
 	if (mEventListener)
 	{
-		mEventListener->Event(e);
+		mEventListener->SendEvent(e);
 	}
 
-	AAMPEventType eventType = e.type;
 	if ((eventType < 0) || (eventType >= AAMP_MAX_NUM_EVENTS))  //CID:81883 - Resolve OVER_RUN
 		return;
 
@@ -2624,7 +2547,7 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 		if (pCurrent->eventListener != NULL)
 		{
 			//logprintf("[AAMP_JS] %s(type=%d) listener=%p", __FUNCTION__, eventType, pCurrent->eventListener);
-			pCurrent->eventListener->Event(e);
+			pCurrent->eventListener->SendEvent(e);
 		}
 		pList = pCurrent->pNext;
 		delete pCurrent;
@@ -2644,15 +2567,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_BITRATE_CHANGED])
 	{
 		AsyncEventDescriptor* e = new AsyncEventDescriptor();
-		e->event.type = AAMP_EVENT_BITRATE_CHANGED;
-		e->event.data.bitrateChanged.time               =       (int)aamp_GetCurrentTimeMS();
-		e->event.data.bitrateChanged.bitrate            =       bitrate;
-		strncpy(e->event.data.bitrateChanged.description, BITRATEREASON2STRING(reason), sizeof(e->event.data.bitrateChanged.description));
-		e->event.data.bitrateChanged.width              =       width;
-		e->event.data.bitrateChanged.height             =       height;
-		e->event.data.bitrateChanged.framerate          =       frameRate;
-		e->event.data.bitrateChanged.position           =       position;
-		
+		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position);
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
@@ -2720,24 +2635,17 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	}
 #endif
 
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SPEED_CHANGED])
-	{
-		AsyncEventDescriptor* e = new AsyncEventDescriptor();
-		e->event.type = AAMP_EVENT_SPEED_CHANGED;
-		e->event.data.speedChanged.rate = rate;
-		ScheduleEvent(e);
-	}
+	SendEventAsync(std::make_shared<SpeedChangedEvent>(rate));
 }
 
 /**
  * @brief Send DRM metadata event
  * @param e DRM metadata event
  */
-void PrivateInstanceAAMP::SendDRMMetaData(const AAMPEvent &e)
+void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
 {
-
         SendEventAsync(e);
-        logprintf("SendDRMMetaData name = %s value = %x",e.data.dash_drmmetadata.accessStatus,e.data.dash_drmmetadata.accessStatus_value);
+        logprintf("SendDRMMetaData name = %s value = %x", e->getAccessStatus().c_str(), e->getAccessStatusValue());
 }
 
 /**
@@ -2872,7 +2780,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		if (!IsLive() && rate > 0)
 		{
 			SetState(eSTATE_COMPLETE);
-			SendEventAsync(AAMP_EVENT_EOS);
+			SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
 			if (ContentType_EAS == mContentType) //Fix for DELIA-25590
 			{
 				mStreamSink->Stop(false);
@@ -2913,10 +2821,7 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 	{
 		return;
 	}
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_ENTERING_LIVE])
-	{
-		SendEventAsync(AAMP_EVENT_ENTERING_LIVE);
-	}
+	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_ENTERING_LIVE));
 }
 
 /**
@@ -2948,11 +2853,8 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 	//extra events push us over limit
 	AAMPLOG_WARN("tune-profiling: %s", jsonStr.c_str());
 
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_TUNE_PROFILING])
-	{
-		AsyncMicroEventDescriptor* e = new AsyncMicroEventDescriptor(jsonStr.c_str());
-		ScheduleEvent(e);
-	}
+	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(jsonStr);
+	SendEventAsync(e);
 }
 
 /**
@@ -3269,24 +3171,24 @@ VideoStatTrackType PrivateInstanceAAMP::ConvertAudioIndexToVideoStatTrackType(in
 
 /**
  * @brief Store language list of stream
- * @param maxLangCount count of language item to be stored
  * @param langlist Array of languges
  */
-void PrivateInstanceAAMP::StoreLanguageList(int maxLangCount , char langlist[][MAX_LANGUAGE_TAG_LENGTH])
+void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &langlist)
 {
 	// store the language list
-	if (maxLangCount > MAX_LANGUAGE_COUNT)
+	int langCount = langlist.size();
+	if (langCount > MAX_LANGUAGE_COUNT)
 	{
-		maxLangCount = MAX_LANGUAGE_COUNT; //boundary check
+		langCount = MAX_LANGUAGE_COUNT; //boundary check
 	}
-	mMaxLanguageCount = maxLangCount;
-	for (int cnt=0; cnt < maxLangCount; cnt ++)
+	mMaxLanguageCount = langCount;
+	for (int cnt=0; cnt < langCount; cnt ++)
 	{
-		strncpy(mLanguageList[cnt],langlist[cnt],MAX_LANGUAGE_TAG_LENGTH);
+		strncpy(mLanguageList[cnt], langlist[cnt].c_str(), MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
 		if( this->mVideoEnd )
 		{
-			mVideoEnd->Setlanguage(ConvertAudioIndexToVideoStatTrackType(cnt),langlist[cnt]);
+			mVideoEnd->Setlanguage(ConvertAudioIndexToVideoStatTrackType(cnt), langlist[cnt].c_str());
 		}
 	}
 }
@@ -3302,7 +3204,7 @@ bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
 	bool retVal =false;
 	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
 	{
-		if(strncmp(mLanguageList[cnt],checkLanguage,MAX_LANGUAGE_TAG_LENGTH) == 0)
+		if(strncmp(mLanguageList[cnt], checkLanguage, MAX_LANGUAGE_TAG_LENGTH) == 0)
 		{
 			retVal = true;
 			break;
@@ -4409,11 +4311,9 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		// Don't send event if nativeCCRendering is ON
 		if (!gpGlobalConfig->nativeCCRendering)
 		{
-			AAMPEvent event;
-			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-			event.data.ccHandle.handle = 0;
+			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(0);
 			SendEventSync(event);
-			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle", __FUNCTION__, __LINE__);
 		}
 #else
 		const bool forceStop = false;
@@ -4443,7 +4343,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		streamerIsActive = true;
 	}
 	mAdProgressId = "";
-	std::queue<AAMPEvent> emptyEvQ;
+	std::queue<AAMPEventPtr> emptyEvQ;
 	{
 		std::lock_guard<std::mutex> lock(mAdEventQMtx);
 		std::swap( mAdEventsQ, emptyEvQ );
@@ -4618,7 +4518,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		durationSeconds = 60 * 60; // 1 hour
 		rate = AAMP_NORMAL_PLAY_RATE;
 		playStartUTCMS = aamp_GetCurrentTimeMS();
-		StoreLanguageList(0,NULL);
+		std::vector<std::string> emptyLanglist;
+		StoreLanguageList(emptyLanglist);
 		mTunedEventPending = true;
 	}
 
@@ -4736,9 +4637,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			{
 				SendErrorEvent(failReason);
 			}
-			
-			//event.data.mediaError.description = "kECFileNotFound (90)";
-			//event.data.mediaError.playerRecoveryEnabled = false;
 		}
 		mInitSuccess = false;
 		return;
@@ -6278,10 +6176,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 			char* bulkData = cJSON_PrintUnformatted(root);
 			if(bulkData)
 			{
-
-				AAMPEvent eventData;
-				eventData.type = AAMP_EVENT_BULK_TIMED_METADATA;
-				eventData.data.bulktimedMetadata.szMetaContent = bulkData;
+				BulkTimedMetadataEventPtr eventData = std::make_shared<BulkTimedMetadataEvent>(std::string(bulkData));
 				AAMPLOG_INFO("%s:%d:: Sending bulkTimedData", __FUNCTION__, __LINE__);
 				if (gpGlobalConfig->logging.logMetadata)
 				{
@@ -6356,30 +6251,16 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 
 	if (bFireEvent)
 	{
-		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_TIMED_METADATA;
-		eventData.data.timedMetadata.timeMilliseconds = timeMilliseconds;
-		eventData.data.timedMetadata.durationMilliSeconds = durationMS;
-
-		//Temporary fix for DELIA-37985:
-		eventData.additionalEventData.push_back(std::string((szName == NULL) ? "" : szName));
-		eventData.additionalEventData.push_back(std::string((id == NULL) ? "" : id));
-		eventData.additionalEventData.push_back(std::string(content.c_str()));
-
-		eventData.data.timedMetadata.szName = eventData.additionalEventData[0].c_str();
-		eventData.data.timedMetadata.id = eventData.additionalEventData[1].c_str();
 		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
-		eventData.data.timedMetadata.szContent = eventData.additionalEventData[2].c_str();
+		TimedMetadataEventPtr eventData = std::make_shared<TimedMetadataEvent>(((szName == NULL) ? "" : szName), ((id == NULL) ? "" : id), timeMilliseconds, durationMS, content);
 
 		if (gpGlobalConfig->logging.logMetadata)
 		{
-			logprintf("aamp timedMetadata: [%ld] '%s'",
-				(long)(eventData.data.timedMetadata.timeMilliseconds),
-				eventData.data.timedMetadata.szContent);
+			logprintf("aamp timedMetadata: [%ld] '%s'", (long)(timeMilliseconds), content.c_str());
 		}
 
 
-		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || !bSyncCall )
+		if ((eventData->getName() == "SCTE35") || !bSyncCall )
 		{
 			SendEventAsync(eventData);
 		}
@@ -6457,9 +6338,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 		else
 #endif
 		{
-			AAMPEvent event;
-			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-			event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
+			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
 			SendEventSync(event);
 		}
 	}
@@ -6647,16 +6526,14 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING || state == eSTATE_PAUSED)
 		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
-		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_SEEKED;
-		eventData.data.seeked.positionMiliseconds = GetPositionMilliseconds();
+		SeekedEventPtr event = std::make_shared<SeekedEvent>(GetPositionMilliseconds());
 		if (sentSync)
 		{
-			SendEventSync(eventData);
+			SendEventSync(event);
 		}
 		else
 		{
-			SendEventAsync(eventData);
+			SendEventAsync(event);
 		}
 	}
 
@@ -6668,9 +6545,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 	{
 		if (mState == eSTATE_PREPARING)
 		{
-			AAMPEvent eventData;
-			eventData.type = AAMP_EVENT_STATE_CHANGED;
-			eventData.data.stateChanged.state = eSTATE_INITIALIZED;
+			StateChangedEventPtr eventData = std::make_shared<StateChangedEvent>(eSTATE_INITIALIZED);
 			if (sentSync)
 			{
 				SendEventSync(eventData);
@@ -6681,9 +6556,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 			}
 		}
 
-		AAMPEvent eventData;
-		eventData.type = AAMP_EVENT_STATE_CHANGED;
-		eventData.data.stateChanged.state = mState;
+		StateChangedEventPtr eventData = std::make_shared<StateChangedEvent>(mState);
 		if (sentSync)
 		{
 			SendEventSync(eventData);
@@ -6780,13 +6653,14 @@ bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 
 	if(ret)
 	{
+		AAMPEventPtr ev = std::make_shared<AAMPEventObject>(AAMP_EVENT_TUNED);
 		if (isSynchronous)
 		{
-			SendEventSync(AAMP_EVENT_TUNED);
+			SendEventSync(ev);
 		}
 		else
 		{
-			SendEventAsync(AAMP_EVENT_TUNED);
+			SendEventAsync(ev);
 		}
 	}
 	return ret;
@@ -6820,15 +6694,9 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		mPlaybackDuration = 0;
 		mCurrentLanguageIndex = 0;
 
-		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
 		strVideoEndJson = mVideoEnd->ToJsonString();
 
 		delete mVideoEnd;
-		
-		if(strVideoEndJson)
-		{
-			AAMPLOG_INFO("VideoEnd:%s", strVideoEndJson);
-		}
 	}
 	
 	mVideoEnd = new CVideoStat();
@@ -6842,17 +6710,11 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 
 	if(strVideoEndJson)
 	{
-		if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_REPORT_METRICS_DATA])
-		{
-			AsyncMetricsEventDescriptor* e = new AsyncMetricsEventDescriptor(MetricsDataType::AAMP_DATA_VIDEO_END,strVideoEndJson,this->mTraceUUID);
-
-			ScheduleEvent(e);
-			ret = true;
-		}
-		else
-		{
-			free(strVideoEndJson);
-		}
+		AAMPLOG_INFO("VideoEnd:%s", strVideoEndJson);
+		MetricsDataEventPtr e = std::make_shared<MetricsDataEvent>(MetricsDataType::AAMP_DATA_VIDEO_END, this->mTraceUUID, strVideoEndJson);
+		SendEventAsync(e);
+		free(strVideoEndJson);
+		ret = true;
 	}
 	return ret;
 }
@@ -7652,62 +7514,50 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
  */
 void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent)
 {
-	AAMPEvent event;
 	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
 	int langCount = 0;
 	int bitrateCount = 0;
 	int supportedSpeedCount = 0;
+	int width  = 1280;
+	int height = 720;
 
-	event.type = AAMP_EVENT_MEDIA_METADATA;
-	event.data.metadata.durationMiliseconds = durationMs;
-	memset(event.data.metadata.bitrates, 0, sizeof(event.data.metadata.bitrates));
-	memset(event.data.metadata.supportedSpeeds, 0, sizeof(event.data.metadata.supportedSpeeds));
+	GetPlayerVideoSize(width, height);
 
-	for (std::set<std::string>::iterator iter = langList.begin();
-			(iter != langList.end() && langCount < MAX_LANGUAGE_COUNT) ; iter++)
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm);
+
+	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
-		char *dst = event.data.metadata.languages[langCount];
 		const char *src = (*iter).c_str();
 		size_t len = strlen(src);
-		if( len>0 )
+		if (len > 0)
 		{
-			assert( len<MAX_LANGUAGE_TAG_LENGTH-1 );
-			memcpy( dst, src, len );
-			dst[len] = 0x00;
-			langCount++;
+			assert(len < MAX_LANGUAGE_TAG_LENGTH - 1);
+			event->addLanguage(std::string(src));
 		}
 	}
-	event.data.metadata.languageCount = langCount;
-	StoreLanguageList(langCount, event.data.metadata.languages);
+	StoreLanguageList(event->getLanguages());
 
-	for (int i = 0; (i < bitrateList.size() && bitrateCount < MAX_BITRATE_COUNT); i++)
+	for (int i = 0; i < bitrateList.size(); i++)
 	{
-		event.data.metadata.bitrates[bitrateCount++] = bitrateList[i];
+		event->addBitrate(bitrateList[i]);
 	}
-	event.data.metadata.bitrateCount = bitrateCount;
-	event.data.metadata.width = 1280;
-	event.data.metadata.height = 720;
-	GetPlayerVideoSize(event.data.metadata.width, event.data.metadata.height);
-	event.data.metadata.hasDrm = hasDrm;
 
 	//Iframe track present and hence playbackRate change is supported
 	if (isIframeTrackPresent)
 	{
-		for(int i = 0; i < supportedPlaybackSpeeds.size() && supportedSpeedCount < MAX_SUPPORTED_SPEED_COUNT; i++)
+		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{
-			event.data.metadata.supportedSpeeds[supportedSpeedCount++] = supportedPlaybackSpeeds[i];
+			event->addSupportedSpeed(supportedPlaybackSpeeds[i]);
 		}
 	}
 	else
 	{
 		//Supports only pause and play
-		event.data.metadata.supportedSpeeds[supportedSpeedCount++] = 0;
-		event.data.metadata.supportedSpeeds[supportedSpeedCount++] = 1;
+		event->addSupportedSpeed(0);
+		event->addSupportedSpeed(1);
 	}
-	event.data.metadata.supportedSpeedCount = supportedSpeedCount;
 
 	SendEventAsync(event);
-	//TODO: Send the list of available audio tracks and text tracks if listeners are registered.
 }
 
 /**
@@ -7717,28 +7567,26 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
  */
 void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent)
 {
-	AAMPEvent event;
+	SupportedSpeedsChangedEventPtr event = std::make_shared<SupportedSpeedsChangedEvent>();
 	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
 	int supportedSpeedCount = 0;
 
-	event.type = AAMP_EVENT_SPEEDS_CHANGED;
 	//Iframe track present and hence playbackRate change is supported
 	if (isIframeTrackPresent)
 	{
-		for(int i = 0; i < supportedPlaybackSpeeds.size() && supportedSpeedCount < MAX_SUPPORTED_SPEED_COUNT; i++)
+		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{
-			event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = supportedPlaybackSpeeds[i];
+			event->addSupportedSpeed(supportedPlaybackSpeeds[i]);;
 		}
 	}
 	else
 	{
 		//Supports only pause and play
-		event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = 0;
-		event.data.speedsChanged.supportedSpeeds[supportedSpeedCount++] = 1;
+		event->addSupportedSpeed(0);
+		event->addSupportedSpeed(1);
 	}
-	event.data.speedsChanged.supportedSpeedCount = supportedSpeedCount;
 
-	logprintf("aamp: sending supported speeds changed event with count %d", supportedSpeedCount);
+	logprintf("aamp: sending supported speeds changed event with count %d", event->getSupportedSpeedCount());
 	SendEventAsync(event);
 }
 
@@ -8105,16 +7953,10 @@ void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, con
  */
 void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool status, uint64_t startMS, uint64_t durationMs)
 {
-	AAMPEvent e;
 	if (mDownloadsEnabled)	//Send it, only if Stop not called
 	{
-		e.type = AAMP_EVENT_AD_RESOLVED;
-		strncpy(e.data.adResolved.adId, adId.c_str(), AD_ID_LENGTH);
-		e.data.adResolved.adId[AD_ID_LENGTH-1] = '\0';
-		e.data.adResolved.resolveStatus = status;
-		e.data.adResolved.startMS = startMS;
-		e.data.adResolved.durationMs = durationMs;
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status=%d for adId[%s]", __FUNCTION__, __LINE__, e.data.adResolved.resolveStatus, adId.c_str());
+		AdResolvedEventPtr e = std::make_shared<AdResolvedEvent>(status, adId, startMS, durationMs);
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status=%d for adId[%s]", __FUNCTION__, __LINE__, status, adId.c_str());
 		SendEventAsync(e);
 	}
 }
@@ -8127,7 +7969,7 @@ void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
 	std::lock_guard<std::mutex> lock(mAdEventQMtx);
 	while (!mAdEventsQ.empty())
 	{
-		AAMPEvent &e = mAdEventsQ.front();
+		AAMPEventPtr e = mAdEventsQ.front();
 		if(immediate)
 		{
 			SendEventAsync(e); 	//Need to send all events from gst idle thread.
@@ -8136,15 +7978,17 @@ void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
 		{
 			SendEventSync(e);	//Already from gst idle thread
 		}
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Delivered AdEvent[%s] to JSPP.", __FUNCTION__, __LINE__, ADEVENT2STRING(e.type));
-		if(AAMP_EVENT_AD_PLACEMENT_START == e.type)
+		AAMPEventType evtType = e->getType();
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Delivered AdEvent[%s] to JSPP.", __FUNCTION__, __LINE__, ADEVENT2STRING(evtType));
+		if(AAMP_EVENT_AD_PLACEMENT_START == evtType)
 		{
-			mAdProgressId = e.data.adPlacement.adId;
+			AdPlacementEventPtr placementEvt = std::dynamic_pointer_cast<AdPlacementEvent>(e);
+			mAdProgressId       = placementEvt->getAdId();
 			mAdPrevProgressTime = NOW_STEADY_TS_MS;
-			mAdCurOffset        = e.data.adPlacement.offset;
-			mAdDuration         = e.data.adPlacement.duration;
+			mAdCurOffset        = placementEvt->getOffset();
+			mAdDuration         = placementEvt->getDuration();
 		}
-		else if(AAMP_EVENT_AD_PLACEMENT_END == e.type || AAMP_EVENT_AD_PLACEMENT_ERROR == e.type)
+		else if(AAMP_EVENT_AD_PLACEMENT_END == evtType || AAMP_EVENT_AD_PLACEMENT_ERROR == evtType)
 		{
 			mAdProgressId = "";
 		}
@@ -8164,11 +8008,9 @@ void PrivateInstanceAAMP::SendAdReservationEvent(AAMPEventType type, const std::
 {
 	if(AAMP_EVENT_AD_RESERVATION_START == type || AAMP_EVENT_AD_RESERVATION_END == type)
 	{
-		AAMPEvent e;
-		e.type = type;
-		strncpy(e.data.adReservation.adBreakId, adBreakId.c_str(), AD_ID_LENGTH);
-		e.data.adReservation.position = position;
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d, [CDAI] Pushed [%s] of adBreakId[%s] to Queue.", __FUNCTION__, __LINE__, ADEVENT2STRING(type), adBreakId.c_str());
+
+		AdReservationEventPtr e = std::make_shared<AdReservationEvent>(type, adBreakId, position);
 
 		{
 			{
@@ -8199,14 +8041,9 @@ void PrivateInstanceAAMP::SendAdPlacementEvent(AAMPEventType type, const std::st
 {
 	if(AAMP_EVENT_AD_PLACEMENT_START <= type && AAMP_EVENT_AD_PLACEMENT_ERROR >= type)
 	{
-		AAMPEvent e;
-		e.type = type;
-		strncpy(e.data.adPlacement.adId, adId.c_str(), AD_ID_LENGTH);
-		e.data.adPlacement.position = position;
-		e.data.adPlacement.offset = adOffset * 1000; //To MS
-		e.data.adPlacement.duration = adDuration;
-		e.data.adPlacement.errorCode = error_code;
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d, [CDAI] Pushed [%s] of adId[%s] to Queue.", __FUNCTION__, __LINE__, ADEVENT2STRING(type), adId.c_str());
+
+		AdPlacementEventPtr e = std::make_shared<AdPlacementEvent>(type, adId, position, adOffset * 1000 /*MS*/, adDuration, error_code);
 
 		{
 			{
@@ -8497,9 +8334,7 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 	//This function is called from an idle handler and hence we call SendEventSync
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA])
 	{
-		AAMPEvent ev;
-		ev.type = AAMP_EVENT_WEBVTT_CUE_DATA;
-		ev.data.cue.cueData = cue;
+		WebVttCueEventPtr ev = std::make_shared<WebVttCueEvent>(cue);
 		SendEventSync(ev);
 	}
 }
@@ -8545,17 +8380,10 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
  *   @param[in] data pointer to ID3 metadata.
  *   @param[in] length length of ID3 metadata.
  */
-void PrivateInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
+void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
 {
-	AAMPEvent e;
-	e.type = AAMP_EVENT_ID3_METADATA;
-	e.data.id3Metadata.data = data;
-	e.data.id3Metadata.length = length;
-
+	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data);
 	SendEventSync(e);
-
-	g_free(data);
-	data = NULL;
 }
 
 /**
@@ -8888,18 +8716,7 @@ std::string PrivateInstanceAAMP::GetAppName()
  */
 void PrivateInstanceAAMP::individualization(const std::string& payload)
 {
-	AAMPEvent event;
-	event.type = AAMP_EVENT_DRM_MESSAGE;
-
-	if (!payload.empty() && (payload.size() < DRM_MESSAGE_BUFF_LEN))
-	{
-		strcpy(event.data.drmMessage.data, payload.c_str());
-	}
-	else
-	{
-		event.data.drmMessage.data[0] = 0;
-	}
-
+	DrmMessageEventPtr event = std::make_shared<DrmMessageEvent>(payload);
 	SendEventAsync(event);
 }
 
@@ -9237,7 +9054,7 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
  */
 void PrivateInstanceAAMP::NotifyAudioTracksChanged()
 {
-	SendEventAsync(AAMP_EVENT_AUDIO_TRACKS_CHANGED);
+	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_AUDIO_TRACKS_CHANGED));
 }
 
 /**
@@ -9247,7 +9064,7 @@ void PrivateInstanceAAMP::NotifyAudioTracksChanged()
  */
 void PrivateInstanceAAMP::NotifyTextTracksChanged()
 {
-	SendEventAsync(AAMP_EVENT_TEXT_TRACKS_CHANGED);
+	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_TEXT_TRACKS_CHANGED));
 }
 
 /**
