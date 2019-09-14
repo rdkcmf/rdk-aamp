@@ -42,11 +42,11 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
 	customHeaders = fCustomHeaders;
 }
 
-void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled)
+void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRetryEnabled)
 {
 }
 
-void PrivateInstanceAAMP::SendDRMMetaData(const AAMPEvent &e)
+void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
 {
 }
 

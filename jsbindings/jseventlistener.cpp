@@ -52,12 +52,14 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		StateChangedEventPtr evt = std::dynamic_pointer_cast<StateChangedEvent>(ev);
+
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("state");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.stateChanged.state), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getState()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 
@@ -87,36 +89,38 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		ProgressEventPtr evt = std::dynamic_pointer_cast<ProgressEvent>(ev);
+
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("durationMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.durationMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getDuration()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("positionMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.positionMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("playbackSpeed");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.playbackSpeed), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getSpeed()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("startMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.startMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getStart()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("endMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.endMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getEnd()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("currentPTS");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.videoPTS), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPTS()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("videoBufferedMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.videoBufferedMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getBufferedDuration()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -145,12 +149,14 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		SpeedChangedEventPtr evt = std::dynamic_pointer_cast<SpeedChangedEvent>(ev);
+
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("speed");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.speedChanged.rate), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getRate()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("reason");
@@ -183,12 +189,14 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		BufferingChangedEventPtr evt = std::dynamic_pointer_cast<BufferingChangedEvent>(ev);
+
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("buffering");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, ev.data.bufferingChanged.buffering), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->buffering()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -217,21 +225,23 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		MediaErrorEventPtr evt = std::dynamic_pointer_cast<MediaErrorEvent>(ev);
+
 		JSStringRef prop;
 
-                prop = JSStringCreateWithUTF8CString("recoveryEnabled");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, false), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("code");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getCode()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 
-                prop = JSStringCreateWithUTF8CString("code");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.mediaError.code), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("description");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getDescription().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 
-                prop = JSStringCreateWithUTF8CString("description");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.mediaError.description), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("shouldRetry");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->shouldRetry()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 };
 
@@ -259,44 +269,52 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		MediaMetadataEventPtr evt = std::dynamic_pointer_cast<MediaMetadataEvent>(ev);
+
 		JSStringRef prop;
 		prop = JSStringCreateWithUTF8CString("durationMiliseconds");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.metadata.durationMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getDuration()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
-		JSValueRef* array = new JSValueRef[ev.data.metadata.languageCount];
-		for (int32_t i = 0; i < ev.data.metadata.languageCount; i++)
+		int count = evt->getLanguagesCount();
+		const std::vector<std::string> &langVect = evt->getLanguages();
+		JSValueRef* array = new JSValueRef[count];
+		for (int32_t i = 0; i < count; i++)
 		{
-			JSValueRef lang = aamp_CStringToJSValue(p_obj->_ctx, ev.data.metadata.languages[i]);
+			JSValueRef lang = aamp_CStringToJSValue(p_obj->_ctx, langVect[i].c_str());
 			array[i] = lang;
 		}
-		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, ev.data.metadata.languageCount, array, NULL);
+		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
 		delete [] array;
 
 		prop = JSStringCreateWithUTF8CString("languages");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
-		array = new JSValueRef[ev.data.metadata.bitrateCount];
-		for (int32_t i = 0; i < ev.data.metadata.bitrateCount; i++)
+		count = evt->getBitratesCount();
+		const std::vector<long> &bitrateVect = evt->getBitrates();
+		array = new JSValueRef[count];
+		for (int32_t i = 0; i < count; i++)
 		{
-			array[i] = JSValueMakeNumber(p_obj->_ctx, ev.data.metadata.bitrates[i]);
+			array[i] = JSValueMakeNumber(p_obj->_ctx, bitrateVect[i]);
 		}
-		propValue = JSObjectMakeArray(p_obj->_ctx, ev.data.metadata.bitrateCount, array, NULL);
+		propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
 		delete [] array;
 
 		prop = JSStringCreateWithUTF8CString("bitrates");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
-		array = new JSValueRef[ev.data.metadata.supportedSpeedCount];
-		for (int32_t i = 0; i < ev.data.metadata.supportedSpeedCount; i++)
+		count = evt->getSupportedSpeedCount();
+		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		array = new JSValueRef[count];
+		for (int32_t i = 0; i < count; i++)
 		{
-			array[i] = JSValueMakeNumber(p_obj->_ctx, ev.data.metadata.supportedSpeeds[i]);
+			array[i] = JSValueMakeNumber(p_obj->_ctx, speedVect[i]);
 		}
-		propValue = JSObjectMakeArray(p_obj->_ctx, ev.data.metadata.supportedSpeedCount, array, NULL);
+		propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
 		delete [] array;
 
 		prop = JSStringCreateWithUTF8CString("playbackSpeeds");
@@ -304,15 +322,15 @@ public:
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("width");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.metadata.width), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getWidth()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("height");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.metadata.height), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getHeight()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("hasDrm");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, ev.data.metadata.hasDrm), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->hasDrm()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -341,14 +359,18 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
-		JSValueRef* array = new JSValueRef[ev.data.speedsChanged.supportedSpeedCount];
-		for (int32_t i = 0; i < ev.data.speedsChanged.supportedSpeedCount; i++)
+		SupportedSpeedsChangedEventPtr evt = std::dynamic_pointer_cast<SupportedSpeedsChangedEvent>(ev);
+
+		int count = evt->getSupportedSpeedCount();
+		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		JSValueRef* array = new JSValueRef[count];
+		for (int32_t i = 0; i < count; i++)
 		{
-			array[i] = JSValueMakeNumber(p_obj->_ctx, ev.data.speedsChanged.supportedSpeeds[i]);
+			array[i] = JSValueMakeNumber(p_obj->_ctx, speedVect[i]);
 		}
-		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, ev.data.speedsChanged.supportedSpeedCount, array, NULL);
+		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
 		delete [] array;
 
 		JSStringRef prop = JSStringCreateWithUTF8CString("playbackSpeeds");
@@ -380,10 +402,11 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		SeekedEventPtr evt = std::dynamic_pointer_cast<SeekedEvent>(ev);
 		JSStringRef prop = JSStringCreateWithUTF8CString("position");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.seeked.positionMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -412,10 +435,11 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		TuneProfilingEventPtr evt = std::dynamic_pointer_cast<TuneProfilingEvent>(ev);
                 JSStringRef prop;
-                const char* microData = ev.data.tuneProfile.microData;
+                const char* microData = evt->getProfilingData().c_str();
 
                 LOG("AAMP_Listener_TuneProfiling microData %s", microData);
                 prop = JSStringCreateWithUTF8CString("microData");
@@ -448,12 +472,14 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		CCHandleEventPtr evt = std::dynamic_pointer_cast<CCHandleEvent>(ev);
+
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("decoderHandle");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.ccHandle.handle), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getCCHandle()), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(prop);
 	}
 
@@ -483,21 +509,22 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
-                JSStringRef prop;
+		DrmMetaDataEventPtr evt = std::dynamic_pointer_cast<DrmMetaDataEvent>(ev);
+		JSStringRef prop;
 
-                int code = ev.data.dash_drmmetadata.accessStatus_value;
-                const char* description = ev.data.dash_drmmetadata.accessStatus;
+		int code = evt->getAccessStatusValue();
+		const char* description = evt->getAccessStatus().c_str();
 
-                ERROR("AAMP_Listener_DRMMetadata code %d Description %s", code, description);
-                prop = JSStringCreateWithUTF8CString("code");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, code), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		ERROR("AAMP_Listener_DRMMetadata code %d Description %s", code, description);
+		prop = JSStringCreateWithUTF8CString("code");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, code), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 
-                prop = JSStringCreateWithUTF8CString("description");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("description");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 
 };
@@ -526,21 +553,22 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
-                JSStringRef prop;
+		AnomalyReportEventPtr evt = std::dynamic_pointer_cast<AnomalyReportEvent>(ev);
+		JSStringRef prop;
 
-                int severity = ev.data.anomalyReport.severity;
-                const char* description = ev.data.anomalyReport.msg;
+		int severity = evt->getSeverity();
+		const char* description = evt->getMessage().c_str();
 
-                ERROR("AAMP_Listener_AnomalyReport severity %d Description %s", severity, description);
-                prop = JSStringCreateWithUTF8CString("severity");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, severity), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		ERROR("AAMP_Listener_AnomalyReport severity %d Description %s", severity, description);
+		prop = JSStringCreateWithUTF8CString("severity");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, severity), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 
-                prop = JSStringCreateWithUTF8CString("description");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("description");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, description), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 
 };
@@ -569,22 +597,24 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
-                JSStringRef prop;
-		VTTCue *cue = ev.data.cue.cueData;
+		WebVttCueEventPtr evt = std::dynamic_pointer_cast<WebVttCueEvent>(ev);
 
-                prop = JSStringCreateWithUTF8CString("start");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mStart), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		JSStringRef prop;
+		VTTCue *cue = evt->getCueData();
 
-                prop = JSStringCreateWithUTF8CString("duration");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mDuration), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("start");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mStart), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 
-                prop = JSStringCreateWithUTF8CString("text");
-                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, cue->mText.c_str()), kJSPropertyAttributeReadOnly, NULL);
-                JSStringRelease(prop);
+		prop = JSStringCreateWithUTF8CString("duration");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, cue->mDuration), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("text");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, cue->mText.c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 
 };
@@ -613,9 +643,11 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
-		JSObjectRef timedMetadata = aamp_CreateTimedMetadataJSObject(p_obj->_ctx, ev.data.timedMetadata.timeMilliseconds, ev.data.timedMetadata.szName, ev.data.timedMetadata.szContent, ev.data.timedMetadata.id, ev.data.timedMetadata.durationMilliSeconds);
+		TimedMetadataEventPtr evt = std::dynamic_pointer_cast<TimedMetadataEvent>(ev);
+
+		JSObjectRef timedMetadata = aamp_CreateTimedMetadataJSObject(p_obj->_ctx, evt->getTime(), evt->getName().c_str(), evt->getContent().c_str(), evt->getId().c_str(), evt->getDuration());
 		if (timedMetadata)
 		{
 			JSValueProtect(p_obj->_ctx, timedMetadata);
@@ -649,66 +681,13 @@ public:
         /**
          * @brief Set JS event properties
          */
-        void SetEventProperties(const AAMPEvent& e,  JSObjectRef eventObj)
+        void SetEventProperties(const AAMPEventPtr& ev,  JSObjectRef eventObj)
         {
-                        JSStringRef name = JSStringCreateWithUTF8CString("timedMetadatas");
-			JSObjectSetProperty(p_obj->_ctx, eventObj, name, aamp_CStringToJSValue(p_obj->_ctx, e.data.bulktimedMetadata.szMetaContent),  kJSPropertyAttributeReadOnly, NULL);
-                        JSStringRelease(name);
+		BulkTimedMetadataEventPtr evt = std::dynamic_pointer_cast<BulkTimedMetadataEvent>(ev);
+		JSStringRef name = JSStringCreateWithUTF8CString("timedMetadatas");
+		JSObjectSetProperty(p_obj->_ctx, eventObj, name, aamp_CStringToJSValue(p_obj->_ctx, evt->getContent().c_str()),  kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
         }
-};
-
-
-/*
- * @class AAMP_Listener_BitrateChanged
- * @brief Event listener impl for AAMP_EVENT_BITRATE_CHANGED event.
- */
-class AAMP_Listener_BitrateChanged : public AAMP_JSEventListener
-{
-public:
-	/**
-	 * @brief AAMP_Listener_BitrateChanged Constructor
-	 * @param[in] aamp instance of PrivAAMPStruct_JS
-	 * @param[in] type event type
-	 * @param[in] jsCallback callback to be registered as listener
-	 */
-	AAMP_Listener_BitrateChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
-		: AAMP_JSEventListener(obj, type, jsCallback)
-	{
-	}
-
-	/**
-	 * @brief Set properties to JS event object
-	 * @param[in] ev AAMP event object
-	 * @param[out] jsEventObj JS event object
-	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
-	{
-		JSStringRef name;
-		name = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.time), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("bitRate");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.bitrate), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("description");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, aamp_CStringToJSValue(p_obj->_ctx, ev.data.bitrateChanged.description), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("width");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.width), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("height");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.height), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("framerate");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.framerate), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-		
-	}
 };
 
 
@@ -736,24 +715,25 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdResolvedEventPtr evt = std::dynamic_pointer_cast<AdResolvedEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("resolvedStatus");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, ev.data.adResolved.resolveStatus), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->getResolveStatus()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("placementId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adResolved.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("placementStartTime");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adResolved.startMS), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getStart()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("placementDuration");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adResolved.durationMs), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getDuration()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -783,16 +763,17 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdReservationEventPtr evt = std::dynamic_pointer_cast<AdReservationEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adbreakId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adReservation.adBreakId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdBreakId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adReservation.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -822,16 +803,17 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdReservationEventPtr evt = std::dynamic_pointer_cast<AdReservationEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adbreakId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adReservation.adBreakId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdBreakId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adReservation.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -861,16 +843,17 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdPlacementEventPtr evt = std::dynamic_pointer_cast<AdPlacementEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -900,16 +883,17 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdPlacementEventPtr evt = std::dynamic_pointer_cast<AdPlacementEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -939,16 +923,17 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdPlacementEventPtr evt = std::dynamic_pointer_cast<AdPlacementEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -978,24 +963,82 @@ public:
 	 * @param[in] ev AAMP event object
 	 * @param[out] jsEventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		AdPlacementEventPtr evt = std::dynamic_pointer_cast<AdPlacementEvent>(ev);
 		JSStringRef prop;
 
 		prop = JSStringCreateWithUTF8CString("adId");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, ev.data.adPlacement.adId), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAdId().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adPlacement.position), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
 		prop = JSStringCreateWithUTF8CString("error");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.adPlacement.errorCode), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getErrorCode()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
 
+
+/*
+ * @class AAMP_Listener_BitrateChanged
+ * @brief Event listener impl for AAMP_EVENT_BITRATE_CHANGED event.
+ */
+class AAMP_Listener_BitrateChanged : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_BitrateChanged Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_BitrateChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		BitrateChangeEventPtr evt = std::dynamic_pointer_cast<BitrateChangeEvent>(ev);
+		JSStringRef name;
+		name = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getTime()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("bitRate");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getBitrate()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("description");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, aamp_CStringToJSValue(p_obj->_ctx, evt->getDescription().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("width");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getWidth()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("height");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getHeight()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("framerate");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getFrameRate()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("position");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+	}
+};
 
 /**
  * @class AAMP_Listener_Id3Metadata
@@ -1020,23 +1063,26 @@ public:
 	 * @param[in] e AAMP event object
 	 * @param[out] eventObj JS event object
 	 */
-	void SetEventProperties(const AAMPEvent& e, JSObjectRef jsEventObj)
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
+		ID3MetadataEventPtr evt = std::dynamic_pointer_cast<ID3MetadataEvent>(ev);
+		std::vector<uint8_t> data = evt->getMetadata();
+		int len = evt->getMetadataSize();
 		JSStringRef prop;
 
-		JSValueRef* array = new JSValueRef[e.data.id3Metadata.length];
-		for (int32_t i = 0; i < e.data.id3Metadata.length; i++)
+		JSValueRef* array = new JSValueRef[len];
+		for (int32_t i = 0; i < len; i++)
 		{
-			array[i] = JSValueMakeNumber(p_obj->_ctx, *(e.data.id3Metadata.data + i));
+			array[i] = JSValueMakeNumber(p_obj->_ctx, data[i]);
 		}
 
 		prop = JSStringCreateWithUTF8CString("data");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, e.data.id3Metadata.length, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, len, array, NULL), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 		delete [] array;
 
 		prop = JSStringCreateWithUTF8CString("length");
-		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, e.data.id3Metadata.length), kJSPropertyAttributeReadOnly, NULL);
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, len), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 	}
 };
@@ -1076,15 +1122,16 @@ AAMP_JSEventListener::~AAMP_JSEventListener()
  * @brief Callback invoked for dispatching event
  * @param[in] e event object
  */
-void AAMP_JSEventListener::Event(const AAMPEvent& e)
+void AAMP_JSEventListener::Event(const AAMPEventPtr& e)
 {
-	LOG("%s() type=%d, jsCallback=%p", __FUNCTION__, e.type, p_jsCallback);
-	if (e.type < 0 || e.type >= AAMP_MAX_NUM_EVENTS)
+	AAMPEventType evtType = e->getType();
+	LOG("%s() type=%d, jsCallback=%p", __FUNCTION__, evtType, p_jsCallback);
+	if (evtType < 0 || evtType >= AAMP_MAX_NUM_EVENTS)
 	{
 		return;
 	}
 
-	JSObjectRef event = createNewAAMPJSEvent(p_obj->_ctx, aampPlayer_getNameFromEventType(e.type), false, false);
+	JSObjectRef event = createNewAAMPJSEvent(p_obj->_ctx, aampPlayer_getNameFromEventType(evtType), false, false);
 	if (event)
 	{
 		JSGlobalContextRef ctx = p_obj->_ctx;
@@ -1093,12 +1140,13 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 		//send this event through promise callback if an event listener is not registered
 		if (p_type == AAMP_EVENT_AD_RESOLVED && p_jsCallback == NULL)
 		{
-			std::string adIdStr(e.data.adResolved.adId);
-			JSObjectRef cbObj = p_obj->getCallbackForAdId(adIdStr);
+			AdResolvedEventPtr evt = std::dynamic_pointer_cast<AdResolvedEvent>(e);
+			std::string adId = evt->getAdId();
+			JSObjectRef cbObj = p_obj->getCallbackForAdId(adId);
 			if (cbObj != NULL)
 			{
 				aamp_dispatchEventToJS(ctx, cbObj, event);
-				p_obj->removeCallbackForAdId(adIdStr); //promise callbacks are intended for a single-time use for an ad id
+				p_obj->removeCallbackForAdId(adId); //promise callbacks are intended for a single-time use for an ad id
 			}
 			else
 			{
