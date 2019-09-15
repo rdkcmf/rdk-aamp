@@ -7358,7 +7358,8 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 		}
 #else
 		e.type = AAMP_EVENT_AD_RESOLVED;
-		e.data.adResolved.adId = adId.c_str();
+		strncpy(e.data.adResolved.adId, adId.c_str(), AD_ID_LENGTH);
+		e.data.adResolved.adId[AD_ID_LENGTH-1] = '\0';
 		e.data.adResolved.resolveStatus = status;
 		e.data.adResolved.startMS = startMS;
 		e.data.adResolved.durationMs = durationMs;

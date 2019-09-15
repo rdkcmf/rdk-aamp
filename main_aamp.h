@@ -368,7 +368,7 @@ struct AAMPEvent
 		struct
 		{
 			bool resolveStatus;
-			const char *adId;
+			char adId[AD_ID_LENGTH];
 			uint64_t startMS;
 			uint64_t durationMs;
 		} adResolved;
