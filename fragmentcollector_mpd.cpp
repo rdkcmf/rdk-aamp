@@ -1243,6 +1243,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						{
 							uint32_t duration =0;
 							uint32_t repeatCount =0;
+							uint64_t nextStartTime = 0;
 							int index = pMediaStreamContext->timeLineIndex;
 							// This for loop is to go to the right index based on LastSegmentTime
 							for(;index<timelines.size();index++)
@@ -1250,8 +1251,14 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								timeline = timelines.at(index);
 								startTime = timeline->GetStartTime();
 								duration = timeline->GetDuration();
+								// For Dynamic segment timeline content
+								if (0 == startTime && 0 != duration)
+								{
+									startTime = nextStartTime;
+								}
 								repeatCount = timeline->GetRepeatCount();
-								if(pMediaStreamContext->lastSegmentTime < (startTime+((repeatCount+1)*duration)))
+								nextStartTime = startTime+((repeatCount+1)*duration);
+								if(pMediaStreamContext->lastSegmentTime < nextStartTime)
 								{
 									break;
 								}
