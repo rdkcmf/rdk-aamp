@@ -1879,6 +1879,13 @@ public:
 	long long GetPositionMs(void);
 
 	/**
+	 *   @brief Get playback position in milliseconds
+	 *
+	 *   @return Position in ms.
+	 */
+	long long GetPositionMilliseconds(void);
+
+	/**
 	 *   @brief  API to send audio/video stream into the sink.
 	 *
 	 *   @param[in]  mediaType - Type of the media.
@@ -2815,6 +2822,13 @@ public:
 	 */
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
+
+	/**
+	 *   @brief To check if current asset is DASH or not
+	 *
+	 *   @return bool - true if its DASH asset
+	 */
+	bool IsDashAsset(void) { return mIsDash; }
 
 private:
 
