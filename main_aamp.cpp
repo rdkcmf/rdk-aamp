@@ -320,23 +320,15 @@ void PrivateInstanceAAMP::ReportProgress(void)
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_PROGRESS;
 
-		eventData.data.progress.positionMiliseconds = (seek_pos_seconds) * 1000.0;
-		if (!pipeline_paused && trickStartUTCMS >= 0)
-		{
-			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
-			eventData.data.progress.positionMiliseconds += elapsedTime * rate;
-			// note, using StreamSink::GetPositionMilliseconds() instead of elapsedTime
-			// would likely be more accurate, but would need to be tested to accomodate
-			// and compensate for FF/REW play rates
-		}
+		eventData.data.progress.positionMiliseconds = GetPositionMilliseconds();
 		eventData.data.progress.durationMiliseconds = durationSeconds*1000.0;
 
 		//If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		if( mContentType == ContentType_LINEAR && !mTSBEnabled)
 		{
-            eventData.data.progress.startMiliseconds = -1;
-            eventData.data.progress.endMiliseconds = -1;
+			eventData.data.progress.startMiliseconds = -1;
+			eventData.data.progress.endMiliseconds = -1;
 		}
 		else
 		{
@@ -950,6 +942,9 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		logprintf("PrivateInstanceAAMP::%s:%d mProcessingDiscontinuity set\n", __FUNCTION__, __LINE__);
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
+		seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
+		logprintf("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f\n", __FUNCTION__, __LINE__, seek_pos_seconds);
+		trickStartUTCMS = -1;
 		mpStreamAbstractionAAMP->StopInjection();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
@@ -3758,7 +3753,7 @@ void PlayerInstanceAAMP::Stop(void)
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_INFO("Stopping Playback at Position '%lld'.\n", aamp->GetPositionMs());
+	AAMPLOG_INFO("Stopping Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 	aamp->Stop();
 }
 
@@ -3920,7 +3915,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
-		seek_pos_seconds = GetPositionMs()/1000;
+		seek_pos_seconds = GetPositionMilliseconds()/1000;
 	}
 
 
@@ -4617,7 +4612,6 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			return;
 		}
 
-
 		//DELIA-30274  -- Get the trick play to a closer position 
 		//Logic adapted 
 		// XRE gives fixed overshoot position , not suited for aamp . So ignoring overshoot correction value 
@@ -4635,33 +4629,39 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 
 		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
-		// when switching from trick to play mode only 
-		if(aamp->rate && rate== AAMP_NORMAL_PLAY_RATE)
+
+		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
+		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
+		if (aamp->IsDashAsset() || !(aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0 || aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE))
 		{
-			if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+			// when switching from trick to play mode only 
+			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
-				// increment by 1x trickplay frame , next possible displayed frame
-				aamp->seek_pos_seconds = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
-			}
-			else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
-			{
-				// Get the last shown frame itself 
-				aamp->seek_pos_seconds = aamp->mReportProgressPosn/1000;
+				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+				{
+					// increment by 1x trickplay frame , next possible displayed frame
+					aamp->seek_pos_seconds = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+				}
+				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
+				{
+					// Get the last shown frame itself 
+					aamp->seek_pos_seconds = aamp->mReportProgressPosn/1000;
+				}
+				else
+				{
+					// Go little back to last shown frame 
+					aamp->seek_pos_seconds = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+				}
 			}
 			else
 			{
-				// Go little back to last shown frame 
-				aamp->seek_pos_seconds = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+				// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
+				// Show the last position 
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
 			}
-		}
-		else
-		{
-			// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
-			// Show the last position 
-			aamp->seek_pos_seconds = aamp->GetPositionMs()/1000;
-		}
 
-		aamp->trickStartUTCMS = -1;
+			aamp->trickStartUTCMS = -1;
+		}
 
 		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
 		logprintf("aamp_SetRate Adj position: %f\n", aamp->seek_pos_seconds); // current position relative to tune time
@@ -4672,7 +4672,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{ // no change in desired play rate
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
-				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMs());
+				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
 				retValue = aamp->mStreamSink->Pause(false);
 				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
@@ -4684,7 +4684,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{
 			if (!aamp->pipeline_paused)
 			{
-				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMs());
+				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				retValue = aamp->mStreamSink->Pause(true);
@@ -4739,7 +4739,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 
 	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
-		double currPositionSecs = aamp->GetPositionMs() / 1000.00;
+		double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
 		if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 		{
 			logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)\n", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
@@ -4895,7 +4895,7 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 
 			aamp->discardEnteringLiveEvt = true;
 
-			aamp->seek_pos_seconds = aamp->GetPositionMs()/1000.0;
+			aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
 			aamp->TeardownStream(false);
 			aamp->TuneHelper(eTUNETYPE_SEEK);
 
@@ -5171,7 +5171,7 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
  */
 double PlayerInstanceAAMP::GetPlaybackPosition()
 {
-	return (aamp->GetPositionMs() / 1000.00);
+	return (aamp->GetPositionMilliseconds() / 1000.00);
 }
 
 
@@ -5639,6 +5639,58 @@ long long PrivateInstanceAAMP::GetPositionMs()
 		// note, using mStreamerInterface->GetPositionMilliseconds() instead of elapsedTime
 		// would likely be more accurate, but would need to be tested to accomodate
 		// and compensate for FF/REW play rates
+	}
+	return positionMiliseconds;
+}
+
+
+/**
+ * @brief Get current stream position
+ * @retval current stream position in ms
+ */
+long long PrivateInstanceAAMP::GetPositionMilliseconds()
+{
+	long long positionMiliseconds = seek_pos_seconds * 1000.0;
+	if (trickStartUTCMS >= 0)
+	{
+		//For pipeline paused, we could query the position from gstreamer pipeline
+		if (!mIsDash && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		{
+			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
+			positionMiliseconds += positionOffsetFromStart;
+		}
+		else
+		{
+			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
+			positionMiliseconds += elapsedTime * rate;
+		}
+
+		if (positionMiliseconds < 0)
+		{
+			logprintf("%s : Correcting positionMiliseconds %lld to zero\n", __FUNCTION__, positionMiliseconds);
+			positionMiliseconds = 0;
+		}
+		else if (mpStreamAbstractionAAMP)
+		{
+			if (!mIsLive)
+			{
+				long long durationMs  = GetDurationMs();
+				if(positionMiliseconds > durationMs)
+				{
+					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld\n", __FUNCTION__, positionMiliseconds, durationMs);
+					positionMiliseconds = durationMs;
+				}
+			}
+			else
+			{
+				long long tsbEndMs = GetDurationMs() + (culledSeconds * 1000.0);
+				if(positionMiliseconds > tsbEndMs)
+				{
+					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld\n", __FUNCTION__, positionMiliseconds, tsbEndMs);
+					positionMiliseconds = tsbEndMs;
+				}
+			}
+		}
 	}
 	return positionMiliseconds;
 }
