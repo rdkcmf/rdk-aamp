@@ -1930,6 +1930,13 @@ public:
 	long long GetPositionMs(void);
 
 	/**
+	 *   @brief Get playback position in milliseconds
+	 *
+	 *   @return Position in ms.
+	 */
+	long long GetPositionMilliseconds(void);
+
+	/**
 	 *   @brief  API to send audio/video stream into the sink.
 	 *
 	 *   @param[in]  mediaType - Type of the media.
@@ -2786,11 +2793,11 @@ public:
 	void ResumeTrackInjection(MediaType type);
 
 	/**
-	 *   @brief Receives base PTS for the current playback
+	 *   @brief Receives first video PTS of the current playback
 	 *
 	 *   @param[in]  pts - pts value
 	 */
-	void NotifyBasePTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts);
 
 	/**
 	 *   @brief To send webvtt cue as an event
@@ -2871,6 +2878,13 @@ public:
      *   @param[in]  mediaType stream type
      */
 	void CheckForDiscontinuityStall(MediaType mediaType);
+
+	/**
+	 *   @brief To check if current asset is DASH or not
+	 *
+	 *   @return bool - true if its DASH asset
+	 */
+	bool IsDashAsset(void) { return mIsDash; }
 
 private:
 
