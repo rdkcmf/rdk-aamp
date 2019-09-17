@@ -200,11 +200,14 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	memset(privateContext, 0, sizeof(*privateContext));
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
-	privateContext->using_westerossink = false;
 	if (gpGlobalConfig->disableWesteros)
+	{
 		privateContext->using_westerossink = false;
+	}
 	else
+	{
 		privateContext->using_westerossink = true;
+	}
 	this->aamp = aamp;
 
 	CreatePipeline();
@@ -2287,7 +2290,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 long AAMPGstPlayer::GetPositionMilliseconds(void)
 {
 	long rc = 0;
-	gint64 pos, len;
+	gint64 pos = 0;
 	GstFormat format = GST_FORMAT_TIME;
 	if (privateContext->pipeline == NULL)
 	{
@@ -2295,11 +2298,9 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 		return rc;
 	}
 #ifdef USE_GST1
-	if (gst_element_query_position(privateContext->pipeline, format, &pos) &&
-		gst_element_query_duration(privateContext->pipeline, format, &len))
+	if (gst_element_query_position(privateContext->pipeline, format, &pos))
 #else
-	if (gst_element_query_position(privateContext->pipeline, &format, &pos) &&
-		gst_element_query_duration(privateContext->pipeline, &format, &len))
+	if (gst_element_query_position(privateContext->pipeline, &format, &pos))
 #endif
 	{
 		rc = pos / 1e6;

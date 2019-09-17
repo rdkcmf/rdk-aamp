@@ -4607,13 +4607,13 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 }
 
 /***************************************************************************
-* @fn NotifyBasePTS
-* @brief Function to notify base pts value from tsprocessor
+* @fn NotifyFirstVideoPTS
+* @brief Function to notify first video pts value from tsprocessor
 *
 * @param pts[in] base pts
 * @return none
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::NotifyBasePTS(unsigned long long pts)
+void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
 {
 	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
