@@ -149,6 +149,7 @@ void AampCacheHandler::ClearPlaylistCache()
 		{
 			aamp_Free(&tmpData->mCachedBuffer->ptr);
 			delete tmpData->mCachedBuffer;
+			tmpData->mCachedBuffer = NULL;
 		}
 		delete tmpData;
 	}
@@ -179,7 +180,7 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 		// First pass : Search for same file type to clean, If Video need to be inserted , free another Video type
 		// 				if audio type to be inserted , remove older audio type . Same for iframe .
 		// Second pass : Even after removing same file type entry ,still not enough space to add new item then remove from other file type ( rare scenario)
-		while(Iter != mPlaylistCache.end()  && (freedSize < newLen))
+		while(Iter != mPlaylistCache.end())
 		{
 			PlayListCachedData *tmpData = Iter->second;
 			if(tmpData->mFileType == eMEDIATYPE_MANIFEST || tmpData->mFileType != fileType)
@@ -187,27 +188,38 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 				Iter++;
 				continue;
 			}
-			freedSize += tmpData->mCachedBuffer->len;
-			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete tmpData->mCachedBuffer;
+			if(!tmpData->mDuplicateEntry)
+			{
+				freedSize += tmpData->mCachedBuffer->len;
+				aamp_Free(&tmpData->mCachedBuffer->ptr);
+				delete tmpData->mCachedBuffer;
+				tmpData->mCachedBuffer = NULL;
+			}
 			delete tmpData;
 			Iter = mPlaylistCache.erase(Iter);
 		}
 		//Second Pass - if still more cleanup required for space, remove  from other playlist types
-		Iter = mPlaylistCache.begin();
-		while(Iter != mPlaylistCache.end()  && (freedSize < newLen))
+		if(freedSize < newLen)
 		{
-			PlayListCachedData *tmpData = Iter->second;
-			if(tmpData->mFileType == eMEDIATYPE_MANIFEST)
-			{ 	// Not to remove main manifest file
-				Iter++;
-				continue;
+			Iter = mPlaylistCache.begin();
+			while(Iter != mPlaylistCache.end())
+			{
+				PlayListCachedData *tmpData = Iter->second;
+				if(tmpData->mFileType == eMEDIATYPE_MANIFEST)
+				{ 	// Not to remove main manifest file
+					Iter++;
+					continue;
+				}
+				if(!tmpData->mDuplicateEntry)
+				{
+					freedSize += tmpData->mCachedBuffer->len;
+					aamp_Free(&tmpData->mCachedBuffer->ptr);
+					delete tmpData->mCachedBuffer;
+					tmpData->mCachedBuffer = NULL;                                
+				}
+				delete tmpData;
+				Iter = mPlaylistCache.erase(Iter);
 			}
-			freedSize += tmpData->mCachedBuffer->len;
-			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete tmpData->mCachedBuffer;
-			delete tmpData;
-			Iter = mPlaylistCache.erase(Iter);
 		}
 		mCacheStoredSize -= freedSize;
 		// After all freeing still size is not enough to insert , better not allow to insert such huge file

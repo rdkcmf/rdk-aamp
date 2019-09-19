@@ -3171,7 +3171,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			aamp->SetIsLive(mIsLive);
 			if (!retrievedPlaylistFromCache && !mIsLive)
 			{
-				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive);
+				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
 			}
 			if(mIsLive && gpGlobalConfig->enableClientDai)
 			{
