@@ -75,7 +75,7 @@ public:
 	void StartInjection(void) override;
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 
-	void NotifyBasePTS(unsigned long long pts) { };
+	void NotifyFirstVideoPTS(unsigned long long pts) { };
 protected:
 	StreamInfo* GetStreamInfo(int idx) override;
 private:

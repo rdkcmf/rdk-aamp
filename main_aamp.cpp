@@ -943,7 +943,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
 		seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
-		logprintf("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f\n", __FUNCTION__, __LINE__, seek_pos_seconds);
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f\n", __FUNCTION__, __LINE__, seek_pos_seconds);
 		trickStartUTCMS = -1;
 		mpStreamAbstractionAAMP->StopInjection();
 #ifndef AAMP_STOP_SINK_ON_SEEK
@@ -5667,7 +5667,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 
 		if (positionMiliseconds < 0)
 		{
-			logprintf("%s : Correcting positionMiliseconds %lld to zero\n", __FUNCTION__, positionMiliseconds);
+			AAMPLOG_WARN("%s : Correcting positionMiliseconds %lld to zero\n", __FUNCTION__, positionMiliseconds);
 			positionMiliseconds = 0;
 		}
 		else if (mpStreamAbstractionAAMP)
@@ -5677,7 +5677,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 				long long durationMs  = GetDurationMs();
 				if(positionMiliseconds > durationMs)
 				{
-					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld\n", __FUNCTION__, positionMiliseconds, durationMs);
+					AAMPLOG_WARN("%s : Correcting positionMiliseconds %lld to duration %lld\n", __FUNCTION__, positionMiliseconds, durationMs);
 					positionMiliseconds = durationMs;
 				}
 			}
@@ -5686,7 +5686,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 				long long tsbEndMs = GetDurationMs() + (culledSeconds * 1000.0);
 				if(positionMiliseconds > tsbEndMs)
 				{
-					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld\n", __FUNCTION__, positionMiliseconds, tsbEndMs);
+					AAMPLOG_WARN("%s : Correcting positionMiliseconds %lld to tsbEndMs %lld\n", __FUNCTION__, positionMiliseconds, tsbEndMs);
 					positionMiliseconds = tsbEndMs;
 				}
 			}
@@ -7803,15 +7803,15 @@ void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
 }
 
 /**
- *   @brief Receives base PTS for the current playback
+ *   @brief Receives first video PTS of the current playback
  *
  *   @param[in]  pts - pts value
  */
-void PrivateInstanceAAMP::NotifyBasePTS(unsigned long long pts)
+void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts)
 {
 	if (mpStreamAbstractionAAMP)
 	{
-		mpStreamAbstractionAAMP->NotifyBasePTS(pts);
+		mpStreamAbstractionAAMP->NotifyFirstVideoPTS(pts);
 	}
 }
 
