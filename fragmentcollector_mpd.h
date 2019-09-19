@@ -74,7 +74,7 @@ public:
 	void StopInjection(void) override;
 	void StartInjection(void) override;
 	
-	void NotifyBasePTS(unsigned long long pts) { };
+	void NotifyFirstVideoPTS(unsigned long long pts) { };
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 
 protected:

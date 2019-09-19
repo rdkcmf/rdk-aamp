@@ -2742,11 +2742,11 @@ public:
 	void ResumeTrackInjection(MediaType type);
 
 	/**
-	 *   @brief Receives base PTS for the current playback
+	 *   @brief Receives first video PTS of the current playback
 	 *
 	 *   @param[in]  pts - pts value
 	 */
-	void NotifyBasePTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts);
 
 	/**
 	 *   @brief To send webvtt cue as an event
