@@ -3405,11 +3405,15 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 
 
 /**
- * @brief Create a TimedMetadata JS object with args passed
+ * @brief Create a TimedMetadata JS object with args passed.
+ * Sample input #EXT-X-CUE:ID=eae90713-db8e,DURATION=30.063
+ * Sample output {"time":62062,"duration":0,"name":"#EXT-X-CUE","content":"-X-CUE:ID=eae90713-db8e,DURATION=30.063","type":0,"metadata":{"ID":"eae90713-db8e","DURATION":"30.063"},"id":"eae90713-db8e"}
  * @param[in] context JS execution context
- * @param[in] timeMS time in milliseconds
+ * @param[in] timeMS time in milliseconds, mostly metadata position in playlist
  * @param[in] szName name of the metadata tag
  * @param[in] szContent metadata associated with the tag
+ * @param[in] id adbreak/reservation ID if its a adbreak metadata
+ * @param[in] durationMS duration of ad break if its a adbreak metadata
  * @retval JSObject of TimedMetadata generated
  */
 JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS)
@@ -3426,7 +3430,8 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, std::round(timeMS)), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
 
-		if(!strcmp(szName,"SCTE35") && id && *id != '\0')
+		// For SCTE35 tag, set id as value of key reservationId
+		if(!strcmp(szName, "SCTE35") && id && *id != '\0')
 		{
 			name = JSStringCreateWithUTF8CString("reservationId");
 			JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, id), kJSPropertyAttributeReadOnly, NULL);
@@ -3461,6 +3466,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 			JSStringRelease(name);
 
 			// Parse CUE metadata and TRICKMODE-RESTRICTION metadata
+			// Parsed values are used in PlayerPlatform at the time of tag object creation
 			if ((strcmp(szName, "#EXT-X-CUE") == 0) ||
 			    (strcmp(szName, "#EXT-X-TRICKMODE-RESTRICTION") == 0)) {
 				const char* szStart = szContent;
@@ -3509,11 +3515,10 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 					szStart = (*szEnd != '\0') ? szEnd + 1 : szEnd;
 				}
 			}
-
 			// Parse TARGETDURATION and CONTENT-IDENTIFIER metadata
 			else {
 				const char* szStart = szContent;
-				// Advance past #EXT tag.
+				// Advance to the tag's value.
 				for (; *szStart != ':' && *szStart != '\0'; szStart++);
 				if (*szStart == ':')
 					szStart++;
@@ -3522,6 +3527,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 				JSValueRef value = aamp_CStringToJSValue(context, szStart);
 				if (strcmp(szName, "#EXT-X-TARGETDURATION") == 0) {
 					// Stuff into DURATION if EXT-X-TARGETDURATION content.
+					// Since #EXT-X-TARGETDURATION has only duration as value
 					name = JSStringCreateWithUTF8CString("DURATION");
 				} else {
 					name = JSStringCreateWithUTF8CString("DATA");
@@ -3532,7 +3538,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 			JSValueUnprotect(context, metadata);
 		}
 
-		// Generate an ID
+		// Generate an ID since the tag is missing one
 		if (bGenerateID) {
 			int hash = (int)timeMS;
 			const char* szStart = szName;
