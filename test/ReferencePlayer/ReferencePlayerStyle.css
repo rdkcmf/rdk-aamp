@@ -323,6 +323,27 @@ img {
     color: white;
 }
 
+.subtitleModal {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    #line-height: 17px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 30px;
+}
+
+#subtitleContent {
+    text-align: center;
+    -webkit-text-stroke: 0.3px black;
+}
+
+#subtitleText {
+    background-color: black;
+    color: white;
+}
+
 @-webkit-keyframes flydown {
     from {top:-211px; opacity:0.1} 
     to {top:0; opacity:1}

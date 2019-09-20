@@ -19,6 +19,22 @@
 
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
+class VTTCue {
+    constructor(start, duration, text, line = 0, align = "", position = 0, size = 0) {
+        this.start = start;       //: number,
+        this.duration = duration; //: number,
+        this.text = text;         //: string,
+        this.line = line;         //: number,
+        this.align = align;       //: string,
+        this.size = size;         //: number,
+        this.position = position  //: number
+	}
+};
+
+let subtitleTimer = undefined;
+let displayTimer = undefined;
+let vttCueBuffer = [];
+
 //Comcast DRM config for AAMP
 var comcastDrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
@@ -86,10 +102,14 @@ var defaultInitConfig = {
      */
     liveOffset: 15,
 
+    /**
+     * preferred subtitle language
+     */
+    preferredSubtitleLanguage: "en",
+
 	/**
      * drmConfig for the playback
      */
-
     drmConfig: comcastDrmConfig //For sample structure comcastDrmConfig
 };
 
@@ -107,6 +127,52 @@ window.onload = function() {
     //loadUrl(urls[urlIndex]);
 }
 
+function resetSubtitles(emptyBuffers) {
+    console.log("Inside resetSubtitles");
+    if (displayTimer !== undefined) {
+        clearTimeout(displayTimer);
+        displayTimer = undefined;
+    }
+    if (subtitleTimer !== undefined) {
+        clearTimeout(subtitleTimer);
+        subtitleTimer = undefined;
+    }
+    document.getElementById("subtitleText").innerHTML = "";
+    //Empty all cues
+    if (emptyBuffers === true) {
+        vttCueBuffer = [];
+    }
+}
+
+function displaySubtitle(cue, positionMS) {
+    var timeOffset = cue.start - positionMS;
+    if (timeOffset <= 0) {
+        //no need of timer
+        console.log("webvtt timeOffset: " + timeOffset + " cue: " + JSON.stringify(cue));
+        vttCueBuffer.shift();
+        document.getElementById("subtitleText").innerHTML = cue.text;
+        subtitleTimer = setTimeout(function() {
+            document.getElementById("subtitleText").innerHTML = "";
+            if (vttCueBuffer.length > 0) {
+                displaySubtitle(vttCueBuffer[0], positionMS + cue.duration);
+            } else {
+                displayTimer = undefined;
+                subtitleTimer = undefined;
+            }
+        }, cue.duration);
+    } else {
+        displayTimer = setTimeout(function() {
+            displaySubtitle(cue, positionMS + timeOffset);
+        }, timeOffset);
+    }
+}
+
+function webvttDataHandler(event) {
+    console.log("webvtt data listener event: " + JSON.stringify(event));
+    var subText = event.text.replace(/\n/g, "<br />");
+    vttCueBuffer.push(new VTTCue(event.start, event.duration, subText));
+}
+
 function playbackStateChanged(event) {
     console.log("Playback state changed event: " + JSON.stringify(event));
     switch (event.state) {
@@ -117,12 +183,20 @@ function playbackStateChanged(event) {
             playerState = playerStatesEnum.initializing;
             break;
         case playerStatesEnum.playing:
+            //Stop vtt rendering
+            if (playerState === playerStatesEnum.seeking) {
+                resetSubtitles(true);
+            }
             playerState = playerStatesEnum.playing;
             break;
         case playerStatesEnum.paused:
             playerState = playerStatesEnum.paused;
             break;
         case playerStatesEnum.seeking:
+            //Stop vtt rendering
+            if (playerState === playerStatesEnum.paused || playerState === playerStatesEnum.playing) {
+                resetSubtitles(true);
+            }
             playerState = playerStatesEnum.seeking;
             break;
         default:
@@ -141,14 +215,20 @@ function mediaSpeedChanged(event) {
     console.log("Media speed changed event: " + JSON.stringify(event));
     var currentRate = event.speed;
     console.log("Speed Changed [" + playbackSpeeds[playbackRateIndex] + "] -> [" + currentRate + "]");
+
     if (currentRate != undefined) {
+        //Stop vtt rendering
+        if (currentRate !== 1) {
+            resetSubtitles(currentRate !== 0);
+        }
+
         if (currentRate != 0) {
             playbackRateIndex = playbackSpeeds.indexOf(currentRate);
         } else {
-                playbackRateIndex = playbackSpeeds.indexOf(1);
+            playbackRateIndex = playbackSpeeds.indexOf(1);
         }
         if (currentRate != 0 && currentRate != 1){
-                showTrickmodeOverlay(currentRate);
+            showTrickmodeOverlay(currentRate);
         }
 
         if (currentRate === 1) {
@@ -182,9 +262,21 @@ function mediaProgressUpdate(event) {
     var position = event.positionMiliseconds;
     var value = ( position / duration ) * 100;
 	var seekBar = document.getElementById("seekBar");
+
+    if(displayTimer === undefined && subtitleTimer === undefined && vttCueBuffer.length !== 0 && event.playbackSpeed === 1) {
+        vttCueBuffer = vttCueBuffer.filter((cue) => {
+            return cue.start > position;
+        });
+        //console.log("Media progress: positionMiliseconds=" + position + " cueBufferLength: " + vttCueBuffer.length);
+        if (vttCueBuffer.length !== 0) {
+            displaySubtitle(vttCueBuffer[0], position);
+        }
+
+    }
+
     document.getElementById("totalDuration").innerHTML = convertSStoHr(duration / 1000.0);
     document.getElementById("currentDuration").innerHTML = convertSStoHr(position / 1000.0);
-    console.log("Media progress update event: value=" + value);
+    //console.log("Media progress update event: value=" + value);
     // Update the slider value
     if(isFinite(value)) {
         seekBar.value = value;
@@ -221,6 +313,8 @@ function decoderHandleAvailable(event) {
 
 // helper functions
 function resetPlayer() {
+    resetSubtitles(true);
+
     if (playerState !== playerStatesEnum.idle) {
         playerObj.stop();
     }
@@ -242,6 +336,7 @@ function resetPlayer() {
     //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
+    playerObj.addEventListener("vttCueDataListener", webvttDataHandler);
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
@@ -254,6 +349,7 @@ function loadUrl(urlObject) {
     } else {
         var initConfiguration = defaultInitConfig;
         initConfiguration.drmConfig = null;
+        playerObj.initConfig(initConfiguration);
         playerObj.load(urlObject.url);
     }
 }
