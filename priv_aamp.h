@@ -563,6 +563,7 @@ public:
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
+	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 public:
 
 	/**
@@ -599,6 +600,7 @@ public:
 		, enableClientDai(false), playAdFromCDN(false)
 		,mEnableVideoEndEvent(true)
 		,bAsync_ontuned(false)
+                ,mEnableRectPropertyCfg(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
