@@ -562,7 +562,8 @@ public:
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
-	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
+	bool disableWesteros;                   /**< To disable westeros sink (by default this is true*/
+	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 public:
 
 	/**
@@ -598,6 +599,7 @@ public:
 		,mSubtitleLanguage()
 		, enableClientDai(false), playAdFromCDN(false)
 		,mEnableVideoEndEvent(true)
+                ,mEnableRectPropertyCfg(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
