@@ -2445,32 +2445,39 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
 	logprintf("SetVideoRectangle :: Rect %s, using_playersinkbin = %d, video_sink =%p\n",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
-	if (stream->using_playersinkbin)
+	if (gpGlobalConfig->mEnableRectPropertyCfg) //As part of DELIA-37804
 	{
-		g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
-	}
+			if (stream->using_playersinkbin)
+			{
+					g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
+			}
 #ifndef INTELCE
-	else if (privateContext->video_sink)
-	{
-		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
-	}
+			else if (privateContext->video_sink)
+			{
+					g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+			}
 #else
 #if defined(INTELCE_USE_VIDRENDSINK)
-	else if (privateContext->video_pproc)
-	{
-		g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
-	}
+			else if (privateContext->video_pproc)
+			{
+					g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
+			}
 #else
-	else if (privateContext->video_sink)
-	{
-		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+			else if (privateContext->video_sink)
+			{
+					g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+			}
+#endif
+#endif	
+			else
+			{
+					AAMPLOG_WARN("[%s] Scaling not possible at this time\n",__FUNCTION__);
+					privateContext->gstPropsDirty = true;
+			}
 	}
-#endif
-#endif
 	else
 	{
-		logprintf("SetVideoRectangle :: Scaling not possible at this time\n");
-		privateContext->gstPropsDirty = true;
+		AAMPLOG_WARN("SetVideoRectangle ignored.");
 	}
 }
 
