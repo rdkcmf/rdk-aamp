@@ -2062,6 +2062,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
 
+	remoteUrl.erase(std::remove(remoteUrl.begin(), remoteUrl.end(), '\r'), remoteUrl.end());
+
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
 	{
