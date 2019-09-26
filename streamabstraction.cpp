@@ -1433,7 +1433,7 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 
 	if (!aamp->IsTSBSupported())
 	{
-		if (http_error == 404 || http_error == 500 || http_error == 503 || http_error == CURLE_PARTIAL_FILE)
+		if (http_error == 404 || http_error == 502 || http_error == 500 || http_error == 503 || http_error == CURLE_PARTIAL_FILE)
 		{
 			if (RampDownProfile(http_error))
 			{
