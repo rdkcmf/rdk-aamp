@@ -493,6 +493,9 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 			attrName++;
 		}
 		char *delimEqual = attrName;
+		// break out on CR
+		if(*delimEqual == '\r')
+			break;
 		while (*delimEqual != '=')
 		{ // An AttributeName is an unquoted string containing characters from the set [A..Z] and '-'
 			char c = *delimEqual++;
@@ -2736,7 +2739,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 					logprintf("%s:%d fragment extension %s - FORMAT_MPEGTS\n", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_MPEGTS;
 				}
-				else if (0 == extension.compare(".mp4"))
+				else if (0 == extension.compare(".mp4") || 0 == extension.compare(".m4s"))
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_ISO_BMFF\n", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_ISO_BMFF;
