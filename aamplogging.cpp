@@ -35,11 +35,6 @@ using namespace std;
 #endif
 
 /**
- * @brief Max bebug log buffer size
- */
-#define MAX_DEBUG_LOG_BUFF_SIZE 1024
-
-/**
  * @brief Log file and cfg directory path - To support dynamic directory configuration
  */
 static char gAampLog[] = "c:/tmp/aamp.log";

@@ -54,7 +54,6 @@
 #define AAMP_PACKED __attribute__((__packed__))
 #endif
 
-#define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
@@ -114,6 +113,7 @@
 
 // VSS Service Zone identifier in url 
 #define VSS_MARKER			"?sz="
+#define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
 
@@ -121,6 +121,15 @@
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
 
+/**
+ * @brief Max debug log buffer size
+ */
+#define MAX_DEBUG_LOG_BUFF_SIZE 1024
+
+/**
+ * @brief Max URL log size
+ */
+#define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
 /**
  * @brief Structure of GrowableBuffer
@@ -323,10 +332,30 @@ struct AAMPAbrInfo
 /**
  * @brief PlayListCachedData structure to store playlist data
  */
-typedef struct {
-	char *mEffectiveUrl;
+typedef struct playlistcacheddata{
+	std::string mEffectiveUrl;
 	GrowableBuffer* mCachedBuffer;
 	MediaType mFileType;
+
+	playlistcacheddata() : mEffectiveUrl(""), mCachedBuffer(NULL), mFileType(eMEDIATYPE_DEFAULT)
+	{
+	}
+
+	playlistcacheddata(const playlistcacheddata& p) : mEffectiveUrl(p.mEffectiveUrl), mCachedBuffer(p.mCachedBuffer), mFileType(p.mFileType)
+	{
+		mCachedBuffer->ptr = p.mCachedBuffer->ptr;
+		mCachedBuffer->len = p.mCachedBuffer->len;
+		mCachedBuffer->avail = p.mCachedBuffer->avail;
+	}
+
+	playlistcacheddata& operator=(const playlistcacheddata &p)
+	{
+		mEffectiveUrl = p.mEffectiveUrl;
+		mCachedBuffer = p.mCachedBuffer;
+		mFileType = p.mFileType;
+		return *this;
+	}
+
 }PlayListCachedData;
 
 
@@ -657,7 +686,7 @@ extern GlobalConfigAAMP *gpGlobalConfig;
  * @param[in] uri - File path
  * @return void
  */
-void aamp_ResolveURL(char *dst, const char *base, const char *uri);
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
 
 /**
  * @brief Get current time from epoch is milliseconds
@@ -732,7 +761,7 @@ const char * GetDrmSystemName(DRMSystems drmSystem);
  *
  */
 
-bool UrlEncode(const char *inSrc, std::string &outStr);
+bool UrlEncode(std::string inStr, std::string &outStr);
 
 /**
  * @}
@@ -1477,8 +1506,8 @@ public:
 	// To store Set Cookie: headers and X-Reason headers in HTTP Response
 	httpRespHeaderData httpRespHeaders[MAX_CURL_INSTANCE_COUNT];
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
-	char manifestUrl[MAX_URI_LENGTH];
-	char tunedManifestUrl[MAX_URI_LENGTH];
+	std::string  mManifestUrl;
+	std::string mTunedManifestUrl;
 
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -1593,7 +1622,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
+	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL);
 
 	/**
 	 * @brief get Media Type in string
@@ -1614,7 +1643,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
+	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,MediaType fileType = eMEDIATYPE_MANIFEST);
 
 	/**
 	 * @brief Download fragment
@@ -1628,7 +1657,7 @@ public:
 	 * @param[out] http_code - HTTP error code
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
+	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2060,9 +2089,9 @@ public:
 	 *
 	 *   @return Manifest URL
 	 */
-	char *GetManifestUrl(void)
+	std::string& GetManifestUrl(void)
 	{
-		return manifestUrl;
+		return mManifestUrl;
 	}
 
 	/**
@@ -2073,8 +2102,7 @@ public:
 	 */
 	void SetManifestUrl(const char *url)
 	{
-		strncpy(manifestUrl, url, MAX_URI_LENGTH);
-		manifestUrl[MAX_URI_LENGTH-1]='\0';
+		mManifestUrl.assign(url);
 	}
 
 	/**
@@ -2427,7 +2455,7 @@ public:
      *
 	 *   @return void
 	 */
-	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
+	void InsertToPlaylistCache(std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
 
 	/**
 	 *   @brief Retrieve playlist from cache
@@ -2437,7 +2465,7 @@ public:
 	 *   @param[out] effectiveUrl - Final URL
 	 *   @return true: found, false: not found
 	 */
-	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[]);
+	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
 
 	/**
 	 *   @brief Clear playlist cache
@@ -2612,7 +2640,7 @@ public:
 	 *   @param[in] fragmentUrl fragment Url
 	 *   @returns Sequence Number if found in fragment Url else 0
 	 */
-	long long GetSeqenceNumberfromURL(const char *fragmentUrl);
+	long long GetSeqenceNumberfromURL(std::string fragmentUrl);
 
 	/**
 	 *   @brief To set the initial bitrate value.
@@ -2791,7 +2819,7 @@ private:
 	 *   @param  url - stream url with vss service zone info as query string
 	 *   @return std::string
 	 */
-	void ExtractServiceZone(const char * url);
+	void ExtractServiceZone(std::string url);
 
 	/**
 	 *   @brief Schedule Event

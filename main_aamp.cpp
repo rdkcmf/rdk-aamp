@@ -51,6 +51,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <fstream>
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #ifdef WIN32
@@ -1932,7 +1933,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param fileType media type of the file
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *buffer, char effectiveUrl[MAX_URI_LENGTH], long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate)
+bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate)
 {
 	long http_code = -1;
 	bool ret = false;
@@ -1955,11 +1956,11 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		long long downloadTimeMS = 0;
 		bool isDownloadStalled = false;
 		pthread_mutex_unlock(&mLock);
-		AAMPLOG_INFO("aamp url: %s\n", remoteUrl);
+		AAMPLOG_INFO("aamp url: %s\n", remoteUrl.c_str());
 
 		if (curl)
 		{
-			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl);
+			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 			CurlCallbackContext context;
 			context.aamp = this;
 			context.buffer = buffer;
@@ -2067,7 +2068,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 #if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 						logprintf("HTTP RESPONSE CODE: %ld\n", http_code);
 #else
-						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorHttp, (int)http_code);
+						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code);
 #endif /* 0 */
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
@@ -2088,18 +2089,17 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 					}
-					strncpy(effectiveUrl, effectiveUrlPtr, MAX_URI_LENGTH-1);
-					effectiveUrl[MAX_URI_LENGTH-1] = '\0';
+					effectiveUrl.assign(effectiveUrlPtr);
 
 					// check if redirected url is pointing to fog / local ip
 					if(mIsFirstRequestToFOG)
 					{
-					    if( strstr(effectiveUrl,LOCAL_HOST_IP) == NULL )
+					    if( effectiveUrl.find(LOCAL_HOST_IP) == std::string::npos )
 					    {
 					        // oops, TSB is not working, we got redirected away from fog
 					        mIsLocalPlayback = false;
 					        mTSBEnabled = false;
-					        logprintf("NO_TSB_AVAILABLE playing from:%s \n", effectiveUrl);
+					        logprintf("NO_TSB_AVAILABLE playing from:%s \n", effectiveUrl.c_str());
 					    }
 					}
 
@@ -2109,7 +2109,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					 */
 					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
-						AAMP_LOG_NETWORK_LATENCY (effectiveUrl, downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD );
+						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD );
 					}
 				}
 				else
@@ -2126,7 +2126,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					//Log errors due to curl stall/start detection abort
 					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
-						AAMP_LOG_NETWORK_ERROR (remoteUrl, AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE));
+						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE));
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
@@ -2179,7 +2179,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 					curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 					curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: {\"url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}\n",
-						remoteUrl,
+						remoteUrl.c_str(),
 						totalPerformRequest,
 						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code);
 				}
@@ -2246,7 +2246,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				{
 					fileType = (MediaType)curlInstance;
 				}
-				else if (strstr(remoteUrl,"iframe"))
+				else if (remoteUrl.find("iframe") != std::string::npos)
 				{
 					fileType = eMEDIATYPE_IFRAME;
 				}
@@ -2254,7 +2254,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->logging.latencyLogging[fileType] == true))
 				{
 					long long SequenceNo = GetSeqenceNumberfromURL(remoteUrl);
-					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s\n",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl);
+					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s\n",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl.c_str());
 				}
 				ret = true;
 			}
@@ -2263,7 +2263,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 		{
 			if (AAMP_IS_LOG_WORTHY_ERROR(res))
 			{
-				logprintf("BAD URL:%s\n", remoteUrl);
+				logprintf("BAD URL:%s\n", remoteUrl.c_str());
 			}
 			if (buffer->ptr)
 			{
@@ -2281,7 +2281,7 @@ bool PrivateInstanceAAMP::GetFile(const char *remoteUrl, struct GrowableBuffer *
 			if( !(http_code == CURLE_ABORTED_BY_CALLBACK || http_code == CURLE_WRITE_ERROR || http_code == 204))
 			{
 				SendAnomalyEvent(ANOMALY_WARNING, "%s:%s,%s-%d url:%s", (mTSBEnabled ? "FOG" : "CDN"),
-					MediaTypeString(fileType), (http_code < 100) ? "Curl" : "HTTP", http_code, remoteUrl);
+					MediaTypeString(fileType), (http_code < 100) ? "Curl" : "HTTP", http_code, remoteUrl.c_str());
 			}
             
 			if ( (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_XREASON) && (httpRespHeaders[curlInstance].data.length() > 0) )
@@ -2479,48 +2479,41 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
  * @param base Base URL
  * @param uri manifest/ fragment uri
  */
-void aamp_ResolveURL(char *dst, const char *base, const char *uri)
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 {
 	if (memcmp(uri, "http://", 7) != 0 && memcmp(uri, "https://", 8) != 0) // explicit endpoint - needed for DAI playlist
 	{
-		strcpy(dst, base);
+		dst = base;
 
+		std::size_t pos;
 		if (uri[0] == '/')
 		{ // absolute path; preserve only endpoint http://<endpoint>:<port>/
-			dst = strstr(dst, "://");
-			assert(dst);
-			if (dst)
+			pos = dst.find("://");
+			if (pos != std::string::npos)
 			{
-				dst = strchr(dst + 3, '/');
+				pos = dst.find('/', pos + 3);
 			}
 		}
 		else
-		{ // relative path; include base directory
-			dst = strchr(dst, '/');
-			assert(dst);
-			for (;;)
-			{
-				char *next = strchr(dst + 1, '/');
-				if (!next)
-				{
-					break;
-				}
-				dst = next;
-			}
-			dst++;
+		{// relative path; include base directory
+			pos = dst.rfind('/');
 		}
 
-		strcpy(dst, uri);
+		assert(pos!=std::string::npos);
+		dst.replace(pos+1, std::string::npos, uri);
 
 		if (strchr(uri, '?') == 0)//if uri doesn't already have url parameters, then copy from the parents(if they exist)
 		{
-			const char* params = strchr(base, '?');
-			if (params)
-				strcat(dst, params);
+			pos = base.find('?');
+			if (pos != std::string::npos)
+			{
+				std::string params = base.substr(pos);
+				dst.append(params);
+			}
 		}
 	}
 	else
-		strcpy(dst, uri);
+		dst = uri;
 }
 
 /**
@@ -2528,31 +2521,28 @@ void aamp_ResolveURL(char *dst, const char *base, const char *uri)
  * @param url
  * @retval
  */
-std::string aamp_getHostFromURL(char *url)
+std::string aamp_getHostFromURL(std::string url)
 {
-    std::string host = "comcast.net";
-    int delimCnt = 0;
-    char *ptr = url;
-    char *hostStPtr = NULL;
-    char *hostEndPtr = NULL;
-    while(*ptr != '\0'){
-        if(*ptr == '/')
-        {
-            delimCnt++;
-            if(delimCnt == 2) hostStPtr=ptr+1;
-            if(delimCnt == 3)
-            {
-                hostEndPtr=ptr;
-                break;
-            }
-        }
-        ptr++;
-    }
-    if((hostStPtr != hostEndPtr) && (hostStPtr != NULL) && (hostEndPtr != NULL))
-    {
-        host = std::string(hostStPtr,hostEndPtr-hostStPtr);
-    }
-    return host;
+	std::string host = "comcast.net";
+	std::string protos = "https";
+	std::string proto = "http";
+	std::size_t start_pos = std::string::npos;
+	if (url.compare(0, protos.length(), protos) == 0)
+	{
+		start_pos = protos.length() + 3;
+	}
+	else if (url.compare(0, proto.length(), proto) == 0)
+	{
+		start_pos = proto.length() + 3;
+	}
+
+	if (start_pos != std::string::npos)
+	{
+		std::size_t pos = url.find('/', start_pos);
+		if (pos != std::string::npos)
+		host = url.substr(start_pos, (pos - start_pos));
+	}
+	return host;
 }
 
 
@@ -2633,16 +2623,14 @@ char *  GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
  * @brief trim a string
  * @param[in][out] cmd Buffer containing string
  */
-static void trim(char **cmd)
+static void trim(std::string& src)
 {
-	std::string src = *cmd;
 	size_t first = src.find_first_not_of(' ');
 	if (first != std::string::npos)
 	{
 		size_t last = src.find_last_not_of(" \r\n");
 		std::string dst = src.substr(first, (last - first + 1));
-		strncpy(*cmd, (char*)dst.c_str(), dst.size());
-		(*cmd)[dst.size()] = '\0';
+		src = dst;
 	}
 }
 
@@ -2654,30 +2642,75 @@ static void trim(char **cmd)
 * @retval 0 if prefix not present or error
 * @retval 1 if string extracted/copied to valueCopyPtr
 */
-static int ReadConfigStringHelper(const char *bufPtr, const char *prefixPtr, const char **valueCopyPtr)
+static int ReadConfigStringHelper(std::string buf, const char *prefixPtr, const char **valueCopyPtr)
 {
-    int rc = 0;
-    size_t prefixLen = strlen(prefixPtr);
-    size_t bufLen = strlen(bufPtr);
-    if (bufLen > prefixLen && memcmp(bufPtr, prefixPtr, prefixLen) == 0)
-    {
-        bufPtr += prefixLen;
-        while (*bufPtr == ' ')
-        { // skip any whitespace
-            bufPtr++;
-        }
-	if (*valueCopyPtr != NULL)
+	int ret = 0;
+	if (buf.find(prefixPtr) != std::string::npos)
 	{
-		free((void *)*valueCopyPtr);
-		*valueCopyPtr = NULL;
+		std::size_t pos = strlen(prefixPtr);
+		if (*valueCopyPtr != NULL)
+		{
+			free((void *)*valueCopyPtr);
+			*valueCopyPtr = NULL;
+		}
+		*valueCopyPtr = strdup(buf.substr(pos).c_str());
+		if (*valueCopyPtr)
+		{
+			ret = 1;
+		}
 	}
-        *valueCopyPtr = strdup(bufPtr);
-        if (*valueCopyPtr)
-        {
-            rc = 1;
-        }
-    }
-    return rc;
+	return ret;
+}
+
+/**
+* @brief helper function to extract numeric value from given buf after removing prefix
+* @param buf String buffer to scan
+* @param prefixPtr - prefix string to match in bufPtr
+* @param value - receives numeric value after extraction
+* @retval 0 if prefix not present or error
+* @retval 1 if string converted to numeric value
+*/
+template<typename T>
+int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value)
+{
+	int ret=0;
+	if (buf.find(prefixPtr) != std::string::npos)
+	{
+		std::size_t pos = buf.find_first_not_of(prefixPtr);
+		if (pos != std::string::npos)
+		{
+			std::string valStr = buf.substr(pos);
+			if (std::is_same<T, int>::value)
+				value = std::stoi(valStr);
+			else if (std::is_same<T, long>::value)
+				value = std::stol(valStr);
+			else if (std::is_same<T, float>::value)
+				value = std::stof(valStr);
+			else
+				value = std::stod(valStr);
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
+template<typename T>
+int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T& value2, T& value3, T& value4)
+{
+	int ret = false;
+	if (buf.find(prefixPtr) != std::string::npos)
+	{
+		std::size_t pos = buf.find_first_not_of(prefixPtr);
+		if(pos != std::string::npos)
+		{
+			std::string valStr = buf.substr(pos);
+			std::stringstream ss(valStr);
+			ss >> value1 >> value2 >> value3 >> value4;
+			ret = true;
+		}
+	}
+	return ret;
 }
 
 /**
@@ -2685,210 +2718,210 @@ static int ReadConfigStringHelper(const char *bufPtr, const char *prefixPtr, con
  *        based on the config setting.
  * @param cfg config to process
  */
-static void ProcessConfigEntry(char *cfg)
+ static void ProcessConfigEntry(std::string cfg)
 {
-	if (cfg[0] != '#')
+	if (!cfg.empty() && cfg.at(0) != '#')
 	{ // ignore comments
 
 		//Removing unnecessary spaces and newlines
-		trim(&cfg);
+		trim(cfg);
 
 		double seconds = 0;
 		int value;
 		char * tmpValue = NULL;
-		if (sscanf(cfg, "map-mpd=%d\n", &gpGlobalConfig->mapMPD) == 1)
+		if (ReadConfigNumericHelper(cfg, "map-mpd=", gpGlobalConfig->mapMPD) == 1)
 		{
 			logprintf("map-mpd=%d\n", gpGlobalConfig->mapMPD);
 		}
-		else if (sscanf(cfg, "fog-dash=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "fog-dash=", value) == 1)
 		{
 			gpGlobalConfig->fogSupportsDash = (value != 0);
 			logprintf("fog-dash=%d\n", value);
 		}
-		else if (sscanf(cfg, "fog=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "fog=", value) == 1)
 		{
 			gpGlobalConfig->noFog = (value==0);
 			logprintf("fog=%d\n", value);
 		}
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		else if (sscanf(cfg, "harvest=%d", &gpGlobalConfig->harvest) == 1)
+		else if (ReadConfigNumericHelper(cfg, "harvest=", gpGlobalConfig->harvest) == 1)
 		{
 			logprintf("harvest=%d\n", gpGlobalConfig->harvest);
 		}
 #endif
-		else if (sscanf(cfg, "forceEC3=%d", &gpGlobalConfig->forceEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "forceEC3=", gpGlobalConfig->forceEC3) == 1)
 		{
 			logprintf("forceEC3=%d\n", gpGlobalConfig->forceEC3);
 		}
-		else if (sscanf(cfg, "disableEC3=%d", &gpGlobalConfig->disableEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableEC3=", gpGlobalConfig->disableEC3) == 1)
 		{
 			logprintf("disableEC3=%d\n", gpGlobalConfig->disableEC3);
 		}
-		else if (sscanf(cfg, "disableATMOS=%d", &gpGlobalConfig->disableATMOS) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", gpGlobalConfig->disableATMOS) == 1)
 		{
 			logprintf("disableATMOS=%d\n", gpGlobalConfig->disableATMOS);
 		}
-		else if (sscanf(cfg, "live-offset=%d", &gpGlobalConfig->liveOffset) == 1)
+		else if (ReadConfigNumericHelper(cfg, "live-offset=", gpGlobalConfig->liveOffset) == 1)
 		{
 			VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
 			logprintf("live-offset=%d\n", gpGlobalConfig->liveOffset);
 		}
-		else if (sscanf(cfg, "cdvrlive-offset=%d", &gpGlobalConfig->cdvrliveOffset) == 1)
+		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
 		{
 			VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
 			logprintf("cdvrlive-offset=%d\n", gpGlobalConfig->cdvrliveOffset);
 		}
-		else if (sscanf(cfg, "disablePlaylistIndexEvent=%d", &gpGlobalConfig->disablePlaylistIndexEvent) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disablePlaylistIndexEvent=", gpGlobalConfig->disablePlaylistIndexEvent) == 1)
 		{
 			logprintf("disablePlaylistIndexEvent=%d\n", gpGlobalConfig->disablePlaylistIndexEvent);
 		}
-		else if (strcmp(cfg, "enableSubscribedTags") == 0)
+		else if (cfg.compare("enableSubscribedTags") == 0)
 		{
 			gpGlobalConfig->enableSubscribedTags = true;
 			logprintf("enableSubscribedTags set\n");
 		}
-		else if (strcmp(cfg, "disableSubscribedTags") == 0)
+		else if (cfg.compare("disableSubscribedTags") == 0)
 		{
 			gpGlobalConfig->enableSubscribedTags = false;
 			logprintf("disableSubscribedTags set\n");
 		}
-		else if (sscanf(cfg, "enableSubscribedTags=%d", &gpGlobalConfig->enableSubscribedTags) == 1)
+		else if (ReadConfigNumericHelper(cfg, "enableSubscribedTags=", gpGlobalConfig->enableSubscribedTags) == 1)
 		{
 			logprintf("enableSubscribedTags=%d\n", gpGlobalConfig->enableSubscribedTags);
 		}
-		else if (sscanf(cfg, "networkTimeout=%ld", &gpGlobalConfig->networkTimeout) == 1)
+		else if (ReadConfigNumericHelper(cfg, "networkTimeout=", gpGlobalConfig->networkTimeout) == 1)
 		{
 			VALIDATE_LONG("networkTimeout", gpGlobalConfig->networkTimeout, CURL_FRAGMENT_DL_TIMEOUT)
 			logprintf("networkTimeout=%ld\n", gpGlobalConfig->networkTimeout);
 		}
-		else if (strcmp(cfg, "dash-ignore-base-url-if-slash") == 0)
+		else if (cfg.compare("dash-ignore-base-url-if-slash") == 0)
 		{
 			gpGlobalConfig->dashIgnoreBaseURLIfSlash = true;
 			logprintf("dash-ignore-base-url-if-slash set\n");
 		}
-		else if (strcmp(cfg, "license-anonymous-request") == 0)
+		else if (cfg.compare("license-anonymous-request") == 0)
 		{
 			gpGlobalConfig->licenseAnonymousRequest = true;
 			logprintf("license-anonymous-request set\n");
 		}
-		else if ((strcmp(cfg, "info") == 0) && (!gpGlobalConfig->logging.debug))
+		else if ((cfg.compare("info") == 0) && (!gpGlobalConfig->logging.debug))
 		{
 			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 			gpGlobalConfig->logging.info = true;
 			logprintf("info logging %s\n", gpGlobalConfig->logging.info ? "on" : "off");
 		}
-		else if (strcmp(cfg, "failover") == 0)
+		else if (cfg.compare("failover") == 0)
 		{
 			gpGlobalConfig->logging.failover = true;
 			logprintf("failover logging %s\n", gpGlobalConfig->logging.failover ? "on" : "off");
 		}
-		else if (strcmp(cfg, "gst") == 0)
+		else if (cfg.compare("gst") == 0)
 		{
 			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
 			logprintf("gst logging %s\n", gpGlobalConfig->logging.gst ? "on" : "off");
 		}
-		else if (strcmp(cfg, "progress") == 0)
+		else if (cfg.compare("progress") == 0)
 		{
 			gpGlobalConfig->logging.progress = !gpGlobalConfig->logging.progress;
 			logprintf("progress logging %s\n", gpGlobalConfig->logging.progress ? "on" : "off");
 		}
-		else if (strcmp(cfg, "debug") == 0)
+		else if (cfg.compare("debug") == 0)
 		{
 			gpGlobalConfig->logging.info = false;
 			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
 			gpGlobalConfig->logging.debug = true;
 			logprintf("debug logging %s\n", gpGlobalConfig->logging.debug ? "on" : "off");
 		}
-		else if (strcmp(cfg, "trace") == 0)
+		else if (cfg.compare("trace") == 0)
 		{
 			gpGlobalConfig->logging.trace = !gpGlobalConfig->logging.trace;
 			logprintf("trace logging %s\n", gpGlobalConfig->logging.trace ? "on" : "off");
 		}
-		else if (strcmp(cfg, "curl") == 0)
+		else if (cfg.compare("curl") == 0)
 		{
 			gpGlobalConfig->logging.curl = !gpGlobalConfig->logging.curl;
 			logprintf("curl logging %s\n", gpGlobalConfig->logging.curl ? "on" : "off");
 		}
-		else if (sscanf(cfg, "default-bitrate=%ld", &gpGlobalConfig->defaultBitrate) == 1)
+		else if (ReadConfigNumericHelper(cfg, "default-bitrate=", gpGlobalConfig->defaultBitrate) == 1)
 		{
 			VALIDATE_LONG("default-bitrate",gpGlobalConfig->defaultBitrate, DEFAULT_INIT_BITRATE)
 			logprintf("aamp default-bitrate: %ld\n", gpGlobalConfig->defaultBitrate);
 		}
-		else if (sscanf(cfg, "default-bitrate-4k=%ld", &gpGlobalConfig->defaultBitrate4K) == 1)
+		else if (ReadConfigNumericHelper(cfg, "default-bitrate-4k=", gpGlobalConfig->defaultBitrate4K) == 1)
 		{
 			VALIDATE_LONG("default-bitrate-4k", gpGlobalConfig->defaultBitrate4K, DEFAULT_INIT_BITRATE_4K)
 			logprintf("aamp default-bitrate-4k: %ld\n", gpGlobalConfig->defaultBitrate4K);
 		}
-		else if (strcmp(cfg, "abr") == 0)
+		else if (cfg.compare("abr") == 0)
 		{
 			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
 			logprintf("abr %s\n", gpGlobalConfig->bEnableABR ? "on" : "off");
 		}
-		else if (sscanf(cfg, "abr-cache-life=%d", &gpGlobalConfig->abrCacheLife) == 1)
+		else if (ReadConfigNumericHelper(cfg, "abr-cache-life=", gpGlobalConfig->abrCacheLife) == 1)
 		{
 			gpGlobalConfig->abrCacheLife *= 1000;
 			logprintf("aamp abr cache lifetime: %ldmsec\n", gpGlobalConfig->abrCacheLife);
 		}
-		else if (sscanf(cfg, "abr-cache-length=%d", &gpGlobalConfig->abrCacheLength) == 1)
+		else if (ReadConfigNumericHelper(cfg, "abr-cache-length=", gpGlobalConfig->abrCacheLength) == 1)
 		{
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
 		}
-		else if (sscanf(cfg, "abr-cache-outlier=%d", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
+		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
 			logprintf("aamp abr outlier in bytes: %ld\n", gpGlobalConfig->abrOutlierDiffBytes);
 		}
-		else if (sscanf(cfg, "abr-skip-duration=%d", &gpGlobalConfig->abrSkipDuration) == 1)
+		else if (ReadConfigNumericHelper(cfg, "abr-skip-duration=", gpGlobalConfig->abrSkipDuration) == 1)
 		{
 			VALIDATE_INT("abr-skip-duration",gpGlobalConfig->abrSkipDuration, DEFAULT_ABR_SKIP_DURATION)
 			logprintf("aamp abr skip duration: %d\n", gpGlobalConfig->abrSkipDuration);
 		}
-		else if (sscanf(cfg, "abr-nw-consistency=%d", &gpGlobalConfig->abrNwConsistency) == 1)
+		else if (ReadConfigNumericHelper(cfg, "abr-nw-consistency=", gpGlobalConfig->abrNwConsistency) == 1)
 		{
 			VALIDATE_LONG("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
 			logprintf("aamp abr NetworkConsistencyCnt: %d\n", gpGlobalConfig->abrNwConsistency);
 		}
-		else if (sscanf(cfg, "flush=%d", &gpGlobalConfig->gPreservePipeline) == 1)
+		else if (ReadConfigNumericHelper(cfg, "flush=", gpGlobalConfig->gPreservePipeline) == 1)
 		{
 			logprintf("aamp flush=%d\n", gpGlobalConfig->gPreservePipeline);
 		}
-		else if (sscanf(cfg, "demux-hls-audio-track=%d", &gpGlobalConfig->gAampDemuxHLSAudioTsTrack) == 1)
+		else if (ReadConfigNumericHelper(cfg, "demux-hls-audio-track=", gpGlobalConfig->gAampDemuxHLSAudioTsTrack) == 1)
 		{ // default 1, set to 0 for hw demux audio ts track
 			logprintf("demux-hls-audio-track=%d\n", gpGlobalConfig->gAampDemuxHLSAudioTsTrack);
 		}
-		else if (sscanf(cfg, "demux-hls-video-track=%d", &gpGlobalConfig->gAampDemuxHLSVideoTsTrack) == 1)
+		else if (ReadConfigNumericHelper(cfg, "demux-hls-video-track=", gpGlobalConfig->gAampDemuxHLSVideoTsTrack) == 1)
 		{ // default 1, set to 0 for hw demux video ts track
 			logprintf("demux-hls-video-track=%d\n", gpGlobalConfig->gAampDemuxHLSVideoTsTrack);
 		}
-		else if (sscanf(cfg, "demux-hls-video-track-tm=%d", &gpGlobalConfig->demuxHLSVideoTsTrackTM) == 1)
+		else if (ReadConfigNumericHelper(cfg, "demux-hls-video-track-tm=", gpGlobalConfig->demuxHLSVideoTsTrackTM) == 1)
 		{ // default 0, set to 1 to demux video ts track during trickmodes
 			logprintf("demux-hls-video-track-tm=%d\n", gpGlobalConfig->demuxHLSVideoTsTrackTM);
 		}
-		else if (sscanf(cfg, "demuxed-audio-before-video=%d", &gpGlobalConfig->demuxedAudioBeforeVideo) == 1)
+		else if (ReadConfigNumericHelper(cfg, "demuxed-audio-before-video=", gpGlobalConfig->demuxedAudioBeforeVideo) == 1)
 		{ // default 0, set to 1 to send audio es before video in case of s/w demux.
 			logprintf("demuxed-audio-before-video=%d\n", gpGlobalConfig->demuxedAudioBeforeVideo);
 		}
-		else if (sscanf(cfg, "throttle=%d", &gpGlobalConfig->gThrottle) == 1)
+		else if (ReadConfigNumericHelper(cfg, "throttle=", gpGlobalConfig->gThrottle) == 1)
 		{ // default is true; used with restamping?
 			logprintf("aamp throttle=%d\n", gpGlobalConfig->gThrottle);
 		}
-		else if (sscanf(cfg, "min-vod-cache=%d", &gpGlobalConfig->minVODCacheSeconds) == 1)
+		else if (ReadConfigNumericHelper(cfg, "min-vod-cache=", gpGlobalConfig->minVODCacheSeconds) == 1)
 		{ // override for VOD cache
 			VALIDATE_INT("min-vod-cache", gpGlobalConfig->minVODCacheSeconds, DEFAULT_MINIMUM_CACHE_VOD_SECONDS)
 			logprintf("min-vod-cache=%d\n", gpGlobalConfig->minVODCacheSeconds);
 		}
-		else if (sscanf(cfg, "buffer-health-monitor-delay=%d", &gpGlobalConfig->bufferHealthMonitorDelay) == 1)
+		else if (ReadConfigNumericHelper(cfg, "buffer-health-monitor-delay=", gpGlobalConfig->bufferHealthMonitorDelay) == 1)
 		{ // override for buffer health monitor delay after tune/ seek
 			VALIDATE_INT("buffer-health-monitor-delay", gpGlobalConfig->bufferHealthMonitorDelay, DEFAULT_BUFFER_HEALTH_MONITOR_DELAY)
 			logprintf("buffer-health-monitor-delay=%d\n", gpGlobalConfig->bufferHealthMonitorDelay);
 		}
-		else if (sscanf(cfg, "buffer-health-monitor-interval=%d", &gpGlobalConfig->bufferHealthMonitorInterval) == 1)
+		else if (ReadConfigNumericHelper(cfg, "buffer-health-monitor-interval=", gpGlobalConfig->bufferHealthMonitorInterval) == 1)
 		{ // override for buffer health monitor interval
 			VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
 			logprintf("buffer-health-monitor-interval=%d\n", gpGlobalConfig->bufferHealthMonitorInterval);
 		}
-		else if (sscanf(cfg, "preferred-drm=%d", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "preferred-drm=", value) == 1)
 		{ // override for preferred drm value
 			if(value <= eDRM_NONE || value > eDRM_PlayReady)
 			{
@@ -2901,12 +2934,12 @@ static void ProcessConfigEntry(char *cfg)
 			}
 			logprintf("preferred-drm=%s\n", GetDrmSystemName(gpGlobalConfig->preferredDrm));
 		}
-		else if (sscanf(cfg, "playready-output-protection=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "playready-output-protection=", value) == 1)
 		{
 			gpGlobalConfig->enablePROutputProtection = (value != 0);
 			logprintf("playready-output-protection is %s\n", (value ? "on" : "off"));
 		}
-		else if (sscanf(cfg, "live-tune-event = %d", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "live-tune-event = ", value) == 1)
                 { // default is 0; set 1 for sending tuned for live
                         logprintf("live-tune-event = %d\n", value);
                         if (value >= 0 && value < eTUNED_EVENT_MAX)
@@ -2914,7 +2947,7 @@ static void ProcessConfigEntry(char *cfg)
                                 gpGlobalConfig->tunedEventConfigLive = (TunedEventConfig)(value);
                         }
                 }
-                else if (sscanf(cfg, "vod-tune-event = %d", &value) == 1)
+                else if (ReadConfigNumericHelper(cfg, "vod-tune-event = ", value) == 1)
                 { // default is 0; set 1 for sending tuned event for vod
                         logprintf("vod-tune-event = %d\n", value);
                         if (value >= 0 && value < eTUNED_EVENT_MAX)
@@ -2922,27 +2955,27 @@ static void ProcessConfigEntry(char *cfg)
                                 gpGlobalConfig->tunedEventConfigVOD = (TunedEventConfig)(value);
                         }
                 }
-		else if (sscanf(cfg, "playlists-parallel-fetch=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "playlists-parallel-fetch=", value) == 1)
 		{
 			gpGlobalConfig->playlistsParallelFetch = (value != 0);
 			logprintf("playlists-parallel-fetch=%d\n", value);
 		}
-		else if (sscanf(cfg, "pre-fetch-iframe-playlist=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
 			logprintf("pre-fetch-iframe-playlist=%d\n", value);
 		}
-		else if (sscanf(cfg, "hls-av-sync-use-start-time=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "hls-av-sync-use-start-time=", value) == 1)
 		{
 			gpGlobalConfig->hlsAVTrackSyncUsingStartTime = (value != 0);
 			logprintf("hls-av-sync-use-start-time=%d\n", value);
 		}
-		else if (sscanf(cfg, "mpd-discontinuity-handling=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "mpd-discontinuity-handling=", value) == 1)
 		{
 			gpGlobalConfig->mpdDiscontinuityHandling = (value != 0);
 			logprintf("mpd-discontinuity-handling=%d\n", value);
 		}
-		else if (sscanf(cfg, "mpd-discontinuity-handling-cdvr=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "mpd-discontinuity-handling-cdvr=", value) == 1)
 		{
 			gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
 			logprintf("mpd-discontinuity-handling-cdvr=%d\n", value);
@@ -2952,21 +2985,21 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->licenseServerLocalOverride = true;
 			logprintf("license-server-url=%s\n", gpGlobalConfig->licenseServerURL);
 		}
-		else if(sscanf(cfg, "vod-trickplay-fps=%d\n", &gpGlobalConfig->vodTrickplayFPS) == 1)
+		else if(ReadConfigNumericHelper(cfg, "vod-trickplay-fps=", gpGlobalConfig->vodTrickplayFPS) == 1)
 		{
 			VALIDATE_INT("vod-trickplay-fps", gpGlobalConfig->vodTrickplayFPS, TRICKPLAY_NETWORK_PLAYBACK_FPS)
 			if(gpGlobalConfig->vodTrickplayFPS != TRICKPLAY_NETWORK_PLAYBACK_FPS)
 				gpGlobalConfig->vodTrickplayFPSLocalOverride = true;
 			logprintf("vod-trickplay-fps=%d\n", gpGlobalConfig->vodTrickplayFPS);
 		}
-		else if(sscanf(cfg, "linear-trickplay-fps=%d\n", &gpGlobalConfig->linearTrickplayFPS) == 1)
+		else if(ReadConfigNumericHelper(cfg, "linear-trickplay-fps=", gpGlobalConfig->linearTrickplayFPS) == 1)
 		{
 			VALIDATE_INT("linear-trickplay-fps", gpGlobalConfig->linearTrickplayFPS, TRICKPLAY_TSB_PLAYBACK_FPS)
 			if (gpGlobalConfig->linearTrickplayFPS != TRICKPLAY_TSB_PLAYBACK_FPS)
 				gpGlobalConfig->linearTrickplayFPSLocalOverride = true;
 			logprintf("linear-trickplay-fps=%d\n", gpGlobalConfig->linearTrickplayFPS);
 		}
-		else if (sscanf(cfg, "report-progress-interval=%d\n", &gpGlobalConfig->reportProgressInterval) == 1)
+		else if (ReadConfigNumericHelper(cfg, "report-progress-interval=", gpGlobalConfig->reportProgressInterval) == 1)
 		{
 			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
 			logprintf("report-progress-interval=%d\n", gpGlobalConfig->reportProgressInterval);
@@ -2975,71 +3008,71 @@ static void ProcessConfigEntry(char *cfg)
 		{
 			logprintf("http-proxy=%s\n", gpGlobalConfig->httpProxy);
 		}
-		else if (strcmp(cfg, "force-http") == 0)
+		else if (cfg.compare("force-http") == 0)
 		{
 			gpGlobalConfig->bForceHttp = !gpGlobalConfig->bForceHttp;
 			logprintf("force-http: %s\n", gpGlobalConfig->bForceHttp ? "on" : "off");
 		}
-		else if (sscanf(cfg, "internal-retune=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "internal-retune=", value) == 1)
 		{
 			gpGlobalConfig->internalReTune = (value != 0);
 			logprintf("internal-retune=%d\n", (int)value);
 		}
-		else if (sscanf(cfg, "gst-buffering-before-play=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "gst-buffering-before-play=", value) == 1)
 		{
 			gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
 			logprintf("gst-buffering-before-play=%d\n", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
 		}
-		else if (sscanf(cfg, "re-tune-on-buffering-timeout=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "re-tune-on-buffering-timeout=", value) == 1)
 		{
 			gpGlobalConfig->reTuneOnBufferingTimeout = (value != 0);
 			logprintf("re-tune-on-buffering-timeout=%d\n", (int)gpGlobalConfig->reTuneOnBufferingTimeout);
 		}
-		else if (strcmp(cfg, "audioLatencyLogging") == 0)
+		else if (cfg.compare("audioLatencyLogging") == 0)
 		{
 			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
 			logprintf("audioLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
 		}
-		else if (strcmp(cfg, "videoLatencyLogging") == 0)
+		else if (cfg.compare("videoLatencyLogging") == 0)
 		{
 			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO] = true;
 			logprintf("videoLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
 		}
-		else if (strcmp(cfg, "manifestLatencyLogging") == 0)
+		else if (cfg.compare("manifestLatencyLogging") == 0)
 		{
 			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST] = true;
 			logprintf("manifestLatencyLogging is %s\n", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
 		}
-		else if (sscanf(cfg, "iframe-default-bitrate=%ld", &gpGlobalConfig->iframeBitrate) == 1)
+		else if (ReadConfigNumericHelper(cfg, "iframe-default-bitrate=", gpGlobalConfig->iframeBitrate) == 1)
 		{
 			VALIDATE_LONG("iframe-default-bitrate",gpGlobalConfig->iframeBitrate, 0)
 			logprintf("aamp iframe-default-bitrate: %ld\n", gpGlobalConfig->iframeBitrate);
 		}
-		else if (sscanf(cfg, "iframe-default-bitrate-4k=%ld", &gpGlobalConfig->iframeBitrate4K) == 1)
+		else if (ReadConfigNumericHelper(cfg, "iframe-default-bitrate-4k=", gpGlobalConfig->iframeBitrate4K) == 1)
 		{
 			VALIDATE_LONG("iframe-default-bitrate-4k",gpGlobalConfig->iframeBitrate4K, 0)
 			logprintf("aamp iframe-default-bitrate-4k: %ld\n", gpGlobalConfig->iframeBitrate4K);
 		}
-		else if (strcmp(cfg, "aamp-audio-only-playback") == 0)
+		else if (cfg.compare("aamp-audio-only-playback") == 0)
 		{
 			gpGlobalConfig->bAudioOnlyPlayback = true;
 			logprintf("aamp-audio-only-playback is %s\n", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
 		}
-		else if (sscanf(cfg, "license-retry-wait-time=%d", &gpGlobalConfig->licenseRetryWaitTime) == 1)
+		else if (ReadConfigNumericHelper(cfg, "license-retry-wait-time=", gpGlobalConfig->licenseRetryWaitTime) == 1)
 		{
 			logprintf("license-retry-wait-time: %d\n", gpGlobalConfig->licenseRetryWaitTime);
 		}
-		else if (sscanf(cfg, "fragment-cache-length=%d", &gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
+		else if (ReadConfigNumericHelper(cfg, "fragment-cache-length=", gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
 		{
 			VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
 			logprintf("aamp fragment cache length: %d\n", gpGlobalConfig->maxCachedFragmentsPerTrack);
 		}
-		else if (sscanf(cfg, "pts-error-threshold=%d", &gpGlobalConfig->ptsErrorThreshold) == 1)
+		else if (ReadConfigNumericHelper(cfg, "pts-error-threshold=", gpGlobalConfig->ptsErrorThreshold) == 1)
 		{
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d\n", gpGlobalConfig->ptsErrorThreshold);
 		}
-		else if(sscanf(cfg, "max-playlist-cache=%ld", &gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
+		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{
 			// Read value in KB , convert it to bytes
 			gpGlobalConfig->gMaxPlaylistCacheSize = gpGlobalConfig->gMaxPlaylistCacheSize * 1024;
@@ -3064,32 +3097,32 @@ static void ProcessConfigEntry(char *cfg)
 				tmpValue = NULL;
 			}
 		}
-		else if (sscanf(cfg, "wait-time-before-retry-http-5xx-ms=%d", &gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
+		else if (ReadConfigNumericHelper(cfg, "wait-time-before-retry-http-5xx-ms=", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
 		{
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
 			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d\n", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 		}
-		else if (sscanf(cfg, "sslverifypeer=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "sslverifypeer=", value) == 1)
 		{
 			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
 			logprintf("ssl verify peer is %s\n", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
 		}
-		else if (sscanf(cfg, "curl-stall-timeout=%ld", &gpGlobalConfig->curlStallTimeout) == 1)
+		else if (ReadConfigNumericHelper(cfg, "curl-stall-timeout=", gpGlobalConfig->curlStallTimeout) == 1)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-stall-timeout: %ld\n", gpGlobalConfig->curlStallTimeout);
 		}
-		else if (sscanf(cfg, "curl-download-start-timeout=%ld", &gpGlobalConfig->curlDownloadStartTimeout) == 1)
+		else if (ReadConfigNumericHelper(cfg, "curl-download-start-timeout=", gpGlobalConfig->curlDownloadStartTimeout) == 1)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld\n", gpGlobalConfig->curlDownloadStartTimeout);
 		}
-		else if (sscanf(cfg, "client-dai=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "client-dai=", value) == 1)
 		{
 			gpGlobalConfig->enableClientDai = (value == 1);
 			logprintf("Client side DAI: %s\n", gpGlobalConfig->enableClientDai ? "ON" : "OFF");
 		}
-		else if (sscanf(cfg, "ad-from-cdn-only=%d\n", &value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "ad-from-cdn-only=", value) == 1)
 		{
 			gpGlobalConfig->playAdFromCDN = (value == 1);
 			logprintf("Ad playback from CDN only: %s\n", gpGlobalConfig->playAdFromCDN ? "ON" : "OFF");
@@ -3111,29 +3144,27 @@ static void ProcessConfigEntry(char *cfg)
 				tmpValue = NULL;
 			}
 		}
-		else if (cfg[0] == '*')
+		else if (cfg.at(0) == '*')
 		{
-			char *delim = strchr(cfg, ' ');
-			if (delim)
+			std::size_t pos = cfg.find_first_of(' ');
+			if (pos != std::string::npos)
 			{
 				//Populate channel map from aamp.cfg
 				// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
-				logprintf("aamp override:\n%s\n", cfg);
+				logprintf("aamp override:\n%s\n", cfg.c_str());
 				ChannelInfo channelInfo;
-				char *channelStr = &cfg[1];
-				char *token = strtok(channelStr, " ");
-				while (token != NULL)
+				std::stringstream iss(cfg.substr(1));
+				std::string token;
+				while (getline(iss, token, ' '))
 				{
-					if (memcmp(token, "http", 4) == 0)
+					if (token.compare(0,4,"http") == 0)
 						channelInfo.uri = token;
 					else
 						channelInfo.name = token;
-					token = strtok(NULL, " ");
 				}
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
-
 	}
 }
 
@@ -3142,6 +3173,7 @@ static void ProcessConfigEntry(char *cfg)
  */
 void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 {
+	std::string cfgPath = "";
 	if (!gpGlobalConfig)
 	{
 		gpGlobalConfig = new GlobalConfigAAMP();
@@ -3163,39 +3195,33 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
                 }
             }
 
-            if (bCharCompliant)
-            {
-                std::string strCfg(cloudConf,iConfigLen);
-                
-                std::istringstream iSteam(strCfg);
-                std::string line;
-                while (std::getline(iSteam, line)) {
-                    if (line.length() > 0)
-                    {
-                        //ProcessConfigEntry takes char * and line.c_str() returns const string hence copy of line is created
-                        char * cstrCmd = (char *)malloc(line.length() + 1);
-                        if (cstrCmd)
-                        {
-                            strcpy(cstrCmd, line.c_str());
-                            logprintf("LazilyLoadConfigIfNeeded aamp-cmd:[%s]\n", cstrCmd);
-                            ProcessConfigEntry(cstrCmd);
-                            free(cstrCmd);
-                        }
-                    }
-                }
-            }
-            free(cloudConf); // allocated by base64_Decode in GetTR181AAMPConfig
-        }
+			if (bCharCompliant)
+			{
+				std::string strCfg(cloudConf,iConfigLen);
+				std::istringstream iSteam(strCfg);
+				std::string line;
+				while (std::getline(iSteam, line)) {
+				if (line.length() > 0)
+				{
+					//ProcessConfigEntry takes char * and line.c_str() returns const string hence copy of line is created
+					logprintf("LazilyLoadConfigIfNeeded aamp-cmd:[%s]\n", line.c_str());
+					ProcessConfigEntry(line);
+				}
+			}
+		}
+		free(cloudConf); // allocated by base64_Decode in GetTR181AAMPConfig
+	}
 #endif
 
 #ifdef WIN32
 		AampLogManager mLogManager;
-		FILE *f = fopen(mLogManager.getAampCfgPath(), "rb");
+		cfgPath.assign(mLogManager.getAampCfgPath());
 #elif defined(__APPLE__)
 		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aamp.cfg";
 		FILE *f = fopen(cfgPath.c_str(), "rb");
 #else
+        cfgPath = "/opt/aamp.cfg";
 #ifdef AAMP_CPC // Comcast builds
         // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
         const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
@@ -3209,15 +3235,20 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
             f = fopen("/opt/aamp.cfg", "rb");
         }
 #endif
-		if (f)
+		if (!cfgPath.empty())
 		{
-			logprintf("opened aamp.cfg\n");
-			char buf[MAX_URI_LENGTH * 2];
-			while (fgets(buf, sizeof(buf), f))
+			std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
+			if (f.good())
 			{
-				ProcessConfigEntry(buf);
+				logprintf("opened aamp.cfg\n");
+				std::string buf;
+				while (f.good())
+				{
+					std::getline(f, buf);
+					ProcessConfigEntry(buf);
+				}
+				f.close();
 			}
-			fclose(f);
 		}
 		else
 		{
@@ -3538,8 +3569,10 @@ void PlayerInstanceAAMP::Stop(void)
  * @brief de-fog playback URL to play directly from CDN instead of fog
  * @param[in][out] dst Buffer containing URL
  */
-static void DeFog(char *dst)
+static void DeFog(std::string& url)
 {
+	char *dst = NULL, *head = NULL;
+	head = dst = strdup(url.c_str());
 	const char *src = strstr(dst, "&recordedUrl=");
 	if (src)
 	{
@@ -3569,17 +3602,23 @@ static void DeFog(char *dst)
 			}
 		}
 	}
+	if(head != NULL)
+	{
+		url = head;
+		free(head);
+	}
 }
 
 /**
  * @brief Encode URL
  *
- * @param[in] inSrc - Input URL
+ * @param[in] inStr - Input URL
  * @param[out] outStr - Encoded URL
  * @return Encoding status
  */
-bool UrlEncode(const char *inSrc, std::string &outStr)
+bool UrlEncode(std::string inStr, std::string &outStr)
 {
+	char *inSrc = strdup(inStr.c_str());
 	const char HEX[] = "0123456789ABCDEF";
 	const int SRC_LEN = strlen(inSrc);
 	uint8_t * pSrc = (uint8_t *)inSrc;
@@ -3606,30 +3645,51 @@ bool UrlEncode(const char *inSrc, std::string &outStr)
 	}
 
 	outStr = std::string((char *)tmp.data(), (char *)pDst);
+	if(inSrc != NULL) free(inSrc);
 	return true;
 }
 
 /**
- * @brief
- * @param string
- * @param existingSubStringToReplace
- * @param replacementString
+ * @brief substitute given substring in str with the given string
+ * @param str String to be modified
+ * @param existingSubStringToReplace Substring to be replaced
+ * @param replacementString String to be substituted
  * @retval
  */
-static bool replace_cstring( char *string, const char *existingSubStringToReplace, const char *replacementString )
+int replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
 {
-	char *insertionPtr = strstr(string, existingSubStringToReplace);
-	if (insertionPtr)
+	bool done = false;
+	int rc = 0;
+	std::size_t pos;
+
+	do
 	{
-		size_t charsToInsert = strlen(replacementString);
-		size_t charsToRemove = strlen(existingSubStringToReplace);
-		size_t charsToKeep = strlen(&insertionPtr[charsToRemove]);
-		memmove(&insertionPtr[charsToInsert], &insertionPtr[charsToRemove], charsToKeep);
-          	insertionPtr[charsToInsert+charsToKeep] = 0x00;
-		memcpy(insertionPtr, replacementString, charsToInsert);
-		return true;
-	}
-	return false;
+		pos = str.find(existingSubStringToReplace);
+
+		if (pos != std::string::npos)
+		{
+			size_t charsToRemove = strlen(existingSubStringToReplace);
+			str.replace(pos, charsToRemove, replacementString);
+			rc = 1;
+		}
+	} while (pos != std::string::npos);
+
+	return rc;
+}
+
+/**
+ * @brief substitute given substring in str with the given number
+ * @param str String to be modified
+ * @param existingSubStringToReplace Substring to be replaced
+ * @param replacementNumber Number to be substituted
+ * @retval
+ */
+int replace(std::string &str, const char *existingSubStringToReplace, int replacementNumber)
+{
+	int rc = 0;
+	std::string replacementString = std::to_string(replacementNumber);
+	rc = replace(str, existingSubStringToReplace, replacementString.c_str());
+	return rc;
 }
 /**
  * @brief Common tune operations used on Tune, Seek, SetRate etc
@@ -3831,8 +3891,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
 {
-	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
-
+	AAMPLOG_TRACE("original URL: %s\n", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 	if (NULL == mStreamSink)
@@ -3881,15 +3940,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mainManifestUrl = remapUrl;
 	}
 
-	strncpy(manifestUrl, mainManifestUrl, MAX_URI_LENGTH);
-	manifestUrl[MAX_URI_LENGTH-1] = '\0';
+	mManifestUrl =  mainManifestUrl;
 
 	mIsDash = !strstr(mainManifestUrl, "m3u8");
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
-	mIsLocalPlayback = (aamp_getHostFromURL(manifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
+	mIsLocalPlayback = (aamp_getHostFromURL(mManifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
 	mServiceZone.clear(); //clear the value if present
@@ -3932,7 +3990,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 			mIsDash = true;
 			if (!gpGlobalConfig->fogSupportsDash )
 			{
-				DeFog(manifestUrl);
+				DeFog(mManifestUrl);
 			}
 
 			bool urlReplaced = false;
@@ -3943,19 +4001,19 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 					urlReplaced = true;
 					break;
 				case 2:
-					urlReplaced |= (replace_cstring(manifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top") ||
-					                replace_cstring(manifestUrl, "linear-nat-pil-red", "coam-tvil-pil")    ||
-					                replace_cstring(manifestUrl, "linear-nat-pil", "coam-tvil-pil"));
+					urlReplaced |= (replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top") ||
+					                replace(mManifestUrl, "linear-nat-pil-red", "coam-tvil-pil")    ||
+					                replace(mManifestUrl, "linear-nat-pil", "coam-tvil-pil"));
 					break;
 				case 3:			//Setting all national channels' FQDN to "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net"
-					if(strstr(manifestUrl,"-nat-"))
+					if(mManifestUrl.compare("-nat-") == 0)
 					{
-						std::string hostName = aamp_getHostFromURL(manifestUrl);
-						urlReplaced |= replace_cstring(manifestUrl, hostName.c_str(), "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net");
+						std::string hostName = aamp_getHostFromURL(mManifestUrl);
+						urlReplaced |= replace(mManifestUrl, hostName.c_str(), "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net");
 					}
 					else
 					{
-						urlReplaced |= replace_cstring(manifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top");
+						urlReplaced |= replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top");
 					}
 					break;
 				default:
@@ -3966,46 +4024,53 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 			if(!urlReplaced)
 			{
 				//Fall back channel
-				strcpy(manifestUrl, "http://ccr.coam-tvil-pil.xcr.comcast.net/FNCHD_HD_NAT_16756_0_5884597068415311163.mpd");
+				mManifestUrl = "http://ccr.coam-tvil-pil.xcr.comcast.net/FNCHD_HD_NAT_16756_0_5884597068415311163.mpd";
 			}
 
-			replace_cstring(manifestUrl, ".m3u8", ".mpd");
+			replace(mManifestUrl, ".m3u8", ".mpd");
 		}
 		
 		if (gpGlobalConfig->noFog)
 		{
-			DeFog(manifestUrl);
+			DeFog(mManifestUrl);
 		}
 	
 		if (gpGlobalConfig->forceEC3)
 		{
-			replace_cstring(manifestUrl,".m3u8", "-eac3.m3u8");
+			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (gpGlobalConfig->disableEC3 && strstr(manifestUrl,"tsb?") ) // new - limit this option to linear content as part of DELIA-23975
+		if (gpGlobalConfig->disableEC3 && mManifestUrl.find("tsb?") != std::string::npos) // new - limit this option to linear content as part of DELIA-23975
 		{
-			replace_cstring(manifestUrl, "-eac3.m3u8", ".m3u8");
+			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
 
 		if(gpGlobalConfig->bForceHttp)
 		{
-			replace_cstring(manifestUrl, "https://", "http://");
+			replace(mManifestUrl, "https://", "http://");
 		}
 
-		if (strstr(manifestUrl,"mpd") ) // new - limit this option to linear content as part of DELIA-23975
+		if (mManifestUrl.find("mpd")!= std::string::npos) // new - limit this option to linear content as part of DELIA-23975
 		{
-			replace_cstring(manifestUrl, "-eac3.mpd", ".mpd");
+			replace(mManifestUrl, "-eac3.mpd", ".mpd");
 		} // mpd
 	} // !remap_url
  
-	if (strstr(manifestUrl,"tsb?"))
+	if (mManifestUrl.find("tsb?")!= std::string::npos)
 	{
 		mTSBEnabled = true;
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
-	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
-
+	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
+	{
+		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
+	}
+	else
+	{
+		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)\n", mTuneAttempts, mIsDash?"DASH":"HLS");
+		printf("URL: %s\n", mManifestUrl.c_str());
+	}
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
-	ExtractServiceZone(manifestUrl);
+	ExtractServiceZone(mManifestUrl);
 
 	SetTunedManifestUrl(mTSBEnabled);
 
@@ -4022,34 +4087,28 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
  *   @param  url - stream url with vss service zone info as query string
  *   @return std::string
  */
-void PrivateInstanceAAMP::ExtractServiceZone(const char *url)
+void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 {
-	if(mIsVSS && url)
+	if(mIsVSS && !url.empty())
 	{
-		const char * vssURL = NULL;
-		char * tempRedirectedURL = NULL;
+		std::string vssURL;
+        size_t vssURLPos;
 
 		if(mTSBEnabled)
 		{
-			tempRedirectedURL = strdup(url);
-			DeFog(tempRedirectedURL);
-			vssURL = (const char *) tempRedirectedURL;
-		}
-		else
-		{
-			vssURL = url;
-		}
+			DeFog(url);
+		}	
+		vssURL = url;
 
-		vssURL = strstr(vssURL, VSS_MARKER);
-
-		if(vssURL)
+		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
 		{
-			vssURL += strlen(VSS_MARKER);
-			const char * nextQueryParameter = strstr(vssURL, "&");
-			if(nextQueryParameter)
+			vssURLPos = vssURLPos + VSS_MARKER_LEN;
+			size_t  nextQueryParameterPos = vssURL.find('&',vssURLPos);
+
+			if(nextQueryParameterPos != std::string::npos)
 			{
-				int iServiceZoneLen = (nextQueryParameter - vssURL);
-				mServiceZone = std::string(vssURL,iServiceZoneLen);
+				int iServiceZoneLen = (nextQueryParameterPos - vssURLPos);
+				mServiceZone = vssURL.substr(vssURLPos,iServiceZoneLen);
 			}
 			else
 			{
@@ -4058,15 +4117,9 @@ void PrivateInstanceAAMP::ExtractServiceZone(const char *url)
 		}
 		else
 		{
-			AAMPLOG_ERR("PrivateInstanceAAMP::%s - ERROR: url does not have vss marker :%s \n", __FUNCTION__,url);
-		}
-
-		if(tempRedirectedURL)
-		{
-			free(tempRedirectedURL);
+			AAMPLOG_ERR("PrivateInstanceAAMP::%s - ERROR: url does not have vss marker :%s \n", __FUNCTION__,url.c_str());
 		}
 	}
-
 }
 
 std::string  PrivateInstanceAAMP::GetContentTypString()
@@ -4224,10 +4277,10 @@ void PrivateInstanceAAMP::SyncEnd(void)
  * @param fileType media type of the file
  * @retval buffer containing file, free using aamp_Free
  */
-char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, size_t *len, unsigned int curlInstance, const char *range, MediaType fileType)
+char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, size_t *len, unsigned int curlInstance, const char *range, MediaType fileType)
 {
 	profiler.ProfileBegin(bucketType);
-	char effectiveUrl[MAX_URI_LENGTH];
+	std::string effectiveUrl;
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
 	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, NULL, range, curlInstance, true, fileType))
 	{
@@ -4252,11 +4305,11 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const cha
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, const char *fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	char effectiveUrl[MAX_URI_LENGTH];
+	std::string effectiveUrl;
 	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
 	{
 		ret = false;
@@ -5816,7 +5869,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
-        mServiceZone(),
+	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 #ifdef PLACEMENT_EMULATION
@@ -6235,7 +6288,7 @@ void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
  * @param effectiveUrl Effective URL of playlist
  */
 
-void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, const char* effectiveUrl,bool trackLiveStatus,MediaType fileType)
+void PrivateInstanceAAMP::InsertToPlaylistCache(std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType)
 {
 	PlayListCachedData *tmpData;
 	// First check point , Caching is allowed only if its VOD and for Main Manifest(HLS) for both VOD/Live
@@ -6265,8 +6318,7 @@ void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const Gro
 				tmpData->mCachedBuffer = new GrowableBuffer();
 				memset (tmpData->mCachedBuffer, 0, sizeof(GrowableBuffer));
 				aamp_AppendBytes(tmpData->mCachedBuffer, buffer->ptr, buffer->len );
-				tmpData->mEffectiveUrl= new char[MAX_URI_LENGTH];
-				strncpy(tmpData->mEffectiveUrl, effectiveUrl, MAX_URI_LENGTH);
+				tmpData->mEffectiveUrl = effectiveUrl;
 				tmpData->mFileType = fileType;
 				mPlaylistCache[url] = tmpData;
 				mCacheStoredSize += buffer->len;
@@ -6284,11 +6336,11 @@ void PrivateInstanceAAMP::InsertToPlaylistCache(const std::string url, const Gro
  * @param[out] effectiveUrl effective URL of retrieved playlist
  * @retval true if playlist is successfully retrieved.
  */
-bool PrivateInstanceAAMP::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, char effectiveUrl[])
+bool PrivateInstanceAAMP::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl)
 {
 	GrowableBuffer* buf = NULL;
 	bool ret;
-	char* eUrl;
+	std::string eUrl;
 	PlaylistCacheIter it = mPlaylistCache.find(url);
 	if (it != mPlaylistCache.end())
 	{
@@ -6297,7 +6349,7 @@ bool PrivateInstanceAAMP::RetrieveFromPlaylistCache(const std::string url, Growa
 		eUrl = tmpData->mEffectiveUrl;
 		buffer->len = 0;
 		aamp_AppendBytes(buffer, buf->ptr, buf->len );
-		strncpy(effectiveUrl,eUrl, MAX_URI_LENGTH);
+		effectiveUrl = eUrl;
 		traceprintf("%s:%d : url %s found\n", __FUNCTION__, __LINE__, url.c_str());
 		ret = true;
 	}
@@ -6321,7 +6373,6 @@ void PrivateInstanceAAMP::ClearPlaylistCache()
 	{
 		PlayListCachedData *tmpData = it->second;
 		aamp_Free(&tmpData->mCachedBuffer->ptr);
-		delete[] tmpData->mEffectiveUrl;
 		delete tmpData->mCachedBuffer;
 		delete tmpData;
 	}
@@ -6362,7 +6413,6 @@ bool PrivateInstanceAAMP::AllocatePlaylistCacheSlot(MediaType fileType,size_t ne
 			}
 			freedSize += tmpData->mCachedBuffer->len;
 			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete[] tmpData->mEffectiveUrl;
 			delete tmpData->mCachedBuffer;
 			delete tmpData;
 			Iter = mPlaylistCache.erase(Iter);
@@ -6379,7 +6429,6 @@ bool PrivateInstanceAAMP::AllocatePlaylistCacheSlot(MediaType fileType,size_t ne
 			}
 			freedSize += tmpData->mCachedBuffer->len;
 			aamp_Free(&tmpData->mCachedBuffer->ptr);
-			delete[] tmpData->mEffectiveUrl;
 			delete tmpData->mCachedBuffer;
 			delete tmpData;
 			Iter = mPlaylistCache.erase(Iter);
@@ -6719,36 +6768,32 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
  *   @param[in] fragmentUrl fragment Url
  *   @returns Sequence Number if found in fragment Url else 0
  */
-long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(const char *fragmentUrl)
+long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(std::string fragmentUrl)
 {
 
 	long long seqNumber = 0;
-	const char *pos = strstr(fragmentUrl, "-frag-");
-	const char *ptr;
-	if (pos)
+	size_t pos = fragmentUrl.find("-frag-");
+	
+	if (pos != std::string::npos)
 	{
-		seqNumber = atoll(pos + 6);
+		seqNumber = stoll("0" + fragmentUrl.substr(pos + 6));
 	}
-	else if (ptr = strstr(fragmentUrl, ".seg"))
+	else if (fragmentUrl.find(".seg") != std::string::npos)
 	{
-		if( (ptr-fragmentUrl >= 5) && (memcmp(ptr - 5, "-init", 5) == 0))
+		if( fragmentUrl.find("-init.seg") != std::string::npos) //init segment
 		{
 			seqNumber = -1;
 		}
 		else
 		{
-			while (ptr > fragmentUrl)
+			pos = fragmentUrl.rfind("/");
+			if(pos != std::string::npos)
 			{
-				if (*ptr == '/')
-				{
-					break;
-				}
-				ptr--;
+				seqNumber = stoll("0" + fragmentUrl.substr(pos + 1));
 			}
-			seqNumber = atoll(ptr + 1);
 		}
 	}
-	else if ((strstr(fragmentUrl, ".mpd")) || (strstr(fragmentUrl, ".m3u8")))
+	else if ((fragmentUrl.find(".mpd") != std::string::npos) || (fragmentUrl.find(".m3u8") != std::string::npos)) //manifest
 	{
 		seqNumber = -1;
 	}
@@ -7129,26 +7174,15 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
  */
 void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 {
-	strncpy(tunedManifestUrl, manifestUrl, MAX_URI_LENGTH-1);
-	tunedManifestUrl[MAX_URI_LENGTH-1] = 0;
-
+	mTunedManifestUrl.assign(mManifestUrl);
+	traceprintf("%s::mManifestUrl: %s\n",__FUNCTION__,mManifestUrl.c_str());
 	if(isrecordedUrl)
 	{
-		DeFog(tunedManifestUrl);
-		// replace leading http:// or https:// with _fog:// or _fogs://
-		tunedManifestUrl[0] = '_';
-		tunedManifestUrl[1] = 'f';
-		tunedManifestUrl[2] = 'o';
-		tunedManifestUrl[3] = 'g';
+		DeFog(mTunedManifestUrl);
+		mTunedManifestUrl.replace(0,4,"_fog");
 	}
 
-	char *streamPtr = strchr(tunedManifestUrl, '?');
-	if(streamPtr)
-	{ // strip URI params for more compact URI in microevent logging
-		*streamPtr = 0x0;
-	}
-
-	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
+	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, mTunedManifestUrl.c_str());
 }
 
 /**
@@ -7157,8 +7191,8 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
  */
 const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 {
-	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, tunedManifestUrl);
-	return tunedManifestUrl;
+	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s \n", __FUNCTION__, mTunedManifestUrl.c_str());
+	return mTunedManifestUrl.c_str();
 }
 
 /**

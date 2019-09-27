@@ -105,7 +105,7 @@ void AesDec::SignalKeyAcquired()
  */
 void AesDec::AcquireKey()
 {
-	char tempEffectiveUrl[MAX_URI_LENGTH];
+	std::string tempEffectiveUrl;
 	long http_error;
 	bool keyAcquisitionStatus = false;
 	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
