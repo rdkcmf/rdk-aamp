@@ -390,12 +390,12 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	int downloadAttempt = 0;
 	bool gotManifest = false;
 	long http_error = 0;
-	char effectiveUrl[MAX_URI_LENGTH];
+	std::string effectiveUrl;
 	while (downloadAttempt < 2)
 	{
 		downloadAttempt++;
 		memset(&manifest, 0, sizeof(manifest));
-		gotManifest = mAamp->GetFile(manifestUrl.c_str(), &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+		gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
 		if (gotManifest)
 		{
 			break;
@@ -417,7 +417,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 		xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
 		if(tryFog && !(gpGlobalConfig->playAdFromCDN) && reader && mIsFogTSB)	//Main content from FOG. Ad is expected from FOG.
 		{
-			const char *channelUrl = (char *)mAamp->GetManifestUrl();	//TODO: Get FOG URL from channel URL
+			std::string channelUrl = mAamp->GetManifestUrl();	//TODO: Get FOG URL from channel URL
 			std::string encodedUrl;
 			UrlEncode(effectiveUrl, encodedUrl);
 			int ipend = 0;
@@ -426,10 +426,9 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 				if(channelUrl[ipend] == '/') slashcnt++;
 			}
 
-			strncpy(effectiveUrl, channelUrl, ipend);
-			effectiveUrl[ipend] = '\0';
-			strcat(effectiveUrl, "adrec?clientId=FOG_AAMP&recordedUrl=");
-			strcat(effectiveUrl, encodedUrl.c_str());
+			effectiveUrl.assign(channelUrl);
+			effectiveUrl.append("adrec?clientId=FOG_AAMP&recordedUrl=");
+			effectiveUrl.append(encodedUrl.c_str());
 			GrowableBuffer fogManifest;
 			memset(&fogManifest, 0, sizeof(manifest));
 			http_error = 0;
@@ -461,7 +460,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 		{
 			if (xmlTextReaderRead(reader))
 			{
-				Node* root = aamp_ProcessNode(&reader, manifestUrl.c_str(), true);
+				Node* root = aamp_ProcessNode(&reader, manifestUrl, true);
 				if (NULL != root)
 				{
 					std::vector<Node*> children = root->GetSubNodes();
