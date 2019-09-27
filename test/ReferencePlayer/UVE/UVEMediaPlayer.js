@@ -410,7 +410,7 @@ class AAMPPlayer {
     }
 
     removeEventListener(eventName, eventHandler) {
-        return this.player.addEventListener(eventName, eventHandler, null);
+        return this.player.removeEventListener(eventName, eventHandler, null);
     }
 
     /**
