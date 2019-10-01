@@ -2240,10 +2240,11 @@ void TrackState::IndexPlaylist()
 					{
 						int len = aamp->subscribedTags.at(i).length();
 						const char* data = aamp->subscribedTags.at(i).data();
-						if (strncmp(ptr, data + 4, len - 4) == 0)
+						if( startswith(&ptr,(data + 4))) // remove the TAG and only keep value(content) in PTR
 						{
+							ptr++; // skip the ":" 
 							int nb = (int)FindLineLength(ptr);
-							// logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'\n", i, totalDuration, nb, ptr);
+							//logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'\n", i, totalDuration, nb, ptr);
 							aamp->ReportTimedMetadata(totalDuration * 1000, data, ptr, nb);
 							break;
 						}
