@@ -440,6 +440,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 	}
 	unsigned int attemptCount = 0;
+	bool requestFailed = true;
 	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
 		attemptCount++;
@@ -476,9 +477,16 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 			{
 				logprintf("%s:%d DRM Session Manager Received license data from server; Curl total time  = %.1f\n", __FUNCTION__, __LINE__, totalTime);
 				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : http %d\n",__FUNCTION__, __LINE__, attemptCount, *httpCode);
+				requestFailed = false;
 				break;
 			}
 		}
+	}
+
+	if(requestFailed && keyInfo !=NULL)
+	{
+		delete keyInfo;
+		keyInfo = NULL;
 	}
 
 	delete destURL;
