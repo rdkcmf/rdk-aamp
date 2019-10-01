@@ -892,6 +892,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 					AAMPLOG_INFO("%s:%d Found drm session READY with same keyID %s - Reusing drm session for %s\n",
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
 					pthread_mutex_unlock(&session_mutex[sessionType]);
+#if defined(USE_OPENCDM_ADAPTER)
+					drmSessionContexts[sessionType].drmSession->setKeyId(reinterpret_cast<const char*>(keyId), keyIdLen);
+#endif
 					free(keyId);
 					return drmSessionContexts[sessionType].drmSession;
 				}
