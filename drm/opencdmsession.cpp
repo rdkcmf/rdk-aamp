@@ -287,50 +287,13 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif
 	std::string responseMessage;
+
 	media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Update(key->getData(), key->getDataLength(), responseMessage);
 
 	if (keyStatus == media::OpenCdm::KeyStatus::Usable) 
 	{
 		logprintf("processKey: Key Usable!\n");
-	}
-	else if(keyStatus == media::OpenCdm::KeyStatus::HWError)
-	{
-		// BCOM-3537 - SAGE Hang .. Need to restart the wpecdmi process and then self kill player to recover
-		AAMPLOG_WARN("processKey: Update() returned HWError.Restarting process...");
-		int systemResult = -1;
-		// In Release another process handles opencdm which needs to be restarts .In Sprint this process is not available.
-		// So check if process exists before killing it .
-		systemResult = system("pgrep WPEcdmi");
-		if(systemResult == 0)
-		{
-			systemResult = system("pkill -9 WPEcdmi");
-			if(systemResult != 0)
-			{
-				AAMPLOG_WARN("Unable to shutdown WPEcdmi process.%d", systemResult);
-			}
-		}
-		else
-		{
-			// check for WPEFramework process
-			systemResult = system("pgrep WPEFramework");
-			if(systemResult == 0)
-			{
-				systemResult = system("pkill -9 WPEFramework");
-				if(systemResult != 0)
-				{
-					AAMPLOG_WARN("Unable to shutdown WPEFramework process.%d", systemResult);
-				}
-			}
-		}
-
-		// wait for 5sec for all the logs to be flushed
-		sleep(5);
-		// Now kill self
-		pid_t pid = getpid();
-		syscall(__NR_tgkill, pid, pid, SIGKILL);
-	}
-	else
-	{
+	}else{
 		logprintf("processKey: Update() returned keystatus: %d\n", (int) keyStatus);
 		m_eKeyState = KEY_ERROR;
 		return retvalue;
