@@ -144,6 +144,11 @@ void MediaTrack::MonitorBufferHealth()
 				traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
 						GetBufferHealthStatusString(bufferStatus));
 			}
+
+			if(aamp->IsDiscontinuityProcessPending() && gpGlobalConfig->discontinuityTimeout)
+			{
+				aamp->CheckForDiscontinuityStall((MediaType)type);
+			}
 		}
 		else
 		{
