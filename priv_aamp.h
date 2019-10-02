@@ -90,6 +90,7 @@
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
+#define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
 
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10sec */
@@ -164,7 +165,8 @@ enum PlaybackErrorType
 	eGST_ERROR_PTS,                 /**< PTS error from gstreamer */
 	eGST_ERROR_UNDERFLOW,           /**< Underflow error from gstreamer */
 	eGST_ERROR_VIDEO_BUFFERING,     /**< Video buffering error */
-	eDASH_ERROR_STARTTIME_RESET     /**< Start time reset of DASH */
+	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
+	eSTALL_AFTER_DISCONTINUITY      /** Playback stall after notifying discontinuity */
 };
 
 /**
@@ -565,6 +567,7 @@ public:
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
+	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 public:
 
 	/**
@@ -602,6 +605,7 @@ public:
 		,mEnableVideoEndEvent(true)
 		,bAsync_ontuned(false)
 		,bReportVideoPTS(false)
+		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -2846,6 +2850,14 @@ public:
 	 */
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
+    /**
+     *   @brief Check if AAMP is in stalled state after it pushed EOS to
+     *   notify discontinuity
+     *
+     *   @param[in]  mediaType stream type
+     */
+	void CheckForDiscontinuityStall(MediaType mediaType);
+
 private:
 
 	/**
@@ -2906,6 +2918,7 @@ private:
 	long long mPlayerLoadTime;
 	PrivAAMPState mState;
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
+	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
 	bool mIsDash;
 	DRMSystems mCurrentDrm;
