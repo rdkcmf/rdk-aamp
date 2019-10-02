@@ -962,6 +962,7 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		mpStreamAbstractionAAMP->StartInjection();
 		mStreamSink->Stream();
 		mProcessingDiscontinuity = false;
+		mLastDiscontinuityTimeMs = 0;
 	}
 
 	SyncBegin();
@@ -3305,6 +3306,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld", gpGlobalConfig->curlDownloadStartTimeout);
 		}
+		else if (ReadConfigNumericHelper(cfg, "discontinuity-timeout=", gpGlobalConfig->discontinuityTimeout) == 1)
+		{
+			//Not calling VALIDATE_LONG since zero is supported
+			logprintf("aamp discontinuity-timeout: %ld\n", gpGlobalConfig->discontinuityTimeout);
+		}
 		else if (ReadConfigNumericHelper(cfg, "client-dai=", value) == 1)
 		{
 			gpGlobalConfig->enableClientDai = (value == 1);
@@ -3880,8 +3886,11 @@ int replace(std::string &str, const char *existingSubStringToReplace, int replac
 void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 {
 	bool newTune;
-	lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
-	lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+	{
+		lastUnderFlowTimeMs[i] = 0;
+	}
+	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
@@ -4282,6 +4291,44 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	{
 		this->mTraceUUID = "unknown";
 	}
+}
+
+/**
+ *   @brief Check if AAMP is in stalled state after it pushed EOS to
+ *   notify discontinuity
+ *
+ *   @param[in]  mediaType stream type
+ */
+void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
+{
+	AAMPLOG_TRACE("%s:%d : Enter mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
+	if(mProcessingDiscontinuity)
+	{
+		if(!(mStreamSink->CheckForPTSChange()))
+		{
+			auto now =  aamp_GetCurrentTimeMS();
+			if(mLastDiscontinuityTimeMs == 0)
+			{
+				mLastDiscontinuityTimeMs = now;
+			}
+			else
+			{
+				auto diff = now - mLastDiscontinuityTimeMs;
+				AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms\n",__FUNCTION__, __LINE__, diff);
+				if(diff > gpGlobalConfig->discontinuityTimeout)
+				{
+					mLastDiscontinuityTimeMs = 0;
+					mProcessingDiscontinuity = false;
+					ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
+				}
+			}
+		}
+		else
+		{
+			mLastDiscontinuityTimeMs = 0;
+		}
+	}
+	AAMPLOG_TRACE("%s:%d : Exit mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
 }
 
 /**
@@ -5981,9 +6028,11 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
 			return;
 		}
-		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"),
-		        (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
-		        (errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" : "STARTTIME RESET");
+		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
+									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
+									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" : "STARTTIME RESET";
+
+		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
 		for (int i = 0; i < AAMP_MAX_SIMULTANEOUS_INSTANCES; i++)
@@ -6028,7 +6077,6 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 						}
 						else
 						{
-							const char* errorString = (errorType == eGST_ERROR_UNDERFLOW) ? "underflow" : "pts error";
 							gActivePrivAAMPs[i].numPtsErrors = 0;
 							logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since first %s.", __FUNCTION__, __LINE__, errorString);
 						}
@@ -6036,7 +6084,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					}
 					else
 					{
-						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune errorType %d", __FUNCTION__, __LINE__, errorType);
+						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune errorType %d error %s\n", __FUNCTION__, __LINE__, errorType, errorString);
 						gActivePrivAAMPs[i].reTune = true;
 						g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
 					}
@@ -6074,6 +6122,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
+	,mLastDiscontinuityTimeMs(0)
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif

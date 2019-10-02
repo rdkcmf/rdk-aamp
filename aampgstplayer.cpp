@@ -2674,6 +2674,42 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	return ret;
 }
 
+/**
+ * @brief Check if PTS is changing
+ * @retval true if PTS changed from lastKnown PTS, will optimistically return true
+ * 			if video-pts attribute is not available from decoder
+ */
+bool AAMPGstPlayer::CheckForPTSChange()
+{
+	bool ret = true;
+#ifndef INTELCE
+	gint64 currentPTS = 0;
+	if (privateContext->video_dec)
+	{
+		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
+	}
+	if (currentPTS != 0)
+	{
+		if (currentPTS != privateContext->lastKnownPTS)
+		{
+			AAMPLOG_WARN("AAMPGstPlayer::%s():%d There is an update in PTS prevPTS:%" G_GINT64_FORMAT " newPTS: %" G_GINT64_FORMAT "\n",
+							__FUNCTION__, __LINE__, privateContext->lastKnownPTS, currentPTS);
+			privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+			privateContext->lastKnownPTS = currentPTS;
+		}
+		else
+		{
+			ret = false;
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("AAMPGstPlayer::%s():%d video-pts parsed is: %" G_GINT64_FORMAT "\n",
+			__FUNCTION__, __LINE__, currentPTS);
+	}
+#endif
+	return ret;
+}
 
 /**
  * @brief Gets Video PTS
@@ -2726,42 +2762,20 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 #ifndef INTELCE
 			else
 			{
-				//Check for internal soc(brcm) plugin buffer status
-				gint64 currentPTS = 0;
-				if (privateContext->video_dec)
+				bool ptsChanged = CheckForPTSChange();
+				if(!ptsChanged)
 				{
-					g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-				}
-
-				if (currentPTS != 0)
-				{
-					if (currentPTS != privateContext->lastKnownPTS)
+					long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
+					if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
 					{
-						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty, but there is an update in PTS prevPTS:%" G_GINT64_FORMAT " newPTS: %" G_GINT64_FORMAT "",
-							__FUNCTION__, __LINE__, privateContext->lastKnownPTS, currentPTS);
+						//Timeout hasn't expired. Need to wait for PTS min update interval to expire
 						ret = false;
-						privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
-						privateContext->lastKnownPTS = currentPTS;
 					}
 					else
 					{
-						long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
-						if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
-						{
-							//Timeout hasn't expired. Need to wait for PTS min update interval to expire
-							ret = false;
-						}
-						else
-						{
-							logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)",
+						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)\n",
 								__FUNCTION__, __LINE__, deltaMS, ret);
-						}
 					}
-				}
-				else
-				{
-					logprintf("AAMPGstPlayer::%s():%d video-pts parsed is: %" G_GINT64_FORMAT "",
-						__FUNCTION__, __LINE__, currentPTS);
 				}
 			}
 #endif
