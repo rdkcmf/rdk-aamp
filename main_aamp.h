@@ -696,6 +696,12 @@ public:
 
 
 	/**
+	 * @brief Check if PTS is changing
+	 * @retval true if PTS is changing
+	 */
+	virtual bool CheckForPTSChange() {return true;};
+
+	/**
 	 *   @brief Check whether cach is empty
 	 *
 	 *   @param[in]  mediaType - Media Type

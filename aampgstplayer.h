@@ -62,6 +62,7 @@ public:
 	void SetAudioVolume(int volume);
 	void setVolumeOrMuteUnMute(void);
 	bool IsCacheEmpty(MediaType mediaType);
+	bool CheckForPTSChange();
 	void NotifyFragmentCachingComplete();
 	void GetVideoSize(int &w, int &h);
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len);
