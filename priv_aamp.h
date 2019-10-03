@@ -472,6 +472,7 @@ extern void logprintf(const char *format, ...);
  */
 void DumpBlob(const unsigned char *ptr, size_t len);
 
+
 /*!================================== AAMP Log Manager =========================================*/
 
 /**
@@ -660,6 +661,14 @@ public:
 extern GlobalConfigAAMP *gpGlobalConfig;
 
 // context-free utility functions
+
+/**
+ * @brief comparing strings
+ * @param[in] inputStr - Input string
+ * @param[in] prefix - substring to be searched
+ * @retval TRUE if substring is found in bigstring
+ */
+bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
 /**
  * @brief Create file URL from the base and file path
