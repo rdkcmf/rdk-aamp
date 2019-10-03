@@ -172,6 +172,7 @@ subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
+enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
 
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -185,6 +186,26 @@ This can be done for n number of channels.
 
 *USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
 *FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
+
+=================================================================================================================
+
+To enable Westeros
+-------------------
+
+Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
+flag in SetEnv.sh under /opt, then restart the receiver process:
+
+	export AAMP_ENABLE_WESTEROS_SINK=true
+
+Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
+instead of going through browser rendering.  This allows for smoother video zoom animations
+(Refer DELIA-38429/RDK-26261)
+
+However, note that with this optimization applied, the AAMP Diagnostics overlays cannot be made visible.
+As a temporary workaround, the following flag can be used  by developers which will make diagnostic overlay
+again visible at expense of zoom smoothness:
+
+	export DISABLE_NONCOMPOSITED_WEBGL_FOR_IPVIDEO=1
 
 =================================================================================================================
 
