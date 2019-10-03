@@ -2628,6 +2628,25 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
 }
 #endif
 
+/**
+ * @brief comparing strings
+ * @param[in] inputStr - Input string
+ * @param[in] prefix - substring to be searched
+ * @retval TRUE if substring is found in bigstring
+ */
+bool aamp_StartsWith( const char *inputStr, const char *prefix )
+{
+	bool rc = true;
+	while( *prefix )
+	{
+		if( *inputStr++ != *prefix++ )
+		{
+			rc = false;
+			break;
+		}
+	}
+	return rc;
+}
 
 /**
  * @brief Resolve URL from base and uri
