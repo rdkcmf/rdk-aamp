@@ -321,27 +321,6 @@ static gboolean  appsrc_seek  (GstAppSrc *src, guint64 offset, AAMPGstPlayer * _
 
 
 /**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-static bool startswith( const char *inputStr, const char *prefix )
-{
-	bool rc = true;
-	while( *prefix )
-	{
-		if( *inputStr++ != *prefix++ )
-		{
-			rc = false;
-			break;
-		}
-	}
-	return rc;
-}
-
-
-/**
  * @brief Initialize properties/callback of appsrc
  * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  * @param[in] source pointer to appsrc instance to be initialized
@@ -621,8 +600,8 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && startswith(name, "brcmvideodecoder") == true) ||
-			( _this->privateContext->using_westerossink && startswith(name, "westerossink") == true);
+	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
+			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
 }
 
 /**
@@ -633,8 +612,8 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && startswith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
-			( _this->privateContext->using_westerossink && startswith(name, "westerossink") == true);
+	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
+			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
 }
 
 /**
@@ -646,8 +625,8 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
 	return	(!_this->privateContext->using_westerossink && !_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
-			(startswith(name, "brcmvideodecoder") == true || startswith(name, "brcmaudiodecoder") == true)) ||
-			(_this->privateContext->using_westerossink && startswith(name, "westerossink") == true);
+			(aamp_StartsWith(name, "brcmvideodecoder") == true || aamp_StartsWith(name, "brcmaudiodecoder") == true)) ||
+			(_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
 }
 
 /**
@@ -698,7 +677,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		type = eMEDIATYPE_VIDEO;
 	}
-	else if (startswith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
+	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
@@ -752,7 +731,7 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
 	}
-	else if (startswith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
+	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_AUDIO);
 	}
@@ -903,12 +882,21 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					note: alternate "window-set" works as well
 					*/
 					_this->privateContext->video_sink = (GstElement *) msg->src;
-					logprintf("AAMPGstPlayer setting rectangle, video mute and zoom");
-					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
-					g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
-					g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					if (_this->privateContext->using_westerossink && !gpGlobalConfig->mEnableRectPropertyCfg)
+					{
+						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom");
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
+					else
+					{
+						logprintf("AAMPGstPlayer setting cached rectangle, video mute and zoom");
+						g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
 				}
-				else if (startswith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
 
@@ -1069,7 +1057,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 
 #else
-			if (startswith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
+			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
 			{
 				_this->privateContext->audio_sink = (GstElement *) msg->src;
 
@@ -1081,9 +1069,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			else
 			{
 #ifndef INTELCE_USE_VIDRENDSINK
-				if (startswith(GST_OBJECT_NAME(msg->src), "ismdgstvidsink") == true)
+				if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstvidsink") == true)
 #else
-				if (startswith(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink") == true)
+				if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstvidrendsink") == true)
 #endif
 				{
 					AAMPGstPlayerPriv *privateContext = _this->privateContext;
@@ -1101,12 +1089,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					logprintf("AAMPGstPlayer setting video mute %d", privateContext->videoMuted);
 					g_object_set(msg->src, "mute", privateContext->videoMuted, NULL);
 				}
-				else if (startswith(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec") == true)
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgsth264viddec") == true)
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
 				}
 #ifdef INTELCE_USE_VIDRENDSINK
-				else if (startswith(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc") == true)
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstvidpproc") == true)
 				{
 					_this->privateContext->video_pproc = (GstElement *) msg->src;
 					logprintf("AAMPGstPlayer setting rectangle %s", _this->privateContext->videoRectangle);
@@ -1122,9 +1110,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 			  AAMP is added as a property of playready plugin
 			*/
-			if(startswith(GST_OBJECT_NAME(msg->src), GstPluginNamePR) == true ||
-			   startswith(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == true ||
-			   startswith(GST_OBJECT_NAME(msg->src), GstPluginNameCK) == true) 
+			if(aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNamePR) == true ||
+			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == true ||
+			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameCK) == true) 
 			{
 				logprintf("AAMPGstPlayer setting aamp instance for %s decryptor", GST_OBJECT_NAME(msg->src));
 				GValue val = { 0, };
@@ -2363,32 +2351,39 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
 	logprintf("SetVideoRectangle :: Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
-	if (stream->using_playersinkbin)
+	if (gpGlobalConfig->mEnableRectPropertyCfg) //As part of DELIA-37804
 	{
-		g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
-	}
+		if (stream->using_playersinkbin)
+		{
+			g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #ifndef INTELCE
-	else if (privateContext->video_sink)
-	{
-		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
-	}
+		else if (privateContext->video_sink)
+		{
+			g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #else
 #if defined(INTELCE_USE_VIDRENDSINK)
-	else if (privateContext->video_pproc)
-	{
-		g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
-	}
+		else if (privateContext->video_pproc)
+		{
+			g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #else
-	else if (privateContext->video_sink)
-	{
-		g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+		else if (privateContext->video_sink)
+		{
+			g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+		}
+#endif
+#endif	
+		else
+		{
+			AAMPLOG_WARN("[%s] Scaling not possible at this time\n",__FUNCTION__);
+			privateContext->gstPropsDirty = true;
+		}
 	}
-#endif
-#endif
 	else
 	{
-		logprintf("SetVideoRectangle :: Scaling not possible at this time");
-		privateContext->gstPropsDirty = true;
+		AAMPLOG_WARN("SetVideoRectangle ignored since westerossink is used");
 	}
 }
 

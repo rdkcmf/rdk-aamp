@@ -2631,6 +2631,25 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
 }
 #endif
 
+/**
+ * @brief comparing strings
+ * @param[in] inputStr - Input string
+ * @param[in] prefix - substring to be searched
+ * @retval TRUE if substring is found in bigstring
+ */
+bool aamp_StartsWith( const char *inputStr, const char *prefix )
+{
+	bool rc = true;
+	while( *prefix )
+	{
+		if( *inputStr++ != *prefix++ )
+		{
+			rc = false;
+			break;
+		}
+	}
+	return rc;
+}
 
 /**
  * @brief Resolve URL from base and uri
@@ -3249,6 +3268,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d", gpGlobalConfig->ptsErrorThreshold);
+		}
+		else if (cfg.compare("enable_setvideorectangle") == 0)
+		{
+			gpGlobalConfig->mEnableRectPropertyCfg = true;
+			logprintf("AAMP configured to set Rectangle property for sink element\n");
 		}
 		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{

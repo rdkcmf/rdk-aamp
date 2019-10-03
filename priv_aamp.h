@@ -475,6 +475,7 @@ extern void logprintf(const char *format, ...);
  */
 void DumpBlob(const unsigned char *ptr, size_t len);
 
+
 /*!================================== AAMP Log Manager =========================================*/
 
 /**
@@ -568,6 +569,7 @@ public:
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
+	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 public:
 
 	/**
@@ -606,6 +608,7 @@ public:
 		,bAsync_ontuned(false)
 		,bReportVideoPTS(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
+		,mEnableRectPropertyCfg(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -665,6 +668,14 @@ public:
 extern GlobalConfigAAMP *gpGlobalConfig;
 
 // context-free utility functions
+
+/**
+ * @brief comparing strings
+ * @param[in] inputStr - Input string
+ * @param[in] prefix - substring to be searched
+ * @retval TRUE if substring is found in bigstring
+ */
+bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
 /**
  * @brief Create file URL from the base and file path

@@ -93,67 +93,6 @@ AampOutputProtection::~AampOutputProtection()
 
 
 /**
- * @brief Find GstElement with target name
- * @param element : GstBin in which search is done
- * @param targetName : Name of element to find
- * @retval GstElement if found, NULL otherwise
- */
-GstElement* AampOutputProtection::FindElement(GstElement *element, const char* targetName)
-{
-    GstElement *re = NULL;
-
-//    logprintf("%s : element = %p", __FUNCTION__, element);
-
-    if(element == NULL) {
-        logprintf("%s : --> element = %p", __FUNCTION__, element);
-        return NULL;
-    }
-
-    if (GST_IS_BIN(element)) {
-//        logprintf("%s : element = %p", __FUNCTION__, element);
-        GstIterator* it = gst_bin_iterate_elements(GST_BIN(element));
-        GValue item = G_VALUE_INIT;
-        bool done = false;
-        while(!done) {
-            switch (gst_iterator_next(it, &item)) {
-                case GST_ITERATOR_OK:
-                {
-                    GstElement *next = GST_ELEMENT(g_value_get_object(&item));
-                    done = (re = FindElement(next, targetName)) != NULL;
-                    g_value_reset (&item);
-                    break;
-                }
-                case GST_ITERATOR_RESYNC:
-                    gst_iterator_resync (it);
-                    break;
-                case GST_ITERATOR_ERROR:
-                case GST_ITERATOR_DONE:
-                    done = true;
-                    break;
-            }
-        }
-        g_value_unset (&item);
-        gst_iterator_free(it);
-    } else {
-        gchar* elemName = gst_element_get_name(element);
-        if(elemName != NULL) {
-            if (strstr(elemName, targetName)) {
-                re = element;
-            }
-            g_free(elemName);
-        }
-        else {
-            logprintf("%s : --> gst_element_get_name returned NULL for element = %p", __FUNCTION__, element);
-        }
-    }
-//    logprintf("%s : --> resultant element = %p", __FUNCTION__, element);
-    return re;
-}
-
-#define TEMP_BUF_LEN 80
-
-
-/**
  * @brief Check if source is UHD using video decoder dimensions
  * @retval true, if source is UHD, otherwise false
  */
@@ -166,7 +105,6 @@ bool AampOutputProtection::IsSourceUHD()
 #ifdef CONTENT_4K_SUPPORTED
     static gint     sourceHeight    = 0;
     static gint     sourceWidth     = 0;
-    GstElement*     videoDec        = NULL;
 
     if(m_gstElement == NULL) {
         // Value not set, since there is no
@@ -175,14 +113,11 @@ bool AampOutputProtection::IsSourceUHD()
         return false;
     }
 
-    videoDec = FindElement(m_gstElement, VIDEO_DECODER_NAME);
-    if (videoDec) {
-        g_object_get(videoDec, "video_height", &sourceHeight, NULL);
-        g_object_get(videoDec, "video_width", &sourceWidth, NULL);
-    }
+    g_object_get(m_gstElement, "video_height", &sourceHeight, NULL);
+    g_object_get(m_gstElement, "video_width", &sourceWidth, NULL);
 
     if(sourceWidth != m_sourceWidth || sourceHeight != m_sourceHeight) {
-        logprintf("%s viddec (%p) --> says width %d, height %d", __FUNCTION__, videoDec, sourceWidth, sourceHeight);
+        logprintf("%s viddec (%p) --> says width %d, height %d", __FUNCTION__, m_gstElement, sourceWidth, sourceHeight);
         m_sourceWidth   = sourceWidth;
         m_sourceHeight  = sourceHeight;
     }
