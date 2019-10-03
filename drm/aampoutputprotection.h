@@ -65,7 +65,6 @@ typedef int dsHdcpProtocolVersion_t;
 #undef __out
 using namespace std;
 
-#define VIDEO_DECODER_NAME "brcmvideodecoder"
 #define UHD_WITDH   3840
 #define UHD_HEIGHT  2160
 
@@ -146,8 +145,6 @@ private:
     void SetHDMIStatus();
 
     void SetResolution(int width, int height);
-
-    GstElement* FindElement(GstElement *element, const char* targetName);
 
 public:
 
