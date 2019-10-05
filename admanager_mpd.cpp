@@ -411,13 +411,20 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 			std::string encodedUrl;
 			UrlEncode(effectiveUrl, encodedUrl);
 			int ipend = 0;
-			for(int slashcnt=0; slashcnt < 3 && channelUrl[ipend]; ipend++)
+			for(int slashcnt=0; ipend < channelUrl.length(); ipend++)
 			{
-				if(channelUrl[ipend] == '/') slashcnt++;
+				if(channelUrl[ipend] == '/')
+				{
+					slashcnt++;
+					if(slashcnt >= 3)
+					{
+						break;
+					}
+				}
 			}
 
-			effectiveUrl.assign(channelUrl);
-			effectiveUrl.append("adrec?clientId=FOG_AAMP&recordedUrl=");
+			effectiveUrl.assign(channelUrl.c_str(), 0, ipend);
+			effectiveUrl.append("/adrec?clientId=FOG_AAMP&recordedUrl=");
 			effectiveUrl.append(encodedUrl.c_str());
 			GrowableBuffer fogManifest;
 			memset(&fogManifest, 0, sizeof(manifest));
