@@ -802,7 +802,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	bool keySlotFound = false;
 	bool isCachedKeyId = false;
 	int sessionSlot = 0;
-
+	int processKeyRetValue = -1;
 	if(gpGlobalConfig->logging.debug)
 	{
 		logprintf("%s:%d Received DRM Session request, Init Data length  : %d\n", __FUNCTION__, __LINE__,dataLength);
@@ -1287,7 +1287,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 #endif
 			}
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_POSTPROC);
-			drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(key);
+			processKeyRetValue = drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(key);
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_POSTPROC);
 		}
 		else
@@ -1355,7 +1355,15 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		if(AAMP_TUNE_FAILURE_UNKNOWN == e->data.dash_drmmetadata.failure)
 		{
-			e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
+			// check if key failure is due to HDCP , if so report it appropriately instead of Failed to get keys 
+			if(processKeyRetValue == HDCP_OUTPUT_PROTECTION_FAILURE || processKeyRetValue == HDCP_COMPLIANCE_CHECK_FAILURE)
+			{
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_HDCP_COMPLIANCE_ERROR;
+			}
+			else
+			{
+				e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
+			}
 		}
 	}
 	else if (code == KEY_PENDING)

@@ -37,7 +37,8 @@ using namespace std;
 #define PLAYREADY_KEY_SYSTEM_STRING "com.microsoft.playready"
 #define WIDEVINE_KEY_SYSTEM_STRING "com.widevine.alpha"
 
-#define HDCP_AUTHENTICATION_FAILURE 4327
+#define HDCP_COMPLIANCE_CHECK_FAILURE 4327
+#define HDCP_OUTPUT_PROTECTION_FAILURE 4427
 /**
  * @enum KeyState 
  * @brief DRM session states
