@@ -288,7 +288,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 #endif
 	std::string responseMessage;
 	media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Update(key->getData(), key->getDataLength(), responseMessage);
-
+	retvalue = (int)keyStatus;
 	if (keyStatus == media::OpenCdm::KeyStatus::Usable) 
 	{
 		logprintf("processKey: Key Usable!\n");
@@ -329,9 +329,22 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 		pid_t pid = getpid();
 		syscall(__NR_tgkill, pid, pid, SIGKILL);
 	}
-	else
+	else 
 	{
-		logprintf("processKey: Update() returned keystatus: %d\n", (int) keyStatus);
+		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted)
+		{	
+			AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d\n", (int) keyStatus);
+			retvalue = HDCP_OUTPUT_PROTECTION_FAILURE;
+		}
+		else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22)
+		{
+			AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d\n", (int) keyStatus);
+			retvalue = HDCP_COMPLIANCE_CHECK_FAILURE;
+		}
+		else
+		{
+			AAMPLOG_WARN("processKey: Update() returned keystatus: %d\n", (int) keyStatus);
+		}
 		m_eKeyState = KEY_ERROR;
 		return retvalue;
 	}
@@ -340,6 +353,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 #if USE_NEW_OPENCDM
 	m_pOpencdmDecrypt = new media::OpenCdm(m_sessionID);
 #endif
+	return retvalue;
 }
 
 int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
@@ -366,12 +380,12 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	// -----------------------------------
 	// Widevine output protection is currently supported without any external configuration.
 	// But the Playready output protection will be enabled based on 'enablePROutputProtection' flag which can be configured through RFC/aamp.cfg..
-	if((m_keySystem == WIDEVINE_KEY_SYSTEM_STRING || (m_keySystem == PLAYREADY_KEY_SYSTEM_STRING && gpGlobalConfig->enablePROutputProtection)) && m_pOutputProtection->IsSourceUHD()) {
+	if((m_keySystem == PLAYREADY_KEY_SYSTEM_STRING && gpGlobalConfig->enablePROutputProtection) && m_pOutputProtection->IsSourceUHD()) {
 		// Source material is UHD
 		if(!m_pOutputProtection->isHDCPConnection2_2()) {
 			// UHD and not HDCP 2.2
 			logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
-			return HDCP_AUTHENTICATION_FAILURE;
+			return HDCP_COMPLIANCE_CHECK_FAILURE;
 		}
 	}
 
@@ -383,6 +397,17 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	retvalue = m_pOpencdm->Decrypt(const_cast<unsigned char*>(payloadData), payloadDataSize, const_cast<unsigned char*>(f_pbIV), f_cbIV);
 #endif
 	end_decrypt_time = GetCurrentTimeStampInMSec();
+	if(retvalue != 0)
+	{
+		media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Status();
+		AAMPLOG_INFO("%s : decrypt returned : %d key status is : %d", __FUNCTION__, retvalue,keyStatus);
+		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
+			retvalue =  HDCP_OUTPUT_PROTECTION_FAILURE;
+		}
+		else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22){
+			retvalue =  HDCP_COMPLIANCE_CHECK_FAILURE;
+        	}
+    	}
 	if(payloadDataSize > 0) {
 		LogPerformanceExt(__FUNCTION__, start_decrypt_time, end_decrypt_time, payloadDataSize);
 	}

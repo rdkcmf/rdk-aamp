@@ -274,7 +274,21 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 			m_eKeyState = KEY_READY;
 			retValue = 0;
 		} else {
-			logprintf("processKey: Update() returned keystatus: %d\n", (int) m_keyStatus);
+			if(m_keyStatus == KeyStatus::OutputRestricted)
+			{
+                        	AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d\n", (int) m_keyStatus);
+				retvalue = HDCP_OUTPUT_PROTECTION_FAILURE;
+			}
+			else if(m_keyStatus == KeyStatus::OutputRestrictedHDCP22)
+			{
+				AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d\n", (int) m_keyStatus);
+				retvalue = HDCP_COMPLIANCE_CHECK_FAILURE;
+			}
+			else
+			{
+				AAMPLOG_WARN("processKey: Update() returned keystatus: %d\n", (int) m_keyStatus);
+				retValue = (int) m_keyStatus;
+			}
 			m_eKeyState = KEY_ERROR;
 		}
 	} else {
@@ -291,14 +305,17 @@ int AAMPOCDMSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 		uint64_t end_decrypt_time;
 
 		// Verify output protection parameters
-		if(m_pOutputProtection->IsSourceUHD()) {
-			// Source material is UHD
-			if(!m_pOutputProtection->isHDCPConnection2_2()) {
-				// UHD and not HDCP 2.2
-				logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
-				return HDCP_AUTHENTICATION_FAILURE;
-			}
-		}
+        	// -----------------------------------
+        	// Widevine output protection is currently supported without any external configuration.
+        	// But the Playready output protection will be enabled based on 'enablePROutputProtection' flag which can be configured through RFC/aamp.cfg..
+        	if((m_keySystem == PLAYREADY_KEY_SYSTEM_STRING && gpGlobalConfig->enablePROutputProtection) && m_pOutputProtection->IsSourceUHD()) {
+                	// Source material is UHD
+                	if(!m_pOutputProtection->isHDCPConnection2_2()) {
+                        	// UHD and not HDCP 2.2
+                        	AAMPLOG_WARN("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
+                        	return HDCP_COMPLIANCE_CHECK_FAILURE;
+                	}
+        	}
 
 		pthread_mutex_lock(&decryptMutex);
 		start_decrypt_time = GetCurrentTimeStampInMSec();
