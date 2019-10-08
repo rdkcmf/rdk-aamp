@@ -794,10 +794,14 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		memset(errorDesc, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
 		strncpy(errorDesc, "GstPipeline Error:", 18);
 		strncat(errorDesc, error->message, MAX_ERROR_DESCRIPTION_LENGTH - 18 - 1);
-		if (strstr(error->message, "video decode error") != NULL ||
-			 strstr(error->message, "HDCP Authentication Failure") != NULL)
+		if (strstr(error->message, "video decode error") != NULL)
 		{
 			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc, false);
+		}
+		else if(strstr(error->message, "HDCP Compliance Check Failure") != NULL)
+		{
+			// Trying to play a 4K content on a non-4K TV .Report error to XRE with no retune
+			_this->aamp->SendErrorEvent(AAMP_TUNE_HDCP_COMPLIANCE_ERROR, errorDesc, false);
 		}
 		else
 		{
@@ -1015,7 +1019,15 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_LATENCY:
 	case GST_MESSAGE_NEW_CLOCK:
 		break;
-
+	case GST_MESSAGE_APPLICATION:
+		const GstStructure *msgS;
+		msgS = gst_message_get_structure (msg);
+		if (gst_structure_has_name (msgS, "HDCPProtectionFailure")) {
+			logprintf("Received HDCPProtectionFailure event.Schedule Retune \n");
+			_this->Flush(0, AAMP_NORMAL_PLAY_RATE);
+			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
+		}
+		break;
 	default:
 		logprintf("msg type: %s", gst_message_type_get_name(msg->type));
 		break;

@@ -2411,8 +2411,9 @@ void *CreateDRMSession(void *arg)
 		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
 		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
 		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
-								&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
-		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED);
+					&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
+					&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
 		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
