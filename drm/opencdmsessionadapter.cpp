@@ -277,12 +277,12 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 			if(m_keyStatus == KeyStatus::OutputRestricted)
 			{
                         	AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d\n", (int) m_keyStatus);
-				retvalue = HDCP_OUTPUT_PROTECTION_FAILURE;
+				retValue = HDCP_OUTPUT_PROTECTION_FAILURE;
 			}
 			else if(m_keyStatus == KeyStatus::OutputRestrictedHDCP22)
 			{
 				AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d\n", (int) m_keyStatus);
-				retvalue = HDCP_COMPLIANCE_CHECK_FAILURE;
+				retValue = HDCP_COMPLIANCE_CHECK_FAILURE;
 			}
 			else
 			{
