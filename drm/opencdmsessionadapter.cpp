@@ -321,6 +321,24 @@ int AAMPOCDMSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 		start_decrypt_time = GetCurrentTimeStampInMSec();
 		retValue = opencdm_gstreamer_session_decrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0);
 		end_decrypt_time = GetCurrentTimeStampInMSec();
+		if(retValue != 0)
+		{
+			GstMapInfo keyIDMap;
+			if (gst_buffer_map(keyIDBuffer, &keyIDMap, (GstMapFlags) GST_MAP_READ) == true) 
+			{
+        			uint8_t *mappedKeyID = reinterpret_cast<uint8_t* >(keyIDMap.data);
+        			uint32_t mappedKeyIDSize = static_cast<uint32_t >(keyIDMap.size);
+				media::OpenCdm::KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, mappedKeyID,mappedKeyIDSize );
+				AAMPLOG_INFO("AAMPOCDMSession:%s : decrypt returned : %d key status is : %d", __FUNCTION__, retValue,keyStatus);
+				if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
+					retValue =  HDCP_OUTPUT_PROTECTION_FAILURE;
+				}
+				else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22){
+					retValue =  HDCP_COMPLIANCE_CHECK_FAILURE;
+				}
+				gst_buffer_unmap(keyIDBuffer, &keyIDMap);
+			}
+		}
 		
 		GstMapInfo mapInfo;
         if (gst_buffer_map(buffer, &mapInfo, GST_MAP_READ)) {
