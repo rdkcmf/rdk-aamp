@@ -198,10 +198,15 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 	m_OCDMSessionCallbacks.key_update_callback = [](OpenCDMSession* session, void* userData, const uint8_t key[], const uint8_t keySize) {
 		AAMPOCDMSession* userSession = reinterpret_cast<AAMPOCDMSession*>(userData);
-		userSession->keyUpdatedOCDM(key, keySize);
+		userSession->keyUpdateOCDM(key, keySize);
 	};
 
-	m_OCDMSessionCallbacks.message_callback = [](OpenCDMSession* session, void* userData, const char message[]) {
+	m_OCDMSessionCallbacks.error_message_callback = [](OpenCDMSession* session, void* userData, const char message[]) {
+	};
+
+	m_OCDMSessionCallbacks.keys_updated_callback = [](const OpenCDMSession* session, void* userData) {
+		AAMPOCDMSession* userSession = reinterpret_cast<AAMPOCDMSession*>(userData);
+		userSession->keysUpdatedOCDM();
 	};
 
 	opencdm_construct_session(m_pOpenCDMSystem, m_keySystem.c_str(), LicenseType::Temporary, "video/mp4",
@@ -229,10 +234,14 @@ void AAMPOCDMSession::processOCDMChallenge(const char destUrl[], const uint8_t c
 	m_challengeReady.signal();
 }
 
-void AAMPOCDMSession::keyUpdatedOCDM(const uint8_t key[], const uint8_t keySize) {
+void AAMPOCDMSession::keyUpdateOCDM(const uint8_t key[], const uint8_t keySize) {
 	if (m_pOpenCDMSession) {
-		m_keyStatus = opencdm_session_status(m_pOpenCDMSession, nullptr, 0);
+		m_keyStatus = opencdm_session_status(m_pOpenCDMSession, key, keySize);
 	}
+  
+}
+
+void AAMPOCDMSession::keysUpdatedOCDM() {
 	m_keyStatusReady.signal();
 }
 
