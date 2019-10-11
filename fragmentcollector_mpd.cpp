@@ -579,6 +579,8 @@ private:
 	double mTSBDepth;
 	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
+	double mVideoPosRemainder;
+	double mFirstFragPTS[AAMP_TRACK_COUNT];
 	AudioType mAudioType;
 	bool mPushEncInitFragment;
 	int mPrevAdaptationSetCount;
@@ -619,9 +621,11 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
 	,mMaxTSBBandwidth(0), mTSBDepth(MIN_TSB_BUFFER_DEPTH)
+	,mVideoPosRemainder(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
+	for (int i=0; i<AAMP_TRACK_COUNT; i++) mFirstFragPTS[i] = 0.0;
 	mContext->GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 };
@@ -1101,12 +1105,8 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 		{
 			pMediaStreamContext->initialization = std::string(fragmentUrl);
 		}
-		position = mFirstPTS;
 	}
-	else
-	{
-		position = pMediaStreamContext->fragmentTime;
-	}
+	position = pMediaStreamContext->fragmentTime;
 
 	float duration = fragmentDuration;
 	if(rate > AAMP_NORMAL_PLAY_RATE)
@@ -1117,6 +1117,8 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 		duration = duration/rate * gpGlobalConfig->vodTrickplayFPS;
 		//aamp->disContinuity();
 	}
+//	logprintf("%s:%d [%s] mFirstFragPTS %f  position %f -> %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstFragPTS[pMediaStreamContext->mediaType], position, mFirstFragPTS[pMediaStreamContext->mediaType]+position);
+	position += mFirstFragPTS[pMediaStreamContext->mediaType];
 	bool fragmentCached = pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		, media
@@ -1833,6 +1835,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 		 AAMPLOG_INFO("%s:%d Enter : Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentTime %f skipTime %f segNumber %llu\n", __FUNCTION__, __LINE__,pMediaStreamContext->type,
                                 pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentTime, skipTime, pMediaStreamContext->fragmentDescriptor.Number);
 
+		gboolean firstFrag = true;
+
 		std::string media = segmentTemplate->Getmedia();
 		const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
 		do
@@ -1864,15 +1868,20 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					double fragmentDuration = ((double)duration)/(double)timeScale;
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
 					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
-					bool skipFlag = true;
-					if ((pMediaStreamContext->type == eTRACK_AUDIO) && (nextPTS>mFirstPTS))
-					{
-						if ( ((nextPTS - mFirstPTS) >= ((fragmentDuration)/2.0)) &&
-                             ((nextPTS - mFirstPTS) <= ((fragmentDuration * 3.0)/2.0)))
-							skipFlag = false;
-						AAMPLOG_INFO("%s:%d [%s] firstPTS %f, nextPTS %f, mFirstPTS %f skipFlag %d\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS, mFirstPTS, skipFlag);
+//					AAMPLOG_TRACE("%s:%d [%s] firstPTS %f nextPTS %f duration %f skipTime %f\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS, fragmentDuration, skipTime);
+					if (firstFrag && updateFirstPTS){
+						if (pMediaStreamContext->type == eTRACK_AUDIO && (mFirstFragPTS[eTRACK_VIDEO] || mFirstPTS || mVideoPosRemainder)){
+							/* need to adjust audio skipTime/seekPosition so 1st audio fragment sent matches start of 1st video fragment being sent */
+							double newSkipTime = skipTime + (mFirstFragPTS[eTRACK_VIDEO] - firstPTS); /* adjust for audio/video frag start PTS differences */
+							newSkipTime -= mVideoPosRemainder;   /* adjust for mVideoPosRemainder, which is (video seekposition/skipTime - mFirstPTS) */
+							newSkipTime += fragmentDuration/4.0; /* adjust for case where video start is near end of current audio fragment by adding to the audio skipTime, pushing it into the next fragment, if close(within this adjustment) */
+//							AAMPLOG_INFO("%s:%d newSkiptime %f, skipTime %f  mFirstFragPTS[vid] %f  firstPTS %f  mFirstFragPTS[vid]-firstPTS %f mVideoPosRemainder %f  fragmentDuration/4.0 %f\n", __FUNCTION__, __LINE__, newSkipTime, skipTime, mFirstFragPTS[eTRACK_VIDEO], firstPTS, mFirstFragPTS[eTRACK_VIDEO]-firstPTS, mVideoPosRemainder,  fragmentDuration/4.0);
+							skipTime = newSkipTime;
+						}
+						firstFrag = false;
+						mFirstFragPTS[pMediaStreamContext->mediaType] = firstPTS;
 					}
-					if (skipTime >= fragmentDuration && skipFlag)
+					if (skipTime >= fragmentDuration)
 					{
 						skipTime -= fragmentDuration;
 						pMediaStreamContext->fragmentTime += fragmentDuration;
@@ -1884,6 +1893,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							pMediaStreamContext->fragmentRepeatCount= 0;
 							pMediaStreamContext->timeLineIndex++;
 						}
+						continue;  /* continue to next fragment */
 					}
 					else if (-(skipTime) >= fragmentDuration)
 					{
@@ -1900,21 +1910,29 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 								pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
 							}
 						}
+						continue;
 					}
-					if (fabs(skipTime) < fragmentDuration || !skipFlag)
+					if (fabs(skipTime) < fragmentDuration)
 					{ // last iteration
+						AAMPLOG_INFO("%s:%d [%s] firstPTS %f, nextPTS %f  skipTime %f  fragmentDuration %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS, skipTime, fragmentDuration);
 						if (updateFirstPTS)
 						{
-							AAMPLOG_INFO("%s:%d [%s] newPTS %f, nextPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS);
 							/*Keep the lower PTS */
 							if ( ((mFirstPTS == 0) || (firstPTS < mFirstPTS)) && (pMediaStreamContext->type == eTRACK_VIDEO))
 							{
 								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f -> %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, firstPTS);
-								mFirstPTS = firstPTS; 
-								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f \n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS);
+								mFirstPTS = firstPTS;
+								mVideoPosRemainder = skipTime;
+								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f  mVideoPosRemainder %f\n", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, mVideoPosRemainder);
 							}
 						}
 						skipTime = 0;
+						if (pMediaStreamContext->type == eTRACK_AUDIO){
+//							AAMPLOG_TRACE("%s audio/video PTS offset %f  audio %f video %f\n", __FUNCTION__, firstPTS-mFirstPTS, firstPTS, mFirstPTS);
+							if (abs(firstPTS - mFirstPTS)> 1.00){
+								AAMPLOG_WARN("%s audio/video PTS offset Large %f  audio %f video %f\n", __FUNCTION__,  firstPTS-mFirstPTS, firstPTS, mFirstPTS);
+							}
+						}
 						break;
 					}
 				}
