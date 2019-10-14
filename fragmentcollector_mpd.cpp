@@ -1159,7 +1159,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 	 *In other cases if it's success or failure, AAMP will be going
 	 *For next fragment so update fragmentTime with fragment duration
 	 */
-	if(!mContext->mCheckForRampdown)
+	if(!mContext->mCheckForRampdown && !fragmentSaved)
 	{
 		if(rate > 0)
 		{
