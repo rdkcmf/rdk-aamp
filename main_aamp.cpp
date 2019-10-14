@@ -6243,6 +6243,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	}
 	pthread_mutex_unlock(&gMutex);
 
+	pthread_mutex_lock(&mLock);
 	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
 	{
 		while (mEventListeners[i] != NULL)
@@ -6262,6 +6263,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	{
 		free(mLicenseProxy);
 	}
+	pthread_mutex_unlock(&mLock);
 
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
@@ -7692,11 +7694,13 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
  */
 void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
 {
+	pthread_mutex_lock(&mLock);
 	if(mNetworkProxy)
 	{
 		free(mNetworkProxy);
 	}
 	mNetworkProxy = strdup(proxy);
+	pthread_mutex_unlock(&mLock);
 }
 
 /**
@@ -7706,11 +7710,13 @@ void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
  */
 void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 {
+	pthread_mutex_lock(&mLock);
 	if(mLicenseProxy)
 	{
 		free(mLicenseProxy);
 	}
 	mLicenseProxy = strdup(licenseProxy);
+	pthread_mutex_unlock(&mLock);
 }
 
 /**
