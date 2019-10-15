@@ -774,6 +774,14 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(initDataPtr, dataLength);
 	code = drmSessionContexts[sessionSlot].drmSession->getState();
+	if(code == KEY_ERROR_EMPTY_SESSION_ID)
+	{
+		AAMPLOG_ERR("%s:%d DRM session ID is empty: Key State %d \n", __FUNCTION__, __LINE__, code);
+		pthread_mutex_unlock(&session_mutex[sessionType]);
+		free(keyId);
+		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_SESSIONID_EMPTY;
+		return NULL;
+	}
 	if (code != KEY_INIT)
 	{
 		logprintf("%s:%d DRM init data binding failed: Key State %d \n", __FUNCTION__, __LINE__, code);
