@@ -56,7 +56,9 @@ typedef	enum
 	// Has an error.
 	KEY_ERROR = 3,
 	// Has been closed.
-	KEY_CLOSED = 4
+	KEY_CLOSED = 4,
+	// Has Empty DRM session id.
+	KEY_ERROR_EMPTY_SESSION_ID = 5
 } KeyState;
 
 /**
