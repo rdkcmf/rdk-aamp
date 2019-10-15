@@ -183,14 +183,19 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 {
 	logprintf("generateAampDRMSession :: enter \n");
 #if USE_NEW_OPENCDM
-	m_sessionID = 
-	m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);
+	m_sessionID = m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);
 	logprintf("generateAampDRMSession :: sessionId : %s \n", m_sessionID.c_str());
+	if(m_sessionID.empty())	{
+		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
+	}
 #else
 	std::string sessionId;
 	m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, sessionId);
 	logprintf("generateAampDRMSession :: sessionId : %s \n", sessionId.c_str());
-#endif    
+	if(sessionId.empty())	{
+		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
+	}
+#endif
 }
 
 AAMPOCDMSession::~AAMPOCDMSession()
