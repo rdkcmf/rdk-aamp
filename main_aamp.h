@@ -118,6 +118,7 @@ typedef enum
 	AAMP_TUNE_UNTRACKED_DRM_ERROR,          /**<  DRM error*/
 	AAMP_TUNE_DRM_INIT_FAILED,              /**< DRM initialization failure */
 	AAMP_TUNE_DRM_DATA_BIND_FAILED,         /**< InitData binding with DRM failed */
+	AAMP_TUNE_DRM_SESSIONID_EMPTY,			/**< DRM session ID empty */
 	AAMP_TUNE_DRM_CHALLENGE_FAILED,         /**< DRM key request challenge generation failed */
 	AAMP_TUNE_LICENCE_TIMEOUT,              /**< DRM license request timeout */
 	AAMP_TUNE_LICENCE_REQUEST_FAILED,       /**< DRM license got invalid response */
