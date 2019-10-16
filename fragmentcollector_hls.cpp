@@ -463,7 +463,8 @@ static char *mystrpbrk(char *ptr)
 	if (fin)
 	{
 		next = fin + 1;
-		if (fin > ptr && fin[-1] == CHAR_CR)
+		//handles lines terminated by CR characters followed by LF character
+		while(fin > ptr && fin[-1] == CHAR_CR)
 		{
 			fin--;
 		}
