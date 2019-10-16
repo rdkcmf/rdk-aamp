@@ -777,7 +777,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	if(code == KEY_ERROR_EMPTY_SESSION_ID)
 	{
 		AAMPLOG_ERR("%s:%d DRM session ID is empty: Key State %d \n", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&session_mutex[sessionType]);
+		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_SESSIONID_EMPTY;
 		return NULL;
