@@ -43,7 +43,7 @@
  * @brief ClearKeySession Constructor
  */
 ClearKeySession::ClearKeySession() :
-		AampDrmSession("CLEARKEY_PROTECTION_SYSTEM_ID"),
+		AampDrmSession(CLEAR_KEY_SYSTEM_STRING),
 		m_sessionID(),
 		m_eKeyState(KEY_INIT),
 		decryptMutex(),

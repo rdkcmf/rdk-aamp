@@ -595,7 +595,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	}
 	else if (!strncmp(systemId, CLEARKEY_PROTECTION_SYSTEM_ID, sizeof(CLEARKEY_PROTECTION_SYSTEM_ID)))
 	{
-		keySystem = CLEARKEY_PROTECTION_SYSTEM_ID;
+		keySystem = CLEAR_KEY_SYSTEM_STRING;
 		drmType = eDRM_ClearKey;
 	}
 	else
