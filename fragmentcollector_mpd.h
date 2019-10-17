@@ -40,6 +40,7 @@ using namespace std;
 using namespace dash::mpd;
 using namespace dash::xml;
 using namespace dash::helpers;
+#define MAX_MANIFEST_DOWNLOAD_RETRY_MPD 2
 
 /*Common MPD util functions*/
 uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
