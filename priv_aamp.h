@@ -463,6 +463,7 @@ public:
 	long defaultBitrate;        /**< Default bitrate*/
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
+	bool bAsync_ontuned;         /**< if true, AAMP_EVENT_TUNED will be sent Asynchronously otherwise will be sent synchronously */
 	bool SAP;                   /**< Enable/Disable Secondary Audio Program*/
 	bool bEnableCC;             /**< Enable/Disable Closed Caption*/
 	bool noFog;                 /**< Disable FOG*/
@@ -570,6 +571,7 @@ public:
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
+		,bAsync_ontuned(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
