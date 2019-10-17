@@ -2926,6 +2926,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->noFog = (value==0);
 			logprintf("fog=%d\n", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "async_ontuned=", value) == 1)
+		{
+			gpGlobalConfig->bAsync_ontuned = (value==1);
+			logprintf("async_ontuned=%d\n", value);
+		}
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		else if (ReadConfigNumericHelper(cfg, "harvest=", gpGlobalConfig->harvest) == 1)
 		{
@@ -6426,7 +6431,14 @@ bool PrivateInstanceAAMP::SendTunedEvent()
 
 	if(ret)
 	{
-		SendEventAsync(AAMP_EVENT_TUNED);
+		if(gpGlobalConfig->bAsync_ontuned)
+		{
+			SendEventAsync(AAMP_EVENT_TUNED);
+		}
+		else
+		{
+			SendEventSync(AAMP_EVENT_TUNED);
+		}
 	}
 	return ret;
 }
