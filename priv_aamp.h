@@ -568,7 +568,7 @@ public:
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	bool disableWesteros;                   /**< To disable westeros sink (by default this is true*/
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
-	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty
+	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 public:
 
 	/**
