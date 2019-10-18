@@ -568,7 +568,7 @@ public:
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
-	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty
+	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 public:
 
 	/**
