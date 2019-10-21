@@ -178,6 +178,7 @@ discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for di
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 harvestpath=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
+gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
 
 langcodepref=<X>
 	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)

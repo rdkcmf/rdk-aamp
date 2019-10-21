@@ -3413,6 +3413,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->reportBufferEvent = (value != 0);
 			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
 		}
+		else if (ReadConfigNumericHelper(cfg, "gst-position-query-enable=", value) == 1)
+		{
+			gpGlobalConfig->bPositionQueryEnabled = (value == 1);
+			logprintf("Position query based progress events: %s", gpGlobalConfig->bPositionQueryEnabled ? "ON" : "OFF");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4821,7 +4826,8 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
-		if (aamp->IsDashAsset() || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
+		//Check for 1.0 -> 0.0 and 0.0 -> 1.0 usecase and avoid below logic
+		if (!((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			// when switching from trick to play mode only 
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
@@ -4850,6 +4856,17 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			}
 
 			aamp->trickStartUTCMS = -1;
+		}
+		else
+		{
+			// For 1.0->0.0 and 0.0->1.0 if westeros is enabled, position query will give proper position value
+			// Fallback case when westeros is disabled, since we use elapsedTime to calculate position and
+			// trickStartUTCMS has to be reset
+			if (!gpGlobalConfig->bPositionQueryEnabled)
+			{
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
+				aamp->trickStartUTCMS = -1;
+			}
 		}
 
 		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
@@ -5843,11 +5860,9 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	long long positionMiliseconds = seek_pos_seconds * 1000.0;
 	if (trickStartUTCMS >= 0)
 	{
-		//For pipeline paused, we could query the position from gstreamer pipeline
-		if (mMediaFormat==eMEDIAFORMAT_HLS && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		if (gpGlobalConfig->bPositionQueryEnabled)
 		{
-			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
-			positionMiliseconds += positionOffsetFromStart;
+			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
 		else
 		{
