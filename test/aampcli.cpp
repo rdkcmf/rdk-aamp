@@ -212,14 +212,15 @@ static void ShowHelp(void)
 	logprintf("List of Commands\n****************\n");
 	logprintf("<channelNumber> // Play selected channel from guide\n");
 	logprintf("<url> // Play arbitrary stream\n");
-	logprintf("info gst trace curl progress // Logging toggles\n");
 	logprintf("pause play stop status flush // Playback options\n");
-	logprintf("sf, ff<x> rw<y> // Trickmodes (x- 16, 32. y- 4, 8, 16, 32)\n");
+	logprintf("sf, ff<x> rw<y> // Trickmodes (x <= 128. y <= 128)\n");
 	logprintf("+ - // Change profile\n");
+	logprintf("bps <x> // set bitrate \n");
 	logprintf("sap // Use SAP track (if avail)\n");
 	logprintf("seek <seconds> // Specify start time within manifest\n");
 	logprintf("live // Seek to live point\n");
 	logprintf("underflow // Simulate underflow\n");
+	logprintf("retune // schedule retune\n");
 	logprintf("help // Show this list again\n");
 	logprintf("exit // Exit from application\n");
 }
@@ -227,8 +228,6 @@ static void ShowHelp(void)
 
 //#define LOG_CLI_EVENTS
 #ifdef LOG_CLI_EVENTS
-static class PlayerInstanceAAMP *mpPlayerInstanceAAMP;
-
 /**
  * @class myAAMPEventListener
  * @brief
@@ -377,7 +376,7 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (sscanf(cmd, "ff%d", &rate) == 1)
 	{
-		if (rate != 4 && rate != 16 && rate != 32)
+		if (rate >= 128)
 		{
 			logprintf("Speed not supported.\n");
 		}
@@ -396,7 +395,7 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (sscanf(cmd, "rw%d", &rate) == 1)
 	{
-		if ((rate < 4 || rate > 32) || (rate % 4))
+		if (rate >= 128)
 		{
 			logprintf("Speed not supported.\n");
 		}
@@ -482,7 +481,7 @@ static void ProcessCliCommand(char *cmd)
 	}
 }
 
-static void * run_commnds(void *arg)
+static void * run_command(void *arg)
 {
     char cmd[MAX_BUFFER_LENGTH];
     ShowHelp();
@@ -838,7 +837,7 @@ int main(int argc, char **argv)
 	}
 
 	pthread_t cmdThreadId;
-	pthread_create(&cmdThreadId,NULL,run_commnds,NULL);
+	pthread_create(&cmdThreadId,NULL,run_command,NULL);
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	// Render frames in graphics plane using opengl
 	glutInit(&argc, argv);
