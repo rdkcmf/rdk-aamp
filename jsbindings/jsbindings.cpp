@@ -3421,6 +3421,7 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 	JSStringRef name;
 
 	JSObjectRef timedMetadata = JSObjectMake(context, NULL, NULL);
+	
 	if (timedMetadata) {
 		JSValueProtect(context, timedMetadata);
 		bool bGenerateID = true;
@@ -3455,6 +3456,87 @@ JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, con
 		name = JSStringCreateWithUTF8CString("type");
 		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, 0), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+
+		// Force metadata as empty object
+		JSObjectRef metadata = JSObjectMake(context, NULL, NULL);
+		if (metadata) {
+                	JSValueProtect(context, metadata);
+			name = JSStringCreateWithUTF8CString("metadata");
+			JSObjectSetProperty(context, timedMetadata, name, metadata, kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+
+			// Parse CUE metadata and TRICKMODE-RESTRICTION metadata
+			// Parsed values are used in PlayerPlatform at the time of tag object creation
+			if ((strcmp(szName, "#EXT-X-CUE") == 0) ||
+			    (strcmp(szName, "#EXT-X-TRICKMODE-RESTRICTION") == 0)) {
+				const char* szStart = szContent;
+
+				// Advance past #EXT tag.
+				for (; *szStart != ':' && *szStart != '\0'; szStart++);
+				if (*szStart == ':')
+					szStart++;
+
+				// Parse comma seperated name=value list.
+				while (*szStart != '\0') {
+					char* szSep;
+					// Find the '=' seperator.
+					for (szSep = (char*)szStart; *szSep != '=' && *szSep != '\0'; szSep++);
+
+					// Find the end of the value.
+					char* szEnd = (*szSep != '\0') ? szSep + 1 : szSep;
+					for (; *szEnd != ',' && *szEnd != '\0'; szEnd++);
+
+					// Append the name / value metadata.
+					if ((szStart < szSep) && (szSep < szEnd)) {
+						JSValueRef value;
+						char chSave = *szSep;
+
+						*szSep = '\0';
+						name = JSStringCreateWithUTF8CString(szStart);
+						*szSep = chSave;
+
+						chSave = *szEnd;
+						*szEnd = '\0';
+						value = aamp_CStringToJSValue(context, szSep+1);
+						*szEnd = chSave;
+
+						JSObjectSetProperty(context, metadata, name, value, kJSPropertyAttributeReadOnly, NULL);
+						JSStringRelease(name);
+
+						// If we just added the 'ID', copy into timedMetadata.id
+						if (szStart[0] == 'I' && szStart[1] == 'D' && szStart[2] == '=') {
+							bGenerateID = false;
+							name = JSStringCreateWithUTF8CString("id");
+							JSObjectSetProperty(context, timedMetadata, name, value, kJSPropertyAttributeReadOnly, NULL);
+							JSStringRelease(name);
+						}
+					}
+
+					szStart = (*szEnd != '\0') ? szEnd + 1 : szEnd;
+				}
+			}
+			// Parse TARGETDURATION and CONTENT-IDENTIFIER metadata
+			else {
+				const char* szStart = szContent;
+				// Advance to the tag's value.
+				for (; *szStart != ':' && *szStart != '\0'; szStart++);
+				if (*szStart == ':')
+					szStart++;
+
+				// Stuff all content into DATA name/value pair.
+				JSValueRef value = aamp_CStringToJSValue(context, szStart);
+				if (strcmp(szName, "#EXT-X-TARGETDURATION") == 0) {
+					// Stuff into DURATION if EXT-X-TARGETDURATION content.
+					// Since #EXT-X-TARGETDURATION has only duration as value
+					name = JSStringCreateWithUTF8CString("DURATION");
+				} else {
+					name = JSStringCreateWithUTF8CString("DATA");
+				}
+				JSObjectSetProperty(context, metadata, name, value, kJSPropertyAttributeReadOnly, NULL);
+				JSStringRelease(name);
+			}
+			JSValueUnprotect(context, metadata);
+		}
 
 		// Generate an ID since the tag is missing one
 		if (bGenerateID) {
