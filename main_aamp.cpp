@@ -2640,7 +2640,7 @@ static void ProcessConfigEntry(char *cfg)
 			gpGlobalConfig->noFog = (value==0);
 			logprintf("fog=%d\n", value);
 		}
-		else if (ReadConfigNumericHelper(cfg, "async_ontuned=", value) == 1)
+		else if (sscanf(cfg, "async_ontuned=%d", &value) == 1)
 		{
 			gpGlobalConfig->bAsync_ontuned = (value==1);
 			logprintf("async_ontuned=%d\n", value);
