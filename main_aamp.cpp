@@ -271,16 +271,14 @@ static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
  */
 const char * GetDrmSystemID(DRMSystems drmSystem)
 {
-	switch(drmSystem)
-	{
-	case eDRM_WideVine:
+	if(drmSystem == eDRM_WideVine)
 		return "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed";
-	case eDRM_PlayReady:
+	else if(drmSystem == eDRM_PlayReady)
 		return "9a04f079-9840-4286-ab92-e65be0885f95";
-	case eDRM_CONSEC_agnostic:
+	else if(drmSystem == eDRM_CONSEC_agnostic)
 		return "afbcb50e-bf74-3d13-be8f-13930c783962";
-	}
-	return "";
+	else
+		return "";
 }
 
 /**
@@ -302,8 +300,11 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 		return "Adobe Access";
 	case eDRM_Vanilla_AES:
 		return "Vanilla AES";
+	case eDRM_NONE:
+	case eDRM_ClearKey:
+	case eDRM_MAX_DRMSystems:
+		return "";
 	}
-	return "";
 }
 
 /**
@@ -3046,7 +3047,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
-			VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
+			VALIDATE_INT("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
 			logprintf("aamp abr outlier in bytes: %ld\n", gpGlobalConfig->abrOutlierDiffBytes);
 		}
 		else if (ReadConfigNumericHelper(cfg, "abr-skip-duration=", gpGlobalConfig->abrSkipDuration) == 1)
@@ -3056,7 +3057,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		}
 		else if (ReadConfigNumericHelper(cfg, "abr-nw-consistency=", gpGlobalConfig->abrNwConsistency) == 1)
 		{
-			VALIDATE_LONG("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
+			VALIDATE_INT("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
 			logprintf("aamp abr NetworkConsistencyCnt: %d\n", gpGlobalConfig->abrNwConsistency);
 		}
 		else if (ReadConfigNumericHelper(cfg, "flush=", gpGlobalConfig->gPreservePipeline) == 1)
@@ -4700,7 +4701,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
-		if (aamp->IsDashAsset() || !(aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0 || aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE))
+		if (aamp->IsDashAsset() || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			// when switching from trick to play mode only 
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)

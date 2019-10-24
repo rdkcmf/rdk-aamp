@@ -664,6 +664,10 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
 			return true;
 		}
 		break;
+
+	default:
+		break;
+
 	}
 	return false;
 }
@@ -719,7 +723,7 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 		* disableATMOS: avoid use of ATMOS track
 		* disableEC3: avoid use of DDPLUS and ATMOS tracks
 		*/
-		if (selectedRepType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0) || // Select any profile for the first time, reject unsupported streams then
+		if ((selectedRepType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0)) || // Select any profile for the first time, reject unsupported streams then
 			(selectedRepType == audioType && bandwidth>selectedRepBandwidth) || // same type but better quality
 			(selectedRepType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !gpGlobalConfig->disableATMOS && !gpGlobalConfig->disableEC3) || // promote to atmos
 			(selectedRepType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !gpGlobalConfig->disableEC3) || // promote to ddplus
@@ -5592,7 +5596,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					iPeriod--;
 				}
 			} //Loop 2: End of Period while loop
-			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static" && waitForAdBreakCatchup != true)
+			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || (mpd->GetType() == "static" && waitForAdBreakCatchup != true))
 			{
 				break;
 			}
@@ -6236,7 +6240,6 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 	}
 	return false;
 }
-
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
 {
 	double adOffset;
