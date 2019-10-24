@@ -2297,7 +2297,7 @@ void *CreateDRMSession(void *arg)
 		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
-	AampDRMSessionManager* sessionManger = new AampDRMSessionManager();
+	AampDRMSessionManager* sessionManger = AampDRMSessionManager::getInstance();
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	AAMPEvent e;
 	e.type = AAMP_EVENT_DRM_METADATA;
@@ -2342,7 +2342,6 @@ void *CreateDRMSession(void *arg)
 		}
 		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
-	delete sessionManger;
 	free(data);
 	if(contentMetadata != NULL)
 		free(contentMetadata);
@@ -2847,7 +2846,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
   #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();
@@ -5650,7 +5649,7 @@ void StreamAbstractionAAMP_MPD::Start(void)
 void PrivateStreamAbstractionMPD::Start(void)
 {
 #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 	pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
 	fragmentCollectorThreadStarted = true;
@@ -5713,9 +5712,10 @@ void PrivateStreamAbstractionMPD::Stop()
 		fragmentCollectorThreadStarted = false;
 	}
 	aamp->mStreamSink->ClearProtectionEvent();
-  #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
-	AampDRMSessionManager::clearFailedKeyIds();
+ #ifdef AAMP_MPD_DRM
+	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+	sessionMgr->clearFailedKeyIds();
   #endif
 }
 
