@@ -3977,7 +3977,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
-		if(gpGlobalConfig->mEnableVideoEndEvent)
+		if(gpGlobalConfig->mEnableVideoEndEvent 
+			&& (mTuneAttempts == 1)) // only for first attempt, dont send event when JSPP retunes. 
 		{
 			SendVideoEndEvent();
 		}
