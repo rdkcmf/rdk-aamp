@@ -246,7 +246,8 @@ enum CurlAbortReason
 #ifdef TRACE
 #define traceprintf logprintf
 #else
-#define traceprintf (void)
+#define traceprintf(FORMAT, ...)
+//#define traceprintf (void)
 #endif
 
 /**

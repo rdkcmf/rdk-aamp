@@ -356,7 +356,7 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (strcmp(cmd, "sf") == 0)
 	{
-		mSingleton->SetRate(0.5);
+		mSingleton->SetRate((int)0.5);
 	}
 	else if (sscanf(cmd, "ff%d", &rate) == 1)
 	{
