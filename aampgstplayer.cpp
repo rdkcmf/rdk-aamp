@@ -1075,7 +1075,15 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_LATENCY:
 	case GST_MESSAGE_NEW_CLOCK:
 		break;
-
+	case GST_MESSAGE_APPLICATION:
+		const GstStructure *msgS;
+		msgS = gst_message_get_structure (msg);
+		if (gst_structure_has_name (msgS, "HDCPProtectionFailure")) {
+			logprintf("Received HDCPProtectionFailure event.Schedule Retune \n");
+			_this->Flush(0, AAMP_NORMAL_PLAY_RATE);
+			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
+		}
+		break;
 	default:
 		logprintf("msg type: %s\n", gst_message_type_get_name(msg->type));
 		break;

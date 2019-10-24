@@ -165,6 +165,7 @@ enum PlaybackErrorType
 	eGST_ERROR_PTS,                 /**< PTS error from gstreamer */
 	eGST_ERROR_UNDERFLOW,           /**< Underflow error from gstreamer */
 	eGST_ERROR_VIDEO_BUFFERING,     /**< Video buffering error */
+	eGST_ERROR_OUTPUT_PROTECTION_ERROR,     /**< Output Protection error */
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
 	eSTALL_AFTER_DISCONTINUITY      /** Playback stall after notifying discontinuity */
 };
