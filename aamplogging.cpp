@@ -156,6 +156,9 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 			}
 		}
 			break; /*AAMPNetworkErrorCurl*/
+
+		case AAMPNetworkErrorNone:
+			break;
 	}
 }
 
@@ -371,16 +374,11 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 				break; /* AAMPAbrUserRequest */
 		}
 
-		switch(pstAbrInfo->errorType)
+		if(pstAbrInfo->errorType == AAMPNetworkErrorHttp)
 		{
-			case AAMPNetworkErrorHttp:
-			{
-				reason += " error='http error ";
-				reason += to_string(pstAbrInfo->errorCode);
-
-				symptom += " (or) freeze/buffering";
-			}
-				break; /*AAMPNetworkErrorHttp*/
+			reason += " error='http error ";
+			reason += to_string(pstAbrInfo->errorCode);
+			symptom += " (or) freeze/buffering";
 		}
 
 		logprintf("AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'\n",
@@ -478,7 +476,7 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 	char str_hex[]="0123456789abcdef";
 	while (ptr < fin)
 	{
-		char c = *ptr++;
+		unsigned char c = *ptr++;
 		if (c >= ' ' && c < 128)
 		{
 			*dst++ = c;
