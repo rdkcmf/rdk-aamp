@@ -47,6 +47,11 @@ brew install libxml2
 ```
 **7. Install libdash**
 
+```
+source install_libdash.sh
+```
+or
+	
 ***Build***:
 
 ```

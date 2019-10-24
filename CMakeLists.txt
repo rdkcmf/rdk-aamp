@@ -49,7 +49,7 @@ endif()
 
 # Mac OS X
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -g -x objective-c++")
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -g -x objective-c++ -Wno-inconsistent-missing-override")
     set(OS_LD_FLAGS "${OS_LD_FLAGS} -framework Cocoa")
     string(STRIP ${OS_LD_FLAGS} OS_LD_FLAGS)
     set(AAMP_CLI_LD_FLAGS "${AAMP_CLI_LD_FLAGS} -lgstvideo-1.0")

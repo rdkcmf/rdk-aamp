@@ -665,6 +665,10 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
 			return true;
 		}
 		break;
+
+	default:
+		break;
+
 	}
 	return false;
 }
@@ -6218,7 +6222,6 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 	}
 	return false;
 }
-
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
 {
 	double adOffset;
