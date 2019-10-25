@@ -121,7 +121,6 @@ void AampDRMSessionManager::clearSessionData()
 	{
 		if(drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
-			drmSessionContexts[i].drmSession->clearDecryptContext();
 			delete drmSessionContexts[i].data;
 			drmSessionContexts[i].data = NULL;
 			drmSessionContexts[i].dataLength = 0;

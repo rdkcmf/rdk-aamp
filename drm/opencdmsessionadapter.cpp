@@ -161,11 +161,6 @@ AAMPOCDMSession::~AAMPOCDMSession()
 
 	pthread_mutex_destroy(&decryptMutex);
 
-	if (m_pOpenCDMSession) {
-		opencdm_destruct_session(m_pOpenCDMSession);
-		m_pOpenCDMSession = NULL;
-	}
-
 	if (m_pOpenCDMSystem) {
 		opencdm_destruct_system(m_pOpenCDMSystem);
 		m_pOpenCDMSystem = NULL;
@@ -413,6 +408,7 @@ void AAMPOCDMSession:: clearDecryptContext()
 	if (m_pOpenCDMSession) {
 		opencdm_session_close(m_pOpenCDMSession);
 		opencdm_destruct_session(m_pOpenCDMSession);
+		m_pOpenCDMSession = NULL;
 	}
 
 	pthread_mutex_unlock(&decryptMutex);
