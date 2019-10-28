@@ -405,6 +405,14 @@ public:
 		aamp->SignalTrickModeDiscontinuity();
 	}
 
+	/**
+	 * @brief Returns if the end of track reached.
+	 */
+	bool IsAtEndOfTrack()
+	{
+		return eos;
+	}
+
 	MediaType mediaType;
 	struct FragmentDescriptor fragmentDescriptor;
 	IAdaptationSet *adaptationSet;
@@ -3054,15 +3062,18 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					periodStartMs = nextPeriodStart;
 					nextPeriodStart += periodDurationMs;
 				}
+
+				double periodStartSeconds = (double)periodStartMs/1000;
+				double periodDurationSeconds = (double)periodDurationMs / 1000;
 				if (periodDurationMs != 0)
 				{
 					double periodEnd = periodStartMs + periodDurationMs;
-					currentPeriodStart = (double)periodStartMs/1000;
+					currentPeriodStart = periodStartSeconds;
 					mCurrentPeriodIdx = iPeriod;
-					if (periodDurationMs/1000 <= offsetFromStart && iPeriod < (numPeriods - 1))
+					if (periodDurationSeconds <= offsetFromStart && iPeriod < (numPeriods - 1))
 					{
-						logprintf("Skipping period %d seekPosition %f periodEnd %f\n", iPeriod, seekPosition, periodEnd);
-						offsetFromStart -= periodDurationMs/1000;
+						offsetFromStart -= periodDurationSeconds;
+						logprintf("Skipping period %d seekPosition %f periodEnd %f offsetFromStart %f\n", iPeriod, seekPosition, periodEnd, offsetFromStart);
 						continue;
 					}
 					else
@@ -3071,10 +3082,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 						logprintf("currentPeriodIdx %d/%d\n", iPeriod, (int)numPeriods);
 					}
 				}
-				else if(periodStartMs/1000 <= offsetFromStart)
+				else if(periodStartSeconds <= offsetFromStart)
 				{
 					mCurrentPeriodIdx = iPeriod;
-					currentPeriodStart = (double)periodStartMs/1000;
+					currentPeriodStart = periodStartSeconds;
 				}
 			}
 		}
@@ -5170,21 +5181,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					mpdChanged = false;
 					if (periodChanged)
 					{
-						IPeriod *oldPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
-						if(AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
-						{
-							mBasePeriodOffset = 0;		//Not considering the delta from previous period's duration.
-						}
-						if(rate > 0)
-						{
-							mBasePeriodOffset -= ((double)mCdaiObject->mPeriodMap[mBasePeriodId].duration)/1000.00;
-						}
-						else
-						{
-							mBasePeriodOffset += ((double)aamp_GetPeriodDuration(mpd, iPeriod, mLastPlaylistDownloadTimeMs))/1000.00;	//Already reached -ve. Subtracting from current period duration
-						}
-
-
 						IPeriod *newPeriod = mpd->GetPeriods().at(iPeriod);
 
 						//for VOD and cDVR
@@ -5200,6 +5196,22 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							*/
 							iPeriod += direction;
 							continue;
+						}
+
+						if(mBasePeriodId != newPeriod->GetId() && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
+						{
+							mBasePeriodOffset = 0;		//Not considering the delta from previous period's duration.
+						}
+						if(rate > 0)
+						{
+							if(AdState::OUTSIDE_ADBREAK != mCdaiObject->mAdState)	//If Adbreak (somehow) goes beyond the designated periods, period outside adbreak will have +ve duration. Avoiding catastrophic cases.
+							{
+								mBasePeriodOffset -= ((double)mCdaiObject->mPeriodMap[mBasePeriodId].duration)/1000.00;
+							}
+						}
+						else
+						{
+							mBasePeriodOffset += ((double)aamp_GetPeriodDuration(mpd, iPeriod, mLastPlaylistDownloadTimeMs))/1000.00;	//Already reached -ve. Subtracting from current period duration
 						}
 						mCurrentPeriodIdx = iPeriod;
 						mBasePeriodId = newPeriod->GetId();
@@ -6249,10 +6261,11 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 			if(AdEvent::DEFAULT == evt || AdEvent::INIT == evt)
 			{
 				std::string brkId = "";
-				bool seamLess = (AdEvent::INIT == evt)?false:(AAMP_NORMAL_PLAY_RATE == rate);
-				int adIdx = mCdaiObject->CheckForAdStart(seamLess, mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
+				int adIdx = mCdaiObject->CheckForAdStart(rate, (AdEvent::INIT == evt), mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
 				if(!brkId.empty())
 				{
+					AAMPLOG_INFO("%s:%d [CDAI] CheckForAdStart found Adbreak. adIdx[%d] mBasePeriodOffset[%lf] adOffset[%lf].\n",__FUNCTION__,__LINE__, adIdx, mBasePeriodOffset, adOffset);
+
 					mCdaiObject->mCurPlayingBreakId = brkId;
 					if(-1 != adIdx && mCdaiObject->mAdBreaks[brkId].ads)
 					{
@@ -6278,7 +6291,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 
 					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
 					{
-						AAMPLOG_WARN("%s:%d [CDAI]: BasePeriodId[%s] in Adbreak. But Ad not available.\n",__FUNCTION__,__LINE__, mBasePeriodId.c_str());
+						AAMPLOG_WARN("%s:%d [CDAI]: BasePeriodId[%s] in Adbreak[%s]. But Ad not available.\n",__FUNCTION__,__LINE__, mBasePeriodId.c_str(), brkId.c_str());
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
 					}
 					stateChanged = true;
@@ -6289,7 +6302,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 			if(AdEvent::BASE_OFFSET_CHANGE == evt || AdEvent::PERIOD_CHANGE == evt)
 			{
 				std::string brkId = "";
-				int adIdx = mCdaiObject->CheckForAdStart((AAMP_NORMAL_PLAY_RATE == rate), mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
+				int adIdx = mCdaiObject->CheckForAdStart(rate, false, mBasePeriodId, mBasePeriodOffset, brkId, adOffset);
 				if(-1 != adIdx && mCdaiObject->mAdBreaks[brkId].ads)
 				{
 					if(0 == adIdx && 0 != mBasePeriodOffset)

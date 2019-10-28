@@ -813,7 +813,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 		pthread_mutex_lock(&mLock);
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double videoDuration = video->GetTotalInjectedDuration();
-		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort)
+		if(audioDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort || video->IsAtEndOfTrack())
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -844,11 +844,11 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double videoDuration = video->GetTotalInjectedDuration();
 
-	while ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !video->IsInjectionAborted())
+	while ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !video->IsInjectionAborted() && !(video->IsAtEndOfTrack()))
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
-		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f\n",
-			__FUNCTION__, __LINE__, audioDuration, videoDuration);
+		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f\n",
+			__FUNCTION__, __LINE__, audioDuration, videoDuration,video->fragmentDurationSeconds);
 #endif
 		gettimeofday(&tv, NULL);
 		ts.tv_sec = time(NULL) + waitTimeInMs / 1000;
