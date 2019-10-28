@@ -67,6 +67,13 @@
 #define COMCAST_DRM_INFO_ID "afbcb50e-bf74-3d13-be8f-13930c783962"
 
 /**
+ * Macros for extended audio codec check as per ETSI-TS-103-420-V1.2.1
+ */
+#define SUPPLEMENTAL_PROPERTY_TAG "SupplementalProperty"
+#define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
+#define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
+
+/**
  * @struct FragmentDescriptor
  * @brief Stores information of dash fragment
  */
@@ -681,7 +688,45 @@ static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
 	return false;
 }
 
+/**
+ * @brief Get Additional tag property value from any child node of MPD
+ * @param Pointer to MPD child node, Tage Name , Property Name, 
+ * SchemeIdUri (if the propery mapped against scheme Id , default value is empty)
+ * @retval return the property name if found, if not found return empty string 
+ */
+static bool IsAtmosAudio(const IMPDElement *nodePtr)
+{
+	bool isAtmos = false;
 
+	if (!nodePtr){
+		AAMPLOG_ERR("%s:%d > API Failed due to Invalid Arguments\n", __FUNCTION__, __LINE__);	
+	}else{
+		std::vector<INode*> childNodeList = nodePtr->GetAdditionalSubNodes();
+		for (size_t j=0; j < childNodeList.size(); j++) {
+			INode* childNode = childNodeList.at(j);
+			const std::string& name = childNode->GetName();
+			if (name == SUPPLEMENTAL_PROPERTY_TAG ) {
+				if (childNode->HasAttribute("schemeIdUri")){
+					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
+					if (schemeIdUri == SCHEME_ID_URI_EC3_EXT_CODEC ){
+						if (childNode->HasAttribute("value")) {
+							std::string value = childNode->GetAttributeValue("value");
+							AAMPLOG_INFO("%s:%d > Recieved %s tag property value as %s \n",
+				 			__FUNCTION__, __LINE__, SUPPLEMENTAL_PROPERTY_TAG, value.c_str());
+							if (value == EC3_EXT_VALUE_AUDIO_ATMOS){
+								isAtmos = true;
+								break;
+							}
+
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return isAtmos;
+}
 /**
  * @brief Get representation index of desired codec
  * @param adaptationSet Adaptation set object
@@ -717,6 +762,14 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 		else if (codecValue == "ec-3")
 		{
 			audioType = eAUDIO_DDPLUS;
+			/*
+			* check whether ATMOS Flag is set as per ETSI TS 103 420
+			*/
+			if (IsAtmosAudio(rep)){
+				AAMPLOG_INFO("%s:%d > Setting audio codec as eAUDIO_ATMOS as per ETSI TS 103 420\n",
+					 __FUNCTION__, __LINE__);
+				audioType = eAUDIO_ATMOS;
+			}
 		}
 		else if( codecValue == "opus" || codecValue.find("vorbis") != std::string::npos )
 		{
