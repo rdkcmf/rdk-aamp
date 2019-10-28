@@ -227,7 +227,7 @@ public:
 	void ResetState();
 	void ClearMaps();
 	void  PlaceAds(dash::mpd::IMPD *mpd);
-	int CheckForAdStart(bool continuePlay, const std::string &periodId, double offSet, std::string &breakId, double &adOffset);
+	int CheckForAdStart(const float &rate, bool init, const std::string &periodId, double offSet, std::string &breakId, double &adOffset);
 	bool CheckForAdTerminate(double fragmentTime);
 	inline bool isPeriodInAdbreak(const std::string &periodId);
 };
