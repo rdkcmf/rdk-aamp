@@ -500,6 +500,7 @@ public:
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 	int harvest;                /**< Save decrypted fragments for debugging*/
+	char* harvestpath;
 #endif
 
 	AampLogManager logging;             	/**< Aamp log manager class*/
@@ -586,6 +587,7 @@ public:
 	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
+		harvestpath(0),
 #endif
 		gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(0),
 		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),

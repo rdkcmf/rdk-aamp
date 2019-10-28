@@ -2916,6 +2916,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("harvest=%d", gpGlobalConfig->harvest);
 		}
+                else if (ReadConfigStringHelper(cfg, "harvestpath=", (const char**)&gpGlobalConfig->harvestpath))
+                {
+                        logprintf("harvestpath=%s\n", gpGlobalConfig->harvestpath);
+                }
 #endif
 		else if (ReadConfigNumericHelper(cfg, "forceEC3=", gpGlobalConfig->forceEC3) == 1)
 		{

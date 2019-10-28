@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <fstream>
 #include <unistd.h>
 #include "priv_aamp.h"
 #include <pthread.h>
@@ -2367,8 +2368,13 @@ void StreamAbstractionAAMP_HLS::HarvestFile(std::string url, GrowableBuffer* buf
 {
 	if (aamp->HarvestFragments(isFragment))
 	{
-		logprintf("aamp: hls Harvest %s len %d", url.c_str(), (int)buffer->len);
-		std::string path = "/media/tsb/"; // SD card on xi3v2
+		std::string path;
+                logprintf("aamp: hls Harvest %s len %d", url.c_str(), (int)buffer->len);
+                if(gpGlobalConfig->harvestpath)
+                         path = gpGlobalConfig->harvestpath;
+                else
+                         path = "/media/tsb/"; // SD card on xi3v2
+
 		std::size_t pos = url.rfind('/');
 		if (pos != std::string::npos)
 		{
@@ -3452,7 +3458,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					printf("***Initial Playlist:******\n\n%s\n*****************\n", ts->playlist.ptr);
 				}
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-				const char* prefix = (iTrack == eTRAK_SUBTITLE)?"sub-":((iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-");
+				const char* prefix = (iTrack == eTRACK_SUBTITLE)?"sub-":((iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-");
 				HarvestFile(ts->mPlaylistUrl, &ts->playlist, false, prefix);
 #endif
 				ts->IndexPlaylist();

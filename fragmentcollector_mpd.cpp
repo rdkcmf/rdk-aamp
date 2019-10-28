@@ -34,6 +34,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <unistd.h>
+#include <fstream>
 #include <set>
 #include <iomanip>
 #include <ctime>
@@ -1081,7 +1082,11 @@ static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *
  */
 static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
-	std::string constructedUri = HARVEST_BASE_PATH;
+	std::string constructedUri;
+        if(gpGlobalConfig->harvestpath)
+                constructedUri = gpGlobalConfig->harvestpath;
+        else
+                constructedUri = HARVEST_BASE_PATH;
 	constructedUri += media;
 	replace(constructedUri, "Bandwidth", fragmentDescriptor->Bandwidth);
 	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
@@ -3512,7 +3517,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	if (gotManifest)
 	{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		std::string fileName = HARVEST_BASE_PATH;
+		std::string fileName;
+                if(gpGlobalConfig->harvestpath)
+                        fileName = gpGlobalConfig->harvestpath;
+                else
+                        fileName = HARVEST_BASE_PATH;
+
 		fileName.append("manifest.mpd");
 		WriteFile( fileName, manifest.ptr, manifest.len);
 #endif

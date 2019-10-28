@@ -175,6 +175,8 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
+harvestpath=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
+
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
