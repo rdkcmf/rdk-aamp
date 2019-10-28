@@ -228,7 +228,8 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 						mPlacementObj.adNextOffset += periodDelta;
 						periodDelta = 0;
 					}
-					else
+					else if((mPlacementObj.curAdIdx < (abObj.ads->size()-1))    //If it is not the last Ad, we can start placement immediately.
+							|| periodDelta >= OFFSET_ALIGN_FACTOR)              //Making sure that period has sufficient space to fallback
 					{
 						//Current Ad completely placed. But more space available in the current period for next Ad
 						curAd.placed = true;
@@ -244,7 +245,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 							//Place the end markers of adbreak
 							abObj.endPeriodId = periodId;	//If it is the exact period boundary, end period will be the next one
 							abObj.endPeriodOffset = p2AdData.duration - periodDelta;
-							if(abObj.endPeriodOffset < 5000)
+							if(abObj.endPeriodOffset < 2*OFFSET_ALIGN_FACTOR)
 							{
 								abObj.endPeriodOffset = 0;//Aligning the last period
 								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
@@ -293,7 +294,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 	}
 }
 
-int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &periodId, double offSet, std::string &breakId, double &adOffset)
+int PrivateCDAIObjectMPD::CheckForAdStart(const float &rate, bool init, const std::string &periodId, double offSet, std::string &breakId, double &adOffset)
 {
 	int adIdx = -1;
 	auto pit = mPeriodMap.find(periodId);
@@ -305,7 +306,8 @@ int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &
 		{
 			breakId = curP2Ad.adBreakId;
 			AdBreakObject &abObj = mAdBreaks[breakId];
-			if(continuePlay)
+			bool seamLess = init?false:(AAMP_NORMAL_PLAY_RATE == rate);
+			if(seamLess)
 			{
 				int floorKey = (int)(offSet * 1000);
 				floorKey = floorKey - (floorKey%OFFSET_ALIGN_FACTOR);
@@ -352,7 +354,7 @@ int PrivateCDAIObjectMPD::CheckForAdStart(bool continuePlay, const std::string &
 				}
 			}
 
-			if(continuePlay && -1 == adIdx && abObj.endPeriodId == periodId && (uint64_t)(offSet*1000) >= abObj.endPeriodOffset)
+			if(rate >= AAMP_NORMAL_PLAY_RATE && -1 == adIdx && abObj.endPeriodId == periodId && (uint64_t)(offSet*1000) >= abObj.endPeriodOffset)
 			{
 				breakId = "";	//AdState should not stick to IN_ADBREAK after Adbreak ends.
 			}
