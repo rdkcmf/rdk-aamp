@@ -953,10 +953,19 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					note: alternate "window-set" works as well
 					*/
 					_this->privateContext->video_sink = (GstElement *) msg->src;
-					logprintf("AAMPGstPlayer setting rectangle, video mute and zoom\n");
-					g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
-					g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
-					g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					if (_this->privateContext->using_westerossink && !gpGlobalConfig->mEnableRectPropertyCfg)
+					{
+						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom\n");
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
+					else
+					{
+						logprintf("AAMPGstPlayer setting cached rectangle, video mute and zoom\n");
+						g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
 				}
 				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
 				{
@@ -2440,37 +2449,37 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
 	if (gpGlobalConfig->mEnableRectPropertyCfg) //As part of DELIA-37804
 	{
-			if (stream->using_playersinkbin)
-			{
-					g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
-			}
+		if (stream->using_playersinkbin)
+		{
+			g_object_set(stream->sinkbin, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #ifndef INTELCE
-			else if (privateContext->video_sink)
-			{
-					g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
-			}
+		else if (privateContext->video_sink)
+		{
+			g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #else
 #if defined(INTELCE_USE_VIDRENDSINK)
-			else if (privateContext->video_pproc)
-			{
-					g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
-			}
+		else if (privateContext->video_pproc)
+		{
+			g_object_set(privateContext->video_pproc, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #else
-			else if (privateContext->video_sink)
-			{
-					g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
-			}
+		else if (privateContext->video_sink)
+		{
+			g_object_set(privateContext->video_sink, "rectangle", privateContext->videoRectangle, NULL);
+		}
 #endif
 #endif	
-			else
-			{
-					AAMPLOG_WARN("[%s] Scaling not possible at this time\n",__FUNCTION__);
-					privateContext->gstPropsDirty = true;
-			}
+		else
+		{
+			AAMPLOG_WARN("[%s] Scaling not possible at this time\n",__FUNCTION__);
+			privateContext->gstPropsDirty = true;
+		}
 	}
 	else
 	{
-		AAMPLOG_WARN("SetVideoRectangle ignored.");
+		AAMPLOG_WARN("SetVideoRectangle ignored since westerossink is used");
 	}
 }
 

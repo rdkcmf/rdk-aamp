@@ -3257,6 +3257,8 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->disableWesteros = true;
 			logprintf("Westeros is disabled\n");
+			gpGlobalConfig->mEnableRectPropertyCfg = true;
+			logprintf("AAMP configured to set rectangle property for sink element for video scaling\n");
 		}
 		else if (cfg.compare("enable_setvideorectangle") == 0)
 		{
