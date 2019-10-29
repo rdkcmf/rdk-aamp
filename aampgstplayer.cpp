@@ -1392,6 +1392,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	media_stream* stream = &privateContext->stream[mediaType];
 	stream->bufferUnderrun = false;
 	stream->eosReached = false;
+	stream->flush = false;
 	if ((stream->format != FORMAT_INVALID) && (stream->format != FORMAT_NONE))
 	{
 		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d \n", (int)mediaType);
