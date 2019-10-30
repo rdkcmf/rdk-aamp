@@ -3444,7 +3444,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		cfgPath += "/aamp.cfg";
 		FILE *f = fopen(cfgPath.c_str(), "rb");
 #else
-        cfgPath = "/opt/aamp.cfg";
+
 #ifdef AAMP_CPC // Comcast builds
         // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
         const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
@@ -3452,10 +3452,9 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
         const char *env_aamp_enable_opt = "true";
 #endif
 
-        FILE *f = NULL;
         if(env_aamp_enable_opt)
         {
-            f = fopen("/opt/aamp.cfg", "rb");
+            cfgPath = "/opt/aamp.cfg";
         }
 #endif
 		if (!cfgPath.empty())
@@ -3472,10 +3471,10 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				}
 				f.close();
 			}
-		}
-		else
-		{
-			logprintf("Failed to open aamp.cfg\n");
+			else
+			{
+				logprintf("Failed to open aamp.cfg\n");
+			}
 		}
 
 		const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
