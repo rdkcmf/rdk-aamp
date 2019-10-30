@@ -84,7 +84,7 @@ include_directories(${OPENSSL_INCLUDE_DIRS})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES base16.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp)
+set(LIBAAMP_SOURCES base16.cpp fragmentcollector_progressive.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp)
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")
