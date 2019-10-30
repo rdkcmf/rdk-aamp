@@ -40,5 +40,16 @@
 				</SegmentTemplate>
 			</Representation>
 		</AdaptationSet>
+		<AdaptationSet id="2" contentType="video" segmentAlignment="true" bitstreamSwitching="true" lang="und">
+		<EssentialProperty schemeIdUri="http://dashif.org/guidelines/trickmode" value="1" />
+			<Representation id="0" mimeType="video/mp4" codecs="avc1.4d4016" bandwidth="800000" width="640" height="360" frameRate="1/1">
+				<SegmentTemplate timescale="16384" initialization="dash/iframe_init.m4s" media="dash/iframe_$Number%03d$.m4s" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="16384" r="299" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
 	</Period>
 </MPD>
+
