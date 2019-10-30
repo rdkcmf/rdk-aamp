@@ -589,7 +589,9 @@ public:
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
+	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
+	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 public:
 
 	/**
@@ -629,7 +631,9 @@ public:
 		,bReportVideoPTS(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,mEnableRectPropertyCfg(false)
+		,decoderUnavailableStrict(false)
 		,reportBufferEvent(false)
+		,useAppSrcForProgressivePlayback(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

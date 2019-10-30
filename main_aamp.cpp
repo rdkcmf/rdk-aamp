@@ -28,6 +28,7 @@
 #include "admanager_mpd.h"
 #endif
 #include "fragmentcollector_hls.h"
+#include "fragmentcollector_progressive.h"
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
@@ -275,6 +276,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem)
 	else
 		return "";
 }
+
 
 /**
  * @brief Get name of DRM system
@@ -3081,6 +3083,16 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->bReportVideoPTS = true;
 			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
+		else if (cfg.compare("decoderunavailablestrict") == 0)
+		{
+			gpGlobalConfig->decoderUnavailableStrict = true;
+			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
+		}
+		else if (cfg.compare("appSrcForProgressivePlayback") == 0)
+		{
+			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
+			logprintf("appSrcForProgressivePlayback:%s\n", gpGlobalConfig->useAppSrcForProgressivePlayback ? "on" : "off");
+		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_INT("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
@@ -4050,12 +4062,20 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 	else if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
 	{ // m3u8
-		bool enableThrottle = true;
+        	bool enableThrottle = true;
 		if (!gpGlobalConfig->gThrottle)
-		{
+        	{
 			enableThrottle = false;
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
+		if(NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+	else
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
 		if(NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
@@ -4254,11 +4274,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
           // supports HLS locators passed through FOG
                 mMediaFormat = eMEDIAFORMAT_HLS;
         }
+        else if(strstr(mainManifestUrl, ".mp4") || strstr(mainManifestUrl, ".mp3"))
+        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
+                mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
+        }
         else
         { // for any other locators, assume DASH
                 mMediaFormat = eMEDIAFORMAT_DASH;
         }
-
+	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
