@@ -165,7 +165,8 @@ function bitrateChanged(event) {
 
 function mediaPlaybackFailed(event) {
     console.log("Media failed event: " + JSON.stringify(event));
-    loadNextAsset();
+    //Uncomment below line to auto play next asset on playback failure
+    //loadNextAsset();
 }
 
 function mediaMetadataParsed(event) {
@@ -219,6 +220,12 @@ function decoderHandleAvailable(event) {
     XREReceiver.onEvent("onDecoderAvailable", { decoderHandle: event.decoderHandle });
 }
 
+function anomalyEventHandler(event) {
+    if (event.severity === anomalySeverityEnum.error || event.severity === anomalySeverityEnum.warning) {
+        console.log("anomalyEventHandler got msg: " + event.description);
+    }
+}
+
 // helper functions
 function resetPlayer() {
     if (playerState !== playerStatesEnum.idle) {
@@ -242,6 +249,7 @@ function resetPlayer() {
     //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
+    playerObj.addEventListener("anomalyReport", anomalyEventHandler);
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
