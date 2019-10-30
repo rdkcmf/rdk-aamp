@@ -2539,16 +2539,13 @@ void TrackState::RefreshPlaylist(void)
 	}
 	double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
 	double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-	if (culled > 0 && IsLive() && aamp->IsLiveAdjustRequired())
+	mCulledSeconds += culled;
+	if (eTRACK_VIDEO == type)
 	{
-		mCulledSeconds += culled;
-		if (eTRACK_VIDEO == type)
-		{
 #ifdef WIN32
-			logprintf("post-refresh %fs before %lld (%f)\n\n", newSecondsBeforePlayPoint, commonPlayPosition, culled);
+		logprintf("post-refresh %fs before %lld (%f)\n\n", newSecondsBeforePlayPoint, commonPlayPosition, culled);
 #endif
-			aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
-		}
+		aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
 	}
 }
 /***************************************************************************
