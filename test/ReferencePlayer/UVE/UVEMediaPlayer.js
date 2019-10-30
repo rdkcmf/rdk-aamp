@@ -175,6 +175,9 @@ class AAMPMediaPlayer {
 var playerStatesEnum = { "idle":0, "initializing":1, "playing":8, "paused":6, "seeking":7 };
 Object.freeze(playerStatesEnum);
 
+var anomalySeverityEnum = { "error":0, "warning":1, "trace":2 };
+Object.freeze(anomalySeverityEnum);
+
 class AAMPPlayer {
 
     constructor() {
