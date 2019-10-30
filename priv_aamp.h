@@ -41,6 +41,11 @@
 #include <sstream>
 #include <mutex>
 
+static const char *mMediaFormatName[] =
+{
+    "HLS","DASH","PROGRESSIVE"
+};
+
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
 #else
@@ -536,6 +541,8 @@ public:
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
+	bool disableGSTWarningAsAampError;       /**< Disables reporting of GST Warning as aamp error*/
+	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 public:
 
 	/**
@@ -570,6 +577,8 @@ public:
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
+		,disableGSTWarningAsAampError(false)
+		,useAppSrcForProgressivePlayback(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -2675,6 +2684,13 @@ public:
 	 */
 	bool IsMuxedStream();
 
+	/**
+	 *   @brief To check if current asset is DASH or not
+	 *
+	 *   @return bool - true if its DASH asset
+	 */
+	bool IsDashAsset(void) { return (mMediaFormat==eMEDIAFORMAT_DASH); }
+
 private:
 
 	/**
@@ -2727,7 +2743,13 @@ private:
 	PrivAAMPState mState;
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
-	bool mIsDash;
+	typedef enum
+ 	{
+		eMEDIAFORMAT_HLS,
+		eMEDIAFORMAT_DASH,
+		eMEDIAFORMAT_PROGRESSIVE
+	} MediaFormat;
+	MediaFormat mMediaFormat;
 	DRMSystems mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;

@@ -27,6 +27,7 @@
 #include "fragmentcollector_mpd.h"
 #endif
 #include "fragmentcollector_hls.h"
+#include "fragmentcollector_progressive.h"
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
@@ -289,6 +290,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem)
 	}
 	return "";
 }
+
 
 /**
  * @brief Get name of DRM system
@@ -2758,6 +2760,16 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
 		}
+		else if (strcmp(cfg, "disablegstwarningasaamperror") == 0)
+		{
+			gpGlobalConfig->disableGSTWarningAsAampError = true;
+			logprintf("disablegstwarningasaamperror:%s", gpGlobalConfig->disableGSTWarningAsAampError ? "on" : "off");
+		}
+		else if (strcmp(cfg, "appSrcForProgressivePlayback") == 0)
+		{
+			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
+			logprintf("appSrcForProgressivePlayback:%s\n", gpGlobalConfig->useAppSrcForProgressivePlayback ? "on" : "off");
+		}
 		else if (sscanf(cfg, "abr-cache-outlier=%d", &gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_LONG("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
@@ -3526,26 +3538,30 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		seek_pos_seconds = culledSeconds;
 		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
 	}
-
-	if (mIsDash)
-	{ // mpd
-#if  defined (DISABLE_DASH) || defined (INTELCE)
-        logprintf("Error: Dash playback not available\n");
-        mInitSuccess = false;
-        SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
-        return;
-#else
+	
+	if( mMediaFormat == eMEDIAFORMAT_DASH )
+	{
+		#if  defined (DISABLE_DASH) || defined (INTELCE)
+			logprintf("Error: Dash playback not available\n");
+			mInitSuccess = false;
+			SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+		return;
+		#else
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
-#endif
+		#endif
 	}
-	else
+	else if( mMediaFormat == eMEDIAFORMAT_HLS )
 	{ // m3u8
-		bool enableThrottle = true;
+        	bool enableThrottle = true;
 		if (!gpGlobalConfig->gThrottle)
-		{
+        	{
 			enableThrottle = false;
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
+	}
+	else
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
 	}
 	mInitSuccess = true;
 	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
@@ -3573,7 +3589,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
-		if (!mIsDash)
+		if ( mMediaFormat == eMEDIAFORMAT_HLS )
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
 			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline)
@@ -3581,7 +3597,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
 		}
-		else
+		else if( mMediaFormat == eMEDIAFORMAT_DASH )
 		{
                         /*
                         commenting the Flush call with updatedSeekPosition as a work around for
@@ -3715,8 +3731,23 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	strncpy(manifestUrl, mainManifestUrl, MAX_URI_LENGTH);
 	manifestUrl[MAX_URI_LENGTH-1] = '\0';
+	mMediaFormat = eMEDIAFORMAT_DASH;
 
-	mIsDash = !strstr(mainManifestUrl, "m3u8");
+        if(strstr(mainManifestUrl, "m3u8"))
+        { // if m3u8 anywhere in locator, assume HLS
+          // supports HLS locators that end in .m3u8 with/without trailing URI parameters
+          // supports HLS locators passed through FOG
+                mMediaFormat = eMEDIAFORMAT_HLS;
+        }
+        else if(strstr(mainManifestUrl, ".mp4") || strstr(mainManifestUrl, ".mp3"))
+        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
+                mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
+        }
+        else
+        { // for any other locators, assume DASH
+                mMediaFormat = eMEDIAFORMAT_DASH;
+        }
+	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
@@ -3759,9 +3790,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	if( !remapUrl )
 	{
-		if (gpGlobalConfig->mapMPD && !mIsDash && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
+		if (gpGlobalConfig->mapMPD && mMediaFormat==eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
-			mIsDash = true;
+			mMediaFormat = eMEDIAFORMAT_DASH;
 			if (!gpGlobalConfig->fogSupportsDash )
 			{
 				DeFog(manifestUrl);
@@ -3834,7 +3865,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mTSBEnabled = true;
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
-	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mIsDash?"DASH":"HLS" ,manifestUrl);
+	logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts,mMediaFormatName[mMediaFormat],manifestUrl);
 
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
 	ExtractServiceZone(manifestUrl);
@@ -3842,8 +3873,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
-	{
-		mfirstTuneFmt = mIsDash?1:0;
+	{ // TODO: make mFirstTuneFormat of type MediaFormat
+		mfirstTuneFmt = (int)mMediaFormat;
 	}
 	TuneHelper(tuneType);
 }
@@ -5614,21 +5645,22 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 /**
  * @brief PrivateInstanceAAMP Constructor
  */
+
 PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexAttr(),
-	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
-	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
-	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
-	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
-	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
-	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
-	mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	lastTuneType(eTUNETYPE_NEW_NORMAL), m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
-	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
-	mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
-	mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
+        mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
+        mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
+        mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
+        fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
+        video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
+        playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
+        mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false), mPlayingAd(false),
+        mAdPosition(0), mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
+        lastTuneType(eTUNETYPE_NEW_NORMAL), m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+        mState(eSTATE_RELEASED),mMediaFormat(eMEDIAFORMAT_HLS), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
+        mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
+        mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
         mServiceZone(),
-	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
+        mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6260,10 +6292,18 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 int PrivateInstanceAAMP::getStreamType()
 {
 
-	int type = 10; //HLS
+	int type;
 
-	if(mIsDash){
+	if(mMediaFormat==eMEDIAFORMAT_DASH){
 		type = 20;
+	}
+	else if( mMediaFormat == eMEDIAFORMAT_HLS )
+	{
+		type = 10;
+	}
+	else // eMEDIAFORMAT_PROGRESSIVE
+	{
+		type = 30;
 	}
 
 	switch(mCurrentDrm)
@@ -6354,7 +6394,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 		{
 			if (SendTunedEvent())
 			{
-				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mIsDash ? "mpd" : "hls");
+				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mMediaFormatName[mMediaFormat]);
 			}
 		}
 	}
@@ -6622,16 +6662,8 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 
 std::string PrivateInstanceAAMP::getStreamTypeString()
 {
-	std::string type;
+	std::string type = mMediaFormatName[mMediaFormat];
 
-	if(mIsDash)
-	{
-		type = "DASH";
-	}
-	else
-	{
-		type = "HLS";
-	}
 
 	if(mInitSuccess) //Incomplete Init won't be set the DRM
 	{
