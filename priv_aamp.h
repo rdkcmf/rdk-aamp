@@ -43,6 +43,11 @@
 #include <queue>
 #include <VideoStat.h>
 
+static const char *mMediaFormatName[] =
+{
+    "HLS","DASH","PROGRESSIVE"
+};
+
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
 #else
@@ -251,7 +256,6 @@ enum CurlAbortReason
 #define traceprintf logprintf
 #else
 #define traceprintf(FORMAT, ...)
-//#define traceprintf (void)
 #endif
 
 /**
@@ -2880,7 +2884,7 @@ public:
 	 *
 	 *   @return bool - true if its DASH asset
 	 */
-	bool IsDashAsset(void) { return mIsDash; }
+	bool IsDashAsset(void) { return (mMediaFormat==eMEDIAFORMAT_DASH); }
 
     /**
      *   @brief Check if AAMP is in stalled state after it pushed EOS to
@@ -2952,7 +2956,13 @@ private:
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
 	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
-	bool mIsDash;
+	typedef enum
+ 	{
+		eMEDIAFORMAT_HLS,
+		eMEDIAFORMAT_DASH,
+		eMEDIAFORMAT_PROGRESSIVE
+	} MediaFormat;
+	MediaFormat mMediaFormat;
 	DRMSystems mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;
