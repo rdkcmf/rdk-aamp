@@ -2366,7 +2366,7 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 		// Don't support empty values now
 		if (headerVal.size() == 0)
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Custom header's value is empty", __FUNCTION__, argumentCount);
+			ERROR("[AAMP_JS] %s() InvalidArgument: Custom header's value is empty", __FUNCTION__);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addCustomHTTPHeader' - 2nd argument should be a string or array of strings");
 			return JSValueMakeUndefined(context);
 		}
@@ -2822,7 +2822,7 @@ static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjec
 		long time = (long) JSValueToNumber(context, arguments[1], exception);
 		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
 		//the ads to the period duration or not depending on time param
-		ERROR("[AAMP_JS] %s(): Called reservation close for periodId:%s and time:%d", __FUNCTION__, reservationId, time);
+		ERROR("[AAMP_JS] %s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
 		delete[] reservationId;
 	}
 	return JSValueMakeUndefined(context);

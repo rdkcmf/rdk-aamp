@@ -236,7 +236,10 @@ public:
 			AAMPLOG_ERR("AAMP: AVE DRM error majorerror = %d, minorError = %d",(int)majorError, (int)minorError);
 			if( minorError == 1107296262 )
 			{
-				system("rm -fr /opt/persistent/adobe/drm/");
+				if (-1 == system("rm -fr /opt/persistent/adobe/drm/"))
+				{
+					AAMPLOG_ERR("Failed to delete persistent drm files from device!");
+				}
 			}
 			snprintf(drmerrordata->description, MAX_ERROR_DESCRIPTION_LENGTH, "AAMP: DRM Failure possibly due to corrupt CertStore majorError = %d, minorError = %d",											(int)majorError, (int)minorError);
 			break;
