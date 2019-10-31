@@ -80,7 +80,6 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
 #define DEFAULT_MINIMUM_CACHE_VOD_SECONDS  0        /**< Default cache size of VOD playback */
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
-#define AAMP_ABR_THRESHOLD_SIZE 50000               /**< ABR threshold size - 50K */
 #define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life */
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
 #define DEFAULT_ABR_OUTLIER 5000000                 /**< ABR outlier: 5 MB */
@@ -141,6 +140,7 @@ static const char *mMediaFormatName[] =
  */
 #define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (25000)		/**< aamp abr threshold size */
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -578,6 +578,7 @@ public:
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
+	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 public:
 
 	/**
@@ -617,6 +618,7 @@ public:
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,bAsync_ontuned(false)
 		,bReportVideoPTS(false)
+		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
