@@ -7114,7 +7114,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 				}
 				else if (it->second.size() == 1)
 				{
-					snprintf(moneytracebuf, sizeof(moneytracebuf), "trace-id=%s;parent-id=%u;span-id=%lld",
+					snprintf(moneytracebuf, sizeof(moneytracebuf), "trace-id=%s;parent-id=%lld;span-id=%lld",
 						(const char*)it->second.at(0).c_str(),
 						aamp_GetCurrentTimeMS(),
 						aamp_GetCurrentTimeMS());
@@ -7136,7 +7136,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 		for (char *ptr = uuidstr; *ptr; ++ptr) {
 			*ptr = tolower(*ptr);
 		}
-		snprintf(moneytracebuf,sizeof(moneytracebuf),"trace-id=%s;parent-id=%u;span-id=%lld",uuidstr,aamp_GetCurrentTimeMS(),aamp_GetCurrentTimeMS());
+		snprintf(moneytracebuf,sizeof(moneytracebuf),"trace-id=%s;parent-id=%lld;span-id=%lld",uuidstr,aamp_GetCurrentTimeMS(),aamp_GetCurrentTimeMS());
 		customHeader.append(moneytracebuf);
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]\n",customHeader.c_str());
