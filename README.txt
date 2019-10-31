@@ -182,6 +182,7 @@ gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be u
 enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
+aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
