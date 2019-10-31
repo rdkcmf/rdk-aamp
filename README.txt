@@ -181,6 +181,7 @@ enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Defaul
 enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
 gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
+aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
