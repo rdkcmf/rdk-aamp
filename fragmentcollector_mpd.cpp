@@ -5310,7 +5310,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					if(mIsLive || lastLiveFlag)
 					{
 						double culled = 0;
-						if(aamp->IsLiveAdjustRequired() && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+						if(mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 						{
 							culled = GetCulledSeconds();
 						}

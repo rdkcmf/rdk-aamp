@@ -199,7 +199,8 @@ enum ContentType
 	ContentType_MDVR,           /**< 8 - MDVR */
 	ContentType_IPDVR,          /**< 8 - IPDVR */
 	ContentType_PPV,            /**< 10 - PPV */
-	ContentType_MAX             /**< 11 - Type Count*/
+	ContentType_OTT,            /**< 11 - OTT */
+	ContentType_MAX             /**< 12 - Type Count*/
 };
 
 /**

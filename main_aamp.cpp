@@ -4476,9 +4476,14 @@ std::string  PrivateInstanceAAMP::GetContentTypString()
             strRet ="IPDVR" ; //ipdvr
             break;
         }    
-        caseContentType_PPV :
+        case ContentType_PPV :
         {
             strRet =  "PPV"; //ppv
+            break;
+        }
+        case ContentType_OTT :
+        {
+            strRet =  "OTT"; //ott
             break;
         }
         default:
@@ -4536,6 +4541,10 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 		else if(playbackMode == "PPV")
 		{
 			mContentType = ContentType_PPV; //ppv
+		}
+		else if(playbackMode == "OTT")
+		{
+			mContentType = ContentType_OTT; //ott
 		}
 	}
 	logprintf("Detected ContentType %d (%s)\n",mContentType,cType?cType:"UNKNOWN");
