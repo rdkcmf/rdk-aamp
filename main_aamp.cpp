@@ -242,15 +242,6 @@ GlobalConfigAAMP *gpGlobalConfig;
         param_value = default_value; \
     }
 
-#define FOG_REASON_STRING			"Fog-Reason:"
-#define CURLHEADER_X_REASON			"X-Reason:"
-#define BITRATE_HEADER_STRING			"X-Bitrate:"
-#define CONTENTLENGTH_STRING 			"Content-Length:"
-
-#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH(STRING, PREFIX) (0 == memcmp(STRING, PREFIX, sizeof(PREFIX-1)))
-
-
 struct gActivePrivAAMP_t
 {
 	PrivateInstanceAAMP* pAAMP;
@@ -1438,6 +1429,8 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 	return ret;
 }
 
+#define FOG_REASON_STRING           "Fog-Reason:"
+
 /**
  * @brief callback invoked on http header by curl
  * @param ptr pointer to buffer containing the data
@@ -1446,48 +1439,59 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
  * @param user_data  CurlCallbackContext pointer
  * @retval
  */
-static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_data)
+static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_data)
 {
 	//std::string *httpHeaders = static_cast<std::string *>(user_data);
 	CurlCallbackContext *context = static_cast<CurlCallbackContext *>(user_data);
 	httpRespHeaderData *httpHeader = context->responseHeaderData;
 	size_t len = nmemb * size;
 	int startPos = 0;
+	int endPos = 0;
 	bool isBitrateHeader = false;
 
-	if( len<2 || ptr[len-2] != '\r' || ptr[len-1] != '\n' )
-	{ // only proceed if this is a CRLF terminated curl header, as expected
-		return len;
-	}
+	std::string header((const char *)ptr, 0, len);
 
-	ptr[len-2] = 0x00; // replace the unprintable \r, and convert to NUL-terminated C-String
-
-    if (STARTS_WITH(ptr, FOG_REASON_STRING))
+    if (std::string::npos != header.find(FOG_REASON_STRING))
     {
         httpHeader->type = eHTTPHEADERTYPE_FOG_REASON;
-        startPos = STRLEN_LITERAL(FOG_REASON_STRING);
+        // due to \r Journal print logger is not printing the log instead it prints
+        // blob data print e.g "43B blob data"
+        // hence replacing it, fog reason is printed later in the code
+        replace( header.begin(), header.end(), '\r', ' ' );
+
+        startPos = header.find(FOG_REASON_STRING) + strlen(FOG_REASON_STRING);
+        endPos = header.length() - 1;
     }
-	else if (STARTS_WITH(ptr, CURLHEADER_X_REASON))
+	else if (std::string::npos != header.find("X-Reason:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
-		startPos = STRLEN_LITERAL(CURLHEADER_X_REASON);
+		// due to \r Journal print logger is not printing the log instead it prints
+		// blob data print e.g "43B blob data"
+		// hence replacing it, x reason is printed later in the code
+		replace( header.begin(), header.end(), '\r', ' ' );
+		startPos = header.find("X-Reason:") + strlen("X-Reason:");
+		endPos = header.length() - 1;
 	}
-	else if (STARTS_WITH(ptr, BITRATE_HEADER_STRING))
+	else if (std::string::npos != header.find("X-Bitrate:"))
 	{
-		startPos = STRLEN_LITERAL(BITRATE_HEADER_STRING);
+		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
+		startPos = header.find("X-Bitrate:") + strlen("X-Bitrate:");
+		endPos = header.length() - 1;
 		isBitrateHeader = true;
 	}
-	else if (STARTS_WITH(ptr, "Set-Cookie:"))
+	else if (std::string::npos != header.find("Set-Cookie:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_COOKIE;
-		startPos = STRLEN_LITERAL("Set-Cookie:");
+		startPos = header.find("Set-Cookie:") + strlen("Set-Cookie:");
+		endPos = header.length() - 1;
 	}
-	else if (STARTS_WITH(ptr, "Location:"))
+	else if (std::string::npos != header.find("Location:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_EFF_LOCATION;
-		startPos = STRLEN_LITERAL("Location:");
+		startPos = header.find("Location:") + strlen("Location:");
+		endPos = header.length() - 1;
 	}
-	else if (STARTS_WITH(ptr, "Content-Encoding:"))
+  	else if (std::string::npos != header.find("Content-Encoding:"))
 	{	
           	// Enabled IsEncoded as Content-Encoding header is present 
           	// The Content-Encoding entity header incidcates media is compressed
@@ -1495,15 +1499,28 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	}
 	else if (0 == context->buffer->avail)
 	{
-		if (STARTS_WITH(ptr, CONTENTLENGTH_STRING))
+		size_t headerStart = header.find("Content-Length:");
+		if (std::string::npos != headerStart )
 		{
-			int contentLengthStartPosition = STRLEN_LITERAL(CONTENTLENGTH_STRING);
-			char* contentLengthStr = ptr + contentLengthStartPosition;
-			int contentLength = atoi(contentLengthStr);
+			int contentLengthStartPosition = headerStart + (sizeof("Content-Length:")-1);
+			while (isspace(header[contentLengthStartPosition]) && (contentLengthStartPosition <= header.length()))
+			{
+				contentLengthStartPosition++;
+			}
+			while(isspace(header.back()))
+			{
+				header.pop_back();
+			}
+			std::string contentLengthStr = header.substr(contentLengthStartPosition);
+			int contentLength = std::stoi(contentLengthStr);
 
 			if(gpGlobalConfig->logging.trace)
 			{
-				traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, ptr, contentLengthStr, contentLength);
+				// due to \r Journal print logger is not printing the log instead it prints
+				// blob data print e.g "43B blob data"
+				// hence replacing it,
+				replace( header.begin(), header.end(), '\r', ' ' );
+				traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d\n",__FUNCTION__,__LINE__, header.c_str(), contentLengthStr.c_str(), contentLength);
 			}
 
 			/*contentLength can be zero for redirects*/
@@ -1515,18 +1532,26 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 		}
 	}
 	
-	if(startPos > 0)
+	if((startPos > 0) && (endPos > 0))
 	{
 		//Find the first character after the http header name
+		while ((header[startPos] == ' ') && (startPos <= header.length()))
+		{
+			startPos++;
+		}
+		while ((header[endPos] == '\r' || header[endPos] == '\n' || header[endPos] == ';') && (endPos >= 0))
+		{
+			endPos--;
+		}
+
 		if(isBitrateHeader)
 		{
-			char* strBitrate = ptr + startPos;
-			context->bitrate = atol(strBitrate);
-			traceprintf("Parsed HTTP %s: %ld\n", isBitrateHeader? "Bitrate": "False", context->bitrate);
+			std::string strBitrate = header.substr(startPos, (endPos - startPos + 1));
+			context->bitrate = std::stol("0" + strBitrate);
 		}
 		else
 		{
-			httpHeader->data = string(ptr + startPos);
+			httpHeader->data = header.substr(startPos, (endPos - startPos + 1));
 			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
 			{
 				//Append a delimiter ";"
@@ -1538,6 +1563,7 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 				// due to \r Journal print logger is not printing the log instead it prints
 				// blob data print e.g "43B blob data"
 				// hence replacing it,
+				replace( header.begin(), header.end(), '\r', ' ' );
 				traceprintf("Parsed HTTP %s header: %s\n", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
 			}
 		}
