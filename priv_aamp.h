@@ -74,7 +74,6 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
 #define DEFAULT_MINIMUM_CACHE_VOD_SECONDS  0        /**< Default cache size of VOD playback */
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
-#define AAMP_ABR_THRESHOLD_SIZE 50000               /**< ABR threshold size - 50K */
 #define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life */
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
 #define DEFAULT_ABR_OUTLIER 5000000                 /**< ABR outlier: 5 MB */
@@ -136,6 +135,9 @@ static const char *mMediaFormatName[] =
 #define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
 #define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
+
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
+
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -613,6 +615,7 @@ public:
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
+	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 public:
 
 	/**
@@ -664,6 +667,7 @@ public:
 #endif
 		,enableBulkTimedMetaReport(eUndefinedState)
 		,fragmp4LicensePrefetch(true)
+		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
