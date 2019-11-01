@@ -281,6 +281,11 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 							break;
 						}
 					}
+					else
+					{
+						//No more ads to place & No sufficient space to finalize. Wait for next period/next mpd refresh.
+						break;
+					}
 				}
 			}
 		}
