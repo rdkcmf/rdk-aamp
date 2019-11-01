@@ -111,6 +111,10 @@ typedef enum
 typedef enum
 {
 	AAMP_TUNE_INIT_FAILED,                  /**< Tune failure due to initialization error*/
+	AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR,	/**< Tune failure due to manifest download error*/
+	AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR,	/**< Tune failure due to manifest content error*/
+	AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR,	/**< Tune failure due to manifest parse error*/
+	AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR, 	/**< Tune failure due to A/V track sync error*/
 	AAMP_TUNE_MANIFEST_REQ_FAILED,          /**< Tune failure caused by manifest fetch failure*/
 	AAMP_TUNE_AUTHORISATION_FAILURE,        /**< Not authorised to view the content*/
 	AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE,    /**<  When fragment download fails for 5 consecutive fragments*/
@@ -197,6 +201,7 @@ typedef enum
 #define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define METRIC_UUID_BUFF_LEN  256
+
 
 typedef enum E_MetricsDataType
 {
