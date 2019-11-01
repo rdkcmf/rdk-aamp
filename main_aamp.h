@@ -197,6 +197,12 @@ typedef enum
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define METRIC_UUID_BUFF_LEN  256
 
+#define MANIFEST_DOWNLOAD_ERROR_DESC "init failed due to invalid playlist Manifest data"
+#define MANIFEST_CONTENT_ERROR_DESC "init failed due to no tracks available in Manifest"
+#define TRACKS_SYNCHRONISATION_ERROR_DESC "init failed due to sync issue between tracks"
+#define MANIFEST_PARSE_ERROR_DESC "init failed due to corrupted Manifest"
+
+
 typedef enum E_MetricsDataType
 {
 	AAMP_DATA_NONE,
