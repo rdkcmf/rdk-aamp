@@ -180,7 +180,7 @@ struct PlacementObj {
 	std::string openPeriodId;			//The period in the adbreak that is progressing
 	uint64_t 	curEndNumber;			//Current periods last fragment number
 	int			curAdIdx;				//Currently placing ad, during MPD progression
-	uint32_t 	adNextOffset;			//Current periods last fragment number
+	uint32_t 	adNextOffset;			//Current Ad's offset to be placed in the next iteration of PlaceAds.
 
 	PlacementObj(): pendingAdbrkId(), openPeriodId(), curEndNumber(0), curAdIdx(-1), adNextOffset(0)
 	{
