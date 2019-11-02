@@ -55,23 +55,22 @@ public:
     long GetMaxBitrate(void) override;
     void StopInjection(void) override;
     void StartInjection(void) override;
-    virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
     void NotifyFirstVideoPTS(unsigned long long pts) { };
 
     void NotifyBasePTS(unsigned long long pts) { };
+    void FetcherLoop();
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 private:
-    class PrivateStreamAbstractionProgressive* mPriv;
+    void StreamFile( const char *uri, long *http_error );
+    bool fragmentCollectorThreadStarted;
+    pthread_t fragmentCollectorThreadID;
 };
 
 #endif //FRAGMENTCOLLECTOR_PROGRESSIVE_H_
 /**
  * @}
  */
-
-
-
-
+ 
 
 

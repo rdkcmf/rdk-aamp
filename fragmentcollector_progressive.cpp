@@ -30,59 +30,6 @@
 #include <signal.h>
 #include <assert.h>
 
-/**
- * @class PrivateStreamAbstractionProgressive
- * @brief Private implementation of MPD fragment collector
- */
-class PrivateStreamAbstractionProgressive
-{
-public:
-    PrivateStreamAbstractionProgressive( StreamAbstractionAAMP_PROGRESSIVE* context, PrivateInstanceAAMP *aamp, double seekpos, float rate);
-    ~PrivateStreamAbstractionProgressive();
-    PrivateStreamAbstractionProgressive(const PrivateStreamAbstractionProgressive&) = delete;
-    PrivateStreamAbstractionProgressive& operator=(const PrivateStreamAbstractionProgressive&) = delete;
-    void Start();
-    void Stop();
-    AAMPStatusType Init(TuneType tuneType);
-    void StreamFile( const char *uri, long *http_error );
-    void FetcherLoop();
-
-    /**
-     * @brief Get current stream position.
-     *
-     * @retval current position of stream.
-     */
-    double GetStreamPosition() { return seekPosition; }
-
-    PrivateInstanceAAMP *aamp;
-
-    void SetCDAIObject(CDAIObject *cdaiObj){} // TODO: needed?
-    
-private:
-    void StreamSelection(bool newTune = false);
-    double GetCulledSeconds();
-
-    bool fragmentCollectorThreadStarted;
-    double seekPosition;
-    float rate;
-    pthread_t fragmentCollectorThreadID;
-    StreamAbstractionAAMP_PROGRESSIVE* mContext;
-};
-
-/**
- * @brief PrivateStreamAbstractionProgressive Constructor
- * @param context MPD fragment collector context
- * @param aamp Pointer to associated aamp private object
- * @param seekpos Seek positon
- * @param rate playback rate
- */
-PrivateStreamAbstractionProgressive::PrivateStreamAbstractionProgressive( StreamAbstractionAAMP_PROGRESSIVE* context, PrivateInstanceAAMP *aamp,double seekpos, float rate) : aamp(aamp),
-    fragmentCollectorThreadStarted(false), seekPosition(seekpos), rate(rate), fragmentCollectorThreadID(0),
-    mContext(context)
-{
-    this->aamp = aamp;
-};
-
 struct StreamWriteCallbackContext
 {
     bool sentTunedEvent;
@@ -137,30 +84,37 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
 {
     StreamWriteCallbackContext *context = (StreamWriteCallbackContext *)userdata;
     struct PrivateInstanceAAMP *aamp = context->aamp;
-
-    // TODO: info logging is normally only done up until first frame rendered, but even so is too noisy for below, since CURL write callback yields many small chunks
-    AAMPLOG_INFO("StreamWriteCallback(%d bytes)\n", nmemb);
-
-    // throttle download speed if gstreamer isn't hungry
-    aamp->BlockUntilGstreamerWantsData( NULL/*CB*/, 0.0/*periodMs*/, eMEDIATYPE_VIDEO );
-
-    double fpts = 0.0;
-    double fdts = 0.0;
-    double fDuration = 2.0; // HACK!
-    float position = 0.0;
-    if( nmemb>0 )
+    //pthread_mutex_lock(&context->aamp->mLock);
+    if( context->aamp->mDownloadsEnabled)
     {
-        aamp->SendStream( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
-        if( !context->sentTunedEvent )
-        { // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
-            aamp->SendTunedEvent();
-            context->sentTunedEvent = true;
-        }
-    }
-    return nmemb;
+       // TODO: info logging is normally only done up until first frame rendered, but even so is too noisy for below, since CURL write callback yields many small chunks
+        AAMPLOG_INFO("StreamWriteCallback(%d bytes)\n", nmemb);
+        // throttle download speed if gstreamer isn't hungry
+        aamp->BlockUntilGstreamerWantsData( NULL/*CB*/, 0.0/*periodMs*/, eMEDIATYPE_VIDEO );
+        double fpts = 0.0;
+        double fdts = 0.0;
+        double fDuration = 2.0; // HACK!
+        float position = 0.0;
+        if( nmemb>0 )
+        {
+           aamp->SendStream( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
+           if( !context->sentTunedEvent )
+           { // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
+               aamp->SendTunedEvent();
+               context->sentTunedEvent = true;
+           }
+       }
+   }
+   else
+   {
+       logprintf("write_callback - interrupted\n");
+       nmemb = 0;
+   }
+   //pthread_mutex_unlock(&context->aamp->mLock);
+   return nmemb;
 }
 
-void PrivateStreamAbstractionProgressive::StreamFile( const char *uri, long *http_error )
+void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, long *http_error )
 { // TODO: move to main_aamp
 
 
@@ -192,7 +146,7 @@ void PrivateStreamAbstractionProgressive::StreamFile( const char *uri, long *htt
 /**
   * TODO: harvest chunks from large mp3/mp4
  */
-void PrivateStreamAbstractionProgressive::FetcherLoop()
+void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
 {
     std::string contentUrl = aamp->GetManifestUrl();
     std::string effectiveUrl;
@@ -216,7 +170,7 @@ static void * FragmentCollector(void *arg)
     {
         logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
     }
-    PrivateStreamAbstractionProgressive *context = (PrivateStreamAbstractionProgressive *)arg;
+    StreamAbstractionAAMP_PROGRESSIVE *context = (StreamAbstractionAAMP_PROGRESSIVE *)arg;
     context->FetcherLoop();
     return NULL;
 }
@@ -230,18 +184,6 @@ static void * FragmentCollector(void *arg)
  */
 AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
-    return mPriv->Init(tuneType);
-}
-
-/**
- *   @brief  Initialize a newly created object.
- *   @note   To be implemented by sub classes
- *   @param  tuneType to set type of object.
- *   @retval true on success
- *   @retval false on failure
- */
-AAMPStatusType PrivateStreamAbstractionProgressive::Init(TuneType tuneType)
-{
     AAMPStatusType retval = eAAMPSTATUS_OK;
     aamp->CurlInit(0, AAMP_TRACK_COUNT);
     bool newTune = aamp->IsNewTune();
@@ -254,12 +196,21 @@ AAMPStatusType PrivateStreamAbstractionProgressive::Init(TuneType tuneType)
 }
 
 /**
- * @brief Update culling state for live manifests
+ *   @brief  Initialize a newly created object.
+ *   @note   To be implemented by sub classes
+ *   @param  tuneType to set type of object.
+ *   @retval true on success
+ *   @retval false on failure
  */
-double PrivateStreamAbstractionProgressive::GetCulledSeconds()
+/*
+AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
-    return 0.0;
+    AAMPStatusType retval = eAAMPSTATUS_OK;
+    bool newTune = aamp->IsNewTune();
+    aamp->IsTuneTypeNew = false;
+    return retval;
 }
+ */
 
 /**
  * @brief StreamAbstractionAAMP_MPD Constructor
@@ -267,19 +218,17 @@ double PrivateStreamAbstractionProgressive::GetCulledSeconds()
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp), mPriv(NULL)
+StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp),
+fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0)
 {
-    mPriv = new PrivateStreamAbstractionProgressive( this, aamp, seek_pos, rate);
     trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
 }
-
 
 /**
  * @brief StreamAbstractionAAMP_PROGRESSIVE Destructor
  */
 StreamAbstractionAAMP_PROGRESSIVE::~StreamAbstractionAAMP_PROGRESSIVE()
 {
-    delete mPriv;
 }
 
 /**
@@ -287,57 +236,29 @@ StreamAbstractionAAMP_PROGRESSIVE::~StreamAbstractionAAMP_PROGRESSIVE()
  */
 void StreamAbstractionAAMP_PROGRESSIVE::Start(void)
 {
-    mPriv->Start();
-}
-
-/**
- *   @brief  Starts streaming.
- */
-void PrivateStreamAbstractionProgressive::Start(void)
-{
     pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
     fragmentCollectorThreadStarted = true;
 }
 
 /**
 *   @brief  Stops streaming.
-*
-*   @param  clearChannelData - ignored.
 */
 void StreamAbstractionAAMP_PROGRESSIVE::Stop(bool clearChannelData)
 {
-    aamp->DisableDownloads();
-    mPriv->Stop();
-    aamp->EnableDownloads();
-}
-
-
-/**
-*   @brief  Stops streaming.
-*/
-void PrivateStreamAbstractionProgressive::Stop()
-{
     if(fragmentCollectorThreadStarted)
     {
+        aamp->DisableDownloads();
+
         int rc = pthread_join(fragmentCollectorThreadID, NULL);
         if (rc != 0)
         {
             logprintf("%s:%d ***pthread_join failed, returned %d\n", __FUNCTION__, __LINE__, rc);
         }
         fragmentCollectorThreadStarted = false;
+
+        aamp->EnableDownloads();
     }
  }
-
-/**
- * @brief PrivateStreamAbstractionProgressive Destructor
- */
-PrivateStreamAbstractionProgressive::~PrivateStreamAbstractionProgressive(void)
-{
-    aamp->SyncBegin();
-    aamp->CurlTerm(0, AAMP_TRACK_COUNT);
-    aamp->SyncEnd();
-}
-
 
 /**
  * @brief Stub implementation
@@ -358,7 +279,6 @@ void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &prim
     audioOutputFormat = FORMAT_NONE;
 }
 
-
 /**
  *   @brief Return MediaTrack of requested type
  *
@@ -371,24 +291,13 @@ MediaTrack* StreamAbstractionAAMP_PROGRESSIVE::GetMediaTrack(TrackType type)
 }
 
 /**
- *   @brief Return MediaTrack of requested type
- *
- *   @param[in]  type - track type
- *   @retval MediaTrack pointer.
- */
-//MediaTrack* PrivateStreamAbstractionProgressive::GetMediaTrack(TrackType type)
-//{
-//    return mMediaStreamContext[type];
-//}
-
-/**
  * @brief Get current stream position.
  *
  * @retval current position of stream.
  */
 double StreamAbstractionAAMP_PROGRESSIVE::GetStreamPosition()
 {
-    return mPriv->GetStreamPosition();
+    return 0.0;
 }
 
 /**
@@ -463,10 +372,9 @@ void StreamAbstractionAAMP_PROGRESSIVE::StartInjection(void)
 { // STUB - discontinuity related
 }
 
-void StreamAbstractionAAMP_PROGRESSIVE::SetCDAIObject(CDAIObject *cdaiObj)
-{ // needed?
-    mPriv->SetCDAIObject(cdaiObj);
-}
+
+
+
 
 
 
