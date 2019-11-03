@@ -3137,7 +3137,8 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	pthread_mutex_lock(&mutex);
 	if (NULL != _allocated_aamp)
 	{
-		_allocated_aamp->Stop();
+		//when finalizing JS object, don't generate state change events
+		_allocated_aamp->Stop(false);
 		LOG("[AAMP_JS] %s:%d delete aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
@@ -3706,7 +3707,8 @@ void __attribute__ ((destructor(101))) _aamp_term()
 	if (NULL != _allocated_aamp)
 	{
 		LOG("[AAMP_JS] %s:%d stopping aamp", __FUNCTION__, __LINE__);
-		_allocated_aamp->Stop();
+		//when finalizing JS object, don't generate state change events
+		_allocated_aamp->Stop(false);
 		LOG("[AAMP_JS] %s:%d stopped aamp", __FUNCTION__, __LINE__);
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
