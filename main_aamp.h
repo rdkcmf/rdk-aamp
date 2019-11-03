@@ -813,9 +813,10 @@ public:
 
 	/**
 	 *   @brief Stop playback and release resources.
-	 *
+	 *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+	 *   @return void
 	 */
-	void Stop(void);
+	void Stop(bool sendStateChangeEvent = true);
 
 	/**
 	 *   @brief Set playback rate.
