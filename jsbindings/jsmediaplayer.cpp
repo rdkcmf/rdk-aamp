@@ -212,7 +212,8 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p ", __FUNCTION__, privObj);
 		if (privObj->_aamp != NULL)
 		{
-			privObj->_aamp->Stop();
+			//when finalizing JS object, don't generate state change events
+			privObj->_aamp->Stop(false);
 			if (privObj->_listeners.size() > 0)
 			{
 				AAMP_JSEventListener::RemoveAllEventListener(privObj);
