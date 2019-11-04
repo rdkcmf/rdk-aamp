@@ -926,7 +926,7 @@ public:
                 int code = e.data.dash_drmmetadata.accessStatus_value;
                 const char* description = e.data.dash_drmmetadata.accessStatus;
 
-                ERROR("AAMP_JSListener_DRMMetadata code %d Description %s\n",code,description);
+                ERROR("AAMP_JSListener_DRMMetadata code %d Description %s",code,description);
                 name = JSStringCreateWithUTF8CString("code");
                 JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, code), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(name);
@@ -970,7 +970,7 @@ public:
                 int severity = e.data.anomalyReport.severity;
                 const char* description = e.data.anomalyReport.msg;
 
-                ERROR("AAMP_JSListener_AnomalyReport severity %d Description %s\n",severity,description);
+                ERROR("AAMP_JSListener_AnomalyReport severity %d Description %s",severity,description);
                 name = JSStringCreateWithUTF8CString("severity");
                 JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, severity), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(name);
@@ -3098,7 +3098,7 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	if (NULL != _allocated_aamp)
 	{
 		_allocated_aamp->Stop();
-		LOG("[AAMP_JS] %s:%d delete aamp %p\n", __FUNCTION__, __LINE__, _allocated_aamp);
+		LOG("[AAMP_JS] %s:%d delete aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
 	}
@@ -3588,11 +3588,11 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 		if (NULL == _allocated_aamp )
 		{
 			_allocated_aamp = new PlayerInstanceAAMP();
-			LOG("[AAMP_JS] %s:%d create aamp %p\n", __FUNCTION__, __LINE__, _allocated_aamp);
+			LOG("[AAMP_JS] %s:%d create aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		}
 		else
 		{
-			LOG("[AAMP_JS] %s:%d reuse aamp %p\n", __FUNCTION__, __LINE__, _allocated_aamp);
+			LOG("[AAMP_JS] %s:%d reuse aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		}
 		pAAMP->_aamp = _allocated_aamp;
 		pthread_mutex_unlock(&mutex);
@@ -3661,13 +3661,13 @@ void aamp_UnloadJS(void* context)
  */
 void __attribute__ ((destructor(101))) _aamp_term()
 {
-	LOG("[AAMP_JS] %s:%d\n", __FUNCTION__, __LINE__);
+	LOG("[AAMP_JS] %s:%d", __FUNCTION__, __LINE__);
 	pthread_mutex_lock(&mutex);
 	if (NULL != _allocated_aamp)
 	{
-		LOG("[AAMP_JS] %s:%d stopping aamp\n", __FUNCTION__, __LINE__);
+		LOG("[AAMP_JS] %s:%d stopping aamp", __FUNCTION__, __LINE__);
 		_allocated_aamp->Stop();
-		LOG("[AAMP_JS] %s:%d stopped aamp\n", __FUNCTION__, __LINE__);
+		LOG("[AAMP_JS] %s:%d stopped aamp", __FUNCTION__, __LINE__);
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
 	}

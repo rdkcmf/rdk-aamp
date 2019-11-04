@@ -101,7 +101,7 @@ void LogPerformanceExt(const char* strFunc, uint64_t msStart, uint64_t msEnd, SE
                stats[idx].nTimeTotal += stats[idx].nTimeInterval;
                double avgTime = (double)stats[idx].nTimeTotal/(double)stats[idx].nCallsTotal;
                if(avgTime >= DECRYPT_AVG_TIME_THRESHOLD) {
-                  logprintf("%s >>>>>>>> Thread ID %X (%d) Avg Time %0.2llf ms, Avg Bytes %llu  calls (%llu) Interval avg time %0.2llf, Interval avg bytes %llu\n",
+                  logprintf("%s >>>>>>>> Thread ID %X (%d) Avg Time %0.2llf ms, Avg Bytes %llu  calls (%llu) Interval avg time %0.2llf, Interval avg bytes %llu",
                      strFunc, stats[idx].threadID, idx, avgTime, stats[idx].nBytesTotal/stats[idx].nCallsTotal,
                      stats[idx].nCallsTotal, (double)stats[idx].nTimeInterval/(double)INTERVAL,
                      stats[idx].nBytesInterval/INTERVAL);
@@ -133,30 +133,30 @@ AAMPOCDMSession::AAMPOCDMSession(string& keySystem) :
 		m_keyLength(0),
 		m_keyId(NULL)
 {
-	logprintf("AAMPOCDMSession :: enter \n");
+	logprintf("AAMPOCDMSession :: enter ");
 	pthread_mutex_init(&decryptMutex, NULL);
 
 	initAampDRMSystem();
 
 	// Get output protection pointer
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
-	logprintf("AAMPOCDMSession :: exit \n");
+	logprintf("AAMPOCDMSession :: exit ");
 }
 
 void AAMPOCDMSession::initAampDRMSystem()
 {
-	logprintf("initAampDRMSystem :: enter \n");
+	logprintf("initAampDRMSystem :: enter ");
 	pthread_mutex_lock(&decryptMutex);
 	if (m_pOpenCDMSystem == nullptr) {
 		m_pOpenCDMSystem = opencdm_create_system();
 	}
 	pthread_mutex_unlock(&decryptMutex);
-	logprintf("initAampDRMSystem :: exit \n");
+	logprintf("initAampDRMSystem :: exit ");
 }
 
 AAMPOCDMSession::~AAMPOCDMSession()
 {
-	logprintf("[HHH]OCDMSession destructor called! keySystem %s\n", m_keySystem.c_str());
+	logprintf("[HHH]OCDMSession destructor called! keySystem %s", m_keySystem.c_str());
 	clearDecryptContext();
 
 	pthread_mutex_destroy(&decryptMutex);
@@ -180,7 +180,7 @@ AAMPOCDMSession::~AAMPOCDMSession()
 void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	logprintf("generateAampDRMSession :: enter \n");
+	logprintf("generateAampDRMSession :: enter ");
 
 	pthread_mutex_lock(&decryptMutex);
 
@@ -216,10 +216,10 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 void AAMPOCDMSession::processOCDMChallenge(const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 
 	m_challenge.assign(reinterpret_cast<const char *>(challenge), challengeSize);
-	logprintf("processOCDMChallenge challenge = %s\n", m_challenge.c_str());
+	logprintf("processOCDMChallenge challenge = %s", m_challenge.c_str());
 
 	m_destUrl.assign(destUrl);
-	logprintf("processOCDMChallenge destUrl = %s\n", m_destUrl.c_str());
+	logprintf("processOCDMChallenge destUrl = %s", m_destUrl.c_str());
 
 	m_challengeReady.signal();
 }
@@ -246,7 +246,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 
 			result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(m_challenge.c_str())), m_challenge.length());
 			destinationURL.assign((m_destUrl.c_str()));
-			logprintf("destination url is %s\n", destinationURL.c_str());
+			logprintf("destination url is %s", destinationURL.c_str());
 			m_eKeyState = KEY_PENDING;
 		}
 	}
@@ -265,11 +265,11 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 		}
 
 		if (m_keyStatus == KeyStatus::Usable) {
-			logprintf("processKey: Key Usable!\n");
+			logprintf("processKey: Key Usable!");
 			m_eKeyState = KEY_READY;
 			retValue = 0;
 		} else {
-			logprintf("processKey: Update() returned keystatus: %d\n", (int) m_keyStatus);
+			logprintf("processKey: Update() returned keystatus: %d", (int) m_keyStatus);
 			m_eKeyState = KEY_ERROR;
 		}
 	} else {
@@ -290,7 +290,7 @@ int AAMPOCDMSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 			// Source material is UHD
 			if(!m_pOutputProtection->isHDCPConnection2_2()) {
 				// UHD and not HDCP 2.2
-				logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
+				logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt", __FUNCTION__);
 				return HDCP_AUTHENTICATION_FAILURE;
 			}
 		}
@@ -320,7 +320,7 @@ KeyState AAMPOCDMSession::getState()
 
 void AAMPOCDMSession:: clearDecryptContext()
 {
-	logprintf("[HHH] clearDecryptContext.\n");
+	logprintf("[HHH] clearDecryptContext.");
 
 	pthread_mutex_lock(&decryptMutex);
 

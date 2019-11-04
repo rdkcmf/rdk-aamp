@@ -40,7 +40,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 		PlaylistCacheIter it = mPlaylistCache.find(url);
 		if (it != mPlaylistCache.end())
 		{
-			logprintf("%s:%d : playlist %s already present in cache\n", __FUNCTION__, __LINE__, url.c_str());
+			logprintf("%s:%d : playlist %s already present in cache", __FUNCTION__, __LINE__, url.c_str());
 		}
 		// insert only if buffer size is less than Max size
 		else
@@ -57,7 +57,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 				bool cacheStoreReady = true;
 				if(mCacheStoredSize + buffer->len > gpGlobalConfig->gMaxPlaylistCacheSize)
 				{
-					AAMPLOG_WARN("[%s][%d] Count[%d]Avail[%d]Needed[%d] Reached max cache size \n",__FUNCTION__,__LINE__,mPlaylistCache.size(),mCacheStoredSize,buffer->len);
+					AAMPLOG_WARN("[%s][%d] Count[%d]Avail[%d]Needed[%d] Reached max cache size ",__FUNCTION__,__LINE__,mPlaylistCache.size(),mCacheStoredSize,buffer->len);
 					cacheStoreReady = AllocatePlaylistCacheSlot(fileType,buffer->len);
 				}
 				if(cacheStoreReady)
@@ -71,7 +71,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 					tmpData->mFileType = fileType;
 					mPlaylistCache[url] = tmpData;
 					mCacheStoredSize += buffer->len;
-					AAMPLOG_INFO("[%s][%d]  Inserted. url %s\n", __FUNCTION__, __LINE__, url.c_str());
+					AAMPLOG_INFO("[%s][%d]  Inserted. url %s", __FUNCTION__, __LINE__, url.c_str());
 					// There are cases where Main url and effective url will be different ( for Main manifest)
 					// Need to store both the entries with same content data 
 					// When retune happens within aamp due to failure , effective url wll be asked to read from cached manifest
@@ -89,7 +89,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 							newtmpData->mDuplicateEntry = true;
 							newtmpData->mFileType = fileType;
 							mPlaylistCache[effectiveUrl] = newtmpData;
-							AAMPLOG_INFO("[%s][%d]Added an effective url entry %s\n", __FUNCTION__, __LINE__, effectiveUrl.c_str());
+							AAMPLOG_INFO("[%s][%d]Added an effective url entry %s", __FUNCTION__, __LINE__, effectiveUrl.c_str());
 						}
 					}
 				}
@@ -122,12 +122,12 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
 		buffer->len = 0;
 		aamp_AppendBytes(buffer, buf->ptr, buf->len );
 		effectiveUrl = eUrl;
-		traceprintf("%s:%d : url %s found\n", __FUNCTION__, __LINE__, url.c_str());
+		traceprintf("%s:%d : url %s found", __FUNCTION__, __LINE__, url.c_str());
 		ret = true;
 	}
 	else
 	{
-		traceprintf("%s:%d : url %s not found\n", __FUNCTION__, __LINE__, url.c_str());
+		traceprintf("%s:%d : url %s not found", __FUNCTION__, __LINE__, url.c_str());
 		ret = false;
 	}
 	pthread_mutex_unlock(&mMutex);
@@ -140,7 +140,7 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
  */
 void AampCacheHandler::ClearPlaylistCache()
 {
-	AAMPLOG_INFO("%s:%d : cache size %d\n", __FUNCTION__, __LINE__, (int)mPlaylistCache.size());
+	AAMPLOG_INFO("%s:%d : cache size %d", __FUNCTION__, __LINE__, (int)mPlaylistCache.size());
 	PlaylistCacheIter it = mPlaylistCache.begin();
 	for (;it != mPlaylistCache.end(); it++)
 	{
@@ -253,7 +253,7 @@ AampCacheHandler::AampCacheHandler():
 	pthread_cond_init(&mCondVar, NULL);
 	if(0 != pthread_create(&mAsyncCleanUpTaskThreadId, NULL, &AampCacheThreadFunction, this))
 	{
-		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s\n", errno, strerror(errno));
+		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
 	}
 	else
 	{
@@ -277,7 +277,7 @@ AampCacheHandler::~AampCacheHandler()
 		int rc = pthread_join(mAsyncCleanUpTaskThreadId, &ptr);
 		if (rc != 0)
 		{
-			AAMPLOG_ERR("***pthread_join AsyncCacheCleanUpTask returned %d(%s)\n", rc, strerror(rc));
+			AAMPLOG_ERR("***pthread_join AsyncCacheCleanUpTask returned %d(%s)", rc, strerror(rc));
 		}
 	}
 	ClearPlaylistCache();
@@ -336,7 +336,7 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 
 			if(ETIMEDOUT == pthread_cond_timedwait(&mCondVar, &mCondVarMutex, &ts))
 			{
-				AAMPLOG_INFO("%s:%d[%p] Cacheflush timed out\n", __FUNCTION__, __LINE__, this);
+				AAMPLOG_INFO("%s:%d[%p] Cacheflush timed out", __FUNCTION__, __LINE__, this);
 				ClearPlaylistCache();
 			}
 		}
