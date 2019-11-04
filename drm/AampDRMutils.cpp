@@ -311,7 +311,7 @@ unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, 
 		memset(key_id, 0, key_id_size + 1);
 		strncpy(reinterpret_cast<char*>(key_id), psshData + header + 1, key_id_size);
 		*len = (int)key_id_size;
-		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, key_id, key_id_size);
+		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, key_id, key_id_size);
 		if(gpGlobalConfig->logging.trace)
 		{
 			DumpBlob(key_id, key_id_size);
@@ -323,13 +323,13 @@ unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, 
 		int keyIdLen = 0;
 		unsigned char *keydata = aamp_ExtractDataFromPssh(psshData, dataLength, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen);
 
-		AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, keydata, keyIdLen);
+		AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, keydata, keyIdLen);
 
 		size_t decodedDataLen = 0;
 		unsigned char* decodedKeydata = base64_Decode((const char *) keydata, &decodedDataLen);
 		if(decodedDataLen != 16)
 		{
-			AAMPLOG_ERR("invalid key size found while extracting PR KeyID: %d\n", decodedDataLen);
+			AAMPLOG_ERR("invalid key size found while extracting PR KeyID: %d", decodedDataLen);
 			free (keydata);
 			free (decodedKeydata);
 			return NULL;
@@ -363,7 +363,7 @@ unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, 
 		memset(key_id, 0, 16 + 1);
 		strncpy(reinterpret_cast<char*>(key_id), psshData + header, 16);
 		*len = (int)16;
-		AAMPLOG_INFO("%s:%d ck keyid: %s keyIdlen: %d\n",__FUNCTION__, __LINE__, key_id, 16);
+		AAMPLOG_INFO("%s:%d ck keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, key_id, 16);
 		if(gpGlobalConfig->logging.trace)
 		{
 			DumpBlob(key_id, 16);
@@ -396,12 +396,12 @@ unsigned char * aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int 
                                (psshData[header+2] & 0x000000FFu) << 8 |
                                (psshData[header+3] & 0x000000FFu));
 
-	AAMPLOG_INFO("%s:%d content meta data length  : %d\n", __FUNCTION__, __LINE__,content_id_size);
+	AAMPLOG_INFO("%s:%d content meta data length  : %d", __FUNCTION__, __LINE__,content_id_size);
 
 	content_id = (unsigned char*)malloc(content_id_size + 1);
 	memset(content_id, 0, content_id_size + 1);
 	strncpy(reinterpret_cast<char*>(content_id), psshData + header + 4, content_id_size);
-//	logprintf("%s:%d content meta data : %s\n", __FUNCTION__, __LINE__,content_id);
+//	logprintf("%s:%d content meta data : %s", __FUNCTION__, __LINE__,content_id);
 
 	*len = (int)content_id_size;
 	return content_id;
@@ -463,7 +463,7 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 			contentMetaData = (unsigned char*)malloc(*len + 1);
 			memset(contentMetaData, 0, *len + 1);
 			strncpy(reinterpret_cast<char*>(contentMetaData),reinterpret_cast<char*>(cleanedPssh + startPos + 1), *len);
-			//logprintf("%s:%d Content Meta data length  : %d\n", __FUNCTION__, __LINE__,*len);
+			//logprintf("%s:%d Content Meta data length  : %d", __FUNCTION__, __LINE__,*len);
 		}
 	}
 	free(cleanedPssh);

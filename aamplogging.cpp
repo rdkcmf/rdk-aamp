@@ -106,7 +106,7 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
 
 	ParseContentUrl(url, contentType, location, symptom);
 
-	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'\n",
+	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
 }
 
@@ -131,7 +131,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode >= 400)
 			{
-				logprintf("AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'\n",
+				logprintf("AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -141,7 +141,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'\n",
+				logprintf("AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -151,7 +151,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'\n",
+				logprintf("AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -320,7 +320,7 @@ void AampLogManager::LogDRMError(int major, int minor)
 		description = "Unrecognized error. Please report this to the STB IP-Video team.";
 	}
 
-	logprintf("AAMPLogDRMError error=%d.%d description='%s'\n", major, minor, description.c_str());
+	logprintf("AAMPLogDRMError error=%d.%d description='%s'", major, minor, description.c_str());
 }
 
 /**
@@ -381,7 +381,7 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 			symptom += " (or) freeze/buffering";
 		}
 
-		logprintf("AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'\n",
+		logprintf("AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'",
 			profile.c_str(), pstAbrInfo->currentProfileIndex, pstAbrInfo->desiredProfileIndex, pstAbrInfo->currentBandwidth,
 			pstAbrInfo->desiredBandwidth, pstAbrInfo->networkBandwidth, reason.c_str(), symptom.c_str());
 	}
@@ -435,7 +435,7 @@ void logprintf(const char *format, ...)
 	{
 		struct timeval t;
 		gettimeofday(&t, NULL);
-		printf("%ld:%3ld : %s", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 	}
 #else  //USE_SYSTEMD_JOURNAL_PRINT
 #ifdef WIN32
@@ -449,11 +449,11 @@ void logprintf(const char *format, ...)
 		fclose(f);
 	}
 
-	printf("%s", gDebugPrintBuffer);
+	printf("%s\n", gDebugPrintBuffer);
 #else
 	struct timeval t;
 	gettimeofday(&t, NULL);
-	printf("%ld:%3ld : %s", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+	printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 #endif
 #endif
 }

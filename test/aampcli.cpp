@@ -146,7 +146,7 @@ static void* AAMPGstPlayer_StreamThread(void *arg)
 	if (AAMPGstPlayerMainLoop)
 	{
 		g_main_loop_run(AAMPGstPlayerMainLoop); // blocks
-		logprintf("AAMPGstPlayer_StreamThread: exited main event loop\n");
+		logprintf("AAMPGstPlayer_StreamThread: exited main event loop");
 	}
 	g_main_loop_unref(AAMPGstPlayerMainLoop);
 	AAMPGstPlayerMainLoop = NULL;
@@ -179,7 +179,7 @@ void TermPlayerLoop()
 		g_main_loop_quit(AAMPGstPlayerMainLoop);
 		g_thread_join(aampMainLoopThread);
 		gst_deinit ();
-		logprintf("%s(): Exit\n", __FUNCTION__);
+		logprintf("%s(): Exit", __FUNCTION__);
 	}
 }
 
@@ -191,7 +191,7 @@ static void ShowHelp(void)
 	int i = 0;
 	if (!mVirtualChannelMap.empty())
 	{
-		logprintf("\nChannel Map from aampcli.cfg\n*************************\n");
+		logprintf("Channel Map from aampcli.cfg\n*************************");
 
 		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
 		{
@@ -209,20 +209,20 @@ static void ShowHelp(void)
 		printf("\n");
 	}
 
-	logprintf("List of Commands\n****************\n");
-	logprintf("<channelNumber> // Play selected channel from guide\n");
-	logprintf("<url> // Play arbitrary stream\n");
-	logprintf("pause play stop status flush // Playback options\n");
-	logprintf("sf, ff<x> rw<y> // Trickmodes (x <= 128. y <= 128)\n");
-	logprintf("+ - // Change profile\n");
-	logprintf("bps <x> // set bitrate \n");
-	logprintf("sap // Use SAP track (if avail)\n");
-	logprintf("seek <seconds> // Specify start time within manifest\n");
-	logprintf("live // Seek to live point\n");
-	logprintf("underflow // Simulate underflow\n");
-	logprintf("retune // schedule retune\n");
-	logprintf("help // Show this list again\n");
-	logprintf("exit // Exit from application\n");
+	logprintf("List of Commands\n****************");
+	logprintf("<channelNumber> // Play selected channel from guide");
+	logprintf("<url> // Play arbitrary stream");
+	logprintf("pause play stop status flush // Playback options");
+	logprintf("sf, ff<x> rw<y> // Trickmodes (x <= 128. y <= 128)");
+	logprintf("+ - // Change profile");
+	logprintf("bps <x> // set bitrate ");
+	logprintf("sap // Use SAP track (if avail)");
+	logprintf("seek <seconds> // Specify start time within manifest");
+	logprintf("live // Seek to live point");
+	logprintf("underflow // Simulate underflow");
+	logprintf("retune // schedule retune");
+	logprintf("help // Show this list again");
+	logprintf("exit // Exit from application");
 }
 
 
@@ -245,31 +245,31 @@ public:
 		switch (e.type)
 		{
 		case AAMP_EVENT_TUNED:
-			logprintf("AAMP_EVENT_TUNED\n");
+			logprintf("AAMP_EVENT_TUNED");
 			break;
 		case AAMP_EVENT_TUNE_FAILED:
-			logprintf("AAMP_EVENT_TUNE_FAILED\n");
+			logprintf("AAMP_EVENT_TUNE_FAILED");
 			break;
 		case AAMP_EVENT_SPEED_CHANGED:
-			logprintf("AAMP_EVENT_SPEED_CHANGED\n");
+			logprintf("AAMP_EVENT_SPEED_CHANGED");
 			break;
 		case AAMP_EVENT_DRM_METADATA:
-                        logprintf("AAMP_DRM_FAILED\n");
+                        logprintf("AAMP_DRM_FAILED");
                         break;
 		case AAMP_EVENT_EOS:
-			logprintf("AAMP_EVENT_EOS\n");
+			logprintf("AAMP_EVENT_EOS");
 			break;
 		case AAMP_EVENT_PLAYLIST_INDEXED:
-			logprintf("AAMP_EVENT_PLAYLIST_INDEXED\n");
+			logprintf("AAMP_EVENT_PLAYLIST_INDEXED");
 			break;
 		case AAMP_EVENT_PROGRESS:
-			//			logprintf("AAMP_EVENT_PROGRESS\n");
+			//			logprintf("AAMP_EVENT_PROGRESS");
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
-			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED\n");
+			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED");
 			break;
 		case AAMP_EVENT_BITRATE_CHANGED:
-			logprintf("AAMP_EVENT_BITRATE_CHANGED\n");
+			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
 		}
 	}
@@ -320,7 +320,7 @@ static void ProcessCLIConfEntry(char *cfg)
 				}
 				else
 				{
-					logprintf("%s(): Could not parse uri of %s\n", __FUNCTION__, cfg);
+					logprintf("%s(): Could not parse uri of %s", __FUNCTION__, cfg);
 				}
 			}
 	}
@@ -341,7 +341,7 @@ static void ProcessCliCommand(char *cmd)
 		{
 			mSingleton->aamp->mpStreamAbstractionAAMP->DumpProfiles();
 		}
-		logprintf("current bitrate ~= %ld\n", mSingleton->aamp->GetCurrentlyAvailableBandwidth());
+		logprintf("current bitrate ~= %ld", mSingleton->aamp->GetCurrentlyAvailableBandwidth());
 	}
 	else if (strcmp(cmd, "help") == 0)
 	{
@@ -354,13 +354,13 @@ static void ProcessCliCommand(char *cmd)
 	else if (isNumber(cmd))
 	{
 		int channelNumber = atoi(cmd);
-		logprintf("channel number: %d\n", channelNumber);
+		logprintf("channel number: %d", channelNumber);
 		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
 		{
 			VirtualChannelInfo &channelInfo = *it;
 			if(channelInfo.channelNumber == channelNumber)
 			{
-			//	logprintf("Found %d tuning to %s\n",channelInfo.channelNumber, channelInfo.uri.c_str());
+			//	logprintf("Found %d tuning to %s",channelInfo.channelNumber, channelInfo.uri.c_str());
 				mSingleton->Tune(channelInfo.uri.c_str());
 				break;
 			}
@@ -378,7 +378,7 @@ static void ProcessCliCommand(char *cmd)
 	{
 		if (rate >= 128)
 		{
-			logprintf("Speed not supported.\n");
+			logprintf("Speed not supported.");
 		}
 		else
 		{
@@ -397,7 +397,7 @@ static void ProcessCliCommand(char *cmd)
 	{
 		if (rate >= 128)
 		{
-			logprintf("Speed not supported.\n");
+			logprintf("Speed not supported.");
 		}
 		else
 		{
@@ -406,7 +406,7 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (sscanf(cmd, "bps %d", &rate) == 1)
 	{
-		logprintf("Set video bitrate %d.\n", rate);
+		logprintf("Set video bitrate %d.", rate);
 		mSingleton->SetVideoBitrate(rate);
 	}
 	else if (strcmp(cmd, "flush") == 0)
@@ -456,12 +456,12 @@ static void ProcessCliCommand(char *cmd)
 		{
 			if (zoom)
 			{
-				logprintf("Set zoom to full\n");
+				logprintf("Set zoom to full");
 				mSingleton->SetVideoZoom(VIDEO_ZOOM_FULL);
 			}
 			else
 			{
-				logprintf("Set zoom to none\n");
+				logprintf("Set zoom to none");
 				mSingleton->SetVideoZoom(VIDEO_ZOOM_NONE);
 			}
 		}
@@ -469,7 +469,7 @@ static void ProcessCliCommand(char *cmd)
 	else if (strcmp(cmd, "sap") == 0)
 	{
 		gpGlobalConfig->SAP = !gpGlobalConfig->SAP;
-		logprintf("SAP %s\n", gpGlobalConfig->SAP ? "on" : "off");
+		logprintf("SAP %s", gpGlobalConfig->SAP ? "on" : "off");
 		if (gpGlobalConfig->SAP)
 		{
 			mSingleton->SetLanguage("es");
@@ -488,7 +488,7 @@ static void * run_command(void *arg)
     char *ret = NULL;
     do
     {
-        logprintf("aamp-cli> ");
+        printf("[AAMP-PLAYER] aamp-cli> ");
         if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
             ProcessCliCommand(cmd);
     } while (ret != NULL);
@@ -569,7 +569,7 @@ static GLuint LoadShader( GLenum type )
 		{
 			GLchar msg[1024];
 			glGetShaderInfoLog(shaderHandle, sizeof(msg), 0, &msg[0]);
-			logprintf( "%s\n", msg );
+			logprintf( "%s", msg );
 		}
 	}
 
@@ -745,7 +745,7 @@ void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
 		std::lock_guard<std::mutex> lock(appsinkData.mutex);
 		if(appsinkData.yuvBuffer)
 		{
-			logprintf("Drops frame.\n");
+			logprintf("Drops frame.");
 			delete appsinkData.yuvBuffer;
 		}
 		appsinkData.yuvBuffer = frameBuf;
@@ -782,12 +782,12 @@ int main(int argc, char **argv)
 	try
 	{
 		device::Manager::Initialize();
-		logprintf("device::Manager::Initialize() succeeded\n");
+		logprintf("device::Manager::Initialize() succeeded");
 
 	}
 	catch (...)
 	{
-		logprintf("device::Manager::Initialize() failed\n");
+		logprintf("device::Manager::Initialize() failed");
 	}
 #endif
 	char driveName = (*argv)[0];
@@ -799,9 +799,9 @@ int main(int argc, char **argv)
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 
-	logprintf("**************************************************************************\n");
-	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
-	logprintf("**************************************************************************\n");
+	logprintf("**************************************************************************");
+	logprintf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **");
+	logprintf("**************************************************************************");
 
 	InitPlayerLoop(0,NULL);
 
@@ -827,7 +827,7 @@ int main(int argc, char **argv)
 #endif
 	if (f)
 	{
-		logprintf("opened aampcli.cfg\n");
+		logprintf("opened aampcli.cfg");
 		char buf[MAX_BUFFER_LENGTH];
 		while (fgets(buf, sizeof(buf), f))
 		{
@@ -845,7 +845,7 @@ int main(int argc, char **argv)
 	glutInitWindowPosition(80, 80);
 	glutInitWindowSize(640, 480);
 	glutCreateWindow("AAMP Texture Player");
-	logprintf("OpenGL Version[%s] GLSL Version[%s]\n", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
+	logprintf("OpenGL Version[%s] GLSL Version[%s]", glGetString(GL_VERSION), glGetString(GL_SHADING_LANGUAGE_VERSION));
 #ifndef __APPLE__
 	glewInit();
 #endif

@@ -1135,7 +1135,7 @@ public:
 
 			"%d,%d," 		// VideoDecryptDuration, AudioDecryptDuration
 			"%d,%d," 		// gstPlayStartTime, gstFirstFrameTime
-			"%d,%d,%d\n", 		// contentType, streamType, firstTune
+			"%d,%d,%d", 		// contentType, streamType, firstTune
 			// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 			4, // version for this protocol, initially zero
@@ -1219,7 +1219,7 @@ public:
 								xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries,firstTuneType,NOW_SYSTEM_TS_MS
 								);
 #ifndef CREATE_PIPE_SESSION_TO_XRE
-						logprintf("AAMP=>XRE: %s\n",TuneTimeInfoStr);
+						logprintf("AAMP=>XRE: %s",TuneTimeInfoStr);
 #endif
 
 	}
@@ -1294,7 +1294,7 @@ public:
 			"first-frame"
 			};
 
-			logprintf("aamp %7d (+%6d): %s\n",
+			logprintf("aamp %7d (+%6d): %s",
 			bucket->tStart,
 			bucket->tFinish - bucket->tStart,
 			bucketName[type]);
@@ -1326,7 +1326,7 @@ public:
 	void SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType)
 	{
 		if(!mTuneFailErrorCode){
-			AAMPLOG_INFO("%s:%d Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d\n", __FUNCTION__, __LINE__, failBucketType, tuneFailCode);
+			AAMPLOG_INFO("%s:%d Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", __FUNCTION__, __LINE__, failBucketType, tuneFailCode);
 			mTuneFailErrorCode = tuneFailCode;
 			mTuneFailBucketType = failBucketType;
 		}
