@@ -62,7 +62,7 @@ static void* BufferHealthMonitor(void* user_data)
 	MediaTrack *track = (MediaTrack *)user_data;
 	if(aamp_pthread_setname(pthread_self(), "aampBuffHealth"))
 	{
-		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
 	track->MonitorBufferHealth();
 	return NULL;
@@ -121,7 +121,7 @@ void MediaTrack::MonitorBufferHealth()
 				}
 				else
 				{
-					logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f\n",__FUNCTION__, __LINE__,
+					logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f",__FUNCTION__, __LINE__,
 							name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
 					if (bufferedTime <= 0)
 					{
@@ -135,13 +135,13 @@ void MediaTrack::MonitorBufferHealth()
 			}
 			if (bufferStatus != prevBufferStatus)
 			{
-				logprintf("aamp: track[%s] buffering %s->%s\n", name, GetBufferHealthStatusString(prevBufferStatus),
+				logprintf("aamp: track[%s] buffering %s->%s", name, GetBufferHealthStatusString(prevBufferStatus),
 						GetBufferHealthStatusString(bufferStatus));
 				prevBufferStatus = bufferStatus;
 			}
 			else
 			{
-				traceprintf("%s:%d track[%s] No Change [%s]\n", __FUNCTION__, __LINE__, name,
+				traceprintf("%s:%d track[%s] No Change [%s]", __FUNCTION__, __LINE__, name,
 						GetBufferHealthStatusString(bufferStatus));
 			}
 		}
@@ -170,7 +170,7 @@ void MediaTrack::UpdateTSAfterInject()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] updated fragmentIdxToInject = %d numberOfFragmentsCached %d\n", __FUNCTION__, __LINE__,
+		logprintf("%s:%d [%s] updated fragmentIdxToInject = %d numberOfFragmentsCached %d", __FUNCTION__, __LINE__,
 		        name, fragmentIdxToInject, numberOfFragmentsCached);
 	}
 #endif
@@ -190,7 +190,7 @@ void MediaTrack::UpdateTSAfterFetch()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] before update fragmentIdxToFetch = %d numberOfFragmentsCached %d\n",
+		logprintf("%s:%d [%s] before update fragmentIdxToFetch = %d numberOfFragmentsCached %d",
 		        __FUNCTION__, __LINE__, name, fragmentIdxToFetch, numberOfFragmentsCached);
 	}
 #endif
@@ -203,12 +203,12 @@ void MediaTrack::UpdateTSAfterFetch()
 			cacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
 			if(cacheDurationSeconds >= gpGlobalConfig->minVODCacheSeconds)
 			{
-				logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minVODCacheSeconds %d##\n", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
+				logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
 				notifyCacheCompleted = true;
 			}
 			else
 			{
-				logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minVODCacheSeconds %d##\n", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
+				logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
 			}
 		}
 	}
@@ -222,7 +222,7 @@ void MediaTrack::UpdateTSAfterFetch()
 	{
 		if (numberOfFragmentsCached == 0)
 		{
-			logprintf("## %s:%d [%s] Caching fragment for track when numberOfFragmentsCached is 0 ##\n", __FUNCTION__, __LINE__, name);
+			logprintf("## %s:%d [%s] Caching fragment for track when numberOfFragmentsCached is 0 ##", __FUNCTION__, __LINE__, name);
 		}
 	}
 #endif
@@ -231,7 +231,7 @@ void MediaTrack::UpdateTSAfterFetch()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] updated fragmentIdxToFetch = %d numberOfFragmentsCached %d\n",
+		logprintf("%s:%d [%s] updated fragmentIdxToFetch = %d numberOfFragmentsCached %d",
 			__FUNCTION__, __LINE__, name, fragmentIdxToFetch, numberOfFragmentsCached);
 	}
 #endif
@@ -282,7 +282,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 			}
 			else if (0 != pthreadReturnValue)
 			{
-				logprintf("%s:%d [%s] pthread_cond_timedwait returned %s\n", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+				logprintf("%s:%d [%s] pthread_cond_timedwait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
 				ret = false;
 			}
 		}
@@ -291,20 +291,20 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 #ifdef AAMP_DEBUG_FETCH_INJECT
 			if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 			{
-				logprintf("%s:%d [%s] waiting for fragmentInjected condition\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d [%s] waiting for fragmentInjected condition", __FUNCTION__, __LINE__, name);
 			}
 #endif
 			pthreadReturnValue = pthread_cond_wait(&fragmentInjected, &mutex);
 
 			if (0 != pthreadReturnValue)
 			{
-				logprintf("%s:%d [%s] pthread_cond_wait returned %s\n", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+				logprintf("%s:%d [%s] pthread_cond_wait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
 				ret = false;
 			}
 #ifdef AAMP_DEBUG_FETCH_INJECT
 			if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 			{
-				logprintf("%s:%d [%s] wait complete for fragmentInjected\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d [%s] wait complete for fragmentInjected", __FUNCTION__, __LINE__, name);
 			}
 #endif
 		}
@@ -313,7 +313,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 #ifdef AAMP_DEBUG_FETCH_INJECT
 			if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 			{
-				logprintf("%s:%d [%s] abort set, returning false\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d [%s] abort set, returning false", __FUNCTION__, __LINE__, name);
 			}
 #endif
 			ret = false;
@@ -322,7 +322,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] fragmentIdxToFetch = %d numberOfFragmentsCached %d\n",
+		logprintf("%s:%d [%s] fragmentIdxToFetch = %d numberOfFragmentsCached %d",
 			__FUNCTION__, __LINE__, name, fragmentIdxToFetch, numberOfFragmentsCached);
 	}
 #endif
@@ -343,7 +343,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 		{
-			logprintf("## %s:%d [%s] Waiting for CachedFragment to be available, eosReached=%d ##\n", __FUNCTION__, __LINE__, name, eosReached);
+			logprintf("## %s:%d [%s] Waiting for CachedFragment to be available, eosReached=%d ##", __FUNCTION__, __LINE__, name, eosReached);
 		}
 #endif
 		if (!eosReached)
@@ -354,7 +354,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] fragmentIdxToInject = %d numberOfFragmentsCached %d\n",
+		logprintf("%s:%d [%s] fragmentIdxToInject = %d numberOfFragmentsCached %d",
 			__FUNCTION__, __LINE__, name, fragmentIdxToInject, numberOfFragmentsCached);
 	}
 #endif
@@ -377,7 +377,7 @@ void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 #ifdef AAMP_DEBUG_FETCH_INJECT
 		if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 		{
-			logprintf("%s:%d [%s] signal fragmentInjected condition\n", __FUNCTION__, __LINE__, name);
+			logprintf("%s:%d [%s] signal fragmentInjected condition", __FUNCTION__, __LINE__, name);
 		}
 #endif
 		pthread_cond_signal(&fragmentInjected);
@@ -397,7 +397,7 @@ void MediaTrack::AbortWaitForCachedFragment()
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] signal fragmentInjected condition\n", __FUNCTION__, __LINE__, name);
+		logprintf("%s:%d [%s] signal fragmentInjected condition", __FUNCTION__, __LINE__, name);
 	}
 #endif
 	pthread_cond_signal(&fragmentFetched);
@@ -419,7 +419,7 @@ bool MediaTrack::InjectFragment()
 		bool fragmentDiscarded = false;
 		CachedFragment* cachedFragment = &this->cachedFragment[fragmentIdxToInject];
 #ifdef TRACE
-		logprintf("%s:%d [%s] - fragmentIdxToInject %d cachedFragment %p ptr %p\n", __FUNCTION__, __LINE__,
+		logprintf("%s:%d [%s] - fragmentIdxToInject %d cachedFragment %p ptr %p", __FUNCTION__, __LINE__,
 				name, fragmentIdxToInject, cachedFragment, cachedFragment->fragment.ptr);
 #endif
 		if (cachedFragment->fragment.ptr)
@@ -430,13 +430,13 @@ bool MediaTrack::InjectFragment()
 			{
 				if (cachedFragment->discontinuity)
 				{
-					logprintf("%s:%d [%s] Discontinuity present. uri %s\n", __FUNCTION__, __LINE__, name, cachedFragment->uri);
+					logprintf("%s:%d [%s] Discontinuity present. uri %s", __FUNCTION__, __LINE__, name, cachedFragment->uri);
 				}
 			}
 #endif
 			if (type == eTRACK_SUBTITLE && cachedFragment->discontinuity)
 			{
-				logprintf("%s:%d [%s] notifying discontinuity to parser!\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d [%s] notifying discontinuity to parser!", __FUNCTION__, __LINE__, name);
 				if (mSubtitleParser)
 				{
 					mSubtitleParser->reset();
@@ -448,7 +448,7 @@ bool MediaTrack::InjectFragment()
 			}
 			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
-				logprintf("%s:%d - track %s - notifying aamp discontinuity\n", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d - track %s - notifying aamp discontinuity", __FUNCTION__, __LINE__, name);
 				cachedFragment->discontinuity = false;
 				ptsError = false;
 				stopInjection = aamp->Discontinuity((MediaType) type);
@@ -465,11 +465,11 @@ bool MediaTrack::InjectFragment()
 				{
 					ret = false;
 					discontinuityProcessed = true;
-					logprintf("%s:%d - stopping injection\n", __FUNCTION__, __LINE__);
+					logprintf("%s:%d - stopping injection", __FUNCTION__, __LINE__);
 				}
 				else
 				{
-					logprintf("%s:%d - continuing injection\n", __FUNCTION__, __LINE__);
+					logprintf("%s:%d - continuing injection", __FUNCTION__, __LINE__);
 				}
 			}
 			else if (cachedFragment->discontinuity)
@@ -482,7 +482,7 @@ bool MediaTrack::InjectFragment()
 #ifdef AAMP_DEBUG_INJECT
 				if ((1 << type) & AAMP_DEBUG_INJECT)
 				{
-					logprintf("%s:%d [%s] Inject uri %s\n", __FUNCTION__, __LINE__, name, cachedFragment->uri);
+					logprintf("%s:%d [%s] Inject uri %s", __FUNCTION__, __LINE__, name, cachedFragment->uri);
 				}
 #endif
 				if (type == eTRACK_SUBTITLE)
@@ -509,7 +509,7 @@ bool MediaTrack::InjectFragment()
 				{
 					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex);
 				}
-				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f\n", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
+				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
 				if (!fragmentDiscarded)
 				{
 					totalInjectedDuration += cachedFragment->duration;
@@ -517,12 +517,12 @@ bool MediaTrack::InjectFragment()
 				}
 				else
 				{
-					logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded\n", __FUNCTION__, __LINE__, name);
+					logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded", __FUNCTION__, __LINE__, name);
 					mSegInjectFailCount++;
 					if(MAX_SEG_INJECT_FAIL_COUNT <= mSegInjectFailCount)
 					{
 						ret	= false;
-						logprintf("%s:%d [%s] Reached max inject failure count, stopping playback\n",__FUNCTION__, __LINE__, name);
+						logprintf("%s:%d [%s] Reached max inject failure count, stopping playback",__FUNCTION__, __LINE__, name);
 						aamp->SendErrorEvent(AAMP_TUNE_FAILED_PTS_ERROR);
 					}
 					
@@ -547,14 +547,14 @@ bool MediaTrack::InjectFragment()
 			}
 			else
 			{
-				logprintf("%s:%d - %s - NULL ptr to inject. fragmentIdxToInject %d\n", __FUNCTION__, __LINE__, name, fragmentIdxToInject);
+				logprintf("%s:%d - %s - NULL ptr to inject. fragmentIdxToInject %d", __FUNCTION__, __LINE__, name, fragmentIdxToInject);
 			}
 			ret = false;
 		}
 	}
 	else
 	{
-		logprintf("WaitForCachedFragmentAvailable %s aborted\n", name);
+		logprintf("WaitForCachedFragmentAvailable %s aborted", name);
 		if (eosReached)
 		{
 			//Save the playback rate prior to sending EOS
@@ -585,7 +585,7 @@ static void *FragmentInjector(void *arg)
 	MediaTrack *track = (MediaTrack *)arg;
 	if(aamp_pthread_setname(pthread_self(), "aampInjector"))
 	{
-		logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
 	track->RunInjectLoop();
 	return NULL;
@@ -608,7 +608,7 @@ void MediaTrack::StartInjectLoop()
 	}
 	else
 	{
-		logprintf("Failed to create FragmentInjector thread\n");
+		logprintf("Failed to create FragmentInjector thread");
 	}
 }
 
@@ -628,7 +628,7 @@ void MediaTrack::RunInjectLoop()
 		}
 		else
 		{
-			logprintf("Failed to create BufferHealthMonitor thread errno = %d, %s\n", errno, strerror(errno));
+			logprintf("Failed to create BufferHealthMonitor thread errno = %d, %s", errno, strerror(errno));
 		}
 	}
 	totalInjectedDuration = 0;
@@ -663,7 +663,7 @@ void MediaTrack::RunInjectLoop()
 		}
 	}
 	abortInject = true;
-	AAMPLOG_WARN("fragment injector done. track %s\n", name);
+	AAMPLOG_WARN("fragment injector done. track %s", name);
 }
 
 
@@ -677,12 +677,12 @@ void MediaTrack::StopInjectLoop()
 		int rc = pthread_join(fragmentInjectorThreadID, NULL);
 		if (rc != 0)
 		{
-			logprintf("***pthread_join fragmentInjectorThread returned %d(%s)\n", rc, strerror(rc));
+			logprintf("***pthread_join fragmentInjectorThread returned %d(%s)", rc, strerror(rc));
 		}
 #ifdef TRACE
 		else
 		{
-			logprintf("joined fragmentInjectorThread\n");
+			logprintf("joined fragmentInjectorThread");
 		}
 #endif
 	}
@@ -713,7 +713,7 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 	{
 		if (cachedFragment->fragment.ptr)
 		{
-			logprintf("%s:%d fragment.ptr already set - possible memory leak\n", __FUNCTION__, __LINE__);
+			logprintf("%s:%d fragment.ptr already set - possible memory leak", __FUNCTION__, __LINE__);
 		}
 		memset(&cachedFragment->fragment, 0x00, sizeof(GrowableBuffer));
 	}
@@ -777,12 +777,12 @@ MediaTrack::~MediaTrack()
 		int rc = pthread_join(bufferMonitorThreadID, NULL);
 		if (rc != 0)
 		{
-			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)\n", rc, strerror(rc));
+			logprintf("***pthread_join bufferMonitorThreadID returned %d(%s)", rc, strerror(rc));
 		}
 #ifdef TRACE
 		else
 		{
-			logprintf("joined bufferMonitorThreadID\n");
+			logprintf("joined bufferMonitorThreadID");
 		}
 #endif
 	}
@@ -817,7 +817,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 		{
 			pthread_cond_signal(&mCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
-			logprintf("\n%s:%d signalling cond - audioDuration %f videoDuration %f\n",
+			logprintf("%s:%d signalling cond - audioDuration %f videoDuration %f",
 				__FUNCTION__, __LINE__, audioDuration, videoDuration);
 #endif
 		}
@@ -847,7 +847,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	while ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !video->IsInjectionAborted() && !(video->IsAtEndOfTrack()))
 	{
 #ifdef AAMP_DEBUG_FETCH_INJECT
-		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f\n",
+		logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f",
 			__FUNCTION__, __LINE__, audioDuration, videoDuration,video->fragmentDurationSeconds);
 #endif
 		gettimeofday(&tv, NULL);
@@ -865,7 +865,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 #ifndef WIN32
 		if (ret != ETIMEDOUT)
 		{
-			logprintf("%s:%d error while calling pthread_cond_timedwait - %s\n", __FUNCTION__, __LINE__, strerror(ret));
+			logprintf("%s:%d error while calling pthread_cond_timedwait - %s", __FUNCTION__, __LINE__, strerror(ret));
 		}
 #endif
 	}
@@ -888,7 +888,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mAbrManager(), mSubCond()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
-	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
+	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
 	pthread_cond_init(&mSubCond, NULL);
@@ -908,11 +908,11 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
  */
 StreamAbstractionAAMP::~StreamAbstractionAAMP()
 {
-	traceprintf("StreamAbstractionAAMP::%s\n", __FUNCTION__);
+	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
 	pthread_cond_destroy(&mCond);
 	pthread_cond_destroy(&mSubCond);
 	pthread_mutex_destroy(&mLock);
-	AAMPLOG_INFO("Exit StreamAbstractionAAMP::%s\n", __FUNCTION__);
+	AAMPLOG_INFO("Exit StreamAbstractionAAMP::%s", __FUNCTION__);
 }
 
 /**
@@ -951,9 +951,9 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 	}
 	else
 	{
-		AAMPLOG_TRACE("%s:%d video track NULL\n", __FUNCTION__, __LINE__);
+		AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
 	}
-	AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+	AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 
 	return desiredProfileIndex;
 }
@@ -976,7 +976,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 			streamInfo->bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
 		{
 			MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f\n",
+			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f",
 				streamInfo->bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
 			aamp->IsTuneTypeNew = false;
 			lGetBWIndex = true;
@@ -1009,7 +1009,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
-		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
 	}
 }
@@ -1042,7 +1042,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 				currentBandwidth, networkBandwidth, nwConsistencyCnt);
 		if(currentProfileIndex != desiredProfileIndex)
 		{
-			logprintf("aamp::GetDesiredProfileBasedOnCache---> currProf[%d] desiredProf[%d] vidCache[%d]\n",currentProfileIndex,desiredProfileIndex,video->numberOfFragmentsCached);
+			logprintf("aamp::GetDesiredProfileBasedOnCache---> currProf[%d] desiredProf[%d] vidCache[%d]",currentProfileIndex,desiredProfileIndex,video->numberOfFragmentsCached);
 		}
 	}
 	// only for first call, consistency check is ignored
@@ -1075,7 +1075,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 			}
 			else
 			{
-				logprintf("%s:%d lowestIframeProfile Invalid - Stream does not has an iframe track!! \n", __FUNCTION__, __LINE__);
+				logprintf("%s:%d lowestIframeProfile Invalid - Stream does not has an iframe track!! ", __FUNCTION__, __LINE__);
 			}
 		}
 	}
@@ -1102,7 +1102,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
-		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		ret = true;
 		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
 
@@ -1129,7 +1129,7 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		{
 			if (RampDownProfile(http_error))
 			{
-				AAMPLOG_INFO("StreamAbstractionAAMP::%s:%d > Condition Rampdown Success\n", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("StreamAbstractionAAMP::%s:%d > Condition Rampdown Success", __FUNCTION__, __LINE__);
 				retValue = true;
 			}
 		}
@@ -1177,7 +1177,7 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 			//If available BW is less than current selected one, we need ABR
 			if (availBW > 0 && availBW < currBW)
 			{
-				logprintf("%s:%d Changing profile due to low available bandwidth(%ld) than default(%ld)!! \n", __FUNCTION__, __LINE__, availBW, currBW);
+				logprintf("%s:%d Changing profile due to low available bandwidth(%ld) than default(%ld)!! ", __FUNCTION__, __LINE__, availBW, currBW);
 			}
 			else
 			{
@@ -1237,7 +1237,7 @@ void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 		}
 		else
 		{
-			logprintf("StreamAbstractionAAMP:%s() mLastPausedTimeStamp -1\n", __FUNCTION__);
+			logprintf("StreamAbstractionAAMP:%s() mLastPausedTimeStamp -1", __FUNCTION__);
 		}
 	}
 }
@@ -1261,7 +1261,7 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 	bool audioBufferIsEmpty = (audioTrack->Enabled() ? (audioTrack->numberOfFragmentsCached == 0) : true) && aamp->IsSinkCacheEmpty(eMEDIATYPE_AUDIO);
 	if (videoBufferIsEmpty || audioBufferIsEmpty) /* Changed the condition from '&&' to '||', becasue if video getting stalled it doesn't need to wait until audio become dry */
 	{
-		logprintf("StreamAbstractionAAMP:%s() Stall detected. Buffer status is RED!\n", __FUNCTION__);
+		logprintf("StreamAbstractionAAMP:%s() Stall detected. Buffer status is RED!", __FUNCTION__);
 		return true;
 	}
 	return false;
@@ -1281,7 +1281,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 	if (desiredProfileIndex != currentProfileIndex)
 	{
 #if 0 /* Commented since the same is supported via AAMP_LOG_ABR_INFO */
-		logprintf("\n\n**aamp changing profile: %d->%d [%ld->%ld]\n\n",
+		logprintf("**aamp changing profile: %d->%d [%ld->%ld]",
 			currentProfileIndex, desiredProfileIndex,
 			GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond,
 			GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond);
@@ -1302,7 +1302,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
-		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		video->ABRProfileChanged();
 		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
 		retVal = true;
@@ -1334,11 +1334,11 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 		// We have not received a new fragment for a long time, check for cache empty required for dash
 		if (!mNetworkDownDetected && (timeElapsedSinceLastFragment > gpGlobalConfig->stallTimeoutInMS) && GetMediaTrack(eTRACK_VIDEO)->numberOfFragmentsCached == 0)
 		{
-			AAMPLOG_INFO("StreamAbstractionAAMP::%s() Didn't download a new fragment for a long time(%f) and cache empty!\n", __FUNCTION__, timeElapsedSinceLastFragment);
+			AAMPLOG_INFO("StreamAbstractionAAMP::%s() Didn't download a new fragment for a long time(%f) and cache empty!", __FUNCTION__, timeElapsedSinceLastFragment);
 			mIsPlaybackStalled = true;
 			if (CheckIfPlayerRunningDry())
 			{
-				logprintf("StreamAbstractionAAMP::%s() Stall detected!. Time elapsed since fragment parsed(%f), caches are all empty!\n", __FUNCTION__, timeElapsedSinceLastFragment);
+				logprintf("StreamAbstractionAAMP::%s() Stall detected!. Time elapsed since fragment parsed(%f), caches are all empty!", __FUNCTION__, timeElapsedSinceLastFragment);
 				aamp->SendStalledErrorEvent();
 			}
 		}
@@ -1367,7 +1367,7 @@ double StreamAbstractionAAMP::GetElapsedTime()
 {
 	double elapsedTime;
 	pthread_mutex_lock(&mLock);
-	traceprintf("StreamAbstractionAAMP:%s() mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld\n", __FUNCTION__, mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
+	traceprintf("StreamAbstractionAAMP:%s() mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld", __FUNCTION__, mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
 	if (!mIsPaused)
 	{
 		elapsedTime = (double)(aamp_GetCurrentTimeMS() - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
@@ -1416,7 +1416,7 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 		if (currentProfileIndex != desiredProfileIndex)
 		{
 #if 0 /* Commented since the same is supported via AAMP_LOG_ABR_INFO */
-			logprintf("\n\n**aamp changing profile based on user request: %d->%d [%ld->%ld]\n\n",
+			logprintf("**aamp changing profile based on user request: %d->%d [%ld->%ld]",
 				currentProfileIndex, desiredProfileIndex,
 				GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond,
 				GetStreamInfo(desiredProfileIndex)->bandwidthBitsPerSecond);
@@ -1435,7 +1435,7 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 #endif /* 0 */
 			this->currentProfileIndex = desiredProfileIndex;
 			profileIdxForBandwidthNotification = desiredProfileIndex;
-			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d \n", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 			video->ABRProfileChanged();
 			video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
 		}
@@ -1458,7 +1458,7 @@ static bool getEstbMac(char* mac)
 	FILE* fp = fopen("/etc/device.properties", "rb");
 	if (fp)
 	{
-		logprintf("%s:%d - opened /etc/device.properties\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
 		char buf[MAX_BUFF_LENGTH];
 		while (fgets(buf, sizeof(buf), fp))
 		{
@@ -1486,14 +1486,14 @@ static bool getEstbMac(char* mac)
 	}
 	else
 	{
-		logprintf("%s:%d - failed to open /etc/device.properties\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
 	}
 #endif
-	logprintf("%s:%d - use nwInterface %s\n", __FUNCTION__, __LINE__, nwInterface);
+	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
 	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockFd == -1)
 	{
-		logprintf("%s:%d - Socket open failed\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
 	}
 	else
 	{
@@ -1501,14 +1501,14 @@ static bool getEstbMac(char* mac)
 		strcpy(ifr.ifr_name, nwInterface);
 		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
 		{
-			logprintf("%s:%d - Socket ioctl failed\n", __FUNCTION__, __LINE__);
+			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
 		}
 		else
 		{
 			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
 			strcpy(mac, macAddress);
 			free(macAddress);
-			logprintf("%s:%d - Mac %s\n", __FUNCTION__, __LINE__, mac);
+			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
 			ret = true;
 		}
 		close(sockFd);
@@ -1531,11 +1531,11 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 	static bool estbMacAvalable = getEstbMac(randString);
 	if (estbMacAvalable)
 	{
-		traceprintf ("%s:%d - estbMac %s\n", __FUNCTION__, __LINE__, randString);
+		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
 		int randFD = open("/dev/urandom", O_RDONLY);
 		if (randFD < 0)
 		{
-			logprintf("%s:%d - ERROR - opening /dev/urandom  failed\n", __FUNCTION__, __LINE__);
+			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
 		}
 		else
 		{
@@ -1547,14 +1547,14 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 				ssize_t bytes = read(randFD, &temp, 1);
 				if (bytes < 0)
 				{
-					logprintf("%s:%d - ERROR - reading /dev/urandom  failed\n", __FUNCTION__, __LINE__);
+					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
 					break;
 				}
 				sprintf(uRandString + i * 2, "%02x", temp);
 			}
 			close(randFD);
 			randString[RAND_STRING_LEN] = '\0';
-			logprintf("%s:%d - randString %s\n", __FUNCTION__, __LINE__, randString);
+			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
 			unsigned char hash[SHA_DIGEST_LENGTH];
 			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
 			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
@@ -1562,22 +1562,22 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 			int mod = 0;
 			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
 			{
-				traceprintf ("mod %d hash[%d] %x\n", mod, i, hash[i]);
+				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
 				mod = (mod * 10 + hash[i]) % divisor;
 			}
-			traceprintf ("%s:%d - divisor %d mod %d \n", __FUNCTION__, __LINE__, divisor, (int) mod);
+			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
 			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
 		}
 	}
 	else
 	{
-		logprintf("%s:%d - ERROR - estbMac not available\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
 		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
 	}
 #else
 	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
 #endif
-	logprintf("%s:%d - Added time for deferred license acquisition  %d \n", __FUNCTION__, __LINE__, (int)ret);
+	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
 	return ret;
 }
 
@@ -1630,9 +1630,9 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 	//Allow subtitles to be ahead by 5 seconds compared to audio
 	while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 5.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
 	{
-		traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f\n", subtitleDuration, audioDuration);
+		traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
 #ifdef AAMP_DEBUG_FETCH_INJECT
-		logprintf("\n%s:%d waiting for mSubCond - subtitleDuration %f audioDuration %f\n",
+		logprintf("%s:%d waiting for mSubCond - subtitleDuration %f audioDuration %f",
 			__FUNCTION__, __LINE__, subtitleDuration, audioDuration);
 #endif
 		gettimeofday(&tv, NULL);
@@ -1650,7 +1650,7 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 #ifndef WIN32
 		if (ret != ETIMEDOUT)
 		{
-			logprintf("%s:%d error while calling pthread_cond_timedwait - %s\n", __FUNCTION__, __LINE__, strerror(ret));
+			logprintf("%s:%d error while calling pthread_cond_timedwait - %s", __FUNCTION__, __LINE__, strerror(ret));
 		}
 #endif
 		audioDuration = audio->GetTotalInjectedDuration();
@@ -1673,7 +1673,7 @@ void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup()
 		{
 			pthread_cond_signal(&mSubCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
-			logprintf("%s:%d signalling mSubCond\n", __FUNCTION__, __LINE__);
+			logprintf("%s:%d signalling mSubCond", __FUNCTION__, __LINE__);
 #endif
 		}
 		pthread_mutex_unlock(&mLock);

@@ -442,7 +442,7 @@ public:
                 int code = ev.data.dash_drmmetadata.accessStatus_value;
                 const char* description = ev.data.dash_drmmetadata.accessStatus;
 
-                ERROR("AAMP_Listener_DRMMetadata code %d Description %s\n", code, description);
+                ERROR("AAMP_Listener_DRMMetadata code %d Description %s", code, description);
                 prop = JSStringCreateWithUTF8CString("code");
                 JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, code), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(prop);
@@ -488,7 +488,7 @@ public:
                 int severity = ev.data.anomalyReport.severity;
                 const char* description = ev.data.anomalyReport.msg;
 
-                ERROR("AAMP_Listener_AnomalyReport severity %d Description %s\n", severity, description);
+                ERROR("AAMP_Listener_AnomalyReport severity %d Description %s", severity, description);
                 prop = JSStringCreateWithUTF8CString("severity");
                 JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, severity), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(prop);

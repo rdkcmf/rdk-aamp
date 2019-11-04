@@ -33,7 +33,7 @@ static void *AdFulfillThreadEntry(void *arg)
     PrivateCDAIObjectMPD *_this = (PrivateCDAIObjectMPD *)arg;
     if(aamp_pthread_setname(pthread_self(), "AdFulfillThread"))
     {
-        logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+        logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
     }
     _this->FulFillAdObject();
     return NULL;
@@ -73,7 +73,7 @@ PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 		int rc = pthread_join(mAdObjThreadID, NULL);
 		if (rc != 0)
 		{
-			logprintf("%s:%d ***pthread_join failed, returned %d\n", __FUNCTION__, __LINE__, rc);
+			logprintf("%s:%d ***pthread_join failed, returned %d", __FUNCTION__, __LINE__, rc);
 		}
 		mAdObjThreadID = 0;
 	}
@@ -107,7 +107,7 @@ void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodId
 		if ((mPlacementObj.pendingAdbrkId != it->first) && (mCurPlayingBreakId != it->first) &&//We should not remove the pending/playing adbreakObj
 				(newPeriodIds.end() == std::find(newPeriodIds.begin(), newPeriodIds.end(), it->first))) {
 			auto &adBrkObj = *it;
-			AAMPLOG_INFO("%s:%d [CDAI] Removing the period[%s] from mAdBreaks.\n", __FUNCTION__, __LINE__, adBrkObj.first.c_str());
+			AAMPLOG_INFO("%s:%d [CDAI] Removing the period[%s] from mAdBreaks.", __FUNCTION__, __LINE__, adBrkObj.first.c_str());
 			auto adNodes = adBrkObj.second.ads;
 			for(AdNode &ad: *adNodes)
 			{
@@ -277,7 +277,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 								}
 							}
 							ss<<"]}";
-							AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.\n", __FUNCTION__, __LINE__, ss.str().c_str());
+							AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.", __FUNCTION__, __LINE__, ss.str().c_str());
 							break;
 						}
 					}
@@ -397,11 +397,11 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
 	if (gotManifest)
 	{
-		AAMPLOG_TRACE("PrivateCDAIObjectMPD::%s - manifest download success\n", __FUNCTION__);
+		AAMPLOG_TRACE("PrivateCDAIObjectMPD::%s - manifest download success", __FUNCTION__);
 	}
 	else if (mAamp->DownloadsAreEnabled())
 	{
-		AAMPLOG_ERR("PrivateCDAIObjectMPD::%s - manifest download failed\n", __FUNCTION__);
+		AAMPLOG_ERR("PrivateCDAIObjectMPD::%s - manifest download failed", __FUNCTION__);
 	}
 
 	if (gotManifest)
@@ -468,10 +468,10 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 					{
 						Node* child = children.at(i);
 						const std::string& name = child->GetName();
-						AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - child->name %s\n", __FUNCTION__, name.c_str());
+						AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - child->name %s", __FUNCTION__, name.c_str());
 						if (name == "Period")
 						{
-							AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - found period\n", __FUNCTION__);
+							AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - found period", __FUNCTION__);
 							std::vector<Node *> children = child->GetSubNodes();
 							bool hasBaseUrl = false;
 							for (size_t i = 0; i < children.size(); i++)
@@ -503,7 +503,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 								baseUrl->SetName("BaseURL");
 								baseUrl->SetType(Text);
 								baseUrl->SetText(baseUrlStr);
-								AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - manual adding BaseURL Node [%p] text %s\n",
+								AAMPLOG_INFO("PrivateCDAIObjectMPD::%s - manual adding BaseURL Node [%p] text %s",
 								        __FUNCTION__, baseUrl, baseUrl->GetText().c_str());
 								child->AddSubNode(baseUrl);
 							}
@@ -515,30 +515,30 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 				}
 				else
 				{
-					logprintf("%s:%d - Could not create root node\n", __FUNCTION__, __LINE__);
+					logprintf("%s:%d - Could not create root node", __FUNCTION__, __LINE__);
 				}
 			}
 			else
 			{
-				logprintf("%s:%d - xmlTextReaderRead failed\n", __FUNCTION__, __LINE__);
+				logprintf("%s:%d - xmlTextReaderRead failed", __FUNCTION__, __LINE__);
 			}
 			xmlFreeTextReader(reader);
 		}
 		else
 		{
-			logprintf("%s:%d - xmlReaderForMemory failed\n", __FUNCTION__, __LINE__);
+			logprintf("%s:%d - xmlReaderForMemory failed", __FUNCTION__, __LINE__);
 		}
 
 		if (gpGlobalConfig->logging.trace)
 		{
 			aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-			logprintf("%s:%d - Ad manifest: %s\n", __FUNCTION__, __LINE__, manifest.ptr);
+			logprintf("%s:%d - Ad manifest: %s", __FUNCTION__, __LINE__, manifest.ptr);
 		}
 		aamp_Free(&manifest.ptr);
 	}
 	else
 	{
-		logprintf("%s:%d - aamp: error on manifest fetch\n", __FUNCTION__, __LINE__);
+		logprintf("%s:%d - aamp: error on manifest fetch", __FUNCTION__, __LINE__);
 	}
 	return adMpd;
 }
@@ -564,7 +564,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			uint32_t availSpace = adbreakObj.brkDuration - startMS;
 			if(availSpace < durationMs)
 			{
-				AAMPLOG_WARN("%s:%d: Adbreak's available space[%lu] < Ad's Duration[%lu]. Trimming the Ad.\n", __FUNCTION__, __LINE__, availSpace, durationMs);
+				AAMPLOG_WARN("%s:%d: Adbreak's available space[%lu] < Ad's Duration[%lu]. Trimming the Ad.", __FUNCTION__, __LINE__, availSpace, durationMs);
 				durationMs = availSpace;
 			}
 			adbreakObj.adsDuration += durationMs;
@@ -589,24 +589,24 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			}
 			if(!finalManifest)
 			{
-				AAMPLOG_INFO("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.\n", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.", __FUNCTION__, __LINE__);
 				delete ad;
 				ad = NULL;
 			}
 			adBreakAssets->emplace_back(AdNode{false, false, mAdFulfillObj.adId, mAdFulfillObj.url, durationMs, bPeriodId, bOffset, ad});
-			AAMPLOG_WARN("%s:%d: New Ad[Id=%s, url=%s] successfully added.\n", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
+			AAMPLOG_WARN("%s:%d: New Ad[Id=%s, url=%s] successfully added.", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
 
 			adStatus = true;
 		}
 		else
 		{
-			logprintf("%s:%d: AdBreadkId[%s] not existing. Dropping the Ad.\n", __FUNCTION__, __LINE__, periodId.c_str());
+			logprintf("%s:%d: AdBreadkId[%s] not existing. Dropping the Ad.", __FUNCTION__, __LINE__, periodId.c_str());
 			delete ad;
 		}
 	}
 	else
 	{
-		logprintf("%s:%d: Failed to get Ad MPD[%s].\n", __FUNCTION__, __LINE__, mAdFulfillObj.url.c_str());
+		logprintf("%s:%d: Failed to get Ad MPD[%s].", __FUNCTION__, __LINE__, mAdFulfillObj.url.c_str());
 	}
 	mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, adStatus, startMS, durationMs);
 }
@@ -639,7 +639,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 			int ret = 0;
 			if(adbreakObj.brkDuration <= adbreakObj.adsDuration)
 			{
-				AAMPLOG_WARN("%s:%d - No more space left in the Adbreak. Rejecting the promise.\n", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("%s:%d - No more space left in the Adbreak. Rejecting the promise.", __FUNCTION__, __LINE__);
 				ret = -1;
 			}
 			else
@@ -650,7 +650,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 				int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
 				if(ret != 0)
 				{
-					logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.\n", __FUNCTION__, __LINE__, errno, strerror(errno));
+					logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.", __FUNCTION__, __LINE__, errno, strerror(errno));
 				}
 			}
 			if(ret != 0)

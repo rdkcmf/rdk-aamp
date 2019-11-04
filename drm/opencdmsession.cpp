@@ -120,7 +120,7 @@ void LogPerformanceExt(const char* strFunc, uint64_t msStart, uint64_t msEnd, SE
                stats[idx].nTimeTotal += stats[idx].nTimeInterval;
                double avgTime = (double)stats[idx].nTimeTotal/(double)stats[idx].nCallsTotal;
                if(avgTime >= DECRYPT_AVG_TIME_THRESHOLD) {
-                  logprintf("%s >>>>>>>> Thread ID %X (%d) Avg Time %0.2llf ms, Avg Bytes %llu  calls (%llu) Interval avg time %0.2llf, Interval avg bytes %llu\n",
+                  logprintf("%s >>>>>>>> Thread ID %X (%d) Avg Time %0.2llf ms, Avg Bytes %llu  calls (%llu) Interval avg time %0.2llf, Interval avg bytes %llu",
                      strFunc, stats[idx].threadID, idx, avgTime, stats[idx].nBytesTotal/stats[idx].nCallsTotal,
                      stats[idx].nCallsTotal, (double)stats[idx].nTimeInterval/(double)INTERVAL,
                      stats[idx].nBytesInterval/INTERVAL);
@@ -157,41 +157,41 @@ AAMPOCDMSession::AAMPOCDMSession(string& keySystem) :
 		decryptMutex(),
 		m_sessionID()
 {
-	logprintf("AAMPOCDMSession :: enter \n");
+	logprintf("AAMPOCDMSession :: enter ");
 	pthread_mutex_init(&decryptMutex,NULL);
 
 	initAampDRMSession();
 
 	// Get output protection pointer
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
-	logprintf("AAMPOCDMSession :: exit \n");
+	logprintf("AAMPOCDMSession :: exit ");
 }
 
 void AAMPOCDMSession::initAampDRMSession()
 {
-	logprintf("initAampDRMSession :: enter \n");
+	logprintf("initAampDRMSession :: enter ");
 	if (m_pOpencdm == NULL) {
 		m_pOpencdm = new media::OpenCdm();
 	}
 
 	m_pOpencdm->SelectKeySystem(m_keySystem);
-	logprintf("initAampDRMSession :: exit \n");
+	logprintf("initAampDRMSession :: exit ");
 }
 
 void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	logprintf("generateAampDRMSession :: enter \n");
+	logprintf("generateAampDRMSession :: enter ");
 #if USE_NEW_OPENCDM
 	m_sessionID = m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);
-	logprintf("generateAampDRMSession :: sessionId : %s \n", m_sessionID.c_str());
+	logprintf("generateAampDRMSession :: sessionId : %s ", m_sessionID.c_str());
 	if(m_sessionID.empty())	{
 		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
 	}
 #else
 	std::string sessionId;
 	m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, sessionId);
-	logprintf("generateAampDRMSession :: sessionId : %s \n", sessionId.c_str());
+	logprintf("generateAampDRMSession :: sessionId : %s ", sessionId.c_str());
 	if(sessionId.empty())	{
 		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
 	}
@@ -200,7 +200,7 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 AAMPOCDMSession::~AAMPOCDMSession()
 {
-	logprintf("[HHH]OCDMSession destructor called! keySystem %s\n", m_keySystem.c_str());
+	logprintf("[HHH]OCDMSession destructor called! keySystem %s", m_keySystem.c_str());
 	pthread_mutex_destroy(&decryptMutex);
 #if USE_NEW_OPENCDM
 	if(m_pOpencdmDecrypt)
@@ -243,16 +243,16 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 	m_pOpencdm->GetKeyMessage(challenge, temporaryUrl, destinationUrlLength);
 	if (challenge.empty() || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
-		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. \n");
+		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
 		return result;
 	}
 
 
 	std::string delimiter (":Type:");
 	std::string requestType (challenge.substr(0, challenge.find(delimiter)));
-	//logprintf("keymessage is %s\n", challenge.c_str());
-	//logprintf("delimiter is %s\n", delimiter.c_str());
-	//logprintf("requestType is %s\n", requestType.c_str());
+	//logprintf("keymessage is %s", challenge.c_str());
+	//logprintf("delimiter is %s", delimiter.c_str());
+	//logprintf("requestType is %s", requestType.c_str());
 	 
 	if ( (requestType.size() != 0) && (requestType.size() !=  challenge.size()) ) {
 		challenge.erase(0, challenge.find(delimiter) + delimiter.length());
@@ -260,7 +260,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 
 	result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(challenge.c_str())), challenge.length());
 	destinationURL.assign(const_cast<char*>(reinterpret_cast<char*>(temporaryUrl)));
-	logprintf("destination url is %s\n", destinationURL.c_str());
+	logprintf("destination url is %s", destinationURL.c_str());
 #else
 	unsigned char temporaryUrl[1024] = {'\0'};
 	int destinationUrlLength = 0;
@@ -270,13 +270,13 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 
 	if (!challengeLength || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
-		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. \n");
+		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
 		return result;
 	}
 
 	result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(challenge.c_str())), challengeLength);
 	destinationURL.assign(const_cast<char*>(reinterpret_cast<char*>(temporaryUrl)));
-	logprintf("destin url is %s\n", destinationURL.c_str());
+	logprintf("destin url is %s", destinationURL.c_str());
 #endif	
 	m_eKeyState = KEY_PENDING;
 
@@ -296,7 +296,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 
 	if (keyStatus == media::OpenCdm::KeyStatus::Usable) 
 	{
-		logprintf("processKey: Key Usable!\n");
+		logprintf("processKey: Key Usable!");
 	}
 	else if(keyStatus == media::OpenCdm::KeyStatus::HWError)
 	{
@@ -336,7 +336,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 	}
 	else
 	{
-		logprintf("processKey: Update() returned keystatus: %d\n", (int) keyStatus);
+		logprintf("processKey: Update() returned keystatus: %d", (int) keyStatus);
 		m_eKeyState = KEY_ERROR;
 		return retvalue;
 	}
@@ -362,7 +362,7 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 #if USE_NEW_OPENCDM
 	if(!m_pOpencdmDecrypt)
 	{
-		logprintf("m_pOpencdmDecrypt is NULL, can't decrypt yet!\n");
+		logprintf("m_pOpencdmDecrypt is NULL, can't decrypt yet!");
 		return -1;
 	}
 #endif
@@ -375,7 +375,7 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		// Source material is UHD
 		if(!m_pOutputProtection->isHDCPConnection2_2()) {
 			// UHD and not HDCP 2.2
-			logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
+			logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt", __FUNCTION__);
 			return HDCP_AUTHENTICATION_FAILURE;
 		}
 	}
@@ -396,9 +396,9 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 #ifdef USE_SAGE_SVP
 	memcpy(&sb_info, payloadData, sizeof(Rpc_Secbuf_Info));
 	if (B_Secbuf_AllocWithToken(sb_info.size, (B_Secbuf_Type)sb_info.type, sb_info.token, (void **)ppOpaqueData)) {
-		logprintf("[HHH] B_Secbuf_AllocWithToken() failed!\n");
+		logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
 	} else {
-		//logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.\n");
+		//logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.");
 	}
 #endif
 	return retvalue;
@@ -412,7 +412,7 @@ KeyState AAMPOCDMSession::getState()
 
 void AAMPOCDMSession:: clearDecryptContext()
 {
-	logprintf("[HHH] clearDecryptContext.\n");
+	logprintf("[HHH] clearDecryptContext.");
 
 #if USE_NEW_OPENCDM < 1
 	if(m_pOpencdm) m_pOpencdm->ReleaseMem();

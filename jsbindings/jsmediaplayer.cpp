@@ -209,7 +209,7 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 {
 	if (privObj != NULL)
 	{
-		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p \n", __FUNCTION__, privObj);
+		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p ", __FUNCTION__, privObj);
 		if (privObj->_aamp != NULL)
 		{
 			privObj->_aamp->Stop();
@@ -217,7 +217,7 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 			{
 				AAMP_JSEventListener::RemoveAllEventListener(privObj);
 			}
-			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p\n", __FUNCTION__, privObj->_aamp);
+			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p", __FUNCTION__, privObj->_aamp);
 			delete privObj->_aamp;
 			privObj->_aamp = NULL;
 		}
@@ -1797,7 +1797,7 @@ void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 	}
 	else
 	{
-		ERROR("%s:%d [WARN]Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!\n", __FUNCTION__, __LINE__, privObj);
+		ERROR("%s:%d [WARN]Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
 	}
 	JSObjectSetPrivate(object, NULL);
 	ERROR("Exit %s()", __FUNCTION__);
@@ -1913,7 +1913,7 @@ static JSClassDefinition AAMPMediaPlayer_JS_class_def {
 void ClearAAMPPlayerInstances(void)
 {
 	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
-	ERROR("Number of active jsmediaplayer instances: %d\n", AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size());
+	ERROR("Number of active jsmediaplayer instances: %d", AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size());
 	while(AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size() > 0)
 	{
 		AAMPMediaPlayer_JS *obj = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.back();
