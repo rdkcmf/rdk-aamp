@@ -4009,7 +4009,18 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		else
 		{
 			logprintf("mpStreamAbstractionAAMP Init Failed.Error(%d)\n",retVal);
-			SendErrorEvent(AAMP_TUNE_INIT_FAILED);
+			if(retVal == eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR)
+				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_DOWNLOAD_ERROR_DESC); 
+			else if(retVal == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
+				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_CONTENT_ERROR_DESC);
+			//else if(retVal == eAAMPSTATUS_SEEK_RANGE_ERROR)
+				//SendErrorEvent(AAMP_TUNE_INIT_FAILED, "init failed due to seek target is out of range");
+			else if(retVal == eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR)
+				SendErrorEvent(AAMP_TUNE_INIT_FAILED, TRACKS_SYNCHRONISATION_ERROR_DESC);
+			else if(retVal == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
+				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_PARSE_ERROR_DESC);
+
+			
 			//event.data.mediaError.description = "kECFileNotFound (90)";
 			//event.data.mediaError.playerRecoveryEnabled = false;
 		}
