@@ -272,7 +272,7 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 	switch(drmSystem)
 	{
 	case eDRM_WideVine:
-		return "WideWine";
+		return "Widevine";
 	case eDRM_PlayReady:
 		return "PlayReady";
 	case eDRM_CONSEC_agnostic:
@@ -5060,7 +5060,7 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 	switch(currentDRM)
 	{
 		case eDRM_WideVine:
-			drmName = "WideVine";
+			drmName = "Widevine";
 			break;
 		case eDRM_CONSEC_agnostic:
 			drmName = "CONSEC_agnostic";
