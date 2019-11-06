@@ -463,6 +463,8 @@ public:
 				if (!trickmode && type == eMEDIATYPE_VIDEO)
 				{
 					aamp->NotifyFirstVideoPTS(first_pts);
+					//Notifying BasePTS value for media progress event
+					aamp->NotifyVideoBasePTS(getBasePTS());
 				}
 			}
 			/*PARSE PES*/

@@ -358,7 +358,12 @@ void PrivateInstanceAAMP::ReportProgress(void)
 
 		if(gpGlobalConfig->bReportVideoPTS)
 		{
-			eventData.data.progress.videoPTS = mStreamSink->GetVideoPTS();
+				/*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
+				**In order to report PTS of video currently being played out, we add the base PTS
+				**to video PTS received from gstreamer
+				*/
+				/*For DASH,mVideoBasePTS value will be zero */
+				eventData.data.progress.videoPTS = mStreamSink->GetVideoPTS() + mVideoBasePTS;
 		}
 		else
 		{
@@ -6293,6 +6298,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0)
+	,mVideoBasePTS(0)
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
@@ -7960,6 +7966,17 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts)
 	{
 		mpStreamAbstractionAAMP->NotifyFirstVideoPTS(pts);
 	}
+}
+
+/**
+ *   @brief Notifies base PTS of the HLS video playback
+ *
+ *   @param[in]  pts - base pts value
+ */
+void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts)
+{
+		mVideoBasePTS = basepts;
+		logprintf("mVideoBasePTS::%llu\n",mVideoBasePTS);
 }
 
 /**

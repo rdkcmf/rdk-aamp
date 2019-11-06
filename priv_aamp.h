@@ -2880,6 +2880,14 @@ public:
      *   @param[in]  mediaType stream type
      */
 	void CheckForDiscontinuityStall(MediaType mediaType);
+	
+	/**
+	 *   @brief Notifies base PTS of the HLS video playback
+	 *
+	 *   @param[in]  pts - base pts value
+	 */
+	void NotifyVideoBasePTS(unsigned long long basepts);
+
 
 private:
 
@@ -2978,6 +2986,7 @@ private:
 	std::string  mTraceUUID; // Trace ID unique to tune
 	double mTimeToTopProfile;
 	double mTimeAtTopProfile;
+	unsigned long long mVideoBasePTS;
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 };
 
