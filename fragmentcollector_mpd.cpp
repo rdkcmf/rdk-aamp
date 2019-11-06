@@ -2757,7 +2757,7 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	{
 		AAMPLOG_WARN("%s:%d :  Period statTime required to calculate period duration not present in MPD\n", __FUNCTION__, __LINE__);
 	}
-	else if(availabilityStartStr.empty())
+	else if(availabilityStartStr.empty() && !(mpd->GetType() == "static"))
 	{
 		AAMPLOG_WARN("%s:%d :  availabilityStartTime required to calculate period duration not present in MPD\n", __FUNCTION__, __LINE__);
 	}
@@ -2768,7 +2768,10 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	else
 	{
 		ParseISO8601Duration(statTimeStr.c_str(), periodStartMs);
-		availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str());
+		if (!availabilityStartStr.empty())
+		{
+			availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str());
+		}
 		periodEndTime = availablilityStart + ((double)(periodStartMs + periodDurationMs) /1000);
 	}
 	AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %lld\n", __FUNCTION__, __LINE__, periodEndTime);
@@ -2835,7 +2838,16 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 					{
 						//If it's last period find period duration using mpd download time
 						//and minimumUpdatePeriod
-						if(periodIndex == (periods.size() - 1))
+						std::string durationStr =  mpd->GetMediaPresentationDuration();
+						if(!durationStr.empty() && mpd->GetType() == "static")
+						{
+							uint64_t periodStart = 0;
+							uint64_t totalDuration = 0;
+							ParseISO8601Duration( periodStartStr.c_str(), periodStart);
+							ParseISO8601Duration( durationStr.c_str(), totalDuration);
+							durationMs = totalDuration - periodStart;
+						}
+						else if(periodIndex == (periods.size() - 1))
 						{
 							std::string minimumUpdatePeriodStr = mpd->GetMinimumUpdatePeriod();
 							std::string availabilityStartStr = mpd->GetAvailabilityStarttime();
