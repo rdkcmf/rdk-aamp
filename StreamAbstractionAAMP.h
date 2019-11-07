@@ -253,6 +253,12 @@ public:
 	 * @return true if injection is aborted, false otherwise
 	 */
 	bool IsInjectionAborted() { return (abort || abortInject); }
+
+	/**
+	 * @brief Returns if the end of track reached.
+	 */
+	virtual bool IsAtEndOfTrack() { return eosReached;}
+
 protected:
 
 	/**

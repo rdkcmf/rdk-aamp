@@ -405,6 +405,14 @@ public:
 		aamp->SignalTrickModeDiscontinuity();
 	}
 
+	/**
+	 * @brief Returns if the end of track reached.
+	 */
+	bool IsAtEndOfTrack()
+	{
+		return eos;
+	}
+
 	MediaType mediaType;
 	struct FragmentDescriptor fragmentDescriptor;
 	IAdaptationSet *adaptationSet;
