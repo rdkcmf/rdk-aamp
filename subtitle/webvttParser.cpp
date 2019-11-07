@@ -239,7 +239,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 		{
 			char *token = strtok(buffer, " \t\n\r");
 			//VTT is UTF-8 encoded and BOM is 0xEF,0xBB,0xBF
-			if (token[0] == 0xEF && token[1] == 0xBB && token[2] == 0xBF)
+			if ((unsigned char) token[0] == 0xEF && (unsigned char) token[1] == 0xBB && (unsigned char) token[2] == 0xBF)
 			{
 				//skip BOM
 				token += 3;
@@ -392,6 +392,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 	}
 	mCurrentPos = (position + duration) * 1000.0;
 	traceprintf("%s:%d ################# Exit sub PTS:%.3f\n", __FUNCTION__, __LINE__, mCurrentPos);
+	return ret;
 }
 
 

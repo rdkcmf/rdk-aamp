@@ -824,8 +824,8 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - argument should be >= 0!", __FUNCTION__, argumentCount);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Argument should be >= 0!");
+			ERROR("%s(): InvalidArgument - bitrate should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Bitrate should be >= 0!");
 		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
@@ -893,8 +893,8 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - argument should be >= 0!", __FUNCTION__, argumentCount);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Argument should be >= 0!");
+			ERROR("%s(): InvalidArgument - bitrate should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Bitrate should be >= 0!");
 		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
@@ -1079,8 +1079,8 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - argument should not be a negative number", __FUNCTION__, argumentCount);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Argument should not be a negative number");
+			ERROR("%s(): InvalidArgument - volume should not be a negative number", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Volume should not be a negative number");
 		}
 	}
 	else
@@ -1530,7 +1530,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 		// Don't support empty values now
 		if (headerVal.size() == 0)
 		{
-			ERROR("%s() InvalidArgument: Custom header's value is empty", __FUNCTION__, argumentCount);
+			ERROR("%s() InvalidArgument: Custom header's value is empty", __FUNCTION__);
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addCustomHTTPHeader() - 2nd argument should be a string or array of strings");
 			return JSValueMakeUndefined(ctx);
 		}
