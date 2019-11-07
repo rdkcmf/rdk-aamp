@@ -156,6 +156,10 @@ struct AsyncMetricsEventDescriptor : public AsyncEventDescriptor
 static TuneFailureMap tuneFailureMap[] =
 {
 	{AAMP_TUNE_INIT_FAILED, 10, "AAMP: init failed"}, //"Fragmentcollector initialization failed"
+	{AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR, 10, "AAMP: init failed (unable to download manifest)"},
+	{AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR, 10, "AAMP: init failed (manifest missing tracks)"},
+	{AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR, 10, "AAMP: init failed (corrupt/invalid manifest)"},
+	{AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR, 10, "AAMP: init failed (unsynchronized tracks)"},
 	{AAMP_TUNE_MANIFEST_REQ_FAILED, 10, "AAMP: Manifest Download failed"}, //"Playlist refresh failed"
 	{AAMP_TUNE_AUTHORISATION_FAILURE, 40, "AAMP: Authorization failure"},
 	{AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, 10, "AAMP: fragment download failures"},
@@ -181,7 +185,7 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_DRM_KEY_UPDATE_FAILED, 50, "AAMP: Failed to process DRM key"},
 	{AAMP_TUNE_DEVICE_NOT_PROVISIONED, 52, "AAMP: Device not provisioned"},
 	{AAMP_TUNE_HDCP_COMPLIANCE_ERROR, 53, "AAMP: HDCP Compliance Check Failure"},
-    {AAMP_TUNE_INVALID_MANIFEST_FAILURE, 10, "AAMP: Invalid Manifest, parse failed"},
+    	{AAMP_TUNE_INVALID_MANIFEST_FAILURE, 10, "AAMP: Invalid Manifest, parse failed"},
 	{AAMP_TUNE_FAILED_PTS_ERROR, 80, "AAMP: Playback failed due to PTS error"},
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
 };
@@ -4052,17 +4056,21 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		else
 		{
 			logprintf("mpStreamAbstractionAAMP Init Failed.Error(%d)\n",retVal);
-			if(retVal == eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR)
-				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_DOWNLOAD_ERROR_DESC); 
-			else if(retVal == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
-				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_CONTENT_ERROR_DESC);
-			//else if(retVal == eAAMPSTATUS_SEEK_RANGE_ERROR)
-				//SendErrorEvent(AAMP_TUNE_INIT_FAILED, "init failed due to seek target is out of range");
-			else if(retVal == eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR)
-				SendErrorEvent(AAMP_TUNE_INIT_FAILED, TRACKS_SYNCHRONISATION_ERROR_DESC);
-			else if(retVal == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
-				SendErrorEvent(AAMP_TUNE_INIT_FAILED, MANIFEST_PARSE_ERROR_DESC);
-
+			AAMPTuneFailure failReason = AAMP_TUNE_INIT_FAILED;
+			switch(retVal)
+			{
+			case eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR; break;
+			case eAAMPSTATUS_MANIFEST_CONTENT_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR; break;
+			case eAAMPSTATUS_MANIFEST_PARSE_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR; break;
+			case eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR; break;
+			default :
+				break;
+			}
+			SendErrorEvent (failReason);
 			
 			//event.data.mediaError.description = "kECFileNotFound (90)";
 			//event.data.mediaError.playerRecoveryEnabled = false;
