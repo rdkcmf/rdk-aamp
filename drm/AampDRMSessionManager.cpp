@@ -723,7 +723,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
 					pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 #if defined(USE_OPENCDM_ADAPTER)
-					drmSessionContexts[sessionType].drmSession->setKeyId(reinterpret_cast<const char*>(keyId), keyIdLen);
+					drmSessionContexts[sessionSlot].drmSession->setKeyId(reinterpret_cast<const char*>(keyId), keyIdLen);
 #endif
 					free(keyId);
 					return drmSessionContexts[sessionSlot].drmSession;
