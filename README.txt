@@ -87,7 +87,6 @@ drm.cpp
 
 /opt/aamp.cfg
 This optional file supports changes to default logging/behavior and channel remappings to alternate content.
-sap		enable presentation of secondary audio (prelim)
 info		enable logging of requested urls
 gst		enable gstreamer logging including pipeline dump
 progress	enable periodic logging of position
@@ -176,6 +175,13 @@ enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Defaul
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 harvestpath=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
+descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
+
+langcodepref=<X>
+	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
+	1: ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE language codes normalized to 3-character iso639-2 bibliographic encoding(i.e. "ger")
+	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
+	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -211,7 +217,7 @@ play        Resume playback
 rw<val>     Rewind with speed <val>
 live        Seek to live point
 exit        Gracefully exit application
-sap         Toggle between default and secondary audio tracks.
+sap <lang>  Select alternate audio language track.
 bps <val>   Set video bitrate in bps
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg

@@ -193,8 +193,10 @@ typedef enum
 
 } PrivAAMPState;
 
-#define MAX_LANGUAGE_COUNT 4
-#define MAX_LANGUAGE_TAG_LENGTH 4
+#define MAX_LANGUAGE_COUNT 16
+#define MAX_LANGUAGE_TAG_LENGTH 16 // <lang>-<role>
+//(3+1+1) /* iso639-2 + optional 2..9 digit to disambiguate multiple same-language tracms, + nul terminator */
+
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
 #define AD_ID_LENGTH 32
 #define MAX_BITRATE_COUNT 10
@@ -960,9 +962,9 @@ public:
 	/**
 	 *   @brief Get current audio language.
 	 *
-	 *   @return char* - current audio language
+	 *   @return const char* - current audio language
 	 */
-	char* GetCurrentAudioLanguage();
+	const char* GetCurrentAudioLanguage();
 
 	/**
 	 *   @brief Get current drm

@@ -27,6 +27,7 @@
 * trick play handling etc are handled in this file .
 *
 */
+#include "iso639map.h"
 #include "fragmentcollector_hls.h"
 #include "_base64.h"
 #include "base16.h"
@@ -2132,7 +2133,7 @@ void TrackState::IndexPlaylist()
 				else if(startswith(&ptr,"-X-MAP:"))
 				{
 					mInitFragmentInfo = ptr;
-					logprintf("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p", __FUNCTION__, __LINE__, mInitFragmentInfo);
+					AAMPLOG_INFO("%s:%d: #EXT-X-MAP for fragmented mp4 stream %p\n", __FUNCTION__, __LINE__, mInitFragmentInfo);
 				}
 				else if(startswith(&ptr,"-X-PLAYLIST-TYPE:"))
 				{
@@ -2603,10 +2604,12 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 	#endif
 					if (this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
 					{
+						std::string lang = GetLanguageCode(i);
 //	#ifdef TRACE
-						logprintf("GetPlaylistURI checking if preferred language '%s' matches media[%d] language '%s'", aamp->language, i, this->mediaInfo[i].language);
+						logprintf("GetPlaylistURI checking if preferred language '%s' matches media[%d] language '%s'\n", aamp->language, i, lang.c_str() );
 //	#endif
-						if ((aamp->language[0] && this->mediaInfo[i].language && strncmp(aamp->language, this->mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH)==0) || (langChecks == 1 && (this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect)))
+						if ((aamp->language[0] && !lang.empty() && lang==aamp->language) ||
+								(langChecks == 1 && (this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect)))
 						{
 							foundAudio = true;
 							if(langChecks == 1)
@@ -3171,6 +3174,30 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 
 	return retval;
 }
+
+std::string StreamAbstractionAAMP_HLS::GetLanguageCode( int iMedia )
+{
+	std::string lang = this->mediaInfo[iMedia].language;
+
+	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
+	{
+		char lang2[MAX_LANGUAGE_TAG_LENGTH];
+		strcpy( lang2, lang.c_str() );
+		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
+		lang = lang2;
+	}
+
+	if( gpGlobalConfig->bDescriptiveAudioTrack )
+	{
+
+		if( this->mediaInfo[iMedia].name )
+		{ // include NAME (role) as part of advertised language
+			lang += "-" + std::string(this->mediaInfo[iMedia].name);
+		}
+	}
+	return lang;
+}
+
 /***************************************************************************
 * @fn Init
 * @brief Function to initialize member variables,download main manifest and parse 
@@ -3487,7 +3514,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						if (this->mediaInfo[iMedia].type == eMEDIATYPE_AUDIO && this->mediaInfo[iMedia].language)
 						{
-							langList.insert(this->mediaInfo[iMedia].language);
+							langList.insert(GetLanguageCode(iMedia));
 						}
 					}
 

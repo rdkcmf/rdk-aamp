@@ -226,7 +226,7 @@ static void ShowHelp(void)
 }
 
 
-//#define LOG_CLI_EVENTS
+#define LOG_CLI_EVENTS
 #ifdef LOG_CLI_EVENTS
 /**
  * @class myAAMPEventListener
@@ -244,6 +244,13 @@ public:
 	{
 		switch (e.type)
 		{
+		case AAMP_EVENT_MEDIA_METADATA:
+			logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
+			for( int i=0; i<e.data.metadata.languageCount; i++ )
+			{
+				logprintf( "language: %s\n", e.data.metadata.languages[i] );
+			}
+			break;
 		case AAMP_EVENT_TUNED:
 			logprintf("AAMP_EVENT_TUNED");
 			break;
@@ -334,6 +341,7 @@ static void ProcessCliCommand(char *cmd)
 {
 	double seconds = 0;
 	int rate = 0;
+	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -466,17 +474,12 @@ static void ProcessCliCommand(char *cmd)
 			}
 		}
 	}
-	else if (strcmp(cmd, "sap") == 0)
+	else if( sscanf(cmd, "sap %s",lang ) )
 	{
-		gpGlobalConfig->SAP = !gpGlobalConfig->SAP;
-		logprintf("SAP %s", gpGlobalConfig->SAP ? "on" : "off");
-		if (gpGlobalConfig->SAP)
+		logprintf("aamp cli sap called for language %s\n",lang);
+		size_t len = strlen(lang);
 		{
-			mSingleton->SetLanguage("es");
-		}
-		else
-		{
-			mSingleton->SetLanguage("en");
+			mSingleton->SetLanguage( lang );
 		}
 	}
 }

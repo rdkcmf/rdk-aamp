@@ -21,7 +21,7 @@
  * @file fragmentcollector_mpd.cpp
  * @brief Fragment collector implementation of MPEG DASH
  */
-
+#include "iso639map.h"
 #include "fragmentcollector_mpd.h"
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
@@ -124,27 +124,6 @@ struct PeriodInfo {
 
 
 static const char *mMediaTypeName[] = { "video", "audio", "text" };
-
-struct lang3to2struct_t {
-	const char *lang3;
-	const char *lang2;
-};
-
-static lang3to2struct_t langPairs[] = {
-		{ "eng", "en" },
-		{ "spa", "es" },
-		{ "fra", "fr" },
-		{ "fre", "fr" },
-		{ "ger", "de" },
-		{ "deu", "de" },
-		{ "ita", "it" },
-		{ "pol", "pl" },
-		{ "por", "pt" },
-		{ "dut", "nl" },
-		{ "rus", "ru" },
-		{ "vie", "vi" },
-		{ NULL, NULL }
-};
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 #ifdef USE_PLAYERSINKBIN
@@ -567,6 +546,7 @@ private:
 	void SeekInPeriod( double seekPositionSeconds);
 	double GetCulledSeconds();
 	void UpdateLanguageList();
+	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 
 	bool fragmentCollectorThreadStarted;
@@ -1127,24 +1107,6 @@ static void WriteFile(std::string fileName, const char* data, int len)
 }
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
 
-static std::string ConvertLanguage3to2(std::string inputLang)
-{
-	std::string outputLang = inputLang;
-	//Support ISO 639-2 to ISO 639-1 conversion right now
-	if (inputLang.size() == 3)
-	{
-		for(int i = 0; langPairs[i].lang3 != NULL ; i++)
-		{
-			if (strncmp(inputLang.c_str(), langPairs[i].lang3, 3) == 0)
-			{
-				outputLang = std::string(langPairs[i].lang2);
-				break;
-			}
-		}
-		traceprintf("After ConvertLanguage3to2: lang = %s", outputLang.c_str());
-	}
-	return outputLang;
-}
 
 /**
  * @brief Fetch and cache a fragment
@@ -4136,6 +4098,39 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
 	return false;
 }
 
+
+/**
+ * @brief Get the language for an adaptation set
+ * @param adaptationSet Pointer to adaptation set
+ * @retval language of adaptation set
+ */
+std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet )
+{
+	std::string lang = adaptationSet->GetLang();
+
+	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
+	{
+		char lang2[MAX_LANGUAGE_TAG_LENGTH];
+		strcpy( lang2, lang.c_str() );
+		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
+		lang = lang2;
+	}
+ 
+	if( gpGlobalConfig->bDescriptiveAudioTrack )
+	{
+		std::vector<IDescriptor *> role = adaptationSet->GetRole();
+		for (unsigned iRole = 0; iRole < role.size(); iRole++)
+		{
+			if (role.at(iRole)->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+			{
+				lang += "-" + role.at(iRole)->GetValue();
+			}
+		}
+	}
+	return lang;
+}
+
+
 /**
  * @brief Update language list state variables
  */
@@ -4151,7 +4146,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
 			if (IsContentType(adaptationSet, eMEDIATYPE_AUDIO ))
 			{
-				mLangList.insert(adaptationSet->GetLang());
+				mLangList.insert( GetLanguageForAdaptationSet(adaptationSet) );
 			}
 		}
 	}
@@ -4202,7 +4197,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				{
 					if (eMEDIATYPE_SUBTITLE == i)
 					{
-						std::string lang = ConvertLanguage3to2(adaptationSet->GetLang());
+						// map 3 character language code to 2 character
+						char lang2[MAX_LANGUAGE_TAG_LENGTH];
+						strcpy( lang2, adaptationSet->GetLang().c_str() ); // should use GetLanguageForAdaptationSet?
+						iso639map_NormalizeLanguageCode( lang2, ISO639_PREFER_2_CHAR_LANGCODE  );
+						std::string lang = lang2;
+
 						if (lang == aamp->mSubLanguage)
 						{
 							//We support only plain text vtt for now
@@ -4239,7 +4239,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					}
 					else if (eMEDIATYPE_AUDIO == i)
 					{
-						std::string lang = adaptationSet->GetLang();
+						std::string lang = GetLanguageForAdaptationSet(adaptationSet);
 						internalSelRepType = selectedRepType;
 						// found my language configured
 						if(strncmp(aamp->language, lang.c_str(), MAX_LANGUAGE_TAG_LENGTH) == 0)
