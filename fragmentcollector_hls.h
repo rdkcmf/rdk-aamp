@@ -349,7 +349,7 @@ public:
 	void Start();
 	/// Function to handle stop processing of all tracks within stream
 	void Stop(bool clearChannelData);
-	/// Function to initialize member variables,download main manifest and parse  
+	/// Function to initialize member variables,download main manifest and parse
 	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
@@ -365,6 +365,8 @@ public:
 	std::vector<long> GetVideoBitrates(void);
 	/// Function to get available audio bitrates.
 	std::vector<long> GetAudioBitrates(void);
+	/// Function to get the language code
+	std::string GetLanguageCode( int iMedia );
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

@@ -21,7 +21,7 @@
  * @file fragmentcollector_mpd.cpp
  * @brief Fragment collector implementation of MPEG DASH
  */
-
+#include "iso639map.h"
 #include "fragmentcollector_mpd.h"
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
@@ -477,6 +477,7 @@ private:
 	uint64_t GetDurationFromRepresentation();
 	void UpdateCullingState();
 	void UpdateLanguageList();
+	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -3414,6 +3415,39 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
 	return false;
 }
 
+
+/**
+ * @brief Get the language for an adaptation set
+ * @param adaptationSet Pointer to adaptation set
+ * @retval language of adaptation set
+ */
+std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet )
+{
+	std::string lang = adaptationSet->GetLang();
+
+	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
+	{
+		char lang2[MAX_LANGUAGE_TAG_LENGTH];
+		strcpy( lang2, lang.c_str() );
+		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
+		lang = lang2;
+	}
+ 
+	if( gpGlobalConfig->bDescriptiveAudioTrack )
+	{
+		std::vector<IDescriptor *> role = adaptationSet->GetRole();
+		for (unsigned iRole = 0; iRole < role.size(); iRole++)
+		{
+			if (role.at(iRole)->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+			{
+				lang += "-" + role.at(iRole)->GetValue();
+			}
+		}
+	}
+	return lang;
+}
+
+
 /**
  * @brief Update language list state variables
  */
@@ -3429,7 +3463,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
 			if (IsContentType(adaptationSet, eMEDIATYPE_AUDIO ))
 			{
-				mLangList.insert(adaptationSet->GetLang());
+				mLangList.insert( GetLanguageForAdaptationSet(adaptationSet) );
 			}
 		}
 	}
@@ -3495,9 +3529,9 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			{
 				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
-					if (eMEDIATYPE_AUDIO == i)
+				        if (eMEDIATYPE_AUDIO == i)
 					{
-						std::string lang = adaptationSet->GetLang();
+						std::string lang = GetLanguageForAdaptationSet(adaptationSet);
 						internalSelRepType = selectedRepType;
 						// found my language configured
 						if(strncmp(aamp->language, lang.c_str(), MAX_LANGUAGE_TAG_LENGTH) == 0)

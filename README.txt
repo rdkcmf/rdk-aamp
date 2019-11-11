@@ -87,7 +87,6 @@ drm.cpp
 
 /opt/aamp.cfg
 This optional file supports changes to default logging/behavior and channel remappings to alternate content.
-sap		enable presentation of secondary audio (prelim)
 info		enable logging of requested urls
 gst		enable gstreamer logging including pipeline dump
 progress	enable periodic logging of position
@@ -169,6 +168,13 @@ iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe 
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
+
+langcodepref=<X>
+	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
+	1: ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE language codes normalized to 3-character iso639-2 bibliographic encoding(i.e. "ger")
+	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
+	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -204,7 +210,7 @@ play        Resume playback
 rw<val>     Rewind with speed <val>
 live        Seek to live point
 exit        Gracefully exit application
-sap         Toggle between default and secondary audio tracks.
+sap <lang>  Select alternate audio language track.
 bps <val>   Set video bitrate in bps
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
