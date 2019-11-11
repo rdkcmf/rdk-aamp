@@ -1070,9 +1070,9 @@ public:
 	/**
 	 *   @brief Get current audio language.
 	 *
-	 *   @return char* - current audio language
+	 *   @return const char* - current audio language
 	 */
-	char* GetCurrentAudioLanguage();
+	const char* GetCurrentAudioLanguage();
 
 	/**
 	 *   @brief Get current drm
