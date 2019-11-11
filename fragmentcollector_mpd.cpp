@@ -4524,14 +4524,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 							}
 							mContext->UpdateIframeTracks();
 						}
-						if (defaultBitrate != DEFAULT_INIT_BITRATE)
-						{
-							mContext->currentProfileIndex = mContext->GetDesiredProfile(false);
-						}
-						else
-						{
-							mContext->currentProfileIndex = mContext->GetDesiredProfile(true);
-						}
+						mContext->currentProfileIndex = mContext->GetDesiredProfile(false);
 						pMediaStreamContext->representationIndex = mContext->currentProfileIndex;
 						IRepresentation *selectedRepresentation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
 						// for the profile selected ,reset the abr values with default bandwidth values
