@@ -394,7 +394,7 @@ public:
 	void Start();
 	/// Function to handle stop processing of all tracks within stream
 	void Stop(bool clearChannelData);
-	/// Function to initialize member variables,download main manifest and parse  
+	/// Function to initialize member variables,download main manifest and parse
 	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
@@ -412,12 +412,14 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	/// Function to get the Media count 
 	int GetMediaCount(void) { return mMediaCount;}	
-	int GetBestAudioTrackByLanguage( void );
 	// Function to update seek position
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
 	/// Function to initiate precaching of playlist
 	void PreCachePlaylist();	
 	double GetBufferedDuration();
+	/// Function to get the language code
+	std::string GetLanguageCode( int iMedia );
+	int GetBestAudioTrackByLanguage( void );
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

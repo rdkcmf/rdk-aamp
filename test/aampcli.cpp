@@ -328,7 +328,7 @@ void ShowHelpSet(){
 	logprintf("30 - Set Parallel Playlist download (0/1)");
 }
 
-//#define LOG_CLI_EVENTS
+#define LOG_CLI_EVENTS
 #ifdef LOG_CLI_EVENTS
 static class PlayerInstanceAAMP *mpPlayerInstanceAAMP;
 
@@ -348,6 +348,13 @@ public:
 	{
 		switch (e.type)
 		{
+		case AAMP_EVENT_MEDIA_METADATA:
+			logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
+			for( int i=0; i<e.data.metadata.languageCount; i++ )
+			{
+				logprintf( "language: %s\n", e.data.metadata.languages[i] );
+			}
+			break;
 		case AAMP_EVENT_TUNED:
 			logprintf("AAMP_EVENT_TUNED");
 			break;
@@ -586,7 +593,7 @@ static void ProcessCliCommand(char *cmd)
 			logprintf( "GetCurrentAudioLanguage: '%s'\n", mSingleton->GetCurrentAudioLanguage() );
 		}
 	}
-    else if( strcmp(cmd,"getplaybackrate") == 0 )
+	else if( strcmp(cmd,"getplaybackrate") == 0 )
 	{
 		logprintf("Playback Rate: %d\n", mSingleton->GetPlaybackRate());
 	}
@@ -1093,3 +1100,7 @@ int main(int argc, char **argv)
     run_commnds(NULL);
 #endif
 }
+
+
+
+

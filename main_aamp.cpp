@@ -21,7 +21,7 @@
  * @file main_aamp.cpp
  * @brief Advanced Adaptive Media Player (AAMP)
  */
-
+#include "iso639map.h"
 #include <sys/time.h>
 #ifndef DISABLE_DASH
 #include "fragmentcollector_mpd.h"
@@ -3476,6 +3476,26 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
 			logprintf("appSrcForProgressivePlayback:%s\n", gpGlobalConfig->useAppSrcForProgressivePlayback ? "on" : "off");
 		}
+		else if( cfg.compare("descriptiveaudiotrack") == 0 )
+		{
+			gpGlobalConfig->bDescriptiveAudioTrack  = true;
+			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
+		}
+		else if( ReadConfigNumericHelper( cfg, "langcodepref=", value) == 1 )
+		{
+			const char *langCodePrefName[] =
+			{
+				"ISO639_NO_LANGCODE_PREFERENCE",
+				"ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE",
+				"ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE",
+				"ISO639_PREFER_2_CHAR_LANGCODE"
+			};
+			if( value>=0 && value<4 )
+			{
+				gpGlobalConfig->langCodePreference = (LangCodePreference)value;
+				logprintf("langcodepref:%s\n", langCodePrefName[gpGlobalConfig->langCodePreference] );
+			}
+		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_INT("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
@@ -5860,7 +5880,7 @@ bool PlayerInstanceAAMP::IsLive()
  *
  *   @return current audio language
  */
-char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
+const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
 	return aamp->language;
@@ -7370,8 +7390,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-	memset(language, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strcpy(language,"en");
+    iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+    
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
 	pthread_mutexattr_init(&mMutexAttr);
@@ -8354,7 +8375,7 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 	{
 		if(strncmp(mLanguageList[cnt],language,MAX_LANGUAGE_TAG_LENGTH) == 0)
 		{
-			mCurrentLanguageIndex = cnt;
+			mCurrentLanguageIndex = cnt; // needed?
 			break;
 		}
 	}
@@ -8565,11 +8586,14 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	for (std::set<std::string>::iterator iter = langList.begin();
 			(iter != langList.end() && langCount < MAX_LANGUAGE_COUNT) ; iter++)
 	{
-		std::string langEntry = *iter;
-		if (!langEntry.empty())
+		char *dst = event.data.metadata.languages[langCount];
+		const char *src = (*iter).c_str();
+		size_t len = strlen(src);
+		if( len>0 )
 		{
-			strncpy(event.data.metadata.languages[langCount], langEntry.c_str(), MAX_LANGUAGE_TAG_LENGTH);
-			event.data.metadata.languages[langCount][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
+			assert( len<MAX_LANGUAGE_TAG_LENGTH-1 );
+			memcpy( dst, src, len );
+			dst[len] = 0x00;
 			langCount++;
 		}
 	}
@@ -9801,3 +9825,7 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 /**
  * @}
  */
+
+
+
+

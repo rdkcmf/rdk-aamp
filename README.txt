@@ -87,7 +87,6 @@ drm.cpp
 
 /opt/aamp.cfg
 This optional file supports changes to default logging/behavior and channel remappings to alternate content.
-sap		enable presentation of secondary audio (prelim)
 info		enable logging of requested urls
 gst		enable gstreamer logging including pipeline dump
 progress	enable periodic logging of position
@@ -193,6 +192,14 @@ customHeader=<customHeaderString> custom header string data to be appended to cu
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
+
+langcodepref=<X>
+	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
+	1: ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE language codes normalized to 3-character iso639-2 bibliographic encoding(i.e. "ger")
+	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
+	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
+
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
@@ -247,7 +254,7 @@ play        Resume playback
 rw<val>     Rewind with speed <val>
 live        Seek to live point
 exit        Gracefully exit application
-sap         Toggle between default and secondary audio tracks.
+sap <lang>  Select alternate audio language track.
 bps <val>   Set video bitrate in bps
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg

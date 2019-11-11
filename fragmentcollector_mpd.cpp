@@ -16,12 +16,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-
 /**
  * @file fragmentcollector_mpd.cpp
  * @brief Fragment collector implementation of MPEG DASH
  */
-
+#include "iso639map.h"
 #include "fragmentcollector_mpd.h"
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
@@ -53,8 +52,6 @@
  * @addtogroup AAMP_COMMON_TYPES
  * @{
  */
-
-
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
 #define PLAYREADY_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
 #define WIDEVINE_SYSTEM_ID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
@@ -125,27 +122,6 @@ struct PeriodInfo {
 
 
 static const char *mMediaTypeName[] = { "video", "audio", "text" };
-
-struct lang3to2struct_t {
-	const char *lang3;
-	const char *lang2;
-};
-
-static lang3to2struct_t langPairs[] = {
-		{ "eng", "en" },
-		{ "spa", "es" },
-		{ "fra", "fr" },
-		{ "fre", "fr" },
-		{ "ger", "de" },
-		{ "deu", "de" },
-		{ "ita", "it" },
-		{ "pol", "pl" },
-		{ "por", "pt" },
-		{ "dut", "nl" },
-		{ "rus", "ru" },
-		{ "vie", "vi" },
-		{ NULL, NULL }
-};
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 #ifdef USE_PLAYERSINKBIN
@@ -556,6 +532,8 @@ private:
 	void SeekInPeriod( double seekPositionSeconds);
 	double GetCulledSeconds();
 	void UpdateLanguageList();
+	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
+	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 
 	bool fragmentCollectorThreadStarted;
@@ -721,12 +699,12 @@ static bool IsAtmosAudio(const IMPDElement *nodePtr)
 /**
  * @brief Get representation index of desired codec
  * @param adaptationSet Adaptation set object
- * @param[out] selectedRepType type of desired representation
+ * @param[out] selectedCodecType type of desired representation
  * @retval index of desired representation
  */
-static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedRepType, uint32_t &selectedRepBandwidth)
+static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedCodecType, uint32_t &selectedRepBandwidth)
 {
-	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+    const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
 	int selectedRepIdx = -1;
 	// check for codec defined in Adaptation Set
 	const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
@@ -776,18 +754,18 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 		* disableATMOS: avoid use of ATMOS track
 		* disableEC3: avoid use of DDPLUS and ATMOS tracks
 		*/
-		if ((selectedRepType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0)) || // Select any profile for the first time, reject unsupported streams then
-			(selectedRepType == audioType && bandwidth>selectedRepBandwidth) || // same type but better quality
-			(selectedRepType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !gpGlobalConfig->disableATMOS && !gpGlobalConfig->disableEC3) || // promote to atmos
-			(selectedRepType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !gpGlobalConfig->disableEC3) || // promote to ddplus
-			(selectedRepType != eAUDIO_AAC && audioType == eAUDIO_AAC && gpGlobalConfig->disableEC3) || // force AAC
-			(selectedRepType == eAUDIO_UNSUPPORTED) // anything better than nothing
+		if ((selectedCodecType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0)) || // Select any profile for the first time, reject unsupported streams then
+			(selectedCodecType == audioType && bandwidth>selectedRepBandwidth) || // same type but better quality
+			(selectedCodecType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !gpGlobalConfig->disableATMOS && !gpGlobalConfig->disableEC3) || // promote to atmos
+			(selectedCodecType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !gpGlobalConfig->disableEC3) || // promote to ddplus
+			(selectedCodecType != eAUDIO_AAC && audioType == eAUDIO_AAC && gpGlobalConfig->disableEC3) || // force AAC
+			(selectedCodecType == eAUDIO_UNSUPPORTED) // anything better than nothing
 			)
 		{
 			selectedRepIdx = representationIndex;
-			selectedRepType = audioType;
+			selectedCodecType = audioType;
 			selectedRepBandwidth = bandwidth;
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d  > SelectedRepIndex : %d ,selectedRepType : %d, selectedRepBandwidth: %d", __FUNCTION__, __LINE__, selectedRepIdx, selectedRepType, selectedRepBandwidth);
+			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d  > SelectedRepIndex : %d ,selectedCodecType : %d, selectedRepBandwidth: %d", __FUNCTION__, __LINE__, selectedRepIdx, selectedCodecType, selectedRepBandwidth);
 		}
 	}
 	return selectedRepIdx;
@@ -1116,24 +1094,6 @@ static void WriteFile(std::string fileName, const char* data, int len)
 }
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
 
-static std::string ConvertLanguage3to2(std::string inputLang)
-{
-	std::string outputLang = inputLang;
-	//Support ISO 639-2 to ISO 639-1 conversion right now
-	if (inputLang.size() == 3)
-	{
-		for(int i = 0; langPairs[i].lang3 != NULL ; i++)
-		{
-			if (strncmp(inputLang.c_str(), langPairs[i].lang3, 3) == 0)
-			{
-				outputLang = std::string(langPairs[i].lang2);
-				break;
-			}
-		}
-		traceprintf("After ConvertLanguage3to2: lang = %s", outputLang.c_str());
-	}
-	return outputLang;
-}
 
 /**
  * @brief Fetch and cache a fragment
@@ -3673,7 +3633,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					continue;
 				}
 				if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
-				   && (!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size())))	//Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
+				   && (!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size())))    //Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
 				{
 					mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
 					ProcessEventStream(periodStartMS, period);
@@ -4143,6 +4103,39 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
 	return false;
 }
 
+
+/**
+ * @brief Get the language for an adaptation set
+ * @param adaptationSet Pointer to adaptation set
+ * @retval language of adaptation set
+ */
+std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet )
+{
+	std::string lang = adaptationSet->GetLang();
+
+	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
+	{
+		char lang2[MAX_LANGUAGE_TAG_LENGTH];
+		strcpy( lang2, lang.c_str() );
+		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
+		lang = lang2;
+	}
+ 
+	if( gpGlobalConfig->bDescriptiveAudioTrack )
+	{
+		std::vector<IDescriptor *> role = adaptationSet->GetRole();
+		for (unsigned iRole = 0; iRole < role.size(); iRole++)
+		{
+			if (role.at(iRole)->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+			{
+				lang += "-" + role.at(iRole)->GetValue();
+			}
+		}
+	}
+	return lang;
+}
+
+
 /**
  * @brief Update language list state variables
  */
@@ -4158,12 +4151,86 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
 			if (IsContentType(adaptationSet, eMEDIATYPE_AUDIO ))
 			{
-				mLangList.insert(adaptationSet->GetLang());
+				mLangList.insert( GetLanguageForAdaptationSet(adaptationSet) );
 			}
 		}
 	}
 }
 
+int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,AudioType &CodecType)
+{
+  	int retAdapSetValue = -1;
+	int first_audio_track = -1;
+	int first_audio_track_matching_language = -1;
+	int iAdaptationSet_codec_cmp = -1;
+	std::string lang;
+	const char *delim = strchr(aamp->language,'-');
+	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
+	struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_AUDIO];
+	IPeriod *period = mCurrentPeriod;
+	size_t numAdaptationSets = period->GetAdaptationSets().size();
+	for( int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
+	{
+		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+		AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s %d > Content type [%s] AdapSet [%d] ",
+				__FUNCTION__, __LINE__, adaptationSet->GetContentType().c_str(),iAdaptationSet);
+		if( IsContentType(adaptationSet, eMEDIATYPE_AUDIO) )
+		{
+			lang = GetLanguageForAdaptationSet(adaptationSet);
+			const char *track_language = lang.c_str();
+			if(strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+			{ // exact match, i.e. to eng-commentary, great - we're done!
+				AudioType selectedCodecType = eAUDIO_UNKNOWN;
+				IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+				if( audioAdaptationSet )
+				{
+					uint32_t selRepBandwidth = 0;
+					int audioRepresentationIndex = GetDesiredCodecIndex(audioAdaptationSet, selectedCodecType, selRepBandwidth);
+					if (iAdaptationSet_codec_cmp < selectedCodecType)
+					{
+						desiredRepIdx = audioRepresentationIndex;
+						iAdaptationSet_codec_cmp = selectedCodecType;
+						first_audio_track = iAdaptationSet;						
+						first_audio_track_matching_language = iAdaptationSet;
+						CodecType = selectedCodecType;
+					}
+				}
+			}
+			if( first_audio_track < 0 )
+			{ // remember first track as lowest-priority fallback
+				first_audio_track = iAdaptationSet;
+			}
+			if( first_audio_track_matching_language < 0 )
+			{
+				int len = 0;
+				const char *delim = strchr(track_language,'-');
+				len = delim? (delim - track_language):strlen(track_language);
+				if( len && len == aamp_language_length && memcmp(aamp->language,track_language,len)==0 )
+				{ // remember matching language (but not role) as next-best fallback
+					first_audio_track_matching_language = iAdaptationSet;
+				}
+			}
+		}
+	} // next iAdaptationSet
+	if( first_audio_track_matching_language>=0 )
+	{
+		retAdapSetValue = first_audio_track_matching_language;	
+	}
+	else
+        {
+		retAdapSetValue = first_audio_track;
+	}
+	if(iAdaptationSet_codec_cmp == -1) // if nothing set 
+        {
+		IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(retAdapSetValue);
+		if( audioAdaptationSet )
+		{
+			uint32_t selRepBandwidth = 0;
+			desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth);
+		}
+	}          
+	return retAdapSetValue;
+}
 
 /**
  * @brief Does stream selection
@@ -4172,18 +4239,43 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
-
 	mNumberOfTracks = 0;
-
 	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 	{
 		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 		numTracks--;
 	}
-
 	IPeriod *period = mCurrentPeriod;
-
 	AAMPLOG_INFO("Selected Period index %d, id %s", mCurrentPeriodIdx, period->GetId().c_str());
+	for( int i=0; i<numTracks; i++ )
+	{
+		mMediaStreamContext[i]->enabled = false;
+	}
+	AudioType selectedCodecType = eAUDIO_UNKNOWN;
+	int audioRepresentationIndex = -1;
+ 	int desiredRepIdx = -1;	
+	int audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+	IAdaptationSet *audioAdaptationSet = NULL;
+	if ( audioAdaptationSetIndex >= 0 )
+	{
+		audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
+	}
+
+	if( audioAdaptationSet )
+	{
+		std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
+		aamp->UpdateAudioLanguageSelection( lang.c_str() );
+		if(desiredRepIdx != -1 )
+		{
+			audioRepresentationIndex = desiredRepIdx;
+			mAudioType = selectedCodecType;
+		}
+		logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
+	}
+	else
+	{
+		logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
+	}
 
 	for (int i = 0; i < numTracks; i++)
 	{
@@ -4191,11 +4283,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		size_t numAdaptationSets = period->GetAdaptationSets().size();
 		int  selAdaptationSetIndex = -1;
 		int selRepresentationIndex = -1;
-		AudioType selectedRepType = eAUDIO_UNKNOWN, internalSelRepType ;
-		int desiredCodecIdx = -1;
-		bool otherLanguageSelected = false;
-		mMediaStreamContext[i]->enabled = false;
-		std::string selectedLanguage;
 		bool isIframeAdaptationAvailable = false;
 		int videoRepresentationIdx;
 		uint32_t selRepBandwidth = 0;
@@ -4210,7 +4297,11 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				{
 					if (eMEDIATYPE_SUBTITLE == i)
 					{
-						std::string lang = ConvertLanguage3to2(adaptationSet->GetLang());
+						// map 3 character language code to 2 character
+						char lang2[MAX_LANGUAGE_TAG_LENGTH];
+						strcpy( lang2, adaptationSet->GetLang().c_str() ); // should use GetLanguageForAdaptationSet?
+						iso639map_NormalizeLanguageCode( lang2, ISO639_PREFER_2_CHAR_LANGCODE  );
+						std::string lang = lang2;
 						if (lang == aamp->mSubLanguage)
 						{
 							//We support only plain text vtt for now
@@ -4247,44 +4338,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					}
 					else if (eMEDIATYPE_AUDIO == i)
 					{
-						std::string lang = adaptationSet->GetLang();
-						internalSelRepType = selectedRepType;
-						// found my language configured
-						if(strncmp(aamp->language, lang.c_str(), MAX_LANGUAGE_TAG_LENGTH) == 0)
-						{
-							// check if already other lang adap is selected, if so start fresh
-							if (otherLanguageSelected)
-							{
-								internalSelRepType = eAUDIO_UNKNOWN;
-							}
-							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType, selRepBandwidth);
-							if(desiredCodecIdx != -1 )
-							{
-								otherLanguageSelected = false;
-								selectedRepType	= internalSelRepType;
-								selAdaptationSetIndex = iAdaptationSet;
-								selRepresentationIndex = desiredCodecIdx;
-								mAudioType = selectedRepType;
-							}
-							logprintf("PrivateStreamAbstractionMPD::%s %d > Got the matching lang[%s] AdapInx[%d] RepIndx[%d] AudioType[%d]",
-								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
-						}
-						else if(internalSelRepType == eAUDIO_UNKNOWN || otherLanguageSelected)
-						{
-							// Got first Adap with diff language , store it now until we find another matching lang adaptation
-							desiredCodecIdx = GetDesiredCodecIndex(adaptationSet, internalSelRepType, selRepBandwidth);
-							if(desiredCodecIdx != -1)
-							{
-								otherLanguageSelected = true;
-								selectedLanguage = lang;
-								selectedRepType	= internalSelRepType;
-								selAdaptationSetIndex = iAdaptationSet;
-								selRepresentationIndex = desiredCodecIdx;
-								mAudioType = selectedRepType;
-							}
-							logprintf("PrivateStreamAbstractionMPD::%s %d > Got a non-matching lang[%s] AdapInx[%d] RepIndx[%d] AudioType[%d]",
-								__FUNCTION__, __LINE__, lang.c_str(), selAdaptationSetIndex, selRepresentationIndex, selectedRepType);
-						}
+						selAdaptationSetIndex = audioAdaptationSetIndex;
+						selRepresentationIndex = audioRepresentationIndex;
 					}
 					else if (!gpGlobalConfig->bAudioOnlyPlayback)
 					{
@@ -4337,11 +4392,11 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					}
 				}
 			}
-		}
+		} // next iAdaptationSet
 
 		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && (eMEDIATYPE_VIDEO != i) && selAdaptationSetIndex >= 0)
 		{
-			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown", __FUNCTION__, __LINE__);
+            AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown", __FUNCTION__, __LINE__);
 			mAudioType = eAUDIO_AAC; // assuming content is still playable
 		}
 
@@ -4352,42 +4407,26 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			pMediaStreamContext->adaptationSetIdx = selAdaptationSetIndex;
 			pMediaStreamContext->representationIndex = selRepresentationIndex;
 			pMediaStreamContext->profileChanged = true;
-			//preferred audio language was not available, hence selected best audio format
-			if (otherLanguageSelected)
-			{
-				if (mLangList.end() ==  mLangList.find(aamp->language))
-				{
-					logprintf("PrivateStreamAbstractionMPD::%s %d > update language [%s]->[%s]",
-									__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
-					aamp->UpdateAudioLanguageSelection(selectedLanguage.c_str());
-				}
-				else
-				{
-					logprintf("PrivateStreamAbstractionMPD::%s %d > [%s] not available in period. Select [%s]",
-									__FUNCTION__, __LINE__, aamp->language, selectedLanguage.c_str());
-				}
-			}
-
-			/* To solve a no audio issue - Force configure gst audio pipeline/playbin in the case of multi period
+			
+            /* To solve a no audio issue - Force configure gst audio pipeline/playbin in the case of multi period
 			 * multi audio codec available for current decoding language on stream. For example, first period has AAC no EC3,
 			 * so the player will choose AAC then start decoding, but in the forthcoming periods,
 			 * if the stream has AAC and EC3 for the current decoding language then as per the EC3(default priority)
 			 * the player will choose EC3 but the audio pipeline actually not configured in this case to affect this change.
 			 */
-			if ( aamp->previousAudioType != selectedRepType && eMEDIATYPE_AUDIO == i )
+			if ( aamp->previousAudioType != selectedCodecType && eMEDIATYPE_AUDIO == i )
 			{
 				logprintf("PrivateStreamAbstractionMPD::%s %d > AudioType Changed %d -> %d",
-						__FUNCTION__, __LINE__, aamp->previousAudioType, selectedRepType);
-				aamp->previousAudioType = selectedRepType;
+						__FUNCTION__, __LINE__, aamp->previousAudioType, selectedCodecType);
+				aamp->previousAudioType = selectedCodecType;
 				mContext->SetESChangeStatus();
 			}
-
 			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
 				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
-		}
+		} // AAMP_NORMAL_PLAY_RATE
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
@@ -4408,10 +4447,10 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				aamp->SendSupportedSpeedsChangedEvent(aamp->mIsIframeTrackPresent);
 			}
 		}
-	}
+	} // next track
 
 	if(1 == mNumberOfTracks && !mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
-	{
+	{ // what about audio+subtitles?
 		if(newTune)
 			logprintf("PrivateStreamAbstractionMPD::%s:%d Audio only period", __FUNCTION__, __LINE__);
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled = mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled;
@@ -6696,4 +6735,6 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 	}
 	return stateChanged;
 }
+
+
 

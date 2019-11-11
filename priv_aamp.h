@@ -548,7 +548,6 @@ public:
 	long defaultBitrate;        /**< Default bitrate*/
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
-	bool SAP;                   /**< Enable/Disable Secondary Audio Program*/
 	bool noFog;                 /**< Disable FOG*/
 	int mapMPD;                 /**< Mapping of HLS to MPD: 0=Disable, 1=Rename m3u8 to mpd, 2=COAM mapping, 3='*-nat-*.comcast.net/' to 'ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net/'*/
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
@@ -652,12 +651,15 @@ public:
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
+	int langCodePreference; /**<prefered format for normalizing language code */
+        bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
+	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
 	/**
 	 * @brief GlobalConfigAAMP Constructor
 	 */
-	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), SAP(false), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
+	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
 #endif
@@ -716,6 +718,8 @@ public:
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
 		,initFragmentRetryCount(-1)
+                ,langCodePreference(0)
+		,bDescriptiveAudioTrack(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -733,27 +737,6 @@ public:
 	GlobalConfigAAMP(const GlobalConfigAAMP&) = delete;
 
 	GlobalConfigAAMP& operator=(const GlobalConfigAAMP&) = delete;
-
-	/**
-	 * @brief Get SAP status
-	 *
-	 * @return Enabled/Disabled
-	 */
-	bool aamp_GetSAP(void)
-	{
-		return SAP;
-	}
-
-	/**
-	 * @brief Setting secondary audio program
-	 *
-	 * @param[in] on - New SAP status
-	 * @return void
-	 */
-	void aamp_SetSAP(bool on)
-	{
-		SAP = on;
-	}
 
 	/**
 	@brief Sets user agent string
