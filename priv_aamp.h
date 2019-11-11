@@ -577,6 +577,7 @@ public:
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
+	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
@@ -624,6 +625,7 @@ public:
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
+		,useAppSrcForProgressivePlayback(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

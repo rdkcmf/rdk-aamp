@@ -151,7 +151,16 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
     std::string contentUrl = aamp->GetManifestUrl();
     std::string effectiveUrl;
     long http_error;
-    StreamFile( contentUrl.c_str(), &http_error );
+    
+    if(gpGlobalConfig->useAppSrcForProgressivePlayback)
+    {
+	    StreamFile( contentUrl.c_str(), &http_error );
+    }
+    else
+    {
+	    // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
+	    aamp->SendTunedEvent();
+    }
 
     while( aamp->DownloadsAreEnabled() )
     {

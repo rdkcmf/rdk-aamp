@@ -3064,6 +3064,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 				logprintf("langcodepref:%s\n", langCodePrefName[gpGlobalConfig->langCodePreference] );
 			}
 		}
+		else if (cfg.compare("appSrcForProgressivePlayback") == 0)
+		{
+			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
+			logprintf("appSrcForProgressivePlayback:%s\n", gpGlobalConfig->useAppSrcForProgressivePlayback ? "on" : "off");
+		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
 		{
 			VALIDATE_INT("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
