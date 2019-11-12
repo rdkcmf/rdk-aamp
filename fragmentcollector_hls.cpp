@@ -2823,7 +2823,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 		}
 	}
 
-	if (audio->GetNumberOfPeriods() == video->GetNumberOfPeriods())
+	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
+	{
+		AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+	}
+	// DELIA-39083
+	// If there is a mismatch in Number of Periods between audio and video , log a Warning but continue the period/discontinuity matching
+	// for audio. From the stream analysis its observed
+	//		a) An additional discontinuity is added at the end of the video playlist for one fragment ( <1sec duration)
+	//		b) By avoiding the strict checking , no issue will happen for playback
+	// But if delta is more than 1 , then it will impact playback .
 	{
 		int periodIdx;
 		double offsetFromPeriod;
@@ -2842,10 +2851,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 				logprintf("%s:%d audioDiscontinuityOffset 0\n", __FUNCTION__, __LINE__);
 			}
 		}
-	}
-	else
-	{
-		logprintf("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
 	}
 
 	if (subtitle->enabled)
