@@ -3249,13 +3249,6 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d", gpGlobalConfig->ptsErrorThreshold);
 		}
-		else if (cfg.compare("disable_westeros") == 0)
-		{
-			gpGlobalConfig->disableWesteros = true;
-			logprintf("Westeros is disabled");
-			gpGlobalConfig->mEnableRectPropertyCfg = true;
-			logprintf("AAMP configured to set rectangle property for sink element for video scaling");
-		}
 		else if (cfg.compare("enable_setvideorectangle") == 0)
 		{
 			gpGlobalConfig->mEnableRectPropertyCfg = true;
@@ -3496,6 +3489,21 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		{
 			logprintf("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.");
 			gpGlobalConfig->enableClientDai = true;
+		}
+
+		const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
+		if(env_enable_westoros_sink)
+		{
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
+			gpGlobalConfig->disableWesteros = false;
+			gpGlobalConfig->mEnableRectPropertyCfg = false;
+		}
+		else
+		{
+			gpGlobalConfig->disableWesteros = true;
+			logprintf("Westeros is disabled");
+			gpGlobalConfig->mEnableRectPropertyCfg = true;
+			logprintf("AAMP configured to set rectangle property for sink element for video scaling");
 		}
 	}
 }
