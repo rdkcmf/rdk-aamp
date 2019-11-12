@@ -3476,6 +3476,21 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			logprintf("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.");
 			gpGlobalConfig->enableClientDai = true;
 		}
+
+		const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
+		if(env_enable_westoros_sink)
+		{
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
+			gpGlobalConfig->disableWesteros = false;
+			gpGlobalConfig->mEnableRectPropertyCfg = false;
+		}
+		else
+		{
+			gpGlobalConfig->disableWesteros = true;
+			logprintf("Westeros is disabled");
+			gpGlobalConfig->mEnableRectPropertyCfg = true;
+			logprintf("AAMP configured to set rectangle property for sink element for video scaling");
+		}
 	}
 }
 
