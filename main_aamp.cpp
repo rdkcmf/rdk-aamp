@@ -3447,7 +3447,6 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 #elif defined(__APPLE__)
 		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aamp.cfg";
-		FILE *f = fopen(cfgPath.c_str(), "rb");
 #else
 
 #ifdef AAMP_CPC // Comcast builds
@@ -3475,10 +3474,6 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 					ProcessConfigEntry(buf);
 				}
 				f.close();
-			}
-			else
-			{
-				logprintf("Failed to open aamp.cfg");
 			}
 		}
 
