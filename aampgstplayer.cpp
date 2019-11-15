@@ -986,12 +986,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
 					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
 				}
-				else if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
-				{
-					// this will sleep the qtdemux thread a bit once the video deocder has plenty of data (helps reduce audio underflows)
-					g_object_set(msg->src, "limit_buffering", 1, NULL);
-					logprintf("Found brcmvideodecoder, limiting video decoder buffering");
-				}
 
 				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
 
