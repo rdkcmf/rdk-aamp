@@ -158,7 +158,6 @@ audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads
 pts-error-threshold=<X> aamp maximum number of back-to-back pts errors to be considered for triggering a retune
-disable_westeros Disable westeros as the video sink
 fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe track in non-4K assets( less than or equal to X ). Disabled in default configuration.
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
@@ -195,6 +194,26 @@ This can be done for n number of channels.
 
 *USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
 *FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
+
+=================================================================================================================
+
+To enable Westeros
+-------------------
+
+Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
+flag in SetEnv.sh under /opt, then restart the receiver process:
+
+	export AAMP_ENABLE_WESTEROS_SINK=true
+
+Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
+instead of going through browser rendering.  This allows for smoother video zoom animations
+(Refer DELIA-38429/RDK-26261)
+
+However, note that with this optimization applied, the AAMP Diagnostics overlays cannot be made visible.
+As a temporary workaround, the following flag can be used  by developers which will make diagnostic overlay
+again visible at expense of zoom smoothness:
+
+	export DISABLE_NONCOMPOSITED_WEBGL_FOR_IPVIDEO=1
 
 =================================================================================================================
 
