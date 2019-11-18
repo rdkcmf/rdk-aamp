@@ -1601,8 +1601,14 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
-		g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
-		g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
+		if((_this->aamp->getStreamType() != 30) ||  gpGlobalConfig->useAppSrcForProgressivePlayback)
+		{
+			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
+			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
+		}else
+		{
+			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
+		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
 		_this->privateContext->gstPropsDirty = true;
 	}
