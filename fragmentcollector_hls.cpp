@@ -2567,9 +2567,6 @@ void TrackState::RefreshPlaylist(void)
 	// this can lead to back-to-back playlist download retries
 	lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 
-#ifdef WIN32
-	logprintf("pre-refresh %fs before %lld", prevSecondsBeforePlayPoint, commonPlayPosition);
-#endif
 
 	if(playlist.ptr)
 	{
@@ -2683,9 +2680,6 @@ void TrackState::RefreshPlaylist(void)
 		mCulledSeconds += culled;
 		if (eTRACK_VIDEO == type)
 		{
-#ifdef WIN32
-			logprintf("post-refresh %fs before %lld (%f)\n\n", newSecondsBeforePlayPoint, commonPlayPosition, culled);
-#endif
 			aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
 		}
 	}
