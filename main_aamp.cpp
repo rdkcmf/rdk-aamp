@@ -242,7 +242,7 @@ GlobalConfigAAMP *gpGlobalConfig;
 #define CONTENTLENGTH_STRING 			"Content-Length:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH(STRING, PREFIX) (0 == memcmp(STRING, PREFIX, sizeof(PREFIX-1)))
+#define STARTS_WITH(STRING, PREFIX) (0 == memcmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
 
 struct gActivePrivAAMP_t
