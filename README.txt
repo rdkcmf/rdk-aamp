@@ -175,6 +175,7 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
 
+reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 0 (disabled)
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
