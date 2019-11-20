@@ -453,7 +453,7 @@ bool MediaTrack::InjectFragment()
 			}
 			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
-				logprintf("%s:%d - track %s - notifying aamp discontinuity", __FUNCTION__, __LINE__, name);
+				logprintf("%s:%d - track %s - notifying aamp discontinuity @position - %f", __FUNCTION__, __LINE__, name, cachedFragment->position);
 				cachedFragment->discontinuity = false;
 				ptsError = false;
 				stopInjection = aamp->Discontinuity((MediaType) type);
