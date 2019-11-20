@@ -263,6 +263,25 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 			ts->mDrmInfo.method = eMETHOD_AES_128;
 			ts->mKeyTagChanged = true;
 		}
+		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
+		{
+			/*
+			* TODO- Do license acquisition and license caching meshnism here
+			* Time being for fragmented mp4 content, inject fragments as it is and 
+			* Let qtdemux do the license acquisition and the decryption part
+			*/
+                        //AAMPLOG_INFO(" KC - Track %s detected SAMPLE-AES-CTR with protection = %s", 
+                        //ts->name, ((ts->fragmentEncrypted)?"TRUE":"FALSE"));
+			if(ts->fragmentEncrypted)
+			{
+				if (!ts->mIndexingInProgress)
+				{
+					logprintf("Track %s encrypted to clear \n", ts->name);
+				}
+				ts->fragmentEncrypted = false;
+				ts->UpdateDrmCMSha1Hash(NULL);
+			}
+		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES"))
 		{
 			aamp_Error("SAMPLE-AES unsupported");
