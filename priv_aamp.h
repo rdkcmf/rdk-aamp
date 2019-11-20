@@ -581,6 +581,7 @@ public:
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
+	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -626,6 +627,7 @@ public:
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
 		,useAppSrcForProgressivePlayback(false)
+		,reportBufferEvent(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1798,6 +1800,14 @@ public:
 	 * @return void
 	 */
 	void SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...);
+
+	void SendBufferChangeEvent(bool bufferingStopped=false);
+
+	/* Buffer Under flow status flag, under flow Start(buffering stopped) is true and under flow end is false*/
+	bool mBufUnderFlowStatus;
+	bool GetBufUnderFlowStatus() { return mBufUnderFlowStatus; }
+	void SetBufUnderFlowStatus(bool statusFlag) { mBufUnderFlowStatus = statusFlag; }
+	void ResetBufUnderFlowStatus() { mBufUnderFlowStatus = false;}
 
 	/**
 	 * @brief Send events synchronously

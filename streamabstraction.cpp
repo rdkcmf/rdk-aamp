@@ -509,6 +509,12 @@ bool MediaTrack::InjectFragment()
 						GetContext()->mIsFirstBuffer = false;
 						aamp->NotifyFirstBufferProcessed();
 					}
+
+					if((type == eTRACK_VIDEO) && (gpGlobalConfig->reportBufferEvent) &&
+							(aamp->GetBufUnderFlowStatus()))
+					{
+						aamp->SendBufferChangeEvent();  //Underflow END
+					}
 				}
 				if (eTRACK_VIDEO == type)
 				{
