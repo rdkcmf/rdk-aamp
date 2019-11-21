@@ -255,6 +255,8 @@ public:
 		case AAMP_EVENT_BITRATE_CHANGED:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
+		default:
+			break;
 		}
 	}
 }; // myAAMPEventListener
