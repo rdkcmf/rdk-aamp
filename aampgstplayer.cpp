@@ -1005,7 +1005,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			}
 #endif
 		}
-		if (AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
+		if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 		{
 #ifdef AAMP_MPD_DRM
 			// This is the video decoder, send this to the output protection module
@@ -1131,7 +1131,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
 		{
 #ifndef INTELCE
-			if (AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
+			if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
