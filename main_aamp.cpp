@@ -1466,7 +1466,6 @@ static size_t header_callback(void *ptr, size_t size, size_t nmemb, void *user_d
 	}
 	else if (std::string::npos != header.find("X-Bitrate:"))
 	{
-		logprintf("%s:%d %s\n", __FUNCTION__, __LINE__, header.c_str());
 		startPos = header.find("X-Bitrate:") + strlen("X-Bitrate:");
 		endPos = header.length() - 1;
 		isBitrateHeader = true;
