@@ -3073,6 +3073,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->bReportVideoPTS = true;
 			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
+		else if (cfg.compare("disablegstwarningasaamperror") == 0)
+		{
+			gpGlobalConfig->disableGSTWarningAsAampError = true;
+			logprintf("disablegstwarningasaamperror:%s", gpGlobalConfig->disableGSTWarningAsAampError ? "on" : "off");
+		}
 		else if( cfg.compare("descriptiveaudiotrack") == 0 )
 		{
 			gpGlobalConfig->bDescriptiveAudioTrack  = true;

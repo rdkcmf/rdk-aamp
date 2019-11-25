@@ -885,12 +885,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_WARNING:
 		gst_message_parse_warning(msg, &error, &dbg_info);
 		g_printerr("GST_MESSAGE_WARNING %s: %s\n", GST_OBJECT_NAME(msg->src), error->message);
-		char warnDesc[MAX_ERROR_DESCRIPTION_LENGTH];
-		memset(warnDesc, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
-		strncpy(warnDesc, "GstPipeline Error:", 18);
-		strncat(warnDesc, error->message, MAX_ERROR_DESCRIPTION_LENGTH - 18 - 1);
-		if (strstr(error->message, "No decoder available") != NULL)
+		if (!(gpGlobalConfig->disableGSTWarningAsAampError) && strstr(error->message, "No decoder available") != NULL)
 		{
+			char warnDesc[MAX_ERROR_DESCRIPTION_LENGTH];
+			snprintf( warnDesc, MAX_ERROR_DESCRIPTION_LENGTH, "GstPipeline Error:%s", error->message );
+			// decoding failures due to unsupported codecs are received as warnings, i.e.
+			// "No decoder available for type 'video/x-gst-fourcc-av01"
 			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, warnDesc, false);
 		}
 		g_printerr("Debug Info: %s\n", (dbg_info) ? dbg_info : "none");

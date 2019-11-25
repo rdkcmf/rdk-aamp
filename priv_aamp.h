@@ -577,6 +577,7 @@ public:
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
+	bool disableGSTWarningAsAampError;       /**< Disables reporting of GST Warning as aamp error*/
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int langCodePreference; /**<prefered format for normalizing language code */
@@ -623,6 +624,7 @@ public:
                 ,mEnableRectPropertyCfg(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,bReportVideoPTS(false)
+		,disableGSTWarningAsAampError(false)
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
