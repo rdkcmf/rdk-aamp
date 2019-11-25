@@ -2873,22 +2873,20 @@ template<typename T>
 int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value)
 {
 	int ret=0;
-	if (buf.find(prefixPtr) != std::string::npos)
+	std::size_t pos = buf.find(prefixPtr);
+	if (pos != std::string::npos)
 	{
-		std::size_t pos = buf.find_first_not_of(prefixPtr);
-		if (pos != std::string::npos)
-		{
-			std::string valStr = buf.substr(pos);
-			if (std::is_same<T, int>::value)
-				value = std::stoi(valStr);
-			else if (std::is_same<T, long>::value)
-				value = std::stol(valStr);
-			else if (std::is_same<T, float>::value)
-				value = std::stof(valStr);
-			else
-				value = std::stod(valStr);
-			ret = 1;
-		}
+		pos += strlen(prefixPtr);
+		std::string valStr = buf.substr(pos);
+		if (std::is_same<T, int>::value)
+			value = std::stoi(valStr);
+		else if (std::is_same<T, long>::value)
+			value = std::stol(valStr);
+		else if (std::is_same<T, float>::value)
+			value = std::stof(valStr);
+		else
+			value = std::stod(valStr);
+		ret = 1;
 	}
 
 	return ret;
@@ -2898,16 +2896,14 @@ template<typename T>
 int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T& value2, T& value3, T& value4)
 {
 	int ret = false;
-	if (buf.find(prefixPtr) != std::string::npos)
+	std::size_t pos = buf.find(prefixPtr);
+	if (pos != std::string::npos)
 	{
-		std::size_t pos = buf.find_first_not_of(prefixPtr);
-		if(pos != std::string::npos)
-		{
-			std::string valStr = buf.substr(pos);
-			std::stringstream ss(valStr);
-			ss >> value1 >> value2 >> value3 >> value4;
-			ret = true;
-		}
+		pos += strlen(prefixPtr);
+		std::string valStr = buf.substr(pos);
+		std::stringstream ss(valStr);
+		ss >> value1 >> value2 >> value3 >> value4;
+		ret = true;
 	}
 	return ret;
 }
