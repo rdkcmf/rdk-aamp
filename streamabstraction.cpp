@@ -1399,7 +1399,8 @@ double StreamAbstractionAAMP::GetElapsedTime()
  */
 long StreamAbstractionAAMP::GetVideoBitrate(void)
 {
-	return (GetMediaTrack(eTRACK_VIDEO)->GetCurrentBandWidth() * 8);
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	return ((video && video->enabled) ? (video->GetCurrentBandWidth() * 8) : 0);
 }
 
 
@@ -1410,8 +1411,8 @@ long StreamAbstractionAAMP::GetVideoBitrate(void)
  */
 long StreamAbstractionAAMP::GetAudioBitrate(void)
 {
-	//TODO: This is a hardcoded value now, need to make it dynamically populated
-	return (GetMediaTrack(eTRACK_AUDIO)->GetCurrentBandWidth() * 8);
+	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);	
+	return ((audio && audio->enabled) ? (audio->GetCurrentBandWidth() * 8) : 0);
 }
 
 /**
