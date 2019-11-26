@@ -3339,6 +3339,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	}
 	else
 	{
+		AAMPLOG_ERR("PrivateStreamAbstractionMPD::%s:%d corrupt/invalid manifest",__FUNCTION__,__LINE__);
 		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 	}
 	return retval;
