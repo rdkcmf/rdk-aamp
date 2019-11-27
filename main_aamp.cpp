@@ -3069,10 +3069,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->bReportVideoPTS = true;
 			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
-		else if (cfg.compare("disablegstwarningasaamperror") == 0)
+		else if (cfg.compare("decoderunavailablestrict") == 0)
 		{
-			gpGlobalConfig->disableGSTWarningAsAampError = true;
-			logprintf("disablegstwarningasaamperror:%s", gpGlobalConfig->disableGSTWarningAsAampError ? "on" : "off");
+			gpGlobalConfig->decoderUnavailableStrict = true;
+			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
 		}
 		else if( cfg.compare("descriptiveaudiotrack") == 0 )
 		{

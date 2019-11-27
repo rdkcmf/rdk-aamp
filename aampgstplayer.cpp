@@ -885,7 +885,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_WARNING:
 		gst_message_parse_warning(msg, &error, &dbg_info);
 		g_printerr("GST_MESSAGE_WARNING %s: %s\n", GST_OBJECT_NAME(msg->src), error->message);
-		if (!(gpGlobalConfig->disableGSTWarningAsAampError) && strstr(error->message, "No decoder available") != NULL)
+		if (gpGlobalConfig->decoderUnavailableStrict && strstr(error->message, "No decoder available") != NULL)
 		{
 			char warnDesc[MAX_ERROR_DESCRIPTION_LENGTH];
 			snprintf( warnDesc, MAX_ERROR_DESCRIPTION_LENGTH, "GstPipeline Error:%s", error->message );
