@@ -2760,10 +2760,10 @@ static void ProcessConfigEntry(char *cfg)
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld\n", gpGlobalConfig->abrCacheLength);
 		}
-		else if (strcmp(cfg, "disablegstwarningasaamperror") == 0)
+		else if (strcmp(cfg,"decoderunavailablestrict") == 0)
 		{
-			gpGlobalConfig->disableGSTWarningAsAampError = true;
-			logprintf("disablegstwarningasaamperror:%s", gpGlobalConfig->disableGSTWarningAsAampError ? "on" : "off");
+			gpGlobalConfig->decoderUnavailableStrict = true;
+			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
 		}
 		else if (strcmp(cfg, "appSrcForProgressivePlayback") == 0)
 		{

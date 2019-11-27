@@ -113,7 +113,7 @@ vod-tune-event=1 // send streamplaying when first fragment
 vod-tune-event=2 // send streamplaying when first frame visible
 
 appSrcForProgressivePlayback // Enables appsrc for playing progressive AV type
-disablegstwarningasaamperror // Disables reporting of GST Warning as aamp error
+decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp error
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
