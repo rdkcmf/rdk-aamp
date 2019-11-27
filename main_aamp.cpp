@@ -483,10 +483,11 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	// AAMP internally caches fragments in sw and gst buffer, so we should be good here
 	if (pipeline_paused && mpStreamAbstractionAAMP)
 	{
-		double minPlaylistPositionToResume = (seek_pos_seconds < maxRefreshPlaylistIntervalSecs) ? seek_pos_seconds : (seek_pos_seconds - maxRefreshPlaylistIntervalSecs);
-		if (this->culledSeconds >= seek_pos_seconds)
+		double position = GetPositionMilliseconds() / 1000.0; // in seconds
+		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
+		if (this->culledSeconds >= position)
 		{
-			logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, seek_pos_seconds);
+			logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
 			g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
 		}
 		else if (this->culledSeconds >= minPlaylistPositionToResume)
