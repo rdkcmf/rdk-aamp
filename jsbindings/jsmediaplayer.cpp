@@ -41,7 +41,93 @@ extern "C"
  */
 struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 {
+	/**
+	 * @brief Constructor of AAMPMediaPlayer_JS structure
+	 */
+	AAMPMediaPlayer_JS() : _promiseCallbacks()
+	{
+	}
+	AAMPMediaPlayer_JS(const AAMPMediaPlayer_JS&) = delete;
+	AAMPMediaPlayer_JS& operator=(const AAMPMediaPlayer_JS&) = delete;
+
 	static std::vector<AAMPMediaPlayer_JS *> _jsMediaPlayerInstances;
+	std::map<std::string, JSObjectRef> _promiseCallbacks;
+
+
+	/**
+	 * @brief Get promise callback for an ad id
+	 * @param[in] id ad id
+	 */
+	JSObjectRef getCallbackForAdId(std::string id) override
+	{
+		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		std::map<std::string, JSObjectRef>::const_iterator it = _promiseCallbacks.find(id);
+		if (it != _promiseCallbacks.end())
+		{
+			TRACELOG("Exit AAMPMediaPlayer_JS::%s(), found cbObject", __FUNCTION__);
+			return it->second;
+		}
+		else
+		{
+			TRACELOG("Exit AAMPMediaPlayer_JS::%s(), didn't find cbObject", __FUNCTION__);
+			return NULL;
+		}
+	}
+
+
+	/**
+	 * @brief Get promise callback for an ad id
+	 * @param[in] id ad id
+	 */
+	void removeCallbackForAdId(std::string id) override
+	{
+		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		std::map<std::string, JSObjectRef>::const_iterator it = _promiseCallbacks.find(id);
+		if (it != _promiseCallbacks.end())
+		{
+			JSValueUnprotect(_ctx, it->second);
+			_promiseCallbacks.erase(it);
+		}
+		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+	}
+
+
+	/**
+	 * @brief Save promise callback for an ad id
+	 * @param[in] id ad id
+	 * @param[in] cbObject promise callback object
+	 */
+	void saveCallbackForAdId(std::string id, JSObjectRef cbObject)
+	{
+		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		JSObjectRef savedObject = getCallbackForAdId(id);
+		if (savedObject != NULL)
+		{
+			JSValueUnprotect(_ctx, savedObject); //remove already saved callback
+		}
+
+		JSValueProtect(_ctx, cbObject);
+		_promiseCallbacks[id] = cbObject;
+		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+	}
+
+
+	/**
+	 * @brief Clear all saved promise callbacks
+	 */
+	void clearCallbackForAllAdIds()
+	{
+		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		if (!_promiseCallbacks.empty())
+		{
+			for (auto it = _promiseCallbacks.begin(); it != _promiseCallbacks.end(); )
+			{
+				JSValueUnprotect(_ctx, it->second);
+				_promiseCallbacks.erase(it);
+			}
+		}
+		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+	}
 };
 
 /**
@@ -214,6 +300,7 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 		{
 			//when finalizing JS object, don't generate state change events
 			privObj->_aamp->Stop(false);
+			privObj->clearCallbackForAllAdIds();
 			if (privObj->_listeners.size() > 0)
 			{
 				AAMP_JSEventListener::RemoveAllEventListener(privObj);
@@ -1698,6 +1785,184 @@ JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JS
 
 
 /**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setAlternateContent()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if(!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAlternateContent() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount == 2)
+	{
+		/*
+		 * Parmater format
+		 * "reservationObject": object {
+		 *   "reservationId": "773701056",
+		 *    "reservationBehavior": number
+		 *    "placementRequest": {
+		 *      "id": string,
+		 *      "pts": number,
+		 *      "url": "",
+		 *    },
+		 * },
+		 * "promiseCallback": function
+		 */
+		char *reservationId = NULL;
+		int reservationBehavior = -1;
+		char *adId = NULL;
+		long adPTS = -1;
+		char *adURL = NULL;
+		if (JSValueIsObject(ctx, arguments[0]))
+		{
+			//Parse the ad object
+			JSObjectRef reservationObject = JSValueToObject(ctx, arguments[0], NULL);
+			if (reservationObject == NULL)
+			{
+				ERROR("%s() Unable to convert argument to JSObject", __FUNCTION__);
+				return JSValueMakeUndefined(ctx);
+			}
+			JSStringRef propName = JSStringCreateWithUTF8CString("reservationId");
+			JSValueRef propValue = JSObjectGetProperty(ctx, reservationObject, propName, NULL);
+			if (JSValueIsString(ctx, propValue))
+			{
+				reservationId = aamp_JSValueToCString(ctx, propValue, NULL);
+			}
+			JSStringRelease(propName);
+
+			propName = JSStringCreateWithUTF8CString("reservationBehavior");
+			propValue = JSObjectGetProperty(ctx, reservationObject, propName, NULL);
+			if (JSValueIsNumber(ctx, propValue))
+			{
+				reservationBehavior = JSValueToNumber(ctx, propValue, NULL);
+			}
+			JSStringRelease(propName);
+
+			propName = JSStringCreateWithUTF8CString("placementRequest");
+			propValue = JSObjectGetProperty(ctx, reservationObject, propName, NULL);
+			if (JSValueIsObject(ctx, propValue))
+			{
+				JSObjectRef adObject = JSValueToObject(ctx, propValue, NULL);
+
+				JSStringRef adPropName = JSStringCreateWithUTF8CString("id");
+				JSValueRef adPropValue = JSObjectGetProperty(ctx, adObject, adPropName, NULL);
+				if (JSValueIsString(ctx, adPropValue))
+				{
+					adId = aamp_JSValueToCString(ctx, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+
+				adPropName = JSStringCreateWithUTF8CString("pts");
+				adPropValue = JSObjectGetProperty(ctx, adObject, adPropName, NULL);
+				if (JSValueIsNumber(ctx, adPropValue))
+				{
+					adPTS = (long) JSValueToNumber(ctx, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+
+				adPropName = JSStringCreateWithUTF8CString("url");
+				adPropValue = JSObjectGetProperty(ctx, adObject, adPropName, NULL);
+				if (JSValueIsString(ctx, adPropValue))
+				{
+					adURL = aamp_JSValueToCString(ctx, adPropValue, NULL);
+				}
+				JSStringRelease(adPropName);
+			}
+			JSStringRelease(propName);
+		}
+
+		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
+
+		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
+		{
+			std::string adIdStr(adId);
+			std::string adBreakId(reservationId);
+			std::string url(adURL);
+
+			privObj->saveCallbackForAdId(adIdStr, callbackObj); //save callback for sending status later, if ad can be played or not
+
+			ERROR("%s() Calling privObj->_aamp->SetAlternateContents with promiseCallback:%p", __FUNCTION__, callbackObj);
+			privObj->_aamp->SetAlternateContents(adBreakId, adIdStr, url);
+		}
+		else
+		{
+			ERROR("%s() Unable to parse the promiseCallback argument", __FUNCTION__);
+		}
+		if (reservationId)
+		{
+			delete[] reservationId;
+		}
+		if (adURL)
+		{
+			delete[] adURL;
+		}
+		if (adId)
+		{
+			delete[] adId;
+		}
+	}
+	else
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAlternateContent() - 2 argument required");
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.notifyReservationCompletion()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if(!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call notifyReservationCompletion() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount == 2)
+	{
+		const char * reservationId = aamp_JSValueToCString(ctx, arguments[0], exception);
+		long time = (long) JSValueToNumber(ctx, arguments[1], exception);
+		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
+		//the ads to the period duration or not depending on time param
+		ERROR("%s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
+		delete[] reservationId;
+	}
+	else
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute notifyReservationCompletion() - 2 argument required");
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
  * @brief Array containing the AAMPMediaPlayer's statically declared functions
  */
 static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
@@ -1738,6 +2003,8 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setVideoRect", AAMPMediaPlayerJS_setVideoRect, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setVideoZoom", AAMPMediaPlayerJS_setVideoZoom, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "release", AAMPMediaPlayerJS_release, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setAlternateContent", AAMPMediaPlayerJS_setAlternateContent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "notifyReservationCompletion", AAMPMediaPlayerJS_notifyReservationCompletion, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
@@ -1874,6 +2141,11 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
 	AAMPMediaPlayer_JS::_jsMediaPlayerInstances.push_back(privObj);
 	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
+
+	// Add a dummy event listener without any function callback.
+	// Upto JS application to register a common callback function for AAMP to notify ad resolve status
+	// or individually as part of setAlternateContent call. NULL checks added in eventlistener to avoid undesired behaviour
+	AAMP_JSEventListener::AddEventListener(privObj, AAMP_EVENT_AD_RESOLVED, NULL);
 
 	// Required for viper-player
 	JSStringRef fName = JSStringCreateWithUTF8CString("toString");
