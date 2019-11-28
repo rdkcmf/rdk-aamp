@@ -197,7 +197,7 @@ var bgPlayerObj = null;
 
 window.onload = function() {
     initPlayerControls();
-    resetPlayer();
+    //resetPlayer();
     resetUIOnNewAsset();
 
     //loadUrl(urls[urlIndex]);
@@ -300,16 +300,94 @@ function mediaMetadataParsed(event) {
     console.log("Media metadata event: " + JSON.stringify(event));
 }
 
+function adResolvedCallback(event) {
+    console.log("DAI Callback received: " + JSON.stringify(event));
+}
+
 function subscribedTagNotifier(event) {
-    console.log("Subscribed tag notifier event: " + JSON.stringify(event));
+    const metadata = event.timedMetadata;
+    console.log("Subscribed tag notifier event: " + JSON.stringify(metadata));
+    /* Sample format
+        "timedMetadata": {
+        "time":62062,
+        "duration":0,
+        "name":"#EXT-X-CUE",
+        "content":"-X-CUE:ID=eae90713-db8e,DURATION=30.063",
+        "type":0,
+        "metadata": {
+            "ID":"eae90713-db8e",
+            "DURATION":"30.063"
+            },
+        "id":"eae90713-db8e"
+    }
+    */
+
+    if (!metadata.name.localeCompare("SCTE35")) {
+        // When SCTE35 tag is received create a reservation Object and send it to AAMP via setAlternateContent
+        // Mock object given below. Here we have bypassed communication with ad server.
+        const reservationObject = {
+            reservationId: metadata.reservationId,
+            reservationBehavior: 0,
+            placementRequest: {
+                id: "ad1",
+                pts: 0,
+                url: "http://ccr.ip-ads.xcr.comcast.net/omg07/346241094255/nbcuni.comNBCU2019010200010506/HD_VOD_DAI_QAOA5052100H_0102_LVLH06.mpd"
+            }
+        };
+        // According to scte-35 duration, multiple reservation Objects with different/same ad urls and unique ad IDs can be passed to setAlternateContent.
+        playerObj.setAlternateContent(reservationObject, adResolvedCallback);
+    }
+}
+
+function reservationStart(event) {
+    // Event marks the start of a reservation/ad break
+    console.log("ReservationStart event: " + JSON.stringify(event));
+}
+
+function placementStart(event) {
+    // Event marks the start of a placement/ad within an ad break
+    console.log("PlacementStart event: " + JSON.stringify(event));
+}
+
+function placementProgress(event) {
+    // Event marks playback progress within a placement/ad
+    console.log("PlacementProgress event: " + JSON.stringify(event));
+}
+
+function placementError(event) {
+    // Event marks any error within a placement/ad
+    console.log("PlacementError event: " + JSON.stringify(event));
+}
+
+function placementEnd(event) {
+    // Event marks the end of a placement/ad within an ad break
+    console.log("PlacementEnd event: " + JSON.stringify(event));
+}
+
+function reservationEnd(event) {
+    // Event marks the end of a reservation/ad break
+    console.log("ReservationEnd event: " + JSON.stringify(event));
 }
 
 function mediaProgressUpdate(event) {
     //console.log("Media progress update event: " + JSON.stringify(event));
-    var duration = event.durationMiliseconds;
+    //TSB length for live assets = (event.endMiliseconds - event.startMiliseconds)
+    var duration = event.endMiliseconds;
     var position = event.positionMiliseconds;
     var value = ( position / duration ) * 100;
-	var seekBar = document.getElementById("seekBar");
+    var seekBar = document.getElementById("seekBar");
+
+    if(displayTimer === undefined && subtitleTimer === undefined && vttCueBuffer.length !== 0 && event.playbackSpeed === 1) {
+        vttCueBuffer = vttCueBuffer.filter((cue) => {
+            return cue.start > position;
+        });
+        //console.log("Media progress: positionMiliseconds=" + position + " cueBufferLength: " + vttCueBuffer.length);
+        if (vttCueBuffer.length !== 0) {
+            displaySubtitle(vttCueBuffer[0], position);
+        }
+
+    }
+
     document.getElementById("totalDuration").innerHTML = convertSStoHr(duration / 1000.0);
     document.getElementById("currentDuration").innerHTML = convertSStoHr(position / 1000.0);
     console.log("Media progress update event: value=" + value);
@@ -330,16 +408,6 @@ function mediaPlaybackStarted() {
     }
 }
 
-function mediaPlaybackBuffering(event) {
-    //Show buffering animation here, fired when buffers run dry mid-playback
-    console.log("Buffers running empty - " + event.buffering);
-    if (event.buffering === true) {
-        //bufferingDisplay(true);
-    } else {
-        //bufferingDisplay(false);
-    }
-}
-
 function mediaDurationChanged(event) {
     console.log("Duration changed!");
 }
@@ -357,12 +425,13 @@ function anomalyEventHandler(event) {
 
 
 function bufferingChangedHandler(event) {
-        console.log("bufferingChangedHandler got msg: " + event.buffering);
-	if(event.buffering === false){
-		document.getElementById('buffModal').style.display = "block";
-	}else{
-		document.getElementById('buffModal').style.display = "none";
-	}
+    //Show buffering animation here, fired when buffers run dry mid-playback
+    console.log("Buffers running empty - " + event.buffering);
+    if(event.buffering === false) {
+        document.getElementById('buffModal').style.display = "block";
+    } else {
+        document.getElementById('buffModal').style.display = "none";
+    }
 }
 
 function playbackSeeked(event) {
@@ -426,41 +495,47 @@ function resetPlayer() {
     playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
     playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
     playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
+    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
     playerObj.addEventListener("anomalyReport", anomalyEventHandler);
-    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
     playerObj.addEventListener("seeked", playbackSeeked);
-    //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     playerObj.addEventListener("tuneProfiling", tuneProfiling);
+    playerObj.addEventListener("reservationStart", reservationStart);
+    playerObj.addEventListener("placementStart", placementStart);
+    playerObj.addEventListener("placementProgress", placementProgress);
+    playerObj.addEventListener("placementError", placementError);
+    playerObj.addEventListener("placementEnd", placementEnd);
+    playerObj.addEventListener("reservationEnd", reservationEnd);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
-
-    playerObj = createAAMPPlayer();
-
-
     playerState = playerStatesEnum.idle;
+
+    //Subscribe to interested tags from playlist
+    //let tags = ["#EXT-X-SCTE35","#EXT-X-MARKER"];
+    //playerObj.setSubscribedTags(tags);
+
     mutedStatus = false;
 }
 
+function generateInitConfigObject (urlObject) {
+    console.log("UrlObject received: " + urlObject.name);
+    let initConfigObject = Object.assign({}, defaultInitConfig);
+
+    if (urlObject.name.includes("Sintel") == true) {
+        initConfigObject.drmConfig = SintelDrmConfig;
+    } else if (urlObject.useDefaultDrmConfig === false) {
+        initConfigObject.drmConfig = null;
+    }
+    return initConfigObject;
+}
 
 function loadUrl(urlObject) {
     console.log("UrlObject received: " + urlObject);
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
-    if (urlObject.name.includes("Sintel") == true) {
-        var initConfiguration = defaultInitConfig;
-        initConfiguration.drmConfig = SintelDrmConfig;
-        playerObj.initConfig(initConfiguration);
-        playerObj.load(urlObject.url);
-    } else if (urlObject.useDefaultDrmConfig === true) {
-        playerObj.initConfig(defaultInitConfig);
-        playerObj.load(urlObject.url);
-    } else {
-        var initConfiguration = defaultInitConfig;
-        initConfiguration.drmConfig = null;
-        playerObj.load(urlObject.url);
-    }
+    let initConfiguration = generateInitConfigObject(urlObject);
+    playerObj.initConfig(initConfiguration);
+    playerObj.load(urlObject.url);
 }
