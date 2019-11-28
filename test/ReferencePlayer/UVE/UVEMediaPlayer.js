@@ -130,7 +130,7 @@ class AAMPMediaPlayer {
     }
 
     addEventListener(name, handler) {
-        console.log("Invoked addEventListener");
+        console.log("Invoked addEventListener - " + name);
     }
 
     removeEventListener(name, handler) {
@@ -209,7 +209,7 @@ class AAMPPlayer {
      * IConfig Object with key value pair of launch configuration
      */
     initConfig(configObj) {
-        console.log("Inside initConfig: " + JSON.stringify(configObj));
+        console.log("Invoked initConfig with config: " + JSON.stringify(configObj));
         this.player.initConfig(configObj);
     }
 
@@ -473,4 +473,10 @@ class AAMPPlayer {
        return this.player.getVideoRectangle();
     }
 
+    /**
+     * Set Alternate Content
+     */
+    setAlternateContent(reservationObject, callback) {
+	this.player.setAlternateContent(reservationObject, callback);
+    }
 };
