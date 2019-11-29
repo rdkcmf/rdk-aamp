@@ -54,12 +54,6 @@ static const char *mMediaFormatName[] =
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
 #endif
 
-#ifdef WIN32
-#define AAMP_PACKED
-#else
-#define AAMP_PACKED __attribute__((__packed__))
-#endif
-
 #define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
@@ -1402,8 +1396,13 @@ class PrivateInstanceAAMP
 	    E_AAMP2Receiver_EVENTS,
 	    E_AAMP2Receiver_MsgMAX
 	};
-
-	typedef struct AAMP_PACKED _AAMP2ReceiverMsg
+#ifdef WIN32
+	// 'packed' directive unavailable in win32 build;
+	typedef struct _AAMP2ReceiverMsg
+#else
+	// needed to ensure matching structure alignment in receiver
+	typedef struct __attribute__((__packed__)) _AAMP2ReceiverMsg
+#endif
 	{
 	    unsigned int type;
 	    unsigned int length;
