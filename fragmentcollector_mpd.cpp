@@ -3437,7 +3437,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 
 		MPD* mpd = nullptr;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
-		logprintf("%s:%d Created MPD[%p]\n", __FUNCTION__, __LINE__, mpd);
+		AAMPLOG_INFO("%s:%d Created MPD[%p]", __FUNCTION__, __LINE__, mpd);
 		if (eAAMPSTATUS_OK == ret)
 		{
 			if (this->mpd)
