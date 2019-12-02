@@ -2572,6 +2572,59 @@ void TrackState::RefreshPlaylist(void)
 		}
 	}
 }
+
+int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
+{
+	int first_audio_track = -1;
+	int first_audio_track_matching_language = -1;
+	int default_audio_track = -1;
+	const char *delim = strchr(aamp->language,'-');
+	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
+
+	HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
+	const char* group = streamInfo->audio;
+	if (group)
+	{
+		logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s", group, aamp->language);
+		for( int i=0; i<mMediaCount; i++ )
+		{
+			if( this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
+			{
+				std::string lang = GetLanguageCode(i);
+				const char *track_language = lang.c_str();
+				if(strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+				{ // exact match, i.e. to eng-commentary, great - we're done!
+					return i;
+				}
+				if( first_audio_track < 0 )
+				{ // remember first track as lowest-priority fallback
+					first_audio_track = i;
+				}
+				if( first_audio_track_matching_language < 0 )
+				{
+					int len = 0;
+					const char *delim = strchr(track_language,'-');
+					len = delim? (delim - track_language):strlen(track_language);
+					if( len && len == aamp_language_length && memcmp(aamp->language,track_language,len)==0 )
+					{ // remember matching language (but not role) as next-best fallback
+						first_audio_track_matching_language = i;
+					}
+				}
+				if( default_audio_track < 0 )
+				{
+					if( this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect )
+					{
+						default_audio_track = i;
+					}
+				}
+			}
+		}
+	}
+	if( first_audio_track_matching_language>=0 ) return first_audio_track_matching_language;
+	if( default_audio_track>=0 ) return default_audio_track;
+	return first_audio_track;
+}
+
 /***************************************************************************
 * @fn GetPlaylistURI
 * @brief Function to get playlist URI based on media selection 
@@ -2583,8 +2636,8 @@ void TrackState::RefreshPlaylist(void)
 const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, StreamOutputFormat* format)
 {
 	const char *playlistURI = NULL;
-	const char* group = NULL;
-	HlsStreamInfo* streamInfo = NULL;
+	//const char* group = NULL;
+	//HlsStreamInfo* streamInfo = NULL;
 
 	switch (trackType)
 	{
@@ -2598,88 +2651,38 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 
 	case eTRACK_AUDIO:
 		assert(GetProfileCount() > this->currentProfileIndex);
-		streamInfo = &this->streamInfo[this->currentProfileIndex];
-		group = streamInfo->audio;
-		if (group)
 		{
-			logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s", group, aamp->language);
-			bool foundAudio = false;
-			for(int langChecks = aamp->language[0] ? 2 : 1; langChecks > 0 && !foundAudio; --langChecks)
+			int i = GetBestAudioTrackByLanguage();
+			if( i>=0 )
 			{
-				for (int i = 0; i < mMediaCount; i++)
+				aamp->UpdateAudioLanguageSelection( GetLanguageCode(i).c_str() );
+				playlistURI = this->mediaInfo[i].uri;
+				if( format )
 				{
-	#ifdef TRACE
-					logprintf("GetPlaylistURI : AudioTrack: this->mediaInfo[%d].group_id %s", i,
-						this->mediaInfo[i].group_id);
-	#endif
-					if (this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
+					*format = FORMAT_NONE;
+					HlsStreamInfo* streamInfo = &this->streamInfo[i];
+					if (this->mediaInfo[i].uri && streamInfo->codecs)
 					{
-						std::string lang = GetLanguageCode(i);
-//	#ifdef TRACE
-						logprintf("GetPlaylistURI checking if preferred language '%s' matches media[%d] language '%s'\n", aamp->language, i, lang.c_str() );
-//	#endif
-						if ((aamp->language[0] && !lang.empty() && lang==aamp->language) ||
-								(langChecks == 1 && (this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect)))
+						for (int j = 0; j < AAMP_AUDIO_FORMAT_MAP_LEN; j++)
 						{
-							foundAudio = true;
-							if(langChecks == 1)
+							if( strstr(streamInfo->codecs, audioFormatMap[j].codec) )
 							{
-								//save what language we have selected, defaulting to english
-								logprintf("%s updating aamp->language from %s to %s mediaInfo[i].language %s", __FUNCTION__, aamp->language, this->mediaInfo[i].language ? this->mediaInfo[i].language : "en", mediaInfo[i].language);
-								aamp->UpdateAudioLanguageSelection((this->mediaInfo[i].language ? this->mediaInfo[i].language : "en"));
-								if(!this->mediaInfo[i].language)
-								{
-									logprintf("GetPlaylistURI : language not found. Instead, select default of %s", aamp->language);
-								}
+								*format = audioFormatMap[j].format;
+								logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]", audioFormatMap[j].format, audioFormatMap[j].codec);
+								break;
 							}
-							playlistURI = this->mediaInfo[i].uri;
-							logprintf("GetPlaylistURI language found uri %s", playlistURI);
-							if (playlistURI)
-							{
-								logprintf("GetPlaylistURI : AudioTrack: playlistURI %s", playlistURI);
-							}
-							else
-							{
-								logprintf("GetPlaylistURI : AudioTrack: NULL playlistURI. this->mediaInfo[i].isDefault %d", this->mediaInfo[i].isDefault);
-							}
-							if (format)
-							{
-								*format = FORMAT_NONE;
-								if (this->mediaInfo[i].uri && streamInfo->codecs)
-								{
-	#ifdef TRACE
-									logprintf("GetPlaylistURI : AudioTrack: streamInfo->codec %s", streamInfo->codecs);
-	#endif
-									for (int j = 0; j < AAMP_AUDIO_FORMAT_MAP_LEN; j++)
-									{
-										if (strstr(streamInfo->codecs, audioFormatMap[j].codec))
-										{
-											*format = audioFormatMap[j].format;
-											logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]",
-												audioFormatMap[j].format, audioFormatMap[j].codec);
-											break;
-										}
-									}
-								}
-							}
-							break;
 						}
 					}
 				}
 			}
 		}
-		else if (!trickplayMode)
-		{
-			logprintf("%s updating aamp->language from %s to \"en\"", __FUNCTION__, aamp->language);
-			//save that we are using english by default
-			aamp->UpdateAudioLanguageSelection("en");
-		}
 		break;
+            
 	case eTRACK_SUBTITLE:
 		{
-			streamInfo = &this->streamInfo[this->currentProfileIndex];
+			HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 			int mediaInfoIndex = -1;
-			group = streamInfo->subtitles;
+			const char *group = streamInfo->subtitles;
 			if (group)
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s():%d Subtitle Track: group %s, aamp->mSubLanguage %s", __FUNCTION__, __LINE__, group, aamp->mSubLanguage);
@@ -5406,4 +5409,6 @@ void TrackState::RestoreDrmState()
 /**
  * @}
  */
+
+
 

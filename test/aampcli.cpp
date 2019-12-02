@@ -476,14 +476,19 @@ static void ProcessCliCommand(char *cmd)
 			}
 		}
 	}
-	else if( sscanf(cmd, "sap %s",lang ) )
-	{
-		logprintf("aamp cli sap called for language %s\n",lang);
-		size_t len = strlen(lang);
-		{
-			mSingleton->SetLanguage( lang );
-		}
-	}
+    else if( sscanf(cmd, "sap %s",lang ) )
+    {
+        logprintf("aamp cli sap called for language %s\n",lang);
+        size_t len = strlen(lang);
+        if( len>0 )
+        {
+            mSingleton->SetLanguage( lang );
+        }
+        else
+        {
+            logprintf( "GetCurrentAudioLanguage: '%s'\n", mSingleton->GetCurrentAudioLanguage() );
+        }
+    }
 }
 
 static void * run_command(void *arg)
@@ -870,3 +875,7 @@ int main(int argc, char **argv)
 	mSingleton->Stop();
 	delete mSingleton;
 }
+
+
+
+

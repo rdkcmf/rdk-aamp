@@ -6346,8 +6346,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-	memset(language, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strcpy(language,"en");
+    iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+    
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
 	pthread_mutexattr_init(&mMutexAttr);
@@ -7171,7 +7172,7 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 	{
 		if(strncmp(mLanguageList[cnt],language,MAX_LANGUAGE_TAG_LENGTH) == 0)
 		{
-			mCurrentLanguageIndex = cnt;
+			mCurrentLanguageIndex = cnt; // needed?
 			break;
 		}
 	}
@@ -8091,3 +8092,7 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(struct curl_slist **headers)
 /**
  * @}
  */
+
+
+
+
