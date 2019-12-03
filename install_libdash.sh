@@ -22,11 +22,12 @@ cd ..
 git clone git://github.com/bitmovin/libdash.git
 cd libdash/libdash
 git checkout stable_3_0
-git clone -b 1903_sprint ssh://gerrit.teamccp.com:29418/rdk/yocto_oe/layers/meta-rdk-ext
+git clone -b 1911_sprint ssh://gerrit.teamccp.com:29418/rdk/yocto_oe/layers/meta-rdk-ext
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0001-libdash-build.patch
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0002-libdash-starttime-uint64.patch 
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0003-libdash-presentationTimeOffset-uint64.patch 
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0004-Support-of-EventStream.patch
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0005-DELIA-39460-libdash-memleak.patch
 mkdir -p build
 cd build
 cmake ..
