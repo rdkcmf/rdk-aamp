@@ -5194,10 +5194,11 @@ DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
  *
  *   @param  headerName - Name of custom HTTP header
  *   @param  headerValue - Value to be passed along with HTTP header.
+ *   @param  isLicenseHeader - true if header is for license request
  */
-void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue)
+void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
-	aamp->AddCustomHTTPHeader(headerName, headerValue);
+	aamp->AddCustomHTTPHeader(headerName, headerValue, isLicenseHeader);
 }
 
 /**
@@ -6280,6 +6281,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
+	,mCustomLicenseHeaders()
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6911,8 +6913,9 @@ void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
  *
  *   @param  headerName - Name of custom HTTP header
  *   @param  headerValue - Value to be pased along with HTTP header.
+ *   @param  isLicenseHeader - true, if header is to be used for a license request.
  */
-void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue)
+void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
 	// Header name should be ending with :
 	if(headerName.back() != ':')
@@ -6920,13 +6923,27 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 		headerName += ':';
 	}
 
-	if (headerValue.size() != 0)
+	if (isLicenseHeader)
 	{
-		mCustomHeaders[headerName] = headerValue;
+		if (headerValue.size() != 0)
+		{
+			mCustomLicenseHeaders[headerName] = headerValue;
+		}
+		else
+		{
+			mCustomLicenseHeaders.erase(headerName);
+		}
 	}
 	else
 	{
-		mCustomHeaders.erase(headerName);
+		if (headerValue.size() != 0)
+		{
+			mCustomHeaders[headerName] = headerValue;
+		}
+		else
+		{
+			mCustomHeaders.erase(headerName);
+		}
 	}
 }
 
@@ -7968,6 +7985,32 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
 	return (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
+}
+
+/**
+ *   @brief To get any custom license HTTP headers that was set by application
+ *
+ *   @param[out] headers - curl header structure
+ */
+void PrivateInstanceAAMP::GetCustomLicenseHeaders(struct curl_slist **headers)
+{
+	struct curl_slist *httpHeaders = *headers;
+	if (mCustomLicenseHeaders.size() > 0)
+	{
+		std::string customHeader;
+		for (auto it = mCustomLicenseHeaders.begin(); it != mCustomLicenseHeaders.end(); it++)
+		{
+			customHeader.clear();
+			customHeader.insert(0, it->first);
+			customHeader.push_back(' ');
+			// For scenarios with multiple header values, its most likely a custom defined.
+			// Below code will have to extended to support the same (eg: money trace headers)
+			customHeader.append(it->second.at(0));
+			AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d Inserting custom header to license request - %s", __FUNCTION__, __LINE__, customHeader.c_str());
+			httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+		}
+		*headers = httpHeaders;
+	}
 }
 
 /**

@@ -18,8 +18,8 @@
 */
 
 var urls = [
-     { name:"Big Buck Bunny (CLEAR)", url: "http://amssamples.streaming.mediaservices.windows.net/683f7e47-bd83-4427-b0a3-26a6c4547782/BigBuckBunny.ism/manifest(format=mpd-time-csf)", useComcastDrmConfig: false },
-     { name:"Transformers (DASH)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod11/TVNC0000000003007630/movie/1558999503868/manifest.mpd", useComcastDrmConfig: true },
-     { name:"Deadpool (HLS)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod4/PFXM3033039820190601/movie/1558895446379/manifest.m3u8", useComcastDrmConfig: true },
-     { name:"Godzilla (HLS)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod1/TVNC0000000002950377/movie/1556381264464/manifest.m3u8", useComcastDrmConfig: true }
+     { name:"Big Buck Bunny (CLEAR)", url: "http://amssamples.streaming.mediaservices.windows.net/683f7e47-bd83-4427-b0a3-26a6c4547782/BigBuckBunny.ism/manifest(format=mpd-time-csf)", useDefaultDrmConfig: false },
+     { name:"Transformers (DASH)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod11/TVNC0000000003007630/movie/1558999503868/manifest.mpd", useDefaultDrmConfig: true },
+     { name:"Deadpool (HLS)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod4/PFXM3033039820190601/movie/1558895446379/manifest.m3u8", useDefaultDrmConfig: true },
+     { name:"Godzilla (HLS)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod1/TVNC0000000002950377/movie/1556381264464/manifest.m3u8", useDefaultDrmConfig: true }
 ];

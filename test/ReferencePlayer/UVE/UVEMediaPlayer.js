@@ -153,7 +153,7 @@ class AAMPMediaPlayer {
         console.log("Invoked setDRMConfig");
     }
 
-    addCustomHTTPHeader(headerName, headerValue) {
+    addCustomHTTPHeader(headerName, headerValue, isLicenseRequest = false) {
         console.log("Invoked addCustomHTTPHeader");
     }
 
@@ -425,9 +425,10 @@ class AAMPPlayer {
 
     /**
      * Add custom headers to HTTP requests
+     * isLicenseRequest indicates if headers are for license requests
      */
-    addCustomHTTPHeader(headerName, headerValue) {
-        this.player.addCustomHTTPHeader(headerName, headerValue);
+    addCustomHTTPHeader(headerName, headerValue, isLicenseRequest = false) {
+        this.player.addCustomHTTPHeader(headerName, headerValue, isLicenseRequest);
     }
 
     /**
