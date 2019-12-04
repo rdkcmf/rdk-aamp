@@ -40,6 +40,29 @@
 #define AUDIO_SESSION 1
 
 /**
+ *  @struct	DrmSessionCacheInfo
+ *  @brief	Drm Session Cache Information for keeping single DRM session always.
+ */
+typedef struct DrmSessionCacheInfo{
+	pthread_t createDRMSessionThreadID; /**< Thread Id for DrM Session thread */
+	bool drmSessionThreadStarted; /**< DRM Session start flag to identify the DRM Session thread running */
+}DrmSessionCacheInfo;
+
+
+/**
+ *  @struct	DrmSessionDataInfo
+ *  @brief	Drm Session Data Information 
+ * for storing in a pool from parser.
+ */
+typedef struct DrmSessionDataInfo{
+	struct DrmSessionParams* sessionData; /**< DRM Session Data */
+	bool isProcessedLicenseAcquire; /**< Flag to avoid multiple acquire for a key */
+	DRMSystems drmType; /**< DRM Type */
+	unsigned char *processedKeyId; /**< Pointer to store last processed key Id */
+	int processedKeyIdLen; /**< Last processed key Id size */
+}DrmSessionDataInfo;
+
+/**
  *  @struct	DrmSessionContext
  *  @brief	To store drmSession and keyId data.
  */
@@ -53,6 +76,20 @@ struct DrmSessionContext
 	DrmSessionContext() : dataLength(0), data(NULL), sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL)
 	{
 	}
+};
+
+/**
+ * @struct DrmSessionParams
+ * @brief Holds data regarding drm session
+ */
+struct DrmSessionParams
+{
+	unsigned char *initData;
+	int initDataLen;
+	MediaType stream_type;
+	PrivateInstanceAAMP *aamp;
+	DRMSystems drmType;
+	unsigned char *contentMetadata;
 };
 
 /**
