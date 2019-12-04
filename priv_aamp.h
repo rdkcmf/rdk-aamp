@@ -2399,9 +2399,10 @@ public:
 	 *
 	 *   @param[in] headerName  - Header name
 	 *   @param[in] headerValue - Header value
+	 *   @param[in] isLicenseHeader - true if header is for a license request
 	 *   @return void
 	 */
-	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue);
+	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader);
 
 	/**
 	 *   @brief Set license server URL
@@ -2889,6 +2890,12 @@ public:
      *   @param[in]  mediaType stream type
      */
 	void CheckForDiscontinuityStall(MediaType mediaType);
+	/**
+	 *   @brief To get any custom license HTTP headers that was set by application
+	 *
+	 *   @param[out] headers - curl header structure
+	 */
+	void GetCustomLicenseHeaders(struct curl_slist **headers);
 
 	/**
 	 *   @brief To check if current asset is DASH or not
@@ -2989,6 +2996,7 @@ private:
 	double mTimeToTopProfile;
 	double mTimeAtTopProfile;
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
+	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
 };
 
 #endif // PRIVAAMP_H
