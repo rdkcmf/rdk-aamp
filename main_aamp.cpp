@@ -6464,6 +6464,12 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	{
 		free(mLicenseProxy);
 	}
+
+	if (mVideoEnd)
+	{
+		delete mVideoEnd;
+          	mVideoEnd = NULL;
+	}
 	pthread_mutex_unlock(&mLock);
 
 	pthread_cond_destroy(&mDownloadsDisabled);
