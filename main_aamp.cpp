@@ -2994,6 +2994,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("map-mpd=%d", gpGlobalConfig->mapMPD);
 		}
+		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
+		{
+			gpGlobalConfig->fragmp4LicensePrefetch = (value != 0);
+			logprintf("fragmp4-license-prefetch=%d", gpGlobalConfig->fragmp4LicensePrefetch);
+		}
 		else if (ReadConfigNumericHelper(cfg, "fog-dash=", value) == 1)
 		{
 			gpGlobalConfig->fogSupportsDash = (value != 0);
@@ -6695,6 +6700,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
+#ifdef AAMP_HLS_DRM
+    , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
+#endif
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6748,6 +6756,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
+#ifdef AAMP_HLS_DRM
+	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
+	pthread_mutex_init(&drmParserMutex, NULL);
+#endif
 }
 
 
@@ -6799,6 +6811,10 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
 	pthread_mutex_destroy(&mLock);
+#ifdef AAMP_HLS_DRM
+	aesCtrAttrDataList.clear();
+	pthread_mutex_destroy(&drmParserMutex);
+#endif
 }
 
 
