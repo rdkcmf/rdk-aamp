@@ -301,7 +301,6 @@ static void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidB
 unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem)
 {
 	unsigned char* key_id = NULL;
-
 	if(drmSystem == eDRM_WideVine)
 	{
                 uint8_t psshDataVer = psshData[8];
@@ -310,7 +309,7 @@ unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, 
 		if (psshDataVer == 0){
 			//The following 2 are for Widevine
 			//PSSH version 0
-			//4+4+4+16(system id)+4(data size)+2(keyId size inidicator + keyid size)+ keyId +
+			//4+4+4+16(system id)+4(data size)+2(keyId size indicator + keyid size)+ keyId +
 			//2 (unknown byte + content id size) + content id
 			uint32_t header = 0;
 			if (psshData[32] == KEY_ID_SZE_INDICATOR){
