@@ -53,8 +53,38 @@ AampDRMSessionManager* AampDRMSessionManager::_sessionMgr = NULL;
 
 static pthread_mutex_t sessionMgrMutex = PTHREAD_MUTEX_INITIALIZER;
 
+static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
+
 KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
 {
+}
+
+
+DrmSessionCacheInfo *drmCacheInfo_g = NULL;
+
+void *CreateDRMSession(void *arg);
+DrmSessionCacheInfo* getDrmCacheInformationHandler();
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
+
+/**
+ *  @brief Get drm cache info handler
+ *
+ *  @param None
+ *  @return		Create the Cache handler if it is null, 
+ *      else return the existing one
+ */
+DrmSessionCacheInfo* getDrmCacheInformationHandler()
+{
+	if (NULL == drmCacheInfo_g ){
+		pthread_mutex_lock(&drmSessionMutex);
+		drmCacheInfo_g = (DrmSessionCacheInfo *)malloc(sizeof(DrmSessionCacheInfo));
+		if (NULL != drmCacheInfo_g){
+			drmCacheInfo_g->createDRMSessionThreadID = 0;
+			drmCacheInfo_g->drmSessionThreadStarted = false;
+		}
+		pthread_mutex_unlock(&drmSessionMutex);
+	}
+	return  drmCacheInfo_g;
 }
 
 
@@ -582,7 +612,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	const char *keySystem = NULL;
 	DRMSystems drmType = eDRM_NONE;
-	logprintf("%s:%d systemId is %s ", __FUNCTION__, __LINE__, systemId);
 	if (!strncmp(systemId, PLAYREADY_PROTECTION_SYSTEM_ID, sizeof(PLAYREADY_PROTECTION_SYSTEM_ID)))
 	{
 		AAMPLOG_INFO("%s:%d [HHH]systemId is PLAYREADY", __FUNCTION__, __LINE__);
@@ -640,7 +669,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		if (keyIdLen == cachedKeyIDs[sessionSlot].len && 0 == memcmp(cachedKeyIDs[sessionSlot].data, keyId, keyIdLen))
 		{
-		//	if(gpGlobalConfig->logging.debug)
+			if(gpGlobalConfig->logging.debug)
 			{
 				logprintf("%s:%d  Session created/inprogress with same keyID %s at slot %d, can reuse same for %s",
 							__FUNCTION__, __LINE__, keyId, sessionSlot, sessionTypeName[streamType]);
@@ -679,7 +708,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		if(keySlotFound)
 		{
-		//	if(gpGlobalConfig->logging.debug)
+			if(gpGlobalConfig->logging.debug)
 			{
 				logprintf("%s:%d  Selected slot %d for keyId %s sessionType %s",
 							__FUNCTION__, __LINE__, sessionSlot, keyId, sessionTypeName[streamType]);
@@ -692,6 +721,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			logprintf("%s:%d  Unable to find keySlot for keyId %s sessionType %s, max sessions supported %d",
 							__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType], gpGlobalConfig->dash_MaxDRMSessions);
 			free(keyId);
+			keyId = NULL;
 			pthread_mutex_unlock(&cachedKeyMutex);
 			return NULL;
 		}
@@ -744,6 +774,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 					drmSessionContexts[sessionSlot].drmSession->setKeyId(reinterpret_cast<const char*>(keyId), keyIdLen);
 #endif
 					free(keyId);
+					keyId = NULL;
 					return drmSessionContexts[sessionSlot].drmSession;
 				}
 			}
@@ -755,6 +786,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 				pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 				free(keyId);
+				keyId = NULL;
 				return NULL;
 			}
 			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
@@ -769,6 +801,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		logprintf("%s:%d DRM initialization failed : Key State %d ", __FUNCTION__, __LINE__, code);
 		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
+		keyId = NULL;
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_INIT_FAILED;
 		return NULL;
 	}
@@ -781,6 +814,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		AAMPLOG_ERR("%s:%d DRM session ID is empty: Key State %d ", __FUNCTION__, __LINE__, code);
 		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
+		keyId = NULL;
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_SESSIONID_EMPTY;
 		return NULL;
 	}
@@ -789,6 +823,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		logprintf("%s:%d DRM init data binding failed: Key State %d ", __FUNCTION__, __LINE__, code);
 		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
+		keyId = NULL;
 		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_DATA_BIND_FAILED;
 		return NULL;
 	}
@@ -1121,6 +1156,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		reinterpret_cast<const void*>(keyId),keyIdLen);
 		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 		free(keyId);
+		keyId = NULL;
 		return drmSessionContexts[sessionSlot].drmSession;
 	}
 	else if (code == KEY_ERROR)
@@ -1150,6 +1186,133 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
 	free(keyId);
+	keyId = NULL;
 	return NULL;
 }
 
+
+/**
+ *  @brief		Function to spawn the DrmSession Thread based on the
+ *              preferred drm set.  
+ *  @param[out]	private aamp instance
+ *  @return		None.
+ */
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData)
+{
+	int iState = DRM_API_FAILED;
+	do{
+
+		/** API protection added **/
+		if (NULL == drmData){
+			AAMPLOG_ERR("%s:%d Could not able to process with the NULL Drm data", 
+				__FUNCTION__, __LINE__);
+			break;
+		}
+		/** Achieve single thread logic for DRM Session Creation **/
+		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
+		if(drmInfo->drmSessionThreadStarted) //In the case of license rotation
+		{
+			void *value_ptr = NULL;
+			int rc = pthread_join(drmInfo->createDRMSessionThreadID, &value_ptr);
+			if (rc != 0)
+			{
+				AAMPLOG_ERR("%s:%d pthread_join returned %d for createDRMSession Thread", 
+				__FUNCTION__, __LINE__, rc);
+			}
+			drmInfo->drmSessionThreadStarted = false;
+		}
+
+		AAMPLOG_INFO("%s:%d Creating thread with sessionData = 0x%08x",
+					__FUNCTION__, __LINE__, drmData->sessionData );
+		if(0 == pthread_create(&drmInfo->createDRMSessionThreadID, NULL,\
+		 CreateDRMSession, drmData->sessionData))
+		{
+			drmData->isProcessedLicenseAcquire = true;
+			drmInfo->drmSessionThreadStarted = true;
+			aamp->setCurrentDrm(drmData->drmType);
+			iState = DRM_API_SUCCESS;
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d pthread_create failed for CreateDRMSession : error code %d, %s", 
+			__FUNCTION__, __LINE__, errno, strerror(errno));
+		}
+	}while(0);
+
+	return iState;
+}
+
+/**
+ *  @brief		Thread function to create DRM Session which would be invoked in thread from
+ *              HLS , PlayReady or from pipeline  
+ *
+ *  @param[out]	arg - DrmSessionParams structure with filled data
+ *  @return		None.
+ */
+void *CreateDRMSession(void *arg)
+{
+	AAMPLOG_INFO("%s:%d Entered arg - 0x%08x", 
+	 __FUNCTION__, __LINE__, arg );
+
+	if(aamp_pthread_setname(pthread_self(), "aampDRM"))
+	{
+		AAMPLOG_ERR("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
+	}
+	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
+	AampDRMSessionManager* sessionManger = AampDRMSessionManager::getInstance();
+	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
+	AAMPEvent e;
+	e.type = AAMP_EVENT_DRM_METADATA;
+	e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
+	e.data.dash_drmmetadata.responseCode = 0;
+	unsigned char * data = sessionParams->initData;
+	int dataLength = sessionParams->initDataLen;
+
+	unsigned char *contentMetadata = sessionParams->contentMetadata;
+	AampDrmSession *drmSession = NULL;
+	const char * systemId = WIDEVINE_PROTECTION_SYSTEM_ID;
+	if (sessionParams->drmType == eDRM_WideVine)
+	{
+		AAMPLOG_INFO("Found Widevine encryption from manifest");
+	}
+	else if(sessionParams->drmType == eDRM_PlayReady)
+	{
+		AAMPLOG_INFO("Found Playready encryption from manifest");
+		systemId = PLAYREADY_PROTECTION_SYSTEM_ID;
+	}
+	else if(sessionParams->drmType == eDRM_ClearKey)
+	{
+		AAMPLOG_INFO("Found ClearKey encryption from manifest");
+		systemId = CLEARKEY_PROTECTION_SYSTEM_ID;
+	}
+	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
+	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
+	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
+					contentMetadata, sessionParams->aamp, &e);
+	if(NULL == drmSession)
+	{
+		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", 
+	 __FUNCTION__, __LINE__, systemId);
+		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
+		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
+					&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
+					&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
+		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
+		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
+	}
+	else
+	{
+		if(e.data.dash_drmmetadata.accessStatus_value != 3)
+		{
+			AAMPLOG_INFO("Sending DRMMetaData");
+			sessionParams->aamp->SendDRMMetaData(e);
+		}
+		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
+	}
+
+	//AAMPLOG_INFO("%s:%d Exited",  __FUNCTION__, __LINE__ );
+	return NULL;
+}

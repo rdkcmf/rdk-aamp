@@ -612,6 +612,7 @@ public:
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
+	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 public:
 
 	/**
@@ -662,6 +663,7 @@ public:
 		,bPositionQueryEnabled(true)
 #endif
 		,enableBulkTimedMetaReport(eUndefinedState)
+		,fragmp4LicensePrefetch(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1443,6 +1445,29 @@ struct ListenerData {
 	ListenerData* pNext;                /**< Next listener */
 };
 
+
+#ifdef AAMP_HLS_DRM
+/**
+*	\Class attrNameData
+* 	\brief	local calss to hold DRM information
+*/
+class attrNameData{
+	public:
+		std::string attrName;
+		bool isProcessed;
+		attrNameData():attrName(""),isProcessed(false) {
+		}
+		
+		attrNameData(std::string argument):attrName(argument),isProcessed(false){
+		}
+
+		bool operator==(const attrNameData& rhs) const { return (this->attrName == rhs.attrName);}
+};
+/**
+ * @}
+ */
+#endif
+
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
@@ -1656,6 +1681,11 @@ public:
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
+#ifdef AAMP_HLS_DRM
+	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
+	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
+	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
+#endif
 
 	/**
 	 * @brief Curl initialization function
