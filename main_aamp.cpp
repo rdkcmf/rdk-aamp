@@ -6399,6 +6399,12 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	}
 	pthread_mutex_unlock(&mLock);
 
+	if (mVideoEnd)
+	{
+		delete mVideoEnd;
+          	mVideoEnd = NULL;
+	}
+	pthread_mutex_unlock(&mLock);
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_mutex_destroy(&mLock);
