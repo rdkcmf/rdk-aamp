@@ -2197,10 +2197,7 @@ void TrackState::IndexPlaylist()
 				}
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
-					if (0 != totalDuration)
-					{
-						discontinuity = true;
-					}
+					discontinuity = true;
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
@@ -2220,7 +2217,7 @@ void TrackState::IndexPlaylist()
 					// a) When a new Meta is added , its hash need to be compared
 					//with available keytags to determine if its a deferred KeyAcquisition or not(VSS)
 					// b) If there is a stream with varying IV in keytag with single Meta,
-					// check if during trickplay drmInfo is considered .
+					// check if during trickplay drmInfo is considered.
 					KeyTagStruct keyinfo;
 					keyinfo.mKeyStartDuration = totalDuration;
 					keyinfo.mKeyTagStr.resize(len);
@@ -2835,6 +2832,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
 	{
 		double diff = videoDiscontinuityIndex[i].position - video->playTarget;
+
+		if (diff == 0)
+		{
+			AAMPLOG_WARN ("%s:%d video track - diff = 0; breaking the loop; first discontinuity before the content/ad is accounted", __FUNCTION__, __LINE__);
+
+			break;
+		}
+
 		if (diff > 0)
 		{
 			if (diff < video->targetDurationSeconds)
