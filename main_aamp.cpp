@@ -3812,9 +3812,8 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
 /**
  * @brief Stop playback and release resources.
  *
- * @param[in] sendStateChangeEvent - true if state change events need to be sent for Stop operation, default value true
  */
-void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
+void PlayerInstanceAAMP::Stop(void)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -3832,11 +3831,7 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
 		aamp->sendTuneMetrics(false);
 	}
-
-	if (sendStateChangeEvent)
-	{
-		aamp->SetState(eSTATE_IDLE);
-	}
+	aamp->SetState(eSTATE_IDLE);
 
 	pthread_mutex_lock(&gMutex);
 	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
