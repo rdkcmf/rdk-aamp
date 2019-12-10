@@ -4254,7 +4254,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: %s", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
+		logprintf("aamp_tune: TAG fr_test_fed_1 attempt: %d format: %s URL: %s", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
 	}
 	else
 	{
