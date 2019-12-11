@@ -323,13 +323,19 @@ img {
     color: white;
 }
 
+#buffContent {
+    text-align: center;
+    color: white;
+    font: 20px  Arial, Helvetica, sans-serif;
+}
+
 .subtitleModal {
     overflow-wrap: break-word;
     word-wrap: break-word;
     position: absolute;
     bottom: 10%;
     width: 100%;
-    #line-height: 17px;
+    line-height: 17px;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 30px;
 }

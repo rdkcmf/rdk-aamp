@@ -348,6 +348,16 @@ function anomalyEventHandler(event) {
     }
 }
 
+
+function bufferingChangedHandler(event) {
+        console.log("bufferingChangedHandler got msg: " + event.buffering);
+	if(event.buffering === false){
+		document.getElementById('buffModal').style.display = "block";
+	}else{
+		document.getElementById('buffModal').style.display = "none";
+	}
+}
+
 // helper functions
 function resetPlayer() {
     resetSubtitles(true);
@@ -370,11 +380,12 @@ function resetPlayer() {
     playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
     playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
     playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
+    //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
     playerObj.addEventListener("vttCueDataListener", webvttDataHandler);
     playerObj.addEventListener("anomalyReport", anomalyEventHandler);
+    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
