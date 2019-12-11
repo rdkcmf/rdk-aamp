@@ -62,7 +62,7 @@ body{
     text-align: justify;
     text-justify: inter-word;
     font-family: Verdana, Geneva, sans-serif;
-    padding: 20px;
+    adding: 20px;
     box-shadow:0 1px 5px rgba(0, 0, 0, 0.3), 0 0 37px rgba(0, 0, 0, 0.1) inset;
     -webkit-box-shadow:0 1px 5px rgba(0, 0, 0, 0.3), 0 0 37px rgba(0, 0, 0, 0.1) inset;
 }
@@ -321,6 +321,12 @@ img {
 #ccContent {
     text-align: center;
     color: white;
+}
+
+#buffContent {
+    text-align: center;
+    color: white;
+    font: 20px  Arial, Helvetica, sans-serif;
 }
 
 @-webkit-keyframes flydown {
