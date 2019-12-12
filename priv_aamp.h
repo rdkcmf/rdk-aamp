@@ -577,7 +577,6 @@ public:
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
-	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -625,11 +624,6 @@ public:
 		,bDescriptiveAudioTrack(false)
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(false)
-#ifdef INTELCE
-		,bPositionQueryEnabled(false)
-#else
-		,bPositionQueryEnabled(true)
-#endif
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
