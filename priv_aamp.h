@@ -2980,7 +2980,7 @@ private:
 	DRMSystems mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;
-	bool mProcessingDiscontinuity;
+	bool mProcessingDiscontinuity[AAMP_TRACK_COUNT];
 	bool mDiscontinuityTuneOperationInProgress;
 	ContentType mContentType;
 	bool mTunedEventPending;

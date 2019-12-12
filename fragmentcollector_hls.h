@@ -244,7 +244,9 @@ private:
 	/// Function to find the media sequence after refresh for continuity
 	char *FindMediaForSequenceNumber();
 	/// Fetch and inject init fragment
-	bool FetchInitFragment(long &http_code);
+	void FetchInitFragment();
+	/// Helper function fetch the init fragments
+	bool FetchInitFragmentHelper(long &http_code);
 	/// Process Drm Metadata after indexing
 	void ProcessDrmMetadata();
 	/// Function to check for deferred licensing
@@ -319,6 +321,7 @@ private:
 	PlaylistType mPlaylistType;		/**< Playlist Type */
 	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
 	bool mByteOffsetCalculation;            /**< Flag used to calculte byte offset from byte length for fragmented streams */
+	bool mSkipAbr;         /**< Flag that denotes if previous cached fragment is init fragment or not */
 };
 
 class StreamAbstractionAAMP_HLS;
