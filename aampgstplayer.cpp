@@ -1708,7 +1708,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
-		// RDK-26009 - Westerossink gives position as an absolute value from segment.start. In AAMP's GStreamer pipeline
+		// DELIA-39530 - Westerossink gives position as an absolute value from segment.start. In AAMP's GStreamer pipeline
 		// appsrc's base class - basesrc sends an additional segment event since we performed a flushing seek.
 		// To figure out the new segment.start, we need to send a segment query which will be replied
 		// by basesrc to get the updated segment event values.
@@ -2455,7 +2455,7 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 
 		if (privateContext->segmentStart > 0)
 		{
-			// RDK-26009 - Deduct segment.start to find the actual time of media that's played.
+			// DELIA-39530 - Deduct segment.start to find the actual time of media that's played.
 			rc = (GST_TIME_AS_MSECONDS(pos) - privateContext->segmentStart) * privateContext->rate;
 		}
 		else
