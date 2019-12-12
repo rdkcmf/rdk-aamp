@@ -4325,7 +4325,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (gpGlobalConfig->disableEC3 && mManifestUrl.find("tsb?") != std::string::npos) // new - limit this option to linear content as part of DELIA-23975
+		if (gpGlobalConfig->disableEC3)
 		{
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}

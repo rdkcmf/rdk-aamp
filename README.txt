@@ -114,10 +114,10 @@ vod-tune-event=2 // send streamplaying when first frame visible
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
-disableEC3=1 // removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.
-			 //In case of MPEG DASH playback this flag makes AAC preferred over ATMOS and DD+
-			 //Default priority of audio selction in DASH is ATMOS, DD+ then AAC
-disableATMOS=1 //For DASH playback makes DD+ or AAC preferred over ATMOS (EC+3)
+disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.
+		//This flag makes AAC preferred over ATMOS and DD+
+		//Default priority of audio selction is ATMOS, DD+ then AAC
+disableATMOS=1 //For playback makes DD+ or AAC preferred over ATMOS (EC+3)
 
 live-offset    live offset time in seconds, aamp starts live playback this much time before the live point
 cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playback this much time before the live point

@@ -591,11 +591,36 @@ static void * TrackPLDownloader(void *arg)
 ***************************************************************************/
 AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 {
-	int vProfileCount = 0;
-	int iFrameCount = 0;
-	int lineNum = 0;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
+	bool secondPass = false;
+	// Get the initial configuration to filter the profiles
+	bool bDisableEC3 = gpGlobalConfig->disableEC3;
+	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
+	bool bDisableATMOS = (gpGlobalConfig->disableEC3)?true:gpGlobalConfig->disableATMOS;
+	bool bDisableAAC = false;
+
+	bool ignoreProfile = false,clearProfiles = false;
+	int aacProfiles=0,ec3Profiles=0,atmosProfiles=0;
+	int vProfileCount ,iFrameCount ,lineNum ;
+	// tmp buffer to retrieve the manifest if second pass needed
+	GrowableBuffer tmpMainManifest;
+	// Main manifest contents
+	// Case 1: Handled
+	//	Media , Stream Profile (Single Codec) , IFrame Profiles ( In Order)
+	// Case 2: Handled
+	//	Media , Stream Profile (Multi Codec) , IFrame Profiles (In Order)
+	// Case 3: Handled
+	//	Media , Stream(Single Codec) and IFrame profiles mixed up ( not in order)
+	// Case 4. Handled
+	//	Media , Stream(Multi Codec) and IFrame profiles mixed up( not in order)
+
+	// Priority of Profile selection if no filter set : ATMOS , EAC3 , AAC .
+	do{
+	int aacProfiles=0,ec3Profiles=0,atmosProfiles=0;
+	mMediaCount = 0;
+	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
+	secondPass = false;
 #ifdef AVE_DRM
 	//clear previouse data
 	setCustomLicensePayLoad(NULL);
@@ -628,6 +653,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
+					ignoreProfile = false;
 					struct HlsStreamInfo *streamInfo = &this->streamInfo[GetProfileCount()];
 					memset(streamInfo, 0, sizeof(HlsStreamInfo));
 					ParseAttrList(ptr, ParseStreamInfCallback, this);
@@ -636,13 +662,115 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
-					mAbrManager.addProfile({
-						streamInfo->isIframeTrack,
-						streamInfo->bandwidthBitsPerSecond,
-						streamInfo->resolution.width,
-						streamInfo->resolution.height
-					});
-					vProfileCount++;
+					if(streamInfo->codecs) {
+					// First Check point : if AAC profile. Commonly available profile , so checked first
+					if(strstr(streamInfo->codecs,"mp4a.40.2") || (strstr(streamInfo->codecs,"mp4a.40.5")))
+					{
+						if(bDisableAAC)
+						{
+							AAMPLOG_WARN("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+							ignoreProfile = true;
+						}
+						else
+						{
+							aacProfiles++;
+						}
+					}
+					// next check point on ec3 profiles
+					else if(strstr(streamInfo->codecs,"ec-3")|| (strstr(streamInfo->codecs,"eac3")))
+					{
+						if(bDisableEC3)
+						{
+							AAMPLOG_WARN("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+							ignoreProfile = true;
+						}
+						else
+						{
+							// found EC3 profile , disable AAC profiles from adding
+							ec3Profiles++;
+							bDisableAAC = true;
+							if(aacProfiles)
+							{
+								// if already aac profiles added , clear it from local table and ABR table
+								aacProfiles = 0;
+								clearProfiles = true;
+							}
+						}
+					}
+					// next checkpoint on atmos profiles
+					else if(strstr(streamInfo->codecs,"ec+3"))
+					{
+						if(bDisableATMOS)
+						{
+							AAMPLOG_WARN("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+							ignoreProfile = true;
+						}
+						else
+						{
+							// found ATMOS Profile , disable EC3 and AAC profile from adding
+							atmosProfiles++;
+							bDisableAAC = true;
+							bDisableEC3 = true;
+							if(aacProfiles || ec3Profiles)
+							{
+								// if already aac or ec3 profiles added , clear it from local table and ABR table
+								aacProfiles = ec3Profiles = 0;
+								clearProfiles = true;
+							}
+						}
+					}
+					else
+					{
+						AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
+					}
+
+					if(clearProfiles)
+					{
+						vProfileCount = 0;
+						clearProfiles = false;
+						// some profiles which was already added to abr need to be cleared
+						// if stream only profiles were parsed , its easy to flush them out and continue with parsing
+						// but if iframes are mixed along with video profile, then its tricky to remove the interleaved entries from StreamInfo
+						// Easiest way is to clearAllProfiles and reparse again
+						// SecondParse happens rarely in some streams , no impact on regular Comcast streams
+						if(iFrameCount)
+						{
+							// IFrame and Stream Profile mixed, only way is reparse from beginning
+							// Retrieve the MainManifest content from cache .
+							memset(&tmpMainManifest, 0, sizeof(tmpMainManifest));
+							std::string tmpUrlString;
+							AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &tmpMainManifest, tmpUrlString);
+							if (tmpMainManifest.len)
+							{
+								ptr = tmpMainManifest.ptr;
+								secondPass = true;
+							}
+							else
+							{
+								mAbrManager.clearProfiles();
+							}
+							break;
+						}
+						else
+						{
+							// this will clear only video profiles already added in abr
+							// no iframes added yet ,hence no need to update StreamInfo table
+							mAbrManager.clearProfiles();
+						}
+					}
+					}// end of if for codec checking
+
+					// add profile only if ignore is not set
+					if(!ignoreProfile)
+					{
+						mAbrManager.addProfile({
+							streamInfo->isIframeTrack,
+							streamInfo->bandwidthBitsPerSecond,
+							streamInfo->resolution.width,
+							streamInfo->resolution.height
+						});
+						vProfileCount++;
+					}
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))
 				{
@@ -736,7 +864,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 			}
 		}
 		ptr = next;
-	}
+	}// while till end of file
+	}while(secondPass);
+
 	if(retval == eAAMPSTATUS_OK)
 	{
 		// Check if there are are valid profiles to do playback 
