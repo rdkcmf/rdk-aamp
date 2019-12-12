@@ -4019,13 +4019,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	newTune = IsNewTune();
 
-	// DELIA-39530 - Get position before pipeline is teared down
+	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
+
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
 		seek_pos_seconds = GetPositionMilliseconds()/1000;
 	}
 
-	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
 	if (newTune)
 	{
