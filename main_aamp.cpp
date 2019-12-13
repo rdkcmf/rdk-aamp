@@ -71,6 +71,7 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 
+#define MACRO_TO_STRING(value)    #value
 
 /**
  * @brief
@@ -3364,6 +3365,9 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 	std::string cfgPath = "";
 	if (!gpGlobalConfig)
 	{
+		#ifdef AAMP_VERSION
+			AAMPLOG_WARN("AAMP_VERSION:%s",MACRO_TO_STRING(AAMP_VERSION));
+		#endif
 		gpGlobalConfig = new GlobalConfigAAMP();
 #ifdef IARM_MGR 
         logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  ");
@@ -4255,7 +4259,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
 		#ifdef AAMP_VERSION 
-		logprintf("aamp_tune: aamp_version:%s",AAMP_VERSION);
+		logprintf("aamp_tune: aamp_version:%s",#AAMP_VERSION);
 		#endif 
 		logprintf("aamp_tune: TAG fr_test_fed_2 attempt: %d format: %s URL: %s", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
 	}
