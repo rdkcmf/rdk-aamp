@@ -4295,6 +4295,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mPersistedProfileIndex	=	-1;
 	mCurrentDrm = eDRM_NONE;
 	mServiceZone.clear(); //clear the value if present
+	mIsIframeTrackPresent = false;
 
 	SetContentType(mainManifestUrl, contentType);
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
@@ -4793,6 +4794,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	aamp->GetState(state);
 	if (aamp->mpStreamAbstractionAAMP && state != eSTATE_ERROR)
 	{
+		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
+		{
+			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			return;
+		}
+
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
@@ -4895,7 +4902,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	}
 	else
 	{
-		aamp->rate = rate;
+		AAMPLOG_WARN("%s:%d aamp_SetRate not changed, remains in same rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 
@@ -6347,7 +6354,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
-	,mCustomLicenseHeaders()
+	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
