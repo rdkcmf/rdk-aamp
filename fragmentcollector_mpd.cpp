@@ -594,7 +594,6 @@ private:
 	int mPrevAdaptationSetCount;
 	std::unordered_map<long, int> mBitrateIndexMap;
 	bool mIsFogTSB;
-	bool mIsIframeTrackPresent;
 	vector<PeriodInfo> mMPDPeriodsInfo;
 	IPeriod *mCurrentPeriod;
 	std::string mBasePeriodId;
@@ -625,7 +624,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0), lastProcessedKeyId(NULL),
 	lastProcessedKeyIdLen(0), mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
-	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mIsIframeTrackPresent(false), mMPDPeriodsInfo(),
+	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
 	,mMaxTSBBandwidth(0), mTSBDepth(MIN_TSB_BUFFER_DEPTH)
@@ -3302,7 +3301,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 				aamp->SetState(eSTATE_PREPARING);
 				//For DASH, presence of iframe track depends on current period.
-				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, mContext->hasDrm, mIsIframeTrackPresent);
+				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, mContext->hasDrm, aamp->mIsIframeTrackPresent);
 
 				aamp->UpdateDuration(((double)durationMs)/1000);
 				GetCulledSeconds();
@@ -4326,13 +4325,13 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//Store the iframe track status in current period if there is any change
-		if (!gpGlobalConfig->bAudioOnlyPlayback && (i == eMEDIATYPE_VIDEO) && (mIsIframeTrackPresent != isIframeAdaptationAvailable))
+		if (!gpGlobalConfig->bAudioOnlyPlayback && (i == eMEDIATYPE_VIDEO) && (aamp->mIsIframeTrackPresent != isIframeAdaptationAvailable))
 		{
-			mIsIframeTrackPresent = isIframeAdaptationAvailable;
+			aamp->mIsIframeTrackPresent = isIframeAdaptationAvailable;
 			//Iframe tracks changed mid-stream, sent a playbackspeed changed event
 			if (!newTune)
 			{
-				aamp->SendSupportedSpeedsChangedEvent(mIsIframeTrackPresent);
+				aamp->SendSupportedSpeedsChangedEvent(aamp->mIsIframeTrackPresent);
 			}
 		}
 	}
