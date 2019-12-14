@@ -2790,7 +2790,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 				if( format )
 				{
 					*format = FORMAT_NONE;
-					HlsStreamInfo* streamInfo = &this->streamInfo[i];
+					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 					if (this->mediaInfo[i].uri && streamInfo->codecs)
 					{
 						for (int j = 0; j < AAMP_AUDIO_FORMAT_MAP_LEN; j++)
