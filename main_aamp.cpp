@@ -71,7 +71,9 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 
-#define MACRO_TO_STRING(value)    #value
+//Stringification of Macro :  use two levels of macros
+#define MACRO_TO_STRING(s) X_STR(s)
+#define X_STR(s) #s
 
 /**
  * @brief
@@ -3365,9 +3367,10 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 	std::string cfgPath = "";
 	if (!gpGlobalConfig)
 	{
-		#ifdef AAMP_VERSION
-			AAMPLOG_WARN("AAMP_VERSION:%s",MACRO_TO_STRING(AAMP_VERSION));
-		#endif
+#ifdef AAMP_BUILD_INFO
+		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
+		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
+#endif
 		gpGlobalConfig = new GlobalConfigAAMP();
 #ifdef IARM_MGR 
         logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  ");
