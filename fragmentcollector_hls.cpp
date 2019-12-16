@@ -1070,6 +1070,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					logprintf("#EXT-X-ENDLIST");
 					mReachedEndListTag = true;
 				}
+				else if (startswith(&ptr, "-X-DISCONTINUITY-SEQUENCE"))
+				{
+					// ignore this tag for now 
+				}
 				else if (startswith(&ptr, "-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
@@ -2173,6 +2177,10 @@ void TrackState::IndexPlaylist()
 					aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
 					traceprintf("%s:%d mDrmMetaDataIndex.ptr %p", __FUNCTION__, __LINE__, mDrmMetaDataIndex.ptr);
 					mDrmMetaDataIndexCount++;
+				}
+				else if(startswith(&ptr,"-X-DISCONTINUITY-SEQUENCE"))
+				{
+					// ignore sequence
 				}
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
