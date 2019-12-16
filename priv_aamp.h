@@ -63,7 +63,7 @@ static const char *mMediaFormatName[] =
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)    /**< Maximum number of CURL instances */
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
-#define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
+#define AAMP_LIVE_OFFSET 30             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 #define CURL_FRAGMENT_DL_TIMEOUT 5L     /**< Curl timeout for fragment download */
 #define CURL_MANIFEST_DL_TIMEOUT 10L       /**< Curl timeout for manifest download */

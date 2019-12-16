@@ -3115,6 +3115,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 #ifdef AAMP_CPC // Comcast builds
         // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
         const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
+	env_aamp_enable_opt = "true";
 #else
         const char *env_aamp_enable_opt = "true";
 #endif
