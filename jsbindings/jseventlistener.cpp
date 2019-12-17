@@ -549,6 +549,45 @@ public:
 
 
 /**
+ * @class AAMP_Listener_TimedMetadata
+ *
+ * @brief Event listener impl for AAMP_EVENT_TIMED_METADATA event.
+ */
+class AAMP_Listener_TimedMetadata : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_TimedMetadata Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_TimedMetadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+		JSObjectRef timedMetadata = aamp_CreateTimedMetadataJSObject(p_obj->_ctx, ev.data.timedMetadata.timeMilliseconds, ev.data.timedMetadata.szName, ev.data.timedMetadata.szContent, ev.data.timedMetadata.id, ev.data.timedMetadata.durationMilliSeconds);
+		if (timedMetadata)
+		{
+			JSValueProtect(p_obj->_ctx, timedMetadata);
+			JSStringRef prop = JSStringCreateWithUTF8CString("timedMetadata");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, timedMetadata, kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+			JSValueUnprotect(p_obj->_ctx, timedMetadata);
+		}
+	}
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -645,6 +684,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_WEBVTT_CUE_DATA:
 			pListener = new AAMP_Listener_VTTCueData(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_TIMED_METADATA:
+			pListener = new AAMP_Listener_TimedMetadata(obj, type, jsCallback);
 			break;
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
