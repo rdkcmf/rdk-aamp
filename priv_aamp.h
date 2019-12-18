@@ -45,7 +45,7 @@
 
 static const char *mMediaFormatName[] =
 {
-    "HLS","DASH","PROGRESSIVE"
+    "HLS","DASH","PROGRESSIVE","HLS_MP4"
 };
 
 #ifdef __APPLE__
@@ -240,6 +240,18 @@ enum CurlAbortReason
 	eCURL_ABORT_REASON_STALL_TIMEDOUT,
 	eCURL_ABORT_REASON_START_TIMEDOUT
 };
+
+
+/**
+ * @brief Media format types
+ */
+typedef enum
+{
+	eMEDIAFORMAT_HLS,
+	eMEDIAFORMAT_DASH,
+	eMEDIAFORMAT_PROGRESSIVE,
+	eMEDIAFORMAT_HLS_MP4
+} MediaFormat;
 
 /*================================== AAMP Log Manager =========================================*/
 
@@ -1518,7 +1530,7 @@ public:
 	std::queue<AAMPEvent> mAdEventsQ;   // A Queue of Ad events
 	std::mutex mAdEventQMtx;            // Add events' queue protector
 	bool mInitSuccess;	//TODO: Need to replace with player state
-	StreamOutputFormat mFormat;
+	StreamOutputFormat mVideoFormat;
 	StreamOutputFormat mAudioFormat;
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
@@ -1541,6 +1553,7 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	int mLiveOffset;
+	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
@@ -2970,13 +2983,6 @@ private:
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
 	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
-	typedef enum
- 	{
-		eMEDIAFORMAT_HLS,
-		eMEDIAFORMAT_DASH,
-		eMEDIAFORMAT_PROGRESSIVE
-	} MediaFormat;
-	MediaFormat mMediaFormat;
 	DRMSystems mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;
