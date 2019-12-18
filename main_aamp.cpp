@@ -994,8 +994,8 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 #else
 		mStreamSink->Stop(true);
 #endif
-		mpStreamAbstractionAAMP->GetStreamFormat(mFormat, mAudioFormat);
-		mStreamSink->Configure(mFormat, mAudioFormat, false);
+		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
 		mpStreamAbstractionAAMP->StartInjection();
 		mStreamSink->Stream();
 		mProcessingDiscontinuity = false;
@@ -3570,7 +3570,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	}
 
 	pthread_mutex_lock(&mLock);
-	mFormat = FORMAT_INVALID;
+	mVideoFormat = FORMAT_INVALID;
 	pthread_mutex_unlock(&mLock);
 	if (streamerIsActive)
 	{
@@ -4016,15 +4016,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		seek_pos_seconds = culledSeconds;
 		logprintf("%s:%d Updated seek_pos_seconds %f ",__FUNCTION__,__LINE__, seek_pos_seconds);
 	}
-
-	if (mIsDash)
-	{ // mpd
-#if  defined (DISABLE_DASH) || defined (INTELCE)
-        logprintf("Error: Dash playback not available");
-        mInitSuccess = false;
-        SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
-        return;
-#else
+	
+	if (mMediaFormat == eMEDIAFORMAT_DASH)
+	{
+		#if  defined (DISABLE_DASH) || defined (INTELCE)
+			logprintf("Error: Dash playback not available\n");
+			mInitSuccess = false;
+			SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+		return;
+		#else
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
 		if(NULL == mCdaiObject)
 		{
@@ -4032,7 +4032,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 #endif
 	}
-	else
+	else if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
 	{ // m3u8
 		bool enableThrottle = true;
 		if (!gpGlobalConfig->gThrottle)
@@ -4087,8 +4087,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
-		logprintf("%s:%d Updated seek_pos_seconds %f ",__FUNCTION__,__LINE__, seek_pos_seconds);
-		if (!mIsDash)
+		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
+		if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
 			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline)
@@ -4096,7 +4096,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
 		}
-		else
+		else if (mMediaFormat == eMEDIAFORMAT_DASH)
 		{
                         /*
                         commenting the Flush call with updatedSeekPosition as a work around for
@@ -4116,12 +4116,17 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		}
 #endif
 
-		mpStreamAbstractionAAMP->GetStreamFormat(mFormat, mAudioFormat);
-		AAMPLOG_INFO("TuneHelper : mFormat %d, mAudioFormat %d", mFormat, mAudioFormat);
+		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
+		//Identify if HLS with mp4 fragments, to change media format
+		if (mVideoFormat == FORMAT_ISO_BMFF && mMediaFormat == eMEDIAFORMAT_HLS)
+		{
+			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
+		}
+		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d", mVideoFormat, mAudioFormat);
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
-		mStreamSink->Configure(mFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
 		mStreamSink->Stream();
@@ -4271,7 +4276,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	if( !remapUrl )
 	{
-		if (gpGlobalConfig->mapMPD && !mIsDash && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
+		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
 			mIsDash = true;
 			if (!gpGlobalConfig->fogSupportsDash )
@@ -6272,7 +6277,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
  * @brief PrivateInstanceAAMP Constructor
  */
 PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexAttr(),
-	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
+	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mVideoFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
@@ -6281,7 +6286,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
-	mState(eSTATE_RELEASED), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
+	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
@@ -7155,8 +7160,25 @@ int PrivateInstanceAAMP::getStreamType()
 
 	int type = 10; //HLS
 
-	if(mIsDash){
+	if(mMediaFormat == eMEDIAFORMAT_DASH)
+	{
 		type = 20;
+	}
+	else if( mMediaFormat == eMEDIAFORMAT_HLS)
+	{
+		type = 10;
+	}
+	else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)// eMEDIAFORMAT_PROGRESSIVE
+	{
+		type = 30;
+	}
+	else if (mMediaFormat == eMEDIAFORMAT_HLS_MP4)
+	{
+		type = 40;
+	}
+	else
+	{
+		type = 0;
 	}
 
 	switch(mCurrentDrm)
