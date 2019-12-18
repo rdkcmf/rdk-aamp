@@ -9,6 +9,8 @@
 #include <string.h>
 #include <vector>
 #include <sys/utsname.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include "priv_aamp.h"
 
 #include <sys/time.h>
