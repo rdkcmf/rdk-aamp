@@ -2670,15 +2670,22 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 
 		std::size_t pos;
 		if (uri[0] == '/')
-		{ // absolute path; preserve only endpoint http://<endpoint>:<port>/
+		{	// absolute path; preserve only endpoint http://<endpoint>:<port>/
+			//e.g uri = "/vod/video/00000001.ts"
+			// base = "https://host.com/folder1/manifest.m3u8"
+			// dst = "https://host.com/vod/video/00000001.ts"
 			pos = dst.find("://");
 			if (pos != std::string::npos)
 			{
 				pos = dst.find('/', pos + 3);
 			}
+			pos--; // skip the "/" as uri starts with "/" , this is done to avoid double "//" in URL which sometimes gives HTTP-404
 		}
 		else
-		{// relative path; include base directory
+		{	// relative path; include base directory
+			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
+			// uri = "frag-787563519.ts"
+			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
 			pos = dst.rfind('/');
 		}
 
@@ -2696,7 +2703,7 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 		}
 	}
 	else
-		dst = uri;
+		dst = uri; // uri = "http://host.com/video/manifest.m3u8"
 }
 
 /**
