@@ -2994,6 +2994,23 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
+
+#if !defined(INTELCE) && !defined(__APPLE__)
+       // TODO: Remove this hack with a proper fix in qtdemux. This was required to avoid caps negotiation failure
+       // in MP4 use-case as qtdemux was not adding codec_data field with fragmented MP4 assets
+       pluginFeature = gst_registry_lookup_feature(registry, "brcmaudfilter");
+
+       if (pluginFeature == NULL)
+       {
+               AAMPLOG_ERR("AAMPGstPlayer::%s():%d brcmaudfilter plugin feature not available", __FUNCTION__, __LINE__);
+       }
+       else
+       {
+               AAMPLOG_WARN("AAMPGstPlayer::%s():%d brcmaudfilter plugin priority set to GST_RANK_PRIMARY + 111", __FUNCTION__, __LINE__);
+               gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
+               gst_object_unref(pluginFeature);
+       }
+#endif
 #endif
 }
 
