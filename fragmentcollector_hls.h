@@ -133,6 +133,18 @@ struct DiscontinuityIndexNode
 	const char* programDateTime; /**Program Date time */
 };
 
+/**
+*	\enum DrmKeyMethod
+* 	\brief	Enum for various EXT-X-KEY:METHOD= values
+*/
+typedef enum
+{
+	eDRM_KEY_METHOD_NONE,
+	eDRM_KEY_METHOD_AES_128,
+	eDRM_KEY_METHOD_SAMPLE_AES,
+	eDRM_KEY_METHOD_SAMPLE_AES_CTR,
+	eDRM_KEY_METHOD_UNKNOWN
+} DrmKeyMethod;
 
 /**
  * @}
@@ -246,7 +258,7 @@ private:
 	/// Fetch and inject init fragment
 	void FetchInitFragment();
 	/// Helper function fetch the init fragments
-	bool FetchInitFragmentHelper(long &http_code);
+	bool FetchInitFragmentHelper(long &http_code, bool forcePushEncryptedHeader = false);
 	/// Process Drm Metadata after indexing
 	void ProcessDrmMetadata();
 	/// Function to check for deferred licensing
@@ -300,6 +312,8 @@ public:
 	typedef std::vector<KeyTagStruct> KeyHashTable;
 	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
 	KeyHashTable mKeyHashTable;
+	bool mCheckForInitialFragEnc;  /**< Flag that denotes if we should check for encrypted init header and push it to GStreamer*/
+	DrmKeyMethod mDrmMethod;  /**< denotes the X-KEY method for the fragment of interest */
 
 private:
 	bool refreshPlaylist;	/**< bool flag to indicate if playlist refresh required or not */
@@ -321,7 +335,8 @@ private:
 	PlaylistType mPlaylistType;		/**< Playlist Type */
 	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
 	bool mByteOffsetCalculation;            /**< Flag used to calculte byte offset from byte length for fragmented streams */
-	bool mSkipAbr;         /**< Flag that denotes if previous cached fragment is init fragment or not */
+	bool mSkipAbr;                          /**< Flag that denotes if previous cached fragment is init fragment or not */
+	const char* mFirstEncInitFragmentInfo;  /**< Holds first encrypted init fragment Information index*/
 };
 
 class StreamAbstractionAAMP_HLS;

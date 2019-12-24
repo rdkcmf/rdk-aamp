@@ -249,6 +249,7 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 				ts->fragmentEncrypted = false;
 				ts->UpdateDrmCMSha1Hash(NULL);
 			}
+			ts->mDrmMethod = eDRM_KEY_METHOD_NONE;
 		}
 		else if (SubStringMatch(valuePtr, fin, "AES-128"))
 		{
@@ -261,6 +262,7 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 				ts->fragmentEncrypted = true;
 			}
 			ts->mDrmInfo.method = eMETHOD_AES_128;
+			ts->mDrmMethod = eDRM_KEY_METHOD_AES_128;
 			ts->mKeyTagChanged = true;
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
@@ -272,22 +274,24 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 			*/
                         //AAMPLOG_INFO(" KC - Track %s detected SAMPLE-AES-CTR with protection = %s", 
                         //ts->name, ((ts->fragmentEncrypted)?"TRUE":"FALSE"));
-			if(ts->fragmentEncrypted)
+			if(!ts->fragmentEncrypted)
 			{
 				if (!ts->mIndexingInProgress)
 				{
 					logprintf("Track %s encrypted to clear \n", ts->name);
 				}
-				ts->fragmentEncrypted = false;
-				ts->UpdateDrmCMSha1Hash(NULL);
+				ts->fragmentEncrypted = true;
 			}
+			ts->mDrmMethod = eDRM_KEY_METHOD_SAMPLE_AES_CTR;
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES"))
 		{
+			ts->mDrmMethod = eDRM_KEY_METHOD_SAMPLE_AES;
 			aamp_Error("SAMPLE-AES unsupported");
 		}
 		else
 		{
+			ts->mDrmMethod = eDRM_KEY_METHOD_UNKNOWN;
 			aamp_Error("unsupported METHOD");
 		}
 	}
@@ -1117,6 +1121,11 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		logprintf("%s - playlistPosition[%f] > playTarget[%f] more than last fragmentDurationSeconds[%f]",
 					__FUNCTION__, playlistPosition, playTarget, fragmentDurationSeconds);
 	}
+	if (-1 == playlistPosition)
+	{
+		// Starts parsing from beginning, so change to default
+		fragmentEncrypted = false;
+	}
 	//logprintf("%s: before loop, ptr = %p fragmentURI %p", __FUNCTION__, ptr, fragmentURI);
 	while (ptr)
 	{
@@ -1565,7 +1574,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI);
-			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d", fragmentUrl, fragmentEncrypted, (int)discontinuity);
+			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d mDrmMethod %d", fragmentUrl, fragmentEncrypted, (int)discontinuity, mDrmMethod);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
 			const char *range;
@@ -1639,7 +1648,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			aamp->profiler.ProfileEnd(mediaTrackBucketTypes[type]);
 			segDLFailCount = 0;
 
-			if (cachedFragment->fragment.len && fragmentEncrypted)
+			if (cachedFragment->fragment.len && fragmentEncrypted && mDrmMethod == eDRM_KEY_METHOD_AES_128)
 			{
 				// DrmDecrypt resets mKeyTagChanged , take a back up here to give back to caller
 				bKeyChanged = mKeyTagChanged;
@@ -2400,10 +2409,10 @@ void TrackState::IndexPlaylist()
 					//Need keytag idx to pick the corresponding keytag and get drmInfo,so that second parsing can be removed
 					//drmMetadataIdx = mDrmMetaDataIndexPosition;
 					drmMetadataIdx = mDrmKeyTagCount;
-					if(!fragmentEncrypted)
+					if(!fragmentEncrypted || mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR)
 					{
 						drmMetadataIdx = -1;
-						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash);
+						traceprintf("%s:%d Not encrypted - fragmentEncrypted %d mCMSha1Hash %p mDrmMethod %d", __FUNCTION__, __LINE__, fragmentEncrypted, mCMSha1Hash, mDrmMethod);
 					}
 
 					// mCMSha1Hash is populated after ParseAttrList , hence added here
@@ -2417,6 +2426,20 @@ void TrackState::IndexPlaylist()
 
 					free (key);
 					mDrmKeyTagCount++;
+				}
+				else if(startswith(&ptr,"-X-MAP:"))
+				{
+					if (mCheckForInitialFragEnc)
+					{
+						AAMPLOG_TRACE("%s:%d fragmentEncrypted-%d drmMethod-%d and ptr - %s", __FUNCTION__, __LINE__, fragmentEncrypted, mDrmMethod, ptr);
+						// Map tag present indicates ISOBMFF fragments. We need to store an encrypted fragment's init header
+						// Ensure order of tags 1. EXT-X-KEY, 2. EXT-X-MAP
+						if (fragmentEncrypted && mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR && mFirstEncInitFragmentInfo == NULL)
+						{
+							AAMPLOG_TRACE("%s:%d mFirstEncInitFragmentInfo - %s", __FUNCTION__, __LINE__, ptr);
+							mFirstEncInitFragmentInfo = ptr;
+						}
+					}
 				}
 				else if (startswith(&ptr,"-X-ENDLIST"))
 				{
@@ -3678,6 +3701,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				const char* prefix = (iTrack == eTRACK_SUBTITLE)?"sub-":((iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-");
 				HarvestFile(ts->mPlaylistUrl, &ts->playlist, false, prefix);
 #endif
+				// Flag also denotes if first encrypted init fragment was pushed or not
+				ts->mCheckForInitialFragEnc = (newTune || mTuneType == eTUNETYPE_RETUNE); //these tune types have new gstreamer pipeline
 				ts->IndexPlaylist();
 				if (ts->mDuration == 0.0f)
 				{
@@ -3744,6 +3769,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->streamOutputFormat = FORMAT_ISO_BMFF;
 					continue;
 				}
+				// Not ISOBMFF, no need for encrypted header check and associated logic
+				// But header identification might have been already done, if EXT-X-MAP is present in playlist
+				ts->mCheckForInitialFragEnc = false;
 				if (FORMAT_AUDIO_ES_AAC == format)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC", ts->name);
@@ -4513,7 +4541,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		context(parent), fragmentEncrypted(false), mKeyTagChanged(false), mLastKeyTagIdx(0), mDrmInfo(),
 		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
-		mByteOffsetCalculation(false),mSkipAbr(false)
+		mByteOffsetCalculation(false),mSkipAbr(false),
+		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
@@ -5362,32 +5391,56 @@ void TrackState::FetchInitFragment()
 		}
 
 		long http_code = -1;
+		bool forcePushEncryptedHeader = (!fragmentEncrypted && mCheckForInitialFragEnc);
+		// Check if we have encrypted header successfully parsed to push ahead
+		if (forcePushEncryptedHeader && mFirstEncInitFragmentInfo == NULL)
+		{
+			AAMPLOG_WARN("TrackState::%s:%d [%s] first encrypted init-fragment is NULL! fragmentEncrypted-%d", __FUNCTION__, __LINE__, name, fragmentEncrypted);
+			forcePushEncryptedHeader = false;
+		}
+
 		ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia((MediaType)type, true);
 		aamp->profiler.ProfileBegin(bucketType);
-		if(FetchInitFragmentHelper(http_code))
+		if(FetchInitFragmentHelper(http_code, forcePushEncryptedHeader))
 		{
 			aamp->profiler.ProfileEnd(bucketType);
-			mInjectInitFragment = false;
 
-			//Restore playTarget so that appropriate media fragment is downloaded next
+			double position = 0;
+
 			if (context->rate == AAMP_NORMAL_PLAY_RATE)
 			{
-				playTarget -= fragmentDurationSeconds;
+				position = playTarget - fragmentDurationSeconds;
 			}
 			else
 			{
-				playTarget -= context->rate / context->mTrickPlayFPS;
+				position = playTarget - (context->rate / context->mTrickPlayFPS);
+			}
+
+			if (position < 0)
+			{
+				AAMPLOG_WARN("TrackState::%s:%d position (%f) playTargetOffset(%f), clamping position to zero!", __FUNCTION__, __LINE__, position, playTargetOffset);
+				position = 0;
 			}
 
 			CachedFragment* cachedFragment = GetFetchBuffer(false);
 			if (cachedFragment->fragment.ptr)
 			{
 				cachedFragment->duration = 0;
-				cachedFragment->position = playTarget - playTargetOffset;
+				cachedFragment->position = position - playTargetOffset;
 				cachedFragment->discontinuity = discontinuity;
 			}
+
+			// If forcePushEncryptedHeader, don't reset the playTarget as the original init header has to be pushed next
+			if (!forcePushEncryptedHeader)
+			{
+				//Restore playTarget so that appropriate media fragment is downloaded next after pushing init header
+				playTarget = position;
+				mInjectInitFragment = false;
+			}
+
 			discontinuity = false; //reset discontinuity which has been set for init fragment now
 			mSkipAbr = true; //Skip ABR, since last fragment cached is init fragment.
+			mCheckForInitialFragEnc = false; //Push encrypted header is a one-time operation
 
 			UpdateTSAfterFetch();
 		}
@@ -5410,11 +5463,25 @@ void TrackState::FetchInitFragment()
 * @brief Helper to fetch init fragment for fragmented mp4 format
 * @return true if success
 ***************************************************************************/
-bool TrackState::FetchInitFragmentHelper(long &http_code)
+bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncryptedHeader)
 {
 	bool ret = false;
+	std::istringstream initFragmentUrlStream;
 	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
-	std::istringstream initFragmentUrlStream(mInitFragmentInfo);
+
+	// If the first init fragment is of a clear fragment, we push an encrypted fragment's
+	// init data first to let qtdemux know we will need decryptor plugins
+	AAMPLOG_TRACE("TrackState::%s:%d [%s] fragmentEncrypted-%d mFirstEncInitFragmentInfo-%s", __FUNCTION__, __LINE__, name, fragmentEncrypted, mFirstEncInitFragmentInfo);
+	if (forcePushEncryptedHeader)
+	{
+		//Push encrypted fragment's init data first
+		AAMPLOG_WARN("TrackState::%s:%d [%s] first init-fragment is unencrypted.! Pushing encrypted init-header", __FUNCTION__, __LINE__, name);
+		initFragmentUrlStream = std::istringstream(std::string(mFirstEncInitFragmentInfo));
+	}
+	else
+	{
+		initFragmentUrlStream = std::istringstream(std::string(mInitFragmentInfo));
+	}
 	std::string line;
 	std::getline(initFragmentUrlStream, line);
 	if (!line.empty())
@@ -5479,7 +5546,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code)
 			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri.c_str());
 			std::string tempEffectiveUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
-			AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d [%s] init-fragment = %s", __FUNCTION__, __LINE__, name, fragmentUrl.c_str());
+			AAMPLOG_WARN("TrackState::%s:%d [%s] init-fragment = %s", __FUNCTION__, __LINE__, name, fragmentUrl.c_str());
 			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false, (MediaType) (type));
