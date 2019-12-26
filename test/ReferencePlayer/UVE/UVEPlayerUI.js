@@ -27,6 +27,8 @@ function playPause() {
     if (playerState === playerStatesEnum.idle) {
         //Play first video when clicking Play button first time
         document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
+        resetPlayer();
+        resetUIOnNewAsset();
         loadUrl(urls[0]);
     } else {
         // If it was a trick play operation
