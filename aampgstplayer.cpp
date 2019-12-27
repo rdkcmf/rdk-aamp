@@ -408,7 +408,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 					"width", G_TYPE_INT, 1920,
 					"height", G_TYPE_INT, 1080,
 					NULL);
-#elif defined(RPI)
+#elif (defined(RPI) || defined(__APPLE__))
 			caps = gst_caps_new_simple ("video/x-h264",
                                        "alignment", G_TYPE_STRING, "au",
                                        "stream-format", G_TYPE_STRING, "avc",
@@ -1674,13 +1674,13 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
 		gboolean enableOverride;
-#if (defined(INTELCE) || defined(RPI))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
-#if (defined(INTELCE) || defined(RPI))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
 		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
