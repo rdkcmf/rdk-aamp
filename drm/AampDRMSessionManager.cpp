@@ -383,6 +383,7 @@ static void mssleep(int milliseconds)
  *  			are to be used.
  *  @param[in]	licenseProxy - Proxy to use for license requests.
  *  @param[in]	headers - Custom headers from application for license request.
+ *  @param[in]	drmSystem - DRM type.
  *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
  *  @note		Memory for license key is dynamically allocated, deallocation
  *				should be handled at the caller side.
@@ -390,7 +391,7 @@ static void mssleep(int milliseconds)
  *
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader)
+		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
 {
 
 	*httpCode = -1;
@@ -414,6 +415,23 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		headers = curl_slist_append(headers, "Expect:");
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "AAMP/1.0.0");
 	//	headers = curl_slist_append(headers, "X-MoneyTrace: trace-id=226c94fc4d-3535-4945-a173-61af53444a3d;parent-id=4557953636469444377;span-id=803972323171353973");
+	}
+	else if(customHeader == NULL)
+	{
+		if(drmSystem == eDRM_WideVine)
+		{
+			AAMPLOG_WARN("No custom header, setting default for Widevine");
+			headers = curl_slist_append(headers,"Content-Type: application/octet-stream");
+		}
+		else if (drmSystem == eDRM_PlayReady)
+		{
+			AAMPLOG_WARN("No custom header, setting default for Playready");
+			headers = curl_slist_append(headers,"Content-Type: text/xml; charset=utf-8");
+		}
+		else
+		{
+			AAMPLOG_WARN("!!! Custom header is missing and default is not processed.");
+		}
 	}
 
 	strcpy((char*) destURL, destinationURL.c_str());
@@ -1007,7 +1025,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers, drmType);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -1024,7 +1042,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers, drmType);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)
