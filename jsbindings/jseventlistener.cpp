@@ -65,26 +65,6 @@ public:
 
 
 /**
- * @class AAMP_Listener_MediaEndReached
- * @brief Event listener impl for AAMP_EVENT_EOS event.
- */
-class AAMP_Listener_MediaEndReached : public AAMP_JSEventListener
-{
-public:
-	/**
-	 * @brief AAMP_Listener_MediaEndReached Constructor
-         * @param[in] aamp instance of PrivAAMPStruct_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
-	 */
-	AAMP_Listener_MediaEndReached(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
-		: AAMP_JSEventListener(obj, type, jsCallback)
-	{
-	}
-};
-
-
-/**
  * @class AAMP_Listener_ProgressUpdate
  * @brief Event listener impl for AAMP_EVENT_PROGRESS event.
  */
@@ -442,7 +422,6 @@ public:
 
 /**
  * @class AAMP_Listener_DRMMetadata
- *
  * @brief Event listener impl for AAMP_EVENT_DRM_METADATA event.
  */
 class AAMP_Listener_DRMMetadata : public AAMP_JSEventListener
@@ -488,7 +467,6 @@ public:
 
 /**
  * @class AAMP_Listener_AnomalyReport
- *
  * @brief Event listener impl for AAMP_EVENT_REPORT_ANOMALY event.
  */
 class AAMP_Listener_AnomalyReport : public AAMP_JSEventListener
@@ -534,7 +512,6 @@ public:
 
 /**
  * @class AAMP_Listener_VTTCueData
- *
  * @brief Event listener impl for AAMP_EVENT_WEBVTT_CUE_DATA event.
  */
 class AAMP_Listener_VTTCueData : public AAMP_JSEventListener
@@ -581,7 +558,6 @@ public:
 
 /**
  * @class AAMP_Listener_TimedMetadata
- *
  * @brief Event listener impl for AAMP_EVENT_TIMED_METADATA event.
  */
 class AAMP_Listener_TimedMetadata : public AAMP_JSEventListener
@@ -614,6 +590,60 @@ public:
 			JSStringRelease(prop);
 			JSValueUnprotect(p_obj->_ctx, timedMetadata);
 		}
+	}
+};
+
+
+/*
+ * @class AAMP_Listener_BitrateChanged
+ * @brief Event listener impl for AAMP_EVENT_BITRATE_CHANGED event.
+ */
+class AAMP_Listener_BitrateChanged : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_BitrateChanged Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_BitrateChanged(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+		JSStringRef name;
+		name = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.time), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("bitRate");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.bitrate), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("description");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, aamp_CStringToJSValue(p_obj->_ctx, ev.data.bitrateChanged.description), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("width");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.width), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("height");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.height), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("framerate");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, ev.data.bitrateChanged.framerate), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+		
 	}
 };
 
@@ -680,9 +710,6 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 
 	switch(type)
 	{
-		case AAMP_EVENT_EOS:
-			pListener = new AAMP_Listener_MediaEndReached(obj, type, jsCallback);
-			break;
 		case AAMP_EVENT_STATE_CHANGED:
 			pListener = new AAMP_Listener_PlaybackStateChanged(obj, type, jsCallback);
 			break;
@@ -722,6 +749,11 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 		case AAMP_EVENT_TIMED_METADATA:
 			pListener = new AAMP_Listener_TimedMetadata(obj, type, jsCallback);
 			break;
+		case AAMP_EVENT_BITRATE_CHANGED:
+			pListener = new AAMP_Listener_BitrateChanged(obj, type, jsCallback);
+			break;
+		// Following events are not having payload and hence falls under default case
+		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
 			break;

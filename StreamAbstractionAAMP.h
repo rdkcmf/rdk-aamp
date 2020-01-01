@@ -353,6 +353,7 @@ struct StreamResolution
 {
 	int width;      /**< Width in pixels*/
 	int height;     /**< Height in pixels*/
+	double framerate; /**< Frame Rate */
 };
 
 /**
