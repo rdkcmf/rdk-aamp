@@ -41,6 +41,7 @@
 #include <libxml/xmlreader.h>
 #include <math.h>
 #include <algorithm>
+#include <cctype>
 #include "AampCacheHandler.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
@@ -2456,7 +2457,7 @@ void *CreateDRMSession(void *arg)
  * @param adaptationSet Adaptation set object
  * @param mediaType type of track
  */
-void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType)
+void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet, MediaType mediaType)
 {
 	const vector<IDescriptor*> contentProt = adaptationSet->GetContentProtection();
 	unsigned char* data   = NULL;
@@ -2473,7 +2474,16 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 	AAMPLOG_TRACE("[HHH]contentProt.size=%d", contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
 	{
-		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(COMCAST_DRM_INFO_ID) != string::npos)
+		std::string schemeIdUri = contentProt.at(iContentProt)->GetSchemeIdUri();
+		if (schemeIdUri.empty())
+		{
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d type[%d], got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, mediaType, iContentProt);
+			continue;
+		}
+		//Convert UUID to all lowercase
+		std::transform(schemeIdUri.begin(), schemeIdUri.end(), schemeIdUri.begin(), [](unsigned char ch){ return std::tolower(ch); });
+
+		if (schemeIdUri.find(COMCAST_DRM_INFO_ID) != string::npos)
 		{
 			logprintf("[HHH]Comcast DRM Agnostic CENC system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
@@ -2496,10 +2506,8 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				}
 			}
 			if(data) free(data);
-			continue;
 		}
-
-		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(WIDEVINE_SYSTEM_ID) != string::npos)
+		else if (schemeIdUri.find(WIDEVINE_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]Widevine system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
@@ -2511,10 +2519,8 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				logprintf("init data from manifest; length %d", wvDataLength);
 				DumpBlob(wvData, wvDataLength);
 			}
-			continue;
 		}
-
-		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(PLAYREADY_SYSTEM_ID) != string::npos)
+		else if (schemeIdUri.find(PLAYREADY_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]Playready system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
@@ -2526,10 +2532,8 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				logprintf("init data from manifest; length %d", prDataLength);
 				DumpBlob(prData, prDataLength);
 			}
-			continue;
 		}
-
-		if (contentProt.at(iContentProt)->GetSchemeIdUri().find(CLEARKEY_SYSTEM_ID) != string::npos)
+		else if (schemeIdUri.find(CLEARKEY_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]ClearKey system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
@@ -2541,7 +2545,6 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				logprintf("init data from manifest; length %d", prDataLength);
 				DumpBlob(prData, prDataLength);
 			}
-			continue;
 		}
 	}
 
@@ -2551,24 +2554,30 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		data = wvData;
 		dataLength = wvDataLength;
 
-		if(prData){
+		if(prData)
+		{
 			free(prData);
 		}
-		if(ckData){
+		if(ckData)
+		{
 			free(ckData);
 		}
-	}else if(prData != NULL && prDataLength > 0)
+	}
+	else if(prData != NULL && prDataLength > 0)
 	{
 		drmType = eDRM_PlayReady;
 		data = prData;
 		dataLength = prDataLength;
-		if(wvData){
+		if(wvData)
+		{
 			free(wvData);
 		}
-		if(ckData){
+		if(ckData)
+		{
 			free(ckData);
 		}	
-	}else if(ckData != NULL && ckDataLength > 0)
+	}
+	else if(ckData != NULL && ckDataLength > 0)
 	{
 		drmType = eDRM_ClearKey;
 		data = ckData;
