@@ -22,6 +22,8 @@ var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 //Comcast DRM config for AAMP
 var DrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
+//DRM config for Sintel asset
+var SintelDrmConfig = {'com.microsoft.playready':'https://amssamples.keydelivery.mediaservices.windows.net/PlayReady/', 'com.widevine.alpha':'https://amssamples.keydelivery.mediaservices.windows.net/Widevine/?KID=f9dbca11-a1e2-45c8-891f-fb71063cbfdb', 'preferredKeysystem':'com.microsoft.playready'};
 //AAMP initConfig is used to pass certain predefined config params to AAMP
 //Commented out values are not implemented for now
 //Values assigned are default values of each config param
@@ -293,7 +295,12 @@ function loadUrl(urlObject) {
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
-    if (urlObject.useDefaultDrmConfig === true) {
+    if (urlObject.name.includes("Sintel") == true) {
+        var initConfiguration = defaultInitConfig;
+        initConfiguration.drmConfig = SintelDrmConfig;
+        playerObj.initConfig(initConfiguration);
+        playerObj.load(urlObject.url);
+    } else if (urlObject.useDefaultDrmConfig === true) {
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {
