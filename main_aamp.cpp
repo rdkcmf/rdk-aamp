@@ -4820,10 +4820,19 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
-			logprintf("%s(): Already at logical live point, hence skipping operation", __FUNCTION__);
+			AAMPLOG_WARN("%s(): Already at logical live point, hence skipping operation", __FUNCTION__);
 			aamp->NotifyOnEnteringLive();
 			return;
 		}
+
+		// DELIA-39691 If input rate is same as current playback rate, skip duplicate operation
+		// Additional check for pipeline_paused is because of 0(PAUSED) -> 1(PLAYING), where aamp->rate == 1.0 in PAUSED state
+		if ((!aamp->pipeline_paused && rate == aamp->rate) || (rate == 0 && aamp->pipeline_paused))
+		{
+			AAMPLOG_WARN("%s(): Already running at playback rate(%d) pipeline_paused(%d), hence skipping set rate for (%d)", __FUNCTION__, aamp->rate, aamp->pipeline_paused, rate);
+			return;
+		}
+
 
 		//DELIA-30274  -- Get the trick play to a closer position 
 		//Logic adapted 
@@ -4845,25 +4854,36 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
-		if (aamp->IsDashAsset() || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
+		//Gstreamer position query is enabled only for HLS + TS combo for now
+		if (aamp->mMediaFormat != eMEDIAFORMAT_HLS || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
+			double newSeekPosInSec = -1;
 			// when switching from trick to play mode only 
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
 				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
 				{
 					// increment by 1x trickplay frame , next possible displayed frame
-					aamp->seek_pos_seconds = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+					newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
 				}
 				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
 				{
 					// Get the last shown frame itself 
-					aamp->seek_pos_seconds = aamp->mReportProgressPosn/1000;
+					newSeekPosInSec = aamp->mReportProgressPosn/1000;
 				}
 				else
 				{
 					// Go little back to last shown frame 
-					aamp->seek_pos_seconds = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+					newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+				}
+
+				if (newSeekPosInSec >= 0)
+				{
+					aamp->seek_pos_seconds = newSeekPosInSec;
+				}
+				else
+				{
+					AAMPLOG_WARN("%s:%d new seek_pos_seconds calculated is invalid(%f), discarding it!", __FUNCTION__, __LINE__, newSeekPosInSec);
 				}
 			}
 			else
@@ -5868,7 +5888,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//For pipeline paused, we could query the position from gstreamer pipeline
-		if (mMediaFormat==eMEDIAFORMAT_HLS && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		if (mMediaFormat == eMEDIAFORMAT_HLS && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
 		{
 			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
 			positionMiliseconds += positionOffsetFromStart;
