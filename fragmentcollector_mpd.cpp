@@ -3683,13 +3683,9 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 				const std::string& infoNodeType = infoNode->GetAttributeValue("type");
 				if (name == "ContentIdentifier" && (infoNodeType == "URI" || infoNodeType == "URN")) {
 					if (infoNode->HasAttribute("value")) {
-						const std::string& contentID = infoNode->GetAttributeValue("value");
+						const std::string& content = infoNode->GetAttributeValue("value");
 
-						std::ostringstream s;
-						s << "#EXT-X-CONTENT-IDENTIFIER:" << contentID;
-
-						std::string content = s.str();
-						AAMPLOG_INFO("TimedMetadata: @%1.3f %s", 0.0f, content.c_str());
+						AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-CONTENT-IDENTIFIER:%s", 0.0f, content.c_str());
 
 						for (int i = 0; i < aamp->subscribedTags.size(); i++)
 						{
@@ -3710,13 +3706,9 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 			if (schemeIdUri == "urn:comcast:dai:2018" && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if (ID == "identityADS" && node->HasAttribute("value")) {
-					const std::string& identityADS = node->GetAttributeValue("value");
+					const std::string& content = node->GetAttributeValue("value");
 
-					std::ostringstream s;
-					s << "#EXT-X-IDENTITY-ADS:" << identityADS;
-
-					std::string content = s.str();
-					AAMPLOG_INFO("TimedMetadata: @%1.3f %s", 0.0f, content.c_str());
+					AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-IDENTITY-ADS:%s", 0.0f, content.c_str());
 
 					for (int i = 0; i < aamp->subscribedTags.size(); i++)
 					{
@@ -3729,13 +3721,9 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					continue;
 				}
 				if (ID == "messageRef" && node->HasAttribute("value")) {
-					const std::string& messageRef = node->GetAttributeValue("value");
+					const std::string& content = node->GetAttributeValue("value");
 
-					std::ostringstream s;
-					s << "#EXT-X-MESSAGE-REF:" << messageRef;
-
-					std::string content = s.str();
-					AAMPLOG_INFO("TimedMetadata: @%1.3f %s", 0.0f, content.c_str());
+					AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-MESSAGE-REF:%s", 0.0f, content.c_str());
 
 					for (int i = 0; i < aamp->subscribedTags.size(); i++)
 					{
@@ -3782,12 +3770,12 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 					double start = startMS / 1000.0f;
 
 					std::ostringstream s;
-					s << "#EXT-X-CUE:ID=" << AdID;
+					s << "ID=" << AdID;
 					s << ",DURATION=" << std::fixed << std::setprecision(3) << duration;
 					s << ",PSN=true";
 
 					std::string content = s.str();
-					AAMPLOG_INFO("TimedMetadata: @%1.3f %s", start, content.c_str());
+					AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-CUE:%s", start, content.c_str());
 
 					for (int i = 0; i < aamp->subscribedTags.size(); i++)
 					{
@@ -3861,12 +3849,12 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 					}
 
 					std::ostringstream s;
-					s << "#EXT-X-ASSET-ID:ID=" << assetID;
+					s << "ID=" << assetID;
 					s << ",PROVIDER=" << providerID;
 					s << ",DURATION=" << std::fixed << std::setprecision(3) << duration;
 
 					std::string content = s.str();
-					AAMPLOG_INFO("TimedMetadata: @%1.3f %s", start, content.c_str());
+					AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-ASSET-ID:%s", start, content.c_str());
 
 					for (int i = 0; i < aamp->subscribedTags.size(); i++)
 					{
@@ -3995,8 +3983,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 	std::string text = node->GetText();
 	if (!trickMode.empty() && !text.empty()) {
 		std::ostringstream s;
-		s << "#EXT-X-TRICKMODE-RESTRICTION"
-		  << ":ADID=" << AdID
+		s << "ADID=" << AdID
 		  << ",MODE=" << trickMode
 		  << ",LIMIT=" << text;
 
@@ -4005,7 +3992,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 		}
 
 		std::string content = s.str();
-		AAMPLOG_INFO("TimedMetadata: @%1.3f %s", start, content.c_str());
+		AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-TRICKMODE-RESTRICTION:%s", start, content.c_str());
 
 		for (int i = 0; i < aamp->subscribedTags.size(); i++)
 		{

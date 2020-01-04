@@ -2046,7 +2046,7 @@ public:
 	 * @param[in] durationMS - Duration in milliseconds
 	 * @return void
 	 */
-	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = 0);
+	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
 
 	/**
 	 * @brief sleep only if aamp downloads are enabled.
