@@ -72,10 +72,6 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 
-//Stringification of Macro :  use two levels of macros
-#define MACRO_TO_STRING(s) X_STR(s)
-#define X_STR(s) #s
-
 /**
  * @brief
  * @param paramName
@@ -84,6 +80,10 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
  */
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
+
+//Stringification of Macro :  use two levels of macros
+#define MACRO_TO_STRING(s) X_STR(s)
+#define X_STR(s) #s
 
 /**
  * @brief get a character for console
