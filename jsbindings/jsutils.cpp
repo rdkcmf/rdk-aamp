@@ -438,7 +438,9 @@ JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, double timeMS
 			// Parse CUE metadata and TRICKMODE-RESTRICTION metadata
 			// Parsed values are used in PlayerPlatform at the time of tag object creation
 			if ((strcmp(szName, "#EXT-X-CUE") == 0) ||
-			    (strcmp(szName, "#EXT-X-TRICKMODE-RESTRICTION") == 0)) {
+			    (strcmp(szName, "#EXT-X-TRICKMODE-RESTRICTION") == 0) ||
+			    (strcmp(szName, "#EXT-X-MARKER") == 0) ||
+			    (strcmp(szName, "#EXT-X-SCTE35") == 0)) {
 				const char* szStart = szContent;
 
 				// Advance past #EXT tag.
