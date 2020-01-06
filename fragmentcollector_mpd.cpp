@@ -633,40 +633,33 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
  * @param mediaType media type
  * @retval true if compatible
  */
-static bool IsCompatibleMimeType(std::string mimeType, MediaType mediaType)
+static bool IsCompatibleMimeType(const std::string& mimeType, MediaType mediaType)
 {
+	bool isCompatible = false;
+
 	switch ( mediaType )
 	{
-	case eMEDIATYPE_VIDEO:
-		if (mimeType == "video/mp4")
-		{
-			return true;
-		}
-		break;
+		case eMEDIATYPE_VIDEO:
+			if (mimeType == "video/mp4")
+				isCompatible = true;
+			break;
 
-	case eMEDIATYPE_AUDIO:
-		if (mimeType == "audio/webm")
-		{
-			return true;
-		}
-		if (mimeType == "audio/mp4")
-		{
-			return true;
-		}
-		break;
+		case eMEDIATYPE_AUDIO:
+			if ((mimeType == "audio/webm") ||
+				(mimeType == "audio/mp4"))
+				isCompatible = true;
+			break;
 
-	case eMEDIATYPE_SUBTITLE:
-		if (mimeType == "text/vtt")
-		{
-			return true;
-		}
-		break;
+		case eMEDIATYPE_SUBTITLE:
+			if (mimeType == "text/vtt")
+				isCompatible = true;
+			break;
 
-	default:
-		break;
-
+		default:
+			break;
 	}
-	return false;
+
+	return isCompatible;
 }
 
 /**
@@ -4274,13 +4267,16 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
         {
 		retAdapSetValue = first_audio_track;
 	}
-	if(iAdaptationSet_codec_cmp == -1) // if nothing set 
-        {
-		IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(retAdapSetValue);
-		if( audioAdaptationSet )
+	if (retAdapSetValue >= 0) //only if adptationset found
+	{
+		if(iAdaptationSet_codec_cmp == -1) // if nothing set 
 		{
-			uint32_t selRepBandwidth = 0;
-			desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth);
+			IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(retAdapSetValue);
+			if( audioAdaptationSet )
+			{
+				uint32_t selRepBandwidth = 0;
+				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth);
+			}
 		}
 	}          
 	return retAdapSetValue;
