@@ -1477,10 +1477,10 @@ char *TrackState::FindMediaForSequenceNumber()
 					}
 					if (initFragment)
 					{
-						if ((!mInitFragmentInfo) || (mInitFragmentInfo && initFragment && strcmp(mInitFragmentInfo, initFragment) != 0))
+						// mInitFragmentInfo will be cleared after calling FlushIndex() from IndexPlaylist()
+						if (!mInitFragmentInfo)
 						{
 							mInitFragmentInfo = initFragment;
-							mInjectInitFragment = true;
 							AAMPLOG_WARN("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
 						}
 					}
@@ -1549,7 +1549,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			fragmentURI = GetNextFragmentUriFromPlaylist();
 			if (fragmentURI != NULL)
 			{
-				playTarget = playlistPosition + fragmentDurationSeconds;
+				if (!mInjectInitFragment)
+					playTarget = playlistPosition + fragmentDurationSeconds;
 				if (IsLive())
 				{
 					context->CheckForPlaybackStall(true);
@@ -2622,6 +2623,8 @@ void TrackState::ABRProfileChanged()
 	pthread_mutex_lock(&mutex);
 	//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
 	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
+	//Video profile change will definitely require new init headers
+	mInjectInitFragment = true;
 	refreshPlaylist = true;
 	/*For some VOD assets, different video profiles have different DRM meta-data.*/
 	mForceProcessDrmMetadata = true;
@@ -5405,36 +5408,17 @@ void TrackState::FetchInitFragment()
 		{
 			aamp->profiler.ProfileEnd(bucketType);
 
-			double position = 0;
-
-			if (context->rate == AAMP_NORMAL_PLAY_RATE)
-			{
-				position = playTarget - fragmentDurationSeconds;
-			}
-			else
-			{
-				position = playTarget - (context->rate / context->mTrickPlayFPS);
-			}
-
-			if (position < 0)
-			{
-				AAMPLOG_WARN("TrackState::%s:%d position (%f) playTargetOffset(%f), clamping position to zero!", __FUNCTION__, __LINE__, position, playTargetOffset);
-				position = 0;
-			}
-
 			CachedFragment* cachedFragment = GetFetchBuffer(false);
 			if (cachedFragment->fragment.ptr)
 			{
 				cachedFragment->duration = 0;
-				cachedFragment->position = position - playTargetOffset;
+				cachedFragment->position = playTarget - playTargetOffset;
 				cachedFragment->discontinuity = discontinuity;
 			}
 
 			// If forcePushEncryptedHeader, don't reset the playTarget as the original init header has to be pushed next
 			if (!forcePushEncryptedHeader)
 			{
-				//Restore playTarget so that appropriate media fragment is downloaded next after pushing init header
-				playTarget = position;
 				mInjectInitFragment = false;
 			}
 
