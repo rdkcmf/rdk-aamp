@@ -7734,7 +7734,7 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 		e.data.adResolved.resolveStatus = status;
 		e.data.adResolved.startMS = startMS;
 		e.data.adResolved.durationMs = durationMs;
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status of adId[%s]=%d", __FUNCTION__, __LINE__, adId.c_str(), e.data.adResolved.resolveStatus);
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status=%d for adId[%s]", __FUNCTION__, __LINE__, e.data.adResolved.resolveStatus, adId.c_str());
 		SendEventAsync(e);
 #endif
 	}
