@@ -409,9 +409,12 @@ JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, double timeMS
 			bGenerateID = false;
 		}
 
-		name = JSStringCreateWithUTF8CString("duration");
-		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, (int)durationMS), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
+		if (durationMS >= 0)
+		{
+			name = JSStringCreateWithUTF8CString("duration");
+			JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, (int)durationMS), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
 
 		name = JSStringCreateWithUTF8CString("name");
 		JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, szName), kJSPropertyAttributeReadOnly, NULL);
@@ -442,11 +445,6 @@ JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, double timeMS
 			    (strcmp(szName, "#EXT-X-MARKER") == 0) ||
 			    (strcmp(szName, "#EXT-X-SCTE35") == 0)) {
 				const char* szStart = szContent;
-
-				// Advance past #EXT tag.
-				for (; *szStart != ':' && *szStart != '\0'; szStart++);
-				if (*szStart == ':')
-					szStart++;
 
 				// Parse comma seperated name=value list.
 				while (*szStart != '\0') {

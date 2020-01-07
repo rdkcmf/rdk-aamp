@@ -6048,6 +6048,7 @@ void PrivateInstanceAAMP::Stop()
 
 /**
  * @brief Report TimedMetadata events
+ * szName should be the tag name and szContent should be tag value, excluding delimiter ":"
  * @param timeMilliseconds time in milliseconds
  * @param szName name of metadata
  * @param szContent  metadata content
@@ -6111,6 +6112,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 
 		eventData.data.timedMetadata.szName = eventData.additionalEventData[0].c_str();
 		eventData.data.timedMetadata.id = eventData.additionalEventData[1].c_str();
+		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
 		eventData.data.timedMetadata.szContent = eventData.additionalEventData[2].c_str();
 
 		if (gpGlobalConfig->logging.progress)
