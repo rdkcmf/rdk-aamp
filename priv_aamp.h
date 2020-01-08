@@ -632,8 +632,8 @@ public:
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,mEnableRectPropertyCfg(false)
 		,decoderUnavailableStrict(false)
-		,reportBufferEvent(false)
 		,useAppSrcForProgressivePlayback(false)
+		,reportBufferEvent(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
