@@ -482,6 +482,21 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	}
 	this->culledSeconds += culledSecs;
 
+	for (auto iter = timedMetadata.begin(); iter != timedMetadata.end(); )
+	{
+		// If the timed metadata has expired due to playlist refresh, remove it from local cache
+		// For X-CONTENT-IDENTIFIER, -X-IDENTITY-ADS, X-MESSAGE_REF in DASH which has _timeMS as 0
+		if (iter->_timeMS != 0 && iter->_timeMS < (culledSeconds * 1000.0))
+		{
+			//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) ERASE", (long)iter->_timeMS, iter->_name.c_str(), iter->_content.c_str());
+			iter = timedMetadata.erase(iter);
+		}
+		else
+		{
+			iter++;
+		}
+	}
+
 	// Check if we are paused and culled past paused playback position
 	// AAMP internally caches fragments in sw and gst buffer, so we should be good here
 	if (pipeline_paused && mpStreamAbstractionAAMP)
@@ -6066,7 +6081,9 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 	for (i=timedMetadata.begin(); i != timedMetadata.end(); i++)
 	{
 		if (i->_timeMS < timeMilliseconds)
+		{
 			continue;
+		}
 
 		// Does an entry already exist?
 		if ((i->_timeMS == timeMilliseconds) && (i->_name.compare(szName) == 0))
@@ -6074,7 +6091,9 @@ void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const cha
 			if (i->_content.compare(content) == 0)
 			{
 				//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) DUPLICATE", (long)timeMilliseconds, szName, content.data(), nb);
-			} else {
+			}
+			else
+			{
 				//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) REPLACE", (long)timeMilliseconds, szName, content.data(), nb);
 				i->_content = content;
 				bFireEvent = true;
