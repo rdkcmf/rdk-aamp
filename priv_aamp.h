@@ -635,7 +635,7 @@ public:
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
 		,useAppSrcForProgressivePlayback(false)
-		,reportBufferEvent(false)
+		,reportBufferEvent(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
