@@ -238,6 +238,11 @@ public:
 	/// Function to check the IsLive status of track. Kept Public as its called from StreamAbstraction
 	bool IsLive()  { return (ePLAYLISTTYPE_VOD != mPlaylistType);}
 
+	/**
+	 * @brief Function to search playlist for subscribed tags
+	 */
+	void FindTimedMetadata();
+
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();
