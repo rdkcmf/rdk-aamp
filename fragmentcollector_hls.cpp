@@ -1920,7 +1920,7 @@ static double GetCompletionTimeForFragment(const TrackState *trackState, long lo
 		}
 		else
 		{
-			logprintf("aamp warn - bad index!");
+			AAMPLOG_WARN("%s:%d bad index! mediaSequenceNumber=%lld, indexFirstMediaSequenceNumber=%lld", __FUNCTION__, __LINE__, mediaSequenceNumber, trackState->indexFirstMediaSequenceNumber);
 		}
 	}
 	return rc;
@@ -2459,22 +2459,6 @@ void TrackState::IndexPlaylist()
 						mPlaylistType = ePLAYLISTTYPE_VOD;
 					}
 				}
-				else if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
-				{
-					for (int i = 0; i < aamp->subscribedTags.size(); i++)
-					{
-						int len = aamp->subscribedTags.at(i).length();
-						const char* data = aamp->subscribedTags.at(i).data();
-						if( startswith(&ptr,(data + 4))) // remove the TAG and only keep value(content) in PTR
-						{
-							ptr++; // skip the ":" 
-							int nb = (int)FindLineLength(ptr);
-							//logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'", i, totalDuration, nb, ptr);
-							aamp->ReportTimedMetadata(totalDuration * 1000, data, ptr, nb);
-							break;
-						}
-					}
-				}
 			}
 			ptr=GetNextLineStart(ptr);
 		}
@@ -2698,22 +2682,45 @@ void TrackState::RefreshPlaylist(void)
 		}
 #endif
 		IndexPlaylist();
+
+		// Update culled seconds if playlist download was successful
+		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
+		// culledSeconds and FindTimedMetadata have been moved up here, because FindMediaForSequenceNumber
+		// uses mystrpbrk internally which modifies line terminators in playlist.ptr and results in 
+		// FindTimedMetadata failing to parse playlist
+		if (IsLive())
+		{
+			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
+			double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
+			if (culled > 0)
+			{
+				mCulledSeconds += culled;
+				if (eTRACK_VIDEO == type)
+				{
+					aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
+				}
+			}
+		}
+
+		//Parse for timed metadata in the updated playlist
+		FindTimedMetadata();
+
 		if( mDuration > 0.0f )
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		    const char* prefix = (type == eTRACK_SUBTITLE)?"sub-":(type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
-		    context->HarvestFile(mPlaylistUrl, &playlist, false, prefix);
+			const char* prefix = (type == eTRACK_SUBTITLE)?"sub-":(type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
+			context->HarvestFile(mPlaylistUrl, &playlist, false, prefix);
 #endif
-		    if (IsLive())
-		    {
-		        fragmentURI = FindMediaForSequenceNumber();
-		    }
-		    else
-		    {
-		        fragmentURI = playlist.ptr;
-		        playlistPosition = -1;
-		    }
-		    manifestDLFailCount = 0;
+			if (IsLive())
+			{
+				fragmentURI = FindMediaForSequenceNumber();
+			}
+			else
+			{
+				fragmentURI = playlist.ptr;
+				playlistPosition = -1;
+			}
+			manifestDLFailCount = 0;
 		}
 	}
 	else
@@ -2747,16 +2754,6 @@ void TrackState::RefreshPlaylist(void)
 				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 				return;
 			}
-		}
-	}
-	double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
-	double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-	if (culled > 0 && IsLive())
-	{
-		mCulledSeconds += culled;
-		if (eTRACK_VIDEO == type)
-		{
-			aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
 		}
 	}
 }
@@ -3671,6 +3668,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = (newTune || mTuneType == eTUNETYPE_RETUNE); //these tune types have new gstreamer pipeline
 				ts->IndexPlaylist();
+				ts->FindTimedMetadata();
 				if (ts->mDuration == 0.0f)
 				{
 					if (iTrack == eTRACK_SUBTITLE)
@@ -5668,6 +5666,51 @@ void TrackState::RestoreDrmState()
 	{
 		mDrm->RestoreKeyState();
 	}
+}
+
+/***************************************************************************
+* @fn FindTimedMetadata
+* @brief Function to search playlist for subscribed tags
+*
+* @return void
+***************************************************************************/
+void TrackState::FindTimedMetadata()
+{
+	double totalDuration = 0.0;
+	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
+	if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
+	{
+		pthread_mutex_lock(&mPlaylistMutex);
+		if (playlist.ptr)
+		{
+			char *ptr = GetNextLineStart(playlist.ptr);
+			while (ptr)
+			{
+				if(startswith(&ptr,"#EXT"))
+				{
+					if (startswith(&ptr, "INF:"))
+					{
+						totalDuration += atof(ptr);
+					}
+					for (int i = 0; i < aamp->subscribedTags.size(); i++)
+					{
+						const char* data = aamp->subscribedTags.at(i).data();
+						if(startswith(&ptr, (data + 4))) // remove the TAG and only keep value(content) in PTR
+						{
+							ptr++; // skip the ":"
+							int nb = (int)FindLineLength(ptr);
+							//logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'", i, totalDuration, nb, ptr);
+							aamp->ReportTimedMetadata((mCulledSeconds + totalDuration) * 1000, data, ptr, nb);
+							break;
+						}
+					}
+				}
+				ptr=GetNextLineStart(ptr);
+			}
+		}
+		pthread_mutex_unlock(&mPlaylistMutex);
+	}
+	traceprintf("%s:%d Exit", __FUNCTION__, __LINE__);
 }
 
 /**
