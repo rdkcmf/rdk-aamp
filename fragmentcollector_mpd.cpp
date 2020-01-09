@@ -3252,11 +3252,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					{
 						//Calculate live offset based on time elements in the mpd
 						double currTime = (double)aamp_GetCurrentTimeMS() / 1000;
-						if(mTSBDepth < aamp->mLiveOffset)
+						double liveoffset = aamp->mLiveOffset;
+						if(mTSBDepth < liveoffset)
 						{
-							aamp->mLiveOffset = mTSBDepth;
+							liveoffset = mTSBDepth;
 						}
-						double startTime = currTime - aamp->mLiveOffset;
+						double startTime = currTime - liveoffset;
 						currentPeriodStart = ((double)durationMs / 1000);
 						while(mCurrentPeriodIdx >= 0)
 						{

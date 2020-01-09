@@ -115,6 +115,7 @@ extern "C"
 extern void setCustomLicensePayLoad(const char* customData);
 }
 #endif
+static size_t FindLineLength(const char* ptr);
 
 /***************************************************************************
 * @fn startswith
@@ -321,6 +322,32 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		assert(valuePtr[0] == '0');
 		assert(valuePtr[1] == 'x');
 		ts->UpdateDrmCMSha1Hash(valuePtr+2);
+	}
+}
+
+
+/***************************************************************************
+* @fn ParseXStartAttributeCallback
+* @brief Callback function to decode XStart attributes
+*		 
+* @param attrName[in] input string	
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] TrackState pointer for storage
+* @return void
+***************************************************************************/
+static void ParseXStartAttributeCallback(char *attrName, char *delimEqual, char *fin, void* arg)
+{
+	HLSXStart *var = (HLSXStart *)arg;
+	char *valuePtr = delimEqual + 1;
+	if (AttributeNameMatch(attrName, "TIME-OFFSET"))
+	{
+		var->offset = atof(valuePtr);
+	}
+	else if (AttributeNameMatch(attrName, "PRECISE"))
+	{
+		// Precise attribute is not considered . By default NO option is selected 	
+		var->precise = false;
 	}
 }
 
@@ -585,6 +612,34 @@ static bool ParseTimeFromProgramDateTime(const char* ptr, struct timeval &progra
 	}
 	return retVal;
 }
+/***************************************************************************
+* @fn ParseXStartTimeOffset
+* @brief Helper function to Parse XStart Tag and attributes
+*
+* @param arg[in] char *ptr , string with X-START
+* @return double offset value
+***************************************************************************/
+static double ParseXStartTimeOffset(const char* ptr)
+{
+	double retOffSet = 0.0;
+	if(ptr)
+	{
+		size_t len = FindLineLength(ptr);
+		char* xstartStr =(char*) malloc (len+1);
+		if(xstartStr)
+		{
+			memcpy(xstartStr,ptr,len);
+			xstartStr[len]='\0';
+
+			HLSXStart xstart;
+			ParseAttrList(xstartStr, ParseXStartAttributeCallback, &xstart);
+			free(xstartStr);
+			retOffSet = xstart.offset;
+		}
+	}
+	return retOffSet;
+}
+
 
 /***************************************************************************
 * @fn TrackPLDownloader
@@ -864,12 +919,30 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				else if (startswith(&ptr, "-UPLYNK-LIVE"))
 				{ // related to uplynk streaming service
 				}
-				else if (startswith(&ptr, "-X-START:TIME-OFFSET="))
+				else if (startswith(&ptr, "-X-START:"))					
 				{ // i.e. "TIME-OFFSET=2.336, PRECISE=YES" - specifies the preferred point in the video to start playback; not yet supported
-					if (atof(ptr) != 0)
-					{
-						logprintf("WARNING:found EXT-X-START tag with TIME-OFFSET=%s",ptr);
-					}
+
+                                       // check if App has not configured any liveoffset
+                                        if(!aamp->mNewLiveOffsetflag)
+                                        {
+                                                double offsetval = ParseXStartTimeOffset(ptr);
+						if (offsetval != 0)
+						{
+                                                	if(!aamp->IsLiveAdjustRequired())
+                                                	{
+                                                        	// if aamp cfg offset is not set or App has not set the value  , then configure
+                                                        	if(gpGlobalConfig->cdvrliveOffset == -1)
+                                                                	aamp->mLiveOffset = abs(offsetval);
+                                                	}
+                                               		else
+                                                	{
+                                                        	// if aamp cfg offset is not set or App has not set the value , then configure
+                                                        	if(gpGlobalConfig->liveOffset == -1)
+									aamp->mLiveOffset = abs(offsetval);
+                                                	}
+							logprintf("%s WARNING:found EXT-X-START in MainManifest Offset:%f  liveOffset:%f",__FUNCTION__,offsetval,aamp->mLiveOffset);
+						}
+                                        }
 				}
 				else if (startswith(&ptr, "INF:"))
 				{
@@ -2439,6 +2512,27 @@ void TrackState::IndexPlaylist()
 							mFirstEncInitFragmentInfo = ptr;
 						}
 					}
+				}
+				else if (startswith(&ptr, "-X-START:"))
+				{
+					// X-Start can have two attributes . Time-Offset & Precise .
+					// check if App has not configured any liveoffset
+					if(!aamp->mNewLiveOffsetflag)
+					{
+					 	double offsetval = ParseXStartTimeOffset(ptr);
+		                             	if(!aamp->IsLiveAdjustRequired())
+         					{
+                                                      	// if aamp cfg offset is not set or App has not set the value  , then configure
+                                                       	if(gpGlobalConfig->cdvrliveOffset == -1)
+                                                                SetXStartTimeOffset(offsetval);
+                                                }
+                                                else
+                                                {
+                                                        // if aamp cfg offset is not set or App has not set the value , then configure
+                                                        if(gpGlobalConfig->liveOffset == -1)
+								SetXStartTimeOffset(offsetval);
+                                                }
+                                        }
 				}
 				else if (startswith(&ptr,"-X-ENDLIST"))
 				{
@@ -4068,8 +4162,22 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		if (liveAdjust)
 		{
-			int offsetFromLive = aamp->mLiveOffset ; 
-	
+			double xStartOffset = video->GetXStartTimeOffset();
+			double offsetFromLive = aamp->mLiveOffset ; 
+			// check if there is xStartOffSet , if non zero value present ,check if it is > 3 times TD(Spec requirement)
+			if(xStartOffset != 0 && abs(xStartOffset) > (3*video->targetDurationSeconds))
+			{
+				// DELIA-40177 -> For now code added for negative offset values
+				// that is offset from last duration 
+				if(xStartOffset < 0)
+				{
+					offsetFromLive = abs(xStartOffset);
+					AAMPLOG_WARN("%s: liveOffset modified with X-Start to :%f",__FUNCTION__,offsetFromLive);
+				}
+				// if xStartOffset is positive value , then playposition to be considered from beginning 
+				// TBD for later.Only offset from end is supported now . That too only for live . Not for VOD!!!!
+			}
+			
 			if (video->mDuration > (offsetFromLive + video->playTargetOffset))
 			{
 				//DELIA-28451
@@ -4520,6 +4628,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
 		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
+		,mXStartTimeOFfset(0)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
