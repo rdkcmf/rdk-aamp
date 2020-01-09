@@ -2958,7 +2958,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 					logprintf("%s:%d fragment extension %s - FORMAT_MPEGTS", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_MPEGTS;
 				}
-				else if (0 == extension.compare(".mp4") || 0 == extension.compare(".m4s"))
+				else if (0 == extension.compare(".mp4") || 0 == extension.compare(".m4s") || 0 == extension.compare(".cmfv"))
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_ISO_BMFF;

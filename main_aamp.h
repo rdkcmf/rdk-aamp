@@ -194,7 +194,7 @@ typedef enum
 } PrivAAMPState;
 
 #define MAX_LANGUAGE_COUNT 16
-#define MAX_LANGUAGE_TAG_LENGTH 16 // <lang>-<role>
+#define MAX_LANGUAGE_TAG_LENGTH 24 // <lang>-<role>
 //(3+1+1) /* iso639-2 + optional 2..9 digit to disambiguate multiple same-language tracms, + nul terminator */
 
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
