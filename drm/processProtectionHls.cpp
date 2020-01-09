@@ -405,7 +405,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
  */
 void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
 {	
-	AampDRMSessionManager::getInstance()->setCurlAbort(true);
+	aamp->mDRMSessionManager->setCurlAbort(true);
 	ReleaseDRMLicenseAcquireThread(aamp);
 	DrmSessionDataInfo *drmSessioData = NULL;
 	pthread_mutex_lock(&drmProcessingMutex);
