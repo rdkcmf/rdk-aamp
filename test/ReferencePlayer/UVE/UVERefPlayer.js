@@ -417,6 +417,10 @@ function bufferingChangedHandler(event) {
     }
 }
 
+function playbackSeeked(event) {
+    console.log("Play Seeked " + JSON.stringify(event));
+}
+
 // helper functions
 function resetPlayer() {
     resetSubtitles(true);
@@ -450,6 +454,7 @@ function resetPlayer() {
     playerObj.addEventListener("placementError", placementError);
     playerObj.addEventListener("placementEnd", placementEnd);
     playerObj.addEventListener("reservationEnd", reservationEnd);
+    playerObj.addEventListener("seeked", playbackSeeked);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
     playerState = playerStatesEnum.idle;

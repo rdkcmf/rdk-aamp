@@ -75,6 +75,7 @@ typedef enum
 	AAMP_EVENT_STATE_CHANGED,       /**< Event when player state changes */
 	AAMP_EVENT_SPEEDS_CHANGED,      /**< Event when supported playback speeds changes */
 //Unified Video Engine API spec
+	AAMP_EVENT_SEEKED,              /**< Event when seek completes, including new position*/
 	AAMP_EVENT_BUFFERING_CHANGED,   /**< Event when buffering starts/ends btw a playback*/
 	AAMP_EVENT_DURATION_CHANGED,    /**< Event when duration changed */
 	AAMP_EVENT_AUDIO_TRACKS_CHANGED,/**< Event when available audio tracks changes */
@@ -194,7 +195,7 @@ typedef enum
 } PrivAAMPState;
 
 #define MAX_LANGUAGE_COUNT 16
-#define MAX_LANGUAGE_TAG_LENGTH 24 // <lang>-<role>
+#define MAX_LANGUAGE_TAG_LENGTH 32 // <lang>-<role>
 //(3+1+1) /* iso639-2 + optional 2..9 digit to disambiguate multiple same-language tracms, + nul terminator */
 
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
@@ -248,6 +249,14 @@ struct AAMPEvent
 			double endMiliseconds;      /**< time shift buffer end position (relative to tune time - starts at zero) */
 			long long videoPTS; 		/**< Video Presentation 90 Khz time-stamp  */
 		} progress;
+
+		/**
+		 * @brief Structure of the seeked event data
+		 */
+		struct
+		{
+			double positionMiliseconds;	/**< new seeked position in milliseconds */
+		} seeked;
 
 		/**
 		 * @brief Structure of the speed change event

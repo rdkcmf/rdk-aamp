@@ -6546,8 +6546,16 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 {
 	if (mState == state)
-	{
+	{ // noop
 		return;
+	}
+
+	if( state == eSTATE_PLAYING && mState == eSTATE_SEEKING )
+	{
+		AAMPEvent eventData;
+		eventData.type = AAMP_EVENT_SEEKED;
+		eventData.data.seeked.positionMiliseconds = GetPositionMilliseconds();
+		SendEventSync(eventData);
 	}
 
 	pthread_mutex_lock(&mLock);
