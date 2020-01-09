@@ -3018,11 +3018,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	{
 		std::string manifestUrl = aamp->GetManifestUrl();
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
-		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
-			numTracks--;
-		}
+		// temporarily disabling subtitles to avoid log flooding
+		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
+		numTracks--;
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -4196,10 +4194,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 {
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
-	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		numTracks--;
-	}
+	// temporarily disabling subtitles to avoid log flooding
+	numTracks--;
 	IPeriod *period = mCurrentPeriod;
 	AAMPLOG_INFO("Selected Period index %d, id %s", mCurrentPeriodIdx, period->GetId().c_str());
 	for( int i=0; i<numTracks; i++ )
