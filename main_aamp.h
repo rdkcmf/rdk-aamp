@@ -913,10 +913,11 @@ public:
 	 *   @brief Tune to a URL.
 	 *
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
+	 *   @param[in]  autoPlay - Start playback immediately or not
 	 *   @param[in]  contentType - Content type of the asset
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL);
+	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL);
 
 	/**
 	 *   @brief Stop playback and release resources.
@@ -956,6 +957,12 @@ public:
 	 *           relative position from first tune command.
 	 */
 	void SetRateAndSeek(int rate, double secondsRelativeToTuneTime);
+
+	/**
+	 * @brief Soft stop the player instance.
+	 *
+	 */
+	void detach();
 
 	/**
 	 *   @brief Register event handler.
@@ -1379,6 +1386,20 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+	/**
+	 *   @brief Set async tune configuration
+	 *   @param[in] bValue - true if async tune enabled 
+	 *
+	 *   @return void
+	*/
+	void SetAsyncTuneConfig(bool bValue);
+
+	/**
+	 *   @brief Get async tune configuration
+	 *
+	 *   @return bool - true if async tune enabled
+	*/
+	bool GetAsyncTuneConfig();
 
 	/**
 	 *	@brief Set parallel playlist download config value for linear

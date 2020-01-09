@@ -108,7 +108,6 @@ typedef enum{
 	eSESSIONMGR_ACTIVE
 }SessionMgrState;
 
-
 /**
  *  @class	AampDRMSessionManager
  *  @brief	Controller for managing DRM sessions.
@@ -117,7 +116,6 @@ class AampDRMSessionManager
 {
 
 private:
-	static AampDRMSessionManager* _sessionMgr;
 	DrmSessionContext *drmSessionContexts;
 	KeyID *cachedKeyIDs;
 	char* accessToken;
@@ -127,8 +125,6 @@ private:
 	pthread_mutex_t cachedKeyMutex;
 	bool curlSessionAbort;
 
-	AampDRMSessionManager();
-
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
 
@@ -137,8 +133,8 @@ private:
 	static int progress_callback(void *clientp,	double dltotal, 
 			double dlnow, double ultotal, double ulnow );
 public:
-	
-	static AampDRMSessionManager* getInstance();
+
+	AampDRMSessionManager();
 
 	void initializeDrmSessions();
 
@@ -167,5 +163,10 @@ public:
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 };
+
+typedef struct writeCallbackData{
+	DrmData *data ;
+	AampDRMSessionManager* mDRMSessionManager;
+}writeCallbackData;
 
 #endif
