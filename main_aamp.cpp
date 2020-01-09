@@ -3253,6 +3253,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
 			logprintf("bulk-timedmeta-report=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "async-tune=", value) == 1)
+		{
+			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
+			logprintf("async-tune=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
@@ -5853,6 +5858,54 @@ void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 }
 
 
+/**
+ *   @brief Set Async Tune Configuration
+ *   @param[in] bValue - true if async tune enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+{
+	aamp->SetAsyncTuneConfig(bValue);
+}
+/**
+ *   @brief Set Async Tune Configuration
+ *   @param[in] bValue - true if async tune enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+{
+	if(gpGlobalConfig->mAsyncTuneConfig == eUndefinedState)
+	{
+		mAsyncTuneEnabled = bValue;
+	}
+	else
+	{
+		mAsyncTuneEnabled = (bool)gpGlobalConfig->mAsyncTuneConfig;
+	}
+	AAMPLOG_INFO("%s:%d Async Tune Config : %s ",__FUNCTION__,__LINE__,(mAsyncTuneEnabled)?"True":"False");
+}
+
+/**
+ *   @brief Get Async Tune configuration
+ *
+ *   @return bool - true if config set
+ */
+bool PlayerInstanceAAMP::GetAsyncTuneConfig()
+{
+        return aamp->GetAsyncTuneConfig();
+}
+
+/**
+ *   @brief Get Async Tune configuration
+ *
+ *   @return bool - true if config set 
+ */
+bool PrivateInstanceAAMP::GetAsyncTuneConfig()
+{
+        return mAsyncTuneEnabled;
+}
 
 /**
  *   @brief Set video rectangle.
@@ -6608,6 +6661,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mParallelFetchPlaylist(false)
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
+	,mAsyncTuneEnabled(false)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6660,6 +6714,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCdaiObject = NULL;
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
+	SetAsyncTuneConfig(false);
 }
 
 
