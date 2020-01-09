@@ -2988,13 +2988,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			logprintf("disableATMOS=%d", gpGlobalConfig->disableATMOS);
 		}
 		else if (ReadConfigNumericHelper(cfg, "live-offset=", gpGlobalConfig->liveOffset) == 1)
-		{
-			VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
+		{			
 			logprintf("live-offset=%d", gpGlobalConfig->liveOffset);
 		}
 		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
 		{
-			VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
 			logprintf("cdvrlive-offset=%d", gpGlobalConfig->cdvrliveOffset);
 		}
 		else if (ReadConfigNumericHelper(cfg, "disablePlaylistIndexEvent=", gpGlobalConfig->disablePlaylistIndexEvent) == 1)
@@ -4340,20 +4338,35 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
 		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec
-		if(!mNewLiveOffsetflag)
+
+		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
+		if(gpGlobalConfig->cdvrliveOffset != -1)
 		{
+			// if aamp cfg has override that will be set 		
 			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
+		}
+		else if(!mNewLiveOffsetflag)
+		{
+			// if App has not set the value , set it to default		
+			mLiveOffset	=	AAMP_CDVR_LIVE_OFFSET;
 		}
 	}
 	else
 	{
 		// will be used only for live
-		if(!mNewLiveOffsetflag)
+		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
+		if(gpGlobalConfig->liveOffset != -1)
 		{
+			// if aamp cfg has override that will be set 
 			mLiveOffset	=	gpGlobalConfig->liveOffset;
 		}
+		else if(!mNewLiveOffsetflag)
+		{
+			// if App has not set the value , set it to default 
+			mLiveOffset	=	AAMP_LIVE_OFFSET;
+		}
 	}
-	logprintf("mLiveOffset: %d", mLiveOffset);
+	AAMPLOG_WARN("[%s] mLiveOffset: %f", __FUNCTION__,mLiveOffset);
 
 	if(bFirstAttempt)
 	{

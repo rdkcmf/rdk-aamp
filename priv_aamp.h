@@ -145,6 +145,16 @@ struct GrowableBuffer
 	size_t avail;   /**< Available buffer size */
 };
 
+
+/**
+ * @brief Structure of X-Start HLS Tag
+ */
+struct HLSXStart
+{
+	double offset;      /**< Time offset from XStart */
+	bool precise;     	/**< Precise input */
+};
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -604,7 +614,7 @@ public:
 		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
 		playlistsParallelFetch(false), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
-		liveOffset(AAMP_LIVE_OFFSET),cdvrliveOffset(AAMP_CDVR_LIVE_OFFSET), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
+		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeout(CURL_FRAGMENT_DL_TIMEOUT),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
@@ -1552,7 +1562,7 @@ public:
 	bool streamerIsActive;
 	bool mTSBEnabled;
 	bool mIscDVR;
-	int mLiveOffset;
+	double mLiveOffset;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;
 	pthread_t fragmentCollectorThreadID;

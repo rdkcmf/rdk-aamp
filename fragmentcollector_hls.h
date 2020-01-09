@@ -237,12 +237,14 @@ public:
 	void RestoreDrmState();
 	/// Function to check the IsLive status of track. Kept Public as its called from StreamAbstraction
 	bool IsLive()  { return (ePLAYLISTTYPE_VOD != mPlaylistType);}
-
 	/**
 	 * @brief Function to search playlist for subscribed tags
 	 */
 	void FindTimedMetadata();
-
+	// Function to set XStart Time Offset Value 
+	void SetXStartTimeOffset(double offset) { mXStartTimeOFfset = offset; }
+	// Function to retune XStart Time Offset
+	double GetXStartTimeOffset() { return mXStartTimeOFfset;}
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();
@@ -342,6 +344,7 @@ private:
 	bool mByteOffsetCalculation;            /**< Flag used to calculte byte offset from byte length for fragmented streams */
 	bool mSkipAbr;                          /**< Flag that denotes if previous cached fragment is init fragment or not */
 	const char* mFirstEncInitFragmentInfo;  /**< Holds first encrypted init fragment Information index*/
+	double mXStartTimeOFfset;		/**< Holds value of time offset from X-Start tag */
 };
 
 class StreamAbstractionAAMP_HLS;
