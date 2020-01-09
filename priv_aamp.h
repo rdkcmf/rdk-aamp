@@ -544,7 +544,8 @@ public:
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
-	TriState enableBulkTimedMetaReport;		/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState mAsyncTuneConfig;		/**< Enalbe Async tune from application */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -668,6 +669,7 @@ public:
 		,manifestTimeoutMs(-1)
 		,fragmp4LicensePrefetch(true)
 		,enableBulkTimedMetaReport(eUndefinedState)
+		,mAsyncTuneConfig(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1604,6 +1606,7 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	bool mParallelFetchPlaylist;
+	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
@@ -3063,6 +3066,20 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+	/**
+	 *   @brief Set async tune configuration
+	 *   @param[in] bValue - true if async tune enabled
+	 *
+	*   @return void
+	*/
+	void SetAsyncTuneConfig(bool bValue);
+
+	/**
+	 *   @brief Get async tune configuration
+	 *
+	 *   @return bool - true if async tune enabled
+	*/
+	bool GetAsyncTuneConfig();
 
 	/**
 	 *   @brief To flush buffers in streamsink

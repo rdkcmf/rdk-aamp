@@ -1277,6 +1277,20 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+	/**
+	 *   @brief Set async tune configuration
+	 *   @param[in] bValue - true if async tune enabled 
+	 *
+	 *   @return void
+	*/
+	void SetAsyncTuneConfig(bool bValue);
+
+	/**
+	 *   @brief Get async tune configuration
+	 *
+	 *   @return bool - true if async tune enabled
+	*/
+	bool GetAsyncTuneConfig();
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
