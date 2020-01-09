@@ -19,8 +19,6 @@
 
 #include "AampCacheHandler.h"
 
-AampCacheHandler * AampCacheHandler::mInstance = NULL;
-
 /**
  * @brief Insert playlist to playlist cache
  * @param url URL corresponding to playlist
@@ -229,20 +227,6 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 	}
 	return retVal;
 }
-
-
-/**
- * @brief Create Singleton Instance of AampCacheHandler
- */
-AampCacheHandler * AampCacheHandler::GetInstance()
-{
-	if(mInstance == NULL)
-	{
-		mInstance = new AampCacheHandler();
-	}
-	return mInstance;
-}
-
 
 AampCacheHandler::AampCacheHandler():
 	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),

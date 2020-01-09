@@ -52,7 +52,7 @@ var defaultInitConfig = {
     /**
      * start position for playback (seconds)
      */
-    offset: 15,
+    offset: 0,
 
     /**
      * network request timeout (seconds)
@@ -194,6 +194,7 @@ var playbackRateIndex = playbackSpeeds.indexOf(1);
 var urlIndex = 0;
 var mutedStatus = false;
 var playerObj = null;
+var bgPlayerObj = null;
 
 window.onload = function() {
     initPlayerControls();
@@ -260,7 +261,8 @@ function playbackStateChanged(event) {
 
 function mediaEndReached() {
     console.log("Media end reached event!");
-    loadNextAsset();
+//    loadNextAsset();
+	toggleVideo();
 }
 
 function mediaSpeedChanged(event) {
@@ -372,6 +374,35 @@ function bulkMetadataHandler(event) {
 	console.log("Bulk TimedMetadata : " + JSON.stringify(event));
 }
 
+function createAAMPPlayer(){
+    var newPlayer = new AAMPPlayer();
+    newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
+    newPlayer.addEventListener("playbackCompleted", mediaEndReached);
+    newPlayer.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
+    newPlayer.addEventListener("bitrateChanged", bitrateChanged);
+    newPlayer.addEventListener("playbackFailed", mediaPlaybackFailed);
+    newPlayer.addEventListener("mediaMetadata", mediaMetadataParsed);
+    newPlayer.addEventListener("timedMetadata", subscribedTagNotifier);
+    newPlayer.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
+    newPlayer.addEventListener("playbackStarted", mediaPlaybackStarted);
+    newPlayer.addEventListener("bufferingChanged", bufferingChangedHandler);
+    newPlayer.addEventListener("durationChanged", mediaDurationChanged);
+    newPlayer.addEventListener("decoderAvailable", decoderHandleAvailable);
+    newPlayer.addEventListener("vttCueDataListener", webvttDataHandler);
+    newPlayer.addEventListener("anomalyReport", anomalyEventHandler);
+    newPlayer.addEventListener("reservationStart", reservationStart);
+    newPlayer.addEventListener("placementStart", placementStart);
+    newPlayer.addEventListener("placementProgress", placementProgress);
+    newPlayer.addEventListener("placementError", placementError);
+    newPlayer.addEventListener("placementEnd", placementEnd);
+    newPlayer.addEventListener("reservationEnd", reservationEnd);
+    newPlayer.addEventListener("seeked", playbackSeeked);
+    newPlayer.addEventListener("tuneProfiling", tuneProfiling);
+    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
+    //newPlayer.addEventListener("adResolved", adResolvedCallback);
+    return newPlayer;
+}
+
 // helper functions
 function resetPlayer() {
     if (playerState !== playerStatesEnum.idle) {
@@ -381,6 +412,7 @@ function resetPlayer() {
         playerObj.destroy();
         playerObj = null;
     }
+
 
     playerObj = new AAMPPlayer("UVE-Ref-Player");
     playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
@@ -401,9 +433,14 @@ function resetPlayer() {
     //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
+
+    playerObj = createAAMPPlayer();
+
+
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
+
 
 function loadUrl(urlObject) {
     console.log("UrlObject received: " + urlObject);

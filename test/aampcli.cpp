@@ -42,7 +42,8 @@
 #import <cocoa_window.h>
 #endif
 #define MAX_BUFFER_LENGTH 4096
-static PlayerInstanceAAMP *mSingleton;
+static PlayerInstanceAAMP *mSingleton = NULL;
+static PlayerInstanceAAMP *mBackgroundPlayer = NULL;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 
 /**
@@ -253,11 +254,14 @@ static void ShowHelp(void)
 	}
 
 	logprintf("List of Commands\n****************");
-	logprintf("<channelNumber> // Play selected channel from guide");
-	logprintf("<url> // Play arbitrary stream");
+	logprintf("<channelNumber>\t\t// Play selected channel from guide");
+	logprintf("<url>\t\t\t// Play arbitrary stream");
 	logprintf("info gst trace curl progress // Logging toggles");
 	logprintf("pause play stop status flush // Playback options");
 	logprintf("sf, ff<x> rw<y> // Trickmodes (x- 16, 32. y- 4, 8, 16, 32)");
+	logprintf("cache <url>/<channelNumer>\t// Cache a channel in the background");
+	logprintf("toggle\t\t\t// Toggle the background channel & foreground channel");
+	logprintf("stopb\t\t\t// Stop background channel.");
 	logprintf("+ - // Change profile");
 	logprintf("sap // Use SAP track (if avail)");
 	logprintf("seek <seconds> // Specify start time within manifest");
@@ -267,7 +271,7 @@ static void ShowHelp(void)
 	logprintf("help // Show this list again");
 	logprintf("get help // Show help of get command");
 	logprintf("set help // Show help of set command");
-	logprintf("exit // Exit from application");
+	logprintf("exit\t\t\t// Exit from application");
 }
 
 /**
@@ -442,6 +446,31 @@ static void ProcessCLIConfEntry(char *cfg)
 	}
 }
 
+inline void StopCachedChannel()
+{
+	if(mBackgroundPlayer)
+	{
+		mBackgroundPlayer->Stop();
+		delete mBackgroundPlayer;
+		mBackgroundPlayer = NULL;
+	}
+}
+
+void CacheChannel(const char *url)
+{
+	StopCachedChannel();
+	mBackgroundPlayer = new PlayerInstanceAAMP(
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+			NULL
+			,updateYUVFrame
+#endif
+			);
+#ifdef LOG_CLI_EVENTS
+	mBackgroundPlayer->RegisterEvents(myEventListener);
+#endif
+	mBackgroundPlayer->Tune(url, false);
+}
+
 /**
  * @brief Process command
  * @param cmd command
@@ -450,6 +479,7 @@ static void ProcessCliCommand(char *cmd)
 {
 	double seconds = 0;
 	int rate = 0;
+	char cacheUrl[200];
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -481,6 +511,44 @@ static void ProcessCliCommand(char *cmd)
 				break;
 			}
 		}
+	}
+	else if (sscanf(cmd, "cache %s", cacheUrl) == 1)
+	{
+		if (memcmp(cacheUrl, "http", 4) ==0)
+		{
+			CacheChannel(cacheUrl);
+		}
+		else
+		{
+			int channelNumber = atoi(cacheUrl);
+			logprintf("channel number: %d", channelNumber);
+			for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+			{
+				VirtualChannelInfo &channelInfo = *it;
+				if(channelInfo.channelNumber == channelNumber)
+				{
+					CacheChannel(channelInfo.uri.c_str());
+					break;
+				}
+			}
+		}
+	}
+	else if (strcmp(cmd, "toggle") == 0)
+	{
+		if(mBackgroundPlayer && mSingleton)
+		{
+			mSingleton->detach();
+			mBackgroundPlayer->SetRate(AAMP_NORMAL_PLAY_RATE);
+
+			PlayerInstanceAAMP *tmpPlayer = mSingleton;
+			mSingleton = mBackgroundPlayer;
+			mBackgroundPlayer = tmpPlayer;
+			StopCachedChannel();
+		}
+	}
+	else if (strcmp(cmd, "stopb") == 0)
+	{
+		StopCachedChannel();
 	}
 	else if (sscanf(cmd, "seek %lf", &seconds) == 1)
 	{
@@ -553,6 +621,8 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Stop();
 		delete mSingleton;
+		if (mBackgroundPlayer)
+			delete mBackgroundPlayer;
 		mVirtualChannelMap.clear();
 		TermPlayerLoop();
 		exit(0);
@@ -1147,6 +1217,11 @@ int main(int argc, char **argv)
     pthread_t cmdThreadId;
     pthread_create(&cmdThreadId,NULL,run_commnds,NULL);
     createAndRunCocoaWindow();
+	if(mBackgroundPlayer)
+	{
+		mBackgroundPlayer->Stop();
+		delete mBackgroundPlayer;
+	}
     mSingleton->Stop();
     delete mSingleton;
 #else

@@ -199,10 +199,10 @@ class AAMPPlayer {
     /**
      * URI of the Media being played by the Video Engine
      */
-    load(url) {
-        console.log("Url received: " + url);
+    load(url, foreground) {
+		console.log("Url received: " + url);
         this.url = url;
-        this.player.load(url);
+        this.player.load(url, foreground);
     }
 
     /**
@@ -220,6 +220,13 @@ class AAMPPlayer {
         this.player.play();
     }
 
+    /**
+     * Soft stop the player instance
+     */
+    detach() {
+        this.player.detach();
+    }
+    
     /**
      * Pauses playback
      */

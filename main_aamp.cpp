@@ -85,6 +85,11 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
+static const char* STRBGPLAYER = "BACKGROUND";
+static const char* STRFGPLAYER = "FOREGROUND";
+
+static int PLAYERID_CNTR = 0;
+
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -839,11 +844,11 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 		if (!mAppName.empty())
 		{
-			logprintf("APP: %s Sending error %s ", mAppName.c_str(), e.data.mediaError.description);
+			logprintf("APP: %s %s PLAYER[%d] Sending error %s ", mAppName.c_str(),(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		else
 		{
-			logprintf("Sending error %s ", e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] Sending error %s ",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		SendEventAsync(e);
 	}
@@ -4085,11 +4090,11 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (aamp)
 	{
 		aamp->Stop();
-#ifdef AAMP_MPD_DRM
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 		//Clear session data on clean up of last PlayerInstanceAAMP
 		if (gActivePrivAAMPs.size() == 1)
 		{
-			AampDRMSessionManager::getInstance()->clearSessionData();
+			aamp->mDRMSessionManager->clearSessionData();
 		}
 #endif /*AAMP_MPD_DRM*/
 		delete aamp;
@@ -4255,7 +4260,7 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_INFO("Stopping Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
 }
 
@@ -4577,10 +4582,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		if (mbPlayEnabled)
+		{
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
-		mStreamSink->Stream();
+		if (mbPlayEnabled)
+			mStreamSink->Stream();
 	}
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
@@ -4608,9 +4617,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
 {
 	ERROR_STATE_CHECK_VOID();
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
@@ -4621,8 +4631,8 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	AampCacheHandler::GetInstance()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->getAampCacheHandler()->StartPlaylistCache();
+	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
 }
 
 
@@ -4630,9 +4640,10 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -4655,7 +4666,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
-		AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
 	
 	if (NULL == mStreamSink)
@@ -4673,11 +4684,18 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		AAMPGstPlayer::InitializeAAMPGstreamerPlugins();
 	}
 
+	mbPlayEnabled = autoPlay;
+
+	if (!autoPlay)
+	{
+		pipeline_paused = true;
+		logprintf("%s:%d - AutoPlay disabled; Just caching the stream now.\n",__FUNCTION__,__LINE__);
+	}
+
 	if (pipeline_paused)
 	{
 		// resume downloads and clear paused flag. state change will be done
 		// on streamSink configuration.
-		pipeline_paused = false;
 		ResumeDownloads();
 	}
 
@@ -4862,20 +4880,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
 		if (!mAppName.empty())
 		{
-			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s aamp_tune", mAppName.c_str());
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s %s PLAYER[%d]", mAppName.c_str(), (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 		}
 		else
 		{
-			strcpy(tuneStrPrefix, "aamp_tune");
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "%s PLAYER[%d]", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 		}
 
 		if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 		{
-			logprintf("%s: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+			logprintf("%s aamp_tune: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 		}
 		else
 		{
-			logprintf("%s: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
+			logprintf("%s aamp_tune: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
 			printf("URL: %s\n", mManifestUrl.c_str());
 		}
 	}
@@ -5103,6 +5121,49 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 		}
 	}
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
+}
+
+
+/**
+ *   @brief Check if current stream is muxed
+ *
+ *   @return true if current stream is muxed
+ */
+bool PrivateInstanceAAMP::IsPlayEnabled()
+{
+	return mbPlayEnabled;
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PlayerInstanceAAMP::detach()
+{
+	aamp->detach();
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PrivateInstanceAAMP::detach()
+{
+	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
+	{
+		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
+		pipeline_paused = true;
+		mpStreamAbstractionAAMP->StopInjection();
+		mStreamSink->Stop(true);
+		mbPlayEnabled = false;
+	}
+}
+
+AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
+{
+	return mAampCacheHandler;
 }
 
 /**
@@ -5428,6 +5489,8 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
+	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
+
 	ERROR_STATE_CHECK_VOID();
 
 	if (aamp->mpStreamAbstractionAAMP)
@@ -5435,6 +5498,16 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
 		{
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			return;
+		}
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
+		{
+			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
+			aamp->mbPlayEnabled = true;
+			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
+			aamp->mpStreamAbstractionAAMP->StartInjection();
+			aamp->mStreamSink->Stream();
+			aamp->pipeline_paused = false;
 			return;
 		}
 		bool retValue = true;
@@ -7063,7 +7136,7 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = 0;
 	}
-	AampCacheHandler::GetInstance()->StopPlaylistCache();
+	getAampCacheHandler()->StopPlaylistCache();
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
@@ -7512,6 +7585,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mParallelFetchPlaylistRefresh(true)
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
+	,mPlayerId(PLAYERID_CNTR++)
 	,mAsyncTuneEnabled(false)
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
@@ -7538,8 +7612,16 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
 	, mInitFragmentRetryCount(-1)
+	,mbPlayEnabled(true)
+	,mAampCacheHandler(new AampCacheHandler())
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	, mDRMSessionManager(NULL)
+#endif
 {
 	LazilyLoadConfigIfNeeded();
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	mDRMSessionManager = new AampDRMSessionManager();
+#endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	memset(language, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strcpy(language,"en");
@@ -7678,6 +7760,11 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
+#endif
+
+	delete mAampCacheHandler;
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	delete mDRMSessionManager;
 #endif
 }
 
@@ -9739,9 +9826,9 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 			// calculate the cache size, consider 1 MB/playlist
 			int maxCacheSz = szPlaylistCount * 1024*1024;
 			// get the current cache max size , to restore later 
-			int currMaxCacheSz =AampCacheHandler::GetInstance()->GetMaxPlaylistCacheSize();
+			int currMaxCacheSz = getAampCacheHandler()->GetMaxPlaylistCacheSize();
 			// set new playlistCacheSize; 
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(maxCacheSz);
+			getAampCacheHandler()->SetMaxPlaylistCacheSize(maxCacheSz);
 			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
 			int idx=0;
 			do
@@ -9753,7 +9840,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
 					
 					// check if url cached ,if not download
-					if(AampCacheHandler::GetInstance()->IsUrlCached(newelem.url)==false)
+					if(getAampCacheHandler()->IsUrlCached(newelem.url)==false)
 					{
 						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
 							newelem.type,newelem.url.c_str());
@@ -9764,7 +9851,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
 						{
 							// If successful download , then insert into Cache 
-							AampCacheHandler::GetInstance()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
+							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
 							aamp_Free(&playlistStore.ptr);
 						}	
 					}
@@ -9782,7 +9869,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 				GetState(state);
 			}while(idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
 			// restore old cache size
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(currMaxCacheSz);
+			getAampCacheHandler()->SetMaxPlaylistCacheSize(currMaxCacheSz);
 			mPreCacheDnldList.clear();
 			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
 		}
