@@ -35,6 +35,70 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
+static pthread_t tuneThreadId = NULL;
+static bool bTuneInProgress = false;
+
+/**
+ * @class AsyncTune
+ * @brief AsyncTune implementation for Ref-Player
+ */
+class AsyncTune
+{
+public:
+	/**
+	 * @brief AsyncTune Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] string-url - playback url
+	 */
+	AsyncTune(class PlayerInstanceAAMP* aamp, std::string url)
+			: _aamp(aamp)
+			, _url(url)
+	{
+		/* NOP */
+	}
+
+	/**
+	 * @brief AsyncTune Destructor
+	 */
+	virtual ~AsyncTune()
+	{
+		/* NOP */
+	}
+
+	/**
+	 * @brief AsyncTune Copy Constructor
+	 */
+	AsyncTune(const AsyncTune&) = delete;
+
+	/**
+	 * @brief AsyncTune Assignment operator overloading
+	 */
+	AsyncTune& operator=(const AsyncTune&) = delete;
+
+public:
+	class PlayerInstanceAAMP* _aamp;
+	std::string _url;
+};
+
+/**
+ * @brief Async Tune function.
+ * @param arg passed as parameter during the async tune
+ */
+static void* do_AsyncTune(void* arg)
+{
+	class AsyncTune* pAsyncTune = (class AsyncTune*)arg;
+	const char* szUrl = pAsyncTune->_url.c_str();
+
+	INFO("[AAMP_JS] %s() ASYNC_TUNE START url='%s'", __FUNCTION__, szUrl);
+
+	pAsyncTune->_aamp->Tune(szUrl);
+
+	INFO("[AAMP_JS] %s() ASYNC_TUNE FINISH url='%s'", __FUNCTION__, szUrl);
+	delete pAsyncTune;
+
+	return NULL;
+}
+
 /**
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
@@ -71,6 +135,7 @@ enum ConfigParamType
 	ePARAM_SUBTITLELANGUAGE,
 	ePARAM_MANIFESTTIMEOUT,
 	ePARAM_PARALLELPLAYLISTDL,
+	ePARAM_ASYNCTUNE,
 	ePARAM_MAX_COUNT
 };
 
@@ -111,6 +176,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_DOWNLOADSTARTTIMEOUT, "downloadStartTimeout" },
 	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
 	{ ePARAM_PARALLELPLAYLISTDL, "parallelPlaylistDownload" },
+	{ ePARAM_ASYNCTUNE, "asyncTune" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -358,9 +424,43 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 	if (argumentCount == 1)
 	{
-		char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
-		privObj->_aamp->Tune(url);
-		delete [] url;
+	
+		if(privObj->_aamp->GetAsyncTuneConfig())	
+		{
+			if (bTuneInProgress)
+			{
+				void* status;
+				INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
+				pthread_join(tuneThreadId, &status);
+				bTuneInProgress = false;
+				tuneThreadId = NULL;
+			}
+
+			char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
+			INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
+
+			std::string urlString(url);
+			class AsyncTune* asyncTune = new AsyncTune(privObj->_aamp, urlString);
+			int err = pthread_create(&tuneThreadId, NULL, do_AsyncTune, asyncTune);
+			bTuneInProgress = (err == 0);
+			delete [] url;
+		}
+		else
+		{
+			if(bTuneInProgress && tuneThreadId != NULL)
+			{
+				// if previous tune was Async and next tune app changed the configuration
+				// safe to check and join the thread 
+				void* status;
+                                INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
+                                pthread_join(tuneThreadId, &status);
+                                bTuneInProgress = false;
+                                tuneThreadId = NULL;
+			}
+			char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
+			privObj->_aamp->Tune(url);
+			delete [] url;
+		}
 	}
 	else
 	{
@@ -445,6 +545,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_BULKTIMEDMETADATA:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
                                 break;
+			case ePARAM_ASYNCTUNE:
 			case ePARAM_PARALLELPLAYLISTDL:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
@@ -511,6 +612,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PARALLELPLAYLISTDL:
 					privObj->_aamp->SetParallelPlaylistDL(valueAsBoolean);
+					break;
+				case ePARAM_ASYNCTUNE:
+					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
 					break;
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
