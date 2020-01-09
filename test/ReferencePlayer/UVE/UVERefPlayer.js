@@ -68,7 +68,7 @@ var defaultInitConfig = {
     /**
      * start position for playback (seconds)
      */
-    offset: 15,
+    offset: 0,
 
     /**
      * network request timeout (seconds)
@@ -167,6 +167,7 @@ var playbackRateIndex = playbackSpeeds.indexOf(1);
 var urlIndex = 0;
 var mutedStatus = false;
 var playerObj = null;
+var bgPlayerObj = null;
 
 window.onload = function() {
     initPlayerControls();
@@ -257,7 +258,8 @@ function playbackStateChanged(event) {
 
 function mediaEndReached() {
     console.log("Media end reached event!");
-    loadNextAsset();
+//    loadNextAsset();
+	toggleVideo();
 }
 
 function mediaSpeedChanged(event) {
@@ -444,6 +446,35 @@ function tuneProfiling(event) {
     console.log("Tune Profiling Data: " + event.microData);
 }
 
+function createAAMPPlayer(){
+    var newPlayer = new AAMPPlayer();
+    newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
+    newPlayer.addEventListener("playbackCompleted", mediaEndReached);
+    newPlayer.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
+    newPlayer.addEventListener("bitrateChanged", bitrateChanged);
+    newPlayer.addEventListener("playbackFailed", mediaPlaybackFailed);
+    newPlayer.addEventListener("mediaMetadata", mediaMetadataParsed);
+    newPlayer.addEventListener("timedMetadata", subscribedTagNotifier);
+    newPlayer.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
+    newPlayer.addEventListener("playbackStarted", mediaPlaybackStarted);
+    newPlayer.addEventListener("bufferingChanged", bufferingChangedHandler);
+    newPlayer.addEventListener("durationChanged", mediaDurationChanged);
+    newPlayer.addEventListener("decoderAvailable", decoderHandleAvailable);
+    newPlayer.addEventListener("vttCueDataListener", webvttDataHandler);
+    newPlayer.addEventListener("anomalyReport", anomalyEventHandler);
+    newPlayer.addEventListener("reservationStart", reservationStart);
+    newPlayer.addEventListener("placementStart", placementStart);
+    newPlayer.addEventListener("placementProgress", placementProgress);
+    newPlayer.addEventListener("placementError", placementError);
+    newPlayer.addEventListener("placementEnd", placementEnd);
+    newPlayer.addEventListener("reservationEnd", reservationEnd);
+    newPlayer.addEventListener("seeked", playbackSeeked);
+    newPlayer.addEventListener("tuneProfiling", tuneProfiling);
+    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
+    //newPlayer.addEventListener("adResolved", adResolvedCallback);
+    return newPlayer;
+}
+
 // helper functions
 function resetPlayer() {
     resetSubtitles(true);
@@ -456,31 +487,8 @@ function resetPlayer() {
         playerObj = null;
     }
 
-    playerObj = new AAMPPlayer();
-    playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
-    playerObj.addEventListener("playbackCompleted", mediaEndReached);
-    playerObj.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
-    playerObj.addEventListener("bitrateChanged", bitrateChanged);
-    playerObj.addEventListener("playbackFailed", mediaPlaybackFailed);
-    playerObj.addEventListener("mediaMetadata", mediaMetadataParsed);
-    playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
-    playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
-    playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
-    playerObj.addEventListener("durationChanged", mediaDurationChanged);
-    playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
-    playerObj.addEventListener("vttCueDataListener", webvttDataHandler);
-    playerObj.addEventListener("anomalyReport", anomalyEventHandler);
-    playerObj.addEventListener("reservationStart", reservationStart);
-    playerObj.addEventListener("placementStart", placementStart);
-    playerObj.addEventListener("placementProgress", placementProgress);
-    playerObj.addEventListener("placementError", placementError);
-    playerObj.addEventListener("placementEnd", placementEnd);
-    playerObj.addEventListener("reservationEnd", reservationEnd);
-    playerObj.addEventListener("seeked", playbackSeeked);
-    playerObj.addEventListener("tuneProfiling", tuneProfiling);
-    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
-    //playerObj.addEventListener("adResolved", adResolvedCallback);
+    playerObj = createAAMPPlayer();
+
     playerState = playerStatesEnum.idle;
 
     //Subscribe to interested tags from playlist
@@ -502,13 +510,48 @@ function generateInitConfigObject (urlObject) {
     return initConfigObject;
 }
 
-function loadUrl(urlObject) {
-    console.log("UrlObject received: " + urlObject);
+function loadUrl(urlObject, isLive) {
+    console.log("loadUrl: UrlObject received: " + urlObject);
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
 
     let initConfiguration = generateInitConfigObject(urlObject);
+    if(isLive)
+        initConfiguration.offset = 15;
     playerObj.initConfig(initConfiguration);
-    playerObj.load(urlObject.url);
+    playerObj.load(urlObject.url, true);
+}
+
+function StopCachedChannel() {
+	if(bgPlayerObj != null)
+	{
+		bgPlayerObj.stop();
+		bgPlayerObj.destroy();
+		bgPlayerObj = null;
+	}
+}
+
+function cacheStream(urlObject, isLive) {
+    console.log("cacheStream: UrlObject received: " + urlObject);
+	StopCachedChannel();
+	
+	bgPlayerObj = createAAMPPlayer();
+    let initConfiguration = generateInitConfigObject(urlObject);
+    if(isLive)
+        initConfiguration.offset = 15;
+    bgPlayerObj.initConfig(initConfiguration);
+    bgPlayerObj.load(urlObject.url, false);
+}
+
+function toggleVideo() {
+		if(bgPlayerObj != null && playerObj != null)
+		{
+			playerObj.detach();
+			bgPlayerObj.play();
+			var tmpPlayer = playerObj;
+			playerObj = bgPlayerObj;
+			bgPlayerObj = tmpPlayer;
+			cacheNextAsset();
+		}
 }

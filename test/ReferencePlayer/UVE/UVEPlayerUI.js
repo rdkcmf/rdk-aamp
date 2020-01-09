@@ -29,7 +29,7 @@ function playPause() {
         document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
         resetPlayer();
         resetUIOnNewAsset();
-        loadUrl(urls[0]);
+        loadUrl(urls[0], true);
     } else {
         // If it was a trick play operation
         if ( playbackSpeeds[playbackRateIndex] != 1 ) {
@@ -127,7 +127,7 @@ function fastfwd() {
 };
 
 //  load video file from select field
-function getVideo() {
+function getVideo(cache_only) {
     var fileURLContent = document.getElementById("videoURLs").value; // get select field
     if (fileURLContent != "") {
         var newFileURLContent = fileURLContent;
@@ -139,14 +139,26 @@ function getVideo() {
         document.getElementById("videoURLs").selectedIndex = optionIndex;
 
         console.log(newFileURLContent);
-        resetPlayer();
-        resetUIOnNewAsset();
-        
-        for ( urlIndex = 0; urlIndex < urls.length; urlIndex++) {
-            if (newFileURLContent === urls[urlIndex].url) {
-                console.log("FOUND at index: " + urlIndex);
-                loadUrl(urls[urlIndex]);
-                break;
+        if(cache_only)
+        {
+	        for ( urlIndex = 0; urlIndex < urls.length; urlIndex++) {
+	            if (newFileURLContent === urls[urlIndex].url) {
+	                console.log("FOUND at index: " + urlIndex);
+	                cacheStream(urls[urlIndex], (0 == urlIndex));
+	                break;
+	            }
+	        }
+        }
+        else
+        {
+            resetPlayer();
+            resetUIOnNewAsset();
+            for ( urlIndex = 0; urlIndex < urls.length; urlIndex++) {
+                if (newFileURLContent === urls[urlIndex].url) {
+                    console.log("FOUND at index: " + urlIndex);
+                    loadUrl(urls[urlIndex], (0 == urlIndex));
+                    break;
+                }
             }
         }
     } else {
@@ -175,7 +187,15 @@ function loadNextAsset() {
     if (urlIndex >= urls.length) {
         urlIndex = 0;
     }
-    loadUrl(urls[urlIndex]);
+    loadUrl(urls[urlIndex], (0 == urlIndex));
+}
+
+function cacheNextAsset() {
+    urlIndex++;
+    if (urlIndex >= urls.length) {
+        urlIndex = 0;
+    }
+    cacheStream(urls[urlIndex], (0 == urlIndex));
 }
 
 function loadPrevAsset() {
@@ -185,7 +205,7 @@ function loadPrevAsset() {
     if (urlIndex < 0) {
         urlIndex = urls.length - 1;
     }
-    loadUrl(urls[urlIndex]);
+    loadUrl(urls[urlIndex], (0 == urlIndex));
 }
 
 var HTML5PlayerControls = function() {
@@ -194,6 +214,7 @@ var HTML5PlayerControls = function() {
         this.video = document.getElementById("video");
 
         // Buttons
+        this.vidtoggleButton = document.getElementById("videoToggleButton");
         this.playButton = document.getElementById("playOrPauseButton");
         this.rwdButton = document.getElementById("rewindButton");
         this.skipBwdButton = document.getElementById("skipBackwardButton");
@@ -206,10 +227,11 @@ var HTML5PlayerControls = function() {
 
         // Sliders
         this.seekBar = document.getElementById("seekBar");
+        this.cacheOnlyButton = document.getElementById("cacheOnlyButton");
         this.videoFileList = document.getElementById("videoURLs");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.videoFileList, this.autoVideoLogButton, this.homeContentButton ];
+        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.cacheOnlyButton, this.videoFileList, this.autoVideoLogButton, this.homeContentButton, this.vidtoggleButton ];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.selectListIndex = 0;
@@ -316,7 +338,7 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if (this.dropDownBitrateListVisible) {
             this.nextBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -379,18 +401,26 @@ var HTML5PlayerControls = function() {
                     toggleCC();
                     break;
             case 7:
+                  //Cache Only check box
+                  document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
+                  break;
+            case 8:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
                         this.hideDropDown();
-		                getVideo();
+                        getVideo(document.getElementById("cacheOnlyCheck").checked);
                     }
                     break;
-            case 8:      
+            case 9:
                     toggleOverlay();
                     break;
-            case 9:
+            case 10:
                     goToHome();
+                    break;
+            case 11:
+                    toggleVideo();
+                    break;
         };
     };
 

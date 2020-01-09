@@ -1433,6 +1433,8 @@ struct ListenerData {
 	ListenerData* pNext;                /**< Next listener */
 };
 
+class AampCacheHandler;
+
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
@@ -1486,12 +1488,13 @@ public:
 	 * @brief Tune API
 	 *
 	 * @param[in] url - Asset URL
+	 * @param[in] autoPlay - Start playback immediately or not
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
+	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1644,6 +1647,7 @@ public:
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
+	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
 
 	/**
 	 * @brief Curl initialization function
@@ -3069,6 +3073,26 @@ public:
 	 */
 	void FlushStreamSink(double position, double rate);
 
+	/*
+	 *   @brief Check if autoplay enabled for current stream
+	 *
+	 *   @return true if autoplay enabled
+	 */
+	bool IsPlayEnabled();
+
+	/**
+	 * @brief Soft stop the player instance.
+	 *
+	 */
+	void detach();
+
+	/**
+	 * @brief Get pointer to AampCacheHandler
+	 *
+	 * @return Pointer to AampCacheHandler
+	 */
+	AampCacheHandler * getAampCacheHandler();
+
 private:
 
 	/**
@@ -3109,7 +3133,6 @@ private:
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
-
 
     /**
      *   @brief Set Content Type
@@ -3162,6 +3185,8 @@ private:
 	unsigned long long mVideoBasePTS;
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
+
+	AampCacheHandler *mAampCacheHandler;
 };
 
 #endif // PRIVAAMP_H

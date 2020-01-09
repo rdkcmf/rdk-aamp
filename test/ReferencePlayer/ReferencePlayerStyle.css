@@ -171,6 +171,10 @@ h3 {
     border-radius: 3px 3px 0px 0px / 6px 6px 0px 0px;
 }
 
+#cacheOnly {
+    margin-left: 8%;
+}
+
 #videoContainer #videoControlsDiv {
     opacity: .9;
 }
@@ -198,8 +202,12 @@ img {
     margin-top: 2%;
 }
 
+#videoToggleButton {
+    margin-left: 8%;
+}
+
 #playOrPauseButton {
-    margin-left: 16%;
+    margin-left: 8%;
 }
 
 
@@ -432,6 +440,19 @@ option {
 }
 
 #logCheck{
+    padding: 5px;
+    width: 18px;
+    height: 18px;
+}
+
+#cacheOnlyButton {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    margin-left: 1px;
+}
+
+#cacheOnlyCheck{
     padding: 5px;
     width: 18px;
     height: 18px;
