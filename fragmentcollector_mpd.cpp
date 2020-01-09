@@ -3570,7 +3570,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
-	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
+	if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
 	{
 		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache", __FUNCTION__, __LINE__);
 		retrievedPlaylistFromCache = true;
@@ -3653,7 +3653,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			aamp->SetIsLive(mIsLive);
 			if (!retrievedPlaylistFromCache && !mIsLive)
 			{
-				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
+				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
 			}
 		}
 		else
@@ -5974,7 +5974,10 @@ void PrivateStreamAbstractionMPD::Start(void)
 		// DELIA-30608 - Right place to update targetDnldPosition.
 		// Here GetPosition will give updated seek position (for live)
 		mMediaStreamContext[i]->targetDnldPosition= aamp->GetPositionMs()/1000;
-		mMediaStreamContext[i]->StartInjectLoop();
+		if(aamp->IsPlayEnabled())
+		{
+			mMediaStreamContext[i]->StartInjectLoop();
+		}
 	}
 }
 

@@ -68,7 +68,6 @@ private:
 	bool mCacheActive;
 	bool mAsyncCacheCleanUpThread;
 	bool mAsyncThreadStartedFlag;
-	static AampCacheHandler *mInstance;
 	pthread_mutex_t mMutex;
 	pthread_mutex_t mCondVarMutex;
 	pthread_cond_t mCondVar ;
@@ -102,6 +101,8 @@ private:
 	 */
 	bool AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen);
 
+public:
+
 	/**
 	 *	 @brief Default Constructor
 	 *
@@ -113,13 +114,6 @@ private:
 	* @brief Destructor Function
 	*/
 	~AampCacheHandler();
-
-public:
-
-	/**
-	 * @brief Create Singleton Instance of AampCacheHandler
-	 */
-	static AampCacheHandler * GetInstance();
 
 	/**
 	 *	 @brief Start playlist caching

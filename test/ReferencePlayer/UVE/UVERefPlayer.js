@@ -52,7 +52,7 @@ var defaultInitConfig = {
     /**
      * start position for playback (seconds)
      */
-    offset: 15,
+    offset: 0,
 
     /**
      * network request timeout (seconds)
@@ -142,6 +142,7 @@ var playbackRateIndex = playbackSpeeds.indexOf(1);
 var urlIndex = 0;
 var mutedStatus = false;
 var playerObj = null;
+var bgPlayerObj = null;
 
 window.onload = function() {
     initPlayerControls();
@@ -178,7 +179,8 @@ function playbackStateChanged(event) {
 
 function mediaEndReached() {
     console.log("Media end reached event!");
-    loadNextAsset();
+//    loadNextAsset();
+	toggleVideo();
 }
 
 function mediaSpeedChanged(event) {
@@ -286,6 +288,27 @@ function playbackSeeked(event) {
     console.log("Play Seeked " + JSON.stringify(event));
 }
 
+function createAAMPPlayer(){
+    var newPlayer = new AAMPPlayer();
+    newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
+    newPlayer.addEventListener("playbackCompleted", mediaEndReached);
+    newPlayer.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
+    newPlayer.addEventListener("bitrateChanged", bitrateChanged);
+    newPlayer.addEventListener("playbackFailed", mediaPlaybackFailed);
+    newPlayer.addEventListener("mediaMetadata", mediaMetadataParsed);
+    newPlayer.addEventListener("timedMetadata", subscribedTagNotifier);
+    newPlayer.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
+    newPlayer.addEventListener("playbackStarted", mediaPlaybackStarted);
+    newPlayer.addEventListener("bufferingChanged", bufferingChangedHandler);
+    newPlayer.addEventListener("durationChanged", mediaDurationChanged);
+    newPlayer.addEventListener("decoderAvailable", decoderHandleAvailable);
+    newPlayer.addEventListener("anomalyReport", anomalyEventHandler);
+    newPlayer.addEventListener("seeked", playbackSeeked);
+    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
+    //newPlayer.addEventListener("adResolved", adResolvedCallback);
+    return newPlayer;
+}
+
 // helper functions
 function resetPlayer() {
     if (playerState !== playerStatesEnum.idle) {
@@ -296,44 +319,66 @@ function resetPlayer() {
         playerObj = null;
     }
 
-    playerObj = new AAMPPlayer();
-    playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
-    playerObj.addEventListener("playbackCompleted", mediaEndReached);
-    playerObj.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
-    playerObj.addEventListener("bitrateChanged", bitrateChanged);
-    playerObj.addEventListener("playbackFailed", mediaPlaybackFailed);
-    playerObj.addEventListener("mediaMetadata", mediaMetadataParsed);
-    playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
-    playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
-    playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
-    playerObj.addEventListener("durationChanged", mediaDurationChanged);
-    playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
-    playerObj.addEventListener("anomalyReport", anomalyEventHandler);
-    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
-    playerObj.addEventListener("seeked", playbackSeeked);
-    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
-    //playerObj.addEventListener("adResolved", adResolvedCallback);
+    playerObj = createAAMPPlayer();
+
     playerState = playerStatesEnum.idle;
     mutedStatus = false;
 }
 
-function loadUrl(urlObject) {
-    console.log("UrlObject received: " + urlObject);
+function generateInitConfigObject (urlObject) {
+    console.log("UrlObject received: " + urlObject.name);
+    let initConfigObject = Object.assign({}, defaultInitConfig);
+
+    if (urlObject.name.includes("Sintel") == true) {
+        initConfigObject.drmConfig = SintelDrmConfig;
+    } else if (urlObject.useDefaultDrmConfig === false) {
+        initConfigObject.drmConfig = null;
+    }
+    return initConfigObject;
+}
+
+function loadUrl(urlObject, isLive) {
+    console.log("loadUrl: UrlObject received: " + urlObject);
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
-    if (urlObject.name.includes("Sintel") == true) {
-        var initConfiguration = defaultInitConfig;
-        initConfiguration.drmConfig = SintelDrmConfig;
-        playerObj.initConfig(initConfiguration);
-        playerObj.load(urlObject.url);
-    } else if (urlObject.useDefaultDrmConfig === true) {
-        playerObj.initConfig(defaultInitConfig);
-        playerObj.load(urlObject.url);
-    } else {
-        var initConfiguration = defaultInitConfig;
-        initConfiguration.drmConfig = null;
-        playerObj.load(urlObject.url);
-    }
+
+    let initConfiguration = generateInitConfigObject(urlObject);
+    if(isLive)
+        initConfiguration.offset = 15;
+    playerObj.initConfig(initConfiguration);
+    playerObj.load(urlObject.url, true);
+}
+
+function StopCachedChannel() {
+	if(bgPlayerObj != null)
+	{
+		bgPlayerObj.stop();
+		bgPlayerObj.destroy();
+		bgPlayerObj = null;
+	}
+}
+
+function cacheStream(urlObject, isLive) {
+    console.log("cacheStream: UrlObject received: " + urlObject);
+	StopCachedChannel();
+	
+	bgPlayerObj = createAAMPPlayer();
+    let initConfiguration = generateInitConfigObject(urlObject);
+    if(isLive)
+        initConfiguration.offset = 15;
+    bgPlayerObj.initConfig(initConfiguration);
+    bgPlayerObj.load(urlObject.url, false);
+}
+
+function toggleVideo() {
+		if(bgPlayerObj != null && playerObj != null)
+		{
+			playerObj.detach();
+			bgPlayerObj.play();
+			var tmpPlayer = playerObj;
+			playerObj = bgPlayerObj;
+			bgPlayerObj = tmpPlayer;
+			cacheNextAsset();
+		}
 }

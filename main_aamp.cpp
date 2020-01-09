@@ -81,6 +81,11 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
+static const char* STRBGPLAYER = "BACKGROUND";
+static const char* STRFGPLAYER = "FOREGROUND";
+
+static int PLAYERID_CNTR = 0;
+
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -780,7 +785,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
 		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
-		logprintf("Sending error %s ",e.data.mediaError.description);
+		logprintf("PLAYER[%d] Sending error %s ", mPlayerId, e.data.mediaError.description);
 		SendEventAsync(e);
 	}
 	else
@@ -3872,7 +3877,7 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_INFO("Stopping Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.", (aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER),aamp->mPlayerId,  aamp->GetPositionMilliseconds());
 	aamp->Stop();
 }
 
@@ -4193,10 +4198,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		if (mbPlayEnabled)
+		{
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
-		mStreamSink->Stream();
+		if (mbPlayEnabled)
+			mStreamSink->Stream();
 	}
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
@@ -4224,9 +4233,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -4234,8 +4244,8 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	AampCacheHandler::GetInstance()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->getAampCacheHandler()->StartPlaylistCache();
+	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
 }
 
 
@@ -4243,9 +4253,10 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -4269,11 +4280,18 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		AAMPGstPlayer::InitializeAAMPGstreamerPlugins();
 	}
 
+	mbPlayEnabled = autoPlay;
+
+	if (!autoPlay)
+	{
+		pipeline_paused = true;
+		logprintf("%s:%d - AutoPlay disabled; Just caching the stream now.\n",__FUNCTION__,__LINE__);
+	}
+
 	if (pipeline_paused)
 	{
 		// resume downloads and clear paused flag. state change will be done
 		// on streamSink configuration.
-		pipeline_paused = false;
 		ResumeDownloads();
 	}
 
@@ -4454,11 +4472,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+		logprintf("%s PLAYER[%d] aamp_tune: attempt: %d format: %s URL: %s\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 	}
 	else
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)\n", mTuneAttempts, mMediaFormatName[mMediaFormat]);
+		logprintf("%s PLAYER[%d] aamp_tune: attempt: %d format: %s URL: (BIG)\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mTuneAttempts, mMediaFormatName[mMediaFormat]);
 		printf("URL: %s\n", mManifestUrl.c_str());
 	}
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
@@ -4689,6 +4707,49 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
+
+/**
+ *   @brief Check if current stream is muxed
+ *
+ *   @return true if current stream is muxed
+ */
+bool PrivateInstanceAAMP::IsPlayEnabled()
+{
+	return mbPlayEnabled;
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PlayerInstanceAAMP::detach()
+{
+	aamp->detach();
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PrivateInstanceAAMP::detach()
+{
+	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
+	{
+		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
+		pipeline_paused = true;
+		mpStreamAbstractionAAMP->StopInjection();
+		mStreamSink->Stop(true);
+		mbPlayEnabled = false;
+	}
+}
+
+AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
+{
+	return mAampCacheHandler;
+}
+
 /**
  *   @brief Register event handler.
  *
@@ -4839,6 +4900,8 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
+	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
+
 	PrivAAMPState state;
 	aamp->GetState(state);
 	if (aamp->mpStreamAbstractionAAMP && state != eSTATE_ERROR)
@@ -4848,7 +4911,16 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
 			return;
 		}
-
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
+		{
+			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
+			aamp->mbPlayEnabled = true;
+			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
+			aamp->mpStreamAbstractionAAMP->StartInjection();
+			aamp->mStreamSink->Stream();
+			aamp->pipeline_paused = false;
+			return;
+		}
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
@@ -6075,7 +6147,7 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	AampCacheHandler::GetInstance()->StopPlaylistCache();
+	getAampCacheHandler()->StopPlaylistCache();
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 
@@ -6450,6 +6522,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mIsIframeTrackPresent(false)
 	,mManifestTimeoutMs(-1)
 	,mNetworkTimeoutMs(-1)
+	,mbPlayEnabled(true)
+	,mPlayerId(PLAYERID_CNTR++)
+	,mAampCacheHandler(new AampCacheHandler())
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6552,6 +6627,8 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_mutex_destroy(&mLock);
+
+	delete mAampCacheHandler;
 }
 
 

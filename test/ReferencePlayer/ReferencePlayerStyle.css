@@ -191,17 +191,14 @@ img {
 }
 
 #videoURLs {
-    margin-left: 25%;
-    width: 30%;
     position: fixed;
     font-family: Arial, Helvetica, sans-serif;
     margin-top: 2%;
 }
 
-#playOrPauseButton {
-    margin-left: 16%;
+#videoToggleButton {
+    height: 30px;
 }
-
 
 #rewindButton {
     height: 30px;
@@ -399,10 +396,6 @@ option {
     font-size: 15px;
 }
 
-#logState {
-    margin-left: 57%;
-}
-
 #autoLogButton {
     position: absolute;
     width: 25px;
@@ -411,6 +404,19 @@ option {
 }
 
 #logCheck{
+    padding: 5px;
+    width: 18px;
+    height: 18px;
+}
+
+#cacheOnlyButton {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    margin-left: 1px;
+}
+
+#cacheOnlyCheck{
     padding: 5px;
     width: 18px;
     height: 18px;
