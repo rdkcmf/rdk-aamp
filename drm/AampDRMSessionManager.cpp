@@ -48,10 +48,6 @@
 
 static const char *sessionTypeName[] = {"video", "audio"};
 
-AampDRMSessionManager* AampDRMSessionManager::_sessionMgr = NULL;
-
-static pthread_mutex_t sessionMgrMutex = PTHREAD_MUTEX_INITIALIZER;
-
 static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
 
 KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
@@ -101,7 +97,8 @@ static string getFormattedLicenseServerURL(string url)
 /**
  *  @brief      AampDRMSessionManager constructor.
  */
-AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(NULL), cachedKeyIDs(NULL), accessToken(NULL),
+AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessionContext[gpGlobalConfig->dash_MaxDRMSessions]),
+		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 		,curlSessionAbort(false)
@@ -113,6 +110,8 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(NULL), cache
  */
 AampDRMSessionManager::~AampDRMSessionManager()
 {
+	clearAccessToken();
+	clearSessionData();
 }
 
 /**
@@ -154,39 +153,13 @@ void AampDRMSessionManager::clearSessionData()
 }
 
 /**
- * @brief	To get the singleton session manager instance.
- *
- * @return	session manager.
- */
-AampDRMSessionManager* AampDRMSessionManager::getInstance()
-{
-	pthread_mutex_lock(&sessionMgrMutex);
-	if(NULL == _sessionMgr)
-	{
-		_sessionMgr = new AampDRMSessionManager();
-	}
-	if(NULL == _sessionMgr->drmSessionContexts)
-	{
-		_sessionMgr->drmSessionContexts = new DrmSessionContext[gpGlobalConfig->dash_MaxDRMSessions];
-	}
-	if(NULL == _sessionMgr->cachedKeyIDs)
-	{
-		_sessionMgr->cachedKeyIDs = new KeyID[gpGlobalConfig->dash_MaxDRMSessions];
-	}
-	pthread_mutex_unlock(&sessionMgrMutex);
-	return _sessionMgr;
-}
-
-/**
  * @brief	Set Session manager state
  * @param	state
  * @return	void.
  */
 void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 {
-	pthread_mutex_lock(&sessionMgrMutex);
 	sessionMgrState = state;
-	pthread_mutex_unlock(&sessionMgrMutex);
 }
 
 /**
@@ -195,9 +168,7 @@ void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
  * @return	void.
  */
 void AampDRMSessionManager::setCurlAbort(bool isAbort){
-	pthread_mutex_lock(&sessionMgrMutex);
 	curlSessionAbort = isAbort;
-	pthread_mutex_unlock(&sessionMgrMutex);
 }
 
 /**
@@ -238,14 +209,12 @@ void AampDRMSessionManager::clearFailedKeyIds()
  */
 void AampDRMSessionManager::clearAccessToken()
 {
-	pthread_mutex_lock(&accessTokenMutex);
 	if(accessToken)
 	{
 		free(accessToken);
 		accessToken = NULL;
 		accessTokenLen = 0;
 	}
-	pthread_mutex_unlock(&accessTokenMutex);
 }
 
 /**
@@ -266,12 +235,13 @@ int AampDRMSessionManager::progress_callback(
 	)
 {
 	int returnCode = 0 ;
-	if(AampDRMSessionManager::getInstance()->getCurlAbort())
+	AampDRMSessionManager *drmSessionManager = (AampDRMSessionManager *)clientp;
+	if(drmSessionManager->getCurlAbort())
 	{
 		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
 		returnCode = CURLE_ABORTED_BY_CALLBACK ;
 		//Reset the abort variable
-		AampDRMSessionManager::getInstance()->setCurlAbort(false);
+		drmSessionManager->setCurlAbort(false);
 
 	}
 
@@ -290,14 +260,15 @@ int AampDRMSessionManager::progress_callback(
 size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 		size_t nmemb, void *userdata)
 {
-        DrmData *data = (DrmData *)userdata;
+	writeCallbackData *callbackData = (writeCallbackData*)userdata;
+        DrmData *data = (DrmData *)callbackData->data;
         size_t numBytesForBlock = size * nmemb;
-        if(AampDRMSessionManager::getInstance()->getCurlAbort())
+        if(callbackData->mDRMSessionManager->getCurlAbort())
         {
                 logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
                 //Reset the abort variable
                 numBytesForBlock = 0;
-                AampDRMSessionManager::getInstance()->setCurlAbort(false);
+                callbackData->mDRMSessionManager->setCurlAbort(false);
         }
         else if (NULL == data->getData())        
         {
@@ -350,6 +321,9 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 	if(accessToken == NULL)
 	{
 		DrmData * tokenReply = new DrmData();
+		writeCallbackData *callbackData = new writeCallbackData();
+		callbackData->data = tokenReply;
+		callbackData->mDRMSessionManager = this;
 		CURLcode res;
 		long httpCode = -1;
 
@@ -358,10 +332,11 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, tokenReply);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
@@ -413,6 +388,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 			error_code = res;
 		}
 		delete tokenReply;
+                delete callbackData;
 		curl_easy_cleanup(curl);
 	}
 
@@ -462,6 +438,9 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	double totalTime = 0;
 	struct curl_slist *headers = NULL;
 	DrmData * keyInfo = new DrmData();
+	writeCallbackData *callbackData = new writeCallbackData();
+	callbackData->data = keyInfo;
+	callbackData->mDRMSessionManager = this;
 	const long challegeLength = keyChallenge->getDataLength();
 	char* destURL = new char[destinationURL.length() + 1];
 	long long downloadTimeMS = 0;
@@ -505,11 +484,12 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+	curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_URL, destURL);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challegeLength);
@@ -538,8 +518,12 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 				loopAgain = true;
 
 				delete keyInfo;
+				delete callbackData;
 				keyInfo = new DrmData();
-				curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
+				callbackData = new writeCallbackData();
+				callbackData->data = keyInfo;
+				callbackData->mDRMSessionManager = this;
+				curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 			}
 			logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
 			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
@@ -556,8 +540,12 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
 				{
 					delete keyInfo;
+                                        delete callbackData;
 					keyInfo = new DrmData();
-					curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
+                                        callbackData = new writeCallbackData();
+                                        callbackData->data = keyInfo;
+                                        callbackData->mDRMSessionManager = this;
+					curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
 					mssleep(gpGlobalConfig->licenseRetryWaitTime);
 				}
@@ -599,6 +587,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	}
 
 	delete destURL;
+        delete callbackData;
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 
@@ -843,14 +832,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			}
 
 			bool abortSessionRequest = false;
-			pthread_mutex_lock(&sessionMgrMutex);
 			if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState && isCachedKeyId)
 			{
 				//This means that the previous session request for the same keyId already failed
 				abortSessionRequest = true;
 				AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
 			}
-			pthread_mutex_unlock(&sessionMgrMutex);
 
 			if(!abortSessionRequest && isCachedKeyId && NULL == contentMetadataPtr)
 			{
@@ -989,12 +976,10 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			free(contentMetaData);
 			aamp_AppendBytes(&comChallenge, encodedData,strlen(encodedData));
 
-			pthread_mutex_lock(&accessTokenMutex);
 			int tokenLen = 0;
 			long tokenError = 0;
 			const char * sessionToken = getAccessToken(tokenLen, tokenError);
 			const char * secclientSessionToken = NULL;
-			pthread_mutex_unlock(&accessTokenMutex);
 			if(sessionToken != NULL && !gpGlobalConfig->licenseAnonymousRequest)
 			{
 				logprintf("%s:%d access token is available", __FUNCTION__, __LINE__);
@@ -1345,7 +1330,7 @@ void *CreateDRMSession(void *arg)
 		AAMPLOG_ERR("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
-	AampDRMSessionManager* sessionManger = AampDRMSessionManager::getInstance();
+	AampDRMSessionManager* sessionManger = sessionParams->aamp->mDRMSessionManager;
         sessionManger->setCurlAbort(false);
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	AAMPEvent e;

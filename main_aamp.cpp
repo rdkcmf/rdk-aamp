@@ -85,6 +85,11 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 #endif
 
+static const char* STRBGPLAYER = "BACKGROUND";
+static const char* STRFGPLAYER = "FOREGROUND";
+
+static int PLAYERID_CNTR = 0;
+
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -872,11 +877,11 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 		if (!mAppName.empty())
 		{
-			logprintf("APP: %s Sending error %s ", mAppName.c_str(), e.data.mediaError.description);
+			logprintf("APP: %s %s PLAYER[%d] Sending error %s ", mAppName.c_str(),(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		else
 		{
-			logprintf("Sending error %s ", e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] Sending error %s ",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		SendEventAsync(e);
 	}
@@ -3626,6 +3631,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
 			logprintf("useWesterosSink=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "async-tune=", value) == 1)
+		{
+			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
+			logprintf("async-tune=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
@@ -4163,11 +4173,11 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (aamp)
 	{
 		aamp->Stop();
-#ifdef AAMP_MPD_DRM
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 		//Clear session data on clean up of last PlayerInstanceAAMP
 		if (gActivePrivAAMPs.size() == 1)
 		{
-			AampDRMSessionManager::getInstance()->clearSessionData();
+			aamp->mDRMSessionManager->clearSessionData();
 		}
 #endif /*AAMP_MPD_DRM*/
 		delete aamp;
@@ -4333,7 +4343,7 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_INFO("Stopping Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
 }
 
@@ -4655,10 +4665,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		if (mbPlayEnabled)
+		{
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
-		mStreamSink->Stream();
+		if (mbPlayEnabled)
+			mStreamSink->Stream();
 	}
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
@@ -4686,9 +4700,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
 {
 	ERROR_STATE_CHECK_VOID();
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
@@ -4699,8 +4714,8 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	AampCacheHandler::GetInstance()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->getAampCacheHandler()->StartPlaylistCache();
+	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
 }
 
 
@@ -4708,9 +4723,10 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -4733,7 +4749,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
-		AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
 	
 	if (NULL == mStreamSink)
@@ -4751,11 +4767,18 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		AAMPGstPlayer::InitializeAAMPGstreamerPlugins();
 	}
 
+	mbPlayEnabled = autoPlay;
+
+	if (!autoPlay)
+	{
+		pipeline_paused = true;
+		logprintf("%s:%d - AutoPlay disabled; Just caching the stream now.\n",__FUNCTION__,__LINE__);
+	}
+
 	if (pipeline_paused)
 	{
 		// resume downloads and clear paused flag. state change will be done
 		// on streamSink configuration.
-		pipeline_paused = false;
 		ResumeDownloads();
 	}
 
@@ -4940,20 +4963,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
 		if (!mAppName.empty())
 		{
-			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s aamp_tune", mAppName.c_str());
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s %s PLAYER[%d]", mAppName.c_str(), (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 		}
 		else
 		{
-			strcpy(tuneStrPrefix, "aamp_tune");
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "%s PLAYER[%d]", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 		}
 
 		if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 		{
-			logprintf("%s: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+			logprintf("%s aamp_tune: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 		}
 		else
 		{
-			logprintf("%s: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
+			logprintf("%s aamp_tune: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
 			printf("URL: %s\n", mManifestUrl.c_str());
 		}
 	}
@@ -5183,6 +5206,49 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
+
+/**
+ *   @brief Check if current stream is muxed
+ *
+ *   @return true if current stream is muxed
+ */
+bool PrivateInstanceAAMP::IsPlayEnabled()
+{
+	return mbPlayEnabled;
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PlayerInstanceAAMP::detach()
+{
+	aamp->detach();
+}
+
+
+/**
+ * @brief Soft-realease player.
+ *
+ */
+void PrivateInstanceAAMP::detach()
+{
+	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
+	{
+		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
+		pipeline_paused = true;
+		mpStreamAbstractionAAMP->StopInjection();
+		mStreamSink->Stop(true);
+		mbPlayEnabled = false;
+	}
+}
+
+AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
+{
+	return mAampCacheHandler;
+}
+
 /**
  *   @brief Register event handler.
  *
@@ -5334,6 +5400,8 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
+	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
+
 	ERROR_STATE_CHECK_VOID();
 
 	if (aamp->mpStreamAbstractionAAMP)
@@ -5341,6 +5409,16 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
 		{
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			return;
+		}
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
+		{
+			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
+			aamp->mbPlayEnabled = true;
+			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
+			aamp->mpStreamAbstractionAAMP->StartInjection();
+			aamp->mStreamSink->Stream();
+			aamp->pipeline_paused = false;
 			return;
 		}
 		bool retValue = true;
@@ -6479,6 +6557,56 @@ void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 	aamp->SetParallelPlaylistDL(bValue);
 }
 
+
+/**
+ *   @brief Set Async Tune Configuration
+ *   @param[in] bValue - true if async tune enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+{
+	aamp->SetAsyncTuneConfig(bValue);
+}
+/**
+ *   @brief Set Async Tune Configuration
+ *   @param[in] bValue - true if async tune enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+{
+	if(gpGlobalConfig->mAsyncTuneConfig == eUndefinedState)
+	{
+		mAsyncTuneEnabled = bValue;
+	}
+	else
+	{
+		mAsyncTuneEnabled = (bool)gpGlobalConfig->mAsyncTuneConfig;
+	}
+	AAMPLOG_INFO("%s:%d Async Tune Config : %s ",__FUNCTION__,__LINE__,(mAsyncTuneEnabled)?"True":"False");
+}
+
+/**
+ *   @brief Get Async Tune configuration
+ *
+ *   @return bool - true if config set
+ */
+bool PlayerInstanceAAMP::GetAsyncTuneConfig()
+{
+        return aamp->GetAsyncTuneConfig();
+}
+
+/**
+ *   @brief Get Async Tune configuration
+ *
+ *   @return bool - true if config set 
+ */
+bool PrivateInstanceAAMP::GetAsyncTuneConfig()
+{
+        return mAsyncTuneEnabled;
+}
+
 /**
  *   @brief Set parallel playlist download config value for linear.
  *   @param[in] bValue - true if a/v playlist to be downloaded in parallel during refresh
@@ -6967,7 +7095,7 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = NULL;
 	}
-	AampCacheHandler::GetInstance()->StopPlaylistCache();
+	getAampCacheHandler()->StopPlaylistCache();
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
@@ -7423,6 +7551,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mParallelFetchPlaylistRefresh(true)
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
+	,mPlayerId(PLAYERID_CNTR++)
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
@@ -7447,8 +7576,17 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
 	, mInitFragmentRetryCount(-1)
+	,mbPlayEnabled(true)
+	,mAampCacheHandler(new AampCacheHandler())
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	, mDRMSessionManager(NULL)
+#endif
+	,mAsyncTuneEnabled(false)
 {
 	LazilyLoadConfigIfNeeded();
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	mDRMSessionManager = new AampDRMSessionManager();
+#endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
     iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
@@ -7511,6 +7649,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
 #endif
+	SetAsyncTuneConfig(false);
 }
 
 
@@ -7567,6 +7706,11 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
+#endif
+
+	delete mAampCacheHandler;
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	delete mDRMSessionManager;
 #endif
 }
 
@@ -9608,6 +9752,102 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #endif
 }
 
+
+/**
+ *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
+{
+	// This is the thread function to download all the HLS Playlist in a 
+	// differed manner
+	int maxWindowforDownload = mPreCacheDnldTimeWindow*60; // convert to seconds  
+	int szPlaylistCount = mPreCacheDnldList.size();
+	if(szPlaylistCount)
+	{
+		PrivAAMPState state;
+		// First wait for Tune to complete to start this functionality
+		pthread_mutex_lock(&mMutexPlaystart);
+		pthread_cond_wait(&waitforplaystart, &mMutexPlaystart);
+		pthread_mutex_unlock(&mMutexPlaystart);
+		// May be Stop is called to release all resources .
+		// Before download , check the state 
+		GetState(state);
+		if(state != eSTATE_RELEASED)
+		{
+			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE,1,GetNetworkProxy());
+			SetCurlTimeout(mPlaylistTimeoutMs,eCURLINSTANCE_PLAYLISTPRECACHE);
+			// calculate the cache size, consider 1 MB/playlist
+			int maxCacheSz = szPlaylistCount * 1024*1024;
+			// get the current cache max size , to restore later 
+			int currMaxCacheSz = getAampCacheHandler()->GetMaxPlaylistCacheSize();
+			// set new playlistCacheSize; 
+			getAampCacheHandler()->SetMaxPlaylistCacheSize(maxCacheSz);
+			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
+			int idx=0;
+			do
+			{
+				InterruptableMsSleep(sleepTimeBetweenDnld);
+				if(DownloadsAreEnabled())
+				{
+					// First check if the file is already in Cache
+					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
+					
+					// check if url cached ,if not download
+					if(getAampCacheHandler()->IsUrlCached(newelem.url)==false)
+					{
+						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
+							newelem.type,newelem.url.c_str());
+						std::string playlistUrl;
+						std::string playlistEffectiveUrl;
+						GrowableBuffer playlistStore;
+						long http_error;
+						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						{
+							// If successful download , then insert into Cache 
+							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
+							aamp_Free(&playlistStore.ptr);
+						}	
+					}
+					idx++;
+				}
+				else
+				{
+					// this can come here if trickplay is done or play started late
+					if(state == eSTATE_SEEKING || eSTATE_PREPARED)
+					{
+						// wait for seek to complete 
+						sleep(1);
+					}
+				}
+				GetState(state);
+			}while(idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
+			// restore old cache size
+			getAampCacheHandler()->SetMaxPlaylistCacheSize(currMaxCacheSz);
+			mPreCacheDnldList.clear();
+			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
+		}
+	}
+	AAMPLOG_WARN("%s End of PreCachePlaylistDownloadTask ",__FUNCTION__);
+}
+
+/**
+ *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
+ *   @param[in] Playlist Download list  
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
+{
+	mPreCacheDnldList = dnldListInput;
+	if(mPreCacheDnldList.size())
+	{
+		AAMPLOG_WARN("%s:%d Got Playlist PreCache list of Size : %d",__FUNCTION__,__LINE__,mPreCacheDnldList.size());
+	}
+	
+}
+
 /**
  *   @brief Get available audio tracks.
  *
@@ -9747,91 +9987,6 @@ std::string PrivateInstanceAAMP::GetVideoRectangle()
 void PrivateInstanceAAMP::SetAppName(std::string name)
 {
 	mAppName = name;
-}
-
-/*
- *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
- *
- *   @return void
- */
-void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
-{
-	// This is the thread function to download all the HLS Playlist in a 
-	// differed manner
-	int maxWindowforDownload = mPreCacheDnldTimeWindow*60; // convert to seconds  
-	int szPlaylistCount = mPreCacheDnldList.size();
-	if(szPlaylistCount)
-	{
-		PrivAAMPState state;
-		// First wait for Tune to complete to start this functionality
-		pthread_mutex_lock(&mLock);
-		pthread_cond_wait(&waitforplaystart, &mLock);
-		pthread_mutex_unlock(&mLock);
-		// May be Stop is called to release all resources .
-		// Before download , check the state 
-		GetState(state);
-		if(state != eSTATE_RELEASED)
-		{
-			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE);
-			// calculate the cache size, consider 1 MB/playlist
-			int maxCacheSz = szPlaylistCount * 1024*1024;
-			// get the current cache max size , to restore later 
-			int currMaxCacheSz =AampCacheHandler::GetInstance()->GetMaxPlaylistCacheSize();
-			// set new playlistCacheSize; 
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(maxCacheSz);
-			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
-			int idx=0;
-			while (DownloadsAreEnabled() && idx < mPreCacheDnldList.size())
-			{
-				InterruptableMsSleep(sleepTimeBetweenDnld);
-				if(DownloadsAreEnabled())
-				{
-					// First check if the file is already in Cache
-					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
-					
-					// check if url cached ,if not download
-					if(AampCacheHandler::GetInstance()->IsUrlCached(newelem.url)==false)
-					{
-						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
-							newelem.type,newelem.url.c_str());
-						std::string playlistUrl;
-						std::string playlistEffectiveUrl;
-						GrowableBuffer playlistStore;
-						long http_error;
-						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
-						{
-							// If successful download , then insert into Cache 
-							AampCacheHandler::GetInstance()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
-							aamp_Free(&playlistStore.ptr);
-						}	
-					}
-			
-				}
-				idx++;
-			}
-			// restore old cache size
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(currMaxCacheSz);
-			mPreCacheDnldList.clear();
-			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
-		}
-	}
-	AAMPLOG_WARN("%s End of PreCachePlaylistDownloadTask ",__FUNCTION__);
-}
-
-/**
- *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
- *   @param[in] Playlist Download list  
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
-{
-	mPreCacheDnldList = dnldListInput;
-	if(mPreCacheDnldList.size())
-	{
-		AAMPLOG_WARN("%s:%d Got Playlist PreCache list of Size : %d",__FUNCTION__,__LINE__,mPreCacheDnldList.size());
-	}
-	
 }
 
 /**

@@ -573,6 +573,7 @@ public:
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
+	TriState mAsyncTuneConfig;		/**< Enalbe Async tune from application */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -704,6 +705,7 @@ public:
 		,mPreCacheTimeWindow(0)
 		,abrBufferCheckEnabled(eUndefinedState)
 		,useNewDiscontinuity(eUndefinedState)
+		,mAsyncTuneConfig(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1526,6 +1528,10 @@ class attrNameData{
  */
 #endif
 
+class AampCacheHandler;
+
+class AampDRMSessionManager;
+
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
@@ -1579,12 +1585,13 @@ public:
 	 * @brief Tune API
 	 *
 	 * @param[in] url - Asset URL
+	 * @param[in] autoPlay - Start playback immediately or not
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
+	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1711,6 +1718,7 @@ public:
 	bool mParallelFetchPlaylistRefresh;
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
+	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
 	bool mUseRetuneForUnpairedDiscontinuity;
 	long long prevPositionMiliseconds;
@@ -1763,6 +1771,7 @@ public:
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	TunedEventConfig  mTuneEventConfigVod;
 	TunedEventConfig mTuneEventConfigLive;
+	int mPlayerId;
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
@@ -1775,6 +1784,10 @@ public:
 	bool mPreCachePlaylistThreadFlag;
 	bool mABRBufferCheckEnabled;
 	bool mNewAdBreakerEnabled;
+	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	AampDRMSessionManager *mDRMSessionManager;
+#endif
 
 	/**
 	 * @brief Curl initialization function
@@ -3274,6 +3287,20 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+	/**
+	 *   @brief Set async tune configuration
+	 *   @param[in] bValue - true if async tune enabled
+	 *
+	*   @return void
+	*/
+	void SetAsyncTuneConfig(bool bValue);
+
+	/**
+	 *   @brief Get async tune configuration
+	 *
+	 *   @return bool - true if async tune enabled
+	*/
+	bool GetAsyncTuneConfig();
 
 	/**
 	* @brief Set parallel playlist download config value for linear
@@ -3371,6 +3398,25 @@ public:
 	 * @return void
 	 */
 	void StopBuffering(bool forceStop);
+	/*
+	 *   @brief Check if autoplay enabled for current stream
+	 *
+	 *   @return true if autoplay enabled
+	 */
+	bool IsPlayEnabled();
+
+	/**
+	 * @brief Soft stop the player instance.
+	 *
+	 */
+	void detach();
+
+	/**
+	 * @brief Get pointer to AampCacheHandler
+	 *
+	 * @return Pointer to AampCacheHandler
+	 */
+	AampCacheHandler * getAampCacheHandler();
 
 private:
 
@@ -3412,7 +3458,6 @@ private:
 	 *   @return void
 	 */
 	void SetContentType(const char *url, const char *contentType);
-
 
     /**
      *   @brief Set Content Type
@@ -3468,6 +3513,8 @@ private:
 	std::string mAppName;
 	PreCacheUrlList mPreCacheDnldList;
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
+
+	AampCacheHandler *mAampCacheHandler;
 };
 
 #endif // PRIVAAMP_H

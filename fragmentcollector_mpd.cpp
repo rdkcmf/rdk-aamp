@@ -2932,7 +2932,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
   #endif
@@ -3446,7 +3446,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	bool gotManifest = false;
 	bool retrievedPlaylistFromCache = false;
 	memset(&manifest, 0, sizeof(manifest));
-	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
+	if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
 	{
 		logprintf("PrivateStreamAbstractionMPD::%s:%d manifest retrieved from cache", __FUNCTION__, __LINE__);
 		retrievedPlaylistFromCache = true;
@@ -3529,7 +3529,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			aamp->SetIsLive(mIsLive);
 			if (!retrievedPlaylistFromCache && !mIsLive)
 			{
-				AampCacheHandler::GetInstance()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
+				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
 			}
 		}
 		else
@@ -5979,13 +5979,16 @@ void StreamAbstractionAAMP_MPD::Start(void)
 void PrivateStreamAbstractionMPD::Start(void)
 {
 #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 	pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
 	fragmentCollectorThreadStarted = true;
 	for (int i=0; i< mNumberOfTracks; i++)
 	{
-		mMediaStreamContext[i]->StartInjectLoop();
+		if(aamp->IsPlayEnabled())
+		{
+			mMediaStreamContext[i]->StartInjectLoop();
+		}
 	}
 }
 
@@ -6040,7 +6043,7 @@ void PrivateStreamAbstractionMPD::Stop()
 	}
 	aamp->mStreamSink->ClearProtectionEvent();
  #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
   #endif
 }
 
