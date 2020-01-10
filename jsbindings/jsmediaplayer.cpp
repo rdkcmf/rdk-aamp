@@ -35,74 +35,6 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
-#define ASYNC_TUNE
-
-#ifdef ASYNC_TUNE
-static pthread_t tuneThreadId;
-static bool bTuneInProgress = false;
-
-/**
- * @class AsyncTune
- * @brief AsyncTune implementation for Ref-Player
- */
-class AsyncTune
-{
-public:
-	/**
-	 * @brief AsyncTune Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] string-url - playback url
-	 */
-	AsyncTune(class PlayerInstanceAAMP* aamp, std::string url)
-			: _aamp(aamp)
-			, _url(url)
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Destructor
-	 */
-	virtual ~AsyncTune()
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Copy Constructor
-	 */
-	AsyncTune(const AsyncTune&) = delete;
-
-	/**
-	 * @brief AsyncTune Assignment operator overloading
-	 */
-	AsyncTune& operator=(const AsyncTune&) = delete;
-
-public:
-	class PlayerInstanceAAMP* _aamp;
-	std::string _url;
-};
-
-/**
- * @brief Async Tune function.
- * @param arg passed as parameter during the async tune
- */
-static void* do_AsyncTune(void* arg)
-{
-	class AsyncTune* pAsyncTune = (class AsyncTune*)arg;
-	const char* szUrl = pAsyncTune->_url.c_str();
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE START url='%s'", __FUNCTION__, szUrl);
-
-	pAsyncTune->_aamp->Tune(szUrl);
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE FINISH url='%s'", __FUNCTION__, szUrl);
-	delete pAsyncTune;
-
-	return NULL;
-}
-#endif /* ASYNC_TUNE */
-
 /**
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
@@ -478,28 +410,9 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 	if (argumentCount == 1)
 	{
-#ifdef ASYNC_TUNE
-		if (bTuneInProgress)
-		{
-			void* status;
-			INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
-			pthread_join(tuneThreadId, &status);
-			bTuneInProgress = false;
-		}
-
-		char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
-		INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
-
-		std::string urlString(url);
-		class AsyncTune* asyncTune = new AsyncTune(privObj->_aamp, urlString);
-		int err = pthread_create(&tuneThreadId, NULL, do_AsyncTune, asyncTune);
-		bTuneInProgress = (err == 0);
-		delete [] url;
-#else
 		char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 		privObj->_aamp->Tune(url);
 		delete [] url;
-#endif /* ASYNC_TUNE */
 	}
 	else
 	{
