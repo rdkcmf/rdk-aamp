@@ -1263,7 +1263,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					{
 						mInitFragmentInfo = ptr;
 						mInjectInitFragment = true;
-						AAMPLOG_WARN("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
+						AAMPLOG_INFO("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
 					}
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
@@ -1552,7 +1552,7 @@ char *TrackState::FindMediaForSequenceNumber()
 						if (!mInitFragmentInfo)
 						{
 							mInitFragmentInfo = initFragment;
-							AAMPLOG_WARN("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
+							AAMPLOG_INFO("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
 						}
 					}
 					if (seq != mediaSequenceNumber)
@@ -1795,7 +1795,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				// null fragment URI technically not an error - live manifest may simply not have updated yet
 				// if real problem exists, underflow will eventually be detected/reported
-				logprintf("FetchFragmentHelper : fragmentURI %s playTarget(%f), playlistPosition(%f)", fragmentURI, playTarget, playlistPosition);
+				AAMPLOG_INFO("FetchFragmentHelper : fragmentURI %s playTarget(%f), playlistPosition(%f)", fragmentURI, playTarget, playlistPosition);
 			}
 			return ret;
 		}
@@ -3824,8 +3824,28 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				StreamOutputFormat format = GetFormatFromFragmentExtension(ts);
 				if (FORMAT_ISO_BMFF == format)
 				{
-					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_ISO_BMFF", ts->name);
-					ts->streamOutputFormat = FORMAT_ISO_BMFF;
+					//Disable subtitle in mp4 format, as we don't support it for now
+					if (eMEDIATYPE_SUBTITLE == iTrack)
+					{
+						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported subtitle format from fragment extension:%d", __FUNCTION__, __LINE__, format);
+						ts->streamOutputFormat = FORMAT_NONE;
+						ts->fragmentURI = NULL;
+						ts->enabled = false;
+					}
+					else
+					{
+						logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_ISO_BMFF", ts->name);
+						ts->streamOutputFormat = FORMAT_ISO_BMFF;
+						//Disable subtitle for fragmented MP4 assets, as we need tsprocessor support for webvtt parsing now
+						if (subtitle->enabled)
+						{
+							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported media format for audio or video - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__);
+							subtitle->streamOutputFormat = FORMAT_NONE;
+							subtitle->fragmentURI = NULL;
+							//mSubtitleParser will be deleted in destructor, so unhandled here
+							subtitle->enabled = false;
+						}
+					}
 					continue;
 				}
 				// Not ISOBMFF, no need for encrypted header check and associated logic
@@ -3846,7 +3866,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						logprintf("Disable subtitle format - trick play");
 						subtitleDisabled = true;
 					}
-					else if (format != FORMAT_SUBTITLE_WEBVTT && format != FORMAT_ISO_BMFF)
+					else if (format != FORMAT_SUBTITLE_WEBVTT)
 					{
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported subtitle format from fragment extension:%d", __FUNCTION__, __LINE__, format);
 						subtitleDisabled = true;
