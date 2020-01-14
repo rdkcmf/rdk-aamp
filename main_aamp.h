@@ -1602,6 +1602,12 @@ public:
 	 */
 	void SetRampDownLimit(int limit);
 
+		/*
+	 * @brief Set Initial profile ramp down limit.
+	 *
+	 */
+	void SetInitRampdownLimit(int limit);
+
 	/**
 	 * @brief Set minimum bitrate value.
 	 *

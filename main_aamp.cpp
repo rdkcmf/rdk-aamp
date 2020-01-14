@@ -1799,6 +1799,15 @@ std::string PlayerInstanceAAMP::GetTextStyle()
 }
 
 /**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
+{
+	aamp->SetInitRampdownLimit(limit);
+}
+
+/**
  *   @brief Set the CEA format for force setting
  *
  *   @param[in] format - 0 for 608, 1 for 708

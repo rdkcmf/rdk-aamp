@@ -140,6 +140,7 @@ typedef enum{
 	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
 	eAAMP_SET_RampDownLimit,
+	eAAMP_SET_InitRampdownLimit,
 	eAAMP_SET_MinimumBitrate,
 	eAAMP_SET_MaximumBitrate,
 	eAAMP_SET_MaximumSegmentInjFailCount,
@@ -1089,7 +1090,15 @@ static void ProcessCliCommand(char *cmd)
 						mSingleton->SetPreferredLanguages(NULL);
 					break;
 				}
-
+				case eAAMP_SET_InitRampdownLimit:
+                                {
+					int rampDownLimit;
+					logprintf("Matched Command eAAMP_SET_InitRampdownLimit - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
+						mSingleton->SetInitRampdownLimit(rampDownLimit);
+					}
+					break;
+                                }
 				case eAAMP_SET_RampDownLimit:
                                 {
 					int rampDownLimit;

@@ -231,6 +231,7 @@ enum ConfigParamType
 	ePARAM_PARALLELPLAYLISTREFRESH,
 	ePARAM_USE_NEWABR,
 	ePARAM_RAMPDOWN_LIMIT,
+	ePARAM_INIT_RAMPDOWN_LIMIT,
 	ePARAM_SEGMENTINJECTLIMIT,
 	ePARAM_DRMDECRYPTLIMIT,
 	ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY,
@@ -290,6 +291,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PARALLELPLAYLISTREFRESH, "parallelPlaylistRefresh" },
 	{ ePARAM_USE_NEWABR, "useNewABR" },
 	{ ePARAM_RAMPDOWN_LIMIT, "fragmentRetryLimit" },
+	{ ePARAM_INIT_RAMPDOWN_LIMIT, "initRampdownLimit" },
 	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
 	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
 	{ ePARAM_USE_NEW_ADBREAKER, "useNewAdBreaker" },
@@ -707,6 +709,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PRECACHEPLAYLISTTIME:
 			case ePARAM_PROGRESSREPORTINTERVAL:
 			case ePARAM_RAMPDOWN_LIMIT:
+			case ePARAM_INIT_RAMPDOWN_LIMIT:
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
@@ -848,6 +851,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_RAMPDOWN_LIMIT:
 					privObj->_aamp->SetRampDownLimit((int) valueAsNumber);
+					break;
+				case ePARAM_INIT_RAMPDOWN_LIMIT:
+					privObj->_aamp->SetInitRampdownLimit((int) valueAsNumber);
 					break;
 				case ePARAM_SEGMENTINJECTLIMIT:
 					privObj->_aamp->SetSegmentInjectFailCount((int) valueAsNumber);

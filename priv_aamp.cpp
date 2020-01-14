@@ -1449,6 +1449,13 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;
 			logprintf("CEA 708 is preferred format: %s", (gpGlobalConfig->preferredCEA708 == eTrueState) ? "TRUE" : "FALSE");
 		}
+		else if(ReadConfigNumericHelper(cfg, "initRampdownLimit=", value))
+		{
+			if (value >= 0){
+				gpGlobalConfig->mInitRampdownLimit = value;
+				logprintf("initRampdownLimit=%d", (int)gpGlobalConfig->mInitRampdownLimit);
+			}
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -9235,3 +9242,31 @@ bool PrivateInstanceAAMP::IsActiveInstancePresent()
 {
 	return !gActivePrivAAMPs.empty();
 }
+
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PrivateInstanceAAMP::SetInitRampdownLimit(int limit)
+{
+	if (gpGlobalConfig->mInitRampdownLimit >= 0)
+	{
+		AAMPLOG_INFO("%s:%d Setting Init Rampdown limit from configuration file: %d", __FUNCTION__, __LINE__, gpGlobalConfig->mInitRampdownLimit);
+	}
+	else
+	{
+		if (limit >= 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting Init Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
+			gpGlobalConfig->mInitRampdownLimit = limit;
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid Init Rampdown limit value %d", __FUNCTION__,__LINE__, limit);
+		}
+	}
+}
+
+/**
+ * EOF
+ */

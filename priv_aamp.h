@@ -2319,6 +2319,12 @@ public:
 	void SetRampDownLimit(int limit);
 
 	/**
+	 * @brief Set Initila profile ramp down limit.
+	 *
+	 */
+	void SetInitRampdownLimit(int limit);
+
+	/**
 	 * @brief Set minimum bitrate value.
 	 *
 	 */
