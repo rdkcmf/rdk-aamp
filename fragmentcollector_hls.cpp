@@ -4280,7 +4280,57 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			if(!video->playlist.len)
 			{
-				video->FetchPlaylist();
+				/* START: Added As Part of DELIA-39963 */
+				int limitCount = 0;
+				int numberOfLimit = 0;
+
+				if (gpGlobalConfig->mInitRampdownLimit){
+					numberOfLimit = gpGlobalConfig->mInitRampdownLimit;
+				}
+
+				do{
+					video->FetchPlaylist();
+					limitCount++;
+					if ((!video->playlist.len) && (limitCount <= numberOfLimit) ){
+						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d Video playlist download failed, rettrying with rampdown logic : %d ( %d )", 
+						__FUNCTION__, __LINE__, limitCount, numberOfLimit );
+						/** Choose rampdown profile for next retry */
+						currentProfileIndex = mAbrManager.getRampedDownProfileIndex(currentProfileIndex);
+						if(lastSelectedProfileIndex == currentProfileIndex){
+							AAMPLOG_INFO("Failed to rampdown from bandwidth : %ld", this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+							break;
+						}
+
+						lastSelectedProfileIndex = currentProfileIndex;
+						AAMPLOG_INFO("Trying BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, 
+						GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+						const char *uri = GetPlaylistURI(eTRACK_VIDEO, &video->streamOutputFormat);
+						if (uri){
+							aamp_ResolveURL(video->mPlaylistUrl, aamp->GetManifestUrl(), uri);
+
+						}else{
+							AAMPLOG_ERR("StreamAbstractionAAMP_HLS:: %s:%d Failed to get URL after %d rampdown attempts", 
+								__FUNCTION__, __LINE__, limitCount);
+							break;
+						}
+
+					}else if (video->playlist.len){
+						aamp->ResetCurrentlyAvailableBandwidth(
+							this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
+							trickplayMode,this->currentProfileIndex);
+						aamp->profiler.SetBandwidthBitsPerSecondVideo(
+							this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+						AAMPLOG_INFO("Selected BitRate: %ld, Max BitRate: %ld", 
+							streamInfo[currentProfileIndex].bandwidthBitsPerSecond, 
+							GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+						break;
+					}
+				}while(limitCount <= numberOfLimit);
+				if (!video->playlist.len){
+					AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d Video playlist download failed still after %d rampdown attempts", 
+				           __FUNCTION__, __LINE__, limitCount);
+				}
+				/* END: Added As Part of DELIA-39963 */
 			}
 		}
 		if (subtitle->enabled)
