@@ -217,6 +217,7 @@ public:
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
+	int mInitRampdownLimit; /** Maximum number of limits for ramdown and try download if playlist download failed at start time before reporting failure **/
 	long minBitrate;		/*** Minimum bandwidth of playback profile */
 	long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
