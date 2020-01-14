@@ -4406,17 +4406,29 @@ void TrackState::RunFetchLoop()
 		{
 			skipFetchFragment = false;
 
-			if (mInjectInitFragment && mInitFragmentInfo)
+			if (mInjectInitFragment)
 			{
-				FetchInitFragment();
-				//Inject init fragment failed due to no free cache
-				if (mInjectInitFragment)
+				// DELIA-40273: mInjectInitFragment marks if init fragment has to be pushed whereas mInitFragmentInfo
+				// holds the init fragment URL. Both has to be present for init fragment fetch & injection to work.
+				// During ABR, mInjectInitFragment is set and for live assets,  mInitFragmentInfo is found
+				// in FindMediaForSequenceNumber() and for VOD its found in GetNextFragmentUriFromPlaylist()
+				// which also sets mInjectInitFragment to true, so below reset will not have an impact
+				if (mInitFragmentInfo)
 				{
-					skipFetchFragment = true;
+					FetchInitFragment();
+					//Inject init fragment failed due to no free cache
+					if (mInjectInitFragment)
+					{
+						skipFetchFragment = true;
+					}
+					else
+					{
+						skipFetchFragment = false;
+					}
 				}
 				else
 				{
-					skipFetchFragment = false;
+					mInjectInitFragment = false;
 				}
 			}
 
