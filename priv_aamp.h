@@ -1396,9 +1396,12 @@ public:
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
+	 * @param[in] audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 * @return void
 	 */
-	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *url, const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false,
+			bool audioDecoderStreamSync = true);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1529,6 +1532,8 @@ public:
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
+	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
+	                                in gst brcmaudiodecoder, default: True */
 
 	/**
 	 * @brief Curl initialization function

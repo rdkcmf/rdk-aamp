@@ -663,9 +663,12 @@ public:
 	 *
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  contentType - Content type of the asset
+	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false);
+	void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,
+			bool audioDecoderStreamSync = true);
 
 	/**
 	 *   @brief Stop playback and release resources.

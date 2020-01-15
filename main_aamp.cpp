@@ -3680,7 +3680,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,
+		bool audioDecoderStreamSync)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -3688,7 +3689,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt);
+	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt, audioDecoderStreamSync);
 }
 
 
@@ -3698,12 +3699,14 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,
+		bool audioDecoderStreamSync)
 {
 	AAMPLOG_TRACE("aamp_tune: original URL: %s\n", mainManifestUrl);
 
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
+	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -5681,7 +5684,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
         mDiscontinuityTuneOperationInProgress(false), mProcessingAdInsertion(false), mContentType(), mTunedEventPending(false),
         mSeekOperationInProgress(false), mCacheStoredSize(0), mPlaylistCache(), mPendingAsyncEvents(), mCustomHeaders(),
         mServiceZone(),
-        mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL)
+        mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),
+        mAudioDecoderStreamSync(true)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
