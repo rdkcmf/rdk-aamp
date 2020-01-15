@@ -207,7 +207,6 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 				  &m_pOpenCDMSession);
 	if (!m_pOpenCDMSession) {
 		logprintf("Could not create session");
-		return;
 	}
 
 	pthread_mutex_unlock(&decryptMutex);
