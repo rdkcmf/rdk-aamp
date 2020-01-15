@@ -4300,7 +4300,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
@@ -4309,7 +4309,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
 	AampCacheHandler::GetInstance()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->Tune(mainManifestUrl, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
 
 
@@ -4319,7 +4319,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync))
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -4331,6 +4331,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigureBulkTimedMetadata();
 	ConfigureWesterosSink();
 
+	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -6729,6 +6730,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 #endif
 	, mPlayermode(PLAYERMODE_JSPLAYER)
+	,mAudioDecoderStreamSync(true)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
