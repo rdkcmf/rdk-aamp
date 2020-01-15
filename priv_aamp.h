@@ -573,6 +573,7 @@ public:
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
 	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
+	bool reportBufferEvent;			/** Enables Buffer event reporting */
 public:
 
 	/**
@@ -612,6 +613,7 @@ public:
 		,bReportVideoPTS(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,mEnableRectPropertyCfg(false)
+		,reportBufferEvent(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1805,6 +1807,14 @@ public:
 	 * @return void
 	 */
 	void SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...);
+
+	void SendBufferChangeEvent(bool bufferingStopped=false);
+
+	/* Buffer Under flow status flag, under flow Start(buffering stopped) is true and under flow end is false*/
+	bool mBufUnderFlowStatus;
+	bool GetBufUnderFlowStatus() { return mBufUnderFlowStatus; }
+	void SetBufUnderFlowStatus(bool statusFlag) { mBufUnderFlowStatus = statusFlag; }
+	void ResetBufUnderFlowStatus() { mBufUnderFlowStatus = false;}
 
 	/**
 	 * @brief Send events synchronously

@@ -1536,6 +1536,42 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_BufferingChanged
+ * @brief Event listener impl for (AAMP_EVENT_BUFFER_UNDERFLOW) AAMP event
+ */
+class AAMP_JSListener_BufferingChanged: public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_BufferingChanged Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_BufferingChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		/* e.data.bufferingChanged.buffering buffering started(underflow ended) = true, buffering end(underflow started) = false*/
+		prop = JSStringCreateWithUTF8CString("status");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeBoolean(context, e.data.bufferingChanged.buffering), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+
+/**
  * @brief Callback invoked from JS to add an event listener for a particular event
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
@@ -1677,6 +1713,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_AD_PLACEMENT_ERROR)
 	{
 		pListener = new AAMP_JSListener_AdPlacementEror(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_BUFFERING_CHANGED)
+	{
+		pListener = new AAMP_JSListener_BufferingChanged(aamp, type, jsCallback);
 	}
 	else
 	{

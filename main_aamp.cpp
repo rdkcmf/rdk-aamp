@@ -683,6 +683,26 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
 }
 
 /**
+ * @brief Sends UnderFlow Event messages
+ *
+ * @param[in] bufferingStopped- Flag to indicate buffering stopped (Underflow started true else false)
+ * @return void
+ */
+void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
+{
+	AAMPEvent e;
+
+	e.type = AAMP_EVENT_BUFFERING_CHANGED;
+
+	SetBufUnderFlowStatus(bufferingStopped);
+
+	e.data.bufferingChanged.buffering = !(bufferingStopped);   /* False if Buffering End, True if Buffering Start*/
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Sending Buffer Change event status (Buffering): %s", __FUNCTION__, __LINE__, ((e.data.bufferingChanged.buffering) ? "Start": "End"));
+
+	SendEventAsync(e);
+}
+
+/**
  * @brief Handles errors and sends events to application if required.
  * For download failures, use SendDownloadErrorEvent instead.
  * @param tuneFailure Reason of error
@@ -756,6 +776,10 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
 		ScheduleEvent(aed);
 		if(e.type != AAMP_EVENT_PROGRESS)
 			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__,e.type);
+	}
+	else
+	{
+			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Failed to send event type  %d", __FUNCTION__, __LINE__,e.type);
 	}
 }
 
@@ -3348,6 +3372,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 				tmpValue = NULL;
 			}
 		}
+		else if (ReadConfigNumericHelper(cfg, "reportbufferevent=", value) == 1)
+		{
+			gpGlobalConfig->reportBufferEvent = (value != 0);
+			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4232,6 +4261,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mTuneAttempts++;
 	}
 	profiler.TuneBegin();
+	ResetBufUnderFlowStatus();
 
 	if( !remapUrl )
 	{
@@ -6144,6 +6174,12 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
 			return;
 		}
+
+		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
+		{
+			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
+		}
+
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
 									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
 									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" : "STARTTIME RESET";
@@ -6240,6 +6276,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0)
+	,mBufUnderFlowStatus(false)
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
