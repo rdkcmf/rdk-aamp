@@ -2783,6 +2783,29 @@ void TrackState::RefreshPlaylist(void)
 		}
 #endif
 		IndexPlaylist();
+
+		// Update culled seconds if playlist download was successful
+		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
+		// culledSeconds and FindTimedMetadata have been moved up here, because FindMediaForSequenceNumber
+		// uses mystrpbrk internally which modifies line terminators in playlist.ptr and results in 
+		// FindTimedMetadata failing to parse playlist
+		if (IsLive())
+		{
+			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
+			double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
+			if (culled > 0)
+			{
+				mCulledSeconds += culled;
+				if (eTRACK_VIDEO == type)
+				{
+					aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
+				}
+			}
+		}
+
+		//Parse for timed metadata in the updated playlist
+		FindTimedMetadata();
+
 		if( mDuration > 0.0f )
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -2800,24 +2823,6 @@ void TrackState::RefreshPlaylist(void)
 			}
 			manifestDLFailCount = 0;
 		}
-
-		// Update culled seconds if playlist download was successful
-		if (IsLive())
-		{
-			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
-			double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-			if (culled > 0)
-			{
-				mCulledSeconds += culled;
-				if (eTRACK_VIDEO == type)
-				{
-					aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
-				}
-			}
-		}
-
-		//Parse for timed metadata in the updated playlist
-		FindTimedMetadata();
 	}
 	else
 	{
