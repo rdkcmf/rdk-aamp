@@ -4981,7 +4981,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
@@ -4993,7 +4993,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
 	aamp->getAampCacheHandler()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
 
 
@@ -5004,7 +5004,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -5030,6 +5030,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
 	
+	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -8031,6 +8032,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, prevPositionMiliseconds(-1)
 	, mInitFragmentRetryCount(-1)
 	, mPlaylistFetchFailError(0L)
+	,mAudioDecoderStreamSync(true)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
