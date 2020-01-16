@@ -572,6 +572,7 @@ private:
 	uint64_t mPeriodStartTime;
 	int64_t mMinUpdateDurationMs;
 	double mTSBDepth;
+	double mPresentationOffsetDelay;
 	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
 	double mVideoPosRemainder;
@@ -614,8 +615,9 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
-	,mMaxTSBBandwidth(0), mTSBDepth(MIN_TSB_BUFFER_DEPTH)
+	,mMaxTSBBandwidth(0), mTSBDepth(0)
 	,mVideoPosRemainder(0)
+	,mPresentationOffsetDelay(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -1462,6 +1464,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 #ifdef DEBUG_TIMELINE
 			logprintf("%s:%d segmentTimeline not available", __FUNCTION__, __LINE__);
 #endif
+
 			double currentTimeSeconds = (double)aamp_GetCurrentTimeMS() / 1000;
 			double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
 			if (!fragmentDuration)
@@ -1473,6 +1476,11 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				if (mIsLive)
 				{
 					double liveTime = currentTimeSeconds - aamp->mLiveOffset;
+					if(liveTime < mPeriodStartTime)
+					{
+						// Not to go beyond the period , as that is checked in skipfragments 
+						liveTime = mPeriodStartTime;
+					}
 					pMediaStreamContext->lastSegmentNumber = (long long)((liveTime - mPeriodStartTime) / fragmentDuration) + segmentTemplate->GetStartNumber();
 					pMediaStreamContext->fragmentDescriptor.Time = liveTime;
 					AAMPLOG_INFO("%s %d Printing fragmentDescriptor.Number %" PRIu64 " Time=%" PRIu64 "  ", __FUNCTION__, __LINE__, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time);
@@ -1513,9 +1521,9 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%" PRIu64 " mPeriodEndTime=%lld mPeriodStartTime %lld  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->eos = true;
 			}
-			else if(mIsLive && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= currentTimeSeconds)
+			else if(mIsLive && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= (currentTimeSeconds-mPresentationOffsetDelay))
 			{
-				int sleepTime = (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration  - currentTimeSeconds) * 1000;
+				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
 				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %llu currentTimeSeconds %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, currentTimeSeconds, sleepTime);
@@ -1855,6 +1863,7 @@ void PrivateStreamAbstractionMPD::SkipToEnd( MediaStreamContext *pMediaStreamCon
  */
 double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS)
 {
+	double segDurationSkipped = 0;
 	ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
 	if (!segmentTemplate)
 	{
@@ -1892,6 +1901,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						{
 							uint64_t startTime = timeline->GetStartTime();
 							pMediaStreamContext->fragmentDescriptor.Time = startTime;
+							segDurationSkipped = startTime;
 						}
 					}
 					uint32_t duration = timeline->GetDuration();
@@ -1915,7 +1925,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						skipTime -= fragmentDuration;
 						pMediaStreamContext->fragmentTime += fragmentDuration;
-						pMediaStreamContext->fragmentDescriptor.Time += duration;
+						segDurationSkipped += duration;
 						pMediaStreamContext->fragmentDescriptor.Number++;
 						pMediaStreamContext->fragmentRepeatCount++;
 						if( pMediaStreamContext->fragmentRepeatCount > repeatCount)
@@ -1929,7 +1939,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						skipTime += fragmentDuration;
 						pMediaStreamContext->fragmentTime -= fragmentDuration;
-						pMediaStreamContext->fragmentDescriptor.Time -= duration;
+						segDurationSkipped -= duration;
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentRepeatCount--;
 						if( pMediaStreamContext->fragmentRepeatCount < 0)
@@ -1974,10 +1984,12 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					if (rate < 0)
 					{
 						pMediaStreamContext->fragmentDescriptor.Time = mPeriodEndTime;
+						segDurationSkipped = mPeriodEndTime;
 					}
 					else
 					{
 						pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
+						segDurationSkipped = mPeriodStartTime;
 					}
 				}
 
@@ -1998,7 +2010,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						pMediaStreamContext->fragmentDescriptor.Number++;
 						pMediaStreamContext->fragmentTime += segmentDuration;
-						pMediaStreamContext->fragmentDescriptor.Time += segmentDuration;
+						segDurationSkipped += segmentDuration;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime -= segmentDuration;
 					}
@@ -2006,19 +2018,20 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentTime -= segmentDuration;
-						pMediaStreamContext->fragmentDescriptor.Time = segmentDuration;
+						segDurationSkipped -= segmentDuration;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime += segmentDuration;
 					}
 					else if(fabs(skipTime) < segmentDuration)
 					{
 						break;
-					}
+					}					
 				}
 			}
 		}while(skipTime != 0);
-		AAMPLOG_INFO("%s:%d Exit :Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentDescriptor.Number %" PRIu64 " fragmentTime %f", __FUNCTION__, __LINE__,pMediaStreamContext->type,
-				pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentDescriptor.Number, pMediaStreamContext->fragmentTime);
+		pMediaStreamContext->fragmentDescriptor.Time = segDurationSkipped;
+		AAMPLOG_INFO("%s:%d Exit :Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentDescriptor.Number %" PRIu64 " fragmentTime %f FTime:%lld", __FUNCTION__, __LINE__,pMediaStreamContext->type,
+				pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentDescriptor.Number, pMediaStreamContext->fragmentTime,pMediaStreamContext->fragmentDescriptor.Time);
 	}
 	else
 	{
@@ -3053,6 +3066,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				mMinUpdateDurationMs = DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS;
 			}
 
+			
 			tempStr = mpd->GetTimeShiftBufferDepth();
 			uint64_t timeshiftBufferDepthMS = 0;
 			if(!tempStr.empty())
@@ -3062,9 +3076,48 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if(timeshiftBufferDepthMS)
 			{
 				mTSBDepth = (double)timeshiftBufferDepthMS / 1000;
+				// Add valid check for minimum size requirement here
+				uint64_t segmentDuration = 0;	
+				tempStr = mpd->GetMaxSegmentDuration();
+				if(!tempStr.empty())
+				{
+					ParseISO8601Duration( tempStr.c_str(), (uint64_t&)segmentDuration);
+				}
+				if(mTSBDepth < ( 4 * (double)segmentDuration))
+				{
+					mTSBDepth = ( 4 * (double)segmentDuration); 
+				}
 			}
 
-			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d - MPD minupdateduration val %" PRIu64 " seconds mTSBDepth %f", __FUNCTION__, __LINE__,  mMinUpdateDurationMs/1000, mTSBDepth);
+			tempStr = mpd->GetSuggestedPresentationDelay();
+			uint64_t presentationDelay = 0;
+			if(!tempStr.empty())
+			{
+				ParseISO8601Duration( tempStr.c_str(), presentationDelay);
+			}
+			if(presentationDelay)
+			{
+				mPresentationOffsetDelay = (double)presentationDelay / 1000;				
+			}
+			else
+			{
+				tempStr = mpd->GetMinBufferTime();
+				uint64_t minimumBufferTime = 0;
+				if(!tempStr.empty())
+				{
+					ParseISO8601Duration( tempStr.c_str(), minimumBufferTime);
+				}
+				if(minimumBufferTime)
+				{
+					mPresentationOffsetDelay = 	(double)minimumBufferTime / 1000;
+				}
+				else
+				{
+					mPresentationOffsetDelay = 2.0;
+				}
+			}
+
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d - MPD minupdateduration val %" PRIu64 " seconds mTSBDepth %f mPresentationOffsetDelay :%f ", __FUNCTION__, __LINE__,  mMinUpdateDurationMs/1000, mTSBDepth,mPresentationOffsetDelay);
 		}
 
 		for (int i = 0; i < numTracks; i++)
@@ -3173,6 +3226,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			double duration = (double) durationMs / 1000;
 			mLiveEndPosition = duration;
 			bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType) && aamp->IsLiveAdjustRequired();
+			
 			if (eTUNETYPE_SEEKTOLIVE == tuneType)
 			{
 				logprintf("PrivateStreamAbstractionMPD::%s:%d eTUNETYPE_SEEKTOLIVE", __FUNCTION__, __LINE__);
@@ -3218,11 +3272,14 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 						//Calculate live offset based on time elements in the mpd
 						double currTime = (double)aamp_GetCurrentTimeMS() / 1000;
 						double liveoffset = aamp->mLiveOffset;
-						if(mTSBDepth < liveoffset)
+						if(mTSBDepth && mTSBDepth < liveoffset)
 						{
 							liveoffset = mTSBDepth;
 						}
+						
 						double startTime = currTime - liveoffset;
+						if(startTime < 0) 
+							startTime = 0; 
 						currentPeriodStart = ((double)durationMs / 1000);
 						while(mCurrentPeriodIdx >= 0)
 						{
@@ -3237,7 +3294,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 							mCurrentPeriodIdx--;
 						}
 					}
-					AAMPLOG_WARN("%s:%d duration %f durationMs %f mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f ", __FUNCTION__, __LINE__,
+					AAMPLOG_WARN("%s:%d duration %f durationMs %f mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f", __FUNCTION__, __LINE__,
                                  duration, (double)durationMs / 1000, mCurrentPeriodIdx, currentPeriodStart, offsetFromStart);
 				}
 				if (offsetFromStart < 0)
