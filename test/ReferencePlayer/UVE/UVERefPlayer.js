@@ -124,7 +124,12 @@ var defaultInitConfig = {
     /**
      * drmConfig for the playback
      */
-    drmConfig: DrmConfig //For sample structure DrmConfig
+    drmConfig: DrmConfig, //For sample structure DrmConfig
+
+    /**
+     * stereo-only for the playback
+     */
+    stereoOnly: false
 };
 
 var playerState = playerStatesEnum.idle;

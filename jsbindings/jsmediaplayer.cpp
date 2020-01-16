@@ -61,6 +61,7 @@ enum ConfigParamType
 	ePARAM_AUDIOLANGUAGE,
 	ePARAM_TSBLENGTH,
 	ePARAM_DRMCONFIG,
+	ePARAM_STEREOONLY,
 	ePARAM_LIVEOFFSET,
 	ePARAM_NETWORKPROXY,
 	ePARAM_LICENSEREQPROXY,
@@ -97,6 +98,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_AUDIOLANGUAGE, "preferredAudioLanguage" },
 	{ ePARAM_TSBLENGTH, "timeShiftBufferLength" },
 	{ ePARAM_DRMCONFIG, "drmConfig" },
+	{ ePARAM_STEREOONLY, "stereoOnly" },
 	{ ePARAM_LIVEOFFSET, "liveOffset" },
 	{ ePARAM_NETWORKPROXY, "networkProxy" },
 	{ ePARAM_LICENSEREQPROXY, "licenseProxy" },
@@ -200,6 +202,33 @@ bool ParseJSPropAsObject(JSContextRef ctx, JSObjectRef jsObject, const char *pro
 	return ret;
 }
 
+/**
+ * @brief Helper function to parse a JS property value as boolean
+ * @param[in] ctx JS execution context
+ * @param[in] jsObject JS object whose property has to be parsed
+ * @param[in] prop property name
+ * @param[out] value to store parsed value
+ * return true if value was parsed sucessfully, false otherwise
+ */
+bool ParseJSPropAsBoolean(JSContextRef ctx, JSObjectRef jsObject, const char *prop, bool &value)
+{
+       bool ret = false;
+       JSStringRef propName = JSStringCreateWithUTF8CString(prop);
+       JSValueRef propValue = JSObjectGetProperty(ctx, jsObject, propName, NULL);
+       if (JSValueIsBoolean(ctx, propValue))
+       {
+               value = JSValueToBoolean(ctx, propValue);
+               INFO("[AAMP_JS]: Parsed value for property %s - %d", prop, value);
+               ret = true;
+       }
+       else
+       {
+               TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+       }
+
+       JSStringRelease(propName);
+       return ret;
+}
 
 /**
  * @brief API to release internal resources of an AAMPMediaPlayerJS object
@@ -362,6 +391,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 	{
 		JSValueRef _exception = NULL;
 		bool ret = false;
+		bool valueAsBoolean = false;
 		double valueAsNumber = 0;
 		char *valueAsString = NULL;
 		JSValueRef valueAsObject = NULL;
@@ -404,6 +434,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_DRMCONFIG:
 				ret = ParseJSPropAsObject(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsObject);
 				break;
+			case ePARAM_STEREOONLY:
+				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
+				break;
 			default: //ePARAM_MAX_COUNT
 				ret = false;
 				break;
@@ -434,6 +467,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_DRMCONFIG:
 					parseDRMConfiguration(ctx, privObj, valueAsObject);
+					break;
+				case ePARAM_STEREOONLY:
+					privObj->_aamp->SetStereoOnlyPlayback(valueAsBoolean);
 					break;
 				case ePARAM_LIVEOFFSET:
 					privObj->_aamp->SetLiveOffset((int) valueAsNumber);
