@@ -1012,6 +1012,14 @@ public:
 	void SetPreferredDRM(DRMSystems drmType);
 
 	/**
+	 *   @brief Set Stereo Only Playback.
+	 *   @param[in] bValue - disable EC3/ATMOS if the value is true
+	 *
+	 *   @return void
+	 */
+	void SetStereoOnlyPlayback(bool bValue);
+
+	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
 	 *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.
