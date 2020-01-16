@@ -972,10 +972,11 @@ public:
 	 *   @brief Add/Remove a custom HTTP header and value.
 	 *
 	 *   @param[in]  headerName - Name of custom HTTP header
-	 *   @param[in]  subscribedTags - Value to be pased along with HTTP header.
+	 *   @param[in]  headerValue - Value to be pased along with HTTP header.
+	 *   @param[in]  isLicenseHeader - true if header is to be used for license HTTP requests
 	 *   @return void
 	 */
-	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue);
+	void AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader = false);
 
 	/**
 	 *   @brief Set License Server URL.

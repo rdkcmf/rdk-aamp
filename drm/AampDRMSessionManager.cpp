@@ -382,12 +382,16 @@ static void mssleep(int milliseconds)
  *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
  *  			are to be used.
  *  @param[in]	licenseProxy - Proxy to use for license requests.
+ *  @param[in]	headers - Custom headers from application for license request.
+ *  @param[in]	drmSystem - DRM type.
  *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
  *  @note		Memory for license key is dynamically allocated, deallocation
  *				should be handled at the caller side.
+ *			customHeader ownership should be taken up by getLicense function
+ *
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy)
+		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
 {
 
 	*httpCode = -1;
@@ -399,6 +403,11 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	const long challegeLength = keyChallenge->getDataLength();
 	char* destURL = new char[destinationURL.length() + 1];
 	curl = curl_easy_init();
+	if (customHeader != NULL)
+	{
+		headers = customHeader;
+	}
+
 	if(isComcastStream)
 	{
 		headers = curl_slist_append(headers, COMCAST_LICENCE_REQUEST_HEADER_ACCEPT);
@@ -407,14 +416,24 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "AAMP/1.0.0");
 	//	headers = curl_slist_append(headers, "X-MoneyTrace: trace-id=226c94fc4d-3535-4945-a173-61af53444a3d;parent-id=4557953636469444377;span-id=803972323171353973");
 	}
-	else
+	else if(customHeader == NULL)
 	{
-	//	headers = curl_slist_append(headers, "Expect:");
-	//	headers = curl_slist_append(headers, "Connection: Keep-Alive");
-	//	headers = curl_slist_append(headers, "Content-Type:");
-	//	curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE");
-		headers = curl_slist_append(headers,"Content-Type: text/xml; charset=utf-8");
+		if(drmSystem == eDRM_WideVine)
+		{
+			AAMPLOG_WARN("No custom header, setting default for Widevine");
+			headers = curl_slist_append(headers,"Content-Type: application/octet-stream");
+		}
+		else if (drmSystem == eDRM_PlayReady)
+		{
+			AAMPLOG_WARN("No custom header, setting default for Playready");
+			headers = curl_slist_append(headers,"Content-Type: text/xml; charset=utf-8");
+		}
+		else
+		{
+			AAMPLOG_WARN("!!! Custom header is missing and default is not processed.");
+		}
 	}
+
 	strcpy((char*) destURL, destinationURL.c_str());
 
 	//headers = curl_slist_append(headers, destURL);
@@ -986,9 +1005,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			}
 			if (licenseResponse) SecClient_FreeResource(licenseResponse);
 #else
+			struct curl_slist *headers = NULL;
+			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers, drmType);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -1001,9 +1022,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				destinationURL = string(externLicenseServerURL);
 			}
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
+			struct curl_slist *headers = NULL;
+			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers, drmType);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)

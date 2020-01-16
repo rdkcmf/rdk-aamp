@@ -20,7 +20,7 @@
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
 //Comcast DRM config for AAMP
-var comcastDrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
+var DrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
 //AAMP initConfig is used to pass certain predefined config params to AAMP
 //Commented out values are not implemented for now
@@ -28,9 +28,14 @@ var comcastDrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevi
 //All properties are optional.
 var defaultInitConfig = {
     /**
-     * max initial bitrate (kbps)
+     * max initial bitrate (bps)
      */
     initialBitrate: 2500000,
+
+    /**
+     * max initial bitrate for 4K assets (bps)
+     */
+    //initialBitrate4K: number,
 
     /**
      * min amount of buffer needed before playback (seconds)
@@ -43,31 +48,32 @@ var defaultInitConfig = {
     //playbackBuffer: number;
 
     /**
-     * start position for playback (ms)
+     * start position for playback (seconds)
      */
     offset: 15,
 
     /**
-     * network request timeout (ms)
+     * network request timeout (seconds)
      */
     networkTimeout: 10,
 
     /**
-     * max amount of time to download ahead of playhead (seconds)
+     * max number of fragments to keep as playback buffer (number)
      * e.x:
-     *   with a downloadBuffer of 10s there will be 10 seconds of
-     *   video or audio stored in javascript memory and not in a
-     *   playback buffer
+     *   with a downloadBuffer of 3, there will be 3 fragments of
+     *   video or audio cached as buffers during playback.
+     *   If each fragment is 2 second long, total download buffer
+     *   size of this playback is 3 * 2 = 6 secs
      */
     //downloadBuffer: number;
 
     /**
-     * min amount of bitrate (kbps)
+     * min amount of bitrate (bps)
      */
     //minBitrate: number;
 
     /**
-     * max amount of bitrate (kbps)
+     * max amount of bitrate (bps)
      */
     //maxBitrate: number;
 
@@ -82,15 +88,41 @@ var defaultInitConfig = {
     //timeShiftBufferLength: number;
 
     /**
-     * offset from live point for live assets (in secs)
+     * offset from live point for live assets (seconds)
      */
     liveOffset: 15,
 
-	/**
+    /**
+     * preferred subtitle language
+     */
+    preferredSubtitleLanguage: "en",
+
+    /**
+     *  network proxy to use (Format <SCHEME>://<PROXY IP:PROXY PORT>)
+     */
+    //networkProxy: string;
+
+    /**
+     *  network proxy to use for license requests (Format same as network proxy)
+     */
+    //licenseProxy: string;
+
+    /**
+     *  time to deem a download with partial bytes as stalled prematurely. (seconds)
+     *  optimization to avoid long waits when networkTimeout configured is a high value
+     */
+    //downloadStallTimeout: number;
+
+    /**
+     *  time to deem a download with no bytes received as stalled. (seconds)
+     *  optimization to avoid long waits when networkTimeout configured is a high value
+     */
+    //downloadStartTimeout: number;
+
+    /**
      * drmConfig for the playback
      */
-
-    drmConfig: comcastDrmConfig //For sample structure comcastDrmConfig
+    drmConfig: DrmConfig //For sample structure DrmConfig
 };
 
 var playerState = playerStatesEnum.idle;
@@ -204,7 +236,9 @@ function mediaPlaybackStarted() {
 }
 
 function mediaPlaybackBuffering(event) {
-    if (event.buffering === true){
+    //Show buffering animation here, fired when buffers run dry mid-playback
+    console.log("Buffers running empty - " + event.buffering);
+    if (event.buffering === true) {
         //bufferingDisplay(true);
     } else {
         //bufferingDisplay(false);
@@ -246,7 +280,7 @@ function resetPlayer() {
     playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
     playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
     playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    //playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
+    playerObj.addEventListener("bufferingChanged", mediaPlaybackBuffering);
     playerObj.addEventListener("durationChanged", mediaDurationChanged);
     playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
     playerObj.addEventListener("anomalyReport", anomalyEventHandler);
@@ -255,8 +289,11 @@ function resetPlayer() {
 }
 
 function loadUrl(urlObject) {
-	console.log("UrlObject received: " + urlObject);
-    if (urlObject.useComcastDrmConfig === true) {
+    console.log("UrlObject received: " + urlObject);
+    //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
+    //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
+    //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
+    if (urlObject.useDefaultDrmConfig === true) {
         playerObj.initConfig(defaultInitConfig);
         playerObj.load(urlObject.url);
     } else {

@@ -1508,11 +1508,13 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 		return JSValueMakeUndefined(ctx);
 	}
 
-	if (argumentCount == 2)
+	//optional parameter 3 for identifying if the header is for a license request
+	if (argumentCount == 2 || argumentCount == 3)
 	{
 		char *name = aamp_JSValueToCString(ctx, arguments[0], exception);
 		std::string headerName(name);
 		std::vector<std::string> headerVal;
+		bool isLicenseHeader = false;
 
 		delete[] name;
 
@@ -1536,7 +1538,11 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 			return JSValueMakeUndefined(ctx);
 		}
 
-		privObj->_aamp->AddCustomHTTPHeader(headerName, headerVal);
+		if (argumentCount == 3)
+		{
+			isLicenseHeader = JSValueToBoolean(ctx, arguments[2]);
+		}
+		privObj->_aamp->AddCustomHTTPHeader(headerName, headerVal, isLicenseHeader);
 	}
 	else
 	{
