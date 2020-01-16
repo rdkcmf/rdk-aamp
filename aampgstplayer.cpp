@@ -2731,8 +2731,12 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 	if (privateContext->video_dec)
 	{
 		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-		currentPTS = currentPTS * 2; // convert from 45 KHz to 90 Khz PTS
-		//logprintf( "shripad currPTS: %" G_GINT64_FORMAT "", currentPTS);
+		//Westeros sink sync returns PTS in 90Khz format where as BCM returns in 45 KHz, 
+		// hence converting to 90Khz for BCM
+		if(!privateContext->using_westerossink)
+		{
+			currentPTS = currentPTS * 2; // convert from 45 KHz to 90 Khz PTS
+		}
 	}
 
 	return (long long) currentPTS;
