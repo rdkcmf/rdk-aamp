@@ -3610,7 +3610,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					needMetadata = false;
 					std::set<std::string> langList;
 					std::vector<long> bitrateList;
-					bool isIframeTrackPresent = false;
 					//To avoid duplicate entries in audioLanguage list
 					for (int iMedia = 0; iMedia < mMediaCount; iMedia++)
 					{
@@ -3629,10 +3628,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 						else
 						{
-							isIframeTrackPresent = true;
+							aamp->mIsIframeTrackPresent = true;
 						}
 					}
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, isIframeTrackPresent);
+					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
 
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.

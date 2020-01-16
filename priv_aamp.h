@@ -1561,6 +1561,7 @@ public:
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
+	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
