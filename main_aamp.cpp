@@ -247,7 +247,6 @@ GlobalConfigAAMP *gpGlobalConfig;
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH(STRING, PREFIX) (0 == memcmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
-
 struct gActivePrivAAMP_t
 {
 	PrivateInstanceAAMP* pAAMP;
@@ -1566,7 +1565,12 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	if(startPos > 0)
 	{
 		//Find the first character after the http header name
-		while ((ptr[startPos] == ' ') && (startPos <= STRLEN_LITERAL(ptr)))
+		int endPos = strlen(ptr) - 1;
+		while ((ptr[endPos] == ' ') && (endPos >= startPos))
+		{
+			endPos--;
+		}
+		while ((ptr[startPos] == ' ') && (startPos <= endPos))
 		{
 			startPos++;
 		}
@@ -1579,7 +1583,7 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 		}
 		else
 		{
-			httpHeader->data = string(ptr + startPos);
+			httpHeader->data = string((ptr + startPos), (endPos - startPos +1));
 			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
 			{
 				//Append a delimiter ";"
