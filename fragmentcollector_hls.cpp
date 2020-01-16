@@ -399,7 +399,7 @@ static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, 
 	}
 	else if (AttributeNameMatch(attrName, "FRAME-RATE"))
 	{
-		streamInfo->resolution.framerate = atof(valuePtr);
+		streamInfo->frameRate = atof(valuePtr);
 	}
 	else if (AttributeNameMatch(attrName, "CLOSED-CAPTIONS"))
 	{
@@ -3619,9 +3619,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
 						"BitrateChanged - Network Adaptation",
 						this->streamInfo[this->currentProfileIndex].resolution.width,
-						this->streamInfo[this->currentProfileIndex].resolution.height,
-						this->streamInfo[this->currentProfileIndex].resolution.framerate,
-						true);
+						this->streamInfo[this->currentProfileIndex].resolution.height, true);
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
@@ -4897,7 +4895,7 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 			logprintf("\tPROGRAM-ID:%ld", streamInfo->program_id);
 			if (streamInfo->audio) logprintf("\tAUDIO:%s", streamInfo->audio);
 			if (streamInfo->codecs) logprintf("\tCODECS:%s", streamInfo->codecs);
-			logprintf("\tRESOLUTION: %dx%d FPS:%f", streamInfo->resolution.width, streamInfo->resolution.height,streamInfo->resolution.framerate);
+			logprintf("\tRESOLUTION: %dx%d", streamInfo->resolution.width, streamInfo->resolution.height);
 		}
 	}
 

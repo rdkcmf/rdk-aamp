@@ -72,6 +72,7 @@ typedef struct HlsStreamInfo: public StreamInfo
 
 	// rarely present
 	long averageBandwidth;	/**< Average Bandwidth */
+	double frameRate;		/**< Frame Rate */
 	const char *closedCaptions;	/**< CC if present */
 	const char *subtitles;	/**< Subtitles */
 } HlsStreamInfo;

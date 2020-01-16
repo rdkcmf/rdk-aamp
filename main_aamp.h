@@ -276,7 +276,6 @@ struct AAMPEvent
 			char description[128];      /**< Description */
 			int width;                  /**< Video width */
 			int height;                 /**< Video height */
-			double framerate;			/**< FrameRate */
 		} bitrateChanged;
 
 		/**

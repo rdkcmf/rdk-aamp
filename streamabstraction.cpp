@@ -998,7 +998,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 		// Send bitrate notification
 		aamp->NotifyBitRateChangeEvent(streamInfo->bandwidthBitsPerSecond,
 				"BitrateChanged - Network Adaptation", streamInfo->resolution.width,
-				streamInfo->resolution.height, streamInfo->resolution.framerate, lGetBWIndex);
+				streamInfo->resolution.height, lGetBWIndex);
 		// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 		aamp->SetPersistedProfileIndex(profileIndex);
 	}
