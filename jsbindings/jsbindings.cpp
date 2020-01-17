@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
-#include <cmath>
 
 #include "jsutils.h"
 #include "main_aamp.h"
@@ -52,8 +51,6 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 
 	JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context);
-
-	JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS=0);
 }
 
 /**
@@ -379,7 +376,7 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 	for (int32_t i = 0; i < length; i++)
 	{
 		TimedMetadata item = privAAMP->timedMetadata.at(i);
-		JSObjectRef ref = AAMP_JS_CreateTimedMetadata(context, item._timeMS, item._name.c_str(), item._content.c_str(), item._id.c_str(), item._durationMS);
+		JSObjectRef ref = aamp_CreateTimedMetadataJSObject(context, item._timeMS, item._name.c_str(), item._content.c_str(), item._id.c_str(), item._durationMS);
 		array[i] = ref;
 	}
 
@@ -1168,7 +1165,7 @@ public:
 	 */
 	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
 	{
-		JSObjectRef timedMetadata = AAMP_JS_CreateTimedMetadata(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent, e.data.timedMetadata.id, e.data.timedMetadata.durationMilliSeconds);
+		JSObjectRef timedMetadata = aamp_CreateTimedMetadataJSObject(context, e.data.timedMetadata.timeMilliseconds, e.data.timedMetadata.szName, e.data.timedMetadata.szContent, e.data.timedMetadata.id, e.data.timedMetadata.durationMilliSeconds);
         	if (timedMetadata) {
                 	JSValueProtect(context, timedMetadata);
 			JSStringRef name = JSStringCreateWithUTF8CString("timedMetadata");
@@ -3446,161 +3443,6 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 	JSObjectRef obj = JSObjectMake(context, EventType_class_ref(), context);
 
 	return obj;
-}
-
-
-/**
- * @brief Create a TimedMetadata JS object with args passed.
- * Sample input #EXT-X-CUE:ID=eae90713-db8e,DURATION=30.063
- * Sample output {"time":62062,"duration":0,"name":"#EXT-X-CUE","content":"-X-CUE:ID=eae90713-db8e,DURATION=30.063","type":0,"metadata":{"ID":"eae90713-db8e","DURATION":"30.063"},"id":"eae90713-db8e"}
- * @param[in] context JS execution context
- * @param[in] timeMS time in milliseconds, mostly metadata position in playlist
- * @param[in] szName name of the metadata tag
- * @param[in] szContent metadata associated with the tag
- * @param[in] id adbreak/reservation ID if its a adbreak metadata
- * @param[in] durationMS duration of ad break if its a adbreak metadata
- * @retval JSObject of TimedMetadata generated
- */
-JSObjectRef AAMP_JS_CreateTimedMetadata(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS)
-{
-	JSStringRef name;
-
-	JSObjectRef timedMetadata = JSObjectMake(context, NULL, NULL);
-	
-	if (timedMetadata) {
-		JSValueProtect(context, timedMetadata);
-		bool bGenerateID = true;
-
-		name = JSStringCreateWithUTF8CString("time");
-		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, std::round(timeMS)), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		// For SCTE35 tag, set id as value of key reservationId
-		if(!strcmp(szName, "SCTE35") && id && *id != '\0')
-		{
-			name = JSStringCreateWithUTF8CString("reservationId");
-			JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, id), kJSPropertyAttributeReadOnly, NULL);
-			JSStringRelease(name);
-			bGenerateID = false;
-		}
-
-		name = JSStringCreateWithUTF8CString("duration");
-		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, (int)durationMS), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("name");
-		JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, szName), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		name = JSStringCreateWithUTF8CString("content");
-		JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, szContent), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		// Force type=0 (HLS tag) for now.
-		// Does type=1 ID3 need to be supported?
-		name = JSStringCreateWithUTF8CString("type");
-		JSObjectSetProperty(context, timedMetadata, name, JSValueMakeNumber(context, 0), kJSPropertyAttributeReadOnly, NULL);
-		JSStringRelease(name);
-
-		// Force metadata as empty object
-		JSObjectRef metadata = JSObjectMake(context, NULL, NULL);
-		if (metadata) {
-                	JSValueProtect(context, metadata);
-			name = JSStringCreateWithUTF8CString("metadata");
-			JSObjectSetProperty(context, timedMetadata, name, metadata, kJSPropertyAttributeReadOnly, NULL);
-			JSStringRelease(name);
-
-			// Parse CUE metadata and TRICKMODE-RESTRICTION metadata
-			// Parsed values are used in PlayerPlatform at the time of tag object creation
-			if ((strcmp(szName, "#EXT-X-CUE") == 0) ||
-			    (strcmp(szName, "#EXT-X-TRICKMODE-RESTRICTION") == 0)) {
-				const char* szStart = szContent;
-
-				// Advance past #EXT tag.
-				for (; *szStart != ':' && *szStart != '\0'; szStart++);
-				if (*szStart == ':')
-					szStart++;
-
-				// Parse comma seperated name=value list.
-				while (*szStart != '\0') {
-					char* szSep;
-					// Find the '=' seperator.
-					for (szSep = (char*)szStart; *szSep != '=' && *szSep != '\0'; szSep++);
-
-					// Find the end of the value.
-					char* szEnd = (*szSep != '\0') ? szSep + 1 : szSep;
-					for (; *szEnd != ',' && *szEnd != '\0'; szEnd++);
-
-					// Append the name / value metadata.
-					if ((szStart < szSep) && (szSep < szEnd)) {
-						JSValueRef value;
-						char chSave = *szSep;
-
-						*szSep = '\0';
-						name = JSStringCreateWithUTF8CString(szStart);
-						*szSep = chSave;
-
-						chSave = *szEnd;
-						*szEnd = '\0';
-						value = aamp_CStringToJSValue(context, szSep+1);
-						*szEnd = chSave;
-
-						JSObjectSetProperty(context, metadata, name, value, kJSPropertyAttributeReadOnly, NULL);
-						JSStringRelease(name);
-
-						// If we just added the 'ID', copy into timedMetadata.id
-						if (szStart[0] == 'I' && szStart[1] == 'D' && szStart[2] == '=') {
-							bGenerateID = false;
-							name = JSStringCreateWithUTF8CString("id");
-							JSObjectSetProperty(context, timedMetadata, name, value, kJSPropertyAttributeReadOnly, NULL);
-							JSStringRelease(name);
-						}
-					}
-
-					szStart = (*szEnd != '\0') ? szEnd + 1 : szEnd;
-				}
-			}
-			// Parse TARGETDURATION and CONTENT-IDENTIFIER metadata
-			else {
-				const char* szStart = szContent;
-				// Advance to the tag's value.
-				for (; *szStart != ':' && *szStart != '\0'; szStart++);
-				if (*szStart == ':')
-					szStart++;
-
-				// Stuff all content into DATA name/value pair.
-				JSValueRef value = aamp_CStringToJSValue(context, szStart);
-				if (strcmp(szName, "#EXT-X-TARGETDURATION") == 0) {
-					// Stuff into DURATION if EXT-X-TARGETDURATION content.
-					// Since #EXT-X-TARGETDURATION has only duration as value
-					name = JSStringCreateWithUTF8CString("DURATION");
-				} else {
-					name = JSStringCreateWithUTF8CString("DATA");
-				}
-				JSObjectSetProperty(context, metadata, name, value, kJSPropertyAttributeReadOnly, NULL);
-				JSStringRelease(name);
-			}
-			JSValueUnprotect(context, metadata);
-		}
-
-		// Generate an ID since the tag is missing one
-		if (bGenerateID) {
-			int hash = (int)timeMS;
-			const char* szStart = szName;
-			for (; *szStart != '\0'; szStart++) {
-				hash = (hash * 33) ^ *szStart;
-			}
-
-			char buf[32];
-			sprintf(buf, "%d", hash);
-			name = JSStringCreateWithUTF8CString("id");
-			JSObjectSetProperty(context, timedMetadata, name, aamp_CStringToJSValue(context, buf), kJSPropertyAttributeReadOnly, NULL);
-			JSStringRelease(name);
-		}
-		JSValueUnprotect(context, timedMetadata);
-	}
-
-        return timedMetadata;
 }
 
 
