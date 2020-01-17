@@ -8199,7 +8199,9 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
-	return (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
+	// Subtitle disabled for DASH
+	return (!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+
 }
 
 /**

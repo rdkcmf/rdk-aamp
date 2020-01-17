@@ -2910,7 +2910,6 @@ public:
 	 */
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
-
 	/**
 	 *   @brief To check if current asset is DASH or not
 	 *
@@ -2918,12 +2917,12 @@ public:
 	 */
 	bool IsDashAsset(void) { return (mMediaFormat==eMEDIAFORMAT_DASH); }
 
-    /**
-     *   @brief Check if AAMP is in stalled state after it pushed EOS to
-     *   notify discontinuity
-     *
-     *   @param[in]  mediaType stream type
-     */
+	/**
+	 *   @brief Check if AAMP is in stalled state after it pushed EOS to
+	 *   notify discontinuity
+	 *
+	 *   @param[in]  mediaType stream type
+	 */
 	void CheckForDiscontinuityStall(MediaType mediaType);
 	
 	/**

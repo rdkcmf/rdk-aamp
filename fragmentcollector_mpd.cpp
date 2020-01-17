@@ -1776,7 +1776,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 			else
 			{
-				aamp_Error("not-yet-supported mpd format");
+				AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 			}
 		}
 	}
@@ -1848,7 +1848,7 @@ void PrivateStreamAbstractionMPD::SkipToEnd( MediaStreamContext *pMediaStreamCon
 		}
 		else
 		{
-			aamp_Error("not-yet-supported mpd format");
+			AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 		}
 	}
 }
@@ -2123,7 +2123,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 		}
 		else
 		{
-			aamp_Error("not-yet-supported mpd format");
+			AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 		}
 	}
 	return skipTime;
@@ -2983,7 +2983,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 					}
 					else
 					{
-						AAMPLOG_ERR("not-yet-supported mpd format");
+						AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 					}
 				}
 			}
@@ -3468,7 +3468,7 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 					}
 					else
 					{
-						aamp_Error("not-yet-supported mpd format");
+						AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 					}
 				}
 			}
@@ -4289,6 +4289,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	mNumberOfTracks = 0;
 	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 	{
+		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 		numTracks--;
 	}
 	IPeriod *period = mCurrentPeriod;
@@ -5186,7 +5187,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 						}
 						else
 						{
-							aamp_Error("not-yet-supported mpd format");
+							AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
 						}
 					}
 				}
