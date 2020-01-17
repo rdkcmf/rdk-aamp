@@ -1265,7 +1265,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					{
 						mInitFragmentInfo = ptr;
 						mInjectInitFragment = true;
-						AAMPLOG_WARN("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
+						AAMPLOG_INFO("%s:%d: Found #EXT-X-MAP data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
 					}
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
