@@ -268,7 +268,6 @@ typedef enum
 #define traceprintf logprintf
 #else
 #define traceprintf(FORMAT, ...)
-//#define traceprintf (void)
 #endif
 
 /**
@@ -2902,6 +2901,13 @@ public:
 	 */
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
+	/**
+	 *   @brief To check if current asset is DASH or not
+	 *
+	 *   @return bool - true if its DASH asset
+	 */
+	bool IsDashAsset(void) { return (mMediaFormat==eMEDIAFORMAT_DASH); }
+
     /**
      *   @brief Check if AAMP is in stalled state after it pushed EOS to
      *   notify discontinuity
@@ -2915,13 +2921,6 @@ public:
 	 *   @param[out] headers - curl header structure
 	 */
 	void GetCustomLicenseHeaders(struct curl_slist **headers);
-
-	/**
-	 *   @brief To check if current asset is DASH or not
-	 *
-	 *   @return bool - true if its DASH asset
-	 */
-	bool IsDashAsset(void) { return mIsDash; }
 
 private:
 
@@ -2985,7 +2984,6 @@ private:
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
 	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
-        bool mIsDash;
 	DRMSystems mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;

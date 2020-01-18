@@ -4037,7 +4037,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		{
 			mCdaiObject = new CDAIObjectMPD(this);
 		}
-#endif
+		#endif
 	}
 	else if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
 	{ // m3u8
@@ -4049,7 +4049,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
 		if(NULL == mCdaiObject)
 		{
-			mCdaiObject = new CDAIObject(this);	//Placeholder to reject the SetAlternateContents()
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
 	mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
@@ -4237,8 +4237,19 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	}
 
 	mManifestUrl =  mainManifestUrl;
+	mMediaFormat = eMEDIAFORMAT_DASH;
 
-	mIsDash = !strstr(mainManifestUrl, "m3u8");
+        if(strstr(mainManifestUrl, "m3u8"))
+        { // if m3u8 anywhere in locator, assume HLS
+          // supports HLS locators that end in .m3u8 with/without trailing URI parameters
+          // supports HLS locators passed through FOG
+                mMediaFormat = eMEDIAFORMAT_HLS;
+        }
+        else
+        { // for any other locators, assume DASH
+                mMediaFormat = eMEDIAFORMAT_DASH;
+        }
+
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
@@ -4285,7 +4296,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	{
 		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
-			mIsDash = true;
+			mMediaFormat = eMEDIAFORMAT_DASH;
 			if (!gpGlobalConfig->fogSupportsDash )
 			{
 				DeFog(mManifestUrl);
@@ -4360,11 +4371,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: %s", mTuneAttempts, mIsDash?"DASH":"HLS", mManifestUrl.c_str());
+		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 	}
 	else
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)", mTuneAttempts, mIsDash?"DASH":"HLS");
+		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)\n", mTuneAttempts, mMediaFormatName[mMediaFormat]);
 		printf("URL: %s\n", mManifestUrl.c_str());
 	}
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
@@ -4373,8 +4384,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
-	{
-		mfirstTuneFmt = mIsDash?1:0;
+	{ // TODO: make mFirstTuneFormat of type MediaFormat
+		mfirstTuneFmt = (int)mMediaFormat;
 	}
 	mCdaiObject = NULL;
 	TuneHelper(tuneType);
@@ -6312,7 +6323,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
-	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mIsDash(false), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
+	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0), mProcessingDiscontinuity(false),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
@@ -7190,7 +7201,7 @@ void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
 int PrivateInstanceAAMP::getStreamType()
 {
 
-	int type = 10; //HLS
+	int type;
 
 	if(mMediaFormat == eMEDIAFORMAT_DASH)
 	{
@@ -7301,7 +7312,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 		{
 			if (SendTunedEvent())
 			{
-				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt", mIsDash ? "mpd" : "hls");
+				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mMediaFormatName[mMediaFormat]);
 			}
 		}
 	}
@@ -7767,16 +7778,8 @@ void PrivateInstanceAAMP::SendAdPlacementEvent(AAMPEventType type, const std::st
 
 std::string PrivateInstanceAAMP::getStreamTypeString()
 {
-	std::string type;
+	std::string type = mMediaFormatName[mMediaFormat];
 
-	if(mIsDash)
-	{
-		type = "DASH";
-	}
-	else
-	{
-		type = "HLS";
-	}
 
 	if(mInitSuccess) //Incomplete Init won't be set the DRM
 	{
