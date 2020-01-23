@@ -67,6 +67,7 @@ enum ConfigParamType
 	ePARAM_DOWNLOADSTALLTIMEOUT,
 	ePARAM_DOWNLOADSTARTTIMEOUT,
 	ePARAM_SUBTITLELANGUAGE,
+	ePARAM_MANIFESTTIMEOUT,
 	ePARAM_MAX_COUNT
 };
 
@@ -91,6 +92,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PLAYBACKBUFFER, "playbackBuffer" },
 	{ ePARAM_PLAYBACKOFFSET, "offset" },
 	{ ePARAM_NETWORKTIMEOUT, "networkTimeout" },
+	{ ePARAM_MANIFESTTIMEOUT, "manifestTimeout" },
 	{ ePARAM_DOWNLOADBUFFER, "downloadBuffer" },
 	{ ePARAM_MINBITRATE, "minBitrate" },
 	{ ePARAM_MAXBITRATE, "maxBitrate" },
@@ -386,6 +388,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PLAYBACKBUFFER:
 			case ePARAM_PLAYBACKOFFSET:
 			case ePARAM_NETWORKTIMEOUT:
+			case ePARAM_MANIFESTTIMEOUT:
 			case ePARAM_DOWNLOADBUFFER:
 			case ePARAM_MINBITRATE:
 			case ePARAM_MAXBITRATE:
@@ -424,6 +427,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_NETWORKTIMEOUT:
 					privObj->_aamp->SetNetworkTimeout((long) valueAsNumber);
+					break;
+				case ePARAM_MANIFESTTIMEOUT:
+					privObj->_aamp->SetManifestTimeout(valueAsNumber);
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);

@@ -3497,7 +3497,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
-		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
 	}
 
 	if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
@@ -3510,7 +3510,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest", __FUNCTION__, __LINE__);
 		// take the original url before its gets changed in GetFile
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
+		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, 0);
 		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, 0);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 		if (this->mainManifest.len)

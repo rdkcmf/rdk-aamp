@@ -134,6 +134,7 @@ dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 min-vod-cache	Vod duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
+manifestTimeout=<manifest download time out> Specify manifest download time out in seconds, default is 10 seconds
 license-anonymous-request If set, makes PlayReady/WideVine license request without access token
 abr-cache-life=<x in sec> lifetime value for abr cache  for network bandwidth calculation(default 5 sec)
 abr-cache-length=<x>  length of abr cache for network bandwidth calculation (default 3)
