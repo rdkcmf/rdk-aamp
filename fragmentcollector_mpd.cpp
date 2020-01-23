@@ -3061,7 +3061,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
-		aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
 	}
 
 	AAMPStatusType ret = UpdateMPD(true);

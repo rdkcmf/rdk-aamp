@@ -135,6 +135,7 @@ static const char *mMediaFormatName[] =
  */
 #define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
+#define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -538,7 +539,8 @@ public:
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
-	long networkTimeout;                 /**< Fragment download timeout*/
+	long networkTimeoutMs;                 	/**< Fragment download timeout in ms*/
+	long manifestTimeoutMs;                 	/**< Manifest download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
@@ -610,7 +612,7 @@ public:
 		playlistsParallelFetch(false), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
-		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeout(CURL_FRAGMENT_DL_TIMEOUT),
+		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
 		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
 		preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
@@ -638,6 +640,7 @@ public:
 		,decoderUnavailableStrict(false)
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
+		,manifestTimeoutMs(-1)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1576,8 +1579,10 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	double mLiveOffset;
+	long mNetworkTimeoutMs;
+	long mManifestTimeoutMs;
 	MediaFormat mMediaFormat;
-	bool mNewLiveOffsetflag;
+	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
@@ -1647,6 +1652,14 @@ public:
 	 * @return void
 	 */
 	void SetCurlTimeout(long timeout, unsigned int instance = 0);
+
+	/**
+	 * @brief Set manifest curl timeout
+	 *
+	 * @param[in] timeout - Timeout value in ms
+	 * @return void
+	 */
+	void SetManifestCurlTimeout(long timeout);
 
 	/**
 	 * @brief Storing audio language list
@@ -2722,6 +2735,23 @@ public:
 	 *   @param[in] preferred timeout value
 	 */
 	void SetNetworkTimeout(long timeout);
+	/**
+	 *   @brief To set the network timeout as per priority
+	 *
+	 */
+	void ConfigureNetworkTimeout();	
+	/**
+	 *   @brief To set the manifest timeout as per priority
+	 *
+	*/
+	void ConfigureManifestTimeout();
+
+	/**
+	 *   @brief To set the manifest download timeout value.
+	 *
+	 *   @param[in] preferred timeout value
+	 */
+	void SetManifestTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value

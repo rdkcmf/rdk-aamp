@@ -1162,11 +1162,18 @@ public:
 	void SetInitialBitrate4K(long bitrate4K);
 
 	/**
-	 *   @brief To set the network download timeout value.
+	 *   @brief To override default curl timeout for playlist/fragment downloads
 	 *
 	 *   @param[in] preferred timeout value
 	 */
 	void SetNetworkTimeout(long timeout);
+
+	/**
+	 *   @brief Optionally override default HLS main manifest download timeout with app-specific value.
+	 *
+	 *   @param[in] preferred timeout value
+	 */
+	void SetManifestTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
