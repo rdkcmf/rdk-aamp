@@ -4450,22 +4450,24 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 	{
 		std::string vssURL;
         size_t vssURLPos;
-
 		if(mTSBEnabled)
 		{
 			DeFog(url);
 		}	
+		AAMPLOG_WARN("PrivateInstanceAAMP::%s url:%s ", __FUNCTION__,url.c_str());
 		vssURL = url;
 
 		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
 		{
 			vssURLPos = vssURLPos + VSS_MARKER_LEN;
-			size_t  nextQueryParameterPos = vssURL.find('&',vssURLPos);
+			// go till start of service zone. 
+			vssURL = vssURL.substr(vssURLPos);
 
+			size_t  nextQueryParameterPos = vssURL.find('&');
 			if(nextQueryParameterPos != std::string::npos)
 			{
-				int iServiceZoneLen = (nextQueryParameterPos - vssURLPos);
-				mServiceZone = vssURL.substr(vssURLPos,iServiceZoneLen);
+				// remove anything after & . i.e get string from 0 till nextQueryParameterPos
+				mServiceZone = vssURL.substr(0, nextQueryParameterPos);
 			}
 			else
 			{
