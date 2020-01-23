@@ -239,6 +239,12 @@ GlobalConfigAAMP *gpGlobalConfig;
         param_value = default_value; \
     }
 
+#define VALIDATE_DOUBLE(param_name, param_value, default_value)        \
+    if ((param_value <= 0) || (param_value > DBL_MAX))  { \
+        logprintf("%s(): Parameter '%s' not within DOUBLE limit. Using default value instead.", __FUNCTION__, param_name); \
+        param_value = default_value; \
+    }
+
 #define FOG_REASON_STRING			"Fog-Reason:"
 #define CURLHEADER_X_REASON			"X-Reason:"
 #define BITRATE_HEADER_STRING			"X-Bitrate:"
@@ -1911,7 +1917,7 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
 		return;
 	if(instance < MAX_CURL_INSTANCE_COUNT && curl[instance])
 	{
-		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT, timeout);
+		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT_MS, timeout);
 		curlDLTimeout[instance] = timeout;
 	}
 	else
@@ -1919,7 +1925,6 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
 		logprintf("Failed to update timeout for curl instace %d",instance);
 	}
 }
-
 
 /**
  * @brief Terminate curl instances
@@ -2101,7 +2106,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
-
 
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
@@ -2945,6 +2949,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		trim(cfg);
 
 		double seconds = 0;
+		double inputTimeout;
 		int value;
 		char * tmpValue = NULL;
 		if (ReadConfigNumericHelper(cfg, "map-mpd=", gpGlobalConfig->mapMPD) == 1)
@@ -3019,10 +3024,17 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("enableSubscribedTags=%d", gpGlobalConfig->enableSubscribedTags);
 		}
-		else if (ReadConfigNumericHelper(cfg, "networkTimeout=", gpGlobalConfig->networkTimeout) == 1)
+		else if (ReadConfigNumericHelper(cfg, "networkTimeout=", inputTimeout) == 1)
 		{
-			VALIDATE_LONG("networkTimeout", gpGlobalConfig->networkTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-			logprintf("networkTimeout=%ld", gpGlobalConfig->networkTimeout);
+			VALIDATE_DOUBLE("networkTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
+			gpGlobalConfig->networkTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
+			logprintf("networkTimeout=%ld", gpGlobalConfig->networkTimeoutMs);
+		}
+		else if (ReadConfigNumericHelper(cfg, "manifestTimeout=", inputTimeout) == 1)
+		{
+			VALIDATE_DOUBLE("manifestTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
+			gpGlobalConfig->manifestTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
+			logprintf("manifestTimeout=%ld ms", gpGlobalConfig->manifestTimeoutMs);
 		}
 		else if (cfg.compare("dash-ignore-base-url-if-slash") == 0)
 		{
@@ -4268,6 +4280,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
+
+	ConfigureNetworkTimeout();
+	ConfigureManifestTimeout();
+
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -5645,6 +5661,15 @@ void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
 	aamp->SetNetworkTimeout(timeout);
 }
 
+/**
+ *   @brief To set the manifest download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
+{
+	aamp->SetManifestTimeout(timeout);
+}
 
 /**
  *   @brief To set the download buffer size value
@@ -6453,6 +6478,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false)
+	,mManifestTimeoutMs(-1)
+	,mNetworkTimeoutMs(-1)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7659,13 +7686,62 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
  */
 void PrivateInstanceAAMP::SetNetworkTimeout(long timeout)
 {
-	if (timeout > 0)
+	if(timeout > 0)
 	{
-		gpGlobalConfig->networkTimeout = timeout;
+		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld ms", __FUNCTION__, __LINE__, mNetworkTimeoutMs);
 	}
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld", __FUNCTION__, __LINE__, timeout);
 }
 
+/**
+ *   @brief To set the network timeout to based on the priority
+ *
+ */
+void PrivateInstanceAAMP::ConfigureNetworkTimeout()
+{
+	// If aamp.cfg has value , then set it as priority
+	if(gpGlobalConfig->networkTimeoutMs != -1)
+	{
+		mNetworkTimeoutMs = gpGlobalConfig->networkTimeoutMs;
+	}
+	else if(mNetworkTimeoutMs == -1)
+	{
+		// if App has not set the value , then set default value 
+		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
+	}
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld ms", __FUNCTION__, __LINE__, mNetworkTimeoutMs);
+}
+
+/**
+ *   @brief To set the manifest download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
+{
+	if (timeout > 0)
+	{
+		mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
+	}
+}
+
+/**
+ *   @brief To set the manifest timeout as per priority
+ *
+ */
+void PrivateInstanceAAMP::ConfigureManifestTimeout()
+{
+	if(gpGlobalConfig->manifestTimeoutMs != -1)
+	{
+		mManifestTimeoutMs = gpGlobalConfig->manifestTimeoutMs;
+	}
+	else if(mManifestTimeoutMs == -1)
+	{
+		mManifestTimeoutMs = mNetworkTimeoutMs;
+	}
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
+}
 
 /**
  *   @brief To set the download buffer size value

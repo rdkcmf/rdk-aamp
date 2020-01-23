@@ -76,6 +76,11 @@ var defaultInitConfig = {
     networkTimeout: 10,
 
     /**
+     * manifest request timeout (seconds)
+     */
+    manifestTimeout: 0.5,
+
+    /**
      * max number of fragments to keep as playback buffer (number)
      * e.x:
      *   with a downloadBuffer of 3, there will be 3 fragments of
