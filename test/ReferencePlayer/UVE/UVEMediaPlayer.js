@@ -351,6 +351,13 @@ class AAMPPlayer {
     }
 
     /**
+     * Sets the Audio Language
+     */
+    setAudioLanguage(language) {
+        this.player.setAudioLanguage(language);
+    }
+
+    /**
      * Gets the current playback rate
      */
     getPlaybackRate() {
