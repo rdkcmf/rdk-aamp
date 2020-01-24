@@ -2772,6 +2772,10 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 								__FUNCTION__, __LINE__, deltaMS, ret);
 					}
 				}
+				else
+				{
+					ret = false;
+				}
 			}
 #endif
 		}
