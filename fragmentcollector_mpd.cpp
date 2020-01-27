@@ -3299,6 +3299,16 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					AAMPLOG_WARN("%s:%d duration %f durationMs %f mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f", __FUNCTION__, __LINE__,
                                  duration, (double)durationMs / 1000, mCurrentPeriodIdx, currentPeriodStart, offsetFromStart);
 				}
+				else
+				{
+					uint64_t  periodStartMs = 0;
+					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+					std::string tempString = period->GetStart();
+					ParseISO8601Duration( tempString.c_str(), periodStartMs);
+					currentPeriodStart = (double)periodStartMs/1000;
+					offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
+				}
+
 				if (offsetFromStart < 0)
 				{
 					offsetFromStart = 0;
