@@ -3148,6 +3148,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		unsigned int nextPeriodStart = 0;
 		double currentPeriodStart = 0;
+		double prevPeriodEndMs = 0; // used to find gaps between periods
 		size_t numPeriods = mpd->GetPeriods().size();
 		bool seekPeriods = true;
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
@@ -3182,14 +3183,31 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				else if (periodDurationMs)
 				{
 					periodStartMs = nextPeriodStart;
-					nextPeriodStart += periodDurationMs;
 				}
 
 				double periodStartSeconds = (double)periodStartMs/1000;
 				double periodDurationSeconds = (double)periodDurationMs / 1000;
 				if (periodDurationMs != 0)
 				{
+					nextPeriodStart += periodDurationMs; // set the value here, nextPeriodStart is used below to identify "Multi period assets with no period duration" if it is set to ZERO.
 					double periodEnd = periodStartMs + periodDurationMs;
+
+					// check for gaps between periods
+					if(prevPeriodEndMs > 0)
+					{
+						double periodGap = (periodStartMs - prevPeriodEndMs)/ 1000; // current period start - prev period end will give us GAP between period
+						if(periodGap > 0 ) // ohh we have GAP between last and current period
+						{
+							offsetFromStart -= periodGap; // reduce offset to accomodate gap
+							if(offsetFromStart < 0 ) // this means offset is between gap, set to start of currentPeriod
+							{
+								offsetFromStart = 0;
+							}
+							AAMPLOG_WARN("%s:%d GAP betwen period found :GAP:%f  mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f", __FUNCTION__, __LINE__,
+								periodGap, mCurrentPeriodIdx, periodStartSeconds, offsetFromStart);
+						}
+					}
+					prevPeriodEndMs = periodEnd; // store for future use
 					currentPeriodStart = periodStartSeconds;
 					mCurrentPeriodIdx = iPeriod;
 					if (periodDurationSeconds <= offsetFromStart && iPeriod < (numPeriods - 1))
