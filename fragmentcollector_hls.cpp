@@ -1411,7 +1411,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 			else
 			{ // URI
 				nextMediaSequenceNumber++;
-				if ((playlistPosition >= playTarget) || ((playTarget - playlistPosition) < PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS))
+				if (((playlistPosition + fragmentDurationSeconds) > playTarget) || ((playTarget - playlistPosition) < PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS))
 				{
 					//logprintf("Return fragment %s playlistPosition %f playTarget %f", ptr, playlistPosition, playTarget);
 					this->byteRangeOffset = byteRangeOffset;
@@ -2373,6 +2373,7 @@ void TrackState::IndexPlaylist()
 						discontinuityIndexNode.fragmentIdx = indexCount;
 						discontinuityIndexNode.position = totalDuration;
 						discontinuityIndexNode.programDateTime = programDateTimeIdxOfFragment;
+						discontinuityIndexNode.fragmentDuration = atof(ptr);
 						aamp_AppendBytes(&mDiscontinuityIndex, &discontinuityIndexNode, sizeof(DiscontinuityIndexNode));
 						mDiscontinuityIndexCount++;
 						discontinuity = false;
@@ -3090,6 +3091,42 @@ bool StreamAbstractionAAMP_HLS::IsLive()
 	return retValIsLive;
 }
 
+/***************************************************************************
+* @fn CheckDiscontinuityAroundPlaytarget
+* @brief Function to update play target based on audio video exact discontinuity positions.
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::CheckDiscontinuityAroundPlaytarget(void)
+{
+	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
+	TrackState *video = trackState[eMEDIATYPE_VIDEO];
+	DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
+	DiscontinuityIndexNode* audioDiscontinuityIndex = (DiscontinuityIndexNode*) audio->mDiscontinuityIndex.ptr;
+
+	for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
+	{
+		if ((int)videoDiscontinuityIndex[i].position == video->playTarget)
+		{
+			if (videoDiscontinuityIndex[i].position < audioDiscontinuityIndex[i].position)
+			{
+				AAMPLOG_WARN("%s:%d video->playTarget %f -> %f audio->playTarget %f -> %f", __FUNCTION__, __LINE__,
+								video->playTarget, videoDiscontinuityIndex[i].position, audio->playTarget, audioDiscontinuityIndex[i].position);
+				video->playTarget = videoDiscontinuityIndex[i].position;
+				audio->playTarget = audioDiscontinuityIndex[i].position;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d video->playTarget %f -> %d audio->playTarget %f -> %d", __FUNCTION__, __LINE__,
+								video->playTarget, (int)audioDiscontinuityIndex[i].position, audio->playTarget, (int)audioDiscontinuityIndex[i].position);
+				video->playTarget = audio->playTarget = (int)audioDiscontinuityIndex[i].position;
+			}
+
+			break;
+		}
+	}
+}
+
 
 /***************************************************************************
 * @fn SyncTracksForDiscontinuity
@@ -3104,93 +3141,129 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
 
-	/*If video playTarget is just before a discontinuity, move playTarget to the discontinuity position*/
-	DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
-	for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
+	if (video->playTarget !=0)
 	{
-		double diff = videoDiscontinuityIndex[i].position - video->playTarget;
+		/*If video playTarget is just before a discontinuity, move playTarget to the discontinuity position*/
+		DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
+		DiscontinuityIndexNode* audioDiscontinuityIndex = (DiscontinuityIndexNode*) audio->mDiscontinuityIndex.ptr;
 
-		if (diff == 0)
+		for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
 		{
-			AAMPLOG_WARN ("%s:%d video track - diff = 0; breaking the loop; first discontinuity before the content/ad is accounted", __FUNCTION__, __LINE__);
+			double diff = videoDiscontinuityIndex[i].position - video->playTarget;
 
-			break;
-		}
-
-		if (diff > 0)
-		{
-			if (diff < video->targetDurationSeconds)
+			if (diff == 0)
 			{
-				logprintf("%s:%d video track -  playTarget [%f]->[%f] targetDurationSeconds %f",
-				        __FUNCTION__, __LINE__, video->playTarget, videoDiscontinuityIndex[i].position,
-				        video->targetDurationSeconds);
-				video->playTarget = videoDiscontinuityIndex[i].position;
+				AAMPLOG_WARN ("%s:%d video track - diff = 0; breaking the loop; first discontinuity before the content/ad is accounted", __FUNCTION__, __LINE__);
+				break;
 			}
-			break;
-		}
-	}
 
-	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
-	{
-		AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
-	}
-	// DELIA-39083
-	// If there is a mismatch in Number of Periods between audio and video , log a Warning but continue the period/discontinuity matching
-	// for audio. From the stream analysis its observed
-	//		a) An additional discontinuity is added at the end of the video playlist for one fragment ( <1sec duration)
-	//		b) By avoiding the strict checking , no issue will happen for playback
-	// But if delta is more than 1 , then it will impact playback .
-	{
-		int periodIdx;
-		double offsetFromPeriod;
-		video->GetNextFragmentPeriodInfo( periodIdx, offsetFromPeriod);
-		if(-1 != periodIdx)
-		{
-			logprintf("%s:%d video periodIdx %d offsetFromPeriod %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
-			double audioPeriodStart = audio->GetPeriodStartPosition(periodIdx);
-			if (0 != audioPeriodStart )
+			if (diff < 0)
 			{
-				audio->playTarget = audioPeriodStart + offsetFromPeriod;
-				retVal = eAAMPSTATUS_OK;
+				if (-(diff) < videoDiscontinuityIndex[i].fragmentDuration)
+				{
+					logprintf("%s:%d video track - playTarget [%f]->[%f] targetDurationSeconds %f",
+							__FUNCTION__, __LINE__, video->playTarget, videoDiscontinuityIndex[i].position,
+							video->targetDurationSeconds);
+
+					video->playTarget = videoDiscontinuityIndex[i].position;
+
+					if(i < audio->GetNumberOfPeriods())
+					{
+						logprintf("%s:%d audio track - playTarget [%f]->[%f] targetDurationSeconds %f",
+							__FUNCTION__, __LINE__, audio->playTarget, audioDiscontinuityIndex[i].position,
+							audio->targetDurationSeconds);
+
+						audio->playTarget = audioDiscontinuityIndex[i].position;
+					}
+
+					break;
+				}
 			}
 			else
 			{
-				logprintf("%s:%d audioDiscontinuityOffset 0", __FUNCTION__, __LINE__);
+				CheckDiscontinuityAroundPlaytarget();
+				break;
 			}
 		}
-	}
 
-	if (subtitle->enabled)
-	{
-		if (audio->GetNumberOfPeriods() == subtitle->GetNumberOfPeriods())
+		if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
+		{
+			AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+		}
+
+		// DELIA-39083
+		// If there is a mismatch in Number of Periods between audio and video , log a Warning but continue the period/discontinuity matching
+		// for audio. From the stream analysis its observed
+		//		a) An additional discontinuity is added at the end of the video playlist for one fragment ( <1sec duration)
+		//		b) By avoiding the strict checking , no issue will happen for playback
+		// But if delta is more than 1 , then it will impact playback .
 		{
 			int periodIdx;
 			double offsetFromPeriod;
-			audio->GetNextFragmentPeriodInfo(periodIdx, offsetFromPeriod);
+			double audioOffsetFromPeriod;
+			video->GetNextFragmentPeriodInfo (periodIdx, offsetFromPeriod);
+
 			if(-1 != periodIdx)
 			{
-				logprintf("%s:%d audio periodIdx %d offsetFromPeriod %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
-				double subtitlePeriodStart = subtitle->GetPeriodStartPosition(periodIdx);
-				if (0 != subtitlePeriodStart)
+				double audioPeriodStart = audio->GetPeriodStartPosition(periodIdx);
+				double videoPeriodStart = video->GetPeriodStartPosition(periodIdx);
+
+				audio->GetNextFragmentPeriodInfo (periodIdx, audioOffsetFromPeriod);
+
+				AAMPLOG_WARN("%s:%d video periodIdx %d video-offsetFromPeriod %f videoPeriodStart %f audio-offsetFromPeriod %f audioPeriodStart %f",
+								__FUNCTION__, __LINE__, periodIdx, offsetFromPeriod, videoPeriodStart, audioOffsetFromPeriod, audioPeriodStart);
+
+				if (0 != audioPeriodStart )
 				{
-					subtitle->playTarget = subtitlePeriodStart + offsetFromPeriod;
+					audio->playTarget = audioPeriodStart + audioOffsetFromPeriod;
+					video->playTarget = videoPeriodStart + offsetFromPeriod;
+
+					seekPosition = video->playTarget;
+
+					AAMPLOG_WARN("%s:%d seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__, seekPosition);
+
+					retVal = eAAMPSTATUS_OK;
 				}
 				else
 				{
-					logprintf("%s:%d subtitleDiscontinuityOffset 0", __FUNCTION__, __LINE__);
+					logprintf("%s:%d audioDiscontinuityOffset 0", __FUNCTION__, __LINE__);
 				}
 			}
 		}
+
+		if (subtitle->enabled)
+		{
+			if (audio->GetNumberOfPeriods() == subtitle->GetNumberOfPeriods())
+			{
+				int periodIdx;
+				double offsetFromPeriod;
+				audio->GetNextFragmentPeriodInfo(periodIdx, offsetFromPeriod);
+				if(-1 != periodIdx)
+				{
+					logprintf("%s:%d audio periodIdx %d offsetFromPeriod %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
+					double subtitlePeriodStart = subtitle->GetPeriodStartPosition(periodIdx);
+					if (0 != subtitlePeriodStart)
+					{
+						subtitle->playTarget = subtitlePeriodStart + offsetFromPeriod;
+					}
+					else
+					{
+						logprintf("%s:%d subtitleDiscontinuityOffset 0", __FUNCTION__, __LINE__);
+					}
+				}
+			}
+			else
+			{
+				logprintf("%s:%d WARNING audio's number of period %d subtitle number of period %d", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), subtitle->GetNumberOfPeriods());
+			}
+			logprintf("%s Exit : audio track start %f, vid track start %f sub track start %f", __FUNCTION__, audio->playTarget, video->playTarget, subtitle->playTarget);
+		}
 		else
 		{
-			logprintf("%s:%d WARNING audio's number of period %d subtitle number of period %d", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), subtitle->GetNumberOfPeriods());
+			logprintf("%s Exit : audio track start %f, vid track start %f", __FUNCTION__, audio->playTarget, video->playTarget );
 		}
-		logprintf("%s Exit : audio track start %f, vid track start %f sub track start %f", __FUNCTION__, audio->playTarget, video->playTarget, subtitle->playTarget);
 	}
-	else
-	{
-		logprintf("%s Exit : audio track start %f, vid track start %f", __FUNCTION__, audio->playTarget, video->playTarget );
-	}
+
 	return retVal;
 }
 
@@ -5283,7 +5356,7 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 		const IndexNode *node = &index[idx];
 		if (node->completionTimeSecondsFromStart > playTarget)
 		{
-			logprintf("%s Found node - rate %f completionTimeSecondsFromStart %f playTarget %f", __FUNCTION__,
+			logprintf("%s (%s) Found node - rate %f completionTimeSecondsFromStart %f playTarget %f", __FUNCTION__, name,
 			        context->rate, node->completionTimeSecondsFromStart, playTarget);
 			idxNode = node;
 			break;
