@@ -5945,7 +5945,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 		else
 		{
 			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
-			positionMiliseconds += elapsedTime * rate;
+			positionMiliseconds += (((elapsedTime > 1000) ? elapsedTime : 0) * rate);
 		}
 
 		if (positionMiliseconds < 0)
