@@ -5968,7 +5968,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//For pipeline paused, we could query the position from gstreamer pipeline
-		if ((mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		if (mMediaFormat == eMEDIAFORMAT_HLS && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
 		{
 			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
 			positionMiliseconds += positionOffsetFromStart;
