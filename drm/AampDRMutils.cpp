@@ -32,6 +32,8 @@
 #define KEYID_TAG_START "<KID>"
 #define KEYID_TAG_END "</KID>"
 
+#define KEY_ID_SZE_INDICATOR 0x12
+
 /**
  *  @brief		Default constructor for DrmData.
  *				NULL initialize data and dataLength.
@@ -302,19 +304,54 @@ unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, 
 
 	if(drmSystem == eDRM_WideVine)
 	{
-		//The following 2 are for Widevine
-		//PSSH version 0
-		//4+4+4+16(system id)+4(data size)+2(unknown byte + keyid size)
-		uint32_t header = 33;
-		uint8_t  key_id_size = (uint8_t)psshData[header];
-		key_id = (unsigned char*)malloc(key_id_size + 1);
-		memset(key_id, 0, key_id_size + 1);
-		strncpy(reinterpret_cast<char*>(key_id), psshData + header + 1, key_id_size);
-		*len = (int)key_id_size;
-		AAMPLOG_INFO("%s:%d wv keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, key_id, key_id_size);
-		if(gpGlobalConfig->logging.trace)
-		{
-			DumpBlob(key_id, key_id_size);
+                uint8_t psshDataVer = psshData[8];
+                AAMPLOG_INFO("%s:%d wv pssh data version - %d ",
+                         __FUNCTION__, __LINE__, psshDataVer);
+		if (psshDataVer == 0){
+			//The following 2 are for Widevine
+			//PSSH version 0
+			//4+4+4+16(system id)+4(data size)+2(keyId size inidicator + keyid size)+ keyId +
+			//2 (unknown byte + content id size) + content id
+			uint32_t header = 0;
+			if (psshData[32] == KEY_ID_SZE_INDICATOR){
+				header = 33; //pssh data in comcast format
+			}else if(psshData[34] == KEY_ID_SZE_INDICATOR){
+				header = 35; //pssh data in sling format
+			}else{
+				AAMPLOG_WARN("%s:%d wv version %d keyid indicator"
+				" byte not found using default logic",
+				__FUNCTION__, __LINE__);
+				header = 33; //pssh data in comcast format
+			}
+			uint8_t  key_id_size = (uint8_t)psshData[header];
+			key_id = (unsigned char*)malloc(key_id_size + 1);
+			memset(key_id, 0, key_id_size + 1);
+			memcpy(reinterpret_cast<char*>(key_id), psshData + header + 1, key_id_size);
+			*len = (int)key_id_size;
+			AAMPLOG_INFO("%s:%d wv version %d keyid: %s keyIdlen: %d",
+			__FUNCTION__, __LINE__, psshDataVer, key_id, key_id_size);
+			if(gpGlobalConfig->logging.trace)
+			{
+				DumpBlob(key_id, key_id_size);
+			}
+		}else if (psshDataVer == 1){
+			//PSSH version 1
+			//8 byte BMFF box header + 4 byte Full box header + 16 (system id) +
+			// 4(KID Count) + 16 byte KID 1 + .. + 4 byte Data Size
+			/** TODO : Handle multiple key Id logic ,
+			 * right now we are choosing only first one if have multiple key Id **/
+			uint32_t header = 32;
+			uint8_t  key_id_size = 16;
+			key_id = (unsigned char*)malloc(key_id_size + 1 );
+			memset(key_id, 0, key_id_size + 1);
+		        memcpy(reinterpret_cast<char*>(key_id), psshData + header, key_id_size);
+			*len = (int)key_id_size;
+			AAMPLOG_INFO("%s:%d wv version %d keyid: %s keyIdlen: %d",
+			__FUNCTION__, __LINE__, psshDataVer, key_id, key_id_size);
+			if(gpGlobalConfig->logging.trace)
+			{
+				DumpBlob(key_id, key_id_size);
+			}
 		}
 
 	}
