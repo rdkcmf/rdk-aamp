@@ -544,6 +544,7 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		privateContext->firstFrameReceived = true;
 		aamp->LogFirstFrame();
 		aamp->LogTuneComplete();
+		aamp->NotifyFirstBufferProcessed();
 	}
 
 	if (eMEDIATYPE_VIDEO == type)
