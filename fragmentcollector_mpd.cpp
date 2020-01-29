@@ -2054,6 +2054,16 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime += segmentDuration;
 					}
+					else if(skipTime == 0)
+					{
+						// Linear or VOD in both the cases if offset is set to 0 then this code will execute.
+						// if no offset set then there is back up code in PushNextFragment function
+						// which will take care of setting fragmentDescriptor.Time
+						// based on live offset(linear) or period start ( vod ) on (pMediaStreamContext->lastSegmentNumber ==0 ) condition
+						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
+						pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
+						break;
+					}
 					else if(fabs(skipTime) < segmentDuration)
 					{
 						break;
