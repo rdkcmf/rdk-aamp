@@ -2903,6 +2903,13 @@ public:
 	void SetNetworkProxy(const char * proxy);
 
 	/**
+	 *   @brief To get the network proxy
+	 *
+	 *   @return Network proxy URL, if exists.
+	 */
+	const char* GetNetworkProxy() const;
+
+	/**
 	 *   @brief To set the proxy for license request
 	 *
 	 *   @param[in] proxy to use for license request
