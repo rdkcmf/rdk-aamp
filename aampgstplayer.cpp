@@ -462,6 +462,20 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	gst_caps_unref(caps);
 }
 
+static void httpsoup_source_setup (GstElement * element, GstElement * source, gpointer data)
+{
+	AAMPGstPlayer * _this = (AAMPGstPlayer *)data;
+
+	if (!strcmp(GST_ELEMENT_NAME(source), "source"))
+	{
+		const char *proxy = _this->aamp->GetNetworkProxy();
+		if(proxy)
+		{
+			g_object_set(source, "proxy", proxy, NULL);
+			logprintf("%s() : httpsoup -> Set network proxy '%s'", __FUNCTION__, proxy);
+		}
+	}
+}
 
 
 /**
@@ -1553,6 +1567,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		}else
 		{
 			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
+			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
 		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
 		_this->privateContext->gstPropsDirty = true;

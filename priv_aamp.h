@@ -3058,7 +3058,7 @@ public:
 	 *   @brief To get the network proxy
 	 *
 	 *   @return Network proxy URL, if exists.
-	*/
+	 */
 	const char* GetNetworkProxy() const;
 
 	/**

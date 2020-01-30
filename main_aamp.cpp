@@ -9176,6 +9176,11 @@ void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
 	pthread_mutex_unlock(&mLock);
 }
 
+const char* PrivateInstanceAAMP::GetNetworkProxy() const
+{
+	return mNetworkProxy;
+}
+
 /**
  *   @brief To set the proxy for license request
  *
