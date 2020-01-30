@@ -4479,6 +4479,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			IPeriod *period = mCurrentPeriod;
 			pMediaStreamContext->adaptationSet = period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx);
 			pMediaStreamContext->adaptationSetId = pMediaStreamContext->adaptationSet->GetId();
+			std::string adapFrameRate = pMediaStreamContext->adaptationSet->GetFrameRate();
 			/*Populate StreamInfo for ABR Processing*/
 			if (i == eMEDIATYPE_VIDEO)
 			{
@@ -4506,6 +4507,18 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
+						mStreamInfo[idx].resolution.framerate = 0;
+						std::string repFrameRate = representation->GetFrameRate();
+						if(repFrameRate.empty())
+							repFrameRate = adapFrameRate;
+						if(!repFrameRate.empty())
+						{
+							int val1, val2;
+							sscanf(repFrameRate.c_str(),"%d/%d",&val1,&val2);
+							double frate = val2? ((double)val1/val2):val1;
+							mStreamInfo[idx].resolution.framerate = frate;
+						}
+						
 						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
 						delete representation;
 
@@ -4541,6 +4554,17 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
+						mStreamInfo[idx].resolution.framerate = 0;
+						std::string repFrameRate = representation->GetFrameRate();
+						if(repFrameRate.empty())
+							repFrameRate = adapFrameRate;
+						if(!repFrameRate.empty())
+						{
+							int val1, val2;
+							sscanf(repFrameRate.c_str(),"%d/%d",&val1,&val2);
+							double frate = val2? ((double)val1/val2):val1;
+							mStreamInfo[idx].resolution.framerate = frate;
+						}
 						mContext->GetABRManager().addProfile({
 							mStreamInfo[idx].isIframeTrack,
 							mStreamInfo[idx].bandwidthBitsPerSecond,
@@ -4591,10 +4615,6 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						// for the profile selected ,reset the abr values with default bandwidth values
 						aamp->ResetCurrentlyAvailableBandwidth(selectedRepresentation->GetBandwidth(),mContext->trickplayMode,mContext->currentProfileIndex);
 						aamp->profiler.SetBandwidthBitsPerSecondVideo(selectedRepresentation->GetBandwidth());
-	//					aamp->NotifyBitRateChangeEvent(selectedRepresentation->GetBandwidth(),
-	//							"BitrateChanged - Network Adaptation",
-	//							selectedRepresentation->GetWidth(),
-	//							selectedRepresentation->GetHeight());
 					}
 					else
 					{

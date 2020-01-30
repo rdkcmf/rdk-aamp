@@ -1883,10 +1883,11 @@ public:
 	 * @param[in] description - Description
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
+ 	 * @param[in] framerate - FRAME-RATE from manifest
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate , const char *description ,int width ,int height, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate , const char *description ,int width ,int height,double framerate, bool GetBWIndex = false);
 
 	/**
 	 * @brief Notify when end of stream reached

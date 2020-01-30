@@ -803,6 +803,10 @@ public:
 		name = JSStringCreateWithUTF8CString("height");
 		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, e.data.bitrateChanged.height), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+		
+		name = JSStringCreateWithUTF8CString("framerate");
+		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, e.data.bitrateChanged.framerate), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
 
 	}
 };
