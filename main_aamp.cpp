@@ -5662,6 +5662,15 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 }
 
 /**
+ *   @brief Set Stereo Only Playback.
+ */
+void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
+{
+	aamp->SetStereoOnlyPlayback(bValue);
+}
+
+
+/**
  *   @brief Setting the alternate contents' (Ads/blackouts) URL.
  *
  *   @param[in] Adbreak's unique identifier.
@@ -7736,6 +7745,17 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
         AAMPLOG_INFO("%s:%d set Preferred drm: %d", __FUNCTION__, __LINE__, drmType);
         gpGlobalConfig->preferredDrm = drmType;
     }
+}
+
+/**
+ *   @brief Set Stereo Only Playback.
+ */
+void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
+{
+    // If Stereo Only Mode is true, then disable DD+ and ATMOS (or) make if enable
+	gpGlobalConfig->disableEC3 = bValue;
+	gpGlobalConfig->disableATMOS = bValue;
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS and EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
 }
 
 #ifdef PLACEMENT_EMULATION

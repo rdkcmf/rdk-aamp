@@ -2467,6 +2467,14 @@ public:
 	void SetPreferredDRM(DRMSystems drmType);
 
 	/**
+	 *   @brief Set Stereo Only Playback.
+	 *   @param[in] bValue - disable EC3/ATMOS if the value is true
+	 *
+	 *   @return void
+	 */
+	void SetStereoOnlyPlayback(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
