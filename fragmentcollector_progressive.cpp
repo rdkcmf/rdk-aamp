@@ -199,7 +199,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
     aamp->IsTuneTypeNew = false;
     for (int i = 0; i < AAMP_TRACK_COUNT; i++)
     {
-        aamp->SetCurlTimeout(gpGlobalConfig->networkTimeout, i);
+        aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
     }
     return retval;
 }
