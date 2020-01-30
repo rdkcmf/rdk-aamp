@@ -4152,7 +4152,18 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
-		if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
+#endif
+		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
+		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d", mVideoFormat, mAudioFormat);
+
+		//Identify if HLS with mp4 fragments, to change media format
+		if (mVideoFormat == FORMAT_ISO_BMFF && mMediaFormat == eMEDIAFORMAT_HLS)
+		{
+			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
+		}
+
+#ifndef AAMP_STOP_SINK_ON_SEEK
+		if (mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
 			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline)
@@ -4160,7 +4171,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
 		}
-		else if (mMediaFormat == eMEDIAFORMAT_DASH)
+		else if (mMediaFormat == eMEDIAFORMAT_DASH || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
 		{
                         /*
                         commenting the Flush call with updatedSeekPosition as a work around for
@@ -4179,14 +4190,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 		}
 #endif
-
-		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
-		//Identify if HLS with mp4 fragments, to change media format
-		if (mVideoFormat == FORMAT_ISO_BMFF && mMediaFormat == eMEDIAFORMAT_HLS)
-		{
-			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
-		}
-		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d", mVideoFormat, mAudioFormat);
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
 		mStreamSink->SetAudioVolume(audio_volume);
