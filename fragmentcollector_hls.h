@@ -130,6 +130,7 @@ struct DiscontinuityIndexNode
 {
 	int fragmentIdx;	         /**< Idx of fragment in index table*/
 	double position;	         /**< Time of index from start */
+	double fragmentDuration;	/**< Fragment duration of current discontinuity index */
 	const char* programDateTime; /**Program Date time */
 };
 
@@ -437,6 +438,8 @@ protected:
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
 	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
+	/// Function to update play target based on audio video exact discontinuity positions.
+	void CheckDiscontinuityAroundPlaytarget(void);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
 	AAMPStatusType SyncTracksForDiscontinuity();
 	int segDLFailCount;						/**< Segment Download fail count */
