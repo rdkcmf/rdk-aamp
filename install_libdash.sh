@@ -17,12 +17,12 @@
 # limitations under the License.
 
 
-echo "Please do make sure you have access to github and gerrit.teamccp.com"
+echo "Please do make sure you have access to github and code.rdkcentral.com"
 cd ..
 git clone git://github.com/bitmovin/libdash.git
 cd libdash/libdash
 git checkout stable_3_0
-git clone -b 1911_sprint ssh://gerrit.teamccp.com:29418/rdk/yocto_oe/layers/meta-rdk-ext
+git clone -b rdk-next "https://code.rdkcentral.com/r/components/generic/rdk-oe/meta-rdk-ext"
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0001-libdash-build.patch
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0002-libdash-starttime-uint64.patch 
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0003-libdash-presentationTimeOffset-uint64.patch 

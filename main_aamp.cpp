@@ -2795,9 +2795,6 @@ static const char *RemapManifestUrl(const char *mainManifestUrl)
 }
 
 #ifdef IARM_MGR
-//Enable below line while merging https://gerrit.teamccp.com/#/c/171105/ (
-//XRE-12586 - Move aamp recipes from meta-rdk-video-comcast to meta-rdk-video)
-//#ifdef IARM_MGR
 
 /**
  * @brief
