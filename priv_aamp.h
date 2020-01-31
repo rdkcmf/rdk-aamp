@@ -53,7 +53,7 @@
 #define AAMP_PACKED __attribute__((__packed__))
 #endif
 
-#define MAX_URI_LENGTH (2048)           /**< Increasing size to include longer urls */
+#define MAX_URI_LENGTH (4096)           /**< Increasing size to include longer urls */
 #define AAMP_TRACK_COUNT 2              /**< internal use - audio+video track */
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)    /**< Maximum number of CURL instances */
