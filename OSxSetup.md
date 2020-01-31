@@ -61,7 +61,7 @@ git checkout stable_3_0
 ```
 
 Apply patches downloaded from (**patch -p1 < file.patch**):
-```https://gerrit.teamccp.com/plugins/gitiles/rdk/yocto_oe/layers/meta-rdk-ext/+/refs/heads/1903_sprint/recipes-multimedia/libdash/libdash/```
+```https://code.rdkcentral.com/r/plugins/gitiles/components/generic/rdk-oe/meta-rdk-ext/+/rdk-next/recipes-multimedia/libdash/libdash/```
 
 ```
 mkdir build
