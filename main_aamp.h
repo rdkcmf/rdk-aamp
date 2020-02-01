@@ -1227,6 +1227,14 @@ public:
 	 */
 	void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url);
 
+	/**
+	 *   @brief Set parallel playlist download config value.
+	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
+	 *
+	 *   @return void
+	 */
+	void SetParallelPlaylistDL(bool bValue);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

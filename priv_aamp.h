@@ -180,6 +180,18 @@ enum PlaybackErrorType
 	eSTALL_AFTER_DISCONTINUITY      /** Playback stall after notifying discontinuity */
 };
 
+
+/**
+ * @brief TriState enums 
+ */
+enum TriState
+{
+	eFalseState = 0,
+	eTrueState = 1,
+	eUndefinedState = -1
+};
+
+
 /**
  * @brief Tune Typea
  */
@@ -529,7 +541,7 @@ public:
 	TunedEventConfig tunedEventConfigVOD;   /**< When to send TUNED event for VOD*/
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
-	bool playlistsParallelFetch;            /**< Enabled parallel fetching of audio & video playlists*/
+	TriState playlistsParallelFetch;            /**< Enabled parallel fetching of audio & video playlists*/
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -609,7 +621,7 @@ public:
 #endif
 		gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(0),
 		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
-		playlistsParallelFetch(false), prefetchIframePlaylist(false),
+		playlistsParallelFetch(eUndefinedState), prefetchIframePlaylist(false),
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
@@ -1581,6 +1593,7 @@ public:
 	double mLiveOffset;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
+	bool mParallelFetchPlaylist;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;
@@ -2745,7 +2758,11 @@ public:
 	 *
 	*/
 	void ConfigureManifestTimeout();
-
+	/**
+	*   @brief To set the parallel playlist fetch configuration
+	*
+	*/
+	void ConfigureParallelTimeout();
 	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
@@ -2981,6 +2998,14 @@ public:
 	 */
 	void NotifyVideoBasePTS(unsigned long long basepts);
 
+
+	/**
+	 *   @brief Set parallel playlist download config value.
+	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
+	 *
+	 *   @return void
+	 */
+	void SetParallelPlaylistDL(bool bValue);
 
 private:
 
