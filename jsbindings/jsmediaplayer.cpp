@@ -69,6 +69,7 @@ enum ConfigParamType
 	ePARAM_DOWNLOADSTARTTIMEOUT,
 	ePARAM_SUBTITLELANGUAGE,
 	ePARAM_MANIFESTTIMEOUT,
+	ePARAM_PARALLELPLAYLISTDL,
 	ePARAM_MAX_COUNT
 };
 
@@ -107,6 +108,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_DOWNLOADSTALLTIMEOUT, "downloadStallTimeout" },
 	{ ePARAM_DOWNLOADSTARTTIMEOUT, "downloadStartTimeout" },
 	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
+	{ ePARAM_PARALLELPLAYLISTDL, "parallelPlaylistDownload" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -438,6 +440,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				ret = ParseJSPropAsObject(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsObject);
 				break;
 			case ePARAM_STEREOONLY:
+			case ePARAM_PARALLELPLAYLISTDL:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -497,6 +500,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_SUBTITLELANGUAGE:
 					privObj->_aamp->SetPreferredSubtitleLanguage(valueAsString);
 					delete[] valueAsString;
+					break;
+				case ePARAM_PARALLELPLAYLISTDL:
+					privObj->_aamp->SetParallelPlaylistDL(valueAsBoolean);
 					break;
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
