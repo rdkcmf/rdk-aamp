@@ -1376,10 +1376,10 @@ public:
 	 * @param[in] name - Metadata name
 	 * @param[in] content - Metadata content
 	 */
-	TimedMetadata(double timeMS, std::string name, std::string content, std::string id, double durMS) : _timeMS(timeMS), _name(name), _content(content), _id(id), _durationMS(durMS) {}
+	TimedMetadata(long long timeMS, std::string name, std::string content, std::string id, double durMS) : _timeMS(timeMS), _name(name), _content(content), _id(id), _durationMS(durMS) {}
 
 public:
-	double      _timeMS;     /**< Time in milliseconds */
+	long long _timeMS;     /**< Time in milliseconds */
 	std::string _name;       /**< Metadata name */
 	std::string _content;    /**< Metadata content */
 	std::string _id;         /**< Id of the timedMetadata. If not available an Id will bre created */
@@ -2069,7 +2069,7 @@ public:
 	 * @param[in] durationMS - Duration in milliseconds
 	 * @return void
 	 */
-	void ReportTimedMetadata(double timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
+	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
 
 	/**
 	 * @brief sleep only if aamp downloads are enabled.
