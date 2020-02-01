@@ -3745,7 +3745,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			if(!audio->playlist.len)
 			{
-				if (gpGlobalConfig->playlistsParallelFetch)
+				if (aamp->mParallelFetchPlaylist)
 				{
 					int ret = pthread_create(&trackPLDownloadThreadID, NULL, TrackPLDownloader, audio);
 					if(ret != 0)
