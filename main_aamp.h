@@ -316,7 +316,7 @@ struct AAMPEvent
 			 */
 			const char* szName;         /**< Metadata name */
 			const char* id;             /**< Id of the timedMetadata */
-			double timeMilliseconds;    /**< Playback position - relative to tune time - starts at zero */
+			long long timeMilliseconds;    /**< Playback position - relative to tune time - starts at zero */
 			double durationMilliSeconds;/**< Duration of the timed event. */
 			const char* szContent;      /**< Metadata content */
 		} timedMetadata;
