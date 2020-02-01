@@ -3873,7 +3873,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-CUE") {
-							aamp->ReportTimedMetadata(startMS, tag.c_str(), content.c_str(), content.size());
+							aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 							break;
 						}
 					}
@@ -3952,7 +3952,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-ASSET-ID") {
-							aamp->ReportTimedMetadata(startMS, tag.c_str(), content.c_str(), content.size());
+							aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 							break;
 						}
 					}
@@ -4090,7 +4090,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 		{
 			const std::string& tag = aamp->subscribedTags.at(i);
 			if (tag == "#EXT-X-TRICKMODE-RESTRICTION") {
-				aamp->ReportTimedMetadata(startMS, tag.c_str(), content.c_str(), content.size());
+				aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 				break;
 			}
 		}
