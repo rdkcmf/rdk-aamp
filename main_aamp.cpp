@@ -3234,7 +3234,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
                 }
 		else if (ReadConfigNumericHelper(cfg, "playlists-parallel-fetch=", value) == 1)
 		{
-			gpGlobalConfig->playlistsParallelFetch = (value != 0);
+			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
 			logprintf("playlists-parallel-fetch=%d", value);
 		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
@@ -4283,6 +4283,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
+	ConfigureParallelTimeout();
 
 	if (NULL == mStreamSink)
 	{
@@ -5783,6 +5784,17 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 	}
 }
 
+/**
+ *   @brief Set parallel playlist download config value.
+ *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
+{
+	aamp->SetParallelPlaylistDL(bValue);
+}
+
 
 
 /**
@@ -6480,6 +6492,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false)
 	,mManifestTimeoutMs(-1)
 	,mNetworkTimeoutMs(-1)
+	,mParallelFetchPlaylist(false)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7743,6 +7756,15 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 }
 
+
+void PrivateInstanceAAMP::ConfigureParallelTimeout()
+{
+	if(gpGlobalConfig->playlistsParallelFetch != eUndefinedState)
+        {
+                mParallelFetchPlaylist = (bool)gpGlobalConfig->playlistsParallelFetch;
+        }
+        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download state[%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist);
+}
 /**
  *   @brief To set the download buffer size value
  *
@@ -8310,6 +8332,18 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(struct curl_slist **headers)
 		}
 		*headers = httpHeaders;
 	}
+}
+
+/**
+ *   @brief Set parallel playlist download config value.
+ *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
+{
+	mParallelFetchPlaylist = bValue;
+	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**

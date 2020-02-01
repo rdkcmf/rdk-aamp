@@ -150,7 +150,12 @@ var defaultInitConfig = {
     /**
      * stereo-only for the playback
      */
-    stereoOnly: false
+    stereoOnly: false,
+
+    /**
+     * enable audio video playlist parallel download optimization (only for HLS)
+     */
+    parallelPlaylistDownload: false
 };
 
 var playerState = playerStatesEnum.idle;
