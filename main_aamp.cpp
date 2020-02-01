@@ -53,6 +53,7 @@
 #include <vector>
 #include <list>
 #include <fstream>
+#include <math.h>
 #include "AampCacheHandler.h"
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
@@ -485,15 +486,17 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	{
 		logprintf("PrivateInstanceAAMP::%s - culling started, first value %f", __FUNCTION__, culledSecs);
 	}
+
 	this->culledSeconds += culledSecs;
+	long long limitMs = (long long) std::round(this->culledSeconds * 1000.0);
 
 	for (auto iter = timedMetadata.begin(); iter != timedMetadata.end(); )
 	{
 		// If the timed metadata has expired due to playlist refresh, remove it from local cache
 		// For X-CONTENT-IDENTIFIER, -X-IDENTITY-ADS, X-MESSAGE_REF in DASH which has _timeMS as 0
-		if (iter->_timeMS != 0 && iter->_timeMS < (culledSeconds * 1000.0))
+		if (iter->_timeMS != 0 && iter->_timeMS < limitMs)
 		{
-			//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) ERASE", (long)iter->_timeMS, iter->_name.c_str(), iter->_content.c_str());
+			//logprintf("ERASE(limit:%lld) aamp_ReportTimedMetadata(%lld, '%s', '%s', nb)", limitMs,iter->_timeMS, iter->_name.c_str(), iter->_content.c_str());
 			iter = timedMetadata.erase(iter);
 		}
 		else
@@ -6139,48 +6142,44 @@ void PrivateInstanceAAMP::Stop()
  * @param durationMS - Duration in milliseconds
  * @param nb unused
  */
-void PrivateInstanceAAMP::ReportTimedMetadata(double timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
+void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
 	bool bFireEvent = false;
 
 	// Check if timedMetadata was already reported
 	std::vector<TimedMetadata>::iterator i;
-	for (i=timedMetadata.begin(); i != timedMetadata.end(); i++)
+	bool ignoreMetaAdd = false;
+	for (i = timedMetadata.begin(); i != timedMetadata.end(); i++)
 	{
 		if (i->_timeMS < timeMilliseconds)
 		{
 			continue;
 		}
 
-		// Does an entry already exist?
-		if ((i->_timeMS == timeMilliseconds) && (i->_name.compare(szName) == 0))
+		if ((i->_timeMS == timeMilliseconds) &&
+			(i->_name.compare(szName) == 0)	&&
+			(i->_content.compare(content) == 0))
 		{
-			if (i->_content.compare(content) == 0)
-			{
-				//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) DUPLICATE", (long)timeMilliseconds, szName, content.data(), nb);
-			}
-			else
-			{
-				//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) REPLACE", (long)timeMilliseconds, szName, content.data(), nb);
-				i->_content = content;
-				bFireEvent = true;
-			}
+			// Already same exists , ignore
+			ignoreMetaAdd = true;
 			break;
 		}
 
 		if (i->_timeMS > timeMilliseconds)
 		{
-			//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) INSERT", (long)timeMilliseconds, szName, content.data(), nb);
 			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 			bFireEvent = true;
+			ignoreMetaAdd = true;
 			break;
 		}
 	}
 
-	if (i == timedMetadata.end())
+	if(!ignoreMetaAdd && i == timedMetadata.end())
 	{
-		//logprintf("aamp_ReportTimedMetadata(%ld, '%s', '%s', nb) APPEND", (long)timeMilliseconds, szName, content.data(), nb);
+		// Comes here for
+		// 1.No entry in the table
+		// 2.Entries available which is only having time < NewMetatime
 		timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 		bFireEvent = true;
 	}

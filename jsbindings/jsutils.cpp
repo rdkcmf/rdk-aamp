@@ -388,7 +388,7 @@ const char* aampPlayer_getNameFromEventType(AAMPEventType type)
  * @param[in] durationMS duration of ad break if its a adbreak metadata
  * @retval JSObject of TimedMetadata generated
  */
-JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, double timeMS, const char* szName, const char* szContent, const char* id, double durationMS)
+JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, long long timeMS, const char* szName, const char* szContent, const char* id, double durationMS)
 {
 	JSStringRef name;
 

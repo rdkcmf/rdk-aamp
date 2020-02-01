@@ -48,6 +48,7 @@
 #include <errno.h>
 #include <openssl/sha.h>
 #include <set>
+#include <math.h>
 #include "HlsDrmBase.h"
 #include "AampCacheHandler.h"
 #ifdef AAMP_VANILLA_AES_SUPPORT
@@ -2784,7 +2785,6 @@ void TrackState::RefreshPlaylist(void)
 		}
 #endif
 		IndexPlaylist();
-
 		// Update culled seconds if playlist download was successful
 		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
 		// culledSeconds and FindTimedMetadata have been moved up here, because FindMediaForSequenceNumber
@@ -4772,6 +4772,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
+	mCulledSeconds = aamp->culledSeconds;
 }
 /***************************************************************************
 * @fn ~TrackState
@@ -5939,8 +5940,9 @@ void TrackState::FindTimedMetadata()
 						{
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
-							//logprintf("[AAMP_JS] Found subscribedTag[%d]: @%f '%.*s'", i, totalDuration, nb, ptr);
-							aamp->ReportTimedMetadata((mCulledSeconds + totalDuration) * 1000, data, ptr, nb);
+							long long positionMilliseconds = (long long) std::round((mCulledSeconds + totalDuration) * 1000.0);
+							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
+							aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb);
 							break;
 						}
 					}
