@@ -4961,23 +4961,24 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 
 		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
-		logprintf("aamp_SetRate Adj position: %f", aamp->seek_pos_seconds); // current position relative to tune time
+		logprintf("aamp_SetRate Adj position: %f", aamp->seek_pos_seconds); // Current position relative to tune time
 		logprintf("aamp_SetRate rate(%d)->(%d)", aamp->rate,rate);
 		logprintf("aamp_SetRate cur pipeline: %s", aamp->pipeline_paused ? "paused" : "playing");
 
-		if (rate == aamp->rate)
-		{ // no change in desired play rate
+		if (rate == AAMP_NORMAL_PLAY_RATE && aamp->rate == 0) // Resume playback from Pause mode
+		{
 			if (aamp->pipeline_paused && rate != 0)
-			{ // but need to unpause pipeline
+			{
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
 				retValue = aamp->mStreamSink->Pause(false);
-				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				aamp->NotifyFirstBufferProcessed(); // Required since buffers are already cached in paused state
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
+				aamp->rate = rate;
 			}
 		}
-		else if (rate == 0)
+		else if (rate == 0) // Pause playback when its in Play mode
 		{
 			if (!aamp->pipeline_paused)
 			{
@@ -4986,14 +4987,15 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				aamp->StopDownloads();
 				retValue = aamp->mStreamSink->Pause(true);
 				aamp->pipeline_paused = true;
+				aamp->rate = rate;
 			}
 		}
-		else
+		else // For other trick play cases
 		{
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
 			aamp->ResumeDownloads();
-			aamp->TuneHelper(eTUNETYPE_SEEK); // this unpauses pipeline as side effect
+			aamp->TuneHelper(eTUNETYPE_SEEK); // This unpauses pipeline as side effect
 		}
 
 		if(retValue)
