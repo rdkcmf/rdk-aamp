@@ -252,7 +252,7 @@ GlobalConfigAAMP *gpGlobalConfig;
 #define CONTENTLENGTH_STRING 			"Content-Length:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH(STRING, PREFIX) (0 == memcmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
 struct gActivePrivAAMP_t
 {
@@ -1517,33 +1517,34 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	}
 
 	ptr[len-2] = 0x00; // replace the unprintable \r, and convert to NUL-terminated C-String
-
-    if (STARTS_WITH(ptr, FOG_REASON_STRING))
+    // As per Hypertext Transfer Protocol ==> Field names are case-insensitive
+    // HTTP/1.1 4.2 Message Headers : Each header field consists of a name followed by a colon (":") and the field value. Field names are case-insensitive
+    if (STARTS_WITH_IGNORE_CASE(ptr, FOG_REASON_STRING))
     {
         httpHeader->type = eHTTPHEADERTYPE_FOG_REASON;
         startPos = STRLEN_LITERAL(FOG_REASON_STRING);
     }
-	else if (STARTS_WITH(ptr, CURLHEADER_X_REASON))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, CURLHEADER_X_REASON))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
 		startPos = STRLEN_LITERAL(CURLHEADER_X_REASON);
 	}
-	else if (STARTS_WITH(ptr, BITRATE_HEADER_STRING))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, BITRATE_HEADER_STRING))
 	{
 		startPos = STRLEN_LITERAL(BITRATE_HEADER_STRING);
 		isBitrateHeader = true;
 	}
-	else if (STARTS_WITH(ptr, "Set-Cookie:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, "Set-Cookie:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_COOKIE;
 		startPos = STRLEN_LITERAL("Set-Cookie:");
 	}
-	else if (STARTS_WITH(ptr, "Location:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, "Location:"))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_EFF_LOCATION;
 		startPos = STRLEN_LITERAL("Location:");
 	}
-	else if (STARTS_WITH(ptr, "Content-Encoding:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, "Content-Encoding:"))
 	{
 		// Enabled IsEncoded as Content-Encoding header is present
 		// The Content-Encoding entity header incidcates media is compressed
@@ -1551,7 +1552,7 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	}
 	else if (0 == context->buffer->avail)
 	{
-		if (STARTS_WITH(ptr, CONTENTLENGTH_STRING))
+		if (STARTS_WITH_IGNORE_CASE(ptr, CONTENTLENGTH_STRING))
 		{
 			int contentLengthStartPosition = STRLEN_LITERAL(CONTENTLENGTH_STRING);
 			char* contentLengthStr = ptr + contentLengthStartPosition;
