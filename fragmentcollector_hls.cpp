@@ -633,6 +633,10 @@ void StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				{
 					memset(&this->mediaInfo[this->mediaCount], 0, sizeof(MediaInfo));
 					ParseAttrList(ptr, ParseMediaAttributeCallback, this);
+					if(!mediaInfo[this->mediaCount].language)
+					{
+						mediaInfo[this->mediaCount].language =  mediaInfo[this->mediaCount].name;
+					}
 					this->mediaCount++;
 				}
 				else if (startswith(&ptr, "-X-VERSION:"))
