@@ -145,7 +145,7 @@ void MediaTrack::MonitorBufferHealth()
 						GetBufferHealthStatusString(bufferStatus));
 			}
 
-			if(aamp->IsDiscontinuityProcessPending() && gpGlobalConfig->discontinuityTimeout)
+			if((!aamp->pipeline_paused) && aamp->IsDiscontinuityProcessPending() && gpGlobalConfig->discontinuityTimeout)
 			{
 				aamp->CheckForDiscontinuityStall((MediaType)type);
 			}
