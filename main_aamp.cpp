@@ -6652,7 +6652,7 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
 int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
-	return aamp->rate;
+	return (aamp->pipeline_paused ? 0 : aamp->rate);
 }
 
 
