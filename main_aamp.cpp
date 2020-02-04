@@ -247,6 +247,40 @@ GlobalConfigAAMP *gpGlobalConfig;
         param_value = default_value; \
     }
 
+#define ERROR_STATE_CHECK_VOID() \
+	PrivAAMPState state; \
+	aamp->GetState(state); \
+	if( state == eSTATE_ERROR){ \
+		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+		return; \
+	}
+
+#define ERROR_STATE_CHECK_VAL(val) \
+	PrivAAMPState state; \
+	aamp->GetState(state); \
+	if( state == eSTATE_ERROR){ \
+		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+		return val; \
+	}
+
+#define ERROR_OR_IDLE_STATE_CHECK_VOID() \
+	PrivAAMPState state; \
+	aamp->GetState(state); \
+	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
+		logprintf("%s() operation is not allowed when player in %s state !", __FUNCTION__ ,\
+		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
+		return; \
+	}
+
+#define ERROR_OR_IDLE_STATE_CHECK_VAL(val) \
+	PrivAAMPState state; \
+	aamp->GetState(state); \
+	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
+		logprintf("%s() operation is not allowed in %s state !", __FUNCTION__ ,\
+		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
+		return val; \
+	}
+
 #define FOG_REASON_STRING			"Fog-Reason:"
 #define CURLHEADER_X_REASON			"X-Reason:"
 #define BITRATE_HEADER_STRING			"X-Bitrate:"
@@ -4314,8 +4348,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
 {
-	PrivAAMPState state;
-	aamp->GetState(state);
+	ERROR_STATE_CHECK_VOID();
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
+		//Calling tune without closing previous tune
+		Stop(false);
+	}
 	if (state == eSTATE_RELEASED)
 	{
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
@@ -4939,16 +4976,15 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
-	PrivAAMPState state;
-	aamp->GetState(state);
-	if (aamp->mpStreamAbstractionAAMP && state != eSTATE_ERROR)
+	ERROR_STATE_CHECK_VOID();
+
+	if (aamp->mpStreamAbstractionAAMP)
 	{
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
 		{
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
 			return;
 		}
-
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
@@ -5098,6 +5134,8 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 	bool isSeekToLive = false;
 	TuneType tuneType = eTUNETYPE_SEEK;
 
+	ERROR_STATE_CHECK_VOID();
+
 	if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
 	{
 		isSeekToLive = true;
@@ -5176,6 +5214,7 @@ void PlayerInstanceAAMP::SeekToLive()
  */
 void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
 	aamp->TeardownStream(false);
 	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
@@ -5194,6 +5233,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
  */
 void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetVideoRectangle(x, y, w, h);
 }
 
@@ -5205,9 +5245,14 @@ void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
  */
 void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->zoom_mode = zoom;
-	if (aamp->mpStreamAbstractionAAMP)
+	if (aamp->mpStreamAbstractionAAMP ){
 		aamp->SetVideoZoom(zoom);
+	}else{
+		AAMPLOG_WARN("%s:%d Player is in state (%s) , value has been cached",
+		__FUNCTION__, __LINE__, "eSTATE_IDLE");
+	}
 }
 
 
@@ -5218,9 +5263,14 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
  */
 void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->video_muted = muted;
-	if (aamp->mpStreamAbstractionAAMP)
+	if (aamp->mpStreamAbstractionAAMP){
 		aamp->SetVideoMute(muted);
+	}else{
+		AAMPLOG_WARN("%s:%d Player is in state (%s) , value has been cached",
+		__FUNCTION__, __LINE__, "eSTATE_IDLE");
+	}
 }
 
 
@@ -5231,9 +5281,14 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
  */
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->audio_volume = volume;
-	if (aamp->mpStreamAbstractionAAMP)
+	if (aamp->mpStreamAbstractionAAMP){
 		aamp->SetAudioVolume(volume);
+	}else{
+		AAMPLOG_WARN("%s:%d Player is in state (%s) , value has been cached",
+		__FUNCTION__, __LINE__, "eSTATE_IDLE");
+	}
 }
 
 
@@ -5244,13 +5299,13 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
  */
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
+	ERROR_STATE_CHECK_VOID();
+
 	logprintf("aamp_SetLanguage(%s)->(%s)",aamp->language, language);
 
-        if (strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-                return;
+    if (strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+        return;
 
-	PrivAAMPState state;
-	aamp->GetState(state);
 	// There is no active playback session, save the language for later
 	if (state == eSTATE_IDLE)
 	{
@@ -5290,8 +5345,9 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
  */
 void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTags)
 {
-	logprintf("aamp_SetSubscribedTags()");
+	ERROR_STATE_CHECK_VOID();
 
+	logprintf("aamp_SetSubscribedTags()");
 	aamp->subscribedTags = subscribedTags;
 
 	for (int i=0; i < aamp->subscribedTags.size(); i++) {
@@ -5373,17 +5429,8 @@ void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventL
  */
 bool PlayerInstanceAAMP::IsLive()
 {
-	PrivAAMPState state;
-	aamp->GetState(state);
-	if (state == eSTATE_ERROR)
-	{
-		logprintf("IsLive is ignored since the player is at eSTATE_ERROR");
-		return false;
-	}
-	else
-	{
-		return aamp->IsLive();
-	}
+	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
+	return aamp->IsLive();
 }
 
 
@@ -5394,6 +5441,7 @@ bool PlayerInstanceAAMP::IsLive()
  */
 char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VAL("");
 	return aamp->language;
 }
 
@@ -5404,6 +5452,7 @@ char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
  */
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VAL("");
 	DRMSystems currentDRM = aamp->GetCurrentDRM();
 	const char *drmName = "";
 	switch(currentDRM)
@@ -5449,6 +5498,7 @@ DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
  */
 void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->AddCustomHTTPHeader(headerName, headerValue, isLicenseHeader);
 }
 
@@ -5460,6 +5510,7 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
  */
 void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetLicenseServerURL(url, type);
 }
 
@@ -5471,6 +5522,7 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
  */
 void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetAnonymousRequest(isAnonymous);
 }
 
@@ -5502,6 +5554,7 @@ void PlayerInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
  */
 void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetVODTrickplayFPS(vodTrickplayFPS);
 }
 
@@ -5513,6 +5566,7 @@ void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
  */
 void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetLinearTrickplayFPS(linearTrickplayFPS);
 }
 
@@ -5523,6 +5577,7 @@ void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
  */
 void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetLiveOffset(liveoffset);
 }
 
@@ -5534,6 +5589,7 @@ void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
  */
 void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetStallErrorCode(errorCode);
 }
 
@@ -5545,6 +5601,7 @@ void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
  */
 void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetStallTimeout(timeoutMS);
 }
 
@@ -5556,6 +5613,7 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
  */
 void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
+	ERROR_STATE_CHECK_VOID();
 	if(reportIntervalMS > 0)
 	{
 		aamp->SetReportInterval(reportIntervalMS);
@@ -5570,6 +5628,7 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
  */
 double PlayerInstanceAAMP::GetPlaybackPosition()
 {
+	ERROR_STATE_CHECK_VAL(0.00);
 	return (aamp->GetPositionMilliseconds() / 1000.00);
 }
 
@@ -5581,6 +5640,7 @@ double PlayerInstanceAAMP::GetPlaybackPosition()
 */
 double PlayerInstanceAAMP::GetPlaybackDuration()
 {
+	ERROR_OR_IDLE_STATE_CHECK_VAL(0.00);
 	return (aamp->GetDurationMs() / 1000.00);
 }
 
@@ -5606,6 +5666,7 @@ PrivAAMPState PlayerInstanceAAMP::GetState(void)
 long PlayerInstanceAAMP::GetVideoBitrate(void)
 {
 	long bitrate = 0;
+	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrate = aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
@@ -5621,6 +5682,7 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
  */
 void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->SetVideoBitrate(bitrate);
 }
 
@@ -5660,12 +5722,8 @@ long PrivateInstanceAAMP::GetVideoBitrate()
  */
 long PlayerInstanceAAMP::GetAudioBitrate(void)
 {
-	long bitrate = 0;
-	if (aamp->mpStreamAbstractionAAMP)
-	{
-		bitrate = aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
-	}
-	return bitrate;
+	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
+	return aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
 }
 
 
@@ -5687,6 +5745,12 @@ void PlayerInstanceAAMP::SetAudioBitrate(long bitrate)
  */
 int PlayerInstanceAAMP::GetAudioVolume(void)
 {
+	ERROR_STATE_CHECK_VAL(0);
+	if (eSTATE_IDLE == state) 
+	{
+		AAMPLOG_WARN("%s:%d GetAudioVolume is returning cached value since player is at %s",
+		__FUNCTION__, __LINE__,"eSTATE_IDLE");
+	}
 	return aamp->audio_volume;
 }
 
@@ -5698,6 +5762,7 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
  */
 int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
 	return aamp->rate;
 }
 
@@ -5709,11 +5774,8 @@ int PlayerInstanceAAMP::GetPlaybackRate(void)
  */
 std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 {
-	if (aamp->mpStreamAbstractionAAMP)
-	{
-		return aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
-	}
-	return std::vector<long>();
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
+	return aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
 }
 
 
@@ -5724,11 +5786,8 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
  */
 std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 {
-	if (aamp->mpStreamAbstractionAAMP)
-	{
-		return aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
-	}
-	return std::vector<long>();
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
+	return aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
 }
 
 
@@ -5739,7 +5798,9 @@ std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
  */
 void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetInitialBitrate(bitrate);
+	
 }
 
 
@@ -5750,6 +5811,7 @@ void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
  */
 void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetInitialBitrate4K(bitrate4K);
 }
 
@@ -5785,6 +5847,7 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
  */
 void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetNetworkTimeout(timeout);
 }
 
@@ -5795,6 +5858,7 @@ void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
  */
 void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetManifestTimeout(timeout);
 }
 
@@ -5805,6 +5869,7 @@ void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
  */
 void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetDownloadBufferSize(bufferSize);
 }
 
@@ -5816,6 +5881,7 @@ void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
  */
 void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetPreferredDRM(drmType);
 }
 
@@ -5824,6 +5890,7 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
  */
 void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetStereoOnlyPlayback(bValue);
 }
 
@@ -5833,6 +5900,7 @@ void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
  */
 void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetBulkTimedMetaReport(bValue);
 }
 
@@ -5847,6 +5915,7 @@ void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
  */
 void PlayerInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->SetAlternateContents(adBreakId, adId, url);
 }
 
@@ -5857,6 +5926,7 @@ void PlayerInstanceAAMP::SetAlternateContents(const std::string &adBreakId, cons
  */
 void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetNetworkProxy(proxy);
 }
 
@@ -5868,6 +5938,7 @@ void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
  */
 void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetLicenseReqProxy(licenseProxy);
 }
 
@@ -5879,6 +5950,7 @@ void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
  */
 void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetDownloadStallTimeout(stallTimeout);
 }
 
@@ -5890,6 +5962,7 @@ void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
  */
 void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetDownloadStartTimeout(startTimeout);
 }
 
@@ -5901,14 +5974,13 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
  */
 void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 {
-	AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)", __FUNCTION__, __LINE__, aamp->mSubLanguage, language);
+	ERROR_STATE_CHECK_VOID();
+        AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)", __FUNCTION__, __LINE__, aamp->mSubLanguage, language);
 
 	if (strncmp(language, aamp->mSubLanguage, MAX_LANGUAGE_TAG_LENGTH) == 0)
 		return;
 
-	PrivAAMPState state;
-	aamp->GetState(state);
-	// There is no active playback session, save the language for later
+	
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
 		aamp->UpdateSubtitleLanguageSelection(language);
@@ -5928,6 +6000,7 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
  */
 void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
+	ERROR_STATE_CHECK_VOID();
 	aamp->SetParallelPlaylistDL(bValue);
 }
 
