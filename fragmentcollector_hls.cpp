@@ -857,6 +857,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 				{
 					memset(&this->mediaInfo[mMediaCount], 0, sizeof(MediaInfo));
 					ParseAttrList(ptr, ParseMediaAttributeCallback, this);
+					if(!mediaInfo[mMediaCount].language)
+					{ // handle non-compliant manifest missing language attribute
+						mediaInfo[mMediaCount].language =  mediaInfo[mMediaCount].name;
+					}
 					mMediaCount++;
 				}
 				else if (startswith(&ptr, "-X-VERSION:"))
