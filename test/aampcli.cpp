@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <list>
 #include <string.h>
+#include <string>
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
@@ -57,6 +58,60 @@ struct VirtualChannelInfo
 	std::string name;
 	std::string uri;
 };
+
+/**
+ * @enum AAMPGetTypes
+ * @brief Define the enum values of get types
+ */
+typedef enum {
+	eAAMP_GET_CurrentAudioLan = 1,
+	eAAMP_GET_CurrentDrm,
+	eAAMP_GET_PlaybackPosition,
+	eAAMP_GET_PlaybackDuration,
+	eAAMP_GET_VideoBitrate,
+	eAAMP_GET_AudioBitrate,
+	eAAMP_GET_AudioVolume,
+	eAAMP_GET_PlaybackRate,
+	eAAMP_GET_VideoBitrates,
+	eAAMP_GET_AudioBitrates
+}AAMPGetTypes;
+
+/**
+ * @enum AAMPGetTypes
+ * @brief Define the enum values of get types
+ */
+typedef enum{
+	eAAMP_SET_RateAndSeek = 1,
+	eAAMP_SET_VideoRectangle,
+	eAAMP_SET_VideoZoom,
+	eAAMP_SET_VideoMute,
+	eAAMP_SET_AudioVolume,
+	eAAMP_SET_Language,
+	eAAMP_SET_SubscribedTags,
+	eAAMP_SET_LicenseServerUrl,
+	eAAMP_SET_AnonymouseRequest,
+	eAAMP_SET_VodTrickplayFps,
+	eAAMP_SET_LinearTrickplayFps,
+	eAAMP_SET_LiveOffset,
+	eAAMP_SET_StallErrorCode,
+	eAAMP_SET_StallTimeout,
+	eAAMP_SET_ReportInterval,
+	eAAMP_SET_VideoBitarate,
+	eAAMP_SET_InitialBitrate,
+	eAAMP_SET_InitialBitrate4k,
+	eAAMP_SET_NetworkTimeout,
+	eAAMP_SET_ManifestTimeout,
+	eAAMP_SET_DownloadBufferSize,
+	eAAMP_SET_PreferredDrm,
+	eAAMP_SET_StereoOnlyPlayback,
+	eAAMP_SET_AlternateContent,
+	eAAMP_SET_NetworkProxy,
+	eAAMP_SET_LicenseReqProxy,
+	eAAMP_SET_DownloadStallTimeout,
+	eAAMP_SET_DownloadStartTimeout,
+	eAAMP_SET_PreferredSubtitleLang,
+	eAAMP_SET_ParallelPlaylistDL
+}AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
 
@@ -202,11 +257,76 @@ static void ShowHelp(void)
 	logprintf("sap // Use SAP track (if avail)");
 	logprintf("seek <seconds> // Specify start time within manifest");
 	logprintf("live // Seek to live point");
+	logprintf("islive // Show whether it is live or not");
 	logprintf("underflow // Simulate underflow");
 	logprintf("help // Show this list again");
+	logprintf("get help // Show help of get command");
+	logprintf("set help // Show help of set command");
 	logprintf("exit // Exit from application");
 }
 
+/**
+ * @brief Display Help menu for set
+ * @param none
+ */
+void ShowHelpGet(){
+	logprintf("*******************************************************************");
+	logprintf("*   get <command> <arguments> ");
+	logprintf("*   List of Commands, arguemnts expected in ()");
+	logprintf("*******************************************************************");
+	logprintf("1 - Print Current audio language ()");
+	logprintf("2 - Print Current DRM ()");
+	logprintf("3 - Print Current Playback position ()");
+	logprintf("4 - Print Playback Duration ()");
+	logprintf("5 - Print current video bitrate ()");
+	logprintf("6 - Print current Audio bitrate ()");
+	logprintf("7 - Print current Audio voulume ()");
+	logprintf("8 - Print Current Playback rate ()");
+	logprintf("9 - Print Video bitrates supported ()");
+	logprintf("10 - Print Audio bitrates supported ()");
+	
+}
+
+/**
+ * @brief Display Help menu for set
+ * @param none
+ */
+void ShowHelpSet(){
+	logprintf("*******************************************************************");
+	logprintf("*   set <command> <arguments> ");
+	logprintf("*   List of Commands, arguemnts expected in ()");
+	logprintf("*******************************************************************");
+	logprintf("1 - Set Rate and Seek (int rate, double secondsRelativeToTuneTime)");
+	logprintf("2 - Set Video Rectangle (int x,y,w,h)");
+	logprintf("3 - Set Video zoom  ( 1 - full, 0 - normal)");
+	logprintf("4 - Set Video Mute ( 1 - Mute , 0 - Unmute)");
+	logprintf("5 - Set Audio Voulume (int volume)");
+	logprintf("6 - Set Language (string lang)");
+	logprintf("7 - Set Subscribed Tag () - dummy");
+	logprintf("8 - Set License Server URL (String url)");
+	logprintf("9 - Set Anonymouse Request  (0/1)");
+	logprintf("10 - Set VOD Trickplay FPS (int trickPlayFPS)");
+	logprintf("11 - Set Linear Trickplay FPS (int trickPlayFPS)");
+	logprintf("12 - Set Live offset (int offset)");
+	logprintf("13 - Set Stall error code (int errorCode)");
+	logprintf("14 - Set Stall timeout (int timeout)");
+	logprintf("15 - Set Report Interval (int interval)");
+	logprintf("16 - Set Video Bitrate (long bitrate)");
+	logprintf("17 - Set Initial Bitrate (long bitrate)");
+	logprintf("18 - Set Initial Bitrate 4K (long bitrate4k)");
+	logprintf("19 - Set Network Timeout (long timeout in ms)");
+	logprintf("20 - Set Manifest Timeout (long timeout in ms)");
+	logprintf("21 - Set Download Buffer Size (int bufferSize)");
+	logprintf("22 - Set Preferred DRM (1 - Wideine, 2 - Playready, 4- Adobe_Access, 5 - Vanila AES, 6 - Clear Key)"); 
+	logprintf("23 - Set Stereo only playback (1/0)");
+	logprintf("24 - Set Alternate Contents - dummy ()");
+	logprintf("25 - Set Set Network Proxy (string url)");
+	logprintf("26 - Set License Request Proxy (string url)");
+	logprintf("27 - Set Download Stall timeout (long timeout)");
+	logprintf("28 - Set Download Start timeout (long timeout)");
+	logprintf("29 - Set Preferred Subtitle language (string lang)");
+	logprintf("30 - Set Parallel Playlist download (0/1)");
+}
 
 //#define LOG_CLI_EVENTS
 #ifdef LOG_CLI_EVENTS
@@ -455,8 +575,8 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if( sscanf(cmd, "sap %s",lang ) )
 	{
-		logprintf("aamp cli sap called for language %s\n",lang);
 		size_t len = strlen(lang);
+		logprintf("aamp cli sap called for language %s\n",lang);
 		if( len>0 )
 		{
 			mSingleton->SetLanguage( lang );
@@ -466,9 +586,421 @@ static void ProcessCliCommand(char *cmd)
 			logprintf( "GetCurrentAudioLanguage: '%s'\n", mSingleton->GetCurrentAudioLanguage() );
 		}
 	}
-    	else if( strcmp(cmd,"getplaybackrate") == 0 )
+    else if( strcmp(cmd,"getplaybackrate") == 0 )
 	{
 		logprintf("Playback Rate: %d\n", mSingleton->GetPlaybackRate());
+	}
+	else if (memcmp(cmd, "islive", 6) == 0 )
+	{
+		logprintf(" VIDEO IS %s ", 
+		(mSingleton->IsLive() == true )? "LIVE": "NOT LIVE");
+	}
+	else if (memcmp(cmd, "customheader", 12) == 0 )
+	{
+		//Dummy implimenations
+		std::vector<std::string> headerValue;
+		logprintf("customheader Command is %s " , cmd); 
+		mSingleton->AddCustomHTTPHeader("", headerValue, false);
+	}
+	else if (memcmp(cmd, "set", 3) == 0 )
+	{
+		char help[8];
+		int opt;
+		if (sscanf(cmd, "set %d", &opt) == 1){
+			switch(opt){
+				case eAAMP_SET_RateAndSeek:
+                                {
+					int rate;
+					double ralatineTuneTime;
+					logprintf("Matchde Command eAAMP_SET_RateAndSeek - %s ", cmd);
+					if (sscanf(cmd, "set %d %d %lf", &opt, &rate, &ralatineTuneTime ) == 3){
+						mSingleton->SetRateAndSeek(rate, ralatineTuneTime);
+					}
+					break;
+                                }
+				case eAAMP_SET_VideoRectangle:
+                                {
+                                        int x,y,w,h;
+					logprintf("Matchde Command eAAMP_SET_VideoRectangle - %s ", cmd);
+					if (sscanf(cmd, "set %d %d %d %d %d", &opt, &x, &y, &w, &h) == 5){
+						mSingleton->SetVideoRectangle(x,y,w,h);
+					}
+					break;
+                                }
+				case eAAMP_SET_VideoZoom:
+                                {
+					int videoZoom;
+					logprintf("Matchde Command eAAMP_SET_VideoZoom - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &videoZoom) == 2){
+						mSingleton->SetVideoZoom((videoZoom > 0 )? VIDEO_ZOOM_FULL : VIDEO_ZOOM_NONE );
+					}
+					break;
+                                }
+
+				case eAAMP_SET_VideoMute:
+                                {
+					int videoMute;
+					logprintf("Matchde Command eAAMP_SET_VideoMute - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &videoMute) == 2){
+						mSingleton->SetVideoMute((videoMute == 1 )? true : false );
+					}
+					break;	
+                                }
+
+				case eAAMP_SET_AudioVolume:
+                                {
+                                        int vol;
+					logprintf("Matchde Command eAAMP_SET_AudioVolume - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &vol) == 2){
+						mSingleton->SetAudioVolume(vol);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_Language:
+                                {
+					char lang[12];
+					logprintf("Matchde Command eAAMP_SET_Language - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, lang) == 2){
+						mSingleton->SetLanguage(lang);
+					}
+					break;
+                                }
+				case eAAMP_SET_SubscribedTags:
+			        {
+                                        //Dummy implimentation
+					std::vector<std::string> subscribedTags;
+					logprintf("Matchde Command eAAMP_SET_SubscribedTags - %s ", cmd);
+					mSingleton->SetSubscribedTags(subscribedTags);
+					break;
+                                }
+				case eAAMP_SET_LicenseServerUrl:
+                                {
+                                        char lisenceUrl[1024];
+					int drmType;
+					logprintf("Matchde Command eAAMP_SET_LicenseServerUrl - %s ", cmd);
+					if (sscanf(cmd, "set %d %s %d", &opt, lisenceUrl, &drmType) == 3){
+						mSingleton->SetLicenseServerURL(lisenceUrl, 
+						(drmType == eDRM_PlayReady)?eDRM_PlayReady:eDRM_WideVine);
+					}
+					break;
+                                }
+				case eAAMP_SET_AnonymouseRequest:
+                                {
+                                        int isAnonym;
+					logprintf("Matchde Command eAAMP_SET_AnonymouseRequest - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &isAnonym) == 2){
+						mSingleton->SetAnonymousRequest((isAnonym == 1)?true:false);
+					}
+					break;
+                                }
+				case eAAMP_SET_VodTrickplayFps:
+                                {
+                                        int vodTFps;
+					logprintf("Matchde Command eAAMP_SET_VodTrickplayFps - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &vodTFps) == 2){
+						mSingleton->SetVODTrickplayFPS(vodTFps);
+					}
+					break;
+                                }
+				case eAAMP_SET_LinearTrickplayFps:
+                                {
+                                        int linearTFps;
+					logprintf("Matchde Command eAAMP_SET_LinearTrickplayFps - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &linearTFps) == 2){
+						mSingleton->SetLinearTrickplayFPS(linearTFps);
+					}
+					break;
+                                }
+				case eAAMP_SET_LiveOffset:
+                                {
+                                        int liveOffset;
+					logprintf("Matchde Command eAAMP_SET_LiveOffset - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &liveOffset) == 2){
+						mSingleton->SetLiveOffset(liveOffset);
+					}
+					break;
+                                }
+				case eAAMP_SET_StallErrorCode:
+                                {
+                                        int stallErrorCode;
+					logprintf("Matchde Command eAAMP_SET_StallErrorCode - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &stallErrorCode) == 2){
+						mSingleton->SetStallErrorCode(stallErrorCode);
+					}
+					break;
+                                }
+				case eAAMP_SET_StallTimeout:
+                                {
+                                        int stallTimeout;
+					logprintf("Matchde Command eAAMP_SET_StallTimeout - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &stallTimeout) == 2){
+						mSingleton->SetStallTimeout(stallTimeout);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_ReportInterval:
+                                {
+                                        int reportInterval;
+					logprintf("Matchde Command eAAMP_SET_ReportInterval - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &reportInterval) == 2){
+						mSingleton->SetReportInterval(reportInterval);
+					}
+					break;
+                                }
+				case eAAMP_SET_VideoBitarate:
+                                {
+                                        long videoBitarate;
+					logprintf("Matchde Command eAAMP_SET_VideoBitarate - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &videoBitarate) == 2){
+						mSingleton->SetVideoBitrate(videoBitarate);
+					}
+					break;
+                                }
+                                case eAAMP_SET_InitialBitrate:
+                                {
+                                        long initialBitrate;
+					logprintf("Matchde Command eAAMP_SET_InitialBitrate - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate) == 2){
+						mSingleton->SetInitialBitrate(initialBitrate);
+					}
+					break;
+                                }
+				case eAAMP_SET_InitialBitrate4k:
+                                {
+                                        long initialBitrate4k;
+					logprintf("Matchde Command eAAMP_SET_InitialBitrate4k - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate4k) == 2){
+						mSingleton->SetInitialBitrate4K(initialBitrate4k);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_NetworkTimeout:
+                                {
+                                        long networkTimeout;
+					logprintf("Matchde Command eAAMP_SET_NetworkTimeout - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &networkTimeout) == 2){
+						mSingleton->SetNetworkTimeout(networkTimeout);
+					}
+					break;
+                                }
+				case eAAMP_SET_ManifestTimeout:
+                                {
+                                        double manifestTimeout;
+					logprintf("Matchde Command eAAMP_SET_ManifestTimeout - %s ", cmd);
+					if (sscanf(cmd, "set %d %lf", &opt, &manifestTimeout) == 2){
+						mSingleton->SetManifestTimeout(manifestTimeout);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_DownloadBufferSize:
+                                {
+                                        int downloadBufferSize;
+					logprintf("Matchde Command eAAMP_SET_DownloadBufferSize - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &downloadBufferSize) == 2){
+						mSingleton->SetDownloadBufferSize(downloadBufferSize);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_PreferredDrm:
+                                {
+                                        int preferredDrm;
+					logprintf("Matchde Command eAAMP_SET_PreferredDrm - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &preferredDrm) == 2){
+						mSingleton->SetPreferredDRM((DRMSystems)preferredDrm);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_StereoOnlyPlayback:
+                                {
+                                        int stereoOnlyPlayback;
+					logprintf("Matchde Command eAAMP_SET_StereoOnlyPlayback - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &stereoOnlyPlayback) == 2){
+						mSingleton->SetStereoOnlyPlayback(
+							(stereoOnlyPlayback == 1 )? true:false);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_AlternateContent:
+                                {
+                                        //Dummy implimentation
+					std::string adBrkId = "";
+					std::string adId = "";
+					std::string url = "";
+					logprintf("Matchde Command eAAMP_SET_AlternateContent - %s ", cmd);
+					mSingleton->SetAlternateContents(adBrkId, adId, url);
+					break;
+                                }
+
+				case eAAMP_SET_NetworkProxy:
+                                {
+                                        char networkProxy[128];
+					logprintf("Matchde Command eAAMP_SET_NetworkProxy - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, networkProxy) == 2){
+						mSingleton->SetNetworkProxy(networkProxy);
+					}
+					break;
+                                }
+				case eAAMP_SET_LicenseReqProxy:
+                                {
+                                        char licenseReqProxy[128];
+					logprintf("Matchde Command eAAMP_SET_LicenseReqProxy - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, licenseReqProxy) == 2){
+						mSingleton->SetLicenseReqProxy(licenseReqProxy);
+					}
+					break;
+                                }
+				case eAAMP_SET_DownloadStallTimeout:
+                                {
+                                        long downloadStallTimeout;
+					logprintf("Matchde Command eAAMP_SET_DownloadStallTimeout - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &downloadStallTimeout) == 2){
+						mSingleton->SetDownloadStallTimeout(downloadStallTimeout);
+					}
+					break;
+                                }
+				case eAAMP_SET_DownloadStartTimeout:
+                                {
+                                        long downloadStartTimeout;
+					logprintf("Matchde Command eAAMP_SET_DownloadStartTimeout - %s ", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &downloadStartTimeout) == 2){
+						mSingleton->SetDownloadStartTimeout(downloadStartTimeout);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_PreferredSubtitleLang:
+                                {
+					char preferredSubtitleLang[12];
+                                        logprintf("Matchde Command eAAMP_SET_PreferredSubtitleLang - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, preferredSubtitleLang) == 2){
+						mSingleton->SetPreferredSubtitleLanguage(preferredSubtitleLang);
+					}
+					break;
+                                }
+				
+				case eAAMP_SET_ParallelPlaylistDL:
+                                {
+					int parallelPlaylistDL;
+					logprintf("Matchde Command eAAMP_SET_ParallelPlaylistDL - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &parallelPlaylistDL) == 2){
+						mSingleton->SetParallelPlaylistDL( (parallelPlaylistDL == 1)? true:false );
+					}
+					break;
+                                }
+				default:
+					logprintf("Invalid set command %d\n", opt);
+			}
+
+		}
+		else if (sscanf(cmd, "set %s", help) == 1)
+		{
+			if(0 == strncmp("help", help, 4))
+			{
+				ShowHelpSet();
+			}else
+			{
+				logprintf("Invalid usage of set operations %s", help);
+			}
+		}
+		else
+		{
+			logprintf("Invalid set command = %s", cmd);
+		}
+	}
+	else if (memcmp(cmd, "get", 3) == 0 )
+	{
+		char help[8];
+		int opt;
+		if (sscanf(cmd, "get %d", &opt) == 1){
+			switch(opt){
+				case eAAMP_GET_CurrentAudioLan:
+					logprintf(" CURRRENT AUDIO LANGUAGE = %s ",
+					mSingleton->GetCurrentAudioLanguage());
+					break;
+
+				case eAAMP_GET_CurrentDrm:
+					logprintf(" CURRRENT DRM  = %s ",
+					mSingleton->GetCurrentDRM());
+					break;
+
+				case eAAMP_GET_PlaybackPosition:
+					logprintf(" PLAYBACK POSITION = %lf ",
+					mSingleton->GetPlaybackPosition());
+					break;
+
+				case eAAMP_GET_PlaybackDuration:
+					logprintf(" PLAYBACK DURATION = %lf ",
+					mSingleton->GetPlaybackDuration());
+					break;
+
+				case eAAMP_GET_VideoBitrate:
+					logprintf(" VIDEO BITRATE = %ld ",
+					mSingleton->GetVideoBitrate());
+					break;
+
+				case eAAMP_GET_AudioBitrate:
+					logprintf(" AUDIO BITRATE = %ld ",
+					mSingleton->GetAudioBitrate());
+					break;
+
+				case eAAMP_GET_AudioVolume:
+					logprintf(" AUDIO VOULUME = %d ",
+					mSingleton->GetAudioVolume());
+					break;
+				
+				case eAAMP_GET_PlaybackRate:
+					logprintf(" PLAYBACK RATE = %d ",
+					mSingleton->GetPlaybackRate());
+					break;
+
+				case eAAMP_GET_VideoBitrates:
+                                {
+					std::vector<long int> videoBitrates;
+					printf("[AAMP-PLAYER] VIDEO BITRATES = [ ");
+                                        videoBitrates = mSingleton->GetVideoBitrates();
+					for(int i=0; i < videoBitrates.size(); i++){
+						printf("%ld, ", videoBitrates[i]);
+					}
+					printf(" ] \n");
+					break;
+                                }
+
+				case eAAMP_GET_AudioBitrates:
+                                {
+					std::vector<long int> audioBitrates;
+					printf("[AAMP-PLAYER] AUDIO BITRATES = [ ");
+                                        audioBitrates = mSingleton->GetAudioBitrates();
+					for(int i=0; i < audioBitrates.size(); i++){
+						printf("%ld, ", audioBitrates[i]);
+					}
+					printf(" ] \n");
+					break;
+			        }	
+				default:
+					logprintf("Invalid get command %d\n", opt);
+			}
+
+		}
+		else if (sscanf(cmd, "get %s", help) == 1)
+		{
+			if(0 == strncmp("help", help, 4)){
+				ShowHelpGet();
+			}else
+			{
+				logprintf("Invalid usage of get operations %s", help);
+			}
+		}
+		else
+		{
+			logprintf("Invalid get command = %s", cmd);
+		}
 	}
 }
 
