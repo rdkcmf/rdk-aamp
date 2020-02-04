@@ -572,20 +572,20 @@ static void ProcessCliCommand(char *cmd)
 			}
 		}
 	}
-	else if (strcmp(cmd, "sap") == 0)
+	else if( sscanf(cmd, "sap %s",lang ) )
 	{
-		gpGlobalConfig->SAP = !gpGlobalConfig->SAP;
-		logprintf("SAP %s", gpGlobalConfig->SAP ? "on" : "off");
-		if (gpGlobalConfig->SAP)
+		logprintf("aamp cli sap called for language %s\n",lang);
+		size_t len = strlen(lang);
+		if( len>0 )
 		{
-			mSingleton->SetLanguage("es");
+			mSingleton->SetLanguage( lang );
 		}
 		else
 		{
-			mSingleton->SetLanguage("en");
+			logprintf( "GetCurrentAudioLanguage: '%s'\n", mSingleton->GetCurrentAudioLanguage() );
 		}
 	}
-    	else if( strcmp(cmd,"getplaybackrate") == 0 )
+    else if( strcmp(cmd,"getplaybackrate") == 0 )
 	{
 		logprintf("Playback Rate: %d\n", mSingleton->GetPlaybackRate());
 	}
