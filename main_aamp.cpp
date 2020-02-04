@@ -5597,7 +5597,7 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
  */
 int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
-	return aamp->rate;
+	return (aamp->pipeline_paused ? 0 : aamp->rate);
 }
 
 
