@@ -2155,29 +2155,29 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 		{
 			if (eStreamOp_DEMUX_AUDIO == m_streamOperation)
 			{
-                if(!gpGlobalConfig->bAudioOnlyPlayback)
-                {
-                    pthread_mutex_lock(&m_mutex);
-                    if (-1 == m_basePTSFromPeer)
-                    {
-                        if (m_enabled)
-                        {
-                            logprintf("TSProcessor[%p]%s:%d - wait for base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
-                            pthread_cond_wait(&m_basePTSCond, &m_mutex);
-                        }
+				if(!gpGlobalConfig->bAudioOnlyPlayback)
+				{
+					pthread_mutex_lock(&m_mutex);
+					if (-1 == m_basePTSFromPeer)
+					{
+						if (m_enabled)
+						{
+							logprintf("TSProcessor[%p]%s:%d - wait for base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+							pthread_cond_wait(&m_basePTSCond, &m_mutex);
+						}
 
-                        if (!m_enabled)
-                        {
-                            INFO("Not Enabled, Returning");
-                            m_processing = false;
-                            pthread_cond_signal(&m_throttleCond);
-                            pthread_mutex_unlock(&m_mutex);
-                            return false;
-                        }
-                        logprintf("TSProcessor[%p]%s:%d - got base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
-                    }
-                    pthread_mutex_unlock(&m_mutex);
-                }
+						if (!m_enabled)
+						{
+							INFO("Not Enabled, Returning");
+							m_processing = false;
+							pthread_cond_signal(&m_throttleCond);
+							pthread_mutex_unlock(&m_mutex);
+							return false;
+						}
+						logprintf("TSProcessor[%p]%s:%d - got base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+					}
+					pthread_mutex_unlock(&m_mutex);
+				}
 				ret = demuxAndSend(packetStart, len, m_startPosition, duration, discontinuous);
 			}
 			else if(!gpGlobalConfig->demuxedAudioBeforeVideo)

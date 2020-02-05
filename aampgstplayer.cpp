@@ -161,6 +161,8 @@ struct AAMPGstPlayerPriv
 	long long ptsUpdatedTimeMS; //Timestamp when PTS was last updated
 	guint ptsCheckForEosOnUnderflowIdleTaskId; //ID of task to ensure video PTS is not moving before notifying EOS on underflow.
 	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
+	gint64 segmentStart; // segment start value; required when qtdemux is enabled and restamping is disabled
+	GstQuery *positionQuery; // pointer that holds a position query object
 };
 
 
@@ -1292,6 +1294,10 @@ bool AAMPGstPlayer::CreatePipeline()
 #else
 			logprintf("%s buffering_enabled %u", GST_ELEMENT_NAME(privateContext->pipeline), privateContext->buffering_enabled);
 #endif
+			if (privateContext->positionQuery == NULL)
+			{
+				privateContext->positionQuery = gst_query_new_position(GST_FORMAT_TIME);
+			}
 			ret = true;
 		}
 		else
@@ -1329,8 +1335,14 @@ void AAMPGstPlayer::DestroyPipeline()
 		privateContext->bus = NULL;
 	}
 
-    //video decoder handle will change with new pipeline
-    privateContext->decoderHandleNotified = false;
+	if (privateContext->positionQuery)
+	{
+		gst_query_unref(privateContext->positionQuery);
+		privateContext->positionQuery = NULL;
+	}
+
+	//video decoder handle will change with new pipeline
+	privateContext->decoderHandleNotified = false;
 
 	logprintf("%s(): Destroying gstreamer pipeline", __FUNCTION__);
 }
@@ -1658,6 +1670,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
+	gboolean enableOverride = FALSE;
 	GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
 	if(stream->flush)
 	{
@@ -1675,7 +1688,6 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-		gboolean enableOverride;
 #if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
 		enableOverride = TRUE;
 #else
@@ -1694,6 +1706,34 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		{
 			logprintf("%s: Error on sending rate override event", __FUNCTION__);
 		}
+
+		if (enableOverride == FALSE && aamp->IsHlsMp4Asset())
+		{
+			GstStructure * segmentOverride = gst_structure_new("aamp-segment-override", "enable", G_TYPE_BOOLEAN, TRUE, NULL);
+			if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, segmentOverride)))
+			{
+				AAMPLOG_ERR("%s: Error on sending segment override event", __FUNCTION__);
+			}
+		}
+	}
+
+	if (mediaType == eMEDIATYPE_VIDEO)
+	{
+		// DELIA-39530 - Westerossink gives position as an absolute value from segment.start. In AAMP's GStreamer pipeline
+		// appsrc's base class - basesrc sends an additional segment event since we performed a flushing seek.
+		// To figure out the new segment.start, we need to send a segment query which will be replied
+		// by basesrc to get the updated segment event values.
+		// When override is enabled qtdemux internally restamps and sends segment.start = 0 which is part of
+		// AAMP's change in qtdemux so we don't need to query segment.start
+		// Enabling position query based progress reporting for non-westerossink configurations
+		if (gpGlobalConfig->bPositionQueryEnabled && enableOverride == FALSE)
+		{
+			privateContext->segmentStart = -1;
+		}
+		else
+		{
+			privateContext->segmentStart = 0;
+		}
 	}
 
 #ifdef USE_GST1
@@ -1702,11 +1742,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	segment.start = pts;
 	segment.position = 0;
 	segment.rate = AAMP_NORMAL_PLAY_RATE;
-#ifdef INTELCE
 	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
-#else
-	segment.applied_rate = privateContext->rate;
-#endif
 	logprintf("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
 	GstEvent* event = gst_event_new_segment (&segment);
 #else
@@ -2198,6 +2234,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	DestroyPipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	privateContext->lastKnownPTS = 0;
+	privateContext->segmentStart = 0;
 	logprintf("exiting AAMPGstPlayer_Stop");
 }
 
@@ -2392,20 +2429,57 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 long AAMPGstPlayer::GetPositionMilliseconds(void)
 {
 	long rc = 0;
-	gint64 pos = 0;
-	GstFormat format = GST_FORMAT_TIME;
 	if (privateContext->pipeline == NULL)
 	{
 		logprintf("%s(): Pipeline is NULL", __FUNCTION__);
 		return rc;
 	}
-#ifdef USE_GST1
-	if (gst_element_query_position(privateContext->pipeline, format, &pos))
-#else
-	if (gst_element_query_position(privateContext->pipeline, &format, &pos))
-#endif
+
+	if (privateContext->positionQuery == NULL)
 	{
-		rc = pos / 1e6;
+		logprintf("%s(): Position query is NULL", __FUNCTION__);
+		return rc;
+	}
+
+	media_stream* video = &privateContext->stream[eMEDIATYPE_VIDEO];
+
+	// segment.start needs to be queried
+	if (privateContext->segmentStart == -1)
+	{
+		GstQuery *segmentQuery = gst_query_new_segment(GST_FORMAT_TIME);
+		// DELIA-39530 - send query to video playbin in pipeline.
+		// Special case include trickplay, where only video playbin is active
+		if (gst_element_query(video->sinkbin, segmentQuery) == TRUE)
+		{
+			gint64 start;
+			gst_query_parse_segment(segmentQuery, NULL, NULL, &start, NULL);
+			privateContext->segmentStart = GST_TIME_AS_MSECONDS(start);
+			AAMPLOG_WARN("AAMPGstPlayer::%s()%d Segment start: %" G_GINT64_FORMAT, __FUNCTION__, __LINE__, privateContext->segmentStart);
+		}
+		else
+		{
+			AAMPLOG_ERR("AAMPGstPlayer::%s()%d segment query failed", __FUNCTION__, __LINE__);
+		}
+		gst_query_unref(segmentQuery);
+	}
+
+	if (gst_element_query(video->sinkbin, privateContext->positionQuery) == TRUE)
+	{
+		gint64 pos = 0;
+		gst_query_parse_position(privateContext->positionQuery, NULL, &pos);
+
+		if (privateContext->segmentStart > 0)
+		{
+			// DELIA-39530 - Deduct segment.start to find the actual time of media that's played.
+			rc = (GST_TIME_AS_MSECONDS(pos) - privateContext->segmentStart) * privateContext->rate;
+		}
+		else
+		{
+			rc = GST_TIME_AS_MSECONDS(pos) * privateContext->rate;
+		}
+		//AAMPLOG_WARN("AAMPGstPlayer::%s()%d pos - %" G_GINT64_FORMAT " rc - %ld", __FUNCTION__, __LINE__, GST_TIME_AS_MSECONDS(pos), rc);
+
+		//positionQuery is not unref-ed here, because it could be reused for future position queries
 	}
 	return rc;
 }
