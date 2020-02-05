@@ -4566,7 +4566,7 @@ void TrackState::RunFetchLoop()
 			// relative to previous playlist fetch.
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 			int minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
-			long long currentPlayPosition = aamp->GetPositionMs();
+			long long currentPlayPosition = aamp->GetPositionMilliseconds();
 			long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
 			// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation 
 			// So using the endposition in playlist - Current playing position to get the buffer availability
