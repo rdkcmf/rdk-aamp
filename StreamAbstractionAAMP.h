@@ -336,7 +336,7 @@ private:
 	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
-	int bandwidthBytesPerSecond;        /**< Bandwidth of last selected profile*/
+	int bandwidthBitsPerSecond;        /**< Bandwidth of last selected profile*/
 	double totalFetchedDuration;        /**< Total fragment fetched duration*/
 	bool discontinuityProcessed;
 
