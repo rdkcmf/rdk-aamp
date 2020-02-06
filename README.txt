@@ -179,6 +179,7 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
 gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
+enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 =================================================================================================================
 Overriding channels in aamp.cfg
@@ -272,19 +273,23 @@ v = Vector of Events happened
 
 Events:
 i = Id
-	0: Manifest Download
-	1: Video Playlist download
-	2: Audio Playlist download
-	3: Video Init fragment download
-	4: Audio Init fragment download
-	5: Video fragment download
-	6: Audio fragment download
-	7: Video framgment decryption
-	8: Audio framgment decryption
-	9: License Acquisition overall
-	10: License Acquisition pre-processing - Not included
-	11: License Acquisition Network
-	12: License Acquisition post-processing - Not included
+	0: main manifest download
+	1: video playlist download
+	2: audio playlist download
+	3: subtitle playlist download
+	4: video initialization fragment download
+	5: audio initialization fragment download
+	6: subtitle initialization fragment download
+	7: video fragment download
+	8: audio fragment download
+	9: subtitle fragment download
+	10: video decryption
+	11: audio decryption
+	12: subtitle decryption
+	13: license acquisition total
+	14: license acquisition pre-processing
+	15: license acquisition network
+	16: license acquisition post-processing
 b = Beginning time of the event, relative to 's'
 d = Duration till the completion of event
 o = Output of Event (200:Success, Non 200:Error Code)

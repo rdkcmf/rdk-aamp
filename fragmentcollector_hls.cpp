@@ -5715,8 +5715,6 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			AAMPLOG_WARN("TrackState::%s:%d [%s] init-fragment = %s", __FUNCTION__, __LINE__, name, fragmentUrl.c_str());
 			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
-			        type, false, (MediaType) (type));
 
 			MediaType actualType = eMEDIATYPE_INIT_VIDEO ;
 			if(IS_FOR_IFRAME(iCurrentRate,type))
@@ -5727,6 +5725,8 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			{
 				actualType = eMEDIATYPE_INIT_AUDIO ;
 			}
+			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
+			        type, false,  actualType);
 
 			aamp->UpdateVideoEndMetrics(actualType, (this->GetCurrentBandWidth() *8), http_code, mEffectiveUrl);
 
