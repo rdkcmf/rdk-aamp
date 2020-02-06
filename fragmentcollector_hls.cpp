@@ -1879,7 +1879,7 @@ void TrackState::FetchFragment()
 
 		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
 		// hence getting from context which is updated in FetchFragmentHelper
-		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 								lbwd,
@@ -1923,7 +1923,7 @@ void TrackState::FetchFragment()
 
 		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
 		// hence getting from context which is updated in FetchFragmentHelper
-		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth() * 8;
+		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
 
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
@@ -2770,7 +2770,7 @@ void TrackState::RefreshPlaylist(void)
 		}
 
 		aamp->UpdateVideoEndMetrics( actualType,
-								(this->GetCurrentBandWidth()*8),
+								(this->GetCurrentBandWidth()),
 								http_error,mEffectiveUrl);
 	}
 	if (playlist.len)
@@ -3766,6 +3766,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 		TrackState *video = trackState[eMEDIATYPE_VIDEO];
 		TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
+
+		//Store Bitrate info to Video Track
+		if(video)
+		{
+			video->SetCurrentBandWidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+		}
 
 		if(gpGlobalConfig->bAudioOnlyPlayback)
 		{
@@ -5337,7 +5343,7 @@ void TrackState::FetchPlaylist()
 		MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, mType);
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),(this->GetCurrentBandWidth()*8),
+		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									http_error,mEffectiveUrl);
 		if(playlist.len)
 		{
@@ -5774,7 +5780,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 				actualType = eMEDIATYPE_INIT_AUDIO ;
 			}
 
-			aamp->UpdateVideoEndMetrics(actualType, (this->GetCurrentBandWidth() *8), http_code, mEffectiveUrl);
+			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), http_code, mEffectiveUrl);
 
 			if (!fetched)
 			{

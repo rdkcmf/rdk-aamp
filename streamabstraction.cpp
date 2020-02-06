@@ -40,7 +40,6 @@
 #include "base16.h"
 #endif
 
-#define AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC (256*1024/8)
 #define AAMP_STALL_CHECK_TOLERANCE 2
 #define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
 #define DEFER_DRM_LIC_OFFSET_FROM_START 5
@@ -739,7 +738,7 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
  */
 void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 {
-	this->bandwidthBytesPerSecond = bandwidthBps/8;
+	this->bandwidthBitsPerSecond = bandwidthBps;
 }
 
 /**
@@ -748,7 +747,7 @@ void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
  */
 int MediaTrack::GetCurrentBandWidth()
 {
-	return this->bandwidthBytesPerSecond;
+	return this->bandwidthBitsPerSecond;
 }
 
 
@@ -764,7 +763,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
 		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
-		bandwidthBytesPerSecond(AAMP_DEFAULT_BANDWIDTH_BYTES_PREALLOC), totalFetchedDuration(0),
+		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
 		mSubtitleParser(NULL)
@@ -1400,7 +1399,7 @@ double StreamAbstractionAAMP::GetElapsedTime()
 long StreamAbstractionAAMP::GetVideoBitrate(void)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	return ((video && video->enabled) ? (video->GetCurrentBandWidth() * 8) : 0);
+	return ((video && video->enabled) ? (video->GetCurrentBandWidth()) : 0);
 }
 
 
@@ -1412,7 +1411,7 @@ long StreamAbstractionAAMP::GetVideoBitrate(void)
 long StreamAbstractionAAMP::GetAudioBitrate(void)
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);	
-	return ((audio && audio->enabled) ? (audio->GetCurrentBandWidth() * 8) : 0);
+	return ((audio && audio->enabled) ? (audio->GetCurrentBandWidth()) : 0);
 }
 
 /**
