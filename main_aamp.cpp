@@ -1152,7 +1152,9 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 {
 	std::stringstream eventsJSON;
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
-	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.str().c_str());
+	std::string jsonStr = eventsJSON.str();
+	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
+	logprintf("tune-profiling: %s", jsonStr.c_str());
 }
 
 /**
@@ -3457,6 +3459,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->reportBufferEvent = (value != 0);
 			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
+		}
+		else if (ReadConfigNumericHelper(cfg, "enable-tune-profiling=", value) == 1)
+		{
+			gpGlobalConfig->enableMicroEvents = (value!=0);
+			logprintf( "enable-tune-profiling=%d", value );
 		}
 		else if (cfg.at(0) == '*')
 		{
