@@ -3020,7 +3020,19 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	std::istringstream playlistStream(trackState->playlist.ptr);
 	for (std::string line; std::getline(playlistStream, line); )
 	{
-		if(!line.empty() && (line.c_str()[0] != '#'))
+		if( line.empty() )
+		{
+			continue;
+		}
+		if( line[0]=='#' )
+		{
+			if( line.rfind("#EXT-X-MAP",0) == 0)
+			{ // starts-with
+				format = FORMAT_ISO_BMFF;
+				break;
+			}
+		}
+		else
 		{
 			while(isspace(line.back()))
 			{
@@ -3037,30 +3049,26 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 			traceprintf("%s:%d line === %s ====", __FUNCTION__, __LINE__, line.c_str());
 			size_t end = line.find("?");
 			if (end != std::string::npos)
-			{
+			{ // strip any URI paratmeters
 				line = line.substr(0, end);
 			}
 			size_t extenstionStart = line.find_last_of('.');
 			if (extenstionStart != std::string::npos)
 			{
 				std::string extension = line.substr(extenstionStart);
+				// parsed extension of first advertised fragment, now compare
 				traceprintf("%s:%d extension %s", __FUNCTION__, __LINE__, extension.c_str());
-				if (0 == extension.compare(".ts"))
+				if ( extension == ".ts" )
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_MPEGTS", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_MPEGTS;
 				}
-				else if (0 == extension.compare(".mp4") || 0 == extension.compare(".m4s") || 0 == extension.compare(".cmfv"))
-				{
-					logprintf("%s:%d fragment extension %s - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__, extension.c_str());
-					format = FORMAT_ISO_BMFF;
-				}
-				else if (0 == extension.compare(".aac"))
+				else if ( extension == ".aac" )
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_AUDIO_ES_AAC", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_AUDIO_ES_AAC;
 				}
-				else if (0 == extension.compare(".vtt"))
+				else if ( extension == ".vtt" )
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_SUBTITLE_WEBVTT", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_SUBTITLE_WEBVTT;
