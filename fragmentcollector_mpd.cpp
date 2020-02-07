@@ -7471,11 +7471,19 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 			{
 				for(auto &evtChild: event->GetAdditionalSubNodes())
 				{
-					if("scte35:Signal" == evtChild->GetName())
+					std::string prefix = "scte35:";
+
+					if(evtChild->HasAttribute("xmlns") && "http://www.scte.org/schemas/35/2016" == evtChild->GetAttributeValue("xmlns"))
+					{
+						//scte35 namespace defined here. Hence, this & children don't need the prefix 'scte35'
+						prefix = "";
+					}
+
+					if(prefix+"Signal" == evtChild->GetName())
 					{
 						for(auto &signalChild: evtChild->GetNodes())
 						{
-							if(signalChild && "scte35:Binary" == signalChild->GetName())
+							if(signalChild && prefix+"Binary" == signalChild->GetName())
 							{
 								uint32_t timeScale = 1;
 								if(eventStream->GetTimescale() > 1)
