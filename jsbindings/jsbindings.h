@@ -51,8 +51,6 @@ struct PrivAAMPStruct_JS {
 	std::multimap<AAMPEventType, void*> _listeners;
 };
 
-extern "C"
-{
 /**
  *   @brief  Load aamp JS bindings.
  *
@@ -67,7 +65,6 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP);
  *   @param[in]  context - JS Core context.
  */
 void aamp_UnloadJS(void* context);
-}
 
 /**
  * @brief Loads AAMPMediaPlayer JS constructor into JS context

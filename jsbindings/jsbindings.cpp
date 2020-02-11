@@ -29,7 +29,6 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "jsbindings.h"
 #include "jsutils.h"
 #include "main_aamp.h"
 #include "priv_aamp.h"
