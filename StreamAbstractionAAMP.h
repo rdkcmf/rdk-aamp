@@ -627,7 +627,6 @@ public:
 	bool mIsAtLivePoint;                    /**< flag that denotes if playback is at live point*/
 
 	bool mIsPlaybackStalled;                /**< flag that denotes if playback was stalled or not*/
-	bool mIsFirstBuffer;                    /** <flag that denotes if the first buffer was processed or not*/
 	bool mNetworkDownDetected;              /**< Network down status indicator */
 	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
 	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/

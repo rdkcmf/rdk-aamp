@@ -53,6 +53,8 @@
 #include "aamp_aes.h"
 #endif
 #include "webvttParser.h"
+#include "tsprocessor.h"
+#include "isobmffprocessor.h"
 
 //#define TRACE // compile-time optional noisy debug output
 
@@ -1956,7 +1958,7 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fr
 	if (playContext)
 	{
 		double position = 0;
-		if(!context->mStartTimestampZero)
+		if(!context->mStartTimestampZero || streamOutputFormat == FORMAT_ISO_BMFF)
 		{
 			position = cachedFragment->position;
 		}
@@ -3917,6 +3919,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_ISO_BMFF", ts->name);
 						ts->streamOutputFormat = FORMAT_ISO_BMFF;
+						IsoBmffProcessor *processor = NULL;
+						if (eMEDIATYPE_VIDEO == iTrack)
+						{
+							processor = static_cast<IsoBmffProcessor*> (trackState[eMEDIATYPE_AUDIO]->playContext);
+						}
+						ts->playContext = new IsoBmffProcessor(aamp, (IsoBmffProcessorType) iTrack, processor);
+						ts->playContext->setRate(this->rate, PlayMode_normal);
 						//Disable subtitle for fragmented MP4 assets, as we need tsprocessor support for webvtt parsing now
 						if (subtitle->enabled)
 						{
@@ -3984,7 +3993,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 								logprintf("Configure audio TS track to queue");
 								ts->playContext = new TSProcessor(aamp,eStreamOp_QUEUE_AUDIO);
 								ts->streamOutputFormat = FORMAT_NONE;
-								audioQueuedPC = ts->playContext;
+								audioQueuedPC = static_cast<TSProcessor*> (ts->playContext);
 							}
 							if (ts->playContext)
 							{
@@ -4075,8 +4084,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 								demuxOp = eStreamOp_DEMUX_VIDEO;
 							}
 						}
-                        AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d", demuxOp);
-						ts->playContext = new TSProcessor(aamp,demuxOp, eMEDIATYPE_VIDEO, trackState[eMEDIATYPE_AUDIO]->playContext);
+						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d", demuxOp);
+						ts->playContext = new TSProcessor(aamp,demuxOp, eMEDIATYPE_VIDEO, static_cast<TSProcessor*> (trackState[eMEDIATYPE_AUDIO]->playContext));
 						ts->playContext->setThrottleEnable(this->enableThrottle);
 						if (this->rate == AAMP_NORMAL_PLAY_RATE)
 						{
@@ -4100,7 +4109,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					if (audioQueuedPC)
 					{
 						logprintf("StreamAbstractionAAMP_HLS::Init : Configure video TS track eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO");
-						ts->playContext = new TSProcessor(aamp,eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO, eMEDIATYPE_VIDEO, audioQueuedPC);
+						ts->playContext = new TSProcessor(aamp, eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO, eMEDIATYPE_VIDEO, audioQueuedPC);
 						ts->playContext->setThrottleEnable(this->enableThrottle);
 						ts->playContext->setRate(this->rate, PlayMode_normal);
 						playContextConfigured = true;
@@ -4570,7 +4579,7 @@ void TrackState::RunFetchLoop()
 			// relative to previous playlist fetch.
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 			int minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
-			long long currentPlayPosition = aamp->GetPositionMs();
+			long long currentPlayPosition = aamp->GetPositionMilliseconds();
 			long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
 			// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation 
 			// So using the endposition in playlist - Current playing position to get the buffer availability

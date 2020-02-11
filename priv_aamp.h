@@ -610,6 +610,7 @@ public:
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
+	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 public:
 
 	/**
@@ -653,6 +654,11 @@ public:
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
+#ifdef INTELCE
+		,bPositionQueryEnabled(false)
+#else
+		,bPositionQueryEnabled(true)
+#endif
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -3001,11 +3007,20 @@ public:
 
 	/**
 	 *   @brief Set parallel playlist download config value.
-	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
 	 *
+	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+
+	/**
+	 *   @brief To flush buffers in streamsink
+	 *
+	 *   @param[in] position - position to which we seek after flush
+	 *   @param[in] rate - playback rate
+	 *   @return void
+	 */
+	void FlushStreamSink(double position, int rate);
 
 private:
 
