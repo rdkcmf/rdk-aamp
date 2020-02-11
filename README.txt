@@ -179,6 +179,7 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
 enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
+gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 =================================================================================================================
 Overriding channels in aamp.cfg
