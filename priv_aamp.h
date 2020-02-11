@@ -617,6 +617,7 @@ public:
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
+	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -667,6 +668,11 @@ public:
 		,manifestTimeoutMs(-1)
 		,fragmp4LicensePrefetch(true)
 		,enableBulkTimedMetaReport(eUndefinedState)
+#ifdef INTELCE
+		,bPositionQueryEnabled(false)
+#else
+		,bPositionQueryEnabled(true)
+#endif
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -3030,11 +3036,20 @@ public:
 
 	/**
 	 *   @brief Set parallel playlist download config value.
-	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
 	 *
+	 *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+
+	/**
+	 *   @brief To flush buffers in streamsink
+	 *
+	 *   @param[in] position - position to which we seek after flush
+	 *   @param[in] rate - playback rate
+	 *   @return void
+	 */
+	void FlushStreamSink(double position, int rate);
 
 private:
 

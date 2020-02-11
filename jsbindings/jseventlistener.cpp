@@ -1146,7 +1146,7 @@ void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEvent
 				{
 					obj->_aamp->RemoveEventListener(iter->first, listener);
 				}
-				obj->_listeners.erase(iter);
+				iter = obj->_listeners.erase(iter);
 				delete listener;
 			}
 		}

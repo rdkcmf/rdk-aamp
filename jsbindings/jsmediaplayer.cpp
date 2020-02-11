@@ -123,7 +123,7 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 			for (auto it = _promiseCallbacks.begin(); it != _promiseCallbacks.end(); )
 			{
 				JSValueUnprotect(_ctx, it->second);
-				_promiseCallbacks.erase(it);
+				it = _promiseCallbacks.erase(it);
 			}
 		}
 		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
