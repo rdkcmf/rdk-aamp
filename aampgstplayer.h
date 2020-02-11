@@ -49,7 +49,7 @@ public:
 	void Stream(void);
 	void Stop(bool keepLastFrame);
 	void DumpStatus(void);
-	void Flush(double position, int rate);
+	void Flush(double position, int rate, bool shouldTearDown);
 	bool Pause(bool pause);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);

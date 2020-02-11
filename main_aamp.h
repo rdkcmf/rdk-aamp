@@ -636,9 +636,10 @@ public:
 	 *
 	 *   @param[in]  position - playback position
 	 *   @param[in]  rate - Speed
+	 *   @param[in]  shouldTearDown - if pipeline is not in a valid state, tear down pipeline
 	 *   @return void
 	 */
-	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE){}
+	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE, bool shouldTearDown = true){}
 
 
 	/**
