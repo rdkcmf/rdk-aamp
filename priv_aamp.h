@@ -615,7 +615,6 @@ public:
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
-	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -664,7 +663,6 @@ public:
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
-		,fragmp4LicensePrefetch(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

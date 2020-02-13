@@ -35,12 +35,6 @@
 #include "priv_aamp.h"
 
 /**
- * @brief Macros to track the value of API success or failure
- */
-#define DRM_API_SUCCESS (0)
-#define DRM_API_FAILED  (-1)
-
-/**
  * @class DrmData
  * @brief To hold DRM key, license request etc.
  */

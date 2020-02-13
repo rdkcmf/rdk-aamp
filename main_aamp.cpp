@@ -2959,11 +2959,6 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("map-mpd=%d", gpGlobalConfig->mapMPD);
 		}
-		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
-		{
-			gpGlobalConfig->fragmp4LicensePrefetch = (value != 0);
-			logprintf("fragmp4-license-prefetch=%d", gpGlobalConfig->fragmp4LicensePrefetch);
-		}
 		else if (ReadConfigNumericHelper(cfg, "fog-dash=", value) == 1)
 		{
 			gpGlobalConfig->fogSupportsDash = (value != 0);
