@@ -74,6 +74,11 @@
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
+#ifdef AAMP_HLS_DRM
+extern void ProcessContentProtection(TrackState *ts, const char *attrName);
+extern void SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
+#endif 
+
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -269,6 +274,13 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
 		{
+#ifdef AAMP_HLS_DRM
+			if (gpGlobalConfig->fragmp4LicensePrefetch){
+				AAMPLOG_INFO("SAMPLE-AES-CTR stream %s", ts->name);
+				ProcessContentProtection(ts, attrName);
+				ts->fragmentCdmEncrypted = true;
+			}
+#endif
 			/*
 			* TODO- Do license acquisition and license caching meshnism here
 			* Time being for fragmented mp4 content, inject fragments as it is and 
@@ -1629,6 +1641,12 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				if (!mInjectInitFragment)
 					playTarget = playlistPosition + fragmentDurationSeconds;
+#ifdef AAMP_HLS_DRM 
+				/** If fragments are CDM encrypted **/
+				if (this->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
+					SpawnDRMLicenseAcquireThread(context->aamp);
+				}
+#endif
 				if (IsLive())
 				{
 					context->CheckForPlaybackStall(true);
@@ -3845,6 +3863,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				subtitle->enabled = false;
 			}
 		}
+
 		if (trackPLDownloadThreadStarted)
 		{
 			pthread_join(trackPLDownloadThreadID, NULL);
@@ -4778,7 +4797,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
-		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
+		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE), fragmentCdmEncrypted(false)
 		,mXStartTimeOFfset(0)
 {
 	memset(&playlist, 0, sizeof(playlist));

@@ -1375,9 +1375,11 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	logprintf("queueing protection event for keysystem: %s initdata size: %d", protSystemId, initDataSize);
 
 	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
-    
-	privateContext->protectionEvent = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
-
+	if (this->aamp->IsDashAsset())
+		privateContext->protectionEvent = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
+	else
+		privateContext->protectionEvent = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+		
 	gst_buffer_unref (pssi);
 #endif
 }

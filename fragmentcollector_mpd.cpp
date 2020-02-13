@@ -457,24 +457,7 @@ struct FragmentDownloadParams
 	long long lastPlaylistUpdateMS;
 };
 
-/**
- * @struct DrmSessionParams
- * @brief Holds data regarding drm session
- */
-struct DrmSessionParams
-{
-	unsigned char *initData;
-	int initDataLen;
-	MediaType stream_type;
-	PrivateInstanceAAMP *aamp;
-	DRMSystems drmType;
-	unsigned char *contentMetadata;
-};
-
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
-
-
-
 
 /**
  * @class PrivateStreamAbstractionMPD
@@ -2400,73 +2383,10 @@ static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string
 #ifdef AAMP_MPD_DRM
 
 /**
- * @brief Create DRM Session
- * @param arg DrmSessionParams object pointer
+ * @brief thread function for create DRM session 
+ * which defined in AampDrmSessionManager
  */
-void *CreateDRMSession(void *arg)
-{
-	if(aamp_pthread_setname(pthread_self(), "aampDRM"))
-	{
-		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
-	}
-	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
-	AampDRMSessionManager* sessionManger = AampDRMSessionManager::getInstance();
-	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-	AAMPEvent e;
-	e.type = AAMP_EVENT_DRM_METADATA;
-	e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
-	e.data.dash_drmmetadata.responseCode = 0;
-	unsigned char * data = sessionParams->initData;
-	int dataLength = sessionParams->initDataLen;
-
-	unsigned char *contentMetadata = sessionParams->contentMetadata;
-	AampDrmSession *drmSession = NULL;
-	const char * systemId = WIDEVINE_SYSTEM_ID;
-	if (sessionParams->drmType == eDRM_WideVine)
-	{
-		logprintf("Found Widevine encryption from manifest");
-	}
-	else if(sessionParams->drmType == eDRM_PlayReady)
-	{
-		logprintf("Found Playready encryption from manifest");
-		systemId = PLAYREADY_SYSTEM_ID;
-	}
-	else if(sessionParams->drmType == eDRM_ClearKey)
-	{
-		logprintf("Found ClearKey encryption from manifest");
-		systemId = CLEARKEY_SYSTEM_ID;
-	}
-	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
-	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
-	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
-					contentMetadata, sessionParams->aamp, &e);
-	if(NULL == drmSession)
-	{
-		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
-		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
-		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
-					&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
-		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
-					&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
-		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
-		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
-	}
-	else
-	{
-		if(e.data.dash_drmmetadata.accessStatus_value != 3)
-		{
-			AAMPLOG_INFO("Sending DRMMetaData");
-			sessionParams->aamp->SendDRMMetaData(e);
-		}
-		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
-	}
-	free(data);
-	if(contentMetadata != NULL)
-		free(contentMetadata);
-	free(sessionParams);
-	return NULL;
-}
+extern void *CreateDRMSession(void *arg);
 
 /**
  * @brief Process content protection of adaptation
