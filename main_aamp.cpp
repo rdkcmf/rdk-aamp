@@ -3441,6 +3441,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->bPositionQueryEnabled = (value == 1);
 			logprintf("Position query based progress events: %s", gpGlobalConfig->bPositionQueryEnabled ? "ON" : "OFF");
+		}
 		else if (ReadConfigNumericHelper(cfg, "enable-tune-profiling=", value) == 1)
 		{
 			gpGlobalConfig->enableMicroEvents = (value!=0);
