@@ -3012,6 +3012,16 @@ public:
 	 */
 	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl);
 
+	/**   @brief updates download metrics to VideoStat object
+	 *
+	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+	 *   @param[in]  bitrate - bitrate ( bits per sec )
+	 *   @param[in]  width - Frame width
+     *   @param[in]  Height - Frame Height
+	 *   @return void
+	 */
+	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height);
+
 	/**
 	 *   @brief updates time shift buffer status
 	 *
