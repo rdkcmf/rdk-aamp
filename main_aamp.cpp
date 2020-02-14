@@ -3589,13 +3589,23 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		}
 
 		const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
+		bool disableWesteros = true;
 		if(env_enable_westoros_sink)
 		{
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
-			gpGlobalConfig->disableWesteros = false;
-			gpGlobalConfig->mEnableRectPropertyCfg = false;
+			int iValue = atoi(env_enable_westoros_sink);
+
+			logprintf("Value at AAMP_ENABLE_WESTEROS_SINK = %d", iValue);
+
+			if(iValue)
+			{
+				logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
+				gpGlobalConfig->disableWesteros = false;
+				gpGlobalConfig->mEnableRectPropertyCfg = false;
+				disableWesteros = false;
+			}
 		}
-		else
+
+		if (disableWesteros)
 		{
 			gpGlobalConfig->disableWesteros = true;
 			logprintf("Westeros is disabled");
