@@ -4496,6 +4496,12 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						mStreamInfo[idx].resolution.height = representation->GetHeight();
 						mStreamInfo[idx].resolution.width = representation->GetWidth();
 						mStreamInfo[idx].resolution.framerate = 0;
+						//Update profile resolution with VideoEnd Metrics object.
+						aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
+												mStreamInfo[idx].bandwidthBitsPerSecond,
+												mStreamInfo[idx].resolution.width,
+												mStreamInfo[idx].resolution.height);
+
 						std::string repFrameRate = representation->GetFrameRate();
 						if(repFrameRate.empty())
 							repFrameRate = adapFrameRate;
@@ -4559,6 +4565,12 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 							mStreamInfo[idx].resolution.width,
 							mStreamInfo[idx].resolution.height,
 						});
+						//Update profile resolution with VideoEnd Metrics object.
+						aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
+												mStreamInfo[idx].bandwidthBitsPerSecond,
+												mStreamInfo[idx].resolution.width,
+												mStreamInfo[idx].resolution.height);
+
 						if(mStreamInfo[idx].resolution.height > 1080
 								|| mStreamInfo[idx].resolution.width > 1920)
 						{
