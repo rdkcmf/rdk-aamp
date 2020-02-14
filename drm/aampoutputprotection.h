@@ -188,6 +188,13 @@ public:
     bool IsSourceUHD();
 
     /**
+     * @brief gets display resolution
+     * @param[out] int width : Display Width
+     * @param[out] int height : Display height
+     */
+    void GetDisplayResolution(int &width, int &height);
+
+    /**
      * @brief Set GstElement
      * @param element
      */

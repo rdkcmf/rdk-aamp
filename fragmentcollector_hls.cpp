@@ -794,6 +794,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					}
 
 					streamInfo->isIframeTrack = true;
+					//Update profile resolution with VideoEnd Metrics object.
+					aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
+												streamInfo->bandwidthBitsPerSecond,
+												streamInfo->resolution.width,
+												streamInfo->resolution.height );
+
 					mAbrManager.addProfile({
 						streamInfo->isIframeTrack,
 						streamInfo->bandwidthBitsPerSecond,
@@ -919,6 +925,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					// add profile only if ignore is not set
 					if(!ignoreProfile)
 					{
+						//Update profile resolution with VideoEnd Metrics object
+						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_VIDEO,
+												streamInfo->bandwidthBitsPerSecond,
+												streamInfo->resolution.width,
+												streamInfo->resolution.height );
 						mAbrManager.addProfile({
 							streamInfo->isIframeTrack,
 							streamInfo->bandwidthBitsPerSecond,
