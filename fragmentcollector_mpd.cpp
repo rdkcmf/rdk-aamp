@@ -4635,14 +4635,15 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 							double frate = val2? ((double)val1/val2):val1;
 							mStreamInfo[idx].resolution.framerate = frate;
 						}
-						//Update profile resolution with VideoEnd Metrics object.
-						aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
+
+						if ((mStreamInfo[idx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[idx].bandwidthBitsPerSecond < maxBitrate))
+						{
+							//Update profile resolution with VideoEnd Metrics object.
+							aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 												mStreamInfo[idx].bandwidthBitsPerSecond,
 												mStreamInfo[idx].resolution.width,
 												mStreamInfo[idx].resolution.height);
 
-						if ((mStreamInfo[idx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[idx].bandwidthBitsPerSecond < maxBitrate))
-						{
 							mContext->GetABRManager().addProfile({
 								mStreamInfo[idx].isIframeTrack,
 								mStreamInfo[idx].bandwidthBitsPerSecond,
