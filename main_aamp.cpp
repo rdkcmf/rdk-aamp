@@ -55,6 +55,7 @@
 #include <fstream>
 #include <math.h>
 #include "AampCacheHandler.h"
+#include "aampoutputprotection.h"
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #ifdef WIN32
@@ -6945,6 +6946,11 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 	
 	mVideoEnd = new CVideoStat();
 
+	//Collect Display resoluation and store in videoEndObject, TBD: If DisplayResolution changes during playback, its not taken care. not in scope for now. 
+	int iDisplayWidth = 0 , iDisplayHeight = 0;
+	AampOutputProtection::GetAampOutputProcectionInstance()->GetDisplayResolution(iDisplayWidth,iDisplayHeight);
+	mVideoEnd->SetDisplayResolution(iDisplayWidth,iDisplayHeight);
+
 	pthread_mutex_unlock(&mLock);
 
 	if(strVideoEndJson)
@@ -6966,6 +6972,31 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 
 }
 
+    /**   @brief updates  profile Resolution to VideoStat object
+    *
+    *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
+    *   @param[in]  bitrate - bitrate ( bits per sec )
+    *   @param[in]  width - Frame width
+    *   @param[in]  Height - Frame Height
+    *   @return void
+    */
+    void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
+    {
+        if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
+        {
+            pthread_mutex_lock(&mLock);
+            if(mVideoEnd)
+            {
+                VideoStatTrackType trackType = VideoStatTrackType::STAT_VIDEO;
+                if(mediaType == eMEDIATYPE_IFRAME)
+                {
+                    trackType = VideoStatTrackType::STAT_IFRAME;
+                }
+                mVideoEnd->SetProfileResolution(trackType,bitrate,width,height);
+            }
+            pthread_mutex_unlock(&mLock);
+        }
+    }
 /**
  *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  *
