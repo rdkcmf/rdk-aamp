@@ -1762,7 +1762,7 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
 
-			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT;
+			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
 			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
 			{
@@ -1800,7 +1800,7 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 				curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, EAS_CURL_TIMEOUT);
 				curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, EAS_CURL_CONNECTTIMEOUT);
 
-				curlDLTimeout[i] = EAS_CURL_TIMEOUT;
+				curlDLTimeout[i] = EAS_CURL_TIMEOUT * 1000;
 
 				//on ipv6 box force curl to use ipv6 mode only (DELIA-20209)
 				struct stat tmpStat;
@@ -1916,14 +1916,14 @@ bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
  * @param timeout maximum time  in seconds curl request is allowed to take
  * @param instance index of instance to which timeout to be set
  */
-void PrivateInstanceAAMP::SetCurlTimeout(long timeout, unsigned int instance)
+void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, unsigned int instance)
 {
 	if(ContentType_EAS == mContentType)
 		return;
 	if(instance < MAX_CURL_INSTANCE_COUNT && curl[instance])
 	{
-		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT_MS, timeout);
-		curlDLTimeout[instance] = timeout;
+		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT_MS, timeoutMS);
+		curlDLTimeout[instance] = timeoutMS;
 	}
 	else
 	{
@@ -2286,7 +2286,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 				}
 				else
 				{
-					long curlDownloadTimeoutMS = curlDLTimeout[curlInstance] * 1000;
+					long curlDownloadTimeoutMS = curlDLTimeout[curlInstance]; // curlDLTimeout is in msec
 					//use a delta of 100ms for edge cases
 					//abortReason for progress_callback exit scenarios
 					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
@@ -2317,7 +2317,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 
 					if (isDownloadStalled)
 					{
-						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%ld ", res, progressCtx.abortReason, downloadTimeMS, curlDownloadTimeoutMS);
+						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%ld", res, progressCtx.abortReason,
+									downloadTimeMS, curlDownloadTimeoutMS);
 						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
 						http_code = CURLE_PARTIAL_FILE;
 					}
