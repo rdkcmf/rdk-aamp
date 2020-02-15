@@ -587,6 +587,36 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_Listener_BulkTimedMetadata
+ * @brief Event listener impl for BULK_TIMED_METADATA AAMP event
+ */
+class AAMP_Listener_BulkTimedMetadata : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_BulkTimedMetadata Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+        AAMP_Listener_BulkTimedMetadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+        {
+        }
+
+
+        /**
+         * @brief Set JS event properties
+         */
+        void SetEventProperties(const AAMPEvent& e,  JSObjectRef eventObj)
+        {
+                        JSStringRef name = JSStringCreateWithUTF8CString("timedMetadatas");
+			JSObjectSetProperty(p_obj->_ctx, eventObj, name, aamp_CStringToJSValue(p_obj->_ctx, e.data.bulktimedMetadata.szMetaContent),  kJSPropertyAttributeReadOnly, NULL);
+                        JSStringRelease(name);
+        }
+};
+
 
 /**
  * @class AAMP_Listener_AdResolved
@@ -1045,6 +1075,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_WEBVTT_CUE_DATA:
 			pListener = new AAMP_Listener_VTTCueData(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_BULK_TIMED_METADATA:
+			pListener = new AAMP_Listener_BulkTimedMetadata(obj, type, jsCallback);
 			break;
 		case AAMP_EVENT_TIMED_METADATA:
 			pListener = new AAMP_Listener_TimedMetadata(obj, type, jsCallback);

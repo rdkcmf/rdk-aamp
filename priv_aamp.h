@@ -543,7 +543,8 @@ public:
 	TunedEventConfig tunedEventConfigVOD;   /**< When to send TUNED event for VOD*/
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
-	TriState playlistsParallelFetch;            /**< Enabled parallel fetching of audio & video playlists*/
+	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
+	TriState enableBulkTimedMetaReport;		/**< Enabled Bulk event reporting for TimedMetadata*/
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -665,6 +666,7 @@ public:
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
 		,fragmp4LicensePrefetch(true)
+		,enableBulkTimedMetaReport(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1585,6 +1587,7 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	bool mParallelFetchPlaylist;
+	bool mBulkTimedMetadata;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;
@@ -1600,6 +1603,7 @@ public:
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
+	std::vector<TimedMetadata> reportMetadata;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -2076,6 +2080,26 @@ public:
 	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
 
 	/**
+	 * @brief Save timed metadata for later bulk reporting
+	 *
+	 * @param[in] timeMS - Time in milliseconds
+	 * @param[in] szName - Metadata name
+	 * @param[in] szContent - Metadata content
+	 * @param[in] nb - ContentSize
+	 * @param[in] id - Identifier of the TimedMetadata
+	 * @param[in] durationMS - Duration in milliseconds
+	 * @return void
+	 */
+	void SaveTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
+
+	/**
+		 * @brief Report bulk timedMetadata
+		 *
+		 * @return void
+	 */
+	void ReportBulkTimedMetadata();
+
+	/**
 	 * @brief sleep only if aamp downloads are enabled.
 	 * interrupted on aamp_DisableDownloads() call
 	 *
@@ -2479,6 +2503,14 @@ public:
 	void SetStereoOnlyPlayback(bool bValue);
 
 	/**
+	 *   @brief Set Bulk TimedMetadata Reporting flag
+	 *   @param[in] bValue - if true Bulk event reporting enabled
+	 *
+	 *   @return void
+	 */
+	void SetBulkTimedMetaReport(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
@@ -2754,6 +2786,12 @@ public:
 	*
 	*/
 	void ConfigureParallelTimeout();
+	/**
+	*   @brief To set bulk timedMetadata reporting
+	*
+	*/
+	void ConfigureBulkTimedMetadata();
+
 	/**
 	 *   @brief To set the manifest download timeout value.
 	 *

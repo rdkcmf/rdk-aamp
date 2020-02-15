@@ -148,6 +148,7 @@ enum ConfigParamType
 	ePARAM_TSBLENGTH,
 	ePARAM_DRMCONFIG,
 	ePARAM_STEREOONLY,
+	ePARAM_BULKTIMEDMETADATA,
 	ePARAM_LIVEOFFSET,
 	ePARAM_NETWORKPROXY,
 	ePARAM_LICENSEREQPROXY,
@@ -188,6 +189,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_TSBLENGTH, "timeShiftBufferLength" },
 	{ ePARAM_DRMCONFIG, "drmConfig" },
 	{ ePARAM_STEREOONLY, "stereoOnly" },
+	{ ePARAM_BULKTIMEDMETADATA, "bulkTimedMetadata" },
 	{ ePARAM_LIVEOFFSET, "liveOffset" },
 	{ ePARAM_NETWORKPROXY, "networkProxy" },
 	{ ePARAM_LICENSEREQPROXY, "licenseProxy" },
@@ -527,6 +529,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				ret = ParseJSPropAsObject(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsObject);
 				break;
 			case ePARAM_STEREOONLY:
+			case ePARAM_BULKTIMEDMETADATA:
+				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
+                                break;
 			case ePARAM_PARALLELPLAYLISTDL:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
@@ -566,6 +571,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_STEREOONLY:
 					privObj->_aamp->SetStereoOnlyPlayback(valueAsBoolean);
+					break;
+				case ePARAM_BULKTIMEDMETADATA:
+					privObj->_aamp->SetBulkTimedMetaReport(valueAsBoolean);
 					break;
 				case ePARAM_LIVEOFFSET:
 					privObj->_aamp->SetLiveOffset((int) valueAsNumber);
