@@ -71,6 +71,7 @@ typedef enum
 	AAMP_EVENT_ENTERING_LIVE,       /**< Event when live point reached*/
 	AAMP_EVENT_BITRATE_CHANGED,     /**< Event when bitrate changes */
 	AAMP_EVENT_TIMED_METADATA,      /**< Meta-data of a subscribed tag parsed from manifest*/
+	AAMP_EVENT_BULK_TIMED_METADATA, /**< Bulk Meta-data of a subscribed tag parsed from manifest*/
 	AAMP_EVENT_STATE_CHANGED,       /**< Event when player state changes */
 	AAMP_EVENT_SPEEDS_CHANGED,      /**< Event when supported playback speeds changes */
 //Unified Video Engine API spec
@@ -320,6 +321,14 @@ struct AAMPEvent
 			double durationMilliSeconds;/**< Duration of the timed event. */
 			const char* szContent;      /**< Metadata content */
 		} timedMetadata;
+
+		/**
+		 * @brief Structure of the bulk timed metadata event
+		 */
+		struct
+		{
+			const char* szMetaContent;      /**< Metadata content */
+		} bulktimedMetadata;
 
 		/**
 		 * @brief Structure of the Java Script event
@@ -1015,6 +1024,14 @@ public:
 	 *   @return void
 	 */
 	void SetStereoOnlyPlayback(bool bValue);
+
+	/**
+	 *   @brief Set Bulk TimedMetadata Reporting flag
+	 *   @param[in] bValue - if true Bulk event reporting enabled
+	 *
+	 *   @return void
+	 */
+	void SetBulkTimedMetaReport(bool bValue);
 
 	/**
 	 *   @brief Indicates if session token has to be used with license request or not.

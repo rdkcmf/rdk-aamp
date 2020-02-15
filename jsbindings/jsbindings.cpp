@@ -1144,6 +1144,39 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_BulkTimedMetadata
+ * @brief Event listener impl for BULK_TIMED_METADATA AAMP event
+ */
+class AAMP_JSListener_BulkTimedMetadata : public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_TimedMetadata Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_BulkTimedMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+			JSStringRef name = JSStringCreateWithUTF8CString("timedMetadatas");
+			JSObjectSetProperty(context, eventObj, name, aamp_CStringToJSValue(context, e.data.bulktimedMetadata.szMetaContent),  kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+	}
+};
+
+
+/**
  * @class AAMP_JSListener_TimedMetadata
  * @brief Event listener impl for TIMED_METADATA AAMP event
  */
@@ -1662,6 +1695,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_BITRATE_CHANGED)
 	{
 		pListener = new AAMP_JSListener_BitRateChanged(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_BULK_TIMED_METADATA)
+	{
+		pListener = new AAMP_JSListener_BulkTimedMetadata(aamp, type, jsCallback);
 	}
 	else if(type == AAMP_EVENT_TIMED_METADATA)
 	{
