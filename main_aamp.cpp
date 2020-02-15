@@ -1023,7 +1023,10 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		trickStartUTCMS = -1;
 		mpStreamAbstractionAAMP->StopInjection();
 #ifndef AAMP_STOP_SINK_ON_SEEK
-		mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+		if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
+		{
+			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+		}
 #else
 		mStreamSink->Stop(true);
 #endif
@@ -1049,6 +1052,11 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 	logprintf("%s: Enter . processingDiscontinuity %d",__FUNCTION__, (mProcessingDiscontinuity[eMEDIATYPE_VIDEO] || mProcessingDiscontinuity[eMEDIATYPE_AUDIO]));
 	if (!IsDiscontinuityProcessPending())
 	{
+		if (!mpStreamAbstractionAAMP->IsEOSReached())
+		{
+			AAMPLOG_ERR("%s: Bogus EOS event received from GStreamer, discarding it!", __FUNCTION__);
+			return;
+		}
 		if (!IsLive() && rate > 0)
 		{
 			SetState(eSTATE_COMPLETE);
