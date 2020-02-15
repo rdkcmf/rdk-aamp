@@ -135,6 +135,10 @@ var defaultInitConfig = {
      * stereo-only for the playback
      */
     stereoOnly: false,
+    /**
+     * bulk TimedMetadata reporting
+     */
+    bulkTimedMetadata: false,
 
     /**
      * enable audio video playlist parallel download optimization (only for HLS)
