@@ -2797,11 +2797,12 @@ void TrackState::RefreshPlaylist(void)
 					aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
 				}
 			}
+
+			// Metadata refresh is needed for live content only , not for VOD
+			// Across ABR , for VOD no metadata change is expected from initial reported ones
+			FindTimedMetadata();
 		}
-
-		//Parse for timed metadata in the updated playlist
-		FindTimedMetadata();
-
+	
 		if( mDuration > 0.0f )
 		{
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
@@ -3841,7 +3842,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = (newTune || mTuneType == eTUNETYPE_RETUNE); //these tune types have new gstreamer pipeline
 				ts->IndexPlaylist();
-				ts->FindTimedMetadata();
+
 				if (ts->mDuration == 0.0f)
 				{
 					if (iTrack == eTRACK_SUBTITLE)
@@ -3853,6 +3854,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					else
 					{
 						break;
+					}
+				}
+				// Send Metadata for Video playlist
+				if(iTrack == eTRACK_VIDEO)
+				{
+					ts->FindTimedMetadata(aamp->mBulkTimedMetadata);
+					if(aamp->mBulkTimedMetadata)
+					{
+						// Send bulk report
+						aamp->ReportBulkTimedMetadata();
 					}
 				}
 
@@ -5890,7 +5901,7 @@ void TrackState::RestoreDrmState()
 *
 * @return void
 ***************************************************************************/
-void TrackState::FindTimedMetadata()
+void TrackState::FindTimedMetadata(bool reportBulkMeta)
 {
 	double totalDuration = 0.0;
 	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
@@ -5917,7 +5928,14 @@ void TrackState::FindTimedMetadata()
 							int nb = (int)FindLineLength(ptr);
 							long long positionMilliseconds = (long long) std::round((mCulledSeconds + totalDuration) * 1000.0);
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
-							aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb);
+							if(reportBulkMeta)
+							{
+								aamp->SaveTimedMetadata(positionMilliseconds, data, ptr, nb);
+							}
+							else
+							{
+								aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb);
+							}
 							break;
 						}
 					}

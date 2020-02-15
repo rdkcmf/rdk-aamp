@@ -3227,6 +3227,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
 			logprintf("playlists-parallel-fetch=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "bulk-timedmeta-report=", value) == 1)
+		{
+			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
+			logprintf("bulk-timedmeta-report=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
@@ -4288,6 +4293,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
 	ConfigureParallelTimeout();
+	ConfigureBulkTimedMetadata();
 
 	if (NULL == mStreamSink)
 	{
@@ -5717,6 +5723,16 @@ void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 
 
 /**
+ *   @brief Set BulkTimedMetadata Reporting flag
+ */
+void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
+{
+	aamp->SetBulkTimedMetaReport(bValue);
+}
+
+
+
+/**
  *   @brief Setting the alternate contents' (Ads/blackouts) URL.
  *
  *   @param[in] Adbreak's unique identifier.
@@ -6142,6 +6158,59 @@ void PrivateInstanceAAMP::Stop()
 	}
 }
 
+/**
+ * @brief SaveTimedMetadata Function to store Metadata for bulk reporting during Initialization 
+ *
+ */
+void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
+{
+	std::string content(szContent, nb);
+	reportMetadata.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
+}
+
+/**
+ * @brief ReportBulkTimedMetadata Function to send bulk timedMetadata in json format 
+ *
+ */
+void PrivateInstanceAAMP::ReportBulkTimedMetadata()
+{
+	std::vector<TimedMetadata>::iterator iter;
+	if(gpGlobalConfig->enableSubscribedTags && reportMetadata.size())
+	{
+		AAMPLOG_INFO("%s:%d Sending bulk Timed Metadata",__FUNCTION__,__LINE__);
+
+		cJSON *root;
+		cJSON *item;
+		root = cJSON_CreateArray();
+		if(root)
+		{
+			for (iter = reportMetadata.begin(); iter != reportMetadata.end(); iter++)
+			{
+				cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+				cJSON_AddStringToObject(item, "name", iter->_name.c_str());
+				cJSON_AddStringToObject(item, "id", iter->_id.c_str());
+				cJSON_AddNumberToObject(item, "timeMs", iter->_timeMS);
+				cJSON_AddNumberToObject (item, "durationMs",iter->_durationMS);
+				cJSON_AddStringToObject(item, "data", iter->_content.c_str());
+			}
+
+			char* bulkData = cJSON_Print(root);
+			if(bulkData)
+			{
+
+				AAMPEvent eventData;
+				eventData.type = AAMP_EVENT_BULK_TIMED_METADATA;
+				eventData.data.bulktimedMetadata.szMetaContent = bulkData;
+				AAMPLOG_INFO("%s:%d:: Generated bulkTimedData : %s", __FUNCTION__, __LINE__, bulkData);
+				// Sending BulkTimedMetaData event as synchronous event.
+				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
+				SendEventSync(eventData);
+				free(bulkData);
+			}
+			cJSON_Delete(root);
+		}
+	}
+}
 
 
 /**
@@ -6503,6 +6572,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mManifestTimeoutMs(-1)
 	,mNetworkTimeoutMs(-1)
 	,mParallelFetchPlaylist(false)
+	,mBulkTimedMetadata(false)
+	,reportMetadata()
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7762,7 +7833,10 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 }
 
-
+/**
+ *   @brief To set Parallel Download configuration
+ *
+ */
 void PrivateInstanceAAMP::ConfigureParallelTimeout()
 {
 	if(gpGlobalConfig->playlistsParallelFetch != eUndefinedState)
@@ -7771,6 +7845,21 @@ void PrivateInstanceAAMP::ConfigureParallelTimeout()
         }
         AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download state[%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist);
 }
+
+/**
+ *   @brief To set bulk timedMetadata reporting configuration
+ *
+ */
+void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
+{
+        if(gpGlobalConfig->enableBulkTimedMetaReport != eUndefinedState)
+        {
+                mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
+        }
+        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
+}
+
+
 /**
  *   @brief To set the download buffer size value
  *
@@ -7819,6 +7908,7 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 	gpGlobalConfig->disableATMOS = bValue;
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS and EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
 }
+
 
 #ifdef PLACEMENT_EMULATION
 	static int sampleAdIdx = 0;
@@ -8364,6 +8454,19 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, int rate)
 	}
 #endif
 }
+
+/**
+ *   @brief Set Bulk TimedMetadata reporting flag 
+ *   @param[in] bValue - true if Application supports bulk reporting 
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
+{
+        mBulkTimedMetadata = bValue;
+        AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
 
 /**
  * @}
