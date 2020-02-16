@@ -176,7 +176,7 @@ public:
 			MediaTrack(type, aamp, name),
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
+			eos(false), fragmentTime(0), periodStartOffset(0), targetDnldPosition(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment(), discontinuity(false)
 	{
@@ -436,6 +436,7 @@ public:
 
 	double fragmentTime;
 	double periodStartOffset;
+	double targetDnldPosition;
 	char *index_ptr;
 	size_t index_len;
 	uint64_t lastSegmentTime;
@@ -1383,6 +1384,15 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					if(retval)
 					{
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+						//logprintf("VOD/CDVR Line:%d fragmentDuration:%f target:%f SegTime%f rate:%f",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
+						if(rate > AAMP_NORMAL_PLAY_RATE)
+						{
+							pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
+						}
+						else
+						{
+							pMediaStreamContext->targetDnldPosition += fragmentDuration;
+						}
 					}
 					else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
 					{
@@ -1724,6 +1734,18 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							double fragmentDuration = (double)duration / timescale;
 							pMediaStreamContext->lastSegmentTime = startTime;
 							retval = FetchFragment(pMediaStreamContext, segmentURL->GetMediaURI(), fragmentDuration, false, curlInstance);
+							if(retval && rate > 0)
+							{
+								//logprintf("Live update Line:%d fragmentDuration:%f target:%f FragTime%f rate:%f",__LINE__,fragmentDuration,pMediaStreamContext->targetDnldPosition,pMediaStreamContext->fragmentTime,rate);
+								if(rate > AAMP_NORMAL_PLAY_RATE)
+								{
+									pMediaStreamContext->targetDnldPosition = pMediaStreamContext->fragmentTime;
+								}
+								else
+								{
+									pMediaStreamContext->targetDnldPosition += fragmentDuration;
+								}
+							}
 							if(mContext->mCheckForRampdown)
 							{
 								/* This case needs to be validated with the segmentList available stream */
@@ -5761,7 +5783,8 @@ NEEDFRAGMENTS:
 		{
 			int minDelayBetweenPlaylistUpdates = (int)mMinUpdateDurationMs;
 			int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-			long long currentPlayPosition = aamp->GetPositionMilliseconds();
+			//long bufferAvailable = ((long)(mMediaStreamContext[eMEDIATYPE_VIDEO]->targetDnldPosition*1000) - (long)aamp->GetPositionMs());
+			long long currentPlayPosition = aamp->GetPositionMs();
 			long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
 			// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation
 			// So using the endposition in playlist - Current playing position to get the buffer availability
@@ -5920,6 +5943,9 @@ void PrivateStreamAbstractionMPD::Start(void)
 	fragmentCollectorThreadStarted = true;
 	for (int i=0; i< mNumberOfTracks; i++)
 	{
+		// DELIA-30608 - Right place to update targetDnldPosition.
+		// Here GetPosition will give updated seek position (for live)
+		mMediaStreamContext[i]->targetDnldPosition= aamp->GetPositionMs()/1000;
 		mMediaStreamContext[i]->StartInjectLoop();
 	}
 }

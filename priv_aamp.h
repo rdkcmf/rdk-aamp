@@ -610,7 +610,6 @@ public:
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
-	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 public:
 
 	/**
@@ -654,11 +653,6 @@ public:
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
-#ifdef INTELCE
-		,bPositionQueryEnabled(false)
-#else
-		,bPositionQueryEnabled(true)
-#endif
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -3012,13 +3006,6 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
-
-	/**
-	 *   @brief To check if current asset is HLS-MP4 asset
-	 *
-	 *   @return bool - true if asset is HLS-MP4, false otherwise
-	 */
-	bool IsHlsMp4Asset() { return (mMediaFormat == eMEDIAFORMAT_HLS_MP4); }
 
 private:
 
