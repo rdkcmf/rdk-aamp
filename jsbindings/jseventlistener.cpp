@@ -386,6 +386,42 @@ public:
 
 
 /**
+ * @class AAMP_Listener_TuneProfiling
+ * @brief Event listener impl for AAMP_EVENT_TUNE_PROFILING event.
+ */
+class AAMP_Listener_TuneProfiling : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_TuneProfiling Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_TuneProfiling(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	{
+                JSStringRef prop;
+                const char* microData = ev.data.tuneProfile.microData;
+
+                LOG("AAMP_Listener_TuneProfiling microData %s", microData);
+                prop = JSStringCreateWithUTF8CString("microData");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, microData), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+	}
+
+};
+
+/**
  * @class AAMP_Listener_CCHandleAvailable
  * @brief Event listener impl for AAMP_EVENT_CC_HANDLE_RECEIVED, event.
  */
@@ -1063,6 +1099,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_SEEKED:
 			pListener = new AAMP_Listener_Seeked(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_TUNE_PROFILING:
+			pListener = new AAMP_Listener_TuneProfiling(obj, type, jsCallback);
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			pListener = new AAMP_Listener_CCHandleAvailable(obj, type, jsCallback);

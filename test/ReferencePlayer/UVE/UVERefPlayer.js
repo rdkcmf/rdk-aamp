@@ -440,6 +440,10 @@ function playbackSeeked(event) {
     console.log("Play Seeked " + JSON.stringify(event));
 }
 
+function tuneProfiling(event) {
+    console.log("Tune Profiling Data: " + event.microData);
+}
+
 // helper functions
 function resetPlayer() {
     resetSubtitles(true);
@@ -474,6 +478,7 @@ function resetPlayer() {
     playerObj.addEventListener("placementEnd", placementEnd);
     playerObj.addEventListener("reservationEnd", reservationEnd);
     playerObj.addEventListener("seeked", playbackSeeked);
+    playerObj.addEventListener("tuneProfiling", tuneProfiling);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
     playerState = playerStatesEnum.idle;

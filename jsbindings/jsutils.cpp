@@ -99,6 +99,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_STATE_CHANGED, "playbackStateChanged"},
 	{ AAMP_EVENT_SPEEDS_CHANGED, "speedsChanged"},
 	{ AAMP_EVENT_SEEKED, "seeked"},
+	{ AAMP_EVENT_TUNE_PROFILING, "tuneProfiling"},
 	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
 	{ AAMP_EVENT_DURATION_CHANGED, "durationChanged"},
 	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "currentAudioTrackChanged"},
