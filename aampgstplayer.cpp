@@ -1590,6 +1590,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
 	if(stream->flush)
 	{
+		logprintf("%s:%d flush pipeline", __FUNCTION__, __LINE__);
 		gboolean ret = gst_pad_push_event(sourceEleSrcPad, gst_event_new_flush_start());
 		if (!ret) logprintf("%s: flush start error", __FUNCTION__);
 #ifdef USE_GST1
@@ -1657,7 +1658,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #endif
 	if (!gst_pad_push_event(sourceEleSrcPad, event))
 	{
-		 logprintf("%s: gst_pad_push_event segment error", __FUNCTION__);
+		logprintf("%s: gst_pad_push_event segment error", __FUNCTION__);
 	}
 
 	if (stream->format == FORMAT_ISO_BMFF)
