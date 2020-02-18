@@ -363,6 +363,9 @@ function playbackSeeked(event) {
 
 function bulkMetadataHandler(event) {
 	console.log("Bulk TimedMetadata : " + JSON.stringify(event));
+
+function tuneProfiling(event) {
+    console.log("Tune Profiling Data: " + event.microData);
 }
 
 // helper functions
@@ -392,6 +395,7 @@ function resetPlayer() {
     playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
     playerObj.addEventListener("seeked", playbackSeeked);
     //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
+    playerObj.addEventListener("tuneProfiling", tuneProfiling);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
     playerState = playerStatesEnum.idle;

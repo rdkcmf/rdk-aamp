@@ -76,6 +76,7 @@ typedef enum
 	AAMP_EVENT_SPEEDS_CHANGED,      /**< Event when supported playback speeds changes */
 //Unified Video Engine API spec
 	AAMP_EVENT_SEEKED,              /**< Event when seek completes, including new position*/
+	AAMP_EVENT_TUNE_PROFILING,      /**< Event when micro event data sends*/
 	AAMP_EVENT_BUFFERING_CHANGED,   /**< Event when buffering starts/ends btw a playback*/
 	AAMP_EVENT_DURATION_CHANGED,    /**< Event when duration changed */
 	AAMP_EVENT_AUDIO_TRACKS_CHANGED,/**< Event when available audio tracks changes */
@@ -240,6 +241,10 @@ struct AAMPEvent
 			char msg[MAX_ANOMALY_BUFF_SIZE];
 		} anomalyReport;
 
+		struct
+		{
+			char * microData;   /**< micro event data for profiling */
+		} tuneProfile;
 
 		struct
 		{
