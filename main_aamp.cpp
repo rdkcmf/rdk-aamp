@@ -160,6 +160,31 @@ struct AsyncMetricsEventDescriptor : public AsyncEventDescriptor
 	}
 };
 
+/**
+ * @struct AsyncMicroEventDescriptor
+ * @brief Used in asynchronous aamp data event for micro event
+ * new struct created to handle memory deletion
+ */
+struct AsyncMicroEventDescriptor : public AsyncEventDescriptor
+{
+	AsyncMicroEventDescriptor(const char * data)
+	{
+		event.type = AAMP_EVENT_TUNE_PROFILING;
+		char *eventData = new char[strlen(data) + 1];
+		strcpy(eventData, data);
+		event.data.tuneProfile.microData = eventData;
+	}
+
+	virtual ~AsyncMicroEventDescriptor()
+	{
+		if(event.data.tuneProfile.microData)
+		{
+			delete[] event.data.tuneProfile.microData;
+		}
+	}
+};
+
+
 static TuneFailureMap tuneFailureMap[] =
 {
 	{AAMP_TUNE_INIT_FAILED, 10, "AAMP: init failed"}, //"Fragmentcollector initialization failed"
@@ -1186,6 +1211,12 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 	std::string jsonStr = eventsJSON.str();
 	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
 	logprintf("tune-profiling: %s", jsonStr.c_str());
+
+	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_TUNE_PROFILING])
+	{
+		AsyncMicroEventDescriptor* e = new AsyncMicroEventDescriptor(jsonStr.c_str());
+		ScheduleEvent(e);
+	}
 }
 
 /**
