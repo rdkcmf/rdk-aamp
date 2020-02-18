@@ -471,7 +471,7 @@ TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 	}
 	else
 	{
-		mdt = READ_U32(ptr);
+		mdt = (uint32_t)READ_U32(ptr);
 	}
 	FullBox fbox(sz, Box::TFDT, version, flags);
 	return new TfdtBox(fbox, mdt);

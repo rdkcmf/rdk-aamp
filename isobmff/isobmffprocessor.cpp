@@ -108,7 +108,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 			if (ret && processPTSComplete)
 			{
-				double pos = (double) (basePTS / timeScale);
+				double pos = ((double)basePTS / (double)timeScale);
 				pushInitSegment(pos);
 			}
 		}
@@ -131,7 +131,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			if (buffer.getTimeScale(tScale))
 			{
 				timeScale = tScale;
-				AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+				AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
 			}
 
 			cacheInitSegment(segment, size);
@@ -145,7 +145,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			{
 				basePTS = fPts;
 				processPTSComplete = true;
-				AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] Base PTS (%lld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], basePTS);
+				AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] Base PTS (%lld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], basePTS);
 			}
 			else
 			{
@@ -161,7 +161,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 			if (ret && processPTSComplete)
 			{
-				double pos = (double) (basePTS / timeScale);
+				double pos = ((double)basePTS / (double)timeScale);
 				if (type == eBMFFPROCESSOR_TYPE_VIDEO)
 				{
 					// Send flushing seek to gstreamer pipeline.
@@ -237,7 +237,7 @@ void IsoBmffProcessor::setRate(double rate, PlayMode mode)
  */
 void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 {
-	AAMPLOG_INFO("%s:%d [%s] Base PTS (%lld) and TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], pts, tScale);
+	AAMPLOG_WARN("%s:%d [%s] Base PTS (%lld) and TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], pts, tScale);
 	pthread_mutex_lock(&m_mutex);
 	basePTS = pts;
 	timeScale = tScale;
