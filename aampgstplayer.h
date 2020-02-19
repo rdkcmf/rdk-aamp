@@ -66,6 +66,8 @@ public:
 	void GetVideoSize(int &w, int &h);
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len);
 	void ClearProtectionEvent();
+	bool SendBufferEndEvent();
+
 
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp);

@@ -734,6 +734,25 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 }
 
 /**
+ * @brief To change the the gstreamer pipeline to pause/play
+ *
+ * @param[in] pause- true for pause and false for play
+ * @return true on success
+ */
+bool PrivateInstanceAAMP::PausePipeline(bool pause)
+{
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+	if ( true != mStreamSink->Pause(pause) )
+	{
+		return(false);
+	}
+	pipeline_paused = pause;
+	return(true);
+#endif
+
+}
+
+/**
  * @brief Handles errors and sends events to application if required.
  * For download failures, use SendDownloadErrorEvent instead.
  * @param tuneFailure Reason of error
@@ -6472,6 +6491,13 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
+			if ( false == pipeline_paused )
+			{
+				if ( true != PausePipeline(true) )
+				{
+					AAMPLOG_ERR("%s(): Failed to pause the Pipeline", __FUNCTION__);
+				}
+			}
 		}
 
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
