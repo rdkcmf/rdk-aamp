@@ -1879,6 +1879,13 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			aamp->NotifyFirstBufferProcessed();
 		}
 		privateContext->numberOfVideoBuffersSent++;
+		if ( gpGlobalConfig->reportBufferEvent && privateContext->video_dec  && aamp->GetBufUnderFlowStatus() )
+		{
+			if ( true != SendBufferEndEvent() )
+			{
+				AAMPLOG_ERR("%s(): Failed to send BufferEndEvent", __FUNCTION__);
+			}
+		}
 	}
 }
 
@@ -1960,7 +1967,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 			aamp->NotifyFirstBufferProcessed();
 		}
 		privateContext->numberOfVideoBuffersSent++;
+		if ( gpGlobalConfig->reportBufferEvent &&  privateContext->video_dec  && aamp->GetBufUnderFlowStatus() )
+		{
+			if ( true != SendBufferEndEvent() )
+			{
+				AAMPLOG_ERR("%s(): Failed to send BufferEndEvent", __FUNCTION__);
+			}
+		}
 	}
+
 }
 
 
@@ -3198,6 +3213,28 @@ void AAMPGstPlayer::SeekStreamSink(double position, double rate)
 	{
 		privateContext->stream[i].flush = false;
 	}
+}
+
+/**
+ * @brief Notify buffer end event to player.
+ *
+ */
+bool AAMPGstPlayer::SendBufferEndEvent()
+{
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+	uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
+        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
+        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
+        if ( ( bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN )  || ( frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN ) ) //TODO: the minimum byte and frame values should be configurable from aamp.cfg
+        {
+		if( true != aamp->PausePipeline(false) )
+		{
+			return false;
+		}
+		aamp->SendBufferChangeEvent();
+        }
+	return true;
+#endif
 }
 
 /**

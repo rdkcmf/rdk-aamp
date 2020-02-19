@@ -1550,6 +1550,14 @@ public:
 	void sendTuneMetrics(bool success);
 
 	/**
+	 * @brief To pause/play the gstreamer pipeline
+	 *
+	 * @param[in] success - true for pause and false for play
+	 * @return true on success
+	 */
+	bool PausePipeline(bool pause);
+
+	/**
 	 * @brief Convert media file type to profiler bucket type
 	 *
 	 * @param[in] fileType - Media filetype
