@@ -145,6 +145,7 @@ typedef enum
 	AAMP_TUNE_HDCP_COMPLIANCE_ERROR,	/**< HDCP Compliance Check failure.Not compatible hdcp version for playback */
 	AAMP_TUNE_INVALID_MANIFEST_FAILURE,     /**< Manifest is invalid */
 	AAMP_TUNE_FAILED_PTS_ERROR,             /**< Playback failed due to PTS error */
+	AAMP_TUNE_MP4_INIT_FRAGMENT_MISSING,	/**< Init fragments missing in playlist */
 	AAMP_TUNE_FAILURE_UNKNOWN               /**<  Unknown failure */
 }AAMPTuneFailure;
 
