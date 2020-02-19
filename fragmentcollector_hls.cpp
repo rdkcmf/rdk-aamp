@@ -1429,6 +1429,14 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 						if (!ignoreDiscontinuity)
 						{
 							logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] playTarget %f total mCulledSeconds %f", __FUNCTION__, __LINE__, type, playTarget, mCulledSeconds);
+							// Check if X-DISCONTINUITY tag is seen without explicit X-MAP tag
+							// Reuse last parsed/seen X-MAP tag in such cases
+							if (mInitFragmentInfo != NULL && mInjectInitFragment == false)
+							{
+								mInjectInitFragment = true;
+								AAMPLOG_WARN("%s:%d: Reusing last seen #EXT-X-MAP for this discontinuity, data: %s", __FUNCTION__, __LINE__, mInitFragmentInfo);
+							}
+
 							TrackType otherType = (type == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO;
 							TrackState *other = context->trackState[otherType];
 							if (other->enabled)
