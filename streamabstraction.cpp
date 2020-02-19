@@ -512,11 +512,6 @@ bool MediaTrack::InjectFragment()
 					InjectFragmentInternal(cachedFragment, fragmentDiscarded);
 #endif
 #endif
-					if((type == eTRACK_VIDEO) && (gpGlobalConfig->reportBufferEvent) &&
-							(aamp->GetBufUnderFlowStatus()))
-					{
-						aamp->SendBufferChangeEvent();  //Underflow END
-					}
 				}
 				if (eTRACK_VIDEO == type)
 				{
