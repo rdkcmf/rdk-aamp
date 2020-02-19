@@ -55,7 +55,9 @@
 #include <fstream>
 #include <math.h>
 #include "AampCacheHandler.h"
+#ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
+#endif
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #ifdef WIN32
@@ -6945,12 +6947,12 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 	}
 	
 	mVideoEnd = new CVideoStat();
-
+#ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 	//Collect Display resoluation and store in videoEndObject, TBD: If DisplayResolution changes during playback, its not taken care. not in scope for now. 
 	int iDisplayWidth = 0 , iDisplayHeight = 0;
 	AampOutputProtection::GetAampOutputProcectionInstance()->GetDisplayResolution(iDisplayWidth,iDisplayHeight);
 	mVideoEnd->SetDisplayResolution(iDisplayWidth,iDisplayHeight);
-
+#endif 
 	pthread_mutex_unlock(&mLock);
 
 	if(strVideoEndJson)
