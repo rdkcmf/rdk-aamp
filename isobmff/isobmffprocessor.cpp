@@ -24,6 +24,7 @@
 
 #include "isobmffprocessor.h"
 #include <pthread.h>
+#include <assert.h>
 
 static const char *IsoBmffProcessorTypeName[] =
 {
@@ -161,20 +162,49 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 			if (ret && processPTSComplete)
 			{
-				double pos = ((double)basePTS / (double)timeScale);
-				if (type == eBMFFPROCESSOR_TYPE_VIDEO)
+				if (timeScale == 0)
 				{
-					// Send flushing seek to gstreamer pipeline.
-					// For new tune, this will not work, so send pts as fragment position
-					p_aamp->FlushStreamSink(pos, playRate);
+					if (initSegment.empty())
+					{
+						AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] Init segment missing during PTS processing!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+						p_aamp->SendErrorEvent(AAMP_TUNE_MP4_INIT_FRAGMENT_MISSING);
+						ret = false;
+					}
+					else
+					{
+						AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] MDHD/MVHD boxes are missing in init segment!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+						uint32_t tScale = 0;
+						if (buffer.getTimeScale(tScale))
+						{
+							timeScale = tScale;
+							AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+						}
+						if (timeScale == 0)
+						{
+							AAMPLOG_ERR("IsoBmffProcessor::%s() %d [%s] TimeScale value missing in init segment and mp4 fragment, setting to a default of 1!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+							timeScale = 1; // to avoid div-by-zero errors later. MDHD and MVHD are mandatory boxes, but lets relax for now
+						}
+
+					}
 				}
 
-				if (peerProcessor)
+				if (ret)
 				{
-					peerProcessor->setBasePTS(basePTS, timeScale);
-				}
+					double pos = ((double)basePTS / (double)timeScale);
+					if (type == eBMFFPROCESSOR_TYPE_VIDEO)
+					{
+						// Send flushing seek to gstreamer pipeline.
+						// For new tune, this will not work, so send pts as fragment position
+						p_aamp->FlushStreamSink(pos, playRate);
+					}
 
-				pushInitSegment(pos);
+					if (peerProcessor)
+					{
+						peerProcessor->setBasePTS(basePTS, timeScale);
+					}
+
+					pushInitSegment(pos);
+				}
 			}
 		}
 	}
