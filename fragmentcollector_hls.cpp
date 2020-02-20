@@ -1461,6 +1461,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 								{
 									logprintf("%s:%d [%s] Ignoring discontinuity as %s track does not have discontinuity", __FUNCTION__, __LINE__, name, other->name);
 									discontinuity = false;
+									discontinuityIgnored = true;
 								}
 								else if (programDateTime)
 								{
