@@ -123,6 +123,7 @@ struct AAMPGstPlayerPriv
 	guint firstProgressCallbackIdleTaskId; //ID of idle handler created for notifying first progress event.
 	std::atomic<bool> firstProgressCallbackIdleTaskPending; //Set if any first progress callback is pending.
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
+	guint bufferingTimeoutTimerId; //ID of timer handler created for buffering timeout.
 	GstElement *video_dec; //Video decoder used by pipeline.
 	GstElement *audio_dec; //Audio decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
@@ -486,9 +487,11 @@ static void httpsoup_source_setup (GstElement * element, GstElement * source, gp
 static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 {
         AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-        _this->aamp->NotifyFirstFrameReceived();
-        _this->privateContext->firstFrameCallbackIdleTaskPending = false;
-        _this->privateContext->firstFrameCallbackIdleTaskId = 0;
+		if (_this){
+			_this->aamp->NotifyFirstFrameReceived();
+			_this->privateContext->firstFrameCallbackIdleTaskPending = false;
+			_this->privateContext->firstFrameCallbackIdleTaskId = 0;
+		}
         return G_SOURCE_REMOVE;
 }
 
@@ -501,10 +504,12 @@ static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 static gboolean IdleCallbackOnEOS(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	_this->privateContext->eosCallbackIdleTaskPending = false;
-	logprintf("%s:%d  eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->eosCallbackIdleTaskId);
-	_this->aamp->NotifyEOSReached();
-	_this->privateContext->eosCallbackIdleTaskId = 0;
+	if (_this){
+		_this->privateContext->eosCallbackIdleTaskPending = false;
+		logprintf("%s:%d  eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->eosCallbackIdleTaskId);
+		_this->aamp->NotifyEOSReached();
+		_this->privateContext->eosCallbackIdleTaskId = 0;
+	}
 	return G_SOURCE_REMOVE;
 }
 
@@ -518,8 +523,10 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	_this->aamp->ReportProgress();
-	traceprintf("%s:%d current %d, stored %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+	if (_this){
+		_this->aamp->ReportProgress();
+		traceprintf("%s:%d current %d, stored %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+	}
 	return G_SOURCE_CONTINUE;
 }
 
@@ -532,17 +539,19 @@ static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 static gboolean IdleCallback(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	_this->aamp->ReportProgress();
-	_this->privateContext->firstProgressCallbackIdleTaskPending = false;
-	_this->privateContext->firstProgressCallbackIdleTaskId = 0;
-	if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
-	{
-		_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(_this->aamp->mReportProgressInterval, ProgressCallbackOnTimeout, user_data);
-		AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
-	}
-	else
-	{
-		AAMPLOG_INFO("%s:%d Progress callback already available: periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->periodicProgressCallbackIdleTaskId);
+	if (_this){
+		_this->aamp->ReportProgress();
+		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
+		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
+		if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
+		{
+			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(_this->aamp->mReportProgressInterval, ProgressCallbackOnTimeout, user_data);
+			AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+		}
+		else
+		{
+			AAMPLOG_INFO("%s:%d Progress callback already available: periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->periodicProgressCallbackIdleTaskId);
+		}
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -765,34 +774,51 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 static gboolean buffering_timeout (gpointer data)
 {
 	AAMPGstPlayer * _this = (AAMPGstPlayer *) data;
-	AAMPGstPlayerPriv * privateContext = _this->privateContext;
-	if (_this->privateContext->buffering_in_progress)
+	if (_this && _this->privateContext)
 	{
-		guint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
-		if (_this->privateContext->video_dec)
+		AAMPGstPlayerPriv * privateContext = _this->privateContext;
+		if (_this->privateContext->buffering_in_progress)
 		{
-			g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
-			g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
+			guint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
+			if (_this->privateContext->video_dec)
+			{
+				g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
+				g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
+			}
+			/* DELIA-34654: Disable re-tune on buffering timeout for DASH as unlike HLS,
+			DRM key acquisition can end after injection, and buffering is not expected
+			to be completed by the 1 second timeout
+			*/
+			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+			{
+				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
+				privateContext->buffering_in_progress = false;
+				_this->DumpDiagnostics();
+				_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
+			}
+			else if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
+			{
+				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  bytes %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), bytes, frames);
+				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
+				_this->privateContext->buffering_in_progress = false;
+			}
 		}
-		/* DELIA-34654: Disable re-tune on buffering timeout for DASH as unlike HLS,
-		   DRM key acquisition can end after injection, and buffering is not expected
-		   to be completed by the 1 second timeout
-		*/
-		if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+		if (!_this->privateContext->buffering_in_progress)
 		{
-			logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
-			privateContext->buffering_in_progress = false;
-			_this->DumpDiagnostics();
-			_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
+			//reset timer id after buffering operation is completed
+			_this->privateContext->bufferingTimeoutTimerId = 0;
 		}
-		else if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
-		{
-			logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  bytes %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), bytes, frames);
-			gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
-			_this->privateContext->buffering_in_progress = false;
-		}
+		return _this->privateContext->buffering_in_progress;
+		
 	}
-	return _this->privateContext->buffering_in_progress;
+	else
+	{
+		logprintf("%s:%d in buffering_timeout got invalid or NULL handle ! _this =  %p   _this->privateContext = %p ", __FUNCTION__, __LINE__,
+		_this, (_this? _this->privateContext: NULL) );
+		_this->privateContext->bufferingTimeoutTimerId = 0;
+		return false;
+	}
+	
 }
 
 /**
@@ -989,7 +1015,8 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			if (_this->privateContext->buffering_in_progress)
 			{
 				if (buffering_timeout(_this)) { // call immediately and if already buffered enough don't start timer.
-					g_timeout_add((guint)DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+				    if (0 == _this->privateContext->bufferingTimeoutTimerId)
+						_this->privateContext->bufferingTimeoutTimerId = g_timeout_add((guint)DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
 				}
 			}
 		}
@@ -2167,6 +2194,12 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		g_source_remove(privateContext->periodicProgressCallbackIdleTaskId);
 		privateContext->periodicProgressCallbackIdleTaskId = 0;
 	}
+	if (this->privateContext->bufferingTimeoutTimerId)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove bufferingTimeoutTimerId %d", __FUNCTION__, __LINE__, privateContext->bufferingTimeoutTimerId);
+		g_source_remove(privateContext->bufferingTimeoutTimerId);
+		privateContext->bufferingTimeoutTimerId = 0;
+	}
 	if (privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove ptsCheckForEosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
@@ -2747,6 +2780,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
 	}
 
+	if (privateContext->bufferingTimeoutTimerId)
+	{
+		logprintf("AAMPGstPlayer::%s:%d Remove bufferingTimeoutTimerId %d", __FUNCTION__, __LINE__, privateContext->bufferingTimeoutTimerId);
+		g_source_remove(privateContext->bufferingTimeoutTimerId);
+		privateContext->bufferingTimeoutTimerId = 0;
+	}
+
 	if (stream->using_playersinkbin)
 	{
 		Flush();
@@ -2786,7 +2826,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for buffered bytes (or)
 				 * frames result in 0 count; that results internal retune during Video Buffering.
 				 */
-				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__);
 
 				if (gst_element_set_state(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 				{
