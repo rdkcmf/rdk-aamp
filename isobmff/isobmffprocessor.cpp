@@ -41,7 +41,8 @@ static const char *IsoBmffProcessorTypeName[] =
 IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
 	: p_aamp(aamp), type(trackType), peerProcessor(peerBmffProcessor), basePTS(0),
 	processPTSComplete(false), timeScale(0), initSegment(),
-	playRate(1.0f), abortAll(false), m_mutex(), m_cond()
+	playRate(1.0f), abortAll(false), m_mutex(), m_cond(),
+	initSegmentProcessComplete(false)
 {
 	AAMPLOG_WARN("IsoBmffProcessor::%s() %d Created IsoBmffProcessor(%p) for type:%d and peerProcessor(%p)", __FUNCTION__, __LINE__, this, type, peerBmffProcessor);
 	if (peerProcessor)
@@ -81,36 +82,52 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 	AAMPLOG_TRACE("IsoBmffProcessor::%s() %d [%s] sending segment at pos:%f dur:%f", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], position, duration);
 	// Logic for Audio Track
-	if (type == eBMFFPROCESSOR_TYPE_AUDIO && !processPTSComplete)
+	if (type == eBMFFPROCESSOR_TYPE_AUDIO)
 	{
-		IsoBmffBuffer buffer;
-		buffer.setBuffer((uint8_t *)segment, size);
-		buffer.parseBuffer();
+		if (!processPTSComplete)
+		{
+			IsoBmffBuffer buffer;
+			buffer.setBuffer((uint8_t *)segment, size);
+			buffer.parseBuffer();
 
-		if (buffer.isInitSegment())
-		{
-			cacheInitSegment(segment, size);
-			ret = false;
-		}
-		else
-		{
-			// Wait for video to parse PTS
-			pthread_mutex_lock(&m_mutex);
-			if (!processPTSComplete)
+			if (buffer.isInitSegment())
 			{
-				AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] Going into wait for PTS processing to complete", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
-				pthread_cond_wait(&m_cond, &m_mutex);
-			}
-			if (abortAll)
-			{
+				cacheInitSegment(segment, size);
 				ret = false;
 			}
-			pthread_mutex_unlock(&m_mutex);
-
-			if (ret && processPTSComplete)
+			else
+			{
+				// Wait for video to parse PTS
+				pthread_mutex_lock(&m_mutex);
+				if (!processPTSComplete)
+				{
+					AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] Going into wait for PTS processing to complete", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+					pthread_cond_wait(&m_cond, &m_mutex);
+				}
+				if (abortAll)
+				{
+					ret = false;
+				}
+				pthread_mutex_unlock(&m_mutex);
+			}
+		}
+		if (ret && !initSegmentProcessComplete)
+		{
+			if (processPTSComplete)
 			{
 				double pos = ((double)basePTS / (double)timeScale);
-				pushInitSegment(pos);
+				if (!initSegment.empty())
+				{
+					pushInitSegment(pos);
+				}
+				else
+				{
+					// We have no cached init fragment, maybe audio download was delayed very much
+					// Push this fragment with calculated PTS
+					p_aamp->SendStream((MediaType)type, segment, size, pos, pos, duration);
+					ret = false;
+				}
+				initSegmentProcessComplete = true;
 			}
 		}
 	}
@@ -204,6 +221,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 					}
 
 					pushInitSegment(pos);
+					initSegmentProcessComplete = true;
 				}
 			}
 		}
@@ -243,6 +261,7 @@ void IsoBmffProcessor::reset()
 	timeScale = 0;
 	processPTSComplete = false;
 	abortAll = false;
+	initSegmentProcessComplete = false;
 	pthread_mutex_unlock(&m_mutex);
 }
 
