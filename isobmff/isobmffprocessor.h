@@ -164,6 +164,7 @@ private:
 	IsoBmffProcessor *peerProcessor;
 	IsoBmffProcessorType type;
 	bool processPTSComplete;
+	bool initSegmentProcessComplete;
 	double playRate;
 
 	std::vector<GrowableBuffer *> initSegment;
