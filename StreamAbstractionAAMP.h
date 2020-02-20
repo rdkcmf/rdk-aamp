@@ -307,6 +307,7 @@ private:
 
 public:
 	bool eosReached;                    /**< set to true when a vod asset has been played to completion */
+	bool discontinuityIgnored;          /**< set to true when discontinuity ignored early before the live playlist refreshes either for audio video */
 	bool enabled;                       /**< set to true if track is enabled */
 	int numberOfFragmentsCached;        /**< Number of fragments cached in this track*/
 	const char* name;                   /**< Track name used for debugging*/
