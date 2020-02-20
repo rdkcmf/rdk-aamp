@@ -3144,62 +3144,77 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
 
+	double roundedPlayTarget = std::round(video->playTarget);
+	// Offset value to add . By default it will playtarget
+	double offsetVideoToAdd = roundedPlayTarget;
+	double offsetAudioToAdd = roundedPlayTarget;
+	// Start of audio and Period for current Period and previous period
+	double audioPeriodStartCurrentPeriod = 0.0; 
+	double videoPeriodStartCurrentPeriod = 0.0;
+	double audioPeriodStartPrevPeriod = 0.0;
+	double videoPeriodStartPrevPeriod = 0.0;
+
+	int discIndex = -1;
+
+	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
+	{
+		AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+	}
+
 	if (video->playTarget !=0)
 	{
 		/*If video playTarget is just before a discontinuity, move playTarget to the discontinuity position*/
 		DiscontinuityIndexNode* videoDiscontinuityIndex = (DiscontinuityIndexNode*) video->mDiscontinuityIndex.ptr;
-		DiscontinuityIndexNode* audioDiscontinuityIndex = (DiscontinuityIndexNode*) audio->mDiscontinuityIndex.ptr;
+		DiscontinuityIndexNode* audioDiscontinuityIndex = (DiscontinuityIndexNode*) audio->mDiscontinuityIndex.ptr;	
 
 		for (int i = 0; i < video->mDiscontinuityIndexCount; i++)
 		{
-			double diff = videoDiscontinuityIndex[i].position - video->playTarget;
-
-			if (diff == 0)
+			double roundedIndexPosition = std::round(videoDiscontinuityIndex[i].position);
+			double roundedFragDurtion = std::round(videoDiscontinuityIndex[i].fragmentDuration);
+			// check if playtarget is on discontinuity , around it or away from discontinuity
+			double diff = (roundedIndexPosition - roundedPlayTarget);
+			
+			videoPeriodStartCurrentPeriod = videoDiscontinuityIndex[i].position;
+			audioPeriodStartCurrentPeriod = audioDiscontinuityIndex[i].position;
+	
+			// if play position is same as start of discontinuity , just start there , no checks 
+			// if play position is within fragmentduration window , just start at discontinuity
+			if(fabs(diff) <= roundedFragDurtion || diff == 0)
 			{
-				AAMPLOG_WARN ("%s:%d video track - diff = 0; breaking the loop; first discontinuity before the content/ad is accounted", __FUNCTION__, __LINE__);
+				// in this case , no offset to add . On discontinuity index position 
+				offsetVideoToAdd = offsetAudioToAdd = 0; 
+				AAMPLOG_WARN ("%s:%d PlayTarget around the discontinuity window,rounding position to discontinuity index", 
+					__FUNCTION__, __LINE__,videoPeriodStartCurrentPeriod,audioPeriodStartCurrentPeriod);				
 				break;
 			}
-
-			if (diff < 0)
+			else if(diff < 0 )
 			{
-				if (-(diff) < videoDiscontinuityIndex[i].fragmentDuration)
-				{
-					logprintf("%s:%d video track - playTarget [%f]->[%f] targetDurationSeconds %f",
-							__FUNCTION__, __LINE__, video->playTarget, videoDiscontinuityIndex[i].position,
-							video->targetDurationSeconds);
-
-					video->playTarget = videoDiscontinuityIndex[i].position;
-
-					if(i < audio->GetNumberOfPeriods())
-					{
-						logprintf("%s:%d audio track - playTarget [%f]->[%f] targetDurationSeconds %f",
-							__FUNCTION__, __LINE__, audio->playTarget, audioDiscontinuityIndex[i].position,
-							audio->targetDurationSeconds);
-
-						audio->playTarget = audioDiscontinuityIndex[i].position;
-					}
-
-					break;
-				}
+				// this case : playtarget is after the discontinuity , but not sure if this is within
+				// current period . 
+				offsetVideoToAdd = (roundedPlayTarget - roundedIndexPosition);
+				offsetAudioToAdd = (roundedPlayTarget - std::round(audioDiscontinuityIndex[i].position));
+				// Not sure if this is last period or not ,so update the Offset 
 			}
-			else
+			else if(diff > 0 )
 			{
-				CheckDiscontinuityAroundPlaytarget();
+				// this case : discontinuity Index is after the playtarget
+				// need to break the loop. Before that get offset with ref to prev period
+				audioPeriodStartCurrentPeriod  = audioPeriodStartPrevPeriod;
+				videoPeriodStartCurrentPeriod  = videoPeriodStartPrevPeriod; 
+				// Get offset from last period start 
+				offsetVideoToAdd = (roundedPlayTarget - std::round(videoPeriodStartPrevPeriod));
+				offsetAudioToAdd = (roundedPlayTarget - std::round(audioPeriodStartPrevPeriod));
 				break;
 			}
+			// store the current period as prev period before moving to next
+			videoPeriodStartPrevPeriod = videoPeriodStartCurrentPeriod;
+			audioPeriodStartPrevPeriod = audioPeriodStartCurrentPeriod;
 		}
 
-		if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
-		{
-			AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
-		}
-
-		// DELIA-39083
-		// If there is a mismatch in Number of Periods between audio and video , log a Warning but continue the period/discontinuity matching
-		// for audio. From the stream analysis its observed
-		//		a) An additional discontinuity is added at the end of the video playlist for one fragment ( <1sec duration)
-		//		b) By avoiding the strict checking , no issue will happen for playback
-		// But if delta is more than 1 , then it will impact playback .
+		// Calculate Audio and Video playtarget 
+		audio->playTarget = audioPeriodStartCurrentPeriod + offsetAudioToAdd;
+		video->playTarget = videoPeriodStartCurrentPeriod + offsetVideoToAdd;
+		// Based on above playtarget , find the exact segment to pick to reduce audio loss
 		{
 			int periodIdx;
 			double offsetFromPeriod;
@@ -3223,7 +3238,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 
 					seekPosition = video->playTarget;
 
-					AAMPLOG_WARN("%s:%d seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__, seekPosition);
+					AAMPLOG_WARN("%s:%d VP:%f AP:%f seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__,video->playTarget,audio->playTarget, seekPosition);
 
 					retVal = eAAMPSTATUS_OK;
 				}
