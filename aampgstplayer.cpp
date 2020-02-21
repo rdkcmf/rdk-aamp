@@ -3102,6 +3102,20 @@ void AAMPGstPlayer::SignalTrickModeDiscontinuity()
 	}
 }
 
+void AAMPGstPlayer::SeekStreamSink(double position, double rate)
+{
+	// shouldTearDown is set to false, because in case of a new tune pipeline
+	// might not be in a playing/paused state which causes Flush() to destroy
+	// pipeline. This has to be avoided.
+	Flush(position, rate, false);
+
+	// Flushing seek will flush buffers in pipeline
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+	{
+		privateContext->stream[i].flush = false;
+	}
+}
+
 /**
  * @}
  */

@@ -3058,7 +3058,7 @@ public:
 	 *   @param[in] rate - playback rate
 	 *   @return void
 	 */
-	void FlushStreamSink(double position, int rate);
+	void FlushStreamSink(double position, double rate);
 
 private:
 
