@@ -8588,16 +8588,12 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
         AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
-
-void PrivateInstanceAAMP::FlushStreamSink(double position, int rate)
+void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 {
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		// shouldTearDown is set to false, because in case of a new tune pipeline
-		// might not be in a playing/paused state which causes Flush() to destroy
-		// pipeline. This has to be avoided.
-		mStreamSink->Flush(position, rate, false);
+		mStreamSink->SeekStreamSink(position, rate);
 	}
 #endif
 }

@@ -778,13 +778,21 @@ public:
 	 */
 	virtual void ClearProtectionEvent() {};
 
-
 	/**
 	 *   @brief Signal discontinuity on trickmode if restamping is done by stream sink.
 	 *
 	 *   @return void
 	 */
 	virtual void SignalTrickModeDiscontinuity() {};
+
+	/**
+	 *   @brief Seek stream sink to desired position and playback rate with a flushing seek
+	 *
+	 *   @param[in]  position - desired playback position.
+	 *   @param[in]  rate - desired playback rate.
+	 *   @return void
+	 */
+	virtual void SeekStreamSink(double position, double rate) {};
 };
 
 
