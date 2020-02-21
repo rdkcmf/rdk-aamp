@@ -79,6 +79,11 @@ public:
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	std::function< void(uint8_t *, int, int, int) > cbExportYUVFrame;
+	static GstFlowReturn AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this);
+#endif
+	void SeekStreamSink(double position, double rate);
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);
