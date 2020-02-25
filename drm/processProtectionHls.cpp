@@ -44,13 +44,13 @@ extern DrmSessionCacheInfo* getDrmCacheInformationHandler();
  * @brief vector pool of DrmSessionDataInfo
  */
 extern vector <DrmSessionDataInfo> drmSessionDataPool_g; 
-
+static pthread_mutex_t drmProcessingMutex = PTHREAD_MUTEX_INITIALIZER;
 /**
  * Global aamp config data 
  */
 extern GlobalConfigAAMP *gpGlobalConfig;
 
-void ProcessContentProtection(TrackState *ts, const char *attrName);
+int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 
 /**
  * Local APIs declarations
@@ -268,11 +268,11 @@ static DRMSystems getDrmType(string attrName){
  * @param attribute list from manifest
  * @return none
  */
-void ProcessContentProtection(TrackState *ts, const char *attrName)
+int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 {
 	/* StreamAbstractionAAMP_HLS* context; */
 	/* Pseudo code for ProcessContentProtection in HLS is below
-	 * Get Aamp instance as ts->context->aamp
+	 * Get Aamp instance as aamp
 	 * 1. Get DRM type from manifest (KEYFORMAT uuid)
 	 * 2. Get pssh data from manifest (extract URI value)
 	 * 	  2.1 	Get KeyID using aamp_ExtractKeyIdFromPssh
@@ -292,7 +292,7 @@ void ProcessContentProtection(TrackState *ts, const char *attrName)
 	unsigned char * keyId = NULL;
 	int keyIdLen = 0;
 	MediaType mediaType = eMEDIATYPE_VIDEO;
-
+	int iState = DRM_API_FAILED;
 	do{
 		drmType = getDrmType(attrName);
 		if (eDRM_NONE == drmType){
@@ -363,14 +363,11 @@ void ProcessContentProtection(TrackState *ts, const char *attrName)
 			break;
 		}
 
-		MediaType mediaType  = (MediaType)ts->type;
-		AAMPLOG_INFO("%s:%d - Content protection detected for %s", 
-		__FUNCTION__, __LINE__,
-		(mediaType == eMEDIATYPE_VIDEO)? "eMEDIATYPE_VIDEO":
-		(mediaType == eMEDIATYPE_AUDIO)? "eMEDIATYPE_AUDIO":"eMEDIATYPE_SUBTITLE");
+		MediaType mediaType  = eMEDIATYPE_VIDEO;
 		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
 		
 		bool alreadyPushed = false;
+		pthread_mutex_lock(&drmProcessingMutex);
 		for (auto iterator = drmSessionDataPool_g.begin();  iterator != drmSessionDataPool_g.end(); iterator++){
 			if (keyIdLen == iterator->processedKeyIdLen && 0 == memcmp(iterator->processedKeyId, keyId, keyIdLen)){
 				alreadyPushed = true;
@@ -389,7 +386,7 @@ void ProcessContentProtection(TrackState *ts, const char *attrName)
 			sessionParams->initData = data;
 			sessionParams->initDataLen = dataLength;
 			sessionParams->stream_type = mediaType;
-			sessionParams->aamp = ts->context->aamp;
+			sessionParams->aamp = aamp;
 			sessionParams->drmType = drmType;
 			sessionParams->contentMetadata = NULL;
 
@@ -403,22 +400,25 @@ void ProcessContentProtection(TrackState *ts, const char *attrName)
 			memcpy(drmSessioData.processedKeyId, keyId, keyIdLen);
 			drmSessionDataPool_g.push_back(drmSessioData);
 		}
+		pthread_mutex_unlock(&drmProcessingMutex);
 
 		if (keyId) {
 			free(keyId);
 			keyId = NULL;
 		}
+		iState = DRM_API_SUCCESS;
 		
 	}while(0);
-
+	return iState;
 }
 
 
 #else
 
-void ProcessContentProtection(TrackState *ts, const char *attrName){
+int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName){
 	AAMPLOG_INFO("%s:%d AAMP_HLS_DRM not enabled", 
 				__FUNCTION__, __LINE__);
+	return 0;
 }
 #endif /** AAMP_HLS_DRM */
 

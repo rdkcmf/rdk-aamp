@@ -1438,6 +1438,28 @@ struct ListenerData {
 
 class AampCacheHandler;
 
+#ifdef AAMP_HLS_DRM
+/**
+*	\Class attrNameData
+* 	\brief	local calss to hold DRM information
+*/
+class attrNameData{
+	public:
+		std::string attrName;
+		bool isProcessed;
+		attrNameData():attrName(""),isProcessed(false) {
+		}
+		
+		attrNameData(std::string argument):attrName(argument),isProcessed(false){
+		}
+
+		bool operator==(const attrNameData& rhs) const { return (this->attrName == rhs.attrName);}
+};
+/**
+ * @}
+ */
+#endif
+
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
@@ -1654,6 +1676,11 @@ public:
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
+#ifdef AAMP_HLS_DRM
+	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
+	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
+	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
+#endif
 
 	/**
 	 * @brief Curl initialization function

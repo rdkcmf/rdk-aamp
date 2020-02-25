@@ -53,6 +53,8 @@ AampDRMSessionManager* AampDRMSessionManager::_sessionMgr = NULL;
 
 static pthread_mutex_t sessionMgrMutex = PTHREAD_MUTEX_INITIALIZER;
 
+static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
+
 KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
 {
 }
@@ -66,7 +68,7 @@ DrmSessionCacheInfo *drmCacheInfo_g = NULL;
 
 void *CreateDRMSession(void *arg);
 DrmSessionCacheInfo* getDrmCacheInformationHandler();
-void SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 static DrmSessionDataInfo* getDrmDatafromPool();
 
 /**
@@ -79,13 +81,14 @@ static DrmSessionDataInfo* getDrmDatafromPool();
 DrmSessionCacheInfo* getDrmCacheInformationHandler()
 {
 	if (NULL == drmCacheInfo_g ){
+		pthread_mutex_lock(&drmSessionMutex);
 		drmCacheInfo_g = (DrmSessionCacheInfo *)malloc(sizeof(DrmSessionCacheInfo));
 		if (NULL != drmCacheInfo_g){
 			drmCacheInfo_g->createDRMSessionThreadID = 0;
 			drmCacheInfo_g->drmSessionThreadStarted = false;
 		}
+		pthread_mutex_unlock(&drmSessionMutex);
 	}
-
 	return  drmCacheInfo_g;
 }
 
@@ -1247,7 +1250,6 @@ static DrmSessionDataInfo* getDrmDatafromPool()
 			__FUNCTION__, __LINE__,	
 			preferredDrm, eDRM_PlayReady, sessionData->drmType );
 	}
-
 	return sessionData;
 }
 
@@ -1257,13 +1259,14 @@ static DrmSessionDataInfo* getDrmDatafromPool()
  *  @param[out]	private aamp instance
  *  @return		None.
  */
-void SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp)
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp)
 {
+	int iState = DRM_API_FAILED;
 	do{
 		/** if Drm data pool is empty **/
 		if (drmSessionDataPool_g.empty())
 		{
-			AAMPLOG_WARN("%s:%d No DRM data cached in the pool", 
+			AAMPLOG_INFO("%s:%d No DRM data cached in the pool", 
 				__FUNCTION__, __LINE__);
 			break;
 		}
@@ -1305,14 +1308,16 @@ void SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp)
 			drmData->isProcessedLicenseAcquire = true;
 			drmInfo->drmSessionThreadStarted = true;
 			aamp->setCurrentDrm(drmData->drmType);
+			iState = DRM_API_SUCCESS;
 		}
 		else
 		{
 			AAMPLOG_ERR("%s:%d pthread_create failed for CreateDRMSession : error code %d, %s", 
 			__FUNCTION__, __LINE__, errno, strerror(errno));
 		}
-		
 	}while(0);
+
+	return iState;
 }
 
 /**
@@ -1385,14 +1390,18 @@ void *CreateDRMSession(void *arg)
 		}
 		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
-	free(data);
-	data = NULL;
-	if(contentMetadata != NULL){
+	if (data){
+		free(data);
+		data = NULL;
+	}
+	if(contentMetadata){
 		free(contentMetadata);
 		contentMetadata = NULL;
 	}
-	free(sessionParams);
-	sessionParams = NULL;
+	if (sessionParams){
+		free(sessionParams);
+		sessionParams = NULL;
+	}
 
 	AAMPLOG_INFO("%s:%d Exited",  __FUNCTION__, __LINE__ );
 	return NULL;

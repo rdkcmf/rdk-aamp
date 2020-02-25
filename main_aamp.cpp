@@ -6893,6 +6893,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mAsyncTuneEnabled(false)
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
+#ifdef AAMP_HLS_DRM
+    , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
+#endif
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6947,6 +6950,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
+#ifdef AAMP_HLS_DRM
+	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
+	pthread_mutex_init(&drmParserMutex, NULL);
+#endif
 }
 
 
@@ -6997,7 +7004,10 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_mutex_destroy(&mLock);
-
+#ifdef AAMP_HLS_DRM
+	aesCtrAttrDataList.clear();
+	pthread_mutex_destroy(&drmParserMutex);
+#endif
 	delete mAampCacheHandler;
 }
 

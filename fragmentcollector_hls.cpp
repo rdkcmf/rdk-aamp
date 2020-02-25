@@ -49,6 +49,7 @@
 #include <openssl/sha.h>
 #include <set>
 #include <math.h>
+#include <vector>
 #include "HlsDrmBase.h"
 #include "AampCacheHandler.h"
 #ifdef AAMP_VANILLA_AES_SUPPORT
@@ -57,6 +58,7 @@
 #include "webvttParser.h"
 #include "tsprocessor.h"
 #include "isobmffprocessor.h"
+#include "AampDRMutils.h"
 
 //#define TRACE // compile-time optional noisy debug output
 
@@ -77,8 +79,9 @@
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
 #ifdef AAMP_HLS_DRM
-extern void ProcessContentProtection(TrackState *ts, const char *attrName);
-extern void SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
+extern int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
+extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
+
 #endif 
 
 /**
@@ -276,25 +279,12 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
 		{
-#ifdef AAMP_HLS_DRM
-			if (gpGlobalConfig->fragmp4LicensePrefetch){
-				AAMPLOG_INFO("SAMPLE-AES-CTR stream %s", ts->name);
-				ProcessContentProtection(ts, attrName);
-				ts->fragmentCdmEncrypted = true;
-			}
-#endif
-			/*
-			* TODO- Do license acquisition and license caching meshnism here
-			* Time being for fragmented mp4 content, inject fragments as it is and 
-			* Let qtdemux do the license acquisition and the decryption part
-			*/
-                        //AAMPLOG_INFO(" KC - Track %s detected SAMPLE-AES-CTR with protection = %s", 
-                        //ts->name, ((ts->fragmentEncrypted)?"TRUE":"FALSE"));
-			if(!ts->fragmentEncrypted)
+
+            if(!ts->fragmentEncrypted)
 			{
 				if (!ts->mIndexingInProgress)
 				{
-					logprintf("Track %s encrypted to clear \n", ts->name);
+					logprintf("Track %s clear to encrypted", ts->name);
 				}
 				ts->fragmentEncrypted = true;
 			}
@@ -674,6 +664,36 @@ static void * TrackPLDownloader(void *arg)
 	}
 	ts->FetchPlaylist();
 	return NULL;
+}
+
+/***************************************************************************
+* @fn InitiateDrmProcess
+* @brief Function to initiate drm process
+*		 
+* @param ptr[in] Trackstate pointer
+*	
+* @return None
+***************************************************************************/
+static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
+#ifdef AAMP_HLS_DRM 
+		/** If fragments are CDM encrypted KC **/
+		if (aamp->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
+			pthread_mutex_lock(&aamp->drmParserMutex);
+			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
+				if (!aamp->aesCtrAttrDataList.at(i).isProcessed){
+					//Mark as trace after testing
+					AAMPLOG_INFO("%s:%d: Processing License data from manifest : %s ",  __FUNCTION__, __LINE__ 
+					, aamp->aesCtrAttrDataList.at(i).attrName.c_str());
+					if (DRM_API_SUCCESS == ProcessContentProtection( aamp, aamp->aesCtrAttrDataList.at(i).attrName)){
+						if(DRM_API_SUCCESS == SpawnDRMLicenseAcquireThread(aamp)){
+							aamp->aesCtrAttrDataList.at(i).isProcessed = true;
+						}
+					}
+				}
+			}
+			pthread_mutex_unlock(&aamp->drmParserMutex);
+		}
+#endif
 }
 
 /***************************************************************************
@@ -1663,12 +1683,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				if (!mInjectInitFragment)
 					playTarget = playlistPosition + fragmentDurationSeconds;
-#ifdef AAMP_HLS_DRM 
-				/** If fragments are CDM encrypted **/
-				if (this->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
-					SpawnDRMLicenseAcquireThread(context->aamp);
-				}
-#endif
 				if (IsLive())
 				{
 					context->CheckForPlaybackStall(true);
@@ -2528,6 +2542,28 @@ void TrackState::IndexPlaylist()
 					// At present , second Key parsing is done inside GetNextFragmentUriFromPlaylist(that saved)
 					//Need keytag idx to pick the corresponding keytag and get drmInfo,so that second parsing can be removed
 					//drmMetadataIdx = mDrmMetaDataIndexPosition;
+					if(mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR){
+#ifdef AAMP_HLS_DRM
+						if (gpGlobalConfig->fragmp4LicensePrefetch){
+							pthread_mutex_lock(&aamp->drmParserMutex);
+							attrNameData* aesCtrAttrData = new attrNameData(key); 
+							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
+									*aesCtrAttrData) == aamp->aesCtrAttrDataList.end()) {
+								// attrName not in aesCtrAttrDataList, add it
+								//comment/mark as trace after testing
+								AAMPLOG_INFO("%s:%d Adding License data from manifest to the queue %s",
+								__FUNCTION__, __LINE__, key);
+								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
+							}
+							/** No more use **/
+							delete aesCtrAttrData;
+							pthread_mutex_unlock(&aamp->drmParserMutex);
+							/** Mark as CDM encryption is found in HLS **/
+							aamp->fragmentCdmEncrypted = true;
+						}
+#endif
+					}
+
 					drmMetadataIdx = mDrmKeyTagCount;
 					if(!fragmentEncrypted || mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR)
 					{
@@ -4511,7 +4547,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0", __FUNCTION__, __LINE__);
 			}
 		}
-
+		
+#ifdef AAMP_HLS_DRM 
+		/** Initiate DRM Process from init to get early DRM license acquicition**/
+		InitiateDrmProcess(this->aamp);
+#endif
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		subtitle->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
@@ -4801,6 +4841,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
+
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -4852,7 +4893,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
-		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE), fragmentCdmEncrypted(false)
+		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
 		,mXStartTimeOFfset(0)
 {
 	memset(&playlist, 0, sizeof(playlist));
@@ -4906,6 +4947,7 @@ TrackState::~TrackState()
 	pthread_cond_destroy(&mPlaylistIndexed);
 	pthread_mutex_destroy(&mPlaylistMutex);
 	pthread_mutex_destroy(&mTrackDrmMutex);
+	
 }
 /***************************************************************************
 * @fn Stop

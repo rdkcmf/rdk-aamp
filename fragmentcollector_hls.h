@@ -314,7 +314,6 @@ public:
 	bool discontinuity; /**< Set when discontinuity is found in track*/
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
 	bool fragmentEncrypted; /**< In DAI, ad fragments can be clear. Set if current fragment is encrypted*/
-	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
 	bool mKeyTagChanged;	/**< Flag to indicate Key tag got changed for decryption context setting */
 	int mLastKeyTagIdx ;     /**< Variable to hold the last keyTag index,to check if key tag changed */
 	struct DrmInfo mDrmInfo;	/**< Structure variable to hold Drm Information */
