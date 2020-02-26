@@ -150,16 +150,26 @@ var defaultInitConfig = {
     /**
      * stereo-only for the playback
      */
-    stereoOnly: false,
+    //stereoOnly: true,
     /**
      * bulk TimedMetadata reporting
      */
-    bulkTimedMetadata: false,
+    //bulkTimedMetadata: true,
 
     /**
      * enable audio video playlist parallel download optimization (only for HLS)
      */
-    parallelPlaylistDownload: false
+    //parallelPlaylistDownload: true,
+
+    /**
+     * enable async tune method for player
+     */
+    //asyncTune: true,
+
+    /**
+     * use westeros sink based video decoding
+     */
+    //useWesterosSink: true
 };
 
 var playerState = playerStatesEnum.idle;

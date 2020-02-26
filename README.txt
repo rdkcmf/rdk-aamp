@@ -174,7 +174,7 @@ sslverifypeer=1	Enable TLS certificate verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 
-enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
+enable_setvideorectangle=0       Disable AAMP to set rectangle property to sink. Default is true(enabled).
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 harvestpath=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
@@ -189,7 +189,7 @@ langcodepref=<X>
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
-
+useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

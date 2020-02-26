@@ -1292,6 +1292,14 @@ public:
 	*/
 	bool GetAsyncTuneConfig();
 
+	/**
+	 *   @brief Set Westeros sink configuration
+	 *   @param[in] bValue - true if westeros sink enabled
+	 *
+	 *   @return void
+	*/
+	void SetWesterosSinkConfig(bool bValue);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
