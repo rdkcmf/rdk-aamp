@@ -177,10 +177,11 @@ subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
-enable_setvideorectangle	 Enable AAMP to set rectangle property to sink . Default is false(disabled)
+enable_setvideorectangle=0	 Disable AAMP to set rectangle property to sink. Default is true(enabled).
 gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
 enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
+useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
