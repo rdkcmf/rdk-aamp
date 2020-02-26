@@ -134,7 +134,7 @@ static const char *mMediaFormatName[] =
  */
 #define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
-#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (25000)		/**< aamp abr threshold size */
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 
 #define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
 
