@@ -543,6 +543,8 @@ public:
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;		/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
+	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -606,8 +608,6 @@ public:
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
-	bool mEnableRectPropertyCfg;            /**< To allow or deny rectangle property set for sink element*/ 
-	bool disableWesteros;                 /**< To disable westeros sink (by default this is true*/
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
@@ -640,7 +640,7 @@ public:
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
-		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), disableWesteros(false),
+		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, disableSslVerifyPeer(true)
@@ -650,11 +650,12 @@ public:
 		,bAsync_ontuned(false)
 		,bReportVideoPTS(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
-		,mEnableRectPropertyCfg(false)
+		,mEnableRectPropertyCfg(eUndefinedState)
 		,decoderUnavailableStrict(false)
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
+		,mWesterosSinkConfig(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1610,6 +1611,8 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	bool mParallelFetchPlaylist;
+	bool mWesterosSinkEnabled;
+	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
@@ -2816,6 +2819,12 @@ public:
 	void ConfigureBulkTimedMetadata();
 
 	/**
+	 *	 @brief To set westeros sink configuration
+	 *
+	 */
+	void ConfigureWesterosSink();
+
+	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
 	 *   @param[in] preferred timeout value
@@ -3060,6 +3069,14 @@ public:
 	void SetParallelPlaylistDL(bool bValue);
 
 	/**
+	 *	 @brief Set Westeros sink Configuration
+	 *	 @param[in] bValue - true if westeros sink enabled
+	 *
+	*	@return void
+	*/
+	void SetWesterosSinkConfig(bool bValue);
+
+	/**
 	 *   @brief To flush buffers in streamsink
 	 *
 	 *   @param[in] position - position to which we seek after flush
@@ -3075,7 +3092,7 @@ private:
 	 *
 	 *   @return void
 	 */
-	static void LazilyLoadConfigIfNeeded(void);
+	void LazilyLoadConfigIfNeeded(void);
 
 	/**
 	 *   @brief updates mServiceZone ( service zone) member with string extracted from locator &sz URI parameter

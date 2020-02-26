@@ -202,14 +202,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	memset(privateContext, 0, sizeof(*privateContext));
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
-	if (gpGlobalConfig->disableWesteros)
-	{
-		privateContext->using_westerossink = false;
-	}
-	else
-	{
-		privateContext->using_westerossink = true;
-	}
 	this->aamp = aamp;
 
 	CreatePipeline();
@@ -907,7 +899,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					note: alternate "window-set" works as well
 					*/
 					_this->privateContext->video_sink = (GstElement *) msg->src;
-					if (_this->privateContext->using_westerossink && !gpGlobalConfig->mEnableRectPropertyCfg)
+					if (_this->privateContext->using_westerossink && !_this->aamp->mEnableRectPropertyEnabled)
 					{
 						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom");
 						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
@@ -1918,6 +1910,15 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
 	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_NONE;
 
+	if (!aamp->mWesterosSinkEnabled)
+	{
+		privateContext->using_westerossink = false;
+	}
+	else
+	{
+		privateContext->using_westerossink = true;
+	}
+
 #ifdef AAMP_STOP_SINK_ON_SEEK
 	privateContext->rate = aamp->rate;
 #endif
@@ -2476,7 +2477,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
 	logprintf("SetVideoRectangle :: Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
-	if (gpGlobalConfig->mEnableRectPropertyCfg) //As part of DELIA-37804
+	if (aamp->mEnableRectPropertyEnabled) //As part of DELIA-37804
 	{
 		if (stream->using_playersinkbin)
 		{
