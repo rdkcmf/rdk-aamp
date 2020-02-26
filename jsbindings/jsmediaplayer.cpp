@@ -136,6 +136,7 @@ enum ConfigParamType
 	ePARAM_MANIFESTTIMEOUT,
 	ePARAM_PARALLELPLAYLISTDL,
 	ePARAM_ASYNCTUNE,
+	ePARAM_USE_WESTEROS_SINK,
 	ePARAM_MAX_COUNT
 };
 
@@ -177,6 +178,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
 	{ ePARAM_PARALLELPLAYLISTDL, "parallelPlaylistDownload" },
 	{ ePARAM_ASYNCTUNE, "asyncTune" },
+	{ ePARAM_USE_WESTEROS_SINK, "useWesterosSink" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -547,6 +549,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
                                 break;
 			case ePARAM_ASYNCTUNE:
 			case ePARAM_PARALLELPLAYLISTDL:
+			case ePARAM_USE_WESTEROS_SINK:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -615,6 +618,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_ASYNCTUNE:
 					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
+					break;
+				case ePARAM_USE_WESTEROS_SINK:
+					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
 					break;
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
