@@ -3258,6 +3258,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
 			logprintf("async-tune=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useWesterosSink=", value) == 1)
+		{
+			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
+			logprintf("useWesterosSink=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
@@ -3374,15 +3379,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d", gpGlobalConfig->ptsErrorThreshold);
 		}
-		else if (cfg.compare("enable_setvideorectangle") == 0)
+		else if (ReadConfigNumericHelper(cfg, "enable_setvideorectangle=", value) == 1)
 		{
-			gpGlobalConfig->mEnableRectPropertyCfg = true;
-			logprintf("AAMP configured to set Rectangle property for sink element\n");
-		}
-		else if (cfg.compare("disable_westeros") == 0)
-		{
-			gpGlobalConfig->disableWesteros = true;
-			logprintf("Westeros is disabled\n");
+			gpGlobalConfig->mEnableRectPropertyCfg = (TriState)(value != 0);
+			logprintf("AAMP Rectangle property for sink element: %d\n", value);
 		}
 		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{
@@ -3636,28 +3636,17 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		}
 
 		const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
-		bool disableWesteros = true;
+
 		if(env_enable_westoros_sink)
 		{
 			int iValue = atoi(env_enable_westoros_sink);
 
-			logprintf("Value at AAMP_ENABLE_WESTEROS_SINK = %d", iValue);
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", iValue);
 
 			if(iValue)
 			{
-				logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
-				gpGlobalConfig->disableWesteros = false;
-				gpGlobalConfig->mEnableRectPropertyCfg = false;
-				disableWesteros = false;
+				mWesterosSinkEnabled = true;
 			}
-		}
-
-		if (disableWesteros)
-		{
-			gpGlobalConfig->disableWesteros = true;
-			logprintf("Westeros is disabled");
-			gpGlobalConfig->mEnableRectPropertyCfg = true;
-			logprintf("AAMP configured to set rectangle property for sink element for video scaling");
 		}
 	}
 }
@@ -4326,6 +4315,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigureManifestTimeout();
 	ConfigureParallelTimeout();
 	ConfigureBulkTimedMetadata();
+	ConfigureWesterosSink();
 
 	if (NULL == mStreamSink)
 	{
@@ -5908,6 +5898,36 @@ bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 }
 
 /**
+ *   @brief Set Westeros sink Configuration
+ *   @param[in] bValue - true if westeros sink enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
+{
+	aamp->SetWesterosSinkConfig(bValue);
+}
+
+/**
+ *   @brief Set Westeros sink Configuration
+ *   @param[in] bValue - true if westeros sink enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
+{
+	if(gpGlobalConfig->mWesterosSinkConfig == eUndefinedState)
+	{
+		mWesterosSinkEnabled = bValue;
+	}
+	else
+	{
+		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
+	}
+	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
+}
+
+/**
  *   @brief Set video rectangle.
  *
  *   @param  x - horizontal start position.
@@ -6662,6 +6682,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
 	,mAsyncTuneEnabled(false)
+	,mWesterosSinkEnabled(false)
+	,mEnableRectPropertyEnabled(true)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7948,6 +7970,35 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
         AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
 }
 
+/**
+ *   @brief To set Westeros sink configuration
+ *
+ */
+void PrivateInstanceAAMP::ConfigureWesterosSink()
+{
+    if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
+    {
+        mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
+    }
+
+    mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : (!mWesterosSinkEnabled));
+
+    if (mWesterosSinkEnabled)
+    {
+        logprintf("Enabling Westeros Sink");
+    }
+    else
+    {
+        logprintf("Disabling Westeros Sink");
+    }
+
+    if (mEnableRectPropertyEnabled)
+    {
+        logprintf("AAMP configured to set rectangle property for sink element for video scaling");
+    }
+
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Westeros Sink state [%d]", __FUNCTION__, __LINE__, mWesterosSinkEnabled);
+}
 
 /**
  *   @brief To set the download buffer size value
