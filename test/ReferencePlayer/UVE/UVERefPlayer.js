@@ -153,7 +153,12 @@ var defaultInitConfig = {
     /**
      * use westeros sink based video decoding
      */
-    //useWesterosSink: true
+    //useWesterosSink: true,
+
+    /**
+     * use Average bandwidth for ABR switching
+     */
+    //useAverageBandwidth: true
 };
 
 var playerState = playerStatesEnum.idle;
