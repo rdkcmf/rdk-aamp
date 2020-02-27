@@ -1372,7 +1372,7 @@ void *CreateDRMSession(void *arg)
 		AAMPLOG_INFO("Found ClearKey encryption from manifest");
 		systemId = CLEARKEY_PROTECTION_SYSTEM_ID;
 	}
-	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength);
+	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength, sessionParams->stream_type);
 	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
 	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
 					contentMetadata, sessionParams->aamp, &e);
