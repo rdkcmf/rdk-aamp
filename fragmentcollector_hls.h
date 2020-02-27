@@ -456,6 +456,7 @@ private:
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 	int mMediaCount;						/**< Number of media in the stream */
+	bool mUseAvgBandwidthForABR;
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H

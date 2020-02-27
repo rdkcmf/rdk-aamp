@@ -1069,6 +1069,13 @@ public:
 	void SetAnonymousRequest(bool isAnonymous);
 
 	/**
+	 *   @brief Indicates average BW to be used for ABR Profiling.
+	 *
+	 *   @param  useAvgBW - Flag for true / false
+	 */
+	void SetAvgBWForABR(bool useAvgBW);
+
+	/**
 	 *   @brief Set VOD Trickplay FPS.
 	 *
 	 *   @param[in]  vodTrickplayFPS - FPS to be used for VOD Trickplay
