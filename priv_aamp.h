@@ -545,6 +545,7 @@ public:
 	TriState enableBulkTimedMetaReport;		/**< Enabled Bulk event reporting for TimedMetadata*/
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
+	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -659,6 +660,7 @@ public:
 		,manifestTimeoutMs(-1)
 		,mWesterosSinkConfig(eUndefinedState)
 		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
+		,mUseAverageBWForABR(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1650,6 +1652,7 @@ public:
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
 
+	bool mUseAvgBandwidthForABR;
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
 	bool mTSBEnabled;
@@ -2649,6 +2652,12 @@ public:
 	 */
 	void SetAnonymousRequest(bool isAnonymous);
 
+	/**
+	 *   @brief Indicates average BW to be used for ABR Profiling.
+	 *
+	 *   @param  useAvgBW - Flag for true / false
+	 */
+	void SetAvgBWForABR(bool useAvgBW);
 	/**
 	 *   @brief Set frames per second for VOD trickplay
 	 *
