@@ -1025,7 +1025,10 @@ static int replace(std::string& str, const std::string& from, const std::string&
 static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
 	std::string constructedUri;
-	if (fragmentDescriptor->baseUrls->size() > 0)
+	if( media.compare(0, 7, "http://")==0 || media.compare(0, 8, "https://")==0 )
+	{	// don't pre-pend baseurl if media starts with http:// or https://
+	}
+	else if (fragmentDescriptor->baseUrls->size() > 0)
 	{
 		constructedUri = fragmentDescriptor->baseUrls->at(0)->GetUrl();
 		if(gpGlobalConfig->dashIgnoreBaseURLIfSlash)

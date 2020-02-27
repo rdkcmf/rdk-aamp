@@ -832,7 +832,7 @@ public:
 	 *   @param[in]  len - Length of the protection data.
 	 *   @return void
 	 */
-	virtual void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len) {};
+	virtual void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type) {};
 
 	/**
 	 *   @brief Clear the protection event.
