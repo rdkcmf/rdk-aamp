@@ -4893,7 +4893,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
 		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
-		,mXStartTimeOFfset(0)
+		,mXStartTimeOFfset(0), mCulledSecondsAtStart(0.0)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
@@ -4904,7 +4904,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
-	mCulledSeconds = aamp->culledSeconds;
+	mCulledSecondsAtStart = aamp->culledSeconds;
 }
 /***************************************************************************
 * @fn ~TrackState
@@ -6076,7 +6076,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 						{
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
-							long long positionMilliseconds = (long long) std::round((mCulledSeconds + totalDuration) * 1000.0);
+							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
 							if(reportBulkMeta)
 							{
