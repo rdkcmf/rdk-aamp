@@ -459,19 +459,10 @@ bool MediaTrack::InjectFragment()
 
 				/*For muxed streams, give discontinuity for audio track as well*/
 				MediaTrack* audio = context->GetMediaTrack(eTRACK_AUDIO);
-				MediaTrack* video = context->GetMediaTrack(eTRACK_VIDEO);
 
-				if (audio && ((!audio->enabled) || (stopInjection && eTRACK_VIDEO == type && audio->discontinuityIgnored)))
+				if (audio && !audio->enabled)
 				{
-					logprintf("%s:%d - track audio - notifying aamp discontinuity for the early ignored case", __FUNCTION__, __LINE__);
-					audio->discontinuityIgnored = false;
 					aamp->Discontinuity(eMEDIATYPE_AUDIO);
-				}
-				else if (stopInjection && eTRACK_AUDIO == type && video && video->discontinuityIgnored)
-				{
-					logprintf("%s:%d - track video - notifying aamp discontinuity for the early ignored case", __FUNCTION__, __LINE__);
-					video->discontinuityIgnored = false;
-					aamp->Discontinuity(eMEDIATYPE_VIDEO);
 				}
 
 				if (stopInjection)
@@ -763,7 +754,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
-		mSubtitleParser(NULL), discontinuityIgnored(0)
+		mSubtitleParser(NULL)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
