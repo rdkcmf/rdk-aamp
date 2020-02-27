@@ -776,6 +776,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
+
+					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					{
+						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
+					}
+
 					streamInfo->isIframeTrack = true;
 					//Update profile resolution with VideoEnd Metrics object.
 					aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
@@ -801,6 +807,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					{ // uri on following line
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
+					}
+					if(streamInfo->averageBandwidth!=0 && mUseAvgBandwidthForABR)
+					{
+						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
 					if(streamInfo->codecs) {
 					// First Check point : if AAC profile. Commonly available profile , so checked first
@@ -4892,7 +4902,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
-
+	,mUseAvgBandwidthForABR(false)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -4913,6 +4923,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	aamp->CurlInit(0, AAMP_TRACK_COUNT);
 	memset(streamInfo, 0, sizeof(*streamInfo));
+	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
 }
 /***************************************************************************
 * @fn TrackState

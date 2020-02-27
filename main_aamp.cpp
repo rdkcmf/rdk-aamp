@@ -3607,6 +3607,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
 		}
+		else if (ReadConfigNumericHelper(cfg, "avgbwforABR=", value) == 1)
+		{
+			gpGlobalConfig->mUseAverageBWForABR= (TriState)(value != 0);
+			logprintf("avgbwforABR=%d", value);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4446,6 +4451,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureBulkTimedMetadata();
 	ConfigureWesterosSink();
 
+	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
+	{
+		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
+	}
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -5642,6 +5651,16 @@ void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetAnonymousRequest(isAnonymous);
+}
+
+/**
+ *   @brief Indicates average BW to be used for ABR Profiling.
+ *
+ *   @param  useAvgBW - Flag for true / false
+ */
+void PlayerInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
+{
+	aamp->SetAvgBWForABR(useAvgBW);
 }
 
 
@@ -6942,6 +6961,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mUseAvgBandwidthForABR(false)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 #endif
@@ -7720,6 +7740,17 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	gpGlobalConfig->licenseAnonymousRequest = isAnonymous;
+}
+
+
+/**
+ *   @brief Indicates average BW to be used for ABR Profiling.
+ *
+ *   @param  useAvgBW - Flag for true / false
+ */
+void PrivateInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
+{
+	mUseAvgBandwidthForABR = useAvgBW;
 }
 
 
