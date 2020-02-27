@@ -554,7 +554,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	                                tuneThreadId = NULL;
 				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
-				privObj->_aamp->Tune(url);
+				privObj->_aamp->Tune(url,autoPlay);
 				delete [] url;
 			}
 		
@@ -566,11 +566,6 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute load() >= 1 argument required");
 	}
 
-	if(url)
-	{
-		privObj->_aamp->Tune(url, autoPlay);
-		delete [] url;
-	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
