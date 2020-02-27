@@ -337,7 +337,7 @@ private:
 	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
 	pthread_mutex_t mTrackDrmMutex;         /**< protect DRM Interactions for the track */
 	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
-	double mCulledSeconds;                  /**< Total culled duration */
+	double mCulledSeconds;                  /**< Total culled duration in this streamer instance*/
 	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
 	PlaylistType mPlaylistType;		/**< Playlist Type */
 	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
@@ -345,6 +345,7 @@ private:
 	bool mSkipAbr;                          /**< Flag that denotes if previous cached fragment is init fragment or not */
 	const char* mFirstEncInitFragmentInfo;  /**< Holds first encrypted init fragment Information index*/
 	double mXStartTimeOFfset;		/**< Holds value of time offset from X-Start tag */
+	double mCulledSecondsAtStart;		/**< Total culled duration with this asset prior to streamer instantiation*/
 };
 
 class StreamAbstractionAAMP_HLS;
