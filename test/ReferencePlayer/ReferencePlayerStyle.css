@@ -171,10 +171,6 @@ h3 {
     border-radius: 3px 3px 0px 0px / 6px 6px 0px 0px;
 }
 
-#cacheOnly {
-    margin-left: 8%;
-}
-
 #videoContainer #videoControlsDiv {
     opacity: .9;
 }
@@ -195,21 +191,14 @@ img {
 }
 
 #videoURLs {
-    margin-left: 25%;
-    width: 30%;
     position: fixed;
     font-family: Arial, Helvetica, sans-serif;
     margin-top: 2%;
 }
 
 #videoToggleButton {
-    margin-left: 8%;
+    height: 30px;
 }
-
-#playOrPauseButton {
-    margin-left: 8%;
-}
-
 
 #rewindButton {
     height: 30px;
@@ -426,10 +415,6 @@ option {
     font-family: Verdana, Geneva, sans-serif;
     letter-spacing: 3px;
     font-size: 15px;
-}
-
-#logState {
-    margin-left: 57%;
 }
 
 #autoLogButton {

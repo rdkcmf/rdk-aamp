@@ -214,7 +214,7 @@ var HTML5PlayerControls = function() {
         this.video = document.getElementById("video");
 
         // Buttons
-        this.vidtoggleButton = document.getElementById("videoToggleButton");
+        this.videoToggleButton = document.getElementById("videoToggleButton");
         this.playButton = document.getElementById("playOrPauseButton");
         this.rwdButton = document.getElementById("rewindButton");
         this.skipBwdButton = document.getElementById("skipBackwardButton");
@@ -231,7 +231,7 @@ var HTML5PlayerControls = function() {
         this.videoFileList = document.getElementById("videoURLs");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.cacheOnlyButton, this.videoFileList, this.autoVideoLogButton, this.homeContentButton, this.vidtoggleButton ];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.selectListIndex = 0;
@@ -321,14 +321,12 @@ var HTML5PlayerControls = function() {
     this.keyUp = function() {
         if (this.dropDownListVisible) {
             this.prevVideoSelect();
-        } else if (this.dropDownBitrateListVisible) {
-            this.prevBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
+        } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.videoToggleButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
-            this.currentObj = this.videoFileList;
+            this.currentObj = this.cacheOnlyButton;
             //move focus to the first element in the top navigation bar
-            this.currentPos = this.components.indexOf(this.videoFileList);
+            this.currentPos = this.components.indexOf(this.cacheOnlyButton);
             this.addFocus();
         }
     };
@@ -383,28 +381,31 @@ var HTML5PlayerControls = function() {
                     playPause();
                     break;
             case 1:
-                    fastrwd();
+                    toggleVideo();
                     break;
             case 2:
-                    skipBackward();
+                    fastrwd();
                     break;
             case 3:
-                    skipForward();
+                    skipBackward();
                     break;
             case 4:
-                    fastfwd();
+                    skipForward();
                     break;
             case 5:
-                    mutePlayer();
+                    fastfwd();
                     break;
             case 6:
-                    toggleCC();
+                    mutePlayer();
                     break;
             case 7:
+                    toggleCC();
+                    break;
+            case 8:
                   //Cache Only check box
                   document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
                   break;
-            case 8:
+            case 9:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
@@ -412,14 +413,14 @@ var HTML5PlayerControls = function() {
                         getVideo(document.getElementById("cacheOnlyCheck").checked);
                     }
                     break;
-            case 9:
+            case 11:
+                    jumpToPPosition();
+                    break;
+            case 12:
                     toggleOverlay();
                     break;
-            case 10:
+            case 13:
                     goToHome();
-                    break;
-            case 11:
-                    toggleVideo();
                     break;
         };
     };
