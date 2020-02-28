@@ -137,7 +137,7 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 
 #define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
-
+#define DEFAULT_PREBUFFER_COUNT (2)
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -620,6 +620,7 @@ public:
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
+	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 public:
 
@@ -673,6 +674,7 @@ public:
 		,mAsyncTuneConfig(eUndefinedState)
 		,mWesterosSinkConfig(eUndefinedState)
 		,aampRemovePersistent(0)
+		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1658,7 +1660,7 @@ public:
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
+	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	long long trickStartUTCMS;
 	long long playStartUTCMS;
 	double durationSeconds;
