@@ -135,9 +135,8 @@ static const char *mMediaFormatName[] =
 #define MAX_URL_LOG_SIZE 960	// Considering "aamp_tune" and [AAMP-PLAYER] pretext
 
 #define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
-
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
-
+#define DEFAULT_PREBUFFER_COUNT (2)
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -616,6 +615,7 @@ public:
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
+	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 public:
 
 	/**
@@ -660,6 +660,7 @@ public:
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
 		,mWesterosSinkConfig(eUndefinedState)
+		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1673,7 +1674,7 @@ public:
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
+	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	long long trickStartUTCMS;
 	long long playStartUTCMS;
 	double durationSeconds;
