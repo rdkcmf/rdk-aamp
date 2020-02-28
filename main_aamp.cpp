@@ -3425,6 +3425,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
 			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 		}
+		else if (ReadConfigNumericHelper(cfg, "preplaybuffercount=", gpGlobalConfig->preplaybuffercount) == 1)
+		{
+			VALIDATE_INT("preplaybuffercount", gpGlobalConfig->preplaybuffercount, 10);
+			logprintf("preplaybuffercount : %d ",gpGlobalConfig->preplaybuffercount);
+		}
 		else if (ReadConfigNumericHelper(cfg, "sslverifypeer=", value) == 1)
 		{
 			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
@@ -6432,6 +6437,7 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
 	SetState(eSTATE_PLAYING);
+	pthread_cond_signal(&waitforplaystart);
 #ifdef AAMP_STOP_SINK_ON_SEEK
 	/*Do not send event on trickplay as CC is not enabled*/
 	if (AAMP_NORMAL_PLAY_RATE != rate)
@@ -6685,6 +6691,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mAsyncTuneEnabled(false)
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
+	,waitforplaystart()
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6729,7 +6736,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	// Add Connection: Keep-Alive custom header - DELIA-26832
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
-
+	pthread_cond_init(&waitforplaystart, NULL);
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mNetworkProxy = NULL;
@@ -6787,6 +6794,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_unlock(&mLock);
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
+	pthread_cond_destroy(&waitforplaystart);
 	pthread_mutex_destroy(&mLock);
 }
 
