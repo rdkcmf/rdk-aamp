@@ -3741,10 +3741,11 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		if(env_enable_westoros_sink)
 		{
 			int iValue = atoi(env_enable_westoros_sink);
+			bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
 
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", iValue);
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
 
-			if(iValue)
+			if(iValue || bValue)
 			{
 				mWesterosSinkEnabled = true;
 			}
