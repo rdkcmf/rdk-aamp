@@ -456,6 +456,11 @@ function tuneProfiling(event) {
     console.log("Tune Profiling Data: " + event.microData);
 }
 
+function bulkMetadataHandler(event) {
+	console.log("Bulk TimedMetadata : " + JSON.stringify(event));
+}
+
+
 function createAAMPPlayer(){
     var newPlayer = new AAMPPlayer();
     newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
@@ -480,6 +485,7 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("reservationEnd", reservationEnd);
     newPlayer.addEventListener("seeked", playbackSeeked);
     newPlayer.addEventListener("tuneProfiling", tuneProfiling);
+    //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
     return newPlayer;
