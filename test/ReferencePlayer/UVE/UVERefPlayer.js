@@ -305,6 +305,10 @@ function playbackSeeked(event) {
     console.log("Play Seeked " + JSON.stringify(event));
 }
 
+function bulkMetadataHandler(event) {
+	console.log("Bulk TimedMetadata : " + JSON.stringify(event));
+}
+
 // helper functions
 function resetPlayer() {
     if (playerState !== playerStatesEnum.idle) {
@@ -331,6 +335,7 @@ function resetPlayer() {
     playerObj.addEventListener("anomalyReport", anomalyEventHandler);
     playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
     playerObj.addEventListener("seeked", playbackSeeked);
+    //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //playerObj.addEventListener("adResolved", adResolvedCallback);
     playerState = playerStatesEnum.idle;
