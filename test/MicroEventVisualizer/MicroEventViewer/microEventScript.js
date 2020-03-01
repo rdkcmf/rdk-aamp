@@ -20,6 +20,7 @@
 window.onload = function() {
     var params = (new URL(document.location)).searchParams;
     var viewType = params.get('viewType'); 
+    var canvasY = 0;
     // for the Micro Event Viewer without Nav bar
     if(viewType == "normal") {
         //Hide Nav elements
@@ -27,7 +28,7 @@ window.onload = function() {
         document.getElementById('files').style.display = "none";
         document.getElementById('enterText').style.display = "none";
         document.getElementById('submitButton').style.display = "none";
-        var blobInfo = params.get('blobInfo'); 
+        var blobInfo = params.get('blobInfo');
         document.getElementById('enterText').value = blobInfo;
         myLoadHandler(document.getElementById('enterText').value);
     }
@@ -111,12 +112,12 @@ window.onload = function() {
             var x = event.pageX;
             var y = event.pageY-31;
 
+            var sz = 20;
             for (var i = 0; i < va.length; i++) {
                 var tuneInfo = va[i];
                 var startTimeUtc = tuneInfo.s;
                 var events = tuneInfo.v;
                 var uri = tuneInfo.u;
-                var sz = 16+4;
                 var y0 = canvas.height - sz;
                 var attemptStartTime = startTimeUtc - initialization_time_utc;
 
@@ -142,7 +143,7 @@ window.onload = function() {
                         document.getElementById('codeID').innerHTML = eventOutput;
                         document.getElementById('durationID').innerHTML = eventDuration + "ms";
                         document.getElementById('uriID').innerHTML = uri;
-                        document.getElementById("bucketModalContent").style.top = y-240;
+                        document.getElementById("bucketModalContent").style.top = y-canvasY;
                         document.getElementById("bucketModalContent").style.left = x;
                         document.getElementById('bucketModal').style.display = "block";
                         break;
@@ -152,7 +153,15 @@ window.onload = function() {
             }
         }
 
+        var sz = 20;
         var canvas = document.getElementById("myCanvas");
+        var requiredCanvasHeight = 72;
+        for (var i = 0; i < va.length; i++) { // walk through the tune attempts
+            requiredCanvasHeight += va[i].v.length*sz;
+        }
+        canvas.height = requiredCanvasHeight;
+        canvasY = canvas.height;
+
         canvas.onclick = myclickhandler;
         var ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -187,7 +196,6 @@ window.onload = function() {
             var uri = tuneInfo.u;
             var result = tuneInfo.r; // 1 for success
             var events = tuneInfo.v;
-            var sz = 16+4;
             var y0 = canvas.height - sz;
 
             var attemptStartTime = startTimeUtc - initialization_time_utc;
