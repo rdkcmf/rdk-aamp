@@ -1247,7 +1247,11 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
 	std::string jsonStr = eventsJSON.str();
 	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
-	logprintf("tune-profiling: %s", jsonStr.c_str());
+
+	//for now, avoid use of logprintf, to avoid potential truncation when URI in tune profiling or
+	//extra events push us over limit
+	//logprintf("tune-profiling: %s", jsonStr.c_str());
+	printf("tune-profiling: %s", jsonStr.c_str());
 
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_TUNE_PROFILING])
 	{
@@ -2324,6 +2328,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
+
+//				InterruptableMsSleep( 250 ); // this can be uncommented to locally induce extra per-download latency
+
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
 
@@ -3991,7 +3998,7 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
         SendMessageOverPipe((char *)tmp.data(), sizeToSend);
     }
 #else
-    logprintf("AAMP=>XRE: %s",data);
+    AAMPLOG_INFO("AAMP=>XRE: %s",data);
 #endif
 }
 

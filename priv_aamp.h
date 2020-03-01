@@ -1033,7 +1033,9 @@ public:
 			return;
 		}
 
-		if(!(buckets[pbt].complete))
+		// DELIA-41285: don't exclude any pre-tune download activity
+		if( !buckets[PROFILE_BUCKET_FIRST_FRAME].complete )
+		//if(!(buckets[pbt].complete))
 		{
 			std::lock_guard<std::mutex> lock(tuneEventListMtx);
 			tuneEventList.emplace_back(pbt,(start - tuneStartMonotonicBase),dur,res);

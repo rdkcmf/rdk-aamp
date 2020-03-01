@@ -2832,7 +2832,6 @@ void TrackState::RefreshPlaylist(void)
 	if(!bCacheRead)
 	{
 		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, eMEDIATYPE_MANIFEST);
 		//update videoend info
 		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
 		if(IS_FOR_IFRAME(iCurrentRate,type))
@@ -2843,6 +2842,8 @@ void TrackState::RefreshPlaylist(void)
 		{
 			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
 		}
+
+		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, actualType);
 
 		aamp->UpdateVideoEndMetrics( actualType,
 								(this->GetCurrentBandWidth()),

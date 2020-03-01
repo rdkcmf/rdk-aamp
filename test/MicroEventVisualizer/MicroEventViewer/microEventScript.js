@@ -31,7 +31,7 @@ window.onload = function() {
         document.getElementById('enterText').value = blobInfo;
         myLoadHandler(document.getElementById('enterText').value);
     }
-
+  
     function time2x(t) { // map time in milliseconds (relative to start of tune) to x-axis
         return t * 0.1 + 32;
     }
@@ -111,12 +111,12 @@ window.onload = function() {
             var x = event.pageX;
             var y = event.pageY-31;
 
+            var sz = 20;
             for (var i = 0; i < va.length; i++) {
                 var tuneInfo = va[i];
                 var startTimeUtc = tuneInfo.s;
                 var events = tuneInfo.v;
                 var uri = tuneInfo.u;
-                var sz = 16+4;
                 var y0 = canvas.height - sz;
                 var attemptStartTime = startTimeUtc - initialization_time_utc;
 
@@ -152,7 +152,14 @@ window.onload = function() {
             }
         }
 
+        var sz = 20;
         var canvas = document.getElementById("myCanvas");
+        var requiredCanvasHeight = 72;
+        for (var i = 0; i < va.length; i++) { // walk through the tune attempts
+            requiredCanvasHeight += va[i].v.length*sz;
+        }
+        canvas.height = requiredCanvasHeight;
+
         canvas.onclick = myclickhandler;
         var ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -187,7 +194,6 @@ window.onload = function() {
             var uri = tuneInfo.u;
             var result = tuneInfo.r; // 1 for success
             var events = tuneInfo.v;
-            var sz = 16+4;
             var y0 = canvas.height - sz;
 
             var attemptStartTime = startTimeUtc - initialization_time_utc;
