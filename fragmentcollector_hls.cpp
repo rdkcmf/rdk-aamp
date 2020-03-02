@@ -2545,13 +2545,13 @@ void TrackState::IndexPlaylist()
 #ifdef AAMP_HLS_DRM
 						if (gpGlobalConfig->fragmp4LicensePrefetch){
 							pthread_mutex_lock(&aamp->drmParserMutex);
-							attrNameData* aesCtrAttrData = new attrNameData(key); 
+							attrNameData* aesCtrAttrData = new attrNameData(keyinfo.mKeyTagStr); 
 							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
 									*aesCtrAttrData) == aamp->aesCtrAttrDataList.end()) {
 								// attrName not in aesCtrAttrDataList, add it
 								//comment/mark as trace after testing
 								AAMPLOG_INFO("%s:%d Adding License data from manifest to the queue %s",
-								__FUNCTION__, __LINE__, key);
+								__FUNCTION__, __LINE__, keyinfo.mKeyTagStr.c_str());
 								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
 							}
 							/** No more use **/
