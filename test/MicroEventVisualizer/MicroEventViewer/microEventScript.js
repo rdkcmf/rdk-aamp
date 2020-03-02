@@ -20,6 +20,7 @@
 window.onload = function() {
     var params = (new URL(document.location)).searchParams;
     var viewType = params.get('viewType'); 
+    var canvasY = 0;
     // for the Micro Event Viewer without Nav bar
     if(viewType == "normal") {
         //Hide Nav elements
@@ -27,11 +28,11 @@ window.onload = function() {
         document.getElementById('files').style.display = "none";
         document.getElementById('enterText').style.display = "none";
         document.getElementById('submitButton').style.display = "none";
-        var blobInfo = params.get('blobInfo'); 
+        var blobInfo = params.get('blobInfo');
         document.getElementById('enterText').value = blobInfo;
         myLoadHandler(document.getElementById('enterText').value);
     }
-  
+
     function time2x(t) { // map time in milliseconds (relative to start of tune) to x-axis
         return t * 0.1 + 32;
     }
@@ -142,7 +143,7 @@ window.onload = function() {
                         document.getElementById('codeID').innerHTML = eventOutput;
                         document.getElementById('durationID').innerHTML = eventDuration + "ms";
                         document.getElementById('uriID').innerHTML = uri;
-                        document.getElementById("bucketModalContent").style.top = y-240;
+                        document.getElementById("bucketModalContent").style.top = y-canvasY;
                         document.getElementById("bucketModalContent").style.left = x;
                         document.getElementById('bucketModal').style.display = "block";
                         break;
@@ -159,6 +160,7 @@ window.onload = function() {
             requiredCanvasHeight += va[i].v.length*sz;
         }
         canvas.height = requiredCanvasHeight;
+        canvasY = canvas.height;
 
         canvas.onclick = myclickhandler;
         var ctx = canvas.getContext("2d");
