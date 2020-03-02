@@ -789,11 +789,19 @@ static gboolean buffering_timeout (gpointer data)
 				_this->privateContext->buffering_in_progress = false;
 			}
 		}
+		if (!_this->privateContext->buffering_in_progress)
+		{
+			//reset timer id after buffering operation is completed
+			_this->privateContext->bufferingTimeoutTimerId = 0;
+		}
 		return _this->privateContext->buffering_in_progress;
 		
-	}else{
+	}
+	else
+	{
 		logprintf("%s:%d in buffering_timeout got invalid or NULL handle ! _this =  %p   _this->privateContext = %p ", __FUNCTION__, __LINE__,
 		_this, (_this? _this->privateContext: NULL) );
+		_this->privateContext->bufferingTimeoutTimerId = 0;
 		return false;
 	}
 	
@@ -2732,6 +2740,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
 	}
 
+	if (privateContext->bufferingTimeoutTimerId)
+	{
+		logprintf("AAMPGstPlayer::%s:%d Remove bufferingTimeoutTimerId %d", __FUNCTION__, __LINE__, privateContext->bufferingTimeoutTimerId);
+		g_source_remove(privateContext->bufferingTimeoutTimerId);
+		privateContext->bufferingTimeoutTimerId = 0;
+	}
+
 	if (stream->using_playersinkbin)
 	{
 		Flush();
@@ -2771,7 +2786,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for buffered bytes (or)
 				 * frames result in 0 count; that results internal retune during Video Buffering.
 				 */
-				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__);
 
 				if (gst_element_set_state(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 				{
