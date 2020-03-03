@@ -645,7 +645,7 @@ public:
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
-		tunedEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), tunedEventConfigVOD(eTUNED_EVENT_ON_PLAYLIST_INDEXED),
+		tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
 		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
 		, disableSslVerifyPeer(true)
 		,mSubtitleLanguage()
@@ -1616,6 +1616,14 @@ public:
 	 */
 	ProfilerBucketType mediaType2Bucket(MediaType fileType);
 
+       /**
+         * @brief to set the vod-tune-event according to the player
+         *
+         * @param[in] tuneEventType
+         * @return void
+         */
+	void SetTuneEventConfig( TunedEventConfig tuneEventType);
+
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
@@ -1697,6 +1705,8 @@ public:
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
+	TunedEventConfig  mTuneEventConfigVod;
+	TunedEventConfig mTuneEventConfigLive;
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
