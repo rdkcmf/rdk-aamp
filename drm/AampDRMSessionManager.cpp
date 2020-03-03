@@ -59,17 +59,12 @@ KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPr
 {
 }
 
-/**
- * @brief vector pool of DrmSessionDataInfo
- */
-vector <DrmSessionDataInfo> drmSessionDataPool_g; 
 
 DrmSessionCacheInfo *drmCacheInfo_g = NULL;
 
 void *CreateDRMSession(void *arg);
 DrmSessionCacheInfo* getDrmCacheInformationHandler();
-int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
-static DrmSessionDataInfo* getDrmDatafromPool();
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
 
 /**
  *  @brief Get drm cache info handler
@@ -625,7 +620,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	const char *keySystem = NULL;
 	DRMSystems drmType = eDRM_NONE;
-	logprintf("%s:%d systemId is %s ", __FUNCTION__, __LINE__, systemId);
 	if (!strncmp(systemId, PLAYREADY_PROTECTION_SYSTEM_ID, sizeof(PLAYREADY_PROTECTION_SYSTEM_ID)))
 	{
 		AAMPLOG_INFO("%s:%d [HHH]systemId is PLAYREADY", __FUNCTION__, __LINE__);
@@ -675,7 +669,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		if (keyIdLen == cachedKeyIDs[sessionSlot].len && 0 == memcmp(cachedKeyIDs[sessionSlot].data, keyId, keyIdLen))
 		{
-		//	if(gpGlobalConfig->logging.debug)
+			if(gpGlobalConfig->logging.debug)
 			{
 				logprintf("%s:%d  Session created/inprogress with same keyID %s at slot %d, can reuse same for %s",
 							__FUNCTION__, __LINE__, keyId, sessionSlot, sessionTypeName[streamType]);
@@ -714,7 +708,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		if(keySlotFound)
 		{
-		//	if(gpGlobalConfig->logging.debug)
+			if(gpGlobalConfig->logging.debug)
 			{
 				logprintf("%s:%d  Selected slot %d for keyId %s sessionType %s",
 							__FUNCTION__, __LINE__, sessionSlot, keyId, sessionTypeName[streamType]);
@@ -1212,46 +1206,6 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	return NULL;
 }
 
-/**
- *  @brief		Get DRM data from the pool based on preferred drm
- *  @param[out]	None
- *  @return		Drm data as DrmSessionDataInfo .
- */
-static DrmSessionDataInfo* getDrmDatafromPool()
-{
-	DrmSessionDataInfo* sessionData = NULL;
-	DRMSystems preferredDrm = (DRMSystems)gpGlobalConfig->preferredDrm;
-
-	if ((preferredDrm != eDRM_WideVine ) && (preferredDrm != eDRM_PlayReady)){
-		AAMPLOG_WARN("%s:%d Preferred DRM %d is not supported!"
-		" Setting Preferred Drm as PlayReady (%d)", 
-		__FUNCTION__, __LINE__,	preferredDrm, eDRM_PlayReady );
-		preferredDrm = eDRM_PlayReady;
-	}
-
-	//for (auto iterator = drmSessionDataPool_g.begin(); 
-	//iterator != drmSessionDataPool_g.end(); iterator++)
-	for (auto iterator = 0; 
-	iterator < drmSessionDataPool_g.size(); iterator++)
-	{
-		if (drmSessionDataPool_g[iterator].drmType == preferredDrm){
-			AAMPLOG_INFO("%s:%d Found %d Drm Data at 0x%08x!",
-			__FUNCTION__, __LINE__,	preferredDrm, &drmSessionDataPool_g[iterator]);
-			sessionData = &drmSessionDataPool_g[iterator];
-			break;
-		}
-
-	}
-
-	if (NULL == sessionData ){
-		sessionData = &drmSessionDataPool_g[0];
-		AAMPLOG_WARN("%s:%d Neither preferred Drm (%d) nor PlayReady Drm (%d)"
-		"Found from the pool, selecting first drm (%d) from pool !!",
-			__FUNCTION__, __LINE__,	
-			preferredDrm, eDRM_PlayReady, sessionData->drmType );
-	}
-	return sessionData;
-}
 
 /**
  *  @brief		Function to spawn the DrmSession Thread based on the
@@ -1259,33 +1213,17 @@ static DrmSessionDataInfo* getDrmDatafromPool()
  *  @param[out]	private aamp instance
  *  @return		None.
  */
-int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp)
+int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData)
 {
 	int iState = DRM_API_FAILED;
 	do{
-		/** if Drm data pool is empty **/
-		if (drmSessionDataPool_g.empty())
-		{
-			AAMPLOG_INFO("%s:%d No DRM data cached in the pool", 
-				__FUNCTION__, __LINE__);
-			break;
-		}
 
-		/** KC Get the Drm Data from the pool based on preference */
-		struct DrmSessionDataInfo* drmData = getDrmDatafromPool();
+		/** API protection added **/
 		if (NULL == drmData){
-			AAMPLOG_ERR("%s:%d Could not able to retrive the Drm data from pool", 
+			AAMPLOG_ERR("%s:%d Could not able to process with the NULL Drm data", 
 				__FUNCTION__, __LINE__);
 			break;
 		}
-
-		/** Check whether already license acquired or not **/
-		if (drmData->isProcessedLicenseAcquire){
-			AAMPLOG_INFO("%s:%d Already license acquired for 0x%08x", 
-				__FUNCTION__, __LINE__, drmData->sessionData);
-			break;
-		}
-
 		/** Achieve single thread logic for DRM Session Creation **/
 		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
 		if(drmInfo->drmSessionThreadStarted) //In the case of license rotation
@@ -1390,19 +1328,7 @@ void *CreateDRMSession(void *arg)
 		}
 		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
-	if (data){
-		free(data);
-		data = NULL;
-	}
-	if(contentMetadata){
-		free(contentMetadata);
-		contentMetadata = NULL;
-	}
-	if (sessionParams){
-		free(sessionParams);
-		sessionParams = NULL;
-	}
 
-	AAMPLOG_INFO("%s:%d Exited",  __FUNCTION__, __LINE__ );
+	//AAMPLOG_INFO("%s:%d Exited",  __FUNCTION__, __LINE__ );
 	return NULL;
 }

@@ -43,14 +43,13 @@ extern DrmSessionCacheInfo* getDrmCacheInformationHandler();
 /**
  * @brief vector pool of DrmSessionDataInfo
  */
-extern vector <DrmSessionDataInfo> drmSessionDataPool_g; 
+vector <DrmSessionDataInfo *> drmSessionDataPool_g; 
 static pthread_mutex_t drmProcessingMutex = PTHREAD_MUTEX_INITIALIZER;
 /**
  * Global aamp config data 
  */
 extern GlobalConfigAAMP *gpGlobalConfig;
-
-int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
+DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 
 /**
  * Local APIs declarations
@@ -225,9 +224,6 @@ static DRMSystems getDrmType(string attrName){
 	string systemId = "";
 	DRMSystems drmType = eDRM_NONE;
 
-	/* Remove/make it to trace after Debugging */
-	AAMPLOG_TRACE("%s:%d Entring..", __FUNCTION__, __LINE__);
-
 	if(DRM_API_SUCCESS != GetFieldValue(attrName, "KEYFORMAT", systemId )){
 		AAMPLOG_ERR("%s:%d Could not able to receive key id from manifest",
 		__FUNCTION__, __LINE__);
@@ -239,9 +235,6 @@ static DRMSystems getDrmType(string attrName){
 		systemId = systemId.substr(strlen("urn:uuid:"));
 	}
 	
-	AAMPLOG_INFO("%s:%d DRM System Id %s", 
-	__FUNCTION__, __LINE__, systemId.c_str());
-
 	if((systemId == WIDEVINE_PROTECTION_SYSTEM_ID) || (systemId == WIDEVINE_KEY_SYSTEM_STRING)){
 		drmType = eDRM_WideVine;
 	
@@ -255,9 +248,6 @@ static DRMSystems getDrmType(string attrName){
 		AAMPLOG_ERR("%s:%d Unknown DRM Id received as %s",
 		__FUNCTION__, __LINE__, systemId.c_str());
 	}
-	/* Remove/make it to trace after Debugging */
-	AAMPLOG_TRACE("%s:%d DRM Type recieved is %d", 
-	__FUNCTION__, __LINE__, drmType);
 
 	return drmType;
 }
@@ -268,7 +258,7 @@ static DRMSystems getDrmType(string attrName){
  * @param attribute list from manifest
  * @return none
  */
-int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
+DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 {
 	/* StreamAbstractionAAMP_HLS* context; */
 	/* Pseudo code for ProcessContentProtection in HLS is below
@@ -292,7 +282,7 @@ int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 	unsigned char * keyId = NULL;
 	int keyIdLen = 0;
 	MediaType mediaType = eMEDIATYPE_VIDEO;
-	int iState = DRM_API_FAILED;
+	DrmSessionDataInfo *drmSessioData = NULL;
 	do{
 		drmType = getDrmType(attrName);
 		if (eDRM_NONE == drmType){
@@ -369,17 +359,16 @@ int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 		bool alreadyPushed = false;
 		pthread_mutex_lock(&drmProcessingMutex);
 		for (auto iterator = drmSessionDataPool_g.begin();  iterator != drmSessionDataPool_g.end(); iterator++){
-			if (keyIdLen == iterator->processedKeyIdLen && 0 == memcmp(iterator->processedKeyId, keyId, keyIdLen)){
+			if (keyIdLen == (*iterator)->processedKeyIdLen && 0 == memcmp((*iterator)->processedKeyId, keyId, keyIdLen)){
 				alreadyPushed = true;
+				AAMPLOG_WARN("%s:%d DRM Infor already available , not sending request again",__FUNCTION__, __LINE__);								
 				break;
 			}
 		}
-		AAMPLOG_INFO("%s:%d DRM Infor already pushed is %s",
-		__FUNCTION__, __LINE__, alreadyPushed?"TRUE":"FALSE" );
 		if (!alreadyPushed){
 			/** Push Drm Information for later use do not free the memory here*/
-			AAMPLOG_INFO("%s:%d - Storing DRM Info for DRM (%d) at keyId %s", 
-			__FUNCTION__, __LINE__, drmType, keyId);
+			//AAMPLOG_INFO("%s:%d - Storing DRM Info for DRM (%d) at keyId %s", 
+			//__FUNCTION__, __LINE__, drmType, keyId);
 
 			/** Populate session data **/
 			struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)malloc(sizeof(struct DrmSessionParams));
@@ -391,13 +380,13 @@ int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 			sessionParams->contentMetadata = NULL;
 
 			/** populate pool data **/
-			DrmSessionDataInfo drmSessioData;
-			drmSessioData.isProcessedLicenseAcquire = false;
-			drmSessioData.drmType = drmType;
-			drmSessioData.sessionData = sessionParams;
-			drmSessioData.processedKeyIdLen = keyIdLen;
-			drmSessioData.processedKeyId = (unsigned char *) malloc(keyIdLen + 1);
-			memcpy(drmSessioData.processedKeyId, keyId, keyIdLen);
+			drmSessioData = new DrmSessionDataInfo() ;
+			drmSessioData->isProcessedLicenseAcquire = false;
+			drmSessioData->drmType = drmType;
+			drmSessioData->sessionData = sessionParams;
+			drmSessioData->processedKeyIdLen = keyIdLen;
+			drmSessioData->processedKeyId = (unsigned char *) malloc(keyIdLen + 1);
+			memcpy(drmSessioData->processedKeyId, keyId, keyIdLen);
 			drmSessionDataPool_g.push_back(drmSessioData);
 		}
 		pthread_mutex_unlock(&drmProcessingMutex);
@@ -406,16 +395,51 @@ int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName)
 			free(keyId);
 			keyId = NULL;
 		}
-		iState = DRM_API_SUCCESS;
 		
 	}while(0);
-	return iState;
+	return drmSessioData;
+}
+
+/**
+ * @brief Process content protection of track
+ * @param TrackState object 
+ * @param attribute list from manifest
+ * @return none
+ */
+void ReleaseContentProtectionCache()
+{
+	DrmSessionDataInfo *drmSessioData = NULL;
+	pthread_mutex_lock(&drmProcessingMutex);
+	while (!drmSessionDataPool_g.empty())
+	  {
+		drmSessioData = drmSessionDataPool_g.back();
+		drmSessionDataPool_g.pop_back();
+		// check if session Data is not NULL . This is not freed any other place
+		if(drmSessioData->sessionData)
+		{
+			if(drmSessioData->sessionData->initData)
+				free(drmSessioData->sessionData->initData);		
+			if(drmSessioData->sessionData->contentMetadata)
+				free(drmSessioData->sessionData->contentMetadata);
+			free(drmSessioData->sessionData);
+		}
+		if(drmSessioData->processedKeyId)
+		{
+			free(drmSessioData->processedKeyId);
+		}
+		// clear the session
+		if(drmSessioData)
+		{
+			free(drmSessioData);
+		}
+	  }
+	pthread_mutex_unlock(&drmProcessingMutex);
 }
 
 
 #else
 
-int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName){
+void* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName){
 	AAMPLOG_INFO("%s:%d AAMP_HLS_DRM not enabled", 
 				__FUNCTION__, __LINE__);
 	return 0;

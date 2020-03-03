@@ -48,7 +48,6 @@ typedef struct DrmSessionCacheInfo{
 	bool drmSessionThreadStarted; /**< DRM Session start flag to identify the DRM Session thread running */
 }DrmSessionCacheInfo;
 
-
 /**
  *  @struct	DrmSessionDataInfo
  *  @brief	Drm Session Data Information 

@@ -60,6 +60,10 @@
 #include "isobmffprocessor.h"
 #include "AampDRMutils.h"
 
+#ifdef AAMP_HLS_DRM
+#include "AampDRMSessionManager.h"
+#endif
+
 //#define TRACE // compile-time optional noisy debug output
 
 #define CHAR_CR 0x0d // '\r'
@@ -79,9 +83,9 @@
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
 #ifdef AAMP_HLS_DRM
-extern int ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
-extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
-
+extern DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
+extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
+extern void ReleaseContentProtectionCache();
 #endif 
 
 /**
@@ -677,6 +681,7 @@ static void * TrackPLDownloader(void *arg)
 static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 #ifdef AAMP_HLS_DRM 
 		/** If fragments are CDM encrypted KC **/
+		DrmSessionDataInfo* drmData = NULL;
 		if (aamp->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
 			pthread_mutex_lock(&aamp->drmParserMutex);
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
@@ -684,9 +689,23 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 					//Mark as trace after testing
 					AAMPLOG_INFO("%s:%d: Processing License data from manifest : %s ",  __FUNCTION__, __LINE__ 
 					, aamp->aesCtrAttrDataList.at(i).attrName.c_str());
-					if (DRM_API_SUCCESS == ProcessContentProtection( aamp, aamp->aesCtrAttrDataList.at(i).attrName)){
-						if(DRM_API_SUCCESS == SpawnDRMLicenseAcquireThread(aamp)){
-							aamp->aesCtrAttrDataList.at(i).isProcessed = true;
+					drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
+					if (NULL != drmData){
+						DRMSystems preferredDrm = (DRMSystems)gpGlobalConfig->preferredDrm;
+						if ((preferredDrm != eDRM_WideVine ) && (preferredDrm != eDRM_PlayReady)){
+							AAMPLOG_WARN("%s:%d Preferred DRM %d is not supported!"
+							" Setting Preferred Drm as PlayReady (%d)", 
+							__FUNCTION__, __LINE__,	preferredDrm, eDRM_PlayReady );
+							preferredDrm = eDRM_PlayReady;
+						}
+						if(drmData->drmType == preferredDrm){
+							AAMPLOG_INFO("%s:%d: Prefferred DRM data found while manifest parsing : %d ", 
+							 __FUNCTION__, __LINE__ , drmData->drmType );
+
+				                        if(DRM_API_SUCCESS == SpawnDRMLicenseAcquireThread(aamp, drmData)){
+                        					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
+							        break;
+			                        	}
 						}
 					}
 				}
@@ -5110,7 +5129,13 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		AveDrmManager::ReleaseAll();
 		AveDrmManager::ResetAll();
 	}
-
+#ifdef AAMP_HLS_DRM 
+	else if(clearChannelData && aamp->fragmentCdmEncrypted)
+	{
+		// check for WV and PR , if anything to be flushed 
+		ReleaseContentProtectionCache();
+	}
+#endif
 	aamp->EnableDownloads();
 }
 /***************************************************************************
