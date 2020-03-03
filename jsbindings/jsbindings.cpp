@@ -3511,7 +3511,7 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 		pthread_mutex_lock(&mutex);
 		if (NULL == _allocated_aamp )
 		{
-			_allocated_aamp = new PlayerInstanceAAMP();
+			_allocated_aamp = new PlayerInstanceAAMP(NULL,NULL,PLAYMOD_JSPLAYER);
 			LOG("[AAMP_JS] %s:%d create aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		}
 		else

@@ -3281,7 +3281,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		{
 			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
 			TunedEventConfig tunedEventConfig =  mIsLive ?
-					gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
+					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
 				if (aamp->SendTunedEvent())

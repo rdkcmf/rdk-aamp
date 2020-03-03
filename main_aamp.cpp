@@ -1284,7 +1284,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		if(gpGlobalConfig->enableMicroEvents) sendTuneMetrics(success);
 		mTuneCompleted = true;
 		mFirstTune = false;
-		TunedEventConfig tunedEventConfig = IsLive() ? gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
+		TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 		if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
 		{
 			if (SendTunedEvent())
@@ -3332,7 +3332,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->enablePROutputProtection = (value != 0);
 			logprintf("playready-output-protection is %s", (value ? "on" : "off"));
 		}
-		else if (ReadConfigNumericHelper(cfg, "live-tune-event = ", value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "live-tune-event=", value) == 1)
                 { // default is 0; set 1 for sending tuned for live
                         logprintf("live-tune-event = %d", value);
                         if (value >= 0 && value < eTUNED_EVENT_MAX)
@@ -3340,7 +3340,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
                                 gpGlobalConfig->tunedEventConfigLive = (TunedEventConfig)(value);
                         }
                 }
-                else if (ReadConfigNumericHelper(cfg, "vod-tune-event = ", value) == 1)
+                else if (ReadConfigNumericHelper(cfg, "vod-tune-event=", value) == 1)
                 { // default is 0; set 1 for sending tuned event for vod
                         logprintf("vod-tune-event = %d", value);
                         if (value >= 0 && value < eTUNED_EVENT_MAX)
@@ -3849,7 +3849,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	,Playermode playermode) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -3871,6 +3871,14 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
+	if(playermode == PLAYMOD_MEDIAPLAYER)
+	{
+		aamp->SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
+	}
+	else
+	{
+		aamp->SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
+	}
 
 }
 
@@ -5910,7 +5918,31 @@ void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 	aamp->SetInitialBitrate4K(bitrate4K);
 }
 
+/**
+ *   @brief To set the vod-tune-event according to the player.
+ *
+ *   @param[in] preferred tune event type
+ */
+void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
+{
+	if(gpGlobalConfig->tunedEventConfigVOD == eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigVod = tuneEventType;
+	}
+	else
+	{
+		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+	}
 
+	if(gpGlobalConfig->tunedEventConfigLive == eTUNED_EVENT_MAX)
+	{
+                mTuneEventConfigLive = tuneEventType;
+	}
+	else
+	{
+		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
+	}
+}
 /**
  *   @brief To set the network download timeout value.
  *
@@ -5918,8 +5950,8 @@ void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
  */
 void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
 {
-	ERROR_STATE_CHECK_VOID();
-	aamp->SetNetworkTimeout(timeout);
+        ERROR_STATE_CHECK_VOID();
+        aamp->SetNetworkTimeout(timeout);
 }
 
 /**
@@ -6916,6 +6948,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 #endif
@@ -7940,7 +7973,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 {
 	if(mTunedEventPending)
 	{
-		TunedEventConfig tunedEventConfig =  IsLive() ? gpGlobalConfig->tunedEventConfigLive : gpGlobalConfig->tunedEventConfigVOD;
+		TunedEventConfig tunedEventConfig =  IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
 		{
 			if (SendTunedEvent())
