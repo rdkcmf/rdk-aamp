@@ -21,22 +21,6 @@ window.onload = function() {
     var params = (new URL(document.location)).searchParams;
     var viewType = params.get('viewType'); 
     var canvasY = 0;
-    // for the Micro Event Viewer without Nav bar
-    if(viewType == "normal") {
-        //Hide Nav elements
-        document.getElementById('fileUpload').style.display = "none";
-        document.getElementById('files').style.display = "none";
-        document.getElementById('enterText').style.display = "none";
-        document.getElementById('submitButton').style.display = "none";
-        var blobInfo = params.get('blobInfo');
-        document.getElementById('enterText').value = blobInfo;
-        myLoadHandler(document.getElementById('enterText').value);
-    }
-
-    function time2x(t) { // map time in milliseconds (relative to start of tune) to x-axis
-        return t * 0.1 + 32;
-    }
-
     /*
     Common:
     ct = Content Type
@@ -81,6 +65,22 @@ window.onload = function() {
      {"name":"license acquisition network", "color":"#ffffaa" }, // 15
      {"name":"license acquisition post-processing", "color":"#ffffaa" }, // 16
      ];
+
+    // for the Micro Event Viewer without Nav bar
+    if(viewType == "normal") {
+        //Hide Nav elements
+        document.getElementById('fileUpload').style.display = "none";
+        document.getElementById('files').style.display = "none";
+        document.getElementById('enterText').style.display = "none";
+        document.getElementById('submitButton').style.display = "none";
+        var blobInfo = params.get('blobInfo');
+        document.getElementById('enterText').value = blobInfo;
+        myLoadHandler(document.getElementById('enterText').value);
+    }
+
+    function time2x(t) { // map time in milliseconds (relative to start of tune) to x-axis
+        return t * 0.1 + 32;
+    }
 
     function myLoadHandler(e) {
         // Hide bucket details initially
@@ -238,15 +238,6 @@ window.onload = function() {
                 y0 -= sz;
             }
         }
-
-        /*
-        	ctx.strokeStyle = '#ff00ff'; // magenta
-            ctx.beginPath();
-            ctx.moveTo(x0,y0);
-            ctx.lineTo(x0,y0);
-            ctx.stroke();
-        */
-
     }
 
     function handleFileSelect(evt) {
