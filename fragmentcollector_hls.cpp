@@ -2706,23 +2706,26 @@ void TrackState::IndexPlaylist()
 	// Store the all the Metadata received from playlist indexing .
 	// IF already stored , AveDrmManager will ignore it
 	// ProcessDrmMetadata -> to be called only from one place , after playlist indexing. Not to call from other places
-	aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-	ProcessDrmMetadata();
-	// Initiating key request for Meta present.If already key received ,call will be ignored.
-	InitiateDRMKeyAcquisition();
-	// default MetaIndex is 0 , for single Meta . If Multi Meta is there ,then Hash is the criteria
-	// for selection
-	mDrmMetaDataIndexPosition = 0;
-
-	if (mDrmKeyTagCount > 0)
+	if(mDrmMethod != eDRM_KEY_METHOD_SAMPLE_AES_CTR)
 	{
-		if (mDrmMetaDataIndexCount > 0)
+		aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
+		ProcessDrmMetadata();
+		// Initiating key request for Meta present.If already key received ,call will be ignored.
+		InitiateDRMKeyAcquisition();
+		// default MetaIndex is 0 , for single Meta . If Multi Meta is there ,then Hash is the criteria
+		// for selection
+		mDrmMetaDataIndexPosition = 0;
+
+		if (mDrmKeyTagCount > 0)
 		{
-			aamp->setCurrentDrm(eDRM_Adobe_Access);
-		}
-		else
-		{
-			aamp->setCurrentDrm(eDRM_Vanilla_AES);
+			if (mDrmMetaDataIndexCount > 0)
+			{
+				aamp->setCurrentDrm(eDRM_Adobe_Access);
+			}
+			else
+			{
+				aamp->setCurrentDrm(eDRM_Vanilla_AES);
+			}
 		}
 	}
 	firstIndexDone = true;

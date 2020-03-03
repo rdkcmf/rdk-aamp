@@ -1064,11 +1064,20 @@ public:
 	{
 		bool siblingEvent = false;
 		unsigned int tEndTime = NOW_STEADY_TS_MS;
+		size_t end = 0;
+
+		std::string temlUrl = url;
+		end = temlUrl.find("?");
+
+		if (end != std::string::npos)
+		{
+			temlUrl = temlUrl.substr(0, end);
+		}
 
 		outSS << "{\"s\":" << tuneStartBaseUTCMS
 				//TODO: It should be the duration relative to XRE start time.
 				<< ",\"td\":" << (tEndTime - tuneStartMonotonicBase)
-				<< ",\"st\":\"" << streamType << "\",\"u\":\"" << url
+				<< ",\"st\":\"" << streamType << "\",\"u\":\"" << temlUrl
 				<< "\",\"tf\":{" << "\"i\":" << mTuneFailBucketType << ",\"er\":" << mTuneFailErrorCode << "}"
 				<< ",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
 
