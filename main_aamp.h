@@ -99,6 +99,16 @@ typedef enum
 } AAMPEventType;
 
 /**
+ * @brief Play mode : media player/JS platyer.
+	set the vod-tune-event according to the play mode.
+ */
+enum Playermode
+{
+	PLAYMOD_MEDIAPLAYER,
+	PLAYMOD_JSPLAYER
+};
+
+/**
  * @brief AAMP anomaly message types
  */
 typedef enum
@@ -811,7 +821,9 @@ public:
 	 *
 	 *   @param  streamSink - custom stream sink, NULL for default.
 	 */
-	PlayerInstanceAAMP(StreamSink* streamSink = NULL);
+	PlayerInstanceAAMP(StreamSink* streamSink = NULL
+			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr,Playermode playermode = PLAYMOD_JSPLAYER
+			);
 
 	/**
 	 *   @brief PlayerInstanceAAMP Destructor.
