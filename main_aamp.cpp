@@ -1244,6 +1244,9 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
 	std::string jsonStr = eventsJSON.str();
 	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
+
+	//for now, avoid use of logprintf, to avoid potential truncation when URI in tune profiling or
+	//extra events push us over limit
 	logprintf("tune-profiling: %s", jsonStr.c_str());
 
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_TUNE_PROFILING])
