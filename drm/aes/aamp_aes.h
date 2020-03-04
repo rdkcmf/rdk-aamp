@@ -23,7 +23,7 @@
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
 #include "drm.h"
-#include "openssl/evp.h"
+#include <openssl/evp.h>
 #include <memory>
 
 /**
@@ -60,7 +60,11 @@ private:
 	PrivateInstanceAAMP *mpAamp;
 	pthread_cond_t mCond;
 	pthread_mutex_t mMutex;
+#if OPENSSL_VERSION_NUMBER > 0x10100000L
+	EVP_CIPHER_CTX* mOpensslCtx;
+#else
 	EVP_CIPHER_CTX mOpensslCtx;
+#endif
 	DrmInfo mDrmInfo ;
 	GrowableBuffer mAesKeyBuf;
 	DRMState mDrmState;
