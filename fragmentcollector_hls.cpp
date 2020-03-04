@@ -4026,7 +4026,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				if(iTrack == eTRACK_VIDEO)
 				{
 					ts->FindTimedMetadata(aamp->mBulkTimedMetadata);
-					if(aamp->mBulkTimedMetadata)
+					if(aamp->mBulkTimedMetadata && newTune)
 					{
 						// Send bulk report
 						aamp->ReportBulkTimedMetadata();
