@@ -1691,6 +1691,7 @@ public:
 	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
+	int mPlayerId;
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */

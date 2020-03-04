@@ -88,6 +88,8 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 static const char* STRBGPLAYER = "BACKGROUND";
 static const char* STRFGPLAYER = "FOREGROUND";
 
+static int PLAYERID_CNTR = 0;
+
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -868,7 +870,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
 		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
-		logprintf("%s Sending error %s ", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), e.data.mediaError.description);
+		logprintf("PLAYER[%d] Sending error %s ", mPlayerId, e.data.mediaError.description);
 		SendEventAsync(e);
 	}
 	else
@@ -4050,7 +4052,7 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		}
 	}
 	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_INFO("%s Stopping Playback at Position '%lld'.", (aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->GetPositionMilliseconds());
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.", (aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER),aamp->mPlayerId,  aamp->GetPositionMilliseconds());
 	aamp->Stop();
 }
 
@@ -4651,11 +4653,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
-		logprintf("%s aamp_tune: attempt: %d format: %s URL: %s\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+		logprintf("%s PLAYER[%d] aamp_tune: attempt: %d format: %s URL: %s\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 	}
 	else
 	{
-		logprintf("%s aamp_tune: attempt: %d format: %s URL: (BIG)\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mTuneAttempts, mMediaFormatName[mMediaFormat]);
+		logprintf("%s PLAYER[%d] aamp_tune: attempt: %d format: %s URL: (BIG)\n", (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mTuneAttempts, mMediaFormatName[mMediaFormat]);
 		printf("URL: %s\n", mManifestUrl.c_str());
 	}
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
@@ -4916,7 +4918,7 @@ void PrivateInstanceAAMP::detach()
 {
 	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
 	{
-		AAMPLOG_INFO("%s:%d Player %s=>%s and soft release.", __FUNCTION__, __LINE__, STRFGPLAYER, STRBGPLAYER );
+		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
 		pipeline_paused = true;
 		mpStreamAbstractionAAMP->StopInjection();
 		mStreamSink->Stop(true);
@@ -5079,6 +5081,8 @@ double PrivateInstanceAAMP::GetSeekBase(void)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
+	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
+
 	ERROR_STATE_CHECK_VOID();
 
 	if (aamp->mpStreamAbstractionAAMP)
@@ -5088,9 +5092,9 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
 			return;
 		}
-		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused)
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
 		{
-			AAMPLOG_INFO("%s:%d Player %s=>%s.", __FUNCTION__, __LINE__, STRBGPLAYER, STRFGPLAYER );
+			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
 			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
 			aamp->mpStreamAbstractionAAMP->StartInjection();
@@ -6906,6 +6910,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
 	,mbPlayEnabled(true)
+	,mPlayerId(PLAYERID_CNTR++)
 	,mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false)
 	,mWesterosSinkEnabled(false)
