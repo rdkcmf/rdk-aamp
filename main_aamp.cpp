@@ -3811,7 +3811,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	,Playermode playermode) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	, Playermode playermode) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -3829,17 +3829,9 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
-	if(playermode == PLAYMOD_MEDIAPLAYER)
-	{
-		aamp->SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
-	}
-	else
-	{
-		aamp->SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
-	}
-
+	aamp->mPlayermode = playermode;
+	aamp->ConfigurePlayerModeSettings();
 }
-
 
 /**
  * @brief PlayerInstanceAAMP Destructor
@@ -6791,6 +6783,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 #endif
+	, mPlayermode(PLAYERMODE_JSPLAYER)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -8126,23 +8119,51 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
         mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
     }
 
-    mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : (!mWesterosSinkEnabled));
-
-    if (mWesterosSinkEnabled)
+    if (PLAYERMODE_MEDIAPLAYER == mPlayermode)
     {
-        logprintf("Enabling Westeros Sink");
+        mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : true);
     }
     else
     {
-        logprintf("Disabling Westeros Sink");
+        mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : (!mWesterosSinkEnabled));
     }
 
-    if (mEnableRectPropertyEnabled)
+    if (mWesterosSinkEnabled)
     {
-        logprintf("AAMP configured to set rectangle property for sink element for video scaling");
+        AAMPLOG_WARN("Enabling Westeros Sink");
+    }
+    else
+    {
+        AAMPLOG_WARN("Disabling Westeros Sink");
     }
 
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Westeros Sink state [%d]", __FUNCTION__, __LINE__, mWesterosSinkEnabled);
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Westeros Sink state [%d] Video scaling rect property state [%s]", __FUNCTION__, __LINE__, mWesterosSinkEnabled, ((mEnableRectPropertyEnabled)?"True":"False"));
+}
+
+/**
+ * @brief Set Playermode config for JSPP / Mediaplayer.
+ *
+ * @param[in] playermode - either JSPP and Mediaplayer.
+ *
+ */
+void PrivateInstanceAAMP::ConfigurePlayerModeSettings()
+{
+	switch (mPlayermode)
+	{
+		case PLAYERMODE_MEDIAPLAYER:
+		{
+			AAMPLOG_WARN("%s:%d Player Mode :: Media Player",__FUNCTION__,__LINE__);
+			SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
+		}
+			break; /* PLAYERMODE_MEDIAPLAYER */
+
+		case PLAYERMODE_JSPLAYER:
+		{
+			AAMPLOG_WARN("%s:%d Player Mode :: JS Player",__FUNCTION__,__LINE__);
+			SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
+		}
+			break; /* PLAYERMODE_JSPLAYER */
+	}
 }
 
 /**
