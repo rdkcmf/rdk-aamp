@@ -103,8 +103,8 @@ typedef enum
  */
 enum Playermode
 {
-	PLAYMOD_MEDIAPLAYER,
-	PLAYMOD_JSPLAYER
+	PLAYERMODE_MEDIAPLAYER,
+	PLAYERMODE_JSPLAYER
 };
 
 /**
@@ -816,7 +816,7 @@ public:
 	 *
 	 *   @param  streamSink - custom stream sink, NULL for default.
 	 */
-	PlayerInstanceAAMP(StreamSink* streamSink = NULL, Playermode playermode = PLAYMOD_JSPLAYER);
+	PlayerInstanceAAMP(StreamSink* streamSink = NULL, Playermode playermode = PLAYERMODE_JSPLAYER);
 
 	/**
 	 *   @brief PlayerInstanceAAMP Destructor.
