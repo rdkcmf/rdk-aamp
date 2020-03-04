@@ -105,8 +105,8 @@ typedef enum
  */
 enum Playermode
 {
-	PLAYMOD_MEDIAPLAYER,
-	PLAYMOD_JSPLAYER
+	PLAYERMODE_MEDIAPLAYER,
+	PLAYERMODE_JSPLAYER
 };
 
 /**
@@ -824,7 +824,8 @@ public:
 	 *   @param  exportFrames - Callback function to export video frames of signature 'void fn(uint8_t *yuvBuffer, int size, int pixel_w, int pixel_h)'
 	 */
 	PlayerInstanceAAMP(StreamSink* streamSink = NULL
-			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr,Playermode playermode = PLAYMOD_JSPLAYER
+			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
+                        , Playermode playermode = PLAYERMODE_JSPLAYER
 			);
 
 	/**

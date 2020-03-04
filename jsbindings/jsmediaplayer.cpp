@@ -2300,7 +2300,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	AAMPMediaPlayer_JS* privObj = new AAMPMediaPlayer_JS();
 
 	privObj->_ctx = JSContextGetGlobalContext(ctx);
-	privObj->_aamp = new PlayerInstanceAAMP(NULL,NULL,PLAYMOD_MEDIAPLAYER);
+	privObj->_aamp = new PlayerInstanceAAMP(NULL, NULL, PLAYERMODE_MEDIAPLAYER);
 	privObj->_listeners.clear();
 
 	JSObjectRef newObj = JSObjectMake(ctx, AAMPMediaPlayer_object_ref(), privObj);
