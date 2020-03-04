@@ -1712,6 +1712,7 @@ public:
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
 	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
 #endif
+	Playermode mPlayermode;
 
 	/**
 	 * @brief Curl initialization function
@@ -2879,6 +2880,14 @@ public:
 	 *
 	 */
 	void ConfigureWesterosSink();
+
+	/**
+	 *   @brief Set Playermode config for JSPP / Mediaplayer.
+	 *   @param[in] playermode - either JSPP and Mediaplayer.
+	 *
+	 *   @return void
+	 */
+	void ConfigurePlayerModeSettings();
 
 	/**
 	 *   @brief To set the manifest download timeout value.
