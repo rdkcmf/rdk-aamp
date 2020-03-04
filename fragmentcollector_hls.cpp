@@ -1020,6 +1020,30 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					retval = eAAMPSTATUS_MANIFEST_INVALID_TYPE;
 					break;
 				}
+#ifdef AAMP_HLS_DRM				
+				else if (startswith(&ptr, "-X-SESSION-KEY:"))	
+				{
+						if (gpGlobalConfig->fragmp4LicensePrefetch)
+						{
+							size_t len;
+							len = FindLineLength(ptr);
+							std::string KeyTagStr(ptr,len);
+
+							pthread_mutex_lock(&aamp->drmParserMutex);
+							attrNameData* aesCtrAttrData = new attrNameData(KeyTagStr); 
+							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
+									*aesCtrAttrData) == aamp->aesCtrAttrDataList.end()) {
+								AAMPLOG_INFO("%s:%d Adding License data from Main Manifest %s",
+								__FUNCTION__, __LINE__, KeyTagStr.c_str());
+								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
+							}
+							delete aesCtrAttrData;
+							pthread_mutex_unlock(&aamp->drmParserMutex);
+							aamp->fragmentCdmEncrypted = true;
+							InitiateDrmProcess(this->aamp);
+						}
+				}
+#endif						
 				else 
 				{
 					std::string unknowTag= ptr;
