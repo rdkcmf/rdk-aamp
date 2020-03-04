@@ -40,7 +40,7 @@ struct EventTypeMap
 
 
 /**
- * @brief Map AAMP events to its corresponding JS event strings
+ * @brief Map AAMP events to its corresponding JS event strings (used by JSPP)
  */
 static EventTypeMap aamp_eventTypes[] =
 {
@@ -77,7 +77,7 @@ static EventTypeMap aamp_eventTypes[] =
 
 
 /**
- * @brief Map AAMP events to its corresponding JS event strings (AAMPMediaPlayer)
+ * @brief Map AAMP events to its corresponding JS event strings (used by AAMPMediaPlayer/UVE APIs)
  */
 static EventTypeMap aampPlayer_eventTypes[] =
 {
@@ -309,7 +309,7 @@ AAMPEventType aamp_getEventTypeFromName(const char* szName)
 
 	for (int i=0; i<numEvents; i++)
 	{
-		if (strcmp(aamp_eventTypes[i].szName, szName) == 0)
+		if (strcasecmp(aamp_eventTypes[i].szName, szName) == 0)
 		{
 			eventType = aamp_eventTypes[i].eventType;
 			break;
@@ -349,7 +349,7 @@ AAMPEventType aampPlayer_getEventTypeFromName(const char* szName)
 
 	for (int i=0; i<numEvents; i++)
 	{
-		if (strcmp(aampPlayer_eventTypes[i].szName, szName) == 0)
+		if (strcasecmp(aampPlayer_eventTypes[i].szName, szName) == 0)
 		{
 			eventType = aampPlayer_eventTypes[i].eventType;
 			break;
