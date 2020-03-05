@@ -6426,7 +6426,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 				(long)(eventData.data.timedMetadata.timeMilliseconds),
 				eventData.data.timedMetadata.szContent);
 		}
-		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35"))
+
+		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || (mState > eSTATE_PREPARED))
 		{
 			SendEventAsync(eventData);
 		}
