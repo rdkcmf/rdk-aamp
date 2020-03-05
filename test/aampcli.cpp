@@ -91,7 +91,8 @@ typedef enum {
 	eAAMP_GET_AudioVolume,
 	eAAMP_GET_PlaybackRate,
 	eAAMP_GET_VideoBitrates,
-	eAAMP_GET_AudioBitrates
+	eAAMP_GET_AudioBitrates,
+	eAAMP_GET_CurrentPreferredLanguages
 }AAMPGetTypes;
 
 /**
@@ -128,7 +129,8 @@ typedef enum{
 	eAAMP_SET_DownloadStallTimeout,
 	eAAMP_SET_DownloadStartTimeout,
 	eAAMP_SET_PreferredSubtitleLang,
-	eAAMP_SET_ParallelPlaylistDL
+	eAAMP_SET_ParallelPlaylistDL,
+	eAAMP_SET_PreferredLanguages,
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -305,6 +307,7 @@ void ShowHelpGet(){
 	logprintf("8 - Print Current Playback rate ()");
 	logprintf("9 - Print Video bitrates supported ()");
 	logprintf("10 - Print Audio bitrates supported ()");
+	logprintf("11 - Print Current preferred languages ()");
 	
 }
 
@@ -347,6 +350,7 @@ void ShowHelpSet(){
 	logprintf("28 - Set Download Start timeout (long timeout)");
 	logprintf("29 - Set Preferred Subtitle language (string lang)");
 	logprintf("30 - Set Parallel Playlist download (0/1)");
+	logprintf("31 - Set Preferred languages (string \"lang1, lang2, ...\")");
 }
 
 #define LOG_CLI_EVENTS
@@ -984,6 +988,25 @@ static void ProcessCliCommand(char *cmd)
 					}
 					break;
                                 }
+				case eAAMP_SET_PreferredLanguages:
+				{
+					logprintf("Matched Command eAAMP_SET_PreferredLanguages - %s ", cmd);
+					const char* listStart = NULL;
+					const char* listEnd = NULL;
+					if((listStart = strchr(cmd, '"')) == NULL
+							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) ) == NULL)
+					{
+						logprintf("preferred languages string has to be wrapped with \" \" ie \"eng, ger\"");
+						break;
+					}
+
+					std::string preferredLanguages(listStart+1, listEnd-listStart-1);
+					if(!preferredLanguages.empty())
+						mSingleton->SetPreferredLanguages(preferredLanguages.c_str());
+					else
+						mSingleton->SetPreferredLanguages(NULL);
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
@@ -1073,6 +1096,12 @@ static void ProcessCliCommand(char *cmd)
 					printf(" ] \n");
 					break;
 			        }	
+				case eAAMP_GET_CurrentPreferredLanguages:
+				{
+					const char *prefferedLanguages = mSingleton->GetPreferredLanguages();
+					logprintf(" PREFERRED LANGUAGES = \"%s\" ", prefferedLanguages? prefferedLanguages : "<NULL>");
+					break;
+				}
 				default:
 					logprintf("Invalid get command %d\n", opt);
 			}

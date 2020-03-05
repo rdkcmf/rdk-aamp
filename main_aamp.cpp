@@ -305,6 +305,14 @@ GlobalConfigAAMP *gpGlobalConfig;
 		return; \
 	}
 
+#define NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID() \
+	PrivAAMPState state; \
+	aamp->GetState(state); \
+	if( state != eSTATE_IDLE && state != eSTATE_RELEASED){ \
+		logprintf("%s() operation is not allowed when player not in eSTATE_IDLE or eSTATE_RELEASED state !", __FUNCTION__ );\
+		return; \
+	}
+
 #define ERROR_OR_IDLE_STATE_CHECK_VAL(val) \
 	PrivAAMPState state; \
 	aamp->GetState(state); \
@@ -5444,20 +5452,17 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 
 	logprintf("aamp_SetLanguage(%s)->(%s)",aamp->language, language);
 
-    if (strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-        return;
-
 	// There is no active playback session, save the language for later
-	if (state == eSTATE_IDLE)
+	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
+		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
 		logprintf("aamp_SetLanguage(%s) Language set prior to tune start", language);
-		return;
 	}
-
 	// check if language is supported in manifest languagelist
-	if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
+	else if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
 	{
+		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
 		logprintf("aamp_SetLanguage(%s) Language set", language);
 		if (aamp->mpStreamAbstractionAAMP)
@@ -5475,7 +5480,6 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	}
 	else
 		logprintf("aamp_SetLanguage(%s) not supported in manifest", language);
-
 }
 
 
@@ -6205,6 +6209,58 @@ bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
 	aamp->SetWesterosSinkConfig(bValue);
+}
+
+
+/**
+ *   @brief Set optional preferred language list
+ *   @param[in] languageList - string with comma-delimited language list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+
+	aamp->preferredLanguagesString.clear();
+	aamp->preferredLanguagesString.clear();
+
+	if(languageList != NULL)
+	{
+		aamp->preferredLanguagesString = std::string(languageList);
+		std::istringstream ss(aamp->preferredLanguagesString);
+		std::string lng;
+		while(std::getline(ss, lng, ','))
+		{
+			aamp->preferredLanguagesList.push_back(lng);
+			AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
+					lng.c_str());
+		}
+
+		aamp->preferredLanguagesString = std::string(languageList);
+
+		// If user has not yet called SetLanguage(), force to use
+		// preferred languages over default language
+		if(!aamp->languageSetByUser)
+			aamp->noExplicitUserLanguageSelection = true;
+	}
+}
+
+/**
+ *   @brief Get current preferred language list
+ *
+ *   @return  const char* - current comma-delimited language list or NULL if not set
+ *
+ */
+const char* PlayerInstanceAAMP::GetPreferredLanguages()
+{
+	if(!aamp->preferredLanguagesString.empty())
+	{
+		return aamp->preferredLanguagesString.c_str();
+	}
+
+	return NULL;
 }
 
 /**
@@ -6976,7 +7032,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
-	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
+	mCurrentLanguageIndex(0), noExplicitUserLanguageSelection(true), languageSetByUser(false), preferredLanguagesString(), preferredLanguagesList(),
+	mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0)
@@ -7957,6 +8014,7 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
 {
 	strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
 	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	noExplicitUserLanguageSelection = false;
 
 	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
 	{

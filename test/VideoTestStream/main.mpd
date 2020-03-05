@@ -63,7 +63,20 @@
 				</SegmentTemplate>
 			</Representation>
 		</AdaptationSet>
-		<AdaptationSet id="4" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="eng">
+				<AdaptationSet id="4" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="ger">
+            <Role schemeIdUri="urn:mpeg:dash:role:2011" value="commentary" />
+			<Representation id="5" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
+				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
+				<SegmentTemplate timescale="48000" initialization="dash/de_init.m4s" media="dash/de_$Number%03d$.mp3" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="95232" />
+						<S d="96256" r="447" />
+						<S d="30080" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
+		<AdaptationSet id="5" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="eng">
             <Role schemeIdUri="urn:mpeg:dash:role:2011" value="english" />
 			<Representation id="6" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
 				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
@@ -76,7 +89,20 @@
 				</SegmentTemplate>
 			</Representation>
 		</AdaptationSet>
-		<AdaptationSet id="5" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="spa">
+		<AdaptationSet id="6" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="eng">
+            <Role schemeIdUri="urn:mpeg:dash:role:2011" value="commentary" />
+			<Representation id="6" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
+				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
+				<SegmentTemplate timescale="48000" initialization="dash/en_init.m4s" media="dash/en_$Number%03d$.mp3" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="95232" />
+						<S d="96256" r="447" />
+						<S d="30080" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
+		<AdaptationSet id="7" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="spa">
             <Role schemeIdUri="urn:mpeg:dash:role:2011" value="spanish" />
 			<Representation id="7" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
 				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
@@ -89,7 +115,20 @@
 				</SegmentTemplate>
 			</Representation>
 		</AdaptationSet>
-		<AdaptationSet id="6" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="fra">
+		<AdaptationSet id="8" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="spa">
+            <Role schemeIdUri="urn:mpeg:dash:role:2011" value="commentary" />
+			<Representation id="7" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
+				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
+				<SegmentTemplate timescale="48000" initialization="dash/es_init.m4s" media="dash/es_$Number%03d$.mp3" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="95232" />
+						<S d="96256" r="447" />
+						<S d="30080" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
+		<AdaptationSet id="9" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="fra">
             <Role schemeIdUri="urn:mpeg:dash:role:2011" value="french" />
 			<Representation id="0" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
 				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
@@ -102,8 +141,34 @@
 				</SegmentTemplate>
 			</Representation>
 		</AdaptationSet>
-		<AdaptationSet id="7" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="pol">
+		<AdaptationSet id="10" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="fra">
+            <Role schemeIdUri="urn:mpeg:dash:role:2011" value="commentary" />
+			<Representation id="0" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
+				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
+				<SegmentTemplate timescale="48000" initialization="dash/fr_init.m4s" media="dash/fr_$Number%03d$.mp3" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="95232" />
+						<S d="96256" r="447" />
+						<S d="30080" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
+		<AdaptationSet id="11" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="pol">
             <Role schemeIdUri="urn:mpeg:dash:role:2011" value="polish" />
+			<Representation id="8" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
+				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
+				<SegmentTemplate timescale="48000" initialization="dash/pl_init.m4s" media="dash/pl_$Number%03d$.mp3" startNumber="1">
+					<SegmentTimeline>
+						<S t="0" d="95232" />
+						<S d="96256" r="447" />
+						<S d="30080" />
+					</SegmentTimeline>
+				</SegmentTemplate>
+			</Representation>
+		</AdaptationSet>
+		<AdaptationSet id="12" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="pol">
+            <Role schemeIdUri="urn:mpeg:dash:role:2011" value="commentary" />
 			<Representation id="8" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
 				<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1" />
 				<SegmentTemplate timescale="48000" initialization="dash/pl_init.m4s" media="dash/pl_$Number%03d$.mp3" startNumber="1">

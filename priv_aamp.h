@@ -1682,9 +1682,13 @@ public:
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
 	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
+	bool noExplicitUserLanguageSelection; //true until not updated apart constructor
+	bool languageSetByUser; //initially 'false', set 'true' once language[] is set by user (also with the same as init value)
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
+	std::string preferredLanguagesString; // unparsed string with preferred languages in format "lang1,lang2,.."
+	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
 	VideoZoomMode zoom_mode;
 	bool video_muted;
 	int audio_volume;

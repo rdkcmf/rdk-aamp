@@ -527,6 +527,7 @@ private:
 	double GetCulledSeconds();
 	void UpdateLanguageList();
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
+	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 
@@ -4143,16 +4144,26 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 
 int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,AudioType &CodecType)
 {
-  	int retAdapSetValue = -1;
+	// Priority in choosing best audio track:
+	// 1. Language selected by User, 1. exact match 2.language match  (aamp->language and aamp->noExplicitUserLanguageSelection=false)
+	// 2. Preferred language, language match (aamp->preferredLanguages and aamp->noExplicitUserLanguageSelection=true)
+	// 3. Initial value of aamp->language (aamp->noExplicitUserLanguageSelection=true)
+	// 4. First audio track
+	int retAdapSetValue = -1;
 	int first_audio_track = -1;
 	int first_audio_track_matching_language = -1;
 	int iAdaptationSet_codec_cmp = -1;
+	int not_explicit_user_lang_track = -1;
+	int preferred_audio_track = -1;
+	int current_preferred_lang_index = aamp->preferredLanguagesList.size();
 	std::string lang;
 	const char *delim = strchr(aamp->language,'-');
 	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
 	struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_AUDIO];
 	IPeriod *period = mCurrentPeriod;
 	size_t numAdaptationSets = period->GetAdaptationSets().size();
+	logprintf("%s: aamp->language %s, aamp->noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
+					__func__, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
 	for( int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
 		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -4174,17 +4185,32 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 					{
 						desiredRepIdx = audioRepresentationIndex;
 						iAdaptationSet_codec_cmp = selectedCodecType;
-						first_audio_track = iAdaptationSet;						
+						first_audio_track = iAdaptationSet;
 						first_audio_track_matching_language = iAdaptationSet;
+						not_explicit_user_lang_track = iAdaptationSet;
 						CodecType = selectedCodecType;
 					}
+				}
+			}
+			if(current_preferred_lang_index > 0)
+			{
+				// find language part in preferred language list
+				// but not further than current index
+				std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
+				auto iter = std::find(aamp->preferredLanguagesList.begin(),
+						(aamp->preferredLanguagesList.begin() + current_preferred_lang_index), langPart);
+				if(iter != (aamp->preferredLanguagesList.begin() + current_preferred_lang_index) )
+				{
+					current_preferred_lang_index = std::distance(aamp->preferredLanguagesList.begin(),
+							iter);
+					preferred_audio_track = iAdaptationSet;
 				}
 			}
 			if( first_audio_track < 0 )
 			{ // remember first track as lowest-priority fallback
 				first_audio_track = iAdaptationSet;
 			}
-			if( first_audio_track_matching_language < 0 )
+			if(first_audio_track_matching_language < 0 )
 			{
 				int len = 0;
 				const char *delim = strchr(track_language,'-');
@@ -4196,14 +4222,34 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 			}
 		}
 	} // next iAdaptationSet
-	if( first_audio_track_matching_language>=0 )
+
+	if( !( aamp->noExplicitUserLanguageSelection && preferred_audio_track>=0 )
+			&& first_audio_track_matching_language>=0 )
 	{
-		retAdapSetValue = first_audio_track_matching_language;	
+		retAdapSetValue = first_audio_track_matching_language;
+	}
+	else if ( preferred_audio_track>=0 )
+	{
+		retAdapSetValue = preferred_audio_track;
+		// if preferred one is different than
+		// first_audio_track_matching_language,then clear codec info,
+		// since current values do not refer to selected track
+		if(preferred_audio_track != first_audio_track_matching_language)
+		{
+			iAdaptationSet_codec_cmp = -1;
+			desiredRepIdx = -1;
+			CodecType = eAUDIO_UNKNOWN;
+		}
+	}
+	else if ( not_explicit_user_lang_track>=0 )
+	{
+		retAdapSetValue = not_explicit_user_lang_track;
 	}
 	else
-        {
+	{
 		retAdapSetValue = first_audio_track;
 	}
+
 	if (retAdapSetValue >= 0) //only if adptationset found
 	{
 		if(iAdaptationSet_codec_cmp == -1) // if nothing set 
@@ -4215,7 +4261,7 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth);
 			}
 		}
-	}          
+	}
 	return retAdapSetValue;
 }
 
