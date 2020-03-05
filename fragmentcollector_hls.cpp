@@ -3801,6 +3801,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
 #endif
+#ifdef AAMP_HLS_DRM
+	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	sessionMgr->clearFailedKeyIds();
+	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+#endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
 		AAMPStatusType mainManifestResult = ParseMainManifest(this->mainManifest.ptr);
 		// Check if Main manifest is good or not 
@@ -5092,6 +5097,9 @@ void TrackState::Start(void)
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::Start(void)
 {
+#ifdef AAMP_HLS_DRM 
+	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+#endif
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
@@ -5159,6 +5167,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		// check for WV and PR , if anything to be flushed 
 		ReleaseContentProtectionCache();
 	}
+	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
 	aamp->EnableDownloads();
 }
