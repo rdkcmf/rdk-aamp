@@ -73,10 +73,9 @@ public:
 	long GetMaxBitrate(void) override;
 	void StopInjection(void) override;
 	void StartInjection(void) override;
-
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 
+	void NotifyBasePTS(unsigned long long pts) { };
 protected:
 	StreamInfo* GetStreamInfo(int idx) override;
 private:

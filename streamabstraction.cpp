@@ -698,7 +698,6 @@ void MediaTrack::StopInjectLoop()
 #endif
 	}
 	fragmentInjectorThreadStarted = false;
-	GetContext()->mIsFirstBuffer = true;
 }
 
 

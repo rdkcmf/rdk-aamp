@@ -442,12 +442,8 @@ void WebVTTParser::reset()
 {
 	//Called on discontinuity, blocks further VTT processing
 	//Blocked until we get new basePTS
-	logprintf("WebVTTParser::%s %d Reset subtitle parser at position:%.3f\n", __FUNCTION__, __LINE__, mCurrentPos);
-	//Avoid calling stop injection if the first buffer is discontinuous
-	if (!mReset)
-	{
-		mAamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
-	}
+	logprintf("WebVTTParser::%s %d Reset subtitle parser at position:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
+	mAamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 	mPtsOffset = 0;
 	mStartPTS = 0;
 	mStartPos = 0;

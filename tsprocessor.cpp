@@ -160,7 +160,6 @@ private:
 	unsigned long long base_pts;
 	unsigned long long current_pts;
 	unsigned long long current_dts;
-	unsigned long long first_pts;
 	MediaType type;
 	bool trickmode;
 	bool finalized_base_pts;
@@ -217,7 +216,7 @@ public:
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
 		es(), position(0), duration(0), base_pts(0), current_pts(0),
 		current_dts(0), type(type), trickmode(false), finalized_base_pts(false),
-		sentESCount(0), first_pts(0)
+		sentESCount(0)
 	{
 		init(0, 0, false, true);
 	}
@@ -260,7 +259,6 @@ public:
 		}
 		current_dts = 0;
 		current_pts = 0;
-		first_pts = 0;
 		finalized_base_pts = false;
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
@@ -307,7 +305,11 @@ public:
 	{
 		if (!trickmode)
 		{
-			NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)isFinal);
+			NOTICE("Type[%d], basePTS %llu final %d", (int)type, basePTS, (int)isFinal);
+			if (isFinal)
+			{
+				aamp->NotifyBasePTS(basePTS);
+			}
 		}
 		base_pts = basePTS;
 		finalized_base_pts = isFinal;
@@ -454,18 +456,6 @@ public:
 				WARNING("current_pts[%llu] < base_pts[%llu]", current_pts, base_pts);
 				ptsError = true;
 				return;
-			}
-
-			if (first_pts == 0)
-			{
-				first_pts = current_pts;
-				//Notify first video PTS to AAMP for VTT initialization
-				if (!trickmode && type == eMEDIATYPE_VIDEO)
-				{
-					aamp->NotifyFirstVideoPTS(first_pts);
-					//Notifying BasePTS value for media progress event
-					aamp->NotifyVideoBasePTS(getBasePTS());
-				}
 			}
 			/*PARSE PES*/
 			{

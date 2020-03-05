@@ -1986,13 +1986,6 @@ public:
 	long long GetPositionMs(void);
 
 	/**
-	 *   @brief Get playback position in milliseconds
-	 *
-	 *   @return Position in ms.
-	 */
-	long long GetPositionMilliseconds(void);
-
-	/**
 	 *   @brief  API to send audio/video stream into the sink.
 	 *
 	 *   @param[in]  mediaType - Type of the media.
@@ -2875,11 +2868,11 @@ public:
 	void ResumeTrackInjection(MediaType type);
 
 	/**
-	 *   @brief Receives first video PTS of the current playback
+	 *   @brief Receives base PTS for the current playback
 	 *
 	 *   @param[in]  pts - pts value
 	 */
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyBasePTS(unsigned long long pts);
 
 	/**
 	 *   @brief To send webvtt cue as an event
@@ -2953,34 +2946,13 @@ public:
 	 */
 	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
-	/**
-	 *   @brief To check if current asset is DASH or not
-	 *
-	 *   @return bool - true if its DASH asset
-	 */
-	bool IsDashAsset(void) { return (mMediaFormat==eMEDIAFORMAT_DASH); }
-
-	/**
-	 *   @brief Check if AAMP is in stalled state after it pushed EOS to
-	 *   notify discontinuity
-	 *
-	 *   @param[in]  mediaType stream type
-	 */
+    /**
+     *   @brief Check if AAMP is in stalled state after it pushed EOS to
+     *   notify discontinuity
+     *
+     *   @param[in]  mediaType stream type
+     */
 	void CheckForDiscontinuityStall(MediaType mediaType);
-	/**
-	 *   @brief To get any custom license HTTP headers that was set by application
-	 *
-	 *   @param[out] headers - curl header structure
-	 */
-	void GetCustomLicenseHeaders(struct curl_slist **headers);
-	
-	/**
-	 *   @brief Notifies base PTS of the HLS video playback
-	 *
-	 *   @param[in]  pts - base pts value
-	 */
-	void NotifyVideoBasePTS(unsigned long long basepts);
-
 
 private:
 
