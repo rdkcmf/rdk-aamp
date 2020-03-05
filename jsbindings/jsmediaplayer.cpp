@@ -515,7 +515,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);
 					break;
 				case ePARAM_AUDIOLANGUAGE:
-					privObj->_aamp->SetLanguage(valueAsString);
+					privObj->_aamp->SetPreferredLanguages(valueAsString);
 					delete[] valueAsString;
 					break;
 				case ePARAM_DRMCONFIG:

@@ -3056,9 +3056,18 @@ void TrackState::RefreshPlaylist(void)
 
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
+	// Priority in choosing best audio track:
+	// 1. Language selected by User: 1. exact match 2.language match (aamp->language and aamp->noExplicitUserLanguageSelection=false)
+	// 2. Preferred language: language match (aamp->preferredLanguages and aamp->noExplicitUserLanguageSelection==true)
+	// 3. Initial value of aamp->language (aamp->noExplicitUserLanguageSelection=true)
+	// 4. Default or AutoSelected audio track
+	// 5. First audio track
 	int first_audio_track = -1;
 	int first_audio_track_matching_language = -1;
 	int default_audio_track = -1;
+	int not_explicit_user_lang_track = -1;
+	int preferred_audio_track = -1;
+	int current_preferred_lang_index = aamp->preferredLanguagesList.size();
 	const char *delim = strchr(aamp->language,'-');
 	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
 
@@ -3066,22 +3075,46 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 	const char* group = streamInfo->audio;
 	if (group)
 	{
-		logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s", group, aamp->language);
+		logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s, aamp->noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
+				group, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
+
 		for( int i=0; i<mMediaCount; i++ )
 		{
 			if( this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
 			{
 				std::string lang = GetLanguageCode(i);
 				const char *track_language = lang.c_str();
-				if(strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-				{ // exact match, i.e. to eng-commentary, great - we're done!
-					return i;
+				if(not_explicit_user_lang_track < 0
+						&& strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+				{   // exact match, i.e. to eng-commentary
+					if(!aamp->noExplicitUserLanguageSelection)
+					{ // not the default aamp language, we are done
+						return i;
+					}
+					// remember track from default aamp language
+					not_explicit_user_lang_track = i;
 				}
+				if(current_preferred_lang_index > 0)
+				{
+					// has not found the most preferred lang yet
+					// find language part in preferred language list
+					// but not further than current index
+					std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
+					auto iter = std::find(aamp->preferredLanguagesList.begin(),
+							(aamp->preferredLanguagesList.begin() + current_preferred_lang_index), langPart);
+					if(iter != (aamp->preferredLanguagesList.begin() + current_preferred_lang_index) )
+					{
+						current_preferred_lang_index = std::distance(aamp->preferredLanguagesList.begin(),
+								iter);
+						preferred_audio_track = i;
+					}
+				}
+
 				if( first_audio_track < 0 )
 				{ // remember first track as lowest-priority fallback
 					first_audio_track = i;
 				}
-				if( first_audio_track_matching_language < 0 )
+				if(first_audio_track_matching_language < 0 )
 				{
 					int len = 0;
 					const char *delim = strchr(track_language,'-');
@@ -3101,7 +3134,10 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 			}
 		}
 	}
-	if( first_audio_track_matching_language>=0 ) return first_audio_track_matching_language;
+	if( !( aamp->noExplicitUserLanguageSelection && preferred_audio_track>=0 )
+			&& first_audio_track_matching_language>=0 ) return first_audio_track_matching_language;
+	if( preferred_audio_track>=0 ) return preferred_audio_track;
+	if( not_explicit_user_lang_track>= 0) return not_explicit_user_lang_track;
 	if( default_audio_track>=0 ) return default_audio_track;
 	return first_audio_track;
 }
@@ -3137,6 +3173,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			if( i>=0 )
 			{
 				aamp->UpdateAudioLanguageSelection( GetLanguageCode(i).c_str() );
+				logprintf("GetPlaylistURI : AudioTrack: Audio selected name is %s", GetLanguageCode(i).c_str());
 				playlistURI = this->mediaInfo[i].uri;
 				if( format )
 				{

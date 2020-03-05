@@ -1439,6 +1439,23 @@ public:
 	 */
 	void SetAppName(std::string name);
 
+	/**
+	 *   @brief Set optional preferred language list
+	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
+	 *             from most to least preferred: "lang1,lang2". Set NULL to clear current list.
+	 *
+	 *   @return void
+	 */
+	 void SetPreferredLanguages(const char* languageList);
+
+	/**
+	 *   @brief Get current preferred language list
+	 *
+	 *   @return const char* - current comma-delimited language list or NULL if not set
+	 *
+	 */
+	 const char* GetPreferredLanguages();
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
