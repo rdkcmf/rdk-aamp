@@ -1363,6 +1363,13 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	// since they are encrypted using same id. Don'tt worry if you see only one protection event queued here
 	logprintf("queueing protection event for type:%d keysystem: %s initdata size: %d", type, protSystemId, initDataSize);
 
+	if (privateContext->protectionEvent != NULL)
+	{
+		AAMPLOG_WARN("%s:%d Previously cached protection event is present, clearing!", __FUNCTION__, __LINE__);
+		gst_event_unref(privateContext->protectionEvent);
+		privateContext->protectionEvent = NULL;
+	}
+
 	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
 	if (this->aamp->IsDashAsset())
 	{
