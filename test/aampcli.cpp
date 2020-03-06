@@ -208,7 +208,7 @@ static void ShowHelp(void)
 }
 
 
-//#define LOG_CLI_EVENTS
+#define LOG_CLI_EVENTS
 #ifdef LOG_CLI_EVENTS
 static class PlayerInstanceAAMP *mpPlayerInstanceAAMP;
 
