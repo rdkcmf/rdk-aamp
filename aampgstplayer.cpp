@@ -680,8 +680,9 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
-			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+	return _this->privateContext->using_westerossink?
+		aamp_StartsWith(name, "westerossink"):
+		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omx"));
 }
 
 /**
@@ -692,8 +693,9 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
-			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+	return _this->privateContext->using_westerossink?
+		aamp_StartsWith(name, "westerossink"):
+		(aamp_StartsWith(name, "brcmvideosink") || aamp_StartsWith(name, "rtkv1sink"));
 }
 
 /**
@@ -704,9 +706,9 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && !_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
-			(aamp_StartsWith(name, "brcmvideodecoder") == true || aamp_StartsWith(name, "brcmaudiodecoder") == true)) ||
-			(_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+	return _this->privateContext->using_westerossink?
+		aamp_StartsWith(name, "westerossink"):
+		(aamp_StartsWith(name, "brcmvideodecoder") || aamp_StartsWith(name, "brcmaudiodecoder") || aamp_StartsWith(name, "omx"));
 }
 
 /**
@@ -1002,6 +1004,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
+				_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 #if defined(INTELCE) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
@@ -1010,9 +1013,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->aamp->LogTuneComplete();
 				}
 				_this->aamp->NotifyFirstFrameReceived();
-#endif
 
-#if defined(INTELCE) || defined(__APPLE__)
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
@@ -1813,7 +1814,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
 #if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
-		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
+		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
 			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]", __FUNCTION__, basePTS);
