@@ -2517,7 +2517,7 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 		GstQuery *segmentQuery = gst_query_new_segment(GST_FORMAT_TIME);
 		// DELIA-39530 - send query to video playbin in pipeline.
 		// Special case include trickplay, where only video playbin is active
-		if (gst_element_query(video->sinkbin, segmentQuery) == TRUE)
+		if (gst_element_query(video->source, segmentQuery) == TRUE)
 		{
 			gint64 start;
 			gst_query_parse_segment(segmentQuery, NULL, NULL, &start, NULL);
