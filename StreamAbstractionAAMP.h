@@ -746,11 +746,11 @@ public:
 	bool IsMuxedStream();
 
 	/**
-	 *   @brief Receives base PTS for the current playback
+	 *   @brief Receives first video PTS for the current playback
 	 *
 	 *   @param[in] pts - pts value
 	 */
-	virtual void NotifyBasePTS(unsigned long long pts) = 0;
+	virtual void NotifyFirstVideoPTS(unsigned long long pts) = 0;
 
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
