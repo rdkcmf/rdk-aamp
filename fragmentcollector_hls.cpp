@@ -75,7 +75,7 @@
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define DISCONTINUITY_DISCARD_TOLERANCE_SECONDS 30 /*!< Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
@@ -5706,6 +5706,12 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
 					liveNoTSB = true;
 				}
+				/** Find maximum refresh count before discarding discontinuity **/
+				while ((maxPlaylistRefreshCount * (int)(aamp->maxRefreshPlaylistIntervalSecs * 1000)) > \
+				(DISCONTINUITY_DISCARD_TOLERANCE_SECONDS/2 * 1000)){
+					maxPlaylistRefreshCount--;
+				}
+
 				if ((playlistRefreshCount < maxPlaylistRefreshCount)
 						&& (liveNoTSB || (mDuration < (playPosition + DISCONTINUITY_DISCARD_TOLERANCE_SECONDS))))
 				{
