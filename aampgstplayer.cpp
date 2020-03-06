@@ -161,6 +161,8 @@ struct AAMPGstPlayerPriv
 	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
 	gint64 segmentStart; // segment start value; required when qtdemux is enabled and restamping is disabled
 	GstQuery *positionQuery; // pointer that holds a position query object
+	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
+	GstState pipelineState; // current state of pipeline
 };
 
 
@@ -202,6 +204,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	memset(privateContext, 0, sizeof(*privateContext));
 	privateContext->audioVolume = 1.0;
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
+	privateContext->pipelineState = GST_STATE_NULL;
 	this->aamp = aamp;
 
 	CreatePipeline();
@@ -853,6 +856,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				gst_element_state_get_name(old_state),
 				gst_element_state_get_name(new_state),
 				gst_element_state_get_name(pending_state));
+
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
 #if defined(INTELCE) || (defined(__APPLE__))
@@ -1061,6 +1065,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 	case GST_MESSAGE_STATE_CHANGED:
 		GstState old_state, new_state;
 		gst_message_parse_state_changed(msg, &old_state, &new_state, NULL);
+
+		if (GST_MESSAGE_SRC(msg) == GST_OBJECT(_this->privateContext->pipeline))
+		{
+			_this->privateContext->pipelineState = new_state;
+		}
+
 		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
 		{
 #ifndef INTELCE
@@ -2013,6 +2023,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
+	privateContext->paused = false;
 #ifdef TRACE
 	logprintf("exiting AAMPGstPlayer::%s", __FUNCTION__);
 #endif
@@ -2173,6 +2184,8 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	privateContext->lastKnownPTS = 0;
 	privateContext->segmentStart = 0;
+	privateContext->paused = false;
+	privateContext->pipelineState = GST_STATE_NULL;
 	logprintf("exiting AAMPGstPlayer_Stop");
 }
 
@@ -2369,13 +2382,20 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 	long rc = 0;
 	if (privateContext->pipeline == NULL)
 	{
-		logprintf("%s(): Pipeline is NULL", __FUNCTION__);
+		AAMPLOG_ERR("%s(): Pipeline is NULL", __FUNCTION__);
 		return rc;
 	}
 
 	if (privateContext->positionQuery == NULL)
 	{
-		logprintf("%s(): Position query is NULL", __FUNCTION__);
+		AAMPLOG_ERR("%s(): Position query is NULL", __FUNCTION__);
+		return rc;
+	}
+
+	// Perform gstreamer query and related operation only when pipeline is playing or if deliberately put in paused
+	if (privateContext->pipelineState != GST_STATE_PLAYING && !(privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused))
+	{
+		AAMPLOG_INFO("%s(): Pipeline is in %s state, returning position as %ld", __FUNCTION__, gst_element_state_get_name(privateContext->pipelineState), rc);
 		return rc;
 	}
 
@@ -2387,7 +2407,7 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 		GstQuery *segmentQuery = gst_query_new_segment(GST_FORMAT_TIME);
 		// DELIA-39530 - send query to video playbin in pipeline.
 		// Special case include trickplay, where only video playbin is active
-		if (gst_element_query(video->sinkbin, segmentQuery) == TRUE)
+		if (gst_element_query(video->source, segmentQuery) == TRUE)
 		{
 			gint64 start;
 			gst_query_parse_segment(segmentQuery, NULL, NULL, &start, NULL);
@@ -2441,6 +2461,7 @@ bool AAMPGstPlayer::Pause( bool pause )
 		GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
 		gst_element_set_state(this->privateContext->pipeline, nextState);
 		privateContext->buffering_target_state = nextState;
+		privateContext->paused = pause;
 	}
 	else
 	{
