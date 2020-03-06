@@ -4886,7 +4886,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
 		//Gstreamer position query is enabled only for HLS + TS combo for now
-		if (aamp->mMediaFormat != eMEDIAFORMAT_HLS || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
+		if (aamp->mMediaFormat != eMEDIAFORMAT_HLS_MP4 || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			double newSeekPosInSec = -1;
 			// when switching from trick to play mode only 
@@ -5937,7 +5937,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//For pipeline paused, we could query the position from gstreamer pipeline
-		if (mMediaFormat == eMEDIAFORMAT_HLS && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		if (mMediaFormat == eMEDIAFORMAT_HLS_MP4 && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
 		{
 			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
 			positionMiliseconds += positionOffsetFromStart;
