@@ -4216,13 +4216,6 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (aamp)
 	{
 		aamp->Stop();
-#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-		//Clear session data on clean up of last PlayerInstanceAAMP
-		if (gActivePrivAAMPs.size() == 1)
-		{
-			aamp->mDRMSessionManager->clearSessionData();
-		}
-#endif /*AAMP_MPD_DRM*/
 		delete aamp;
 	}
 	if (mInternalStreamSink)
