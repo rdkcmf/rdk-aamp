@@ -65,6 +65,7 @@ DrmSessionCacheInfo *drmCacheInfo_g = NULL;
 void *CreateDRMSession(void *arg);
 DrmSessionCacheInfo* getDrmCacheInformationHandler();
 int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
+void ReleaseDRMLicenseAcquireThread(void);
 
 /**
  *  @brief Get drm cache info handler
@@ -1206,6 +1207,26 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	return NULL;
 }
 
+/**
+ *  @brief		Function to release the DrmSession if it running
+ *  @param[out]	private aamp instance
+ *  @return		None.
+ */
+void ReleaseDRMLicenseAcquireThread(){
+		
+	DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
+	if(drmInfo->drmSessionThreadStarted) //In the case of license rotation
+	{
+		void *value_ptr = NULL;
+		int rc = pthread_join(drmInfo->createDRMSessionThreadID, &value_ptr);
+		if (rc != 0)
+		{
+			AAMPLOG_WARN("%s:%d pthread_join returned %d for createDRMSession Thread", 
+			__FUNCTION__, __LINE__, rc);
+		}
+		drmInfo->drmSessionThreadStarted = false;
+	}
+}
 
 /**
  *  @brief		Function to spawn the DrmSession Thread based on the
@@ -1223,23 +1244,13 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
 				__FUNCTION__, __LINE__);
 			break;
 		}
-		/** Achieve single thread logic for DRM Session Creation **/
-		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
-		if(drmInfo->drmSessionThreadStarted) //In the case of license rotation
-		{
-			void *value_ptr = NULL;
-			int rc = pthread_join(drmInfo->createDRMSessionThreadID, &value_ptr);
-			if (rc != 0)
-			{
-				AAMPLOG_ERR("%s:%d pthread_join returned %d for createDRMSession Thread", 
-				__FUNCTION__, __LINE__, rc);
-			}
-			drmInfo->drmSessionThreadStarted = false;
-		}
 
+		/** Achieve single thread logic for DRM Session Creation **/
+		ReleaseDRMLicenseAcquireThread();
 		AAMPLOG_INFO("%s:%d Creating thread with sessionData = 0x%08x",
 					__FUNCTION__, __LINE__, drmData->sessionData );
-		if(0 == pthread_create(&drmInfo->createDRMSessionThreadID, NULL,\
+		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
+                if(0 == pthread_create(&drmInfo->createDRMSessionThreadID, NULL,\
 		 CreateDRMSession, drmData->sessionData))
 		{
 			drmData->isProcessedLicenseAcquire = true;

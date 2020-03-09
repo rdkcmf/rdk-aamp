@@ -678,7 +678,7 @@ static void * TrackPLDownloader(void *arg)
 ***************************************************************************/
 static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 #ifdef AAMP_HLS_DRM 
-		/** If fragments are CDM encrypted KC **/
+		/** If fragments are CDM encrypted **/
 		DrmSessionDataInfo* drmData = NULL;
 		if (aamp->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
 			pthread_mutex_lock(&aamp->drmParserMutex);

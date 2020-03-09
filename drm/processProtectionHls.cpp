@@ -39,6 +39,7 @@ using namespace std;
 
 extern void *CreateDRMSession(void *arg);
 extern DrmSessionCacheInfo* getDrmCacheInformationHandler();
+extern void ReleaseDRMLicenseAcquireThread(void);
 
 /**
  * @brief vector pool of DrmSessionDataInfo
@@ -407,6 +408,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
  */
 void ReleaseContentProtectionCache()
 {
+	ReleaseDRMLicenseAcquireThread();
 	DrmSessionDataInfo *drmSessioData = NULL;
 	pthread_mutex_lock(&drmProcessingMutex);
 	while (!drmSessionDataPool_g.empty())
