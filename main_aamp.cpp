@@ -5043,6 +5043,138 @@ void PlayerInstanceAAMP::RegisterEvents(AAMPEventListener* eventListener)
 	aamp->RegisterEvents(eventListener);
 }
 
+/**
+ * @brief Set retry limit on Segment injection failure.
+ *
+ */
+void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
+{
+	if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+	{
+		aamp->mSegInjectFailCount = value;
+		AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_INJECT_FAIL_COUNT);
+	}
+}
+
+/**
+ * @brief Set retry limit on Segment drm decryption failure.
+ *
+ */
+void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
+{
+	if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+	{
+		aamp->mDrmDecryptFailCount = value;
+		AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+	}
+}
+
+
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PlayerInstanceAAMP::SetRampDownLimit(int limit)
+{
+	aamp->SetRampDownLimit(limit);
+}
+
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PrivateInstanceAAMP::SetRampDownLimit(int limit)
+{
+	if (limit >= 0)
+	{
+		AAMPLOG_INFO("%s:%d Setting Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
+		mRampDownLimit = limit;
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Invalid limit value %d", __FUNCTION__,__LINE__, limit);
+	}
+}
+
+/**
+ * @brief Set minimum bitrate value.
+ * @param  url - stream url with vss service zone info as query string
+ */
+void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
+{
+	if (bitrate > 0)
+	{
+		AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
+		aamp->SetMinimumBitrate(bitrate);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
+	}
+}
+
+/**
+ * @brief Set minimum bitrate value.
+ *
+ */
+void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
+{
+	mMinBitrate = bitrate;
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ *
+ */
+void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
+{
+	if (bitrate > 0)
+	{
+		AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
+		aamp->SetMaximumBitrate(bitrate);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
+	}
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ */
+void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
+{
+	if (bitrate > 0)
+	{
+		mMaxBitrate = bitrate;
+	}
+}
+
+/**
+ * @brief Get maximum bitrate value.
+ * @return maximum bitrate value
+ */
+long PrivateInstanceAAMP::GetMaximumBitrate()
+{
+	return mMaxBitrate;
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ * @return minimum bitrate value
+ */
+long PrivateInstanceAAMP::GetMinimumBitrate()
+{
+	return mMinBitrate;
+}
 
 /**
  * @brief Lock aamp mutex
@@ -7240,28 +7372,18 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
-	,mLastDiscontinuityTimeMs(0)
-	,mBufUnderFlowStatus(false)
-	,mVideoBasePTS(0)
+	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
-	,mCustomLicenseHeaders()
-	, mIsIframeTrackPresent(false)
-	,mManifestTimeoutMs(-1)
 	,mPlaylistTimeoutMs(-1)
-	,mNetworkTimeoutMs(-1)
-	,mParallelFetchPlaylist(false)
-	,mParallelFetchPlaylistRefresh(true)
-	,mBulkTimedMetadata(false)
-	,reportMetadata()
-	,mAsyncTuneEnabled(false)
-	,mWesterosSinkEnabled(false)
-	,mEnableRectPropertyEnabled(true)
-	,waitforplaystart()
 	,mMutexPlaystart()
-	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
-	,mUseAvgBandwidthForABR(false)
+	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
+	,mBulkTimedMetadata(false), reportMetadata()
+	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(false), mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
+	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
