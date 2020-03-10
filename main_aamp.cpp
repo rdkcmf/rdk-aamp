@@ -3761,6 +3761,31 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("initFragmentRetryCount=%d", gpGlobalConfig->initFragmentRetryCount);
 		}
+		else if (ReadConfigNumericHelper(cfg, "fragmentRetryLimit=", value) == 1)
+		{
+			gpGlobalConfig->rampdownLimit = value;
+			logprintf("fragmentRetryLimit=%d", value);
+		}
+		else if (ReadConfigNumericHelper(cfg, "segmentInjectFailThreshold=", gpGlobalConfig->segInjectFailCount) == 1)
+		{
+			VALIDATE_INT("segmentInjectFailThreshold", gpGlobalConfig->segInjectFailCount, MAX_SEG_INJECT_FAIL_COUNT);
+			logprintf("segmentInjectFailThreshold=%d", gpGlobalConfig->segInjectFailCount);
+		}
+		else if (ReadConfigNumericHelper(cfg, "drmDecryptFailThreshold=", gpGlobalConfig->drmDecryptFailCount) ==1)
+		{
+			VALIDATE_INT("drmDecryptFailThreshold", gpGlobalConfig->drmDecryptFailCount, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+			logprintf("drmDecryptFailThreshold=%d", gpGlobalConfig->drmDecryptFailCount);
+		}
+		else if (ReadConfigNumericHelper(cfg, "minBitrate=", gpGlobalConfig->minBitrate) ==1)
+		{
+			VALIDATE_LONG("minBitrate", gpGlobalConfig->minBitrate, 0);
+			logprintf("minBitrate=%d", gpGlobalConfig->minBitrate);
+		}
+		else if (ReadConfigNumericHelper(cfg, "maxBitrate=", gpGlobalConfig->maxBitrate) ==1)
+		{
+			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
+			logprintf("maxBitrate=%d", gpGlobalConfig->maxBitrate);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -5090,6 +5115,178 @@ void PlayerInstanceAAMP::RegisterEvents(AAMPEventListener* eventListener)
 	aamp->RegisterEvents(eventListener);
 }
 
+/**
+ * @brief Set retry limit on Segment injection failure.
+ *
+ */
+void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
+{
+	if(gpGlobalConfig->segInjectFailCount > 0)
+	{
+		aamp->mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
+	}
+	else
+	{
+		if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+		{
+			aamp->mSegInjectFailCount = value;
+			AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_INJECT_FAIL_COUNT);
+		}
+	}
+}
+
+/**
+ * @brief Set retry limit on Segment drm decryption failure.
+ *
+ */
+void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
+{
+	if (gpGlobalConfig->drmDecryptFailCount > 0)
+	{
+		aamp->mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
+	}
+	else
+	{
+		if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+		{
+			aamp->mDrmDecryptFailCount = value;
+			AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+		}
+	}
+}
+
+
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PlayerInstanceAAMP::SetRampDownLimit(int limit)
+{
+	aamp->SetRampDownLimit(limit);
+}
+
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
+void PrivateInstanceAAMP::SetRampDownLimit(int limit)
+{
+	if (gpGlobalConfig->rampdownLimit >= 0)
+	{
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, gpGlobalConfig->rampdownLimit);
+	}
+	else
+	{
+		if (limit >= 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
+			mRampDownLimit = limit;
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid limit value %d", __FUNCTION__,__LINE__, limit);
+		}
+	}
+}
+
+/**
+ * @brief Set minimum bitrate value.
+ * @param  url - stream url with vss service zone info as query string
+ */
+void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
+{
+	if (gpGlobalConfig->minBitrate > 0)
+	{
+		aamp->SetMinimumBitrate(gpGlobalConfig->minBitrate);
+		AAMPLOG_INFO("%s:%d Setting minBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->minBitrate);
+	}
+	else
+	{
+		if (bitrate > 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
+			aamp->SetMinimumBitrate(bitrate);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
+		}
+	}
+}
+
+/**
+ * @brief Set minimum bitrate value.
+ *
+ */
+void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
+{
+	mMinBitrate = bitrate;
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ *
+ */
+void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
+{
+	if (gpGlobalConfig->maxBitrate > 0)
+	{
+		aamp->SetMinimumBitrate(gpGlobalConfig->maxBitrate);
+		AAMPLOG_INFO("%s:%d Setting maxBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->maxBitrate);
+	}
+	else
+	{
+		if (bitrate > 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
+			aamp->SetMaximumBitrate(bitrate);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
+		}
+	}
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ */
+void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
+{
+	if (bitrate > 0)
+	{
+		mMaxBitrate = bitrate;
+	}
+}
+
+/**
+ * @brief Get maximum bitrate value.
+ * @return maximum bitrate value
+ */
+long PrivateInstanceAAMP::GetMaximumBitrate()
+{
+	return mMaxBitrate;
+}
+
+/**
+ * @brief Set maximum bitrate value.
+ * @return minimum bitrate value
+ */
+long PrivateInstanceAAMP::GetMinimumBitrate()
+{
+	return mMinBitrate;
+}
 
 /**
  * @brief Lock aamp mutex
@@ -7302,9 +7499,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCurrentLanguageIndex(0),mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
-	,mLastDiscontinuityTimeMs(0)
-	,mBufUnderFlowStatus(false)
-	,mVideoBasePTS(0)
+	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
 #ifdef PLACEMENT_EMULATION
 	,mNumAds2Place(0), sampleAdBreakId("")
 #endif
@@ -7324,6 +7519,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mMutexPlaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 	,mUseAvgBandwidthForABR(false)
+	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
@@ -7398,6 +7594,26 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
+	if(gpGlobalConfig->rampdownLimit >= 0)
+	{
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+	}
+	if(gpGlobalConfig->minBitrate > 0)
+	{
+		mMinBitrate = gpGlobalConfig->minBitrate;
+	}
+	if(gpGlobalConfig->maxBitrate > 0)
+	{
+		mMaxBitrate = gpGlobalConfig->maxBitrate;
+	}
+	if(gpGlobalConfig->segInjectFailCount > 0)
+	{
+		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+	}
+	if(gpGlobalConfig->drmDecryptFailCount > 0)
+	{
+		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+	}
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)

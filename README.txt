@@ -188,6 +188,12 @@ curlHeader=1 enable curl header response logging on curl errors.  Default is fal
 customHeader=<customHeaderString> custom header string data to be appended to curl request
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
+minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
+maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
+drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
+segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
+
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

@@ -42,6 +42,7 @@
 #include <mutex>
 #include <queue>
 #include <VideoStat.h>
+#include <limits>
 
 static const char *mMediaFormatName[] =
 {
@@ -652,6 +653,12 @@ public:
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	char *pcustomHeader;	/*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
+	int rampdownLimit;		/*** Fragment rampdown/retry limit */
+	long minBitrate;		/*** Minimum bandwidth of playback profile */
+	long maxBitrate;		/*** Maximum bandwidth of playback profile */
+	int segInjectFailCount;		/*** Inject failure retry threshold */
+	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
+
 public:
 
 	/**
@@ -716,6 +723,7 @@ public:
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
 		,initFragmentRetryCount(-1)
+		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1333,7 +1341,7 @@ public:
 								"%d,%d,%d,%d,"                                          // licenseTotal,success,durationinMilliSec,isLive
 								"%lld,%lld,%lld,"                                       // TuneTimeBeginLoad,TuneTimePrepareToPlay,TuneTimePlay,
 								"%lld,%lld,%lld,"                                       //TuneTimeDrmReady,TuneTimeStartStream,TuneTimeStreaming
-								"%d,%d,%d,%lld",                                             //streamType, tuneRetries, TuneType, TuneCompleteTime(UTC MSec)
+								"%d,%d,%d,%ld",                                             //streamType, tuneRetries, TuneType, TuneCompleteTime(UTC MSec)
 								networkTime,playerLoadTime, failRetryBucketTime, prepareToPlayBucketTime,playBucketTime,drmReadyBucketTime,decoderStreamingBucketTime,
 								manifestTotal,profilesTotal,(initFragmentTotal + fragmentTotal),fragmentBucketTime, licenseTotal,success,durationinSec*1000,isLive,
 								xreTimeBuckets[TuneTimeBeginLoad],xreTimeBuckets[TuneTimePrepareToPlay],xreTimeBuckets[TuneTimePlay] ,xreTimeBuckets[TuneTimeDrmReady],
@@ -1776,6 +1784,9 @@ public:
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	TunedEventConfig mTuneEventConfigVod;
 	TunedEventConfig mTuneEventConfigLive;
+	int mRampDownLimit;
+	int mSegInjectFailCount;	/**< Sets retry count for segment injection failure */
+	int mDrmDecryptFailCount;	/**< Sets retry count for DRM decryption failure */
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
@@ -3401,6 +3412,36 @@ public:
 	 */
 	void StopBuffering(bool forceStop);
 
+	/*
+	 * @brief Set profile ramp down limit.
+	 *
+	 */
+	void SetRampDownLimit(int limit);
+
+	/**
+	 * @brief Set minimum bitrate value.
+	 *
+	 */
+	void SetMinimumBitrate(long bitrate);
+
+	/**
+	 * @brief Set maximum bitrate value.
+	 *
+	 */
+	void SetMaximumBitrate(long bitrate);
+
+	/**
+	 * @brief Get maximum bitrate value.
+	 * @return maximum bitrate value
+	 */
+	long GetMaximumBitrate();
+
+	/**
+	 * @brief Get minimum bitrate value.
+	 * @return minimum bitrate value
+	 */
+	long GetMinimumBitrate();
+
 private:
 
 	/**
@@ -3497,6 +3538,8 @@ private:
 	PreCacheUrlList mPreCacheDnldList;
 	std::string mAppName;
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
+	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
+	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 };
 
 #endif // PRIVAAMP_H
