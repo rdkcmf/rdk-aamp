@@ -6946,6 +6946,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mUseAvgBandwidthForABR(false)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
+	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
 #endif
 	, mPlayermode(PLAYERMODE_JSPLAYER)
 	, mPreCachePlaylistThreadId(NULL)

@@ -38,8 +38,7 @@ using namespace std;
 #ifdef AAMP_HLS_DRM
 
 extern void *CreateDRMSession(void *arg);
-extern DrmSessionCacheInfo* getDrmCacheInformationHandler();
-extern void ReleaseDRMLicenseAcquireThread(void);
+extern void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
 /**
  * @brief vector pool of DrmSessionDataInfo
@@ -354,9 +353,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 			break;
 		}
 
-		MediaType mediaType  = eMEDIATYPE_VIDEO;
-		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
-		
+		MediaType mediaType  = eMEDIATYPE_VIDEO;	
 		bool alreadyPushed = false;
 		pthread_mutex_lock(&drmProcessingMutex);
 		for (auto iterator = drmSessionDataPool_g.begin();  iterator != drmSessionDataPool_g.end(); iterator++){
@@ -406,9 +403,10 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
  * @param None
  * @return none
  */
-void ReleaseContentProtectionCache()
-{
-	ReleaseDRMLicenseAcquireThread();
+void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
+{	
+	AampDRMSessionManager::getInstance()->setCurlAbort(true);
+	ReleaseDRMLicenseAcquireThread(aamp);
 	DrmSessionDataInfo *drmSessioData = NULL;
 	pthread_mutex_lock(&drmProcessingMutex);
 	while (!drmSessionDataPool_g.empty())

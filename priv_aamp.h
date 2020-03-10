@@ -1731,6 +1731,8 @@ public:
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
 	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
+	pthread_t createDRMSessionThreadID; /**< thread ID for DRM session creation **/
+	bool drmSessionThreadStarted; /**< flag to indicate the thread is running on not **/
 #endif
 	Playermode mPlayermode;
 	pthread_t mPreCachePlaylistThreadId;
