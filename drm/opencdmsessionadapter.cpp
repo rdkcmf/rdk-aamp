@@ -150,7 +150,11 @@ void AAMPOCDMSession::initAampDRMSystem()
 	logprintf("initAampDRMSystem :: enter ");
 	pthread_mutex_lock(&decryptMutex);
 	if (m_pOpenCDMSystem == nullptr) {
+#ifdef USE_THUNDER_OCDM_API_0_2
+		m_pOpenCDMSystem = opencdm_create_system(m_keySystem.c_str());
+#else
 		m_pOpenCDMSystem = opencdm_create_system();
+#endif
 	}
 	pthread_mutex_unlock(&decryptMutex);
 	logprintf("initAampDRMSystem :: exit ");
@@ -206,7 +210,12 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		userSession->keysUpdatedOCDM();
 	};
 
+#ifdef USE_THUNDER_OCDM_API_0_2
+	opencdm_construct_session(m_pOpenCDMSystem, LicenseType::Temporary, "video/mp4",
+#else
 	opencdm_construct_session(m_pOpenCDMSystem, m_keySystem.c_str(), LicenseType::Temporary, "video/mp4",
+#endif
+
 				  const_cast<unsigned char*>(f_pbInitData), f_cbInitData,
 				  nullptr, 0, //No Custom Data
 				  &m_OCDMSessionCallbacks,
@@ -273,13 +282,20 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 		if (m_keyStatusReady.wait(2000) == true) {
 			logprintf("Key Status updated");
 		}
-
+#ifdef USE_THUNDER_OCDM_API_0_2
+		if (m_keyStatus == Usable) {
+#else
 		if (m_keyStatus == KeyStatus::Usable) {
+#endif
 			logprintf("processKey: Key Usable!");
 			m_eKeyState = KEY_READY;
 			retValue = 0;
 		}
+#ifdef USE_THUNDER_OCDM_API_0_2
+		else if(m_keyStatus == HWError)
+#else
 		else if(m_keyStatus == KeyStatus::HWError)
+#endif
 		{
 			// BCOM-3537 - SAGE Hang .. Need to restart the wpecdmi process and then self kill player to recover
 			AAMPLOG_WARN("processKey: Update() returned HWError.Restarting process...");
@@ -316,12 +332,20 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 			syscall(__NR_tgkill, pid, pid, SIGKILL);
 		}
 		else {
+#ifdef USE_THUNDER_OCDM_API_0_2
+			if(m_keyStatus == OutputRestricted)
+#else
 			if(m_keyStatus == KeyStatus::OutputRestricted)
+#endif
 			{
-                        	AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d", (int) m_keyStatus);
+				AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d", (int) m_keyStatus);
 				retValue = HDCP_OUTPUT_PROTECTION_FAILURE;
 			}
+#ifdef USE_THUNDER_OCDM_API_0_2
+			else if(m_keyStatus == OutputRestrictedHDCP22)
+#else
 			else if(m_keyStatus == KeyStatus::OutputRestrictedHDCP22)
+#endif
 			{
 				AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d", (int) m_keyStatus);
 				retValue = HDCP_COMPLIANCE_CHECK_FAILURE;
@@ -370,12 +394,24 @@ int AAMPOCDMSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 			{
         			uint8_t *mappedKeyID = reinterpret_cast<uint8_t* >(keyIDMap.data);
         			uint32_t mappedKeyIDSize = static_cast<uint32_t >(keyIDMap.size);
+#ifdef USE_THUNDER_OCDM_API_0_2
+				KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, mappedKeyID,mappedKeyIDSize );
+#else
 				media::OpenCdm::KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, mappedKeyID,mappedKeyIDSize );
+#endif
 				AAMPLOG_INFO("AAMPOCDMSession:%s : decrypt returned : %d key status is : %d", __FUNCTION__, retValue,keyStatus);
+#ifdef USE_THUNDER_OCDM_API_0_2
+				if(keyStatus == OutputRestricted){
+#else
 				if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
+#endif
 					retValue =  HDCP_OUTPUT_PROTECTION_FAILURE;
 				}
+#ifdef USE_THUNDER_OCDM_API_0_2
+				else if(keyStatus == OutputRestrictedHDCP22){
+#else
 				else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22){
+#endif
 					retValue =  HDCP_COMPLIANCE_CHECK_FAILURE;
 				}
 				gst_buffer_unmap(keyIDBuffer, &keyIDMap);
