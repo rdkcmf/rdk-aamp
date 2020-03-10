@@ -28,7 +28,6 @@
 #include <pthread.h>
 #include "_base64.h"
 #include <iostream>
-
 //#define LOG_TRACE 1
 #define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"
 #define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1"
@@ -60,33 +59,9 @@ KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPr
 }
 
 
-DrmSessionCacheInfo *drmCacheInfo_g = NULL;
-
 void *CreateDRMSession(void *arg);
-DrmSessionCacheInfo* getDrmCacheInformationHandler();
 int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
-
-/**
- *  @brief Get drm cache info handler
- *
- *  @param None
- *  @return		Create the Cache handler if it is null, 
- *      else return the existing one
- */
-DrmSessionCacheInfo* getDrmCacheInformationHandler()
-{
-	if (NULL == drmCacheInfo_g ){
-		pthread_mutex_lock(&drmSessionMutex);
-		drmCacheInfo_g = (DrmSessionCacheInfo *)malloc(sizeof(DrmSessionCacheInfo));
-		if (NULL != drmCacheInfo_g){
-			drmCacheInfo_g->createDRMSessionThreadID = 0;
-			drmCacheInfo_g->drmSessionThreadStarted = false;
-		}
-		pthread_mutex_unlock(&drmSessionMutex);
-	}
-	return  drmCacheInfo_g;
-}
-
+void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
 #ifdef USE_SECCLIENT
 /**
@@ -129,6 +104,7 @@ static string getFormattedLicenseServerURL(string url)
 AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(NULL), cachedKeyIDs(NULL), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
+		,curlSessionAbort(false)
 {
 }
 
@@ -213,7 +189,25 @@ void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 	pthread_mutex_unlock(&sessionMgrMutex);
 }
 
+/**
+ * @brief	Set Session abort flag
+ * @param	bool flag
+ * @return	void.
+ */
+void AampDRMSessionManager::setCurlAbort(bool isAbort){
+	pthread_mutex_lock(&sessionMgrMutex);
+	curlSessionAbort = isAbort;
+	pthread_mutex_unlock(&sessionMgrMutex);
+}
 
+/**
+ * @brief	Get Session abort flag
+ * @param	void
+ * @return	bool flag.
+ */
+bool AampDRMSessionManager::getCurlAbort(){
+	return curlSessionAbort;
+}
 /**
  * @brief	Clean up the failed keyIds.
  *
@@ -255,6 +249,36 @@ void AampDRMSessionManager::clearAccessToken()
 }
 
 /**
+ * @brief
+ * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
+ * @param dltotal total bytes expected to download
+ * @param dlnow downloaded bytes so far
+ * @param ultotal total bytes expected to upload
+ * @param ulnow uploaded bytes so far
+ * @retval
+ */
+int AampDRMSessionManager::progress_callback(
+	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
+	double dltotal, // total bytes expected to download
+	double dlnow, // downloaded bytes so far
+	double ultotal, // total bytes expected to upload
+	double ulnow // uploaded bytes so far
+	)
+{
+	int returnCode = 0 ;
+	if(AampDRMSessionManager::getInstance()->getCurlAbort())
+	{
+		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
+		returnCode = CURLE_ABORTED_BY_CALLBACK ;
+		//Reset the abort variable
+		AampDRMSessionManager::getInstance()->setCurlAbort(false);
+
+	}
+
+	return returnCode;
+}
+
+/**
  *  @brief		Curl write callback, used to get the curl o/p
  *  			from DRM license, accessToken curl requests.
  *
@@ -266,10 +290,17 @@ void AampDRMSessionManager::clearAccessToken()
 size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 		size_t nmemb, void *userdata)
 {
-	DrmData *data = (DrmData *)userdata;
-	size_t numBytesForBlock = size * nmemb;
-	if (NULL == data->getData())
-	{
+        DrmData *data = (DrmData *)userdata;
+        size_t numBytesForBlock = size * nmemb;
+        if(AampDRMSessionManager::getInstance()->getCurlAbort())
+        {
+                logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
+                //Reset the abort variable
+                numBytesForBlock = 0;
+                AampDRMSessionManager::getInstance()->setCurlAbort(false);
+        }
+        else if (NULL == data->getData())        
+        {
 		data->setData((unsigned char *) ptr, numBytesForBlock);
 	}
 	else
@@ -325,6 +356,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		CURL *curl = curl_easy_init();;
 		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -432,6 +464,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	DrmData * keyInfo = new DrmData();
 	const long challegeLength = keyChallenge->getDataLength();
 	char* destURL = new char[destinationURL.length() + 1];
+	long long downloadTimeMS = 0;
 	curl = curl_easy_init();
 	if (customHeader != NULL)
 	{
@@ -471,6 +504,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, destinationURL.c_str());
 	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -491,7 +525,10 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
 		attemptCount++;
+		long long tStartTime = NOW_STEADY_TS_MS;
 		res = curl_easy_perform(curl);
+		long long tEndTime = NOW_STEADY_TS_MS;
+		downloadTimeMS = tEndTime - tStartTime;
 		if (res != CURLE_OK)
 		{
 			logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
@@ -526,9 +563,24 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : http %d",__FUNCTION__, __LINE__, attemptCount, *httpCode);
 				requestFailed = false;
 				break;
-			}
-		}
-	}
+                        }
+                }
+        }
+	double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
+	long reqSize;
+	double totalPerformRequest = (double)(downloadTimeMS)/1000;
+	curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
+	curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
+	curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appConnect);
+	curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME, &preTransfer);
+	curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &startTransfer);
+	curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME, &redirect);
+	curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
+	curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
+	AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
+			destinationURL.c_str(),
+			totalPerformRequest,
+			totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
 
 	if(requestFailed && keyInfo !=NULL)
 	{
@@ -1206,6 +1258,25 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	return NULL;
 }
 
+/**
+ *  @brief		Function to release the DrmSession if it running
+ *  @param[out]	private aamp instance
+ *  @return		None.
+ */
+void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp){
+		
+	if(aamp->drmSessionThreadStarted) //In the case of license rotation
+	{
+		void *value_ptr = NULL;
+		int rc = pthread_join(aamp->createDRMSessionThreadID, &value_ptr);
+		if (rc != 0)
+		{
+			AAMPLOG_WARN("%s:%d pthread_join returned %d for createDRMSession Thread", 
+			__FUNCTION__, __LINE__, rc);
+		}
+		aamp->drmSessionThreadStarted = false;
+	}
+}
 
 /**
  *  @brief		Function to spawn the DrmSession Thread based on the
@@ -1225,26 +1296,14 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
 			break;
 		}
 		/** Achieve single thread logic for DRM Session Creation **/
-		DrmSessionCacheInfo *drmInfo = getDrmCacheInformationHandler();
-		if(drmInfo->drmSessionThreadStarted) //In the case of license rotation
-		{
-			void *value_ptr = NULL;
-			int rc = pthread_join(drmInfo->createDRMSessionThreadID, &value_ptr);
-			if (rc != 0)
-			{
-				AAMPLOG_ERR("%s:%d pthread_join returned %d for createDRMSession Thread", 
-				__FUNCTION__, __LINE__, rc);
-			}
-			drmInfo->drmSessionThreadStarted = false;
-		}
-
+		ReleaseDRMLicenseAcquireThread(aamp);
 		AAMPLOG_INFO("%s:%d Creating thread with sessionData = 0x%08x",
 					__FUNCTION__, __LINE__, drmData->sessionData );
-		if(0 == pthread_create(&drmInfo->createDRMSessionThreadID, NULL,\
+        if(0 == pthread_create(&aamp->createDRMSessionThreadID, NULL,\
 		 CreateDRMSession, drmData->sessionData))
 		{
 			drmData->isProcessedLicenseAcquire = true;
-			drmInfo->drmSessionThreadStarted = true;
+			aamp->drmSessionThreadStarted = true;
 			aamp->setCurrentDrm(drmData->drmType);
 			iState = DRM_API_SUCCESS;
 		}
