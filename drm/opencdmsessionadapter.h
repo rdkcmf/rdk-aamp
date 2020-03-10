@@ -73,7 +73,11 @@ private:
 	KeyState m_eKeyState;
 
 	OpenCDMSession* m_pOpenCDMSession;
+#ifdef USE_THUNDER_OCDM_API_0_2
+	struct OpenCDMSystem* m_pOpenCDMSystem;
+#else
 	struct OpenCDMAccessor* m_pOpenCDMSystem;
+#endif
 	OpenCDMSessionCallbacks m_OCDMSessionCallbacks;
 	AampOutputProtection* m_pOutputProtection;
 
