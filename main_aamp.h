@@ -1476,6 +1476,35 @@ public:
 	 *
 	 */
 	 const char* GetPreferredLanguages();
+	/*
+	 * @brief Set profile ramp down limit.
+	 *
+	 */
+	void SetRampDownLimit(int limit);
+
+	/**
+	 * @brief Set minimum bitrate value.
+	 *
+	 */
+	void SetMinimumBitrate(long bitrate);
+
+	/**
+	 * @brief Set maximum bitrate value.
+	 *
+	 */
+	void SetMaximumBitrate(long bitrate);
+
+	/**
+	 * @brief Set retry limit on Segment injection failure.
+	 *
+	 */
+	void SetSegmentInjectFailCount(int value);
+
+	/**
+	 * @brief Set retry limit on Segment drm decryption failure.
+	 *
+	 */
+	void SetSegmentDecryptFailCount(int value);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

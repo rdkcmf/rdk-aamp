@@ -201,6 +201,12 @@ langcodepref=<X>
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
+fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
+minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
+maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
+drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
+segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
+
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
