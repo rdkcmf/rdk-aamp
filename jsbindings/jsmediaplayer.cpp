@@ -146,6 +146,9 @@ enum ConfigParamType
 	ePARAM_USE_NEW_ADBREAKER,
 	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
 	ePARAM_ASYNCTUNE,
+	ePARAM_RAMPDOWN_LIMIT,
+	ePARAM_SEGMENTINJECTLIMIT,
+	ePARAM_DRMDECRYPTLIMIT,
 	ePARAM_MAX_COUNT
 };
 
@@ -197,6 +200,9 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_ASYNCTUNE, "asyncTune" },
+	{ ePARAM_RAMPDOWN_LIMIT, "fragmentRetryLimit" },
+	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
+	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -564,6 +570,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PROGRESSREPORTINTERVAL:
 			case ePARAM_PRECACHEPLAYLISTTIME:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+			case ePARAM_RAMPDOWN_LIMIT:
+			case ePARAM_SEGMENTINJECTLIMIT:
+			case ePARAM_DRMDECRYPTLIMIT:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -689,7 +698,20 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
 				case ePARAM_MINBITRATE:
+					privObj->_aamp->SetMinimumBitrate((long) valueAsNumber);
+					break;
 				case ePARAM_MAXBITRATE:
+					privObj->_aamp->SetMaximumBitrate((long) valueAsNumber);
+					break;
+				case ePARAM_RAMPDOWN_LIMIT:
+					privObj->_aamp->SetRampDownLimit((int) valueAsNumber);
+					break;
+				case ePARAM_SEGMENTINJECTLIMIT:
+					privObj->_aamp->SetSegmentInjectFailCount((int) valueAsNumber);
+					break;
+				case ePARAM_DRMDECRYPTLIMIT:
+					privObj->_aamp->SetSegmentDecryptFailCount((int) valueAsNumber);
+					break;
 				case ePARAM_TSBLENGTH:
 					//TODO: Support these config params
 					break;

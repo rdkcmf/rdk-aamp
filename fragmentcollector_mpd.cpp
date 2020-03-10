@@ -71,7 +71,6 @@
 #define SUPPLEMENTAL_PROPERTY_TAG "SupplementalProperty"
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
-
 /**
  * @struct FragmentDescriptor
  * @brief Stores information of dash fragment
@@ -155,7 +154,7 @@ public:
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
-			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment(), discontinuity(false)
+			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
 	{
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
@@ -286,35 +285,75 @@ public:
 				if (initSegment)
 				{
 					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s", __FUNCTION__, __LINE__, fragmentUrl.c_str());
-					if(!playingAd)
-					{
-						aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-					}
+				}
+
+				if (mSkipSegmentOnError)
+				{
+					// Skip segment on error, and increse fail count
+					segDLFailCount += 1;
 				}
 				else
 				{
-					segDLFailCount += 1;
-					if (MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount)
+					// Rampdown already attempted on same segment
+					// Reset flag for next fetch
+					mSkipSegmentOnError = true;
+				}
+				if (MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount)
+				{
+					if(!playingAd)	//If playingAd, we are invalidating the current Ad in onAdEvent().
 					{
-						logprintf("%s:%d Not able to download fragments; reached failure threshold sending tune failed event",
-								__FUNCTION__, __LINE__);
-						if(!playingAd)	//If playingAd, we are invalidating the current Ad in onAdEvent().
+						if (!initSegment)
 						{
+							AAMPLOG_ERR("%s:%d Not able to download fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
 							aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 						}
-					} 
-					// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails 
-					// should continue with next fragment,no retry needed .
-					else if ((eTRACK_VIDEO == type) && mContext->CheckForRampDownProfile(http_code))
+						else
+						{
+							// When rampdown limit is not specified, init segment will be ramped down, this wil
+							AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
+							aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+						}
+					}
+				}
+				// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
+				// should continue with next fragment,no retry needed .
+				else if ((eTRACK_VIDEO == type) && !(mContext->CheckForRampDownLimitReached()))
+				{
+					// Attempt rampdown
+					if (mContext->CheckForRampDownProfile(http_code))
 					{
 						mContext->mCheckForRampdown = true;
-						logprintf( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile",
+						if (!initSegment)
+						{
+							// Rampdown attempt success, download same segment from lower profile.
+							mSkipSegmentOnError = false;
+						}
+						AAMPLOG_WARN( "PrivateStreamAbstractionMPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile",
 								__FUNCTION__, __LINE__, fragmentUrl.c_str(), segDLFailCount);
 					}
-					else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
+					else
 					{
-						logprintf("PrivateStreamAbstractionMPD::%s:%d > Error on fetching %s fragment. failedCount:%d",
-								__FUNCTION__, __LINE__, name, segDLFailCount);
+						if(!playingAd && initSegment)
+						{
+							// Already at lowest profile, send error event for init fragment.
+							AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
+							aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+						}
+						else
+						{
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
+							mContext->mRampDownCount = 0;
+						}
+					}
+				}
+				else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
+				{
+					AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d > Error on fetching %s fragment. failedCount:%d",
+							__FUNCTION__, __LINE__, name, segDLFailCount);
+					// For init fragment, rampdown limit is reached. Send error event.
+					if(!playingAd && initSegment)
+					{
+						aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 					}
 				}
 			}
@@ -345,6 +384,11 @@ public:
 			}
 #endif
 			segDLFailCount = 0;
+			if ((eTRACK_VIDEO == type) && (!initSegment))
+			{
+				// reset count on video fragment success
+				mContext->mRampDownCount = 0;
+			}
 			UpdateTSAfterFetch();
 			ret = true;
 		}
@@ -428,6 +472,7 @@ public:
 	StreamAbstractionAAMP_MPD* mContext;
 	std::string initialization;
 	uint32_t adaptationSetId;
+	bool mSkipSegmentOnError;
 };
 
 /**
@@ -525,7 +570,7 @@ private:
 	void StreamSelection(bool newTune = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
-	void UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
+	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
 	double SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType);
@@ -3308,7 +3353,16 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					logprintf("aamp: mpd - sent tune event after indexing playlist");
 				}
 			}
-			UpdateTrackInfo(!newTune, true, true);
+			ret = UpdateTrackInfo(!newTune, true, true);
+
+			if(eAAMPSTATUS_OK != ret)
+			{
+				if (ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
+				{
+					AAMPLOG_ERR("%s:%d ERROR: No playable profiles found", __FUNCTION__, __LINE__);
+				}
+				return ret;
+			}
 
 			if(notifyEnteringLive)
 			{
@@ -4554,11 +4608,14 @@ static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vect
 /**
  * @brief Updates track information based on current state
  */
-void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
+AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
 {
+	AAMPStatusType ret = eAAMPSTATUS_OK;
 	long defaultBitrate = gpGlobalConfig->defaultBitrate;
 	long iframeBitrate = gpGlobalConfig->iframeBitrate;
 	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
+	long minBitrate = aamp->GetMinimumBitrate();
+	long maxBitrate = aamp->GetMaximumBitrate();
 
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
@@ -4650,6 +4707,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					}
 					mContext->GetABRManager().clearProfiles();
 					mBitrateIndexMap.clear();
+					int addedProfiles = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
 						IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
@@ -4668,26 +4726,37 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 							double frate = val2? ((double)val1/val2):val1;
 							mStreamInfo[idx].resolution.framerate = frate;
 						}
-						mContext->GetABRManager().addProfile({
-							mStreamInfo[idx].isIframeTrack,
-							mStreamInfo[idx].bandwidthBitsPerSecond,
-							mStreamInfo[idx].resolution.width,
-							mStreamInfo[idx].resolution.height,
-						});
 						//Update profile resolution with VideoEnd Metrics object.
 						aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 												mStreamInfo[idx].bandwidthBitsPerSecond,
 												mStreamInfo[idx].resolution.width,
 												mStreamInfo[idx].resolution.height);
 
-						if(mStreamInfo[idx].resolution.height > 1080
-								|| mStreamInfo[idx].resolution.width > 1920)
+						if ((mStreamInfo[idx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[idx].bandwidthBitsPerSecond < maxBitrate))
 						{
-							defaultBitrate = gpGlobalConfig->defaultBitrate4K;
-							iframeBitrate = gpGlobalConfig->iframeBitrate4K;
+							mContext->GetABRManager().addProfile({
+								mStreamInfo[idx].isIframeTrack,
+								mStreamInfo[idx].bandwidthBitsPerSecond,
+								mStreamInfo[idx].resolution.width,
+								mStreamInfo[idx].resolution.height,
+							});
+							addedProfiles++;
+
+							if(mStreamInfo[idx].resolution.height > 1080
+									|| mStreamInfo[idx].resolution.width > 1920)
+							{
+								defaultBitrate = gpGlobalConfig->defaultBitrate4K;
+								iframeBitrate = gpGlobalConfig->iframeBitrate4K;
+							}
 						}
 					}
 
+					if (0 == addedProfiles)
+					{
+						ret = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+						AAMPLOG_WARN("%s:%d No video profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
+						return ret;
+					}
 					if (modifyDefaultBW)
 					{
 						long persistedBandwidth = aamp->GetPersistedBandwidth();
@@ -4787,6 +4856,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
+	return ret;
 }
 
 
