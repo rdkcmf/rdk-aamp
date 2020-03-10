@@ -360,6 +360,7 @@ private:
 	const char* mFirstEncInitFragmentInfo;  /**< Holds first encrypted init fragment Information index*/
 	double mXStartTimeOFfset;		/**< Holds value of time offset from X-Start tag */
 	double mCulledSecondsAtStart;		/**< Total culled duration with this asset prior to streamer instantiation*/
+	bool mSkipSegmentOnError;				/**< Flag used to enable segment skip on fetch error */
 };
 
 class StreamAbstractionAAMP_HLS;

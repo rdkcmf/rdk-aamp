@@ -131,6 +131,11 @@ typedef enum{
 	eAAMP_SET_PreferredSubtitleLang,
 	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
+	eAAMP_SET_RampDownLimit,
+	eAAMP_SET_MinimumBitrate,
+	eAAMP_SET_MaximumBitrate,
+	eAAMP_SET_MaximumSegmentInjFailCount,
+	eAAMP_SET_MaximumDrmDecryptFailCount,
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -351,6 +356,11 @@ void ShowHelpSet(){
 	logprintf("29 - Set Preferred Subtitle language (string lang)");
 	logprintf("30 - Set Parallel Playlist download (0/1)");
 	logprintf("31 - Set Preferred languages (string \"lang1, lang2, ...\")");
+	logprintf("32 - Set Ramp Down limit");
+	logprintf("33 - Set Minimum bitrate");
+	logprintf("34 - Set Maximum bitrate");
+	logprintf("35 - Set Maximum segment injection fail count");
+	logprintf("36 - Set Maximum DRM Decryption fail count");
 }
 
 #define LOG_CLI_EVENTS
@@ -1007,6 +1017,57 @@ static void ProcessCliCommand(char *cmd)
 						mSingleton->SetPreferredLanguages(NULL);
 					break;
 				}
+
+				case eAAMP_SET_RampDownLimit:
+                                {
+					int rampDownLimit;
+					logprintf("Matched Command eAAMP_SET_RampDownLimit - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
+						mSingleton->SetRampDownLimit(rampDownLimit);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_MinimumBitrate:
+                                {
+					long minBitrate;
+					logprintf("Matched Command eAAMP_SET_MinimumBitrate - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &minBitrate) == 2){
+						mSingleton->SetMinimumBitrate(minBitrate);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_MaximumBitrate:
+                                {
+					long maxBitrate;
+					logprintf("Matched Command eAAMP_SET_MaximumBitrate - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &maxBitrate) == 2){
+						mSingleton->SetMaximumBitrate(maxBitrate);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_MaximumSegmentInjFailCount:
+                                {
+					int failCount;
+					logprintf("Matched Command eAAMP_SET_MaximumSegmentInjFailCount - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
+						mSingleton->SetSegmentInjectFailCount(failCount);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_MaximumDrmDecryptFailCount:
+                                {
+					int failCount;
+					logprintf("Matched Command eAAMP_SET_MaximumDrmDecryptFailCount - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
+						mSingleton->SetSegmentDecryptFailCount(failCount);
+					}
+					break;
+                                }
+
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}

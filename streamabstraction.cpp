@@ -550,10 +550,10 @@ bool MediaTrack::InjectFragment()
 				{
 					logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded", __FUNCTION__, __LINE__, name);
 					mSegInjectFailCount++;
-					if(MAX_SEG_INJECT_FAIL_COUNT <= mSegInjectFailCount)
+					if(aamp->mSegInjectFailCount <= mSegInjectFailCount)
 					{
 						ret	= false;
-						logprintf("%s:%d [%s] Reached max inject failure count, stopping playback",__FUNCTION__, __LINE__, name);
+						AAMPLOG_ERR("%s:%d [%s] Reached max inject failure count: %d, stopping playback",__FUNCTION__, __LINE__, name, aamp->mSegInjectFailCount);
 						aamp->SendErrorEvent(AAMP_TUNE_FAILED_PTS_ERROR);
 					}
 					
@@ -916,7 +916,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRProfileChangeIndicator(0)
+		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRProfileChangeIndicator(0),
+		mRampDownLimit(-1), mRampDownCount(0)
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
@@ -930,7 +931,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 	{
 		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
 	}
-
+	mRampDownLimit = aamp->mRampDownLimit;
 }
 
 
@@ -1289,12 +1290,14 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 			{
 				retValue = true;
 			}
-			else if (RampDownProfile(http_error))
+		else if (RampDownProfile(http_error))
 			{
 				retValue = true;
 			}
 		}
 	}
+	if ((true == retValue) && (mRampDownLimit > 0))
+		mRampDownCount++;
 
 	return retValue;
 }
@@ -1857,4 +1860,22 @@ bool StreamAbstractionAAMP::IsEOSReached()
 		}
 	}
 	return eos;
+}
+
+/**
+ *   @brief Check for ramp down limit reached by player
+ *   @return true if limit reached, false otherwise
+ */
+bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
+{
+	bool ret = false;
+	// Check rampdownlimit reached when the value is set,
+	// limit will be -1 by default, function will return false to attempt rampdown.
+	if ((mRampDownCount >= mRampDownLimit) && (mRampDownLimit >= 0))
+	{
+		ret = true;
+		mRampDownCount = 0;
+		AAMPLOG_WARN("%s:%d Rampdown limit reached, Limit is %d", __FUNCTION__, __LINE__, mRampDownLimit);
+	}
+	return ret;
 }
