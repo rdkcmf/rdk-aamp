@@ -40,15 +40,6 @@
 #define AUDIO_SESSION 1
 
 /**
- *  @struct	DrmSessionCacheInfo
- *  @brief	Drm Session Cache Information for keeping single DRM session always.
- */
-typedef struct DrmSessionCacheInfo{
-	pthread_t createDRMSessionThreadID; /**< Thread Id for DrM Session thread */
-	bool drmSessionThreadStarted; /**< DRM Session start flag to identify the DRM Session thread running */
-}DrmSessionCacheInfo;
-
-/**
  *  @struct	DrmSessionDataInfo
  *  @brief	Drm Session Data Information 
  * for storing in a pool from parser.
@@ -134,6 +125,7 @@ private:
 	SessionMgrState sessionMgrState;
 	pthread_mutex_t accessTokenMutex;
 	pthread_mutex_t cachedKeyMutex;
+	bool curlSessionAbort;
 
 	AampDRMSessionManager();
 
@@ -142,8 +134,10 @@ private:
 
 	static size_t write_callback(char *ptr, size_t size, size_t nmemb,
 			void *userdata);
+	static int progress_callback(void *clientp,	double dltotal, 
+			double dlnow, double ultotal, double ulnow );
 public:
-
+	
 	static AampDRMSessionManager* getInstance();
 
 	void initializeDrmSessions();
@@ -166,6 +160,10 @@ public:
 	void clearFailedKeyIds();
 
 	void setSessionMgrState(SessionMgrState state);
+	
+	void setCurlAbort(bool isAbort);
+
+	bool getCurlAbort(void);
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 };
