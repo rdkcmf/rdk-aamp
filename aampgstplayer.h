@@ -66,7 +66,7 @@ public:
 	bool CheckForPTSChange();
 	void NotifyFragmentCachingComplete();
 	void GetVideoSize(int &w, int &h);
-	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len);
+	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
 	bool SendBufferEndEvent();
 

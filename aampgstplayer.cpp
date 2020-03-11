@@ -146,7 +146,7 @@ struct AAMPGstPlayerPriv
 	bool pendingPlayState; //Flag that denotes if set pipeline to PLAYING state is pending.
 	bool decoderHandleNotified; //Flag that denotes if decoder handle was notified.
 	guint firstFrameCallbackIdleTaskId; //ID of idle handler created for notifying first frame event.
-	GstEvent *protectionEvent; //GstEvent holding the pssi data to be sent downstream.
+	GstEvent *protectionEvent[AAMP_TRACK_COUNT]; //GstEvent holding the pssi data to be sent downstream.
 	std::atomic<bool> firstFrameCallbackIdleTaskPending; //Set if any first frame callback is pending.
 	bool using_westerossink; //true if westros sink is used as video sink
 	guint busWatchId;
@@ -1422,19 +1422,25 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
  * @param[in] initData DRM initialization data
  * @param[in] initDataSize DRM initialization data size
  */
-void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize)
+void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize, MediaType type)
 {
 #ifdef AAMP_MPD_DRM
   	GstBuffer *pssi;
 
-	logprintf("queueing protection event for keysystem: %s initdata size: %d", protSystemId, initDataSize);
+	// There is a possibility that only single protection event is queued for multiple type
+	// since they are encrypted using same id. Don'tt worry if you see only one protection event queued here
+	logprintf("queueing protection event for type:%d keysystem: %s initdata size: %d", type, protSystemId, initDataSize);
 
 	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
 	if (this->aamp->IsDashAsset())
-		privateContext->protectionEvent = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
+	{
+		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
+	}
 	else
-		privateContext->protectionEvent = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
-		
+	{
+		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+	}
+
 	gst_buffer_unref (pssi);
 #endif
 }
@@ -1444,11 +1450,14 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
  */
 void AAMPGstPlayer::ClearProtectionEvent()
 {
-	if(privateContext->protectionEvent)
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
-		logprintf("%s removing protection event! ", __FUNCTION__);
-		gst_event_unref (privateContext->protectionEvent);
-		privateContext->protectionEvent = NULL;
+		if(privateContext->protectionEvent[i])
+		{
+			logprintf("%s removing protection event! ", __FUNCTION__);
+			gst_event_unref (privateContext->protectionEvent[i]);
+			privateContext->protectionEvent[i] = NULL;
+		}
 	}
 }
 
@@ -1793,10 +1802,26 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-		if(privateContext->protectionEvent)
+		// There is a possibility that only single protection event is queued for multiple type
+		// since they are encrypted using same id. Hence check if proection event is queued for
+		// other types
+		GstEvent* event = privateContext->protectionEvent[mediaType];
+		if (event == NULL)
+		{
+			// Check protection event for other types
+			for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+			{
+				if (i != mediaType && privateContext->protectionEvent[i] != NULL)
+				{
+					event = privateContext->protectionEvent[i];
+					break;
+				}
+			}
+		}
+		if(event)
 		{
 			logprintf("%s pushing protection event! mediatype: %d", __FUNCTION__, mediaType);
-			if (!gst_pad_push_event(sourceEleSrcPad, gst_event_ref(privateContext->protectionEvent)))
+			if (!gst_pad_push_event(sourceEleSrcPad, gst_event_ref(event)))
 			{
 				logprintf("%s push protection event failed!", __FUNCTION__);
 			}
