@@ -4319,7 +4319,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync))
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
