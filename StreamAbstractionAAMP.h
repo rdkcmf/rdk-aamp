@@ -795,6 +795,13 @@ public:
 	 */
 	virtual std::vector<TextTrackInfo> GetAvailableTextTracks() { return mTextTracks; };
 
+	/**
+	*   @brief Update seek position when player is initialized
+	*
+	*   @param[in] seekposition time.
+	*/
+	virtual void SeekPosUpdate(double secondsRelativeToTuneTime) = 0;
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
