@@ -927,7 +927,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
 					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
-					g_object_set(msg->src, "stream_sync_mode", 0, NULL); /* tell decoder not to look for 2nd/next frame sync, decode if it finds a single frame sync */
 				}
 
 				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
