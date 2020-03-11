@@ -3151,6 +3151,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->logging.failover = true;
 			logprintf("failover logging %s", gpGlobalConfig->logging.failover ? "on" : "off");
 		}
+		else if(cfg.compare("logMetadata") == 0)
+		{
+			gpGlobalConfig->logging.logMetadata = true;
+			logprintf("logMetadata logging %s", gpGlobalConfig->logging.logMetadata ? "on" : "off");
+		}
 		else if (cfg.compare("gst") == 0)
 		{
 			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
@@ -5126,43 +5131,47 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	}
 }
 
-
 /**
  *   @brief Seek to a time.
  *
- *   @param  secondsRelativeToTuneTime - Seek position for VOD,
- *           relative position from first tune command.
+ *   @param  ptr - Aamp  instance,
+ *           Return true on success
  */
-void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
+static gboolean  SeekAfterPrepared(gpointer ptr)
 {
+	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP*) ptr;
 	bool sentSpeedChangedEv = false;
 	bool isSeekToLive = false;
 	TuneType tuneType = eTUNETYPE_SEEK;
+	PrivAAMPState state;
+        aamp->GetState(state);
+        if( state == eSTATE_ERROR){
+                logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+                return false;
+        }
 
-	ERROR_STATE_CHECK_VOID();
-
-	if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
+	if (AAMP_SEEK_TO_LIVE_POSITION == aamp->seek_pos_seconds )
 	{
 		isSeekToLive = true;
 		tuneType = eTUNETYPE_SEEKTOLIVE;
 	}
 
-	logprintf("aamp_Seek(%f) and seekToLive(%d)", secondsRelativeToTuneTime, isSeekToLive);
+	logprintf("aamp_Seek(%f) and seekToLive(%d)", aamp->seek_pos_seconds, isSeekToLive);
 
 	if (isSeekToLive && !aamp->IsLive())
 	{
 		logprintf("%s:%d - Not live, skipping seekToLive",__FUNCTION__,__LINE__);
-		return;
+		return false;
 	}
 
 	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
 		double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
-		if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
+		if (isSeekToLive || aamp->seek_pos_seconds >= currPositionSecs)
 		{
-			logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
+			logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, aamp->seek_pos_seconds, currPositionSecs, isSeekToLive);
 			aamp->NotifyOnEnteringLive();
-			return;
+			return false;
 		}
 	}
 
@@ -5178,7 +5187,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 
 	if (tuneType == eTUNETYPE_SEEK)
 	{
-		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+		logprintf("%s(): tune type is SEEK", __FUNCTION__);
 	}
 	if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 	{
@@ -5196,6 +5205,93 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 		else
 		{
 			aamp->SetState(eSTATE_PLAYING);
+		}
+	}
+	return true;
+}
+/**
+ *   @brief Seek to a time.
+ *
+ *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *           relative position from first tune command.
+ */
+void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
+{
+	bool sentSpeedChangedEv = false;
+	bool isSeekToLive = false;
+	TuneType tuneType = eTUNETYPE_SEEK;
+
+	ERROR_STATE_CHECK_VOID();
+
+	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
+	{
+		logprintf("Seeking to %lf at the middle of tune, no fragments downloaded yet.", secondsRelativeToTuneTime);
+		aamp->mpStreamAbstractionAAMP->SeekPosUpdate(secondsRelativeToTuneTime);
+	}
+	else if (eSTATE_INITIALIZED == state || eSTATE_PREPARING == state)
+	{
+		logprintf("Seek will be called after preparing the content.");
+		aamp->seek_pos_seconds = secondsRelativeToTuneTime ;
+		g_idle_add(SeekAfterPrepared, (gpointer)aamp);
+	}
+	else
+	{
+		if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
+		{
+			isSeekToLive = true;
+			tuneType = eTUNETYPE_SEEKTOLIVE;
+		}
+
+		logprintf("aamp_Seek(%f) and seekToLive(%d)", secondsRelativeToTuneTime, isSeekToLive);
+
+		if (isSeekToLive && !aamp->IsLive())
+		{
+			logprintf("%s:%d - Not live, skipping seekToLive",__FUNCTION__,__LINE__);
+			return;
+		}
+
+		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
+		{
+			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
+			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
+			{
+				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
+				aamp->NotifyOnEnteringLive();
+				return;
+			}
+		}
+
+		if (aamp->pipeline_paused)
+		{
+			// resume downloads and clear paused flag. state change will be done
+			// on streamSink configuration.
+			logprintf("%s(): paused state, so resume downloads", __FUNCTION__);
+			aamp->pipeline_paused = false;
+			aamp->ResumeDownloads();
+			sentSpeedChangedEv = true;
+		}
+
+		if (tuneType == eTUNETYPE_SEEK)
+		{
+			aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+		}
+		if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
+		{
+			aamp->rate = AAMP_NORMAL_PLAY_RATE;
+			sentSpeedChangedEv = true;
+		}
+		if (aamp->mpStreamAbstractionAAMP)
+		{ // for seek while streaming
+			aamp->SetState(eSTATE_SEEKING);
+			aamp->TuneHelper(tuneType);
+			if (sentSpeedChangedEv)
+			{
+				aamp->NotifySpeedChanged(aamp->rate);
+			}
+			else
+			{
+				aamp->SetState(eSTATE_PLAYING);
+			}
 		}
 	}
 }
@@ -6398,14 +6494,18 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				cJSON_AddStringToObject(item, "data", iter->_content.c_str());
 			}
 
-			char* bulkData = cJSON_Print(root);
+			char* bulkData = cJSON_PrintUnformatted(root);
 			if(bulkData)
 			{
 
 				AAMPEvent eventData;
 				eventData.type = AAMP_EVENT_BULK_TIMED_METADATA;
 				eventData.data.bulktimedMetadata.szMetaContent = bulkData;
-				AAMPLOG_INFO("%s:%d:: Generated bulkTimedData : %s", __FUNCTION__, __LINE__, bulkData);
+				AAMPLOG_INFO("%s:%d:: Sending bulkTimedData", __FUNCTION__, __LINE__);
+				if (gpGlobalConfig->logging.logMetadata)
+				{
+					printf("%s:%d:: bulkTimedData : %s\n", __FUNCTION__, __LINE__, bulkData);
+				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
 				SendEventSync(eventData);
@@ -6486,7 +6586,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
 		eventData.data.timedMetadata.szContent = eventData.additionalEventData[2].c_str();
 
-		if (gpGlobalConfig->logging.progress)
+		if (gpGlobalConfig->logging.logMetadata)
 		{
 			logprintf("aamp timedMetadata: [%ld] '%s'",
 				(long)(eventData.data.timedMetadata.timeMilliseconds),

@@ -4362,6 +4362,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
+		//reiterate loop when player receive an update in seek position
+		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+		{
+			trackState[iTrack]->playTarget = seekPosition;
+		}
+
 		if ((video->enabled && video->mDuration == 0.0f) || (audio->enabled && audio->mDuration == 0.0f))
 		{
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d Track Duration is 0. Cannot play this content", __FUNCTION__, __LINE__);
@@ -6248,6 +6254,17 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, profileCount);
 	}
 	AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Exit!", __FUNCTION__, __LINE__);
+}
+
+/***************************************************************************
+* @fn SeekPosUpdate
+* @brief Function to update seek position
+*
+* @param ptr[in] seek position time
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
+{
+	seekPosition = secondsRelativeToTuneTime;
 }
 
 /**

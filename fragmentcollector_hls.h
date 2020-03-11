@@ -408,6 +408,9 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	/// Function to get the Media count 
 	int GetMediaCount(void) { return mMediaCount;}	
+	int GetBestAudioTrackByLanguage( void );
+	// Function to update seek position
+	void SeekPosUpdate(double secondsRelativeToTuneTime);
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

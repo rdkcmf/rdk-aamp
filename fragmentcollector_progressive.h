@@ -55,6 +55,7 @@ public:
     long GetMaxBitrate(void) override;
     void StopInjection(void) override;
     void StartInjection(void) override;
+    void SeekPosUpdate(double) { };
     void NotifyFirstVideoPTS(unsigned long long pts) { };
 
     void NotifyBasePTS(unsigned long long pts) { };

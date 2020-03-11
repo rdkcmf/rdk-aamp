@@ -391,12 +391,13 @@ public:
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
 	bool latencyLogging[MAX_SUPPORTED_LATENCY_LOGGING_TYPES]; /**< Latency logging for Video, Audio, Manifest download - Refer MediaType on main_aamp.h */ 
+	bool logMetadata;	 /**< Timed metadata logs*/
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), logMetadata(false)
 	{
 		memset(latencyLogging, 0 , sizeof(latencyLogging));
 	}
