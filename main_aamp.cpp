@@ -7405,7 +7405,41 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 	}
 }
 
+/**
+ *   @brief Get available audio tracks.
+ *
+ *   @return std::string JSON formatted list of audio tracks
+ */
+std::string PlayerInstanceAAMP::GetAvailableAudioTracks()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
 
+	return aamp->GetAvailableAudioTracks();
+}
+
+/**
+ *   @brief Get available text tracks.
+ *
+ *   @return std::string JSON formatted list of text tracks
+ */
+std::string PlayerInstanceAAMP::GetAvailableTextTracks()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetAvailableTextTracks();
+}
+
+/*
+ *   @brief Get the video window co-ordinates
+ *
+ *   @return current video co-ordinates in x,y,w,h format
+ */
+std::string PlayerInstanceAAMP::GetVideoRectangle()
+{
+	ERROR_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetVideoRectangle();
+}
 
 /**
  *   @brief updates download metrics to VideoEnd object,
@@ -8804,6 +8838,138 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 		mStreamSink->SeekStreamSink(position, rate);
 	}
 #endif
+}
+
+
+/**
+ *   @brief Get available audio tracks.
+ *
+ *   @return std::string JSON formatted string of available audio tracks
+ */
+std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
+{
+	std::string tracks;
+
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+		if (!trackInfo.empty())
+		{
+			//Convert to JSON format
+			cJSON *root;
+			cJSON *item;
+			root = cJSON_CreateArray();
+			if(root)
+			{
+				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
+				{
+					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+					// Per spec, name and rendition/group-id is required
+					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (!iter->language.empty())
+					{
+						cJSON_AddStringToObject(item, "language", iter->language.c_str());
+					}
+					cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
+					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->characteristics.empty())
+					{
+						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
+					}
+					if (iter->channels != 0)
+					{
+						cJSON_AddNumberToObject(item, "channels", iter->channels);
+					}
+				}
+				char *jsonStr = cJSON_Print(root);
+				if (jsonStr)
+				{
+					tracks.assign(jsonStr);
+					free(jsonStr);
+				}
+				cJSON_Delete(root);
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP::%s() %d No available audio track information!", __FUNCTION__, __LINE__);
+		}
+	}
+	return tracks;
+}
+
+/**
+ *   @brief Get available text tracks.
+ *
+ *   @return const char* JSON formatted string of available text tracks
+ */
+std::string PrivateInstanceAAMP::GetAvailableTextTracks()
+{
+	std::string tracks;
+
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+		if (!trackInfo.empty())
+		{
+			//Convert to JSON format
+			cJSON *root;
+			cJSON *item;
+			root = cJSON_CreateArray();
+			if(root)
+			{
+				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
+				{
+					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+					// Per spec, name and rendition/group-id is required
+					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (iter->isCC)
+					{
+						cJSON_AddStringToObject(item, "type", "CLOSED-CAPTIONS");
+					}
+					else
+					{
+						cJSON_AddStringToObject(item, "type", "SUBTITLES");
+					}
+					if (!iter->language.empty())
+					{
+						cJSON_AddStringToObject(item, "language", iter->language.c_str());
+					}
+					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->instreamId.empty())
+					{
+						cJSON_AddStringToObject(item, "instreamId", iter->instreamId.c_str());
+					}
+					if (!iter->characteristics.empty())
+					{
+						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
+					}
+				}
+				char *jsonStr = cJSON_Print(root);
+				if (jsonStr)
+				{
+					tracks.assign(jsonStr);
+					free(jsonStr);
+				}
+				cJSON_Delete(root);
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP::%s() %d No available text track information!", __FUNCTION__, __LINE__);
+		}
+	}
+	return tracks;
+}
+
+/*
+ *   @brief Get the video window co-ordinates
+ *
+ *   @return current video co-ordinates in x,y,w,h format
+ */
+std::string PrivateInstanceAAMP::GetVideoRectangle()
+{
+	return mStreamSink->GetVideoRectangle();
 }
 
 /**
