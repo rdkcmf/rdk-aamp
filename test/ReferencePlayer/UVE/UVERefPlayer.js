@@ -247,6 +247,11 @@ function playbackStateChanged(event) {
         case playerStatesEnum.initializing:
             playerState = playerStatesEnum.initializing;
             break;
+        case playerStatesEnum.initialized:
+            playerState = playerStatesEnum.initialized;
+            console.log("Available audio tracks: " + playerObj.getAvailableAudioTracks());
+            console.log("Available text tracks: " + playerObj.getAvailableTextTracks());
+            break;
         case playerStatesEnum.playing:
             //Stop vtt rendering
             if (playerState === playerStatesEnum.seeking) {

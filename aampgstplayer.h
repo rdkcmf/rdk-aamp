@@ -90,6 +90,7 @@ public:
 	static GstFlowReturn AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this);
 #endif
 	void SeekStreamSink(double position, double rate);
+	std::string GetVideoRectangle();
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);

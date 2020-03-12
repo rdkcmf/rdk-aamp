@@ -3205,6 +3205,27 @@ public:
 	 */
 	AampCacheHandler * getAampCacheHandler();
 
+	/**
+	 *   @brief Get available audio tracks.
+	 *
+	 *   @return std::string JSON formatted list of audio tracks
+	 */
+	std::string GetAvailableAudioTracks();
+
+	/**
+	 *   @brief Get available text tracks.
+	 *
+	 *   @return std::string JSON formatted list of text tracks
+	 */
+	std::string GetAvailableTextTracks();
+
+	/*
+	 *   @brief Get the video window co-ordinates
+	 *
+	 *   @return current video co-ordinates in x,y,w,h format
+	 */
+	std::string GetVideoRectangle();
+
 private:
 
 	/**

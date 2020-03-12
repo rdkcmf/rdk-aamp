@@ -780,6 +780,21 @@ public:
 	 *   @return true if end of stream reached, false otherwise
 	 */
 	virtual bool IsEOSReached();
+
+	/**
+	 *   @brief Get available audio tracks.
+	 *
+	 *   @return std::vector<AudioTrackInfo> list of audio tracks
+	 */
+	virtual std::vector<AudioTrackInfo> GetAvailableAudioTracks() { return mAudioTracks; };
+
+	/**
+	 *   @brief Get available text tracks.
+	 *
+	 *   @return std::vector<TextTrackInfo> list of text tracks
+	 */
+	virtual std::vector<TextTrackInfo> GetAvailableTextTracks() { return mTextTracks; };
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -830,6 +845,8 @@ private:
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
+	std::vector<AudioTrackInfo> mAudioTracks;
+	std::vector<TextTrackInfo> mTextTracks;
 };
 
 #endif // STREAMABSTRACTIONAAMP_H
