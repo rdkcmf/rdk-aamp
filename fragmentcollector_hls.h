@@ -105,6 +105,8 @@ typedef struct MediaInfo
 	int channels;			/**< Channel */
 	const char *instreamID;	/**< StreamID */
 	bool forced;			/**< Forced Flag */
+	const char *characteristics;	/**< Characteristics */
+	bool isCC;			/**< True if the text track is closed-captions */
 } MediaInfo;
 
 /**
@@ -453,6 +455,8 @@ private:
 	void CheckDiscontinuityAroundPlaytarget(void);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
 	AAMPStatusType SyncTracksForDiscontinuity();
+	/// Populate audio and text track info structures
+	void PopulateAudioAndTextTracks();
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 	int mMediaCount;						/**< Number of media in the stream */

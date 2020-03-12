@@ -3172,6 +3172,15 @@ bool AAMPGstPlayer::SendBufferEndEvent()
 }
 
 /**
+ *   @brief Get the video rectangle co-ordinates
+ *
+ */
+std::string AAMPGstPlayer::GetVideoRectangle()
+{
+	return std::string(privateContext->videoRectangle);
+}
+
+/**
  * @}
  */
 

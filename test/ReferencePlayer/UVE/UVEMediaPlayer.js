@@ -168,11 +168,19 @@ class AAMPMediaPlayer {
     setVideoZoom(videoZoom) {
         console.log("Invoked setVideoZoom");
     }
+
+    getAvailableAudioTracks() {
+       console.log("Invoked getAvailableAudioTracks");
+    }
+
+    getAvailableTextTracks() {
+       console.log("Invoked getAvailableTextTracks");
+    }
 };
 */
 // AAMP Player impl
 // AAMPMediaPlayer is defined and available in STB
-var playerStatesEnum = { "idle":0, "initializing":1, "playing":8, "paused":6, "seeking":7 };
+var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "playing":8, "paused":6, "seeking":7 };
 Object.freeze(playerStatesEnum);
 
 var anomalySeverityEnum = { "error":0, "warning":1, "trace":2 };
@@ -465,4 +473,19 @@ class AAMPPlayer {
     get version() {
         return this.player.version;
     }
+
+    /**
+     * Get available audio track info
+     */
+    getAvailableAudioTracks() {
+       return this.player.getAvailableAudioTracks();
+    }
+
+    /**
+     * Get available text track info
+     */
+    getAvailableTextTracks() {
+       return this.player.getAvailableTextTracks();
+    }
+
 };
