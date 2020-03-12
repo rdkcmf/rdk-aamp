@@ -591,6 +591,44 @@ typedef struct PreCacheUrlData
 typedef std::vector < PreCacheUrlStruct> PreCacheUrlList;
 
 /**
+ * @brief Structure for audio track information
+ *        Holds information about an audio track in playlist
+ */
+struct AudioTrackInfo
+{
+	std::string language;
+	std::string rendition; //role for DASH, group-id for HLS
+	std::string name;
+	std::string codec;
+	std::string characteristics;
+	int channels;
+
+	AudioTrackInfo(std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch)
+		:language(lang), rendition(rend), name(trackName), codec(codecStr), characteristics(cha), channels(ch)
+	{
+	}
+};
+
+/**
+ * @brief Structure for text track information
+ *        Holds information about a text track in playlist
+ */
+struct TextTrackInfo
+{
+	std::string language;
+	bool isCC;
+	std::string rendition; //role for DASH, group-id for HLS
+	std::string name;
+	std::string instreamId;
+	std::string characteristics;
+
+	TextTrackInfo(std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha)
+		:language(lang), isCC(cc), rendition(rend), name(trackName), instreamId(id), characteristics(cha)
+	{
+	}
+};
+
+/**
  * @brief GStreamer Abstraction class for the implementation of AAMPGstPlayer and gstaamp plugin
  */
 class StreamSink
@@ -813,6 +851,13 @@ public:
 	 *   @return void
 	 */
 	virtual void SeekStreamSink(double position, double rate) {};
+
+	/**
+	 *   @brief Get the video window co-ordinates
+	 *
+	 *   @return current video co-ordinates in x,y,w,h format
+	 */
+	virtual std::string GetVideoRectangle() { return std::string(); };
 };
 
 
@@ -1318,6 +1363,27 @@ public:
 	 *   @return void
 	*/
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *   @brief Get available audio tracks.
+	 *
+	 *   @return std::string JSON formatted list of audio tracks
+	 */
+	std::string GetAvailableAudioTracks();
+
+	/**
+	 *   @brief Get available text tracks.
+	 *
+	 *   @return std::string JSON formatted list of text tracks
+	 */
+	std::string GetAvailableTextTracks();
+
+	/*
+	 *   @brief Get the video window co-ordinates
+	 *
+	 *   @return current video co-ordinates in x,y,w,h format
+	 */
+	std::string GetVideoRectangle();
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

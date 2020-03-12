@@ -22,6 +22,30 @@ body {
     color: white;
 }
 
+#playOrPauseButton {
+    margin-left: 15.2%;
+}
+
+#cacheOnly {
+    margin-left: 17%;
+}
+
+#videoURLs {
+    margin-left: 26%;
+    width: 30%;
+}
+
+#ccTracks {
+    position: fixed;
+    margin-left: 5%;
+    width: 9%;
+    margin-top: 2%;
+}
+
+#logState {
+    margin-left: 3%;
+}
+
 #seekBar {
     height: 25px;
 }

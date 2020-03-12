@@ -80,6 +80,7 @@ public:
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();
 	void SeekStreamSink(double position, double rate);
+	std::string GetVideoRectangle();
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);
