@@ -1489,6 +1489,8 @@ class attrNameData{
  */
 #endif
 
+class AampDRMSessionManager;
+
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
@@ -1733,6 +1735,9 @@ public:
 	Playermode mPlayermode;
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	AampDRMSessionManager *mDRMSessionManager;
+#endif
 
 	/**
 	 * @brief Curl initialization function

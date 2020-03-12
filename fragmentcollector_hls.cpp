@@ -3860,7 +3860,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
 #endif
 #ifdef AAMP_HLS_DRM
-	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
@@ -5246,7 +5246,7 @@ void TrackState::Start(void)
 void StreamAbstractionAAMP_HLS::Start(void)
 {
 #ifdef AAMP_HLS_DRM 
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
@@ -5315,7 +5315,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		// check for WV and PR , if anything to be flushed 
 		ReleaseContentProtectionCache(aamp);
 	}
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
 	aamp->EnableDownloads();
 }

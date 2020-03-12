@@ -2918,7 +2918,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager *sessionMgr = AampDRMSessionManager::getInstance();
+	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
   #endif
@@ -5959,7 +5959,7 @@ void StreamAbstractionAAMP_MPD::Start(void)
 void PrivateStreamAbstractionMPD::Start(void)
 {
 #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 	pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
 	fragmentCollectorThreadStarted = true;
@@ -6023,7 +6023,7 @@ void PrivateStreamAbstractionMPD::Stop()
 	}
 	aamp->mStreamSink->ClearProtectionEvent();
  #ifdef AAMP_MPD_DRM
-	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
   #endif
 }
 

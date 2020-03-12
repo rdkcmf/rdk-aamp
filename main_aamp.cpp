@@ -3890,11 +3890,11 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (aamp)
 	{
 		aamp->Stop();
-#ifdef AAMP_MPD_DRM
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 		//Clear session data on clean up of last PlayerInstanceAAMP
 		if (gActivePrivAAMPs.size() == 1)
 		{
-			AampDRMSessionManager::getInstance()->clearSessionData();
+			aamp->mDRMSessionManager->clearSessionData();
 		}
 #endif /*AAMP_MPD_DRM*/
 		delete aamp;
@@ -7064,8 +7064,14 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0)
 	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	, mDRMSessionManager(NULL)
+#endif
 {
 	LazilyLoadConfigIfNeeded();
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	mDRMSessionManager = new AampDRMSessionManager();
+#endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
     iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
@@ -7178,6 +7184,9 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&drmParserMutex);
 #endif
 	delete mAampCacheHandler;
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+	delete mDRMSessionManager;
+#endif
 }
 
 
