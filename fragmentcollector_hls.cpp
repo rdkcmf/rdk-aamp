@@ -1926,111 +1926,114 @@ void TrackState::FetchFragment()
         bool bKeyChanged = false;
         int iFogErrorCode = -1;
 	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-	if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode) && aamp->DownloadsAreEnabled() )
+	if (aamp->DownloadsAreEnabled() && !abort)
 	{
-		if (fragmentURI )
+		if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode))
 		{
-			// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
-			// should continue with next fragment,no retry needed .
-			if (eTRACK_VIDEO == type && http_error != 0)
+			if (fragmentURI )
 			{
-				context->lastSelectedProfileIndex = context->currentProfileIndex;
-				if (context->CheckForRampDownProfile(http_error))
+				// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
+				// should continue with next fragment,no retry needed .
+				if (eTRACK_VIDEO == type && http_error != 0)
 				{
-					if (context->rate == AAMP_NORMAL_PLAY_RATE)
+					context->lastSelectedProfileIndex = context->currentProfileIndex;
+					if (context->CheckForRampDownProfile(http_error))
 					{
-						playTarget -= fragmentDurationSeconds;
+						if (context->rate == AAMP_NORMAL_PLAY_RATE)
+						{
+							playTarget -= fragmentDurationSeconds;
+						}
+						else
+						{
+							playTarget -= context->rate / context->mTrickPlayFPS;
+						}
 					}
-					else
-					{
-						playTarget -= context->rate / context->mTrickPlayFPS;
-					}
+					logprintf("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
+					//DELIA-33346 -- if rampdown attempted , then set the flag so that abr is not attempted . 
+					context->mCheckForRampdown = true;
 				}
-				logprintf("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
-				//DELIA-33346 -- if rampdown attempted , then set the flag so that abr is not attempted . 
-				context->mCheckForRampdown = true;
+				else if (decryption_error)
+				{
+					logprintf("%s:%d: Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__, segDLFailCount);
+				}
+				else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
+				{
+					logprintf("%s:%d: Error on fetching %s fragment. failedCount:%d", __FUNCTION__, __LINE__, name, segDLFailCount);
+				}
 			}
-			else if (decryption_error)
+			else
 			{
-				logprintf("%s:%d: Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__, segDLFailCount);
+				// technically not an error - live manifest may simply not have updated yet
+				// if real problem exists, underflow will eventually be detected/reported
+				AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track ", __FUNCTION__, __LINE__, name);
 			}
-			else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
+
+			// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+			// hence getting from context which is updated in FetchFragmentHelper
+			long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+									lbwd,
+									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
+
+			return;
+		}
+
+		if (mInjectInitFragment)
+		{
+			return;
+		}
+
+		CachedFragment* cachedFragment = GetFetchBuffer(false);
+		if (cachedFragment->fragment.ptr)
+		{
+			double duration = fragmentDurationSeconds;
+			double position = playTarget - playTargetOffset;
+			if (type == eTRACK_SUBTITLE)
 			{
-				logprintf("%s:%d: Error on fetching %s fragment. failedCount:%d", __FUNCTION__, __LINE__, name, segDLFailCount);
+				aamp_AppendNulTerminator(&cachedFragment->fragment);
 			}
+			if (context->rate == AAMP_NORMAL_PLAY_RATE)
+			{
+				position -= fragmentDurationSeconds;
+				cachedFragment->discontinuity = discontinuity;
+			}
+			else
+			{
+				position -= context->rate / context->mTrickPlayFPS;
+				cachedFragment->discontinuity = true;
+				traceprintf("%s:%d: rate %f position %f",__FUNCTION__, __LINE__, context->rate, position);
+			}
+
+			if (context->trickplayMode && (0 != context->rate))
+			{
+				duration = (int)(duration*context->rate / context->mTrickPlayFPS);
+			}
+			cachedFragment->duration = duration;
+			cachedFragment->position = position;
+
+			// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
+			// hence getting from context which is updated in FetchFragmentHelper
+			long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
+
+			//update videoend info
+			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
+									lbwd,
+									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
 		}
 		else
 		{
-			// technically not an error - live manifest may simply not have updated yet
-			// if real problem exists, underflow will eventually be detected/reported
-			AAMPLOG_TRACE("%s:%d: NULL fragmentURI for %s track ", __FUNCTION__, __LINE__, name);
+			logprintf("%s:%d: %s cachedFragment->fragment.ptr is NULL", __FUNCTION__, __LINE__, name);
 		}
-
-		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
-		// hence getting from context which is updated in FetchFragmentHelper
-		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
-		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
-								lbwd,
-								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
-
-		return;
-	}
-
-	if (mInjectInitFragment)
-	{
-		return;
-	}
-
-	CachedFragment* cachedFragment = GetFetchBuffer(false);
-	if (cachedFragment->fragment.ptr)
-	{
-		double duration = fragmentDurationSeconds;
-		double position = playTarget - playTargetOffset;
-		if (type == eTRACK_SUBTITLE)
-		{
-			aamp_AppendNulTerminator(&cachedFragment->fragment);
-		}
-		if (context->rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			position -= fragmentDurationSeconds;
-			cachedFragment->discontinuity = discontinuity;
-		}
-		else
-		{
-			position -= context->rate / context->mTrickPlayFPS;
-			cachedFragment->discontinuity = true;
-			traceprintf("%s:%d: rate %f position %f",__FUNCTION__, __LINE__, context->rate, position);
-		}
-
-		if (context->trickplayMode && (0 != context->rate))
-		{
-			duration = (int)(duration*context->rate / context->mTrickPlayFPS);
-		}
-		cachedFragment->duration = duration;
-		cachedFragment->position = position;
-
-		// in case of tsb, GetCurrentBandWidth does not return correct bandwidth as it is updated after this point
-		// hence getting from context which is updated in FetchFragmentHelper
-		long lbwd = aamp->IsTSBSupported() ? context->GetTsbBandwidth() : this->GetCurrentBandWidth();
-
-		//update videoend info
-		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
-								lbwd,
-								((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
-	}
-	else
-	{
-		logprintf("%s:%d: %s cachedFragment->fragment.ptr is NULL", __FUNCTION__, __LINE__, name);
-	}
 #ifdef AAMP_DEBUG_INJECT
-	if ((1 << type) & AAMP_DEBUG_INJECT)
-	{
-		strcpy(cachedFragment->uri, fragmentURI);
-	}
+		if ((1 << type) & AAMP_DEBUG_INJECT)
+		{
+			strcpy(cachedFragment->uri, fragmentURI);
+		}
 #endif
-	mSkipAbr = false; //To enable ABR since we have cached fragment after init fragment
-	UpdateTSAfterFetch();
+		mSkipAbr = false; //To enable ABR since we have cached fragment after init fragment
+		UpdateTSAfterFetch();
+	}
 }
 /***************************************************************************
 * @fn InjectFragmentInternal
