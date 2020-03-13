@@ -166,6 +166,15 @@ function getVideo(cache_only) {
     }
 }
 
+//function to Change the Closed Captioning Track
+function changeCCTrack() {
+    if (ccStatus === true) {
+        //if CC is enabled
+        var trackID =  document.getElementById("ccTracks").value; // get selected cc track
+        XREReceiver.onEvent("onClosedCaptions", { setTrack: trackID });
+    }
+}
+
 //function to jump to user entered position
 function jumpToPPosition() {
     if(document.getElementById("jumpPosition").value) {
@@ -241,13 +250,16 @@ var HTML5PlayerControls = function() {
         this.seekBar = document.getElementById("seekBar");
         this.cacheOnlyButton = document.getElementById("cacheOnlyButton");
         this.videoFileList = document.getElementById("videoURLs");
+        this.ccTracksList = document.getElementById("ccTracks");
         this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
+        this.ccListVisible = false;
         this.selectListIndex = 0;
+        this.selectCCListIndex = 0;
         this.selectBitrateListIndex = 0;
         this.prevObj = null;
         this.addFocus();
@@ -332,24 +344,26 @@ var HTML5PlayerControls = function() {
     };
 
     this.keyUp = function() {
-        if (this.dropDownListVisible) {
+        if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
             this.prevVideoSelect();
+        } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
+            this.prevCCSelect();
         } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.videoToggleButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
-            this.currentObj = this.cacheOnlyButton;
+            this.currentObj = this.ccTracksList;
             //move focus to the first element in the top navigation bar
-            this.currentPos = this.components.indexOf(this.cacheOnlyButton);
+            this.currentPos = this.components.indexOf(this.ccTracksList);
             this.addFocus();
         }
     };
 
     this.keyDown = function() {
-        if (this.dropDownListVisible) {
+        if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
             this.nextVideoSelect();
-        } else if (this.dropDownBitrateListVisible) {
-            this.nextBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
+            this.nextCCSelect();
+        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -377,6 +391,24 @@ var HTML5PlayerControls = function() {
         this.videoFileList.options[this.selectListIndex].selected = true;
     };
 
+    this.prevCCSelect = function() {
+        if (this.selectCCListIndex > 0) {
+            this.selectCCListIndex--;
+        } else {
+            this.selectCCListIndex = this.ccTracksList.options.length - 1;
+        }
+        this.ccTracksList.options[this.selectCCListIndex].selected = true;
+    };
+
+    this.nextCCSelect = function() {
+        if (this.selectCCListIndex < this.ccTracksList.options.length - 1) {
+            this.selectCCListIndex++;
+        } else {
+            this.selectCCListIndex = 0;
+        }
+        this.ccTracksList.options[this.selectCCListIndex].selected = true;
+    };
+
     this.showDropDown = function() {
         this.dropDownListVisible = true;
         var n = this.videoFileList.options.length;
@@ -388,6 +420,17 @@ var HTML5PlayerControls = function() {
         this.videoFileList.size = 1;
     };
     
+    this.showCCDropDown = function() {
+        this.ccListVisible = true;
+        var n = this.ccTracksList.options.length;
+        this.ccTracksList.size = n;
+    };
+
+    this.hideCCDropDown = function() {
+        this.ccListVisible = false;
+        this.ccTracksList.size = 1;
+    };
+
     this.ok = function() {
         switch (this.currentPos) {
             case 0:
@@ -415,10 +458,18 @@ var HTML5PlayerControls = function() {
                     toggleCC();
                     break;
             case 8:
+                    if (this.ccListVisible == false) {
+                        this.showCCDropDown();
+                    } else {
+                        this.hideCCDropDown();
+                        changeCCTrack();
+                    }
+                    break;
+            case 9:
                   //Cache Only check box
                   document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
                   break;
-            case 9:
+            case 10:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
@@ -426,13 +477,13 @@ var HTML5PlayerControls = function() {
                         getVideo(document.getElementById("cacheOnlyCheck").checked);
                     }
                     break;
-            case 11:
+            case 12:
                     jumpToPPosition();
                     break;
-            case 12:
+            case 13:
                     toggleOverlay();
                     break;
-            case 13:
+            case 14:
                     goToHome();
                     break;
         };

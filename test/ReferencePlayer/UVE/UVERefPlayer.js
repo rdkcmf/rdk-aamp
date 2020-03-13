@@ -260,6 +260,31 @@ function playbackStateChanged(event) {
             playerState = playerStatesEnum.initialized;
             console.log("Available audio tracks: " + playerObj.getAvailableAudioTracks());
             console.log("Available text tracks: " + playerObj.getAvailableTextTracks());
+
+            // Remove exsisting options in list
+            if(ccTracks.options.length) {
+                for(itemIndex = ccTracks.options.length; itemIndex >= 0; itemIndex--) {
+                    ccTracks.remove(itemIndex);
+                }
+            }
+
+            var textTrackList = JSON.parse((playerObj.getAvailableTextTracks()));
+            // Parse only the closed captioning tracks
+            var closedCaptioningList = [];
+            for(track=0; track<textTrackList.length;track++) {
+                if(textTrackList[track].type === "CLOSED-CAPTIONS") {
+                    closedCaptioningList.push(textTrackList[track].name);
+                }
+            }
+
+            // Iteratively adding all the options to ccTracks
+            for (var trackNo = 1; trackNo <= closedCaptioningList.length; trackNo++) {
+                var option = document.createElement("option");
+                option.value = trackNo;
+                option.text = closedCaptioningList[trackNo-1];
+                ccTracks.add(option);
+            }
+
             break;
         case playerStatesEnum.playing:
             //Stop vtt rendering

@@ -27,12 +27,19 @@ body {
 }
 
 #cacheOnly {
-    margin-left: 10%;
+    margin-left: 17%;
 }
 
 #videoURLs {
-    margin-left: 17%;
+    margin-left: 26%;
     width: 30%;
+}
+
+#ccTracks {
+    position: fixed;
+    margin-left: 5%;
+    width: 9%;
+    margin-top: 2%;
 }
 
 #logState {
