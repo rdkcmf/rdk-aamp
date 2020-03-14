@@ -174,7 +174,12 @@ var defaultInitConfig = {
     /**
      * use Average bandwidth for ABR switching
      */
-    //useAverageBandwidth: true
+    //useAverageBandwidth: true,
+    /**
+     * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
+     */
+    //preCachePlaylistTime: 5
+    
 };
 
 var playerState = playerStatesEnum.idle;

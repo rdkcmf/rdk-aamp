@@ -410,8 +410,9 @@ public:
 	int GetMediaCount(void) { return mMediaCount;}	
 	/// Function to get the language code
 	std::string GetLanguageCode( int iMedia );
-	
-	 int GetBestAudioTrackByLanguage( void );
+	/// Function to initiate precaching of playlist
+	void PreCachePlaylist();	
+	int GetBestAudioTrackByLanguage( void );
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

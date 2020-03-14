@@ -623,6 +623,18 @@ struct TextTrackInfo
 	}
 };
 
+
+typedef struct PreCacheUrlData
+{
+	std::string url;
+	MediaType type;
+	PreCacheUrlData():url(""),type(eMEDIATYPE_VIDEO)
+	{
+	}
+}PreCacheUrlStruct;
+
+typedef std::vector < PreCacheUrlStruct> PreCacheUrlList;
+
 /**
  * @brief GStreamer Abstraction class for the implementation of AAMPGstPlayer and gstaamp plugin
  */
@@ -1128,6 +1140,13 @@ public:
 	 *   @param  useAvgBW - Flag for true / false
 	 */
 	void SetAvgBWForABR(bool useAvgBW);
+
+	/**
+	*	@brief SetPreCacheTimeWindow Function to Set PreCache Time
+	*
+	*	@param	Time in minutes - Max PreCache Time 
+	*/
+	void SetPreCacheTimeWindow(int nTimeWindow);
 
 	/**
 	 *   @brief Set VOD Trickplay FPS.

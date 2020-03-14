@@ -3777,7 +3777,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
-		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, (AampCurlInstance)i);
 	}
 
 	if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, aamp->GetManifestUrl()))
@@ -3790,9 +3790,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest", __FUNCTION__, __LINE__);
 		// take the original url before its gets changed in GetFile
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
-		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, 0);
-		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
-		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, 0);
+		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_VIDEO);
+		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, eCURLINSTANCE_VIDEO);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 		if (this->mainManifest.len)
@@ -4677,10 +4677,93 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 		}
+
+		if (newTune && (aamp->mPreCacheDnldTimeWindow > 0) && !aamp->IsLive())
+		{
+			// Special requirement
+			// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
+			// If stream is VOD ( SSAI) , and if App configures PreCaching enabled ,
+			// then all the playlist needs to be downloaded lazily and cached . This is to overcome gap
+			// in VOD Server as it looses the Session Context after playback starts
+			// This caching is for all substream ( video/audio/webvtt)
+			PreCachePlaylist();
+		}
+
+
 		retval = eAAMPSTATUS_OK;
 	}
 	return retval;
 }
+
+/***************************************************************************
+* @fn CachePlaylistThreadFunction
+* @brief Thread function created for PreCaching playlist
+*
+* @param This[in] PrivateAampInstance Context
+* @return none
+***************************************************************************/
+static void * CachePlaylistThreadFunction(void * This) 
+{
+	// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
+	// Temporary workaround code to address Peacock/Adobe Server issue 
+	((PrivateInstanceAAMP*)This)->PreCachePlaylistDownloadTask(); 
+	return NULL;
+}
+
+
+
+/***************************************************************************
+* @fn PreCachePlaylist
+* @brief Function to PreCache Playlist 
+*
+* @return none
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::PreCachePlaylist()
+{
+	// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
+	// Tasks to be done
+	// Run thru all the streamInfo and get uri for download , push to a download list
+	// Start a thread and return back . This thread will wake up after Tune completion
+	// and start downloading the uri in the list
+	int szUrlList = mMediaCount + GetProfileCount();
+	PreCacheUrlList dnldList ;
+	for (int idx=0;idx < GetProfileCount(); idx++)
+	{
+		// Add Video and IFrame Profiles
+		PreCacheUrlStruct newelem;
+		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri);
+		newelem.type = streamInfo[idx].isIframeTrack?eMEDIATYPE_IFRAME:eMEDIATYPE_VIDEO;
+		dnldList.push_back(newelem);
+	}
+
+	for(int cnt=0;cnt<mMediaCount;cnt++)
+	{
+		// Add Media uris ( Audio and WebVTT)
+		if(mediaInfo[cnt].uri)
+		{
+			//std::string url;
+			PreCacheUrlStruct newelem;
+			aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), mediaInfo[cnt].uri);
+			newelem.type = mediaInfo[cnt].type;
+			dnldList.push_back(newelem);
+		}
+	}
+	
+	// Set the download list to PrivateInstance to download it 
+	aamp->SetPreCacheDownloadList(dnldList);
+	int ret = pthread_create(&aamp->mPreCachePlaylistThreadId, NULL, CachePlaylistThreadFunction,(void *)aamp );
+	if(ret != 0)
+	{
+		AAMPLOG_ERR("%s:%d pthread_create failed for PreCachePlaylist with errno = %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
+	}
+	else
+	{
+		aamp->mPreCachePlaylistThreadFlag = true;
+	}
+}
+
+
+
 /***************************************************************************
 * @fn GetFirstPTS
 * @brief Function to return first PTS 
@@ -4938,7 +5021,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
 	memset(&trackState[0], 0x00, sizeof(trackState));
-	aamp->CurlInit(0, AAMP_TRACK_COUNT);
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 	memset(streamInfo, 0, sizeof(*streamInfo));
 	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
 }
@@ -5088,7 +5171,7 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 
 	aamp->SyncBegin();
 	aamp_Free(&this->mainManifest.ptr);
-	aamp->CurlTerm(0, AAMP_TRACK_COUNT);
+	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 	aamp->SyncEnd();
 }
 /***************************************************************************

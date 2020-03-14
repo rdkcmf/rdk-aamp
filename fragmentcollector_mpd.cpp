@@ -2912,7 +2912,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_OK;
-	aamp->CurlInit(0, AAMP_TRACK_COUNT);
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 	mCdaiObject->ResetState();
 
 	aamp->mStreamSink->ClearProtectionEvent();
@@ -2932,7 +2932,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
-		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, (AampCurlInstance)i);
 	}
 
 	AAMPStatusType ret = UpdateMPD(true);
@@ -3441,7 +3441,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		long http_error = 0;
 		memset(&manifest, 0, sizeof(manifest));
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
-		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, 0, true, eMEDIATYPE_MANIFEST);
+		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
 
 		//update videoend info
 		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
@@ -6012,7 +6012,7 @@ PrivateStreamAbstractionMPD::~PrivateStreamAbstractionMPD(void)
 		delete[] mStreamInfo;
 	}
 
-	aamp->CurlTerm(0, AAMP_TRACK_COUNT);
+	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 
 	aamp->SyncEnd();
 }
