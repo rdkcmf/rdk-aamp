@@ -406,6 +406,8 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	/// Function to get the Media count 
 	int GetMediaCount(void) { return mMediaCount;}	
+	/// Function to initiate precaching of playlist
+	void PreCachePlaylist();	
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

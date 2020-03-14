@@ -225,8 +225,8 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	mPrevDrmState = eDRM_INITIALIZED;
 	if (-1 == mCurlInstance)
 	{
-		mCurlInstance = AAMP_TRACK_COUNT;
-		aamp->CurlInit(mCurlInstance, 1);
+		mCurlInstance = eCURLINSTANCE_AES;
+		aamp->CurlInit((AampCurlInstance)mCurlInstance);
 	}
 
 	if (licenseAcquisitionThreadStarted)
@@ -378,7 +378,7 @@ void AesDec::Release()
 		if (mpAamp)
 		{
 			mpAamp->SyncBegin();
-			mpAamp->CurlTerm(mCurlInstance, 1);
+			mpAamp->CurlTerm((AampCurlInstance)mCurlInstance);
 			mpAamp->SyncEnd();
 		}
 		mCurlInstance = -1;
