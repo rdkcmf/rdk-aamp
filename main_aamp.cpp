@@ -1833,10 +1833,10 @@ CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
  * @param startIdx start index
  * @param instanceCount count of instances
  */
-void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
+void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
-	assert (instanceEnd <= MAX_CURL_INSTANCE_COUNT);
+	assert (instanceEnd <= eCURLINSTANCE_MAX);
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (!curl[i])
@@ -1863,33 +1863,21 @@ void PrivateInstanceAAMP::CurlInit(int startIdx, unsigned int instanceCount)
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
-			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
-			{
-				const char *proxy = NULL;
-				if (mNetworkProxy || mLicenseProxy)
-				{
-					if (i < AAMP_TRACK_COUNT)
-					{
-						proxy = mNetworkProxy;
-					}
-					else
-					{
-						proxy = mLicenseProxy;
-					}
-				}
-				else
-				{
-					proxy = gpGlobalConfig->httpProxy;
-				}
 
-				if (proxy != NULL)
-				{
-					/* use this proxy */
-					curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
-					/* allow whatever auth the proxy speaks */
-					curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-				}
+			// dev override in cfg file takes priority to App Setting 
+			if(gpGlobalConfig->httpProxy != NULL)
+			{
+				proxy = gpGlobalConfig->httpProxy;				
 			}
+
+			if (proxy != NULL)
+			{
+				/* use this proxy */
+				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
+				/* allow whatever auth the proxy speaks */
+				curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+			}
+
 			if(ContentType_EAS == mContentType)
 			{
 				//enable verbose logs so we can debug field issues
@@ -2015,11 +2003,11 @@ bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
  * @param timeout maximum time  in seconds curl request is allowed to take
  * @param instance index of instance to which timeout to be set
  */
-void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, unsigned int instance)
+void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, AampCurlInstance instance)
 {
 	if(ContentType_EAS == mContentType)
 		return;
-	if(instance < MAX_CURL_INSTANCE_COUNT && curl[instance])
+	if(instance < eCURLINSTANCE_MAX && curl[instance])
 	{
 		curl_easy_setopt(curl[instance], CURLOPT_TIMEOUT_MS, timeoutMS);
 		curlDLTimeout[instance] = timeoutMS;
@@ -2035,10 +2023,10 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, unsigned int instance)
  * @param startIdx start index
  * @param instanceCount count of instances
  */
-void PrivateInstanceAAMP::CurlTerm(int startIdx, unsigned int instanceCount)
+void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int instanceCount)
 {
 	int instanceEnd = startIdx + instanceCount;
-	assert (instanceEnd <= MAX_CURL_INSTANCE_COUNT);
+	assert (instanceEnd <= eCURLINSTANCE_MAX);
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (curl[i])
@@ -3622,6 +3610,12 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mUseAverageBWForABR= (TriState)(value != 0);
 			logprintf("avgbwforABR=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "preCachePlaylistTime=", value) == 1)
+		{	
+			// time window in Minutes			
+			gpGlobalConfig->mPreCacheTimeWindow= value;
+			logprintf("preCachePlaylistTime=%d", value);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4451,11 +4445,18 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
 	ConfigureWesterosSink();
-
+	ConfigurePreCachePlaylist();
+	
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
+
+	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	{
+		AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
+	}
+	
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -4489,7 +4490,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		seek_pos_seconds = 0;
 	}
 
-	for(int i = 0; i < MAX_CURL_INSTANCE_COUNT; i++)
+	for(int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
 		//cookieHeaders[i].clear();
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
@@ -5707,6 +5708,16 @@ void PlayerInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 	aamp->SetAvgBWForABR(useAvgBW);
 }
 
+/**
+*   @brief SetPreCacheTimeWindow Function to Set PreCache Time
+*
+*   @param  Time in minutes - Max PreCache Time 
+*/
+void PlayerInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
+{
+	aamp->SetPreCacheTimeWindow(nTimeWindow);
+}
+
 
 /**
  *   @brief Set VOD Trickplay FPS.
@@ -6530,8 +6541,19 @@ void PrivateInstanceAAMP::Stop()
 	durationSeconds = 0;
 	rate = 1;
 	AampCacheHandler::GetInstance()->StopPlaylistCache();
+	// Set the state to released as all resources are released for the session
+	// directly setting state variable . Calling SetState will trigger event :(
+	mState = eSTATE_RELEASED;
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
+	// send signal to any thread waiting for play
+	pthread_cond_broadcast(&waitforplaystart);
+	if(mPreCachePlaylistThreadFlag)
+	{
+		pthread_join(mPreCachePlaylistThreadId,NULL);
+		mPreCachePlaylistThreadFlag=false;
+		mPreCachePlaylistThreadId = NULL;
+	}
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
@@ -6717,7 +6739,7 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
 	SetState(eSTATE_PLAYING);
-	pthread_cond_signal(&waitforplaystart);
+	pthread_cond_broadcast(&waitforplaystart);
 
 	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
@@ -6992,6 +7014,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
 	, mParallelPlaylistFetchLock()
 	, mAppName()
+	, mPreCachePlaylistThreadId(NULL)
+	, mPreCachePlaylistThreadFlag(false)
+	, mPreCacheDnldList()
+	, mPreCacheDnldTimeWindow(0)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7004,7 +7030,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 
-	for (int i = 0; i < MAX_CURL_INSTANCE_COUNT; i++)
+	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
 		curl[i] = NULL;
 		//cookieHeaders[i].clear();
@@ -7822,6 +7848,20 @@ void PrivateInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 	mUseAvgBandwidthForABR = useAvgBW;
 }
 
+/**
+ *   @brief Set Max TimeWindow for PreCaching Playlist
+ *
+ *   @param  maxTime - Time for PreCaching in Minutes
+ */
+void PrivateInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
+{
+	if(nTimeWindow > 0)
+	{
+		mPreCacheDnldTimeWindow = nTimeWindow;
+		AAMPLOG_WARN("%s Playlist PreCaching enabled with timewindow:%d",__FUNCTION__,nTimeWindow);
+	}
+}
+
 
 /**
  *   @brief Set VOD Trickplay FPS.
@@ -8389,6 +8429,19 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
                 mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
         }
         AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
+}
+
+/**
+ *   @brief Function to Configure PreCache Playlist functionality
+ *
+ */
+void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
+{
+	if(gpGlobalConfig->mPreCacheTimeWindow > 0)
+	{
+		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
+		AAMPLOG_WARN("%s Playlist PreCaching configured from config  time %d Mins",__FUNCTION__,mPreCacheDnldTimeWindow);
+	}
 }
 
 /**
@@ -9199,6 +9252,91 @@ std::string PrivateInstanceAAMP::GetVideoRectangle()
 void PrivateInstanceAAMP::SetAppName(std::string name)
 {
 	mAppName = name;
+}
+
+/*
+ *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
+{
+	// This is the thread function to download all the HLS Playlist in a 
+	// differed manner
+	int maxWindowforDownload = mPreCacheDnldTimeWindow*60; // convert to seconds  
+	int szPlaylistCount = mPreCacheDnldList.size();
+	if(szPlaylistCount)
+	{
+		PrivAAMPState state;
+		// First wait for Tune to complete to start this functionality
+		pthread_mutex_lock(&mLock);
+		pthread_cond_wait(&waitforplaystart, &mLock);
+		pthread_mutex_unlock(&mLock);
+		// May be Stop is called to release all resources .
+		// Before download , check the state 
+		GetState(state);
+		if(state != eSTATE_RELEASED)
+		{
+			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE);
+			// calculate the cache size, consider 1 MB/playlist
+			int maxCacheSz = szPlaylistCount * 1024*1024;
+			// get the current cache max size , to restore later 
+			int currMaxCacheSz =AampCacheHandler::GetInstance()->GetMaxPlaylistCacheSize();
+			// set new playlistCacheSize; 
+			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(maxCacheSz);
+			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
+			int idx=0;
+			while (DownloadsAreEnabled() && idx < mPreCacheDnldList.size())
+			{
+				InterruptableMsSleep(sleepTimeBetweenDnld);
+				if(DownloadsAreEnabled())
+				{
+					// First check if the file is already in Cache
+					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
+					
+					// check if url cached ,if not download
+					if(AampCacheHandler::GetInstance()->IsUrlCached(newelem.url)==false)
+					{
+						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
+							newelem.type,newelem.url.c_str());
+						std::string playlistUrl;
+						std::string playlistEffectiveUrl;
+						GrowableBuffer playlistStore;
+						long http_error;
+						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						{
+							// If successful download , then insert into Cache 
+							AampCacheHandler::GetInstance()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
+							aamp_Free(&playlistStore.ptr);
+						}	
+					}
+			
+				}
+				idx++;
+			}
+			// restore old cache size
+			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(currMaxCacheSz);
+			mPreCacheDnldList.clear();
+			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
+		}
+	}
+	AAMPLOG_WARN("%s End of PreCachePlaylistDownloadTask ",__FUNCTION__);
+}
+
+/**
+ *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
+ *   @param[in] Playlist Download list  
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
+{
+	mPreCacheDnldList = dnldListInput;
+	if(mPreCacheDnldList.size())
+	{
+		AAMPLOG_WARN("%s:%d Got Playlist PreCache list of Size : %d",__FUNCTION__,__LINE__,mPreCacheDnldList.size());
+	}
+	
 }
 
 /**

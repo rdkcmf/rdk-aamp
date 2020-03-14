@@ -167,6 +167,10 @@ var defaultInitConfig = {
      * Progress Report Interval (in seconds)
      */
     //progressReportingInterval: 2,
+    /**
+     * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
+     */
+    //preCachePlaylistTime: 5
     
 };
 

@@ -57,9 +57,6 @@ static const char *mMediaFormatName[] =
 #define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
-#define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
-#define AAMP_DAI_CURL_IDX (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)                                /**< CURL Index for DAI */
-#define MAX_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT + AAMP_DAI_CURL_COUNT)    /**< Maximum number of CURL instances */
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
@@ -138,6 +135,7 @@ static const char *mMediaFormatName[] =
 #define CONVERT_SEC_TO_MS(_x_) (_x_ * 1000) /**< Convert value to sec to ms*/
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
+#define DEFAULT_PRECACHE_WINDOW (10) 	// 10 mins for full precaching
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -564,6 +562,7 @@ public:
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
+	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	int forceEC3;                           /**< Forcefully enable DDPlus*/
 	int disableEC3;                         /**< Disable DDPlus*/
@@ -660,7 +659,7 @@ public:
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
-		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
+		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
 		tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
@@ -680,6 +679,7 @@ public:
 		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
 		,mUseAverageBWForABR(eUndefinedState)
 		,parallelPlaylistRefresh(eUndefinedState)
+		,mPreCacheTimeWindow(0)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1676,15 +1676,16 @@ public:
 	bool licenceFromManifest;
 	AudioType previousAudioType; /* Used to maintain previous audio type */
 
-	CURL *curl[MAX_CURL_INSTANCE_COUNT];
+	CURL *curl[eCURLINSTANCE_MAX];
 
 	// To store Set Cookie: headers and X-Reason headers in HTTP Response
-	httpRespHeaderData httpRespHeaders[MAX_CURL_INSTANCE_COUNT];
+	httpRespHeaderData httpRespHeaders[eCURLINSTANCE_MAX];
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
 
 	int mReportProgressInterval;					// To store the refresh interval in millisec
+	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
 	bool mUseAvgBandwidthForABR;
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -1738,7 +1739,7 @@ public:
 	pthread_cond_t mCondDiscontinuity;
 	gint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
-	long curlDLTimeout[MAX_CURL_INSTANCE_COUNT]; /**< To store donwload timeout of each curl instance*/
+	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	TunedEventConfig  mTuneEventConfigVod;
 	TunedEventConfig mTuneEventConfigLive;
@@ -1750,15 +1751,18 @@ public:
 	bool drmSessionThreadStarted; /**< flag to indicate the thread is running on not **/
 #endif
 	Playermode mPlayermode;
+	pthread_t mPreCachePlaylistThreadId;
+	bool mPreCachePlaylistThreadFlag;
 
 	/**
 	 * @brief Curl initialization function
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
+	 * @param[in] proxy - proxy to be applied for curl connection	 
 	 * @return void
 	 */
-	void CurlInit(int startIdx, unsigned int instanceCount);
+	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1,const char *proxy=NULL);
 
 	/**
 	 *   @brief Sets Recorded URL from Manifest received form XRE.
@@ -1779,7 +1783,7 @@ public:
 	 * @param[in] instance - Curl instance
 	 * @return void
 	 */
-	void SetCurlTimeout(long timeout, unsigned int instance = 0);
+	void SetCurlTimeout(long timeout, AampCurlInstance instance);
 
 	/**
 	 * @brief Set manifest curl timeout
@@ -1813,7 +1817,7 @@ public:
 	 * @param[in] instanceCount - Instance count
 	 * @return void
 	 */
-	void CurlTerm(int startIdx, unsigned int instanceCount);
+	void CurlTerm(AampCurlInstance startIdx, unsigned int instanceCount=1);
 
 	/**
 	 * @brief GetPlaylistCurlInstance - Get Curl Instance for playlist download
@@ -2705,6 +2709,12 @@ public:
 	 */
 	void SetAvgBWForABR(bool useAvgBW);
 	/**
+	*   @brief SetPreCacheTimeWindow Function to Set PreCache Time
+	*
+	*   @param  Time in minutes - Max PreCache Time 
+	*/
+	void SetPreCacheTimeWindow(int nTimeWindow);
+	/**
 	 *   @brief Set frames per second for VOD trickplay
 	 *
 	 *   @param[in] vodTrickplayFPS - FPS count
@@ -2928,6 +2938,12 @@ public:
 	*
 	*/
 	void ConfigureBulkTimedMetadata();
+
+	/**
+	 *	 @brief Function to configure PreCachePlaylist
+	 *
+	 */
+	void ConfigurePreCachePlaylist();
 
 	/**
 	 *	 @brief To set westeros sink configuration
@@ -3249,6 +3265,19 @@ public:
 	 *   @return current video co-ordinates in x,y,w,h format
 	 */
 	std::string GetVideoRectangle();
+	/**
+	 *	 @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
+	 *	 @param[in] Playlist Download list	
+	 *
+	 *	 @return void
+	 */
+	void SetPreCacheDownloadList(PreCacheUrlList &dnldListInput);	
+	/**
+	 *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
+	 *
+	 *   @return void
+	 */
+	void PreCachePlaylistDownloadTask();
 
 	/*
 	 *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
@@ -3351,6 +3380,7 @@ private:
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
 	std::string mAppName;
+	PreCacheUrlList mPreCacheDnldList;
 };
 
 #endif // PRIVAAMP_H
