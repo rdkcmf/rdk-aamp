@@ -50,12 +50,12 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 				// If new Manifest is inserted which is not present in the cache , flush out other playlist files related with old manifest,
 				ClearPlaylistCache();
 			}
-			if(buffer->len < gpGlobalConfig->gMaxPlaylistCacheSize)
+			if(buffer->len < mMaxPlaylistCacheSize)
 			{
 				// Before inserting into cache, need to check if max cache size will exceed or not on adding new data
 				// if more , need to pop out some from same type of playlist
 				bool cacheStoreReady = true;
-				if(mCacheStoredSize + buffer->len > gpGlobalConfig->gMaxPlaylistCacheSize)
+				if(mCacheStoredSize + buffer->len > mMaxPlaylistCacheSize)
 				{
 					AAMPLOG_WARN("[%s][%d] Count[%d]Avail[%d]Needed[%d] Reached max cache size ",__FUNCTION__,__LINE__,mPlaylistCache.size(),mCacheStoredSize,buffer->len);
 					cacheStoreReady = AllocatePlaylistCacheSlot(fileType,buffer->len);
@@ -247,6 +247,7 @@ AampCacheHandler * AampCacheHandler::GetInstance()
 AampCacheHandler::AampCacheHandler():
 	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
 	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
+	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
 {
 	pthread_mutex_init(&mMutex, NULL);
 	pthread_mutex_init(&mCondVarMutex, NULL);
@@ -342,4 +343,35 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 		}
 		pthread_mutex_unlock( &mCondVarMutex );
 	}while(mAsyncCacheCleanUpThread);
+}
+
+
+/**
+*   @brief SetMaxPlaylistCacheSize - Set Max Cache Size
+*
+*   @param[in] cacheSz- CacheSize
+*   @return None
+*/
+void AampCacheHandler::SetMaxPlaylistCacheSize(int maxPlaylistCacheSz)
+{
+	pthread_mutex_lock(&mMutex);
+	mMaxPlaylistCacheSize = maxPlaylistCacheSz;
+	AAMPLOG_WARN("%s Setting mMaxPlaylistCacheSize to :%d",__FUNCTION__,maxPlaylistCacheSz);
+	pthread_mutex_unlock(&mMutex);	
+}
+/**
+*   @brief IsUrlCached - Check if URL is already cached
+*
+*   @return bool - true if file found, else false
+*/
+bool AampCacheHandler::IsUrlCached(std::string url)
+{
+	bool retval = false;
+	pthread_mutex_lock(&mMutex);
+	PlaylistCacheIter it = mPlaylistCache.find(url);
+	if (it != mPlaylistCache.end())
+		retval = true;
+
+	pthread_mutex_unlock(&mMutex);
+	return retval;
 }

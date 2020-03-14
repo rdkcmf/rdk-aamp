@@ -75,6 +75,7 @@ enum ConfigParamType
 	ePARAM_AVGBWFORABR,
 	ePARAM_PROGRESSREPORTINTERVAL,
 	ePARAM_PARALLELPLAYLISTREFRESH,
+	ePARAM_PRECACHEPLAYLISTTIME,
 	ePARAM_MAX_COUNT
 };
 
@@ -119,6 +120,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_AVGBWFORABR, "useAverageBandwidth" },
 	{ ePARAM_PROGRESSREPORTINTERVAL, "progressReportingInterval" },
 	{ ePARAM_PARALLELPLAYLISTREFRESH, "parallelPlaylistRefresh" },
+	{ ePARAM_PRECACHEPLAYLISTTIME, "preCachePlaylistTime" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -439,6 +441,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_DOWNLOADSTALLTIMEOUT:
 			case ePARAM_DOWNLOADSTARTTIMEOUT:
 			case ePARAM_PROGRESSREPORTINTERVAL:
+			case ePARAM_PRECACHEPLAYLISTTIME:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -536,6 +539,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_AVGBWFORABR:
 					privObj->_aamp->SetAvgBWForABR(valueAsBoolean);
 					break;
+				case ePARAM_PRECACHEPLAYLISTTIME:
+					privObj->_aamp->SetPreCacheTimeWindow((int) valueAsNumber);
+					break;					
 				case ePARAM_INITIALBUFFER:
 				case ePARAM_PLAYBACKBUFFER:
 				case ePARAM_MINBITRATE:

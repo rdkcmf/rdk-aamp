@@ -69,6 +69,7 @@ private:
 	bool mAsyncCacheCleanUpThread;
 	bool mAsyncThreadStartedFlag;
 	static AampCacheHandler *mInstance;
+	int mMaxPlaylistCacheSize;
 	pthread_mutex_t mMutex;
 	pthread_mutex_t mCondVarMutex;
 	pthread_cond_t mCondVar ;
@@ -156,6 +157,26 @@ public:
 	 *   @return true: found, false: not found
 	 */
 	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
+
+	/**
+	*   @brief SetMaxPlaylistCacheSize - Set Max Cache Size
+	*
+	*   @param[in] cacheSz- CacheSize
+	*   @return None
+	*/
+	void SetMaxPlaylistCacheSize(int);
+	/**
+	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
+	*
+	*   @return int - maxCacheSize
+	*/
+	int  GetMaxPlaylistCacheSize() { return mMaxPlaylistCacheSize; }
+	/**
+	*   @brief IsUrlCached - Check if URL is already cached
+	*
+	*   @return bool - true if file found, else false
+	*/
+	bool IsUrlCached(std::string);
 
 	// Copy constructor and Copy assignment disabled 
 	AampCacheHandler(const AampCacheHandler&) = delete;

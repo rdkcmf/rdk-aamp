@@ -194,12 +194,12 @@ static void * FragmentCollector(void *arg)
 AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
     AAMPStatusType retval = eAAMPSTATUS_OK;
-    aamp->CurlInit(0, AAMP_TRACK_COUNT);
+    aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
     bool newTune = aamp->IsNewTune();
     aamp->IsTuneTypeNew = false;
     for (int i = 0; i < AAMP_TRACK_COUNT; i++)
     {
-        aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, i);
+        aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, (AampCurlInstance) i);
     }
     return retval;
 }
