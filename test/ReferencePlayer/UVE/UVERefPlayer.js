@@ -159,6 +159,11 @@ var defaultInitConfig = {
      * use Average bandwidth for ABR switching
      */
     //useAverageBandwidth: true
+    /**
+     * Progress Report Interval (in seconds)
+     */
+    //progressReportingInterval: 2,
+    
 };
 
 var playerState = playerStatesEnum.idle;
