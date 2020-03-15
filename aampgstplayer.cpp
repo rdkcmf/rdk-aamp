@@ -550,7 +550,7 @@ static gboolean IdleCallback(gpointer user_data)
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
 		if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
 		{
-			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(gpGlobalConfig->reportProgressInterval, ProgressCallbackOnTimeout, user_data);
+			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(_this->aamp->mReportProgressInterval, ProgressCallbackOnTimeout, user_data);
 			AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
 		else

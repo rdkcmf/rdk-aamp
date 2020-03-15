@@ -225,6 +225,7 @@ enum ConfigParamType
 	ePARAM_USE_WESTEROS_SINK,
 	ePARAM_AVGBWFORABR,
 	ePARAM_PRECACHEPLAYLISTTIME,
+	ePARAM_PROGRESSREPORTINTERVAL,
 	ePARAM_MAX_COUNT
 };
 
@@ -269,6 +270,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_WESTEROS_SINK, "useWesterosSink" },
 	{ ePARAM_AVGBWFORABR, "useAverageBandwidth" },
 	{ ePARAM_PRECACHEPLAYLISTTIME, "preCachePlaylistTime" },
+	{ ePARAM_PROGRESSREPORTINTERVAL, "progressReportingInterval" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -634,6 +636,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_DOWNLOADSTALLTIMEOUT:
 			case ePARAM_DOWNLOADSTARTTIMEOUT:
 			case ePARAM_PRECACHEPLAYLISTTIME:
+			case ePARAM_PROGRESSREPORTINTERVAL:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -678,6 +681,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_MANIFESTTIMEOUT:
 					privObj->_aamp->SetManifestTimeout(valueAsNumber);
+					break;
+				case ePARAM_PROGRESSREPORTINTERVAL:
+					privObj->_aamp->SetReportInterval((valueAsNumber*1000));
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);

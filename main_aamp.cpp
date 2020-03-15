@@ -3413,6 +3413,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		}
 		else if (ReadConfigNumericHelper(cfg, "report-progress-interval=", gpGlobalConfig->reportProgressInterval) == 1)
 		{
+			// Progress report input in milliSec 
 			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
 			logprintf("report-progress-interval=%d", gpGlobalConfig->reportProgressInterval);
 		}
@@ -5755,7 +5756,10 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetReportInterval(reportIntervalMS);
+	if(reportIntervalMS > 0)
+	{
+		aamp->SetReportInterval(reportIntervalMS);
+	}
 }
 
 
@@ -7004,6 +7008,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCachePlaylistThreadFlag(false)
 	, mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0)
+	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7912,7 +7917,15 @@ void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
 
 void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
-	gpGlobalConfig->reportProgressInterval = reportIntervalMS;
+	if(gpGlobalConfig->reportProgressInterval != 0)
+	{
+		mReportProgressInterval = gpGlobalConfig->reportProgressInterval;
+	}
+	else
+	{
+		mReportProgressInterval = reportIntervalMS;
+	}
+	AAMPLOG_WARN("%s Progress Interval configured %d",__FUNCTION__,mReportProgressInterval);		
 }
 
 /**
