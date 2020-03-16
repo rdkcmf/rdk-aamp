@@ -330,6 +330,17 @@ GlobalConfigAAMP *gpGlobalConfig;
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
+/**
+ * New state for treating a VOD asset as a "virtual linear" stream
+ */
+// Note that below state/impl currently assumes single profile, and so until fixed should be tested with "abr" in aamp.cfg to disable ABR
+static long long simulation_start; // time at which main manifest was downloaded.
+// Simulation_start is used to calculate elapsed time, used to advance virtual live window
+static char *full_playlist_video_ptr = NULL; // Cache of initial full vod video playlist
+static size_t full_playlist_video_len = 0; // Size (bytes) of initial full vod video playlist
+static char *full_playlist_audio_ptr = NULL; // Cache of initial full vod audio playlist
+static size_t full_playlist_audio_len = 0; // Size (bytes) of initial full vod audio playlist
+
 struct gActivePrivAAMP_t
 {
 	PrivateInstanceAAMP* pAAMP;
@@ -2326,6 +2337,76 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 }
 
 /**
+ * @brief Simulate VOD asset as a "virtual linear" stream.
+ */
+static void SimulateLinearWindow( struct GrowableBuffer *buffer, const char *ptr, size_t len )
+{
+	// Calculate elapsed time in seconds since virtual linear stream started
+	float cull = (aamp_GetCurrentTimeMS() - simulation_start)/1000.0;
+	buffer->len = 0; // Reset Growable Buffer length
+	float window = 20.0; // Virtual live window size; can be increased/decreasedint
+	const char *fin = ptr+len;
+	bool wroteHeader = false; // Internal state used to decide whether HLS playlist header has already been output
+	int seqNo = 0;
+
+	while (ptr < fin)
+	{
+		int count = 0;
+		char line[1024];
+		float fragmentDuration;
+
+		for(;;)
+		{
+			char c = *ptr++;
+			line[count++] = c;
+			if( ptr>=fin || c<' ' ) break;
+		}
+
+		line[count] = 0x00;
+
+		if (sscanf(line,"#EXTINF:%f",&fragmentDuration) == 1)
+		{
+			if (cull > 0)
+			{
+				cull -= fragmentDuration;
+				seqNo++;
+				continue; // Not yet in active window
+			}
+
+			if (!wroteHeader)
+			{
+				// Write a simple linear HLS header, without the type:VOD, and with dynamic media sequence number
+				wroteHeader = true;
+				char header[1024];
+				sprintf( header,
+					"#EXTM3U\n"
+					"#EXT-X-VERSION:3\n"
+					"#EXT-X-TARGETDURATION:2\n"
+					"#EXT-X-MEDIA-SEQUENCE:%d\n", seqNo );
+				aamp_AppendBytes(buffer, header, strlen(header) );
+			}
+
+			window -= fragmentDuration;
+
+			if (window < 0.0)
+			{
+				// Finished writing virtual linear window
+				break;
+			}
+		}
+
+		if (wroteHeader)
+		{
+			aamp_AppendBytes(buffer, line, count );
+		}
+	}
+
+	// Following can be used to debug
+	// aamp_AppendNulTerminator( buffer );
+	// printf( "Virtual Linear Playlist:\n%s\n***\n", buffer->ptr );
+}
+
+/**
  * @brief Fetch a file from CDN
  * @param remoteUrl url of the file
  * @param[out] buffer pointer to buffer abstraction
@@ -2851,6 +2932,75 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	{
 		mIsFirstRequestToFOG = false;
 	}
+
+    if (gpGlobalConfig->useLinearSimulator)
+	{
+		// NEW! note that for simulated playlists, ideally we'd not bother re-downloading playlist above
+
+		AAMPLOG_INFO("*** Simulated Linear URL: %s\n", remoteUrl.c_str()); // Log incoming request
+
+		switch( simType )
+		{
+			case eMEDIATYPE_MANIFEST:
+			{
+				// Reset state after requesting main manifest
+				if( full_playlist_video_ptr )
+				{
+					// Flush old cached video playlist
+
+					free( full_playlist_video_ptr );
+					full_playlist_video_ptr = NULL;
+					full_playlist_video_len = 0;
+				}
+
+				if( full_playlist_audio_ptr )
+				{
+					// Flush old cached audio playlist
+
+					free( full_playlist_audio_ptr );
+					full_playlist_audio_ptr = NULL;
+					full_playlist_audio_len = 0;
+				}
+
+				simulation_start = aamp_GetCurrentTimeMS();
+			}
+				break; /* eMEDIATYPE_MANIFEST */
+
+			case eMEDIATYPE_PLAYLIST_AUDIO:
+			{
+				if( !full_playlist_audio_ptr )
+				{
+					// Cache the full vod audio playlist
+
+					full_playlist_audio_len = buffer->len;
+					full_playlist_audio_ptr = (char *)malloc(buffer->len);
+					memcpy( full_playlist_audio_ptr, buffer->ptr, buffer->len );
+				}
+
+				SimulateLinearWindow( buffer, full_playlist_audio_ptr, full_playlist_audio_len );
+			}
+				break; /* eMEDIATYPE_PLAYLIST_AUDIO */
+
+			case eMEDIATYPE_PLAYLIST_VIDEO:
+			{
+				if( !full_playlist_video_ptr )
+				{
+					// Cache the full vod video playlist
+
+					full_playlist_video_len = buffer->len;
+					full_playlist_video_ptr = (char *)malloc(buffer->len);
+					memcpy( full_playlist_video_ptr, buffer->ptr, buffer->len );
+				}
+
+				SimulateLinearWindow( buffer, full_playlist_video_ptr, full_playlist_video_len );
+			}
+				break; /* eMEDIATYPE_PLAYLIST_VIDEO */
+
+			default:
+				break;
+		}
+	}
+
 	return ret;
 }
 
@@ -3375,6 +3525,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->licenseAnonymousRequest = true;
 			logprintf("license-anonymous-request set");
+		}
+		else if (cfg.compare("useLinearSimulator") == 0)
+		{
+			gpGlobalConfig->useLinearSimulator = true;
+			logprintf("useLinearSimulator set");
 		}
 		else if ((cfg.compare("info") == 0) && (!gpGlobalConfig->logging.debug))
 		{
