@@ -586,6 +586,7 @@ public:
 	long manifestTimeoutMs;                 /**< Manifest download timeout in ms*/
 	long playlistTimeoutMs;                 /**< Playlist download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
+	bool useLinearSimulator;				/**< Simulate linear stream from VOD asset*/
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
 	int abrCacheLength;                     /**< Adaptive bitrate cache length*/
@@ -669,7 +670,7 @@ public:
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
-		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS),
+		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS), useLinearSimulator(false),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
 		preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
 		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
