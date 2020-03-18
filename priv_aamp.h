@@ -536,7 +536,6 @@ public:
 	long defaultBitrate;        /**< Default bitrate*/
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
-	bool bAsync_ontuned;         /**< if true, AAMP_EVENT_TUNED will be sent Asynchronously otherwise will be sent synchronously */
 	bool noFog;                 /**< Disable FOG*/
 	int mapMPD;                 /**< Mapping of HLS to MPD: 0=Disable, 1=Rename m3u8 to mpd, 2=COAM mapping, 3='*-nat-*.comcast.net/' to 'ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net/'*/
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
@@ -672,7 +671,6 @@ public:
 		,mSubtitleLanguage()
 		, enableClientDai(false), playAdFromCDN(false)
 		,mEnableVideoEndEvent(true)
-		,bAsync_ontuned(false)
 		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
 		,bReportVideoPTS(false)
 		,mEnableRectPropertyCfg(eUndefinedState)
@@ -2528,9 +2526,10 @@ public:
 	/**
 	 *   @brief Send tuned event
 	 *
+	 *   @param[in] isSynchronous - send event synchronously or not
 	 *   @return success or failure
 	 */
-	bool SendTunedEvent();
+	bool SendTunedEvent(bool isSynchronous = true);
 
 	/**
 	 *   @brief Send VideoEndEvent
@@ -3189,27 +3188,28 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+
 	/**
 	 *   @brief Set async tune configuration
-	 *   @param[in] bValue - true if async tune enabled
 	 *
-	*   @return void
-	*/
+	 *   @param[in] bValue - true if async tune enabled
+	 *   @return void
+	 */
 	void SetAsyncTuneConfig(bool bValue);
 
 	/**
 	 *   @brief Get async tune configuration
 	 *
 	 *   @return bool - true if async tune enabled
-	*/
+	 */
 	bool GetAsyncTuneConfig();
 
 	/**
-	 *	 @brief Set Westeros sink Configuration
-	 *	 @param[in] bValue - true if westeros sink enabled
+	 *   @brief Set Westeros sink Configuration
 	 *
-	*	@return void
-	*/
+	 *   @param[in] bValue - true if westeros sink enabled
+	 *   @return void
+	 */
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**

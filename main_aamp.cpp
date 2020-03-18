@@ -1292,14 +1292,6 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		if(gpGlobalConfig->enableMicroEvents) sendTuneMetrics(success);
 		mTuneCompleted = true;
 		mFirstTune = false;
-		TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
-		if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
-		{
-			if (SendTunedEvent())
-			{
-				logprintf("aamp: - sent tune event on Tune Completion.");
-			}
-		}
 
 		AAMPAnomalyMessageType eMsgType = AAMPAnomalyMessageType::ANOMALY_TRACE;
 		if(mTuneAttempts > 1 )
@@ -3094,11 +3086,6 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->noFog = (value==0);
 			logprintf("fog=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "async_ontuned=", value) == 1)
-		{
-			gpGlobalConfig->bAsync_ontuned = (value==1);
-			logprintf("async_ontuned=%d", value);
 		}
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		else if (ReadConfigNumericHelper(cfg, "harvest=", gpGlobalConfig->harvest) == 1)
@@ -6798,6 +6785,16 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
 	SetState(eSTATE_PLAYING);
 	pthread_cond_broadcast(&waitforplaystart);
+
+	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
+	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
+	{
+		// This is an idle callback, so we can sent event synchronously
+		if (SendTunedEvent())
+		{
+			logprintf("aamp: - sent tune event on Tune Completion.");
+		}
+	}
 #ifdef AAMP_STOP_SINK_ON_SEEK
 	/*Do not send event on trickplay as CC is not enabled*/
 	if (AAMP_NORMAL_PLAY_RATE != rate)
@@ -7286,7 +7283,7 @@ void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
  * @brief Send tuned event to listeners if required
  * @retval true if event is scheduled, false if discarded
  */
-bool PrivateInstanceAAMP::SendTunedEvent()
+bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 {
 	bool ret = false;
 
@@ -7300,13 +7297,13 @@ bool PrivateInstanceAAMP::SendTunedEvent()
 
 	if(ret)
 	{
-		if(gpGlobalConfig->bAsync_ontuned)
+		if (isSynchronous)
 		{
-			SendEventAsync(AAMP_EVENT_TUNED);
+			SendEventSync(AAMP_EVENT_TUNED);
 		}
 		else
 		{
-			SendEventSync(AAMP_EVENT_TUNED);
+			SendEventAsync(AAMP_EVENT_TUNED);
 		}
 	}
 	return ret;
@@ -8159,7 +8156,8 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 		TunedEventConfig tunedEventConfig =  IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
 		{
-			if (SendTunedEvent())
+			// For HLS - This is invoked by fetcher thread, so we have to sent asynchronously
+			if (SendTunedEvent(false))
 			{
 				logprintf("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mMediaFormatName[mMediaFormat]);
 			}

@@ -100,7 +100,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
            aamp->SendStream( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
            if( !context->sentTunedEvent )
            { // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
-               aamp->SendTunedEvent();
+               aamp->SendTunedEvent(false);
                context->sentTunedEvent = true;
            }
        }
@@ -159,7 +159,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
     else
     {
 	    // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
-	    aamp->SendTunedEvent();
+	    aamp->SendTunedEvent(false);
     }
 
     while( aamp->DownloadsAreEnabled() )
