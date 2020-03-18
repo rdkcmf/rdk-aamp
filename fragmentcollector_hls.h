@@ -204,7 +204,7 @@ public:
 	 * @param[out] periodIdx Index of the period in which next fragment belongs
 	 * @param[out] offsetFromPeriodStart Offset from start position of the period
 	 */
-	void GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart);
+	void GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart, int &fragmentIdx);
 
 	/**
 	 * @brief Get start position of the period corresponding to the index.
