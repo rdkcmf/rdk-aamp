@@ -3360,7 +3360,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 
 	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
 	{
-		AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+		AAMPLOG_WARN("%s:%d WARNING audio's number of period %d video number of period: %d\n", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
 	}
 
 	if (video->playTarget !=0)
@@ -3430,23 +3430,33 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 
 				audio->GetNextFragmentPeriodInfo (periodIdx, audioOffsetFromPeriod);
 
-				AAMPLOG_WARN("%s:%d video periodIdx %d video-offsetFromPeriod %f videoPeriodStart %f audio-offsetFromPeriod %f audioPeriodStart %f",
+				AAMPLOG_WARN("%s:%d video periodIdx: %d, video-offsetFromPeriod: %f, videoPeriodStart: %f, audio-offsetFromPeriod: %f, audioPeriodStart: %f",
 								__FUNCTION__, __LINE__, periodIdx, offsetFromPeriod, videoPeriodStart, audioOffsetFromPeriod, audioPeriodStart);
 
-				if (0 != audioPeriodStart )
+				if (0 != audioPeriodStart)
 				{
-					audio->playTarget = audioPeriodStart + audioOffsetFromPeriod;
-					video->playTarget = videoPeriodStart + offsetFromPeriod;
+					if ((int)audioPeriodStart == (int)videoPeriodStart)
+					{
+						audio->playTarget = audioPeriodStart + offsetFromPeriod;
+						video->playTarget = videoPeriodStart + offsetFromPeriod;
+						AAMPLOG_WARN("%s audio and video period start pos is same : vid start: %f, audio start: %f", __FUNCTION__, video->playTarget, audio->playTarget );
+					}
+					else
+					{
+						audio->playTarget = audioPeriodStart + audioOffsetFromPeriod;
+						video->playTarget = videoPeriodStart + offsetFromPeriod;
+						AAMPLOG_WARN("%s audio and video period start pos has diff : vid start: %f, audio start: %f", __FUNCTION__, video->playTarget, audio->playTarget );
+					}
 
 					seekPosition = video->playTarget;
 
-					AAMPLOG_WARN("%s:%d VP:%f AP:%f seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__,video->playTarget,audio->playTarget, seekPosition);
+					AAMPLOG_WARN("%s:%d VP: %f, AP: %f, seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget, seekPosition);
 
 					retVal = eAAMPSTATUS_OK;
 				}
 				else
 				{
-					logprintf("%s:%d audioDiscontinuityOffset 0", __FUNCTION__, __LINE__);
+					logprintf("%s:%d audioDiscontinuityOffset: 0", __FUNCTION__, __LINE__);
 				}
 			}
 		}
@@ -3460,7 +3470,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 				audio->GetNextFragmentPeriodInfo(periodIdx, offsetFromPeriod);
 				if(-1 != periodIdx)
 				{
-					logprintf("%s:%d audio periodIdx %d offsetFromPeriod %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
+					logprintf("%s:%d audio periodIdx: %d, offsetFromPeriod: %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
 					double subtitlePeriodStart = subtitle->GetPeriodStartPosition(periodIdx);
 					if (0 != subtitlePeriodStart)
 					{
@@ -3468,19 +3478,20 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 					}
 					else
 					{
-						logprintf("%s:%d subtitleDiscontinuityOffset 0", __FUNCTION__, __LINE__);
+						logprintf("%s:%d subtitleDiscontinuityOffset: 0", __FUNCTION__, __LINE__);
 					}
 				}
 			}
 			else
 			{
-				logprintf("%s:%d WARNING audio's number of period %d subtitle number of period %d", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), subtitle->GetNumberOfPeriods());
+				logprintf("%s:%d WARNING audio's number of period %d, subtitle number of period: %d", __FUNCTION__, __LINE__, audio->GetNumberOfPeriods(), subtitle->GetNumberOfPeriods());
 			}
-			logprintf("%s Exit : audio track start %f, vid track start %f sub track start %f", __FUNCTION__, audio->playTarget, video->playTarget, subtitle->playTarget);
+
+			logprintf("%s Exit : vid track start: %f, audio track start: %f, sub track start: %f", __FUNCTION__, video->playTarget, audio->playTarget, subtitle->playTarget);
 		}
 		else
 		{
-			logprintf("%s Exit : audio track start %f, vid track start %f", __FUNCTION__, audio->playTarget, video->playTarget );
+			logprintf("%s Exit : vid track start: %f, audio track start: %f", __FUNCTION__, video->playTarget, audio->playTarget );
 		}
 	}
 
