@@ -55,6 +55,7 @@ static const char *mMediaFormatName[] =
 #endif
 
 #define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
+#define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */
 #define AAMP_DAI_CURL_IDX (AAMP_TRACK_COUNT + AAMP_DRM_CURL_COUNT)                                /**< CURL Index for DAI */
@@ -155,6 +156,21 @@ struct HLSXStart
 {
 	double offset;      /**< Time offset from XStart */
 	bool precise;     	/**< Precise input */
+};
+
+/**
+ * @brief Enumeration for Curl Instances
+ */
+enum AampCurlInstance
+{
+	eCURLINSTANCE_VIDEO,
+	eCURLINSTANCE_AUDIO,
+	eCURLINSTANCE_SUBTITLE,
+	eCURLINSTANCE_MANIFEST_PLAYLIST,
+	eCURLINSTANCE_DAI,
+	eCURLINSTANCE_AES,
+	eCURLINSTANCE_PLAYLISTPRECACHE,
+	eCURLINSTANCE_MAX
 };
 
 /**
@@ -543,7 +559,8 @@ public:
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
-	TriState enableBulkTimedMetaReport;		/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
+	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
@@ -662,6 +679,7 @@ public:
 		,mWesterosSinkConfig(eUndefinedState)
 		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
 		,mUseAverageBWForABR(eUndefinedState)
+		,parallelPlaylistRefresh(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1629,6 +1647,7 @@ public:
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutexattr_t mMutexAttr;
+	pthread_mutex_t mParallelPlaylistFetchLock; // mutex lock for parallel fetch
 
 	class StreamAbstractionAAMP *mpStreamAbstractionAAMP; // HLS or MPD collector
 	class CDAIObject *mCdaiObject;      // Client Side DAI Object
@@ -1663,6 +1682,7 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	bool mParallelFetchPlaylist;
+	bool mParallelFetchPlaylistRefresh;
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
@@ -1782,6 +1802,16 @@ public:
 	 * @return void
 	 */
 	void CurlTerm(int startIdx, unsigned int instanceCount);
+
+	/**
+	 * @brief GetPlaylistCurlInstance - Get Curl Instance for playlist download
+	 *
+	 * @param[in] MediaType  - type of playlist
+	 * @param[in] flag 		 - Init or Refresh download
+	 * @return AampCurlInstance - curl instance for download
+	 */
+	AampCurlInstance GetPlaylistCurlInstance(MediaType type, bool IsInitDnld=true);
+
 
 	/**
 	 * @brief Download a file from the server
@@ -2880,7 +2910,7 @@ public:
 	*   @brief To set the parallel playlist fetch configuration
 	*
 	*/
-	void ConfigureParallelTimeout();
+	void ConfigureParallelFetch();
 	/**
 	*   @brief To set bulk timedMetadata reporting
 	*
@@ -3161,6 +3191,14 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+
+	/**
+	* @brief Set parallel playlist download config value for linear
+	* @param[in] bValue - true if a/v playlist to be downloaded in parallel
+	*
+	* @return void
+	*/
+	void SetParallelPlaylistRefresh(bool bValue);
 
 	/**
 	 *   @brief Set Westeros sink Configuration
