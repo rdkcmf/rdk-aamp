@@ -2875,6 +2875,12 @@ void TrackState::RefreshPlaylist(void)
 	// failed to read from cache , then download it 
 	if(!bCacheRead)
 	{
+		if(!aamp->mParallelFetchPlaylistRefresh)
+		{
+			// Lock the mutex if parallel fetch is disabled. So that other thread blocks here
+			pthread_mutex_lock(&aamp->mParallelPlaylistFetchLock);
+		}
+
 		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 		//update videoend info
 		MediaType actualType = eMEDIATYPE_PLAYLIST_VIDEO ;
@@ -2887,11 +2893,18 @@ void TrackState::RefreshPlaylist(void)
 			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
 		}
 
-		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, actualType);
+		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
+		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, actualType);
+
+		if(!aamp->mParallelFetchPlaylistRefresh)
+		{
+			pthread_mutex_unlock(&aamp->mParallelPlaylistFetchLock);
+		}
 
 		aamp->UpdateVideoEndMetrics( actualType,
 								(this->GetCurrentBandWidth()),
 								http_error,mEffectiveUrl);
+
 	}
 	if (playlist.len)
 	{ // download successful
@@ -3742,7 +3755,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		// take the original url before its gets changed in GetFile
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_VIDEO);
-		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
+		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, eCURLINSTANCE_VIDEO);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
@@ -4617,7 +4630,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
 				if (AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
-					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error);
+					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error,NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);
 					//update videoend info
 					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl);
 				}
@@ -4977,7 +4990,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
 	memset(&trackState[0], 0x00, sizeof(trackState));
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	memset(streamInfo, 0, sizeof(*streamInfo));
 	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
 }
@@ -5127,7 +5140,7 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 
 	aamp->SyncBegin();
 	aamp_Free(&this->mainManifest.ptr);
-	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
+	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	aamp->SyncEnd();
 }
 /***************************************************************************
@@ -5580,14 +5593,16 @@ void TrackState::FetchPlaylist()
 {
 	int playlistDownloadFailCount = 0;
 	long http_error;
+
 	ProfilerBucketType bucketId = (this->type == eTRACK_SUBTITLE)?PROFILE_BUCKET_PLAYLIST_SUBTITLE:(this->type == eTRACK_AUDIO)?PROFILE_BUCKET_PLAYLIST_AUDIO:PROFILE_BUCKET_PLAYLIST_VIDEO;
 	logprintf("TrackState::%s [%s] start", __FUNCTION__, name);
+	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
+	MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
+	AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(mType , true);
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
-		int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-		MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
-		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, type, true, mType);
+		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									http_error,mEffectiveUrl);
@@ -5605,6 +5620,7 @@ void TrackState::FetchPlaylist()
 	{
 		aamp->profiler.ProfileError(bucketId, http_error);
 	}
+
 }
 
 

@@ -2007,6 +2007,49 @@ void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int insta
 }
 
 /**
+ * @brief GetPlaylistCurlInstance - Function to return the curl instance for playlist download
+ * Considers parallel download to decide the curl instance 
+ * @param MediaType - Playlist type 
+ * @param Init/Refresh - When playlist download is done 
+ * @retval AampCurlInstance - Curl instance for playlist download
+ */
+AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bool isInitialDownload)
+{
+	AampCurlInstance retType = eCURLINSTANCE_MANIFEST_PLAYLIST;
+	bool indivCurlInstanceFlag = false;
+
+	//DELIA-41646
+	// logic behind this function :
+	// a. This function gets called during Init and during Refresh of playlist .So need to decide who called
+	// b. Based on the decision flag is considerd . mParallelFetchPlaylist for Init and mParallelFetchPlaylistRefresh
+	//	  for refresh
+	// c. If respective configuration is enabled , then associate separate curl for each track type
+	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_PLAYLIST)
+
+	indivCurlInstanceFlag = isInitialDownload ? mParallelFetchPlaylist : mParallelFetchPlaylistRefresh;
+	if(indivCurlInstanceFlag)
+	{
+		switch(type)
+		{
+			case eMEDIATYPE_PLAYLIST_VIDEO:
+				retType = eCURLINSTANCE_VIDEO;
+				break;
+			case eMEDIATYPE_PLAYLIST_AUDIO:
+				retType = eCURLINSTANCE_AUDIO;
+				break;
+			case eMEDIATYPE_PLAYLIST_SUBTITLE:
+				retType = eCURLINSTANCE_SUBTITLE;
+				break;
+			default:
+				break;
+		}
+	}
+	return retType;
+}
+
+
+
+/**
  * @brief called when tuning - reset artificially
  * low for quicker tune times
  * @param bitsPerSecond
@@ -3277,6 +3320,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
 			logprintf("playlists-parallel-fetch=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "parallelPlaylistRefresh=", value) == 1)
+		{
+			gpGlobalConfig->parallelPlaylistRefresh  = (TriState)(value != 0);
+			logprintf("parallelPlaylistRefresh =%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "bulk-timedmeta-report=", value) == 1)
 		{
 			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
@@ -4363,7 +4411,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
-	ConfigureParallelTimeout();
+	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
@@ -6082,6 +6130,18 @@ void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 	aamp->SetParallelPlaylistDL(bValue);
 }
 
+/**
+ *   @brief Set parallel playlist download config value for linear.
+ *   @param[in] bValue - true if a/v playlist to be downloaded in parallel during refresh
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetParallelPlaylistRefresh(bValue);
+}
+
 
 /**
  *   @brief Set Async Tune Configuration
@@ -6936,6 +6996,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mManifestTimeoutMs(-1)
 	,mNetworkTimeoutMs(-1)
 	,mParallelFetchPlaylist(false)
+	,mParallelFetchPlaylistRefresh(true)
 	,mBulkTimedMetadata(false)
 	,reportMetadata()
 	,mAsyncTuneEnabled(false)
@@ -6954,6 +7015,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0)
 	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
+	, mParallelPlaylistFetchLock()
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -6964,6 +7026,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
+	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -7062,6 +7125,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
 	pthread_mutex_destroy(&mLock);
+	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -8295,13 +8359,22 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
  *   @brief To set Parallel Download configuration
  *
  */
-void PrivateInstanceAAMP::ConfigureParallelTimeout()
+void PrivateInstanceAAMP::ConfigureParallelFetch()
 {
+	// for VOD playlist fetch
 	if(gpGlobalConfig->playlistsParallelFetch != eUndefinedState)
-        {
-                mParallelFetchPlaylist = (bool)gpGlobalConfig->playlistsParallelFetch;
-        }
-        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download state[%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist);
+	{
+		mParallelFetchPlaylist = (bool)gpGlobalConfig->playlistsParallelFetch;
+	}
+
+	// for linear playlist fetch
+	if(gpGlobalConfig->parallelPlaylistRefresh  != eUndefinedState)
+	{
+		mParallelFetchPlaylistRefresh = (bool)gpGlobalConfig->parallelPlaylistRefresh ;
+	}
+
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download Init [%d] Refresh [%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist,mParallelFetchPlaylistRefresh);
+
 }
 
 /**
@@ -8968,6 +9041,19 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	mParallelFetchPlaylist = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+
+/**
+ *	 @brief Set parallel playlist download config value for linear .
+ *	 @param[in] bValue - true if a/v playlist to be downloaded in parallel for linear
+ *
+ *	 @return void
+ */
+void PrivateInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
+{
+	mParallelFetchPlaylistRefresh = bValue;
+	AAMPLOG_INFO("%s:%d Parallel playlist Refresh Fetch  Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
