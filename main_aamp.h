@@ -1333,6 +1333,14 @@ public:
 	void SetParallelPlaylistDL(bool bValue);
 
 	/**
+	 *	@brief Set parallel playlist download config value for linear
+	 *	@param[in] bValue - true if a/v playlist to be downloaded in parallel
+	 *
+	 *	@return void
+	 */
+	void SetParallelPlaylistRefresh(bool bValue);
+
+	/**
 	 *   @brief Set Westeros sink configuration
 	 *   @param[in] bValue - true if westeros sink enabled
 	 *
