@@ -124,7 +124,7 @@ static const char *mMediaFormatName[] =
 /**
  * @brief Max debug log buffer size
  */
-#define MAX_DEBUG_LOG_BUFF_SIZE 2048
+#define MAX_DEBUG_LOG_BUFF_SIZE 1024
 
 /**
  * @brief Max URL log size
