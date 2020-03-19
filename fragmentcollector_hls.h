@@ -410,6 +410,9 @@ public:
 	int GetMediaCount(void) { return mMediaCount;}	
 	/// Function to initiate precaching of playlist
 	void PreCachePlaylist();	
+	int GetBestAudioTrackByLanguage( void );
+	// Function to update seek position
+	void SeekPosUpdate(double secondsRelativeToTuneTime);
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	
