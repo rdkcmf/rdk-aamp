@@ -2437,7 +2437,6 @@ void TrackState::IndexPlaylist()
 	pthread_mutex_lock(&mPlaylistMutex);
 	FlushIndex();
 	mIndexingInProgress = true;
-	bool bDiscFound = false;
 	if (playlist.ptr )
 	{
 		char *ptr;
@@ -2557,7 +2556,6 @@ void TrackState::IndexPlaylist()
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
-					bDiscFound =  true;
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
@@ -2721,11 +2719,6 @@ void TrackState::IndexPlaylist()
 		{
 			aamp->UpdateDuration(totalDuration);
 		}
-
-		if (bDiscFound)
-                {
-                        printf("#####################  playlist dumped %d ###################\n\n%s\n#######################*\n",type,playlist.ptr);
-                }
 
 	}
 #ifdef TRACE
