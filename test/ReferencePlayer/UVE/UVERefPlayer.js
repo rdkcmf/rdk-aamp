@@ -160,6 +160,10 @@ var defaultInitConfig = {
      * enable audio video playlist parallel download optimization (only for HLS)
      */
     //parallelPlaylistDownload: true,
+	/**
+	 * disable audio video playlist parallel download for linear (only for HLS)
+	 */
+	//parallelPlaylistRefresh: false,
 
     /**
      * enable async tune method for player

@@ -1359,6 +1359,15 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+
+	/**
+	 *	@brief Set parallel playlist download config value for linear
+	 *	@param[in] bValue - true if a/v playlist to be downloaded in parallel
+	 *
+	 *	@return void
+	 */
+	void SetParallelPlaylistRefresh(bool bValue);
+
 	/**
 	 *   @brief Set async tune configuration
 	 *   @param[in] bValue - true if async tune enabled 
