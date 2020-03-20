@@ -510,7 +510,7 @@ function bulkMetadataHandler(event) {
 
 
 function createAAMPPlayer(){
-    var newPlayer = new AAMPPlayer();
+    var newPlayer = new AAMPPlayer("UVE-Ref-Player");
     newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
     newPlayer.addEventListener("playbackCompleted", mediaEndReached);
     newPlayer.addEventListener("playbackSpeedChanged", mediaSpeedChanged);

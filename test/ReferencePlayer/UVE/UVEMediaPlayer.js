@@ -121,24 +121,12 @@ class AAMPMediaPlayer {
         console.log("Invoked getSupportedKeySystems");
     }
 
-    setProtectionSchemeInterface(IProtectionSchemeInterface) {
-        console.log("Invoked setProtectionSchemeInterface");
-    }
-
     setVideoMute(enabled) {
         console.log("Invoked setVideoMute");
     }
 
     setSubscribedTags(tagNames) {
         console.log("Invoked setSubscribedTags");
-    }
-
-    getContentBreaks() {
-        console.log("Invoked getContentBreaks");
-    }
-
-    updateAlternateContent( CB_ID, arrContent) {
-        console.log("Invoked updateAlternateContent");
     }
 
     addEventListener(name, handler) {
@@ -176,6 +164,10 @@ class AAMPMediaPlayer {
     getAvailableTextTracks() {
        console.log("Invoked getAvailableTextTracks");
     }
+
+    getVideoRectangle() {
+       console.log("Invoked getVideoRectangle");
+    }
 };
 */
 // AAMP Player impl
@@ -188,9 +180,9 @@ Object.freeze(anomalySeverityEnum);
 
 class AAMPPlayer {
 
-    constructor() {
+    constructor(appName) {
         //If you run into an error AAMPMediaPlayer is undefined with Chrome/Firefox/Safari please uncomment the above dummy impl
-        this.player = new AAMPMediaPlayer();
+        this.player = new AAMPMediaPlayer(appName);
         this.url = "";
     }
 
@@ -208,7 +200,7 @@ class AAMPPlayer {
      * URI of the Media being played by the Video Engine
      */
     load(url, foreground) {
-		console.log("Url received: " + url);
+        console.log("Url received: " + url);
         this.url = url;
         this.player.load(url, foreground);
     }
@@ -394,13 +386,6 @@ class AAMPPlayer {
         return this.player.getSupportedKeySystems();
     }
 
-     /**
-     * Enables Player to specify the handle to the the IProtectionSchemeHandler
-     */
-    setProtectionSchemeInterface(IProtectionSchemeInterface) {
-        this.player.setProtectionSchemeInterface(IProtectionSchemeInterface);
-    }
-
     /**
      * Black out the video for parental controls
      */
@@ -414,20 +399,6 @@ class AAMPPlayer {
      */
     setSubscribedTags(tagNames) {             // Used to identify Content Break period
          this.player.setSubscribedTags(tagNames);
-    }
-
-    /**
-     * Can be used by Player to get all the content break. Normally Video engine will raise an event for each content Break
-     * providing a ContentBreak Id that the Player can then provide array of content to be replaced on inserted.
-     */
-    getContentBreaks() {
-        return this.player.getContentBreaks();
-    }
-
-    /**
-     * Player calls this function inside event handling for upcoming content Break and provides an array of content to replace or insert.
-     */
-    updateAlternateContent(CB_ID, arrContent) {
     }
 
     addEventListener(eventName, eventHandler) {
@@ -500,6 +471,13 @@ class AAMPPlayer {
      */
     getAvailableTextTracks() {
        return this.player.getAvailableTextTracks();
+    }
+
+    /**
+     * Get current video rectangle co-ordinates
+     */
+    getVideoRectangle() {
+       return this.player.getVideoRectangle();
     }
 
 };

@@ -1180,7 +1180,7 @@ public:
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune)
+	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName)
 	{
 		if(!enabled )
 		{
@@ -1190,7 +1190,18 @@ public:
 		unsigned int licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_NETWORK);
 		if(licenseAcqNWTime == 0) licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_TOTAL); //A HACK for HLS
 
-		logprintf("IP_AAMP_TUNETIME:%d,%d,%lld," // version, build, tuneStartBaseUTCMS
+		char tuneTimeStrPrefix[64];
+		memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
+		if (!appName.empty())
+		{
+			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "APP: %s IP_AAMP_TUNETIME", appName.c_str());
+		}
+		else
+		{
+			strcpy(tuneTimeStrPrefix, "IP_AAMP_TUNETIME");
+		}
+
+		logprintf("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
 			"%d,%d,%d," 	// main manifest (start,total,err)
 			"%d,%d,%d," 	// video playlist (start,total,err)
 			"%d,%d,%d," 	// audio playlist (start,total,err)
@@ -1209,6 +1220,7 @@ public:
 			"%d,%d,%d", 		// contentType, streamType, firstTune
 			// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
+			tuneTimeStrPrefix,
 			4, // version for this protocol, initially zero
 			0, // build - incremented when there are significant player changes/optimizations
 			tuneStartBaseUTCMS, // when tune logically started from AAMP perspective
@@ -3306,6 +3318,13 @@ public:
 	 */
 	std::string GetVideoRectangle();
 
+	/*
+	 *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
+	 *
+	 *   @return void
+	 */
+	void SetAppName(std::string name);
+
 private:
 
 	/**
@@ -3401,6 +3420,7 @@ private:
 
 	AampCacheHandler *mAampCacheHandler;
 	PreCacheUrlList mPreCacheDnldList;
+	std::string mAppName;
 };
 
 #endif // PRIVAAMP_H
