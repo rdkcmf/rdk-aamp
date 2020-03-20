@@ -226,7 +226,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	if (-1 == mCurlInstance)
 	{
 		mCurlInstance = eCURLINSTANCE_AES;
-		aamp->CurlInit((AampCurlInstance)mCurlInstance);
+		aamp->CurlInit((AampCurlInstance)mCurlInstance,1,aamp->GetLicenseReqProxy());
 	}
 
 	if (licenseAcquisitionThreadStarted)

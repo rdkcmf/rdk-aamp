@@ -5002,7 +5002,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	//targetDurationSeconds = 0.0;
 	mAbrManager.clearProfiles();
 	memset(&trackState[0], 0x00, sizeof(trackState));
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT,aamp->GetNetworkProxy());
 	memset(streamInfo, 0, sizeof(*streamInfo));
 	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
 }
