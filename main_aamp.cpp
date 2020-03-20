@@ -837,7 +837,14 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		strncpy(e.data.mediaError.description, errorDescription, MAX_ERROR_DESCRIPTION_LENGTH);
 		e.data.mediaError.description[MAX_ERROR_DESCRIPTION_LENGTH - 1] = '\0';
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
-		logprintf("Sending error %s ",e.data.mediaError.description);
+		if (!mAppName.empty())
+		{
+			logprintf("APP: %s Sending error %s ", mAppName.c_str(), e.data.mediaError.description);
+		}
+		else
+		{
+			logprintf("Sending error %s ", e.data.mediaError.description);
+		}
 		SendEventAsync(e);
 	}
 	else
@@ -1226,7 +1233,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 {
 	bool success = true; // TODO
 	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune);
+	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName);
 
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
     if(!IsTSBSupported())
@@ -4612,15 +4619,30 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 		mTSBEnabled = true;
 	}
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
-	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
+
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+		char tuneStrPrefix[64];
+		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
+		if (!mAppName.empty())
+		{
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s aamp_tune", mAppName.c_str());
+		}
+		else
+		{
+			strcpy(tuneStrPrefix, "aamp_tune");
+		}
+
+		if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
+		{
+			logprintf("%s: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+		}
+		else
+		{
+			logprintf("%s: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
+			printf("URL: %s\n", mManifestUrl.c_str());
+		}
 	}
-	else
-	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: (BIG)\n", mTuneAttempts, mMediaFormatName[mMediaFormat]);
-		printf("URL: %s\n", mManifestUrl.c_str());
-	}
+
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
 	ExtractServiceZone(mManifestUrl);
 
@@ -6547,7 +6569,7 @@ void PrivateInstanceAAMP::Stop()
 	{
 		pthread_join(mPreCachePlaylistThreadId,NULL);
 		mPreCachePlaylistThreadFlag=false;
-		mPreCachePlaylistThreadId = NULL;
+		mPreCachePlaylistThreadId = 0;
 	}
 	if(NULL != mCdaiObject)
 	{
@@ -7003,12 +7025,13 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
 #endif
 	, mPlayermode(PLAYERMODE_JSPLAYER)
-	, mPreCachePlaylistThreadId(NULL)
+	, mPreCachePlaylistThreadId(0)
 	, mPreCachePlaylistThreadFlag(false)
 	, mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0)
 	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
 	, mParallelPlaylistFetchLock()
+	, mAppName()
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7614,6 +7637,16 @@ std::string PlayerInstanceAAMP::GetVideoRectangle()
 	ERROR_STATE_CHECK_VAL(std::string());
 
 	return aamp->GetVideoRectangle();
+}
+
+/*
+ *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAppName(std::string name)
+{
+	aamp->SetAppName(name);
 }
 
 /**
@@ -9189,6 +9222,16 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 std::string PrivateInstanceAAMP::GetVideoRectangle()
 {
 	return mStreamSink->GetVideoRectangle();
+}
+
+/*
+ *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetAppName(std::string name)
+{
+	mAppName = name;
 }
 
 /**
