@@ -1342,6 +1342,7 @@ void *CreateDRMSession(void *arg)
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
 	AampDRMSessionManager* sessionManger = sessionParams->aamp->mDRMSessionManager;
+        sessionManger->setCurlAbort(false);
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	AAMPEvent e;
 	e.type = AAMP_EVENT_DRM_METADATA;
