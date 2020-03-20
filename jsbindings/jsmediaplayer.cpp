@@ -2189,10 +2189,26 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 
+	std::string appName;
+	if (argumentCount > 0)
+	{
+		if (JSValueIsString(ctx, arguments[0]))
+		{
+			char *value =  aamp_JSValueToCString(ctx, arguments[0], exception);
+			appName.assign(value);
+			ERROR("%s:%d AAMPMediaPlayer created with app name: %s", __FUNCTION__, __LINE__, appName.c_str());
+			delete[] value;
+		}
+	}
+
 	AAMPMediaPlayer_JS* privObj = new AAMPMediaPlayer_JS();
 
 	privObj->_ctx = JSContextGetGlobalContext(ctx);
 	privObj->_aamp = new PlayerInstanceAAMP(NULL, PLAYERMODE_MEDIAPLAYER);
+	if (!appName.empty())
+	{
+		privObj->_aamp->SetAppName(appName);
+	}
 	privObj->_listeners.clear();
 
 	JSObjectRef newObj = JSObjectMake(ctx, AAMPMediaPlayer_object_ref(), privObj);

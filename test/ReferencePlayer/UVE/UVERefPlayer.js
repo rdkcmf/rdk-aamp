@@ -367,7 +367,7 @@ function resetPlayer() {
         playerObj = null;
     }
 
-    playerObj = new AAMPPlayer();
+    playerObj = new AAMPPlayer("UVE-Ref-Player");
     playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
     playerObj.addEventListener("playbackCompleted", mediaEndReached);
     playerObj.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
