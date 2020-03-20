@@ -2913,7 +2913,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_OK;
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
 
 	aamp->mStreamSink->ClearProtectionEvent();

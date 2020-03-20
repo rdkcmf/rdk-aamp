@@ -1751,9 +1751,10 @@ public:
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
+	 * @param[in] proxy - proxy to be applied for curl connection	 
 	 * @return void
 	 */
-	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1);
+	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1,const char *proxy=NULL);
 
 	/**
 	 *   @brief Sets Recorded URL from Manifest received form XRE.
