@@ -1369,6 +1369,13 @@ public:
 	 */
 	std::string GetVideoRectangle();
 
+	/**
+	 *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
+	 *
+	 *   @return void
+	 */
+	void SetAppName(std::string name);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
