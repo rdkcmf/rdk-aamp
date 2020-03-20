@@ -63,7 +63,7 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
 PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(PrivateInstanceAAMP* aamp) : mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
 					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj()
 {
-	mAamp->CurlInit(eCURLINSTANCE_DAI);
+	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
 }
 
 PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()

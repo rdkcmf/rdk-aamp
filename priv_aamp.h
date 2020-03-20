@@ -1749,9 +1749,10 @@ public:
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
+	 * @param[in] proxy - proxy to be applied for curl connection	 
 	 * @return void
 	 */
-	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1);
+	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1,const char *proxy=NULL);
 
 	/**
 	 *   @brief Sets Recorded URL from Manifest received form XRE.
@@ -2995,6 +2996,13 @@ public:
 	 *   @param[in] network proxy to use
 	 */
 	void SetNetworkProxy(const char * proxy);
+
+	/**
+	 *   @brief To get the network proxy
+	 *
+	 *   @return Network proxy URL, if exists.
+	*/
+	const char* GetNetworkProxy() const;
 
 	/**
 	 *   @brief To set the proxy for license request

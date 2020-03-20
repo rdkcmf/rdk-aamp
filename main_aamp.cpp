@@ -1789,7 +1789,7 @@ CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
  * @param startIdx start index
  * @param instanceCount count of instances
  */
-void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount)
+void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
@@ -1819,33 +1819,21 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
-			if (mNetworkProxy || mLicenseProxy || gpGlobalConfig->httpProxy)
-			{
-				const char *proxy = NULL;
-				if (mNetworkProxy || mLicenseProxy)
-				{
-					if (i < AAMP_TRACK_COUNT)
-					{
-						proxy = mNetworkProxy;
-					}
-					else
-					{
-						proxy = mLicenseProxy;
-					}
-				}
-				else
-				{
-					proxy = gpGlobalConfig->httpProxy;
-				}
 
-				if (proxy != NULL)
-				{
-					/* use this proxy */
-					curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
-					/* allow whatever auth the proxy speaks */
-					curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-				}
+			// dev override in cfg file takes priority to App Setting 
+			if(gpGlobalConfig->httpProxy != NULL)
+			{
+				proxy = gpGlobalConfig->httpProxy;				
 			}
+
+			if (proxy != NULL)
+			{
+				/* use this proxy */
+				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
+				/* allow whatever auth the proxy speaks */
+				curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+			}
+
 			if(ContentType_EAS == mContentType)
 			{
 				//enable verbose logs so we can debug field issues
@@ -6056,6 +6044,11 @@ void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
 	aamp->SetNetworkProxy(proxy);
 }
 
+
+const char* PrivateInstanceAAMP::GetNetworkProxy() const
+{
+	return mNetworkProxy;
+}
 
 /**
  *   @brief To set the proxy for license request
