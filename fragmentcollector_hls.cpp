@@ -3361,31 +3361,42 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 			int periodIdx;
 			double offsetFromPeriod;
 			double audioOffsetFromPeriod;
-			video->GetNextFragmentPeriodInfo (periodIdx, offsetFromPeriod);
+			int fragmentIdx;
+			video->GetNextFragmentPeriodInfo (periodIdx, offsetFromPeriod, fragmentIdx);
 
 			if(-1 != periodIdx)
 			{
 				double audioPeriodStart = audio->GetPeriodStartPosition(periodIdx);
 				double videoPeriodStart = video->GetPeriodStartPosition(periodIdx);
+				int audioFragmentIdx;
 
-				audio->GetNextFragmentPeriodInfo (periodIdx, audioOffsetFromPeriod);
+				audio->GetNextFragmentPeriodInfo (periodIdx, audioOffsetFromPeriod, audioFragmentIdx);
 
 				AAMPLOG_WARN("%s:%d video periodIdx: %d, video-offsetFromPeriod: %f, videoPeriodStart: %f, audio-offsetFromPeriod: %f, audioPeriodStart: %f",
 								__FUNCTION__, __LINE__, periodIdx, offsetFromPeriod, videoPeriodStart, audioOffsetFromPeriod, audioPeriodStart);
 
 				if (0 != audioPeriodStart)
 				{
-					if ((int)audioPeriodStart == (int)videoPeriodStart)
+					if ((fragmentIdx != -1) && (audioFragmentIdx != -1) && (fragmentIdx != audioFragmentIdx) && ((int)audioPeriodStart == (int)videoPeriodStart))
 					{
-						audio->playTarget = audioPeriodStart + offsetFromPeriod;
-						video->playTarget = videoPeriodStart + offsetFromPeriod;
-						AAMPLOG_WARN("%s audio and video period start pos is same : vid start: %f, audio start: %f", __FUNCTION__, video->playTarget, audio->playTarget );
+						if (audioPeriodStart > videoPeriodStart)
+						{
+							audio->playTarget = audioPeriodStart + audioOffsetFromPeriod;
+							video->playTarget = videoPeriodStart + audioOffsetFromPeriod;
+							AAMPLOG_WARN("%s:%d (audio > video) - vid start: %f, audio start: %f", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget );
+						}
+						else
+						{
+							audio->playTarget = audioPeriodStart + offsetFromPeriod;
+							video->playTarget = videoPeriodStart + offsetFromPeriod;
+							AAMPLOG_WARN("%s:%d (video > audio) - vid start: %f, audio start: %f", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget );
+						}
 					}
 					else
 					{
 						audio->playTarget = audioPeriodStart + audioOffsetFromPeriod;
 						video->playTarget = videoPeriodStart + offsetFromPeriod;
-						AAMPLOG_WARN("%s audio and video period start pos has diff : vid start: %f, audio start: %f", __FUNCTION__, video->playTarget, audio->playTarget );
+						AAMPLOG_WARN("%s:%d (audio != video) - vid start: %f, audio start: %f", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget );
 					}
 
 					seekPosition = video->playTarget;
@@ -3407,7 +3418,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 			{
 				int periodIdx;
 				double offsetFromPeriod;
-				audio->GetNextFragmentPeriodInfo(periodIdx, offsetFromPeriod);
+				int audioFragmentIdx;
+				audio->GetNextFragmentPeriodInfo(periodIdx, offsetFromPeriod, audioFragmentIdx);
 				if(-1 != periodIdx)
 				{
 					logprintf("%s:%d audio periodIdx: %d, offsetFromPeriod: %f", __FUNCTION__, __LINE__, periodIdx, offsetFromPeriod);
@@ -5657,11 +5669,12 @@ int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
 * @param offsetFromPeriodStart[out] Offset value
 * @return void
 ***************************************************************************/
-void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart)
+void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart, int &fragmentIdx)
 {
 	const IndexNode *index = (IndexNode *) this->index.ptr;
 	const IndexNode *idxNode = NULL;
 	periodIdx = -1;
+	fragmentIdx = -1;
 	offsetFromPeriodStart = 0;
 	int idx;
 	double prevCompletionTimeSecondsFromStart = 0;
@@ -5693,6 +5706,8 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 				{
 					logprintf("TrackState::%s [%s] Found periodItr %d idx %d first %d offsetFromPeriodStart %f",
 					        __FUNCTION__, name, i, idx, discontinuityIndex[i].fragmentIdx, periodStartPosition);
+
+					fragmentIdx = discontinuityIndex[i].fragmentIdx;
 					break;
 				}
 				periodIdx = i;
