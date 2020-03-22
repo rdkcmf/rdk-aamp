@@ -405,6 +405,12 @@ public:
 
 	}
 
+	double GetBufferedDuration()
+	{
+		return (fragmentTime - (aamp->GetPositionMs() / 1000));
+	}
+
+
 	/**
 	 * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
 	 */
@@ -6034,6 +6040,18 @@ void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutpu
 MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
 {
 	return mPriv->GetMediaTrack(type);
+}
+
+
+double StreamAbstractionAAMP_MPD::GetBufferedDuration()
+{
+	MediaTrack *video = mPriv->GetMediaTrack(eTRACK_VIDEO);
+	double retval = 0.0;
+	if (video->enabled)
+	{
+		retval = video->GetBufferedDuration();
+	}
+	return retval;
 }
 
 

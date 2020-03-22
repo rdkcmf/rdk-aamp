@@ -779,9 +779,9 @@ static void ProcessCliCommand(char *cmd)
 
 				case eAAMP_SET_NetworkTimeout:
                                 {
-                                        long networkTimeout;
+                                        double networkTimeout;
 					logprintf("Matchde Command eAAMP_SET_NetworkTimeout - %s ", cmd);
-					if (sscanf(cmd, "set %d %ld", &opt, &networkTimeout) == 2){
+					if (sscanf(cmd, "set %d %f", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
 					break;
