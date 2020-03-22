@@ -183,6 +183,7 @@ public:
 	 * @return void
 	 */
 	virtual void ABRProfileChanged(void) = 0;
+	virtual double GetBufferedDuration (void) = 0;
 
 	/**
 	 * @brief Get number of fragments dpownloaded
@@ -230,7 +231,6 @@ public:
 
 	bool isFragmentInjectorThreadStarted( ) {  return fragmentInjectorThreadStarted;}
 	void MonitorBufferHealth();
-
 	void ScheduleBufferHealthMonitor();
 
 	/**
@@ -519,8 +519,36 @@ public:
 	 * @return True, if ramp down successful. Else false
 	 */
 	bool RampDownProfile(long http_error);
-
 	/**
+	 *   @brief Get Desired Profile based on Buffer availability
+	 *
+	 *   @param [in] currProfileIndex
+	 *   @param [in] newProfileIndex
+	 *   @return None.
+	 */
+	void GetDesiredProfileOnBuffer(int currProfileIndex, int &newProfileIndex);
+	/**
+	 *   @brief Get Desired Profile on steady state 
+	 *
+	 *   @param [in] currProfileIndex
+	 *   @param [in] newProfileIndex
+	 *   @param [in] nwBandwidth         
+	 *   @return None.
+	 */
+	void GetDesiredProfileOnSteadyState(int currProfileIndex, int &newProfileIndex, long nwBandwidth);
+	/**
+	 *   @brief Configure download timeouts based on buffer
+	 *
+	 *   @return None.
+	 */        
+	void ConfigureTimeoutOnBuffer();
+	/**
+	 *   @brief Function to get the buffer duration of stream
+	 *
+	 *   @return buffer value 
+	 */                
+        virtual double GetBufferedDuration (void) = 0;
+        /**
 	 *   @brief Check for ramdown profile.
 	 *
 	 *   @param http_error
@@ -843,6 +871,8 @@ private:
 	int mLastVideoFragCheckedforABR;    /**< Last video fragment for which ABR is checked*/
 	long mTsbBandwidth;                 /**< stores bandwidth when TSB is involved*/
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
+	int mABRHighBufferCounter;	    /**< ABR High buffer counter */
+	int mABRLowBufferCounter;	    /**< ABR Low Buffer counter */
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 

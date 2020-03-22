@@ -2909,7 +2909,9 @@ void TrackState::RefreshPlaylist(void)
 		}
 
 		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
+		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
 		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, actualType);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
 		if(!aamp->mParallelFetchPlaylistRefresh)
 		{
@@ -3791,7 +3793,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
-		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
+		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 		if (this->mainManifest.len)
@@ -4429,7 +4431,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				seekWindowEnd -= aamp->mLiveOffset ; 
 			}
 			// check if seek beyond live point
-
 			if (video->playTarget > seekWindowEnd)
 			{
 				if (aamp->IsLive())
@@ -4789,6 +4790,23 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 	return pts;
 }
 
+double StreamAbstractionAAMP_HLS::GetBufferedDuration()
+{
+	TrackState *video = trackState[eTRACK_VIDEO];
+	double retval = 0.0;
+	if (video->enabled)
+	{
+		retval = video->GetBufferedDuration();
+	}
+	return retval;
+}
+
+double TrackState::GetBufferedDuration()
+{
+	return (playTarget - (aamp->GetPositionMs() / 1000));
+}
+
+
 /***************************************************************************
 * @fn RunFetchLoop
 * @brief Fragment collector thread execution function to download fragments 
@@ -4829,7 +4847,7 @@ void TrackState::RunFetchLoop()
 					mInjectInitFragment = false;
 				}
 			}
-
+			
 			if (!skipFetchFragment)
 			{
 				FetchFragment();
@@ -5635,6 +5653,7 @@ void TrackState::FetchPlaylist()
 	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 	MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
 	AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(mType , true);
+	aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
@@ -5652,6 +5671,7 @@ void TrackState::FetchPlaylist()
 		playlistDownloadFailCount += 1;
 	} while(aamp->DownloadsAreEnabled() && (MAX_MANIFEST_DOWNLOAD_RETRY >  playlistDownloadFailCount) && (404 == http_error));
 	logprintf("TrackState::%s [%s] end", __FUNCTION__, name);
+	aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 	if (!playlist.len)
 	{
 		aamp->profiler.ProfileError(bucketId, http_error);
