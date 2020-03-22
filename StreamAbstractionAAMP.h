@@ -183,6 +183,7 @@ public:
 	 * @return void
 	 */
 	virtual void ABRProfileChanged(void) = 0;
+	virtual double GetBufferedDuration (void) = 0;
 
 	/**
 	 * @brief Get number of fragments dpownloaded
@@ -230,7 +231,6 @@ public:
 
 	bool isFragmentInjectorThreadStarted( ) {  return fragmentInjectorThreadStarted;}
 	void MonitorBufferHealth();
-
 	void ScheduleBufferHealthMonitor();
 
 	/**
@@ -520,6 +520,9 @@ public:
 	 */
 	bool RampDownProfile(long http_error);
 
+	void GetDesiredProfileOnBuffer(int currProfileIndex, int &newProfileIndex);
+	void GetDesiredProfileOnCBR(int currProfileIndex, int &newProfileIndex);
+	void ConfigureTimeoutOnBuffer();
 	/**
 	 *   @brief Check for ramdown profile.
 	 *
@@ -843,6 +846,7 @@ private:
 	int mLastVideoFragCheckedforABR;    /**< Last video fragment for which ABR is checked*/
 	long mTsbBandwidth;                 /**< stores bandwidth when TSB is involved*/
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
+	int mABRProfileChangeIndicator;     /**< ABR Profile change done indicator */
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 
