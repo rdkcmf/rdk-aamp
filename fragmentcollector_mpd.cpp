@@ -405,6 +405,12 @@ public:
 
 	}
 
+	double GetBufferedDuration()
+	{
+		return (fragmentTime + aamp->culledSeconds - (aamp->GetPositionMilliseconds() / 1000));
+	}
+
+
 	/**
 	 * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
 	 */
