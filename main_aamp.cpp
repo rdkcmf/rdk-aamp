@@ -2235,6 +2235,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  */
 bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate, int * fogError)
 {
+	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
 	long http_code = -1;
 	bool ret = false;
 	int downloadAttempt = 0;
@@ -2484,10 +2485,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME, &redirect);
 					curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 					curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
-					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: {\"url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
+					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: {\"url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld,\"type\":%d}",
 						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str()), // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
 						totalPerformRequest,
-						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code);
+						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code, simType );
 				}
 				break;
 			}
@@ -2557,12 +2558,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 				else if (remoteUrl.find("iframe") != std::string::npos)
 				{
 					fileType = eMEDIATYPE_IFRAME;
-				}
-
-				if((downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD) || (gpGlobalConfig->logging.latencyLogging[fileType] == true))
-				{
-					long long SequenceNo = GetSeqenceNumberfromURL(remoteUrl);
-					logprintf("aampabr#T:%s,s:%lld,d:%lld,sz:%d,r:%ld,cerr:%d,hcode:%ld,n:%lld,estr:%ld,url:%s",MediaTypeString(fileType),(aamp_GetCurrentTimeMS()-downloadTimeMS),downloadTimeMS,int(buffer->len),mpStreamAbstractionAAMP->GetCurProfIdxBW(),res,http_code,SequenceNo,GetCurrentlyAvailableBandwidth(),remoteUrl.c_str());
 				}
 				ret = true;
 			}
@@ -3441,21 +3436,6 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->reTuneOnBufferingTimeout = (value != 0);
 			logprintf("re-tune-on-buffering-timeout=%d", (int)gpGlobalConfig->reTuneOnBufferingTimeout);
-		}
-		else if (cfg.compare("audioLatencyLogging") == 0)
-		{
-			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO] = true;
-			logprintf("audioLatencyLogging is %s", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_AUDIO]? "enabled" : "disabled");
-		}
-		else if (cfg.compare("videoLatencyLogging") == 0)
-		{
-			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO] = true;
-			logprintf("videoLatencyLogging is %s", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_VIDEO]? "enabled" : "disabled");
-		}
-		else if (cfg.compare("manifestLatencyLogging") == 0)
-		{
-			gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST] = true;
-			logprintf("manifestLatencyLogging is %s", gpGlobalConfig->logging.latencyLogging[eMEDIATYPE_MANIFEST]? "enabled" : "disabled");
 		}
 		else if (ReadConfigNumericHelper(cfg, "iframe-default-bitrate=", gpGlobalConfig->iframeBitrate) == 1)
 		{
@@ -8262,45 +8242,6 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 
 	logprintf("aamp: sending supported speeds changed event with count %d", supportedSpeedCount);
 	SendEventAsync(event);
-}
-
-
-/**
- *   @brief  Get Sequence Number from URL
- *
- *   @param[in] fragmentUrl fragment Url
- *   @returns Sequence Number if found in fragment Url else 0
- */
-long long PrivateInstanceAAMP::GetSeqenceNumberfromURL(std::string fragmentUrl)
-{
-
-	long long seqNumber = 0;
-	size_t pos = fragmentUrl.find("-frag-");
-	
-	if (pos != std::string::npos)
-	{
-		seqNumber = stoll("0" + fragmentUrl.substr(pos + 6));
-	}
-	else if (fragmentUrl.find(".seg") != std::string::npos)
-	{
-		if( fragmentUrl.find("-init.seg") != std::string::npos) //init segment
-		{
-			seqNumber = -1;
-		}
-		else
-		{
-			pos = fragmentUrl.rfind("/");
-			if(pos != std::string::npos)
-			{
-				seqNumber = stoll("0" + fragmentUrl.substr(pos + 1));
-			}
-		}
-	}
-	else if ((fragmentUrl.find(".mpd") != std::string::npos) || (fragmentUrl.find(".m3u8") != std::string::npos)) //manifest
-	{
-		seqNumber = -1;
-	}
-	return seqNumber;
 }
 
 
