@@ -404,7 +404,6 @@ public:
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
-	bool latencyLogging[MAX_SUPPORTED_LATENCY_LOGGING_TYPES]; /**< Latency logging for Video, Audio, Manifest download - Refer MediaType on main_aamp.h */ 
 	bool logMetadata;	 /**< Timed metadata logs*/
 	static bool disableLogRedirection;
 
@@ -413,7 +412,6 @@ public:
 	 */
 	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), logMetadata(false)
 	{
-		memset(latencyLogging, 0 , sizeof(latencyLogging));
 	}
 
 	/* ---------- Triage Level Logging Support ---------- */
@@ -2889,14 +2887,6 @@ public:
 	 *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
 	 */
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
-
-	/**
-	 *   @brief  Get Sequence Number from URL
-	 *
-	 *   @param[in] fragmentUrl fragment Url
-	 *   @returns Sequence Number if found in fragment Url else 0
-	 */
-	long long GetSeqenceNumberfromURL(std::string fragmentUrl);
 
 	/**
 	 *   @brief To set the initial bitrate value.
