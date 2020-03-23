@@ -6523,7 +6523,7 @@ void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList)
 	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
 
 	aamp->preferredLanguagesString.clear();
-	aamp->preferredLanguagesString.clear();
+	aamp->preferredLanguagesList.clear();
 
 	if(languageList != NULL)
 	{
@@ -6544,6 +6544,9 @@ void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList)
 		if(!aamp->languageSetByUser)
 			aamp->noExplicitUserLanguageSelection = true;
 	}
+
+	AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+			aamp->preferredLanguagesList.size());
 }
 
 /**
