@@ -6518,6 +6518,7 @@ bool PrivateInstanceAAMP::IsLive()
  */
 void PrivateInstanceAAMP::Stop()
 {
+	DisableDownloads();
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
 	{
@@ -6557,7 +6558,6 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	AampCacheHandler::GetInstance()->StopPlaylistCache();
 	// Set the state to released as all resources are released for the session
 	// directly setting state variable . Calling SetState will trigger event :(
 	mState = eSTATE_RELEASED;
@@ -6571,11 +6571,13 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = 0;
 	}
+	AampCacheHandler::GetInstance()->StopPlaylistCache();
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
 		mCdaiObject = NULL;
 	}
+	EnableDownloads();
 }
 
 /**
@@ -9094,6 +9096,100 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 
 
 /**
+ *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
+{
+	// This is the thread function to download all the HLS Playlist in a 
+	// differed manner
+	int maxWindowforDownload = mPreCacheDnldTimeWindow*60; // convert to seconds  
+	int szPlaylistCount = mPreCacheDnldList.size();
+	if(szPlaylistCount)
+	{
+		PrivAAMPState state;
+		// First wait for Tune to complete to start this functionality
+		pthread_mutex_lock(&mLock);
+		pthread_cond_wait(&waitforplaystart, &mLock);
+		pthread_mutex_unlock(&mLock);
+		// May be Stop is called to release all resources .
+		// Before download , check the state 
+		GetState(state);
+		if(state != eSTATE_RELEASED)
+		{
+			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE,1,GetNetworkProxy());
+			// calculate the cache size, consider 1 MB/playlist
+			int maxCacheSz = szPlaylistCount * 1024*1024;
+			// get the current cache max size , to restore later 
+			int currMaxCacheSz =AampCacheHandler::GetInstance()->GetMaxPlaylistCacheSize();
+			// set new playlistCacheSize; 
+			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(maxCacheSz);
+			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
+			int idx=0;
+			do
+			{
+				InterruptableMsSleep(sleepTimeBetweenDnld);
+				if(DownloadsAreEnabled())
+				{
+					// First check if the file is already in Cache
+					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
+					
+					// check if url cached ,if not download
+					if(AampCacheHandler::GetInstance()->IsUrlCached(newelem.url)==false)
+					{
+						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
+							newelem.type,newelem.url.c_str());
+						std::string playlistUrl;
+						std::string playlistEffectiveUrl;
+						GrowableBuffer playlistStore;
+						long http_error;
+						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						{
+							// If successful download , then insert into Cache 
+							AampCacheHandler::GetInstance()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
+							aamp_Free(&playlistStore.ptr);
+						}	
+					}
+					idx++;
+				}
+				else
+				{
+					// this can come here if trickplay is done or play started late
+					if(state == eSTATE_SEEKING || eSTATE_PREPARED)
+					{
+						// wait for seek to complete 
+						sleep(1);
+					}
+				}
+				GetState(state);
+			}while(idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
+			// restore old cache size
+			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(currMaxCacheSz);
+			mPreCacheDnldList.clear();
+			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
+		}
+	}
+	AAMPLOG_WARN("%s End of PreCachePlaylistDownloadTask ",__FUNCTION__);
+}
+
+/**
+ *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
+ *   @param[in] Playlist Download list  
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
+{
+	mPreCacheDnldList = dnldListInput;
+	if(mPreCacheDnldList.size())
+	{
+		AAMPLOG_WARN("%s:%d Got Playlist PreCache list of Size : %d",__FUNCTION__,__LINE__,mPreCacheDnldList.size());
+	}
+	
+}
+
+/**
  *   @brief Get available audio tracks.
  *
  *   @return std::string JSON formatted string of available audio tracks
@@ -9232,89 +9328,6 @@ std::string PrivateInstanceAAMP::GetVideoRectangle()
 void PrivateInstanceAAMP::SetAppName(std::string name)
 {
 	mAppName = name;
-}
-
-/**
- * @}
- */
-void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
-{
-	// This is the thread function to download all the HLS Playlist in a 
-	// differed manner
-	int maxWindowforDownload = mPreCacheDnldTimeWindow*60; // convert to seconds  
-	int szPlaylistCount = mPreCacheDnldList.size();
-	if(szPlaylistCount)
-	{
-		PrivAAMPState state;
-		// First wait for Tune to complete to start this functionality
-		pthread_mutex_lock(&mLock);
-		pthread_cond_wait(&waitforplaystart, &mLock);
-		pthread_mutex_unlock(&mLock);
-		// May be Stop is called to release all resources .
-		// Before download , check the state 
-		GetState(state);
-		if(state != eSTATE_RELEASED)
-		{
-			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE);
-			// calculate the cache size, consider 1 MB/playlist
-			int maxCacheSz = szPlaylistCount * 1024*1024;
-			// get the current cache max size , to restore later 
-			int currMaxCacheSz =AampCacheHandler::GetInstance()->GetMaxPlaylistCacheSize();
-			// set new playlistCacheSize; 
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(maxCacheSz);
-			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
-			int idx=0;
-			while (DownloadsAreEnabled() && idx < mPreCacheDnldList.size())
-			{
-				InterruptableMsSleep(sleepTimeBetweenDnld);
-				if(DownloadsAreEnabled())
-				{
-					// First check if the file is already in Cache
-					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
-					
-					// check if url cached ,if not download
-					if(AampCacheHandler::GetInstance()->IsUrlCached(newelem.url)==false)
-					{
-						AAMPLOG_WARN("%s Downloading Playlist Type:%d for PreCaching:%s",__FUNCTION__,
-							newelem.type,newelem.url.c_str());
-						std::string playlistUrl;
-						std::string playlistEffectiveUrl;
-						GrowableBuffer playlistStore;
-						long http_error;
-						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
-						{
-							// If successful download , then insert into Cache 
-							AampCacheHandler::GetInstance()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl,false,newelem.type);
-							aamp_Free(&playlistStore.ptr);
-						}	
-					}
-			
-				}
-				idx++;
-			}
-			// restore old cache size
-			AampCacheHandler::GetInstance()->SetMaxPlaylistCacheSize(currMaxCacheSz);
-			mPreCacheDnldList.clear();
-			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
-		}
-	}
-	AAMPLOG_WARN("%s End of PreCachePlaylistDownloadTask ",__FUNCTION__);
-}
-
-/**
- *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
- *   @param[in] Playlist Download list  
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
-{
-	mPreCacheDnldList = dnldListInput;
-	if(mPreCacheDnldList.size())
-	{
-		AAMPLOG_WARN("%s:%d Got Playlist PreCache list of Size : %d",__FUNCTION__,__LINE__,mPreCacheDnldList.size());
-	}
-	
 }
 
 /**

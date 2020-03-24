@@ -4659,7 +4659,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
-		if (newTune && (aamp->mPreCacheDnldTimeWindow > 0) && !aamp->IsLive())
+		if (newTune && !aamp->IsLive() && (aamp->mPreCacheDnldTimeWindow > 0) && (aamp->durationSeconds > aamp->mPreCacheDnldTimeWindow*60))
 		{
 			// Special requirement
 			// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
@@ -5258,7 +5258,10 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	}
 	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
-	aamp->EnableDownloads();
+	if(!clearChannelData)
+	{
+		aamp->EnableDownloads();
+	}
 }
 /***************************************************************************
 * @fn DumpProfiles
