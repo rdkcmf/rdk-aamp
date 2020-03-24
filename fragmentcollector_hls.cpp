@@ -74,7 +74,7 @@
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 1 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
@@ -5800,8 +5800,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 				{
 					if (!useStartTime)
 					{
-						AAMPLOG_WARN("%s:%d low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
-								__FUNCTION__, __LINE__, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec);
+						AAMPLOG_WARN("%s:%d low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
+								__FUNCTION__, __LINE__, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
 						if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
 						{
 							mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
@@ -5860,10 +5860,10 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 				if ((playlistRefreshCount < maxPlaylistRefreshCount)
 						&& (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
 				{
-					logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f", __FUNCTION__,
-					        __LINE__, name, mDuration, mCulledSeconds);
+					logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
+					        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
 					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-					logprintf("%s:%d Wait for %s playlist update over", __FUNCTION__, __LINE__, name);
+					logprintf("%s:%d Wait for %s playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
 					playlistRefreshCount++;
 				}
 				else
