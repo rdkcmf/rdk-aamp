@@ -1692,3 +1692,28 @@ void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup()
 		pthread_mutex_unlock(&mLock);
 	}
 }
+
+
+/**
+ *   @brief Checks if streamer reached end of stream
+ *
+ *   @return true if end of stream reached, false otherwise
+ */
+bool StreamAbstractionAAMP::IsEOSReached()
+{
+	bool eos = true;
+	for (int i = 0 ; i < AAMP_TRACK_COUNT; i++)
+	{
+		MediaTrack *track = GetMediaTrack((TrackType) i);
+		if (track && track->enabled)
+		{
+			eos = eos && track->IsAtEndOfTrack();
+			if (!eos)
+			{
+				AAMPLOG_WARN("%s:%d EOS not seen by track: %s, skip check for rest of the tracks", __FUNCTION__, __LINE__, track->name);
+				break;
+			}
+		}
+	}
+	return eos;
+}

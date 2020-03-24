@@ -774,6 +774,13 @@ public:
 	 *   @param[in] cdaiObj - Pointer to Client Side DAI object.
 	 */
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) {};
+
+	/**
+	 *   @brief Checks if streamer reached end of stream
+	 *
+	 *   @return true if end of stream reached, false otherwise
+	 */
+	virtual bool IsEOSReached();
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
