@@ -3445,6 +3445,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->reportBufferEvent = (value != 0);
 			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
 		}
+		else if (ReadConfigNumericHelper(cfg, "gst-position-query-enable=", value) == 1)
+		{
+			gpGlobalConfig->bPositionQueryEnabled = (value == 1);
+			logprintf("Position query based progress events: %s", gpGlobalConfig->bPositionQueryEnabled ? "ON" : "OFF");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4046,13 +4051,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	newTune = IsNewTune();
 
-	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
-
+	// DELIA-39530 - Get position before pipeline is teared down
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
 		seek_pos_seconds = GetPositionMilliseconds()/1000;
 	}
 
+	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
 	if (newTune)
 	{
@@ -4184,7 +4189,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
 		}
-		else if (mMediaFormat == eMEDIAFORMAT_DASH || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
+		else if (mMediaFormat == eMEDIAFORMAT_DASH)
 		{
                         /*
                         commenting the Flush call with updatedSeekPosition as a work around for
@@ -4899,8 +4904,8 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
-		//Gstreamer position query is enabled only for HLS + TS combo for now
-		if (aamp->mMediaFormat != eMEDIAFORMAT_HLS_MP4 || !((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
+		//Check for 1.0 -> 0.0 and 0.0 -> 1.0 usecase and avoid below logic
+		if (!((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			double newSeekPosInSec = -1;
 			// when switching from trick to play mode only 
@@ -4939,6 +4944,17 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			}
 
 			aamp->trickStartUTCMS = -1;
+		}
+		else
+		{
+			// DELIA-39530 - For 1.0->0.0 and 0.0->1.0 if bPositionQueryEnabled is enabled, GStreamer position query will give proper value
+			// Fallback case added for when bPositionQueryEnabled is disabled, since we will be using elapsedTime to calculate position and
+			// trickStartUTCMS has to be reset
+			if (!gpGlobalConfig->bPositionQueryEnabled)
+			{
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
+				aamp->trickStartUTCMS = -1;
+			}
 		}
 
 		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
@@ -5961,11 +5977,10 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	long long positionMiliseconds = seek_pos_seconds * 1000.0;
 	if (trickStartUTCMS >= 0)
 	{
-		//For pipeline paused, we could query the position from gstreamer pipeline
-		if (mMediaFormat == eMEDIAFORMAT_HLS_MP4 && (rate == AAMP_NORMAL_PLAY_RATE || pipeline_paused))
+		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
+		if (gpGlobalConfig->bPositionQueryEnabled && !gpGlobalConfig->bAudioOnlyPlayback)
 		{
-			long positionOffsetFromStart = mStreamSink->GetPositionMilliseconds();
-			positionMiliseconds += positionOffsetFromStart;
+			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
 		else
 		{
@@ -8319,6 +8334,19 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	mParallelFetchPlaylist = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+void PrivateInstanceAAMP::FlushStreamSink(double position, int rate)
+{
+#ifndef AAMP_STOP_SINK_ON_SEEK
+	if (mStreamSink)
+	{
+		// shouldTearDown is set to false, because in case of a new tune pipeline
+		// might not be in a playing/paused state which causes Flush() to destroy
+		// pipeline. This has to be avoided.
+		mStreamSink->Flush(position, rate, false);
+	}
+#endif
 }
 
 /**

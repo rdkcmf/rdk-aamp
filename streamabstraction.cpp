@@ -503,12 +503,6 @@ bool MediaTrack::InjectFragment()
 					InjectFragmentInternal(cachedFragment, fragmentDiscarded);
 #endif
 #endif
-					if (GetContext()->mIsFirstBuffer && !fragmentDiscarded)
-					{
-						GetContext()->mIsFirstBuffer = false;
-						aamp->NotifyFirstBufferProcessed();
-					}
-
 					if((type == eTRACK_VIDEO) && (gpGlobalConfig->reportBufferEvent) &&
 							(aamp->GetBufUnderFlowStatus()))
 					{
@@ -697,7 +691,6 @@ void MediaTrack::StopInjectLoop()
 #endif
 	}
 	fragmentInjectorThreadStarted = false;
-	GetContext()->mIsFirstBuffer = true;
 }
 
 
@@ -891,7 +884,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
-		hasDrm(false), mIsAtLivePoint(false), mIsFirstBuffer(true), mESChangeStatus(false),
+		hasDrm(false), mIsAtLivePoint(false), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
