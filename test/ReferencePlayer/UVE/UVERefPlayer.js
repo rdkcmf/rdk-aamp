@@ -324,8 +324,12 @@ function playbackStateChanged(event) {
 
 function mediaEndReached() {
     console.log("Media end reached event!");
-//    loadNextAsset();
-	toggleVideo();
+//  loadNextAsset();
+    if (toggleVideo() == false) {
+        playerObj.stop();
+        resetSubtitles(true);
+        resetUIOnNewAsset();
+    }
 }
 
 function mediaSpeedChanged(event) {
@@ -513,7 +517,7 @@ function tuneProfiling(event) {
 }
 
 function bulkMetadataHandler(event) {
-	console.log("Bulk TimedMetadata : " + JSON.stringify(event));
+    console.log("Bulk TimedMetadata : " + JSON.stringify(event));
 }
 
 
@@ -596,19 +600,19 @@ function loadUrl(urlObject, isLive) {
 }
 
 function StopCachedChannel() {
-	if(bgPlayerObj != null)
-	{
-		bgPlayerObj.stop();
-		bgPlayerObj.destroy();
-		bgPlayerObj = null;
-	}
+    if(bgPlayerObj != null)
+    {
+        bgPlayerObj.stop();
+        bgPlayerObj.destroy();
+        bgPlayerObj = null;
+    }
 }
 
 function cacheStream(urlObject, isLive) {
     console.log("cacheStream: UrlObject received: " + urlObject);
-	StopCachedChannel();
+    StopCachedChannel();
 	
-	bgPlayerObj = createAAMPPlayer();
+    bgPlayerObj = createAAMPPlayer();
     let initConfiguration = generateInitConfigObject(urlObject);
     if(isLive)
         initConfiguration.offset = 15;
@@ -617,13 +621,16 @@ function cacheStream(urlObject, isLive) {
 }
 
 function toggleVideo() {
-		if(bgPlayerObj != null && playerObj != null)
-		{
-			playerObj.detach();
-			bgPlayerObj.play();
-			var tmpPlayer = playerObj;
-			playerObj = bgPlayerObj;
-			bgPlayerObj = tmpPlayer;
-			cacheNextAsset();
-		}
+    let ret = false;
+    if(bgPlayerObj != null && playerObj != null)
+    {
+        playerObj.detach();
+        bgPlayerObj.play();
+        let tmpPlayer = playerObj;
+        playerObj = bgPlayerObj;
+        bgPlayerObj = tmpPlayer;
+        cacheNextAsset();
+        ret = true;
+    }
+    return ret;
 }

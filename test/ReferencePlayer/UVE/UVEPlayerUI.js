@@ -20,6 +20,7 @@
 var controlObj = null;
 var bitrateList = [];
 var ccStatus = false;
+const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false }
 
 function playPause() {
     console.log("playPause");
@@ -65,6 +66,7 @@ function toggleCC() {
     if (ccStatus === false) {
         // CC ON
         XREReceiver.onEvent("onClosedCaptions", { enable: true });
+        XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
         ccStatus = true;
         document.getElementById("ccIcon").src = "../icons/closedCaptioning.png";
         document.getElementById('ccContent').innerHTML = "CC Enabled";    
