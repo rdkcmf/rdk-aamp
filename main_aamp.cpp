@@ -6867,6 +6867,7 @@ bool PrivateInstanceAAMP::IsLive()
  */
 void PrivateInstanceAAMP::Stop()
 {
+	DisableDownloads();
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
 	{
@@ -6906,7 +6907,6 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	getAampCacheHandler()->StopPlaylistCache();
 	// Set the state to released as all resources are released for the session
 	// directly setting state variable . Calling SetState will trigger event :(
 	mState = eSTATE_RELEASED;
@@ -6920,11 +6920,13 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = 0;
 	}
+	getAampCacheHandler()->StopPlaylistCache();
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
 		mCdaiObject = NULL;
 	}
+	EnableDownloads();
 }
 
 /**
@@ -9540,7 +9542,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 			getAampCacheHandler()->SetMaxPlaylistCacheSize(maxCacheSz);
 			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
 			int idx=0;
-			while (DownloadsAreEnabled() && idx < mPreCacheDnldList.size())
+			do
 			{
 				InterruptableMsSleep(sleepTimeBetweenDnld);
 				if(DownloadsAreEnabled())
@@ -9564,10 +9566,19 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 							aamp_Free(&playlistStore.ptr);
 						}	
 					}
-			
+					idx++;
 				}
-				idx++;
-			}
+				else
+				{
+					// this can come here if trickplay is done or play started late
+					if(state == eSTATE_SEEKING || eSTATE_PREPARED)
+					{
+						// wait for seek to complete 
+						sleep(1);
+					}
+				}
+				GetState(state);
+			}while(idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
 			// restore old cache size
 			getAampCacheHandler()->SetMaxPlaylistCacheSize(currMaxCacheSz);
 			mPreCacheDnldList.clear();
