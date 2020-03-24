@@ -2716,11 +2716,8 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	string statTimeStr = period->GetStart();
 	string availabilityStartStr = mpd->GetAvailabilityStarttime();
 	periodDurationMs = aamp_GetPeriodDuration(mpd, periodIndex, mpdRefreshTime);
-	if(statTimeStr.empty())
-	{
-		AAMPLOG_WARN("%s:%d :  Period statTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
-	}
-	else if(availabilityStartStr.empty() && !(mpd->GetType() == "static"))
+
+	if(availabilityStartStr.empty() && !(mpd->GetType() == "static"))
 	{
 		AAMPLOG_WARN("%s:%d :  availabilityStartTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
 	}
@@ -2730,7 +2727,14 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	}
 	else
 	{
-		ParseISO8601Duration(statTimeStr.c_str(), periodStartMs);
+		if(statTimeStr.empty())
+		{
+			AAMPLOG_WARN("%s:%d :  Period statTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			ParseISO8601Duration(statTimeStr.c_str(), periodStartMs);
+		}
 		if (!availabilityStartStr.empty())
 		{
 			availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str());
