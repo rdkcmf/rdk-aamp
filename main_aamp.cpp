@@ -6501,6 +6501,7 @@ bool PrivateInstanceAAMP::IsLive()
  */
 void PrivateInstanceAAMP::Stop()
 {
+	DisableDownloads();
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
 	{
@@ -6540,7 +6541,6 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	AampCacheHandler::GetInstance()->StopPlaylistCache();
 	// Set the state to released as all resources are released for the session
 	// directly setting state variable . Calling SetState will trigger event :(
 	mState = eSTATE_RELEASED;
@@ -6554,11 +6554,13 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = NULL;
 	}
+	AampCacheHandler::GetInstance()->StopPlaylistCache();
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
 		mCdaiObject = NULL;
 	}
+	EnableDownloads();
 }
 
 /**
@@ -9111,7 +9113,6 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 	}
 #endif
 }
-
 
 /**
  *   @brief Get available audio tracks.
