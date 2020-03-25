@@ -581,7 +581,7 @@ public:
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
-	bool abrBufferCheckEnabled;             /**< Flag to enable/disable buffer based ABR handling*/
+	TriState abrBufferCheckEnabled;             /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -693,7 +693,7 @@ public:
 		,mUseAverageBWForABR(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,parallelPlaylistRefresh(eUndefinedState)
-		,abrBufferCheckEnabled(true)
+		,abrBufferCheckEnabled(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1754,6 +1754,7 @@ public:
 	Playermode mPlayermode;
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
+	bool mABRBufferCheckEnabled;
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
@@ -3246,6 +3247,14 @@ public:
 	 *   @return void
 	 */
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *	 @brief Configure New ABR Enable/Disable
+	 *	 @param[in] bValue - true if new ABR enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewABRConfig(bool bValue);
 
 	/**
 	 *   @brief To flush buffers in streamsink

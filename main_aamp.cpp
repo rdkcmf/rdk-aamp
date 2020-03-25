@@ -3408,10 +3408,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld", gpGlobalConfig->abrCacheLength);
 		}
-		else if (ReadConfigNumericHelper(cfg, "abrHybridCheck=", value) == 1)
+		else if (ReadConfigNumericHelper(cfg, "useNewABR=", value) == 1)
 		{
-			gpGlobalConfig->abrBufferCheckEnabled  = (value != 0);
-			logprintf("abrBufferCheckEnabled =%d", value);
+			gpGlobalConfig->abrBufferCheckEnabled  = (TriState)(value != 0);
+			logprintf("useNewABR =%d", value);
 		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{
@@ -6501,6 +6501,17 @@ void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 
 
 /**
+ *   @brief Configure New ABR Enable/Disable
+ *   @param[in] bValue - true if new ABR enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
+{
+	aamp->SetNewABRConfig(bValue);
+}
+
+/**
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
  *             from most to least preferred. Set NULL to clear current list.
@@ -6569,6 +6580,26 @@ void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 	}
 	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
 }
+
+/**
+ *   @brief Configure New ABR Enable/Disable
+ *   @param[in] bValue - true if new ABR enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
+{
+	if(gpGlobalConfig->abrBufferCheckEnabled == eUndefinedState)
+	{
+		mABRBufferCheckEnabled = bValue;
+	}
+	else
+	{
+		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
+	}
+	AAMPLOG_INFO("%s:%d New ABR Config : %s ",__FUNCTION__,__LINE__,(mABRBufferCheckEnabled)?"True":"False");
+}
+
 
 /**
  *   @brief Set video rectangle.
@@ -7373,6 +7404,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	, mParallelPlaylistFetchLock()
 	, mAppName()
+	, mABRBufferCheckEnabled(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -7431,6 +7463,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
+	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
+		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
