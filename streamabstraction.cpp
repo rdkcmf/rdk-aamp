@@ -1149,7 +1149,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	int desiredProfileIndex = currentProfileIndex;
-	bool bBufferCheckEnabled = true;
+
 	if (this->trickplayMode)
 	{
 		int tmpIframeProfile = GetIframeTrack();
@@ -1169,7 +1169,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 
 		// For first time after tune, not to check for buffer availability, go for existing method .
 		// during steady state run check the buffer for ramp up or ramp down
-		if(!mNwConsistencyBypass && gpGlobalConfig->abrBufferCheckEnabled)
+		if(!mNwConsistencyBypass && aamp->mABRBufferCheckEnabled)
 		{
 			// Checking if frequent profile change happening
 			if(currentProfileIndex != desiredProfileIndex)	

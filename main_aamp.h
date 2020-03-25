@@ -1372,6 +1372,14 @@ public:
 	 *   @return void
 	*/
 	void SetWesterosSinkConfig(bool bValue);
+	/**
+	 *	 @brief Configure New ABR Enable/Disable
+	 *	 @param[in] bValue - true if new ABR enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewABRConfig(bool bValue);
+
 
 	/**
 	 *   @brief Get available audio tracks.
