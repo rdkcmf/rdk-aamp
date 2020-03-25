@@ -529,7 +529,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 					delete keyInfo;
                                         delete callbackData;
 					keyInfo = new DrmData();
-                                        writeCallbackData *callbackData = new writeCallbackData();
+                                        callbackData = new writeCallbackData();
                                         callbackData->data = keyInfo;
                                         callbackData->mDRMSessionManager = this;
 					curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
