@@ -5803,17 +5803,23 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
 			for (int i = 0; i < mDiscontinuityIndexCount; i++)
 			{
-				if ((mLastMatchedDiscontPosition < 0)
-						|| (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
+				if (IsLive())
+				{
+					AAMPLOG_WARN("%s:%d [%s] loop %d mLastMatchedDiscontPosition %f mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f",
+						__FUNCTION__, __LINE__, name, i, mLastMatchedDiscontPosition, mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds);
+				}
+
+				if ((mLastMatchedDiscontPosition < 0) || (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
 				{
 					if (!useStartTime)
 					{
-						AAMPLOG_WARN("%s:%d low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
-								__FUNCTION__, __LINE__, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
+						AAMPLOG_WARN("%s:%d [%s] low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
+								__FUNCTION__, __LINE__, name, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
 						if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
 						{
 							mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
 							discontinuityPending = true;
+							AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
 							break;
 						}
 					}
@@ -5823,8 +5829,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 						if (ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime, programDateTimeVal))
 						{
 							double discPos = programDateTimeVal.tv_sec + (double) programDateTimeVal.tv_usec/1000000;
-							logprintf ("%s:%d low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
-								__FUNCTION__, __LINE__, low, high, position, discPos, discDiscardTolreanceInSec);
+							logprintf ("%s:%d [%s] low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
+								__FUNCTION__, __LINE__, name, low, high, position, discPos, discDiscardTolreanceInSec);
 
 							if (low < discPos && high > discPos)
 							{
@@ -5837,6 +5843,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 								}
 								else
 								{
+									AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
 									break;
 								}
 							}
@@ -5865,17 +5872,17 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTi
 					liveNoTSB = true;
 				}
 
-				if ((playlistRefreshCount < maxPlaylistRefreshCount)
-						&& (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
+				if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
 				{
-					logprintf("%s:%d Waiting for %s playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
+					logprintf("%s:%d Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
 					        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
 					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-					logprintf("%s:%d Wait for %s playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
+					logprintf("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
 					playlistRefreshCount++;
 				}
 				else
 				{
+					AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
 					break;
 				}
 			}
