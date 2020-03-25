@@ -258,6 +258,7 @@ public:
 	void SetXStartTimeOffset(double offset) { mXStartTimeOFfset = offset; }
 	// Function to retune XStart Time Offset
 	double GetXStartTimeOffset() { return mXStartTimeOFfset;}
+	double GetBufferedDuration();
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();

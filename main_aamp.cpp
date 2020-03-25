@@ -2595,7 +2595,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%lld and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
 			}
 
-			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR && (buffer->len > gpGlobalConfig->aampAbrThresholdSize))
+			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
 			{
 				{
 					pthread_mutex_lock(&mLock);
@@ -3407,6 +3407,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
 			logprintf("aamp abr cache length: %ld", gpGlobalConfig->abrCacheLength);
+		}
+		else if (ReadConfigNumericHelper(cfg, "abrHybridCheck=", value) == 1)
+		{
+			gpGlobalConfig->abrBufferCheckEnabled  = (value != 0);
+			logprintf("abrBufferCheckEnabled =%d", value);
 		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{

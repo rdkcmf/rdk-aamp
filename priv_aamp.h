@@ -581,6 +581,7 @@ public:
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
+	bool abrBufferCheckEnabled;             /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -663,7 +664,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
-		,curlStallTimeout(0), curlDownloadStartTimeout(0)
+		,curlStallTimeout(5), curlDownloadStartTimeout(3)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
@@ -692,6 +693,7 @@ public:
 		,mUseAverageBWForABR(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,parallelPlaylistRefresh(eUndefinedState)
+		,abrBufferCheckEnabled(true)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else

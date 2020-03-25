@@ -4501,7 +4501,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				seekWindowEnd -= aamp->mLiveOffset ; 
 			}
 			// check if seek beyond live point
-
 			if (video->playTarget > seekWindowEnd)
 			{
 				if (aamp->IsLive())
@@ -4861,6 +4860,12 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 	return pts;
 }
 
+double TrackState::GetBufferedDuration()
+{
+	return (playTarget + mCulledSeconds - (aamp->GetPositionMilliseconds() / 1000));
+}
+
+
 /***************************************************************************
 * @fn RunFetchLoop
 * @brief Fragment collector thread execution function to download fragments 
@@ -4901,7 +4906,7 @@ void TrackState::RunFetchLoop()
 					mInjectInitFragment = false;
 				}
 			}
-
+			
 			if (!skipFetchFragment)
 			{
 				FetchFragment();
