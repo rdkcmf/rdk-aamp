@@ -407,7 +407,7 @@ public:
 
 	double GetBufferedDuration()
 	{
-		return (fragmentTime + aamp->culledSeconds - (aamp->GetPositionMilliseconds() / 1000));
+		return (fragmentTime - (aamp->GetPositionMilliseconds() / 1000));
 	}
 
 

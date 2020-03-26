@@ -1120,7 +1120,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 			timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
 		}
 		aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_VIDEO);
-		AAMPLOG_INFO("Setting Video timeout to :%ld",timeoutMs);
+		AAMPLOG_INFO("Setting Video timeout to :%ld %f",timeoutMs,vBufferDuration);
 	}
 	if(audio->enabled)
 	{
@@ -1137,7 +1137,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 			timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
 		}
 		aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_AUDIO);
-		AAMPLOG_INFO("Setting Audio timeout to :%ld",timeoutMs);
+		AAMPLOG_INFO("Setting Audio timeout to :%ld %f",timeoutMs,aBufferDuration);
 	}
 }
 

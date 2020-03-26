@@ -4766,7 +4766,7 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 
 double TrackState::GetBufferedDuration()
 {
-	return (playTarget + mCulledSeconds - (aamp->GetPositionMilliseconds() / 1000));
+	return (playTarget - (aamp->GetPositionMilliseconds() / 1000));
 }
 
 
