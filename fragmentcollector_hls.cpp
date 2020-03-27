@@ -6161,6 +6161,7 @@ void TrackState::StartInjection()
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::StartInjection(void)
 {
+	mTrackState = eDISCONTIUITY_FREE;
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
