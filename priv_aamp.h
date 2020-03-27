@@ -561,6 +561,7 @@ public:
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
 	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState useRetuneForUnpairedDiscontinuity; /**< Used for unpaired discontinuity retune logic*/
 	TriState mAsyncTuneConfig;		/**< Enalbe Async tune from application */
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
@@ -703,6 +704,7 @@ public:
 #else
 		,bPositionQueryEnabled(true)
 #endif
+		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1698,6 +1700,7 @@ public:
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
+	bool mUseRetuneForUnpairedDiscontinuity;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;
@@ -2659,6 +2662,14 @@ public:
 	void SetBulkTimedMetaReport(bool bValue);
 
 	/**
+	 *	 @brief Set unpaired discontinuity retune flag
+	 *	 @param[in] bValue - true if unpaired discontinuity retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForUnpairedDiscontinuity(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
@@ -2943,6 +2954,12 @@ public:
 	*
 	*/
 	void ConfigureBulkTimedMetadata();
+
+	/**
+	 *	 @brief To set unpaired discontinuity retune configuration
+	 *
+	 */
+	void ConfigureRetuneForUnpairedDiscontinuity();
 
 	/**
 	 *	 @brief Function to configure PreCachePlaylist

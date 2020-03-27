@@ -81,6 +81,14 @@ enum BufferHealthStatus
 	BUFFER_STATUS_RED     /**< Failed state, where buffers have run dry, and player experiences underrun/stalled video */
 };
 
+typedef enum
+{
+	eDISCONTIUITY_FREE = 0,
+	eDISCONTINUIY_IN_VIDEO = 1,
+	eDISCONTINUIY_IN_AUDIO = 2,
+	eDISCONTINUIY_IN_BOTH = 3
+} MediaTrackDiscontinuityState;
+
 /**
  * @brief Base Class for Media Track
  */
@@ -258,6 +266,14 @@ public:
 	 * @brief Returns if the end of track reached.
 	 */
 	virtual bool IsAtEndOfTrack() { return eosReached;}
+
+	/**
+	 * @brief To check for discontinuity in future fragments.
+	 *
+	 * @param[out] cacheDuration - cached fragment duration in seconds
+	 * @return bool - true if discontinuity present, false otherwise
+	 */
+	bool CheckForFutureDiscontinuity(double &cacheDuration);
 
 protected:
 
@@ -819,6 +835,25 @@ public:
 	 */
 	double GetLastInjectedFragmentPosition();
 
+	/**
+	 *   @brief Function to process discontinuity.
+	 *
+	 *   @param[in] type - track type.
+	 */
+	bool ProcessDiscontinuity(TrackType type);
+
+	/**
+	 *   @brief Function to abort any wait for discontinuity by injector theads.
+	 */
+	void AbortWaitForDiscontinuity();
+
+	/**
+	 *   @brief Function to check if any media tracks are stalled on discontinuity.
+	 *
+	 *   @param[in] type - track type.
+	 */
+	void CheckForMediaTrackInjectionStall(TrackType type);
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -869,10 +904,13 @@ private:
 	long long mStartTimeStamp;          /**< stores timestamp at which injection starts */
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 	int mRampDownLimit;		/**< stores ramp down limit value */
+	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
+	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;
 	std::vector<TextTrackInfo> mTextTracks;
+	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

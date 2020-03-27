@@ -3601,6 +3601,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
 			logprintf("bulk-timedmeta-report=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useRetuneForUnpairedDiscontinuity=", value) == 1)
+		{
+			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
+			logprintf("useRetuneForUnpairedDiscontinuity=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "async-tune=", value) == 1)
 		{
 			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
@@ -4711,6 +4716,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureManifestTimeout();
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
+	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
 	
@@ -4985,34 +4991,31 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
 	AAMPLOG_TRACE("%s:%d : Enter mediaType %d", __FUNCTION__, __LINE__, mediaType);
-	if(mProcessingDiscontinuity[eMEDIATYPE_VIDEO] && mProcessingDiscontinuity[eMEDIATYPE_AUDIO])
+	if(!(mStreamSink->CheckForPTSChange()))
 	{
-		if(!(mStreamSink->CheckForPTSChange()))
+		auto now =  aamp_GetCurrentTimeMS();
+		if(mLastDiscontinuityTimeMs == 0)
 		{
-			auto now =  aamp_GetCurrentTimeMS();
-			if(mLastDiscontinuityTimeMs == 0)
-			{
-				mLastDiscontinuityTimeMs = now;
-			}
-			else
-			{
-				auto diff = now - mLastDiscontinuityTimeMs;
-				AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms",__FUNCTION__, __LINE__, diff);
-				if(diff > gpGlobalConfig->discontinuityTimeout)
-				{
-					mLastDiscontinuityTimeMs = 0;
-					mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-					mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-					ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
-				}
-			}
+			mLastDiscontinuityTimeMs = now;
 		}
 		else
 		{
-			mLastDiscontinuityTimeMs = 0;
+			auto diff = now - mLastDiscontinuityTimeMs;
+			AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms\n",__FUNCTION__, __LINE__, diff);
+			if(diff > gpGlobalConfig->discontinuityTimeout)
+			{
+				mLastDiscontinuityTimeMs = 0;
+				mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+				mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+				ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
+			}
 		}
 	}
-	AAMPLOG_TRACE("%s:%d : Exit mediaType %d", __FUNCTION__, __LINE__, mediaType);
+	else
+	{
+		mLastDiscontinuityTimeMs = 0;
+	}
+	AAMPLOG_TRACE("%s:%d : Exit mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
 }
 
 /**
@@ -6535,7 +6538,14 @@ void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 	aamp->SetBulkTimedMetaReport(bValue);
 }
 
-
+/**
+ *   @brief Set unpaired discontinuity retune flag
+ */
+void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetRetuneForUnpairedDiscontinuity(bValue);
+}
 
 /**
  *   @brief Setting the alternate contents' (Ads/blackouts) URL.
@@ -7611,6 +7621,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mAppName()
 	, mABRBufferCheckEnabled(false)
 	, mProgressReportFromProcessDiscontinuity(false)
+	, mUseRetuneForUnpairedDiscontinuity(true)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -9000,6 +9011,31 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
                 mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
         }
         AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
+}
+
+/**
+ *   @brief To set unpaired discontinuity retune configuration
+ *
+ */
+void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
+{
+    if(gpGlobalConfig->useRetuneForUnpairedDiscontinuity != eUndefinedState)
+    {
+            mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
+    }
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For Unpaired Discontinuity [%d]", __FUNCTION__, __LINE__, mUseRetuneForUnpairedDiscontinuity);
+}
+
+/**
+ *   @brief Set unpaired discontinuity retune flag
+ *   @param[in] bValue - true if unpaired discontinuity retune set
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
+{
+    mUseRetuneForUnpairedDiscontinuity = bValue;
+    AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**

@@ -191,6 +191,7 @@ langcodepref=<X>
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
+useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

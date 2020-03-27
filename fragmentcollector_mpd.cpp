@@ -6412,6 +6412,7 @@ void PrivateStreamAbstractionMPD::StopInjection(void)
 */
 void StreamAbstractionAAMP_MPD::StartInjection(void)
 {
+	mTrackState = eDISCONTIUITY_FREE;
 	mPriv->StartInjection();
 }
 
