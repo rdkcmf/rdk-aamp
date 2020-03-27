@@ -2372,7 +2372,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 #if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
 						logprintf("HTTP RESPONSE CODE: %ld", http_code);
 #else
-						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code);
+						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code, simType);
 #endif /* 0 */
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
@@ -2415,7 +2415,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					 */
 					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
-						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD );
+						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD, simType);
 					}
 				}
 				else
@@ -2432,7 +2432,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					//Log errors due to curl stall/start detection abort
 					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
-						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE));
+						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
