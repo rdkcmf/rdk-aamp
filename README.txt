@@ -186,6 +186,8 @@ aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default va
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
 customHeader=<customHeaderString> custom header string data to be appended to curl request
+        Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
+uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
@@ -193,7 +195,6 @@ minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
-
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
