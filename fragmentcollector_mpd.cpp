@@ -6046,8 +6046,8 @@ MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
 double StreamAbstractionAAMP_MPD::GetBufferedDuration()
 {
 	MediaTrack *video = mPriv->GetMediaTrack(eTRACK_VIDEO);
-	double retval = 0.0;
-	if (video->enabled)
+	double retval = -1.0; 
+	if (video && video->enabled)
 	{
 		retval = video->GetBufferedDuration();
 	}
@@ -6288,6 +6288,7 @@ void PrivateStreamAbstractionMPD::StopInjection(void)
 */
 void StreamAbstractionAAMP_MPD::StartInjection(void)
 {
+	mTrackState = eDISCONTIUITY_FREE;
 	mPriv->StartInjection();
 }
 

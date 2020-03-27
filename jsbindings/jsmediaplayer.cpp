@@ -78,6 +78,7 @@ enum ConfigParamType
 	ePARAM_PARALLELPLAYLISTREFRESH,
 	ePARAM_PRECACHEPLAYLISTTIME,
 	ePARAM_USE_NEWABR,
+	ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY,
 	ePARAM_MAX_COUNT
 };
 
@@ -125,6 +126,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PARALLELPLAYLISTREFRESH, "parallelPlaylistRefresh" },
 	{ ePARAM_PRECACHEPLAYLISTTIME, "preCachePlaylistTime" },
 	{ ePARAM_USE_NEWABR, "useNewABR" },
+	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -467,6 +469,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_WESTEROS_SINK:
 			case ePARAM_USE_NEWABR:
 			case ePARAM_AVGBWFORABR:
+			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -547,6 +550,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);
+					break;
+				case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
+					privObj->_aamp->SetRetuneForUnpairedDiscontinuity(valueAsBoolean);
 					break;
 				case ePARAM_AVGBWFORABR:
 					privObj->_aamp->SetAvgBWForABR(valueAsBoolean);

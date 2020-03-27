@@ -332,7 +332,7 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetFirstPTS()
 
 double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
 {
-	return 0.0;
+	return -1.0;
 }
 
 /**
