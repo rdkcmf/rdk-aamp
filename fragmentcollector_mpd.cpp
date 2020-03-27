@@ -271,7 +271,7 @@ public:
 			int iFogError = -1;
 			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &bitrate, &iFogError);
+						range, actualType, &http_code, &bitrate, &iFogError, fragmentDurationSeconds );
 
 			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 			{
