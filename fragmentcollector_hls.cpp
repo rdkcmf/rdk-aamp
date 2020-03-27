@@ -3839,11 +3839,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 			}
 		}
-		else
-		{
-			// For new tune, generate audio and text track structures
-			PopulateAudioAndTextTracks();
-		}
+
+		// Generate audio and text track structures
+		PopulateAudioAndTextTracks();
 
 		currentProfileIndex = GetDesiredProfile(false);
 		lastSelectedProfileIndex = currentProfileIndex;
