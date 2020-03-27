@@ -417,6 +417,7 @@ public:
 	int GetBestAudioTrackByLanguage( void );
 	// Function to update seek position
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
+	double GetBufferedDuration();
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

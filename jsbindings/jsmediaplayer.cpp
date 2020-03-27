@@ -220,6 +220,7 @@ enum ConfigParamType
 	ePARAM_DOWNLOADSTARTTIMEOUT,
 	ePARAM_SUBTITLELANGUAGE,
 	ePARAM_MANIFESTTIMEOUT,
+	ePARAM_PLAYLISTTIMEOUT,
 	ePARAM_PARALLELPLAYLISTDL,
 	ePARAM_ASYNCTUNE,
 	ePARAM_USE_WESTEROS_SINK,
@@ -257,6 +258,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PLAYBACKOFFSET, "offset" },
 	{ ePARAM_NETWORKTIMEOUT, "networkTimeout" },
 	{ ePARAM_MANIFESTTIMEOUT, "manifestTimeout" },
+	{ ePARAM_PLAYLISTTIMEOUT, "playlistTimeout" },
 	{ ePARAM_DOWNLOADBUFFER, "downloadBuffer" },
 	{ ePARAM_MINBITRATE, "minBitrate" },
 	{ ePARAM_MAXBITRATE, "maxBitrate" },
@@ -640,6 +642,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PLAYBACKOFFSET:
 			case ePARAM_NETWORKTIMEOUT:
 			case ePARAM_MANIFESTTIMEOUT:
+			case ePARAM_PLAYLISTTIMEOUT:
 			case ePARAM_DOWNLOADBUFFER:
 			case ePARAM_MINBITRATE:
 			case ePARAM_MAXBITRATE:
@@ -695,10 +698,13 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->Seek(valueAsNumber);
 					break;
 				case ePARAM_NETWORKTIMEOUT:
-					privObj->_aamp->SetNetworkTimeout((long) valueAsNumber);
+					privObj->_aamp->SetNetworkTimeout(valueAsNumber);
 					break;
 				case ePARAM_MANIFESTTIMEOUT:
 					privObj->_aamp->SetManifestTimeout(valueAsNumber);
+					break;
+				case ePARAM_PLAYLISTTIMEOUT:
+					privObj->_aamp->SetPlaylistTimeout(valueAsNumber);
 					break;
 				case ePARAM_PROGRESSREPORTINTERVAL:
 					privObj->_aamp->SetReportInterval((valueAsNumber*1000));

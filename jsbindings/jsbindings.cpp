@@ -3084,7 +3084,7 @@ static JSValueRef AAMP_setNetworkTimeout(JSContextRef context, JSObjectRef funct
 	}
 	else
 	{
-		long networkTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+		double networkTimeout = (double)JSValueToNumber(context, arguments[0], exception);
 		pAAMP->_aamp->SetNetworkTimeout(networkTimeout);
 	}
 

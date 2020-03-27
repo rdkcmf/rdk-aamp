@@ -423,7 +423,7 @@ public:
 
 	double GetBufferedDuration()
 	{
-		return (fragmentTime - (aamp->GetPositionMilliseconds() / 1000));
+		return (fragmentTime - (aamp->GetPositionMs() / 1000));
 	}
 
 
@@ -6190,6 +6190,18 @@ void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutpu
 MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
 {
 	return mPriv->GetMediaTrack(type);
+}
+
+
+double StreamAbstractionAAMP_MPD::GetBufferedDuration()
+{
+	MediaTrack *video = mPriv->GetMediaTrack(eTRACK_VIDEO);
+	double retval = -1.0; 
+	if (video && video->enabled)
+	{
+		retval = video->GetBufferedDuration();
+	}
+	return retval;
 }
 
 

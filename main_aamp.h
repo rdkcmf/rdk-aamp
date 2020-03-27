@@ -1299,7 +1299,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(long timeout);
+	void SetNetworkTimeout(double timeout);
 
 	/**
 	 *   @brief Optionally override default HLS main manifest download timeout with app-specific value.
@@ -1307,6 +1307,13 @@ public:
 	 *   @param[in] preferred timeout value
 	 */
 	void SetManifestTimeout(double timeout);
+
+	/**
+	 *   @brief Optionally override default HLS main manifest download timeout with app-specific value.
+	 *
+	 *   @param[in] preferred timeout value
+	*/
+	void SetPlaylistTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value

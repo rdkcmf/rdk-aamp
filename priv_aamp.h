@@ -61,7 +61,8 @@ static const char *mMediaFormatName[] =
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-#define CURL_FRAGMENT_DL_TIMEOUT 10L     /**< Curl timeout for fragment download */
+#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
+#define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
@@ -83,6 +84,7 @@ static const char *mMediaFormatName[] =
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
 #define DEF_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
+#define MAX_DIFF_BETWEEN_PTS_POS_MS (3600*1000)
 
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
@@ -102,6 +104,9 @@ static const char *mMediaFormatName[] =
 #define MAX_PTS_ERRORS_THRESHOLD 4
 
 #define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
+#define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 // 10sec buffer before rampdown
+#define AAMP_HIGH_BUFFER_BEFORE_RAMPUP  15 // 15sec buffer before rampup
+
 
 #define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
@@ -578,7 +583,8 @@ public:
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
 	long networkTimeoutMs;                 	/**< Fragment download timeout in ms*/
-	long manifestTimeoutMs;                 	/**< Manifest download timeout in ms*/
+	long manifestTimeoutMs;                 /**< Manifest download timeout in ms*/
+	long playlistTimeoutMs;                 /**< Playlist download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	bool useLinearSimulator;				/**< Simulate linear stream from VOD asset*/
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
@@ -587,7 +593,9 @@ public:
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
-	TriState abrBufferCheckEnabled;             /**< Flag to enable/disable buffer based ABR handling*/
+	int minABRBufferForRampDown;		/**< Mininum ABR Buffer for Rampdown*/
+	int maxABRBufferForRampUp;		/**< Maximum ABR Buffer for Rampup*/
+	TriState abrBufferCheckEnabled;         /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -671,7 +679,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
-		,curlStallTimeout(5), curlDownloadStartTimeout(3)
+		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
@@ -693,6 +701,7 @@ public:
 		,manifestTimeoutMs(-1)
 		,fragmp4LicensePrefetch(true)
 		,enableBulkTimedMetaReport(eUndefinedState)
+		,playlistTimeoutMs(-1)
 		,mAsyncTuneConfig(eUndefinedState)
 		,mWesterosSinkConfig(eUndefinedState)
 		,aampRemovePersistent(0)
@@ -700,7 +709,7 @@ public:
 		,mUseAverageBWForABR(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,parallelPlaylistRefresh(eUndefinedState)
-		,abrBufferCheckEnabled(eUndefinedState)
+		,abrBufferCheckEnabled(eUndefinedState) 		
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -708,6 +717,8 @@ public:
 #endif
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
 		,pcustomHeader(NULL)
+		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
+		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1697,6 +1708,7 @@ public:
 	double mLiveOffset;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
+	long mPlaylistTimeoutMs;
 	bool mParallelFetchPlaylist;
 	bool mParallelFetchPlaylistRefresh;
 	bool mAsyncTuneEnabled;
@@ -1704,6 +1716,7 @@ public:
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
 	bool mUseRetuneForUnpairedDiscontinuity;
+	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;
@@ -2936,7 +2949,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(long timeout);
+	void SetNetworkTimeout(double timeout);
 	/**
 	 *   @brief To set the network timeout as per priority
 	 *
@@ -2947,6 +2960,12 @@ public:
 	 *
 	*/
 	void ConfigureManifestTimeout();
+	/**
+	*   @brief To set the manifest timeout as per priority
+	*
+	*/
+	void ConfigurePlaylistTimeout();
+
 	/**
 	*   @brief To set the parallel playlist fetch configuration
 	*
@@ -2990,6 +3009,12 @@ public:
 	 *   @param[in] preferred timeout value
 	 */
 	void SetManifestTimeout(double timeout);
+	/**
+	*   @brief To set the playlist download timeout value.
+	*
+	*   @param[in] preferred timeout value
+	*/
+	void SetPlaylistTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value

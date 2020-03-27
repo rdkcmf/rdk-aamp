@@ -330,6 +330,11 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetFirstPTS()
     return 0.0;
 }
 
+double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
+{
+	return -1.0;
+}
+
 /**
  * @brief Get index of profile corresponds to bandwidth
  * @param[in] bitrate Bitrate to lookup profile
