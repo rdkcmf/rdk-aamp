@@ -422,9 +422,10 @@ public:
 	 * @param[in] url - content url
 	 * @param[in] downloadTime - download time of the fragment or manifest
 	 * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
+	 * @param[in] type - media type
 	 * @retuen void
 	 */
-	void LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs);
+	void LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs, MediaType type);
 
 	/**
 	 * @brief Print the network error level logging for triage purpose
@@ -432,9 +433,10 @@ public:
 	 * @param[in] url - content url
 	 * @param[in] errorType - it can be http or curl errors
 	 * @param[in] errorCode - it can be http error or curl error code
+	 * @param[in] type - media type
 	 * @retuen void
 	 */
-	void LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode);
+	void LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode, MediaType type);
 
 	/**
 	 * @brief To get the issue symptom based on the error type for triage purpose
@@ -443,9 +445,10 @@ public:
 	 * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
 	 * @param[out] location - server location
 	 * @param[out] symptom - issue exhibiting scenario for error case
+	 * @param[in] type - media type
 	 * @retuen void
 	 */
-	void ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom);
+	void ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type);
 
 	/**
 	 * @brief Print the DRM error level logging for triage purpose

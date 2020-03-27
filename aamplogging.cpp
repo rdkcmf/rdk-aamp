@@ -96,15 +96,16 @@ const char* AampLogManager::getAampCliCfgPath(void)
  * @param[in] url - content url
  * @param[in] downloadTime - download time of the fragment or manifest
  * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs)
+void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs, MediaType type)
 {
 	std::string contentType;
 	std::string location;
 	std::string symptom;
 
-	ParseContentUrl(url, contentType, location, symptom);
+	ParseContentUrl(url, contentType, location, symptom, type);
 
 	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
@@ -115,15 +116,16 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
  * @param[in] url - content url
  * @param[in] errorType - it can be http or curl errors
  * @param[in] errorCode - it can be http error or curl error code
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode)
+void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode, MediaType type)
 {
 	std::string contentType;
 	std::string location;
 	std::string symptom;
 
-	ParseContentUrl(url, contentType, location, symptom);
+	ParseContentUrl(url, contentType, location, symptom, type);
 
 	switch(errorType)
 	{
@@ -168,54 +170,56 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
  * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
  * @param[out] location - server location
  * @param[out] symptom - issue exhibiting scenario for error case
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom)
+void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type)
 {
 	contentType="unknown";
 	location="unknown";
 	symptom="unknown";
 
-	if(strstr(url,".m3u8") || strstr(url,".mpd") || strstr(url,"-init.seg"))
+	switch (type)
 	{
-		if(strstr(url,"-bandwidth-"))
-		{
-			contentType = "sub manifest";
-			symptom = "freeze/buffering";
-		}
-		else
+		case eMEDIATYPE_MANIFEST:
 		{
 			contentType = "main manifest";
 			symptom = "video fails to start, has delayed start or freezes/buffers";
 		}
-	}
-	else if(strstr(url,".ts") || strstr(url,".mp4"))
-	{
-		if(strstr(url, "-header"))
+			break;
+
+		case eMEDIATYPE_INIT_VIDEO:
+		case eMEDIATYPE_INIT_AUDIO:
+		case eMEDIATYPE_INIT_IFRAME:
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+		case eMEDIATYPE_PLAYLIST_IFRAME:
 		{
 			contentType = "sub manifest";
-			symptom = "freeze/buffering";
+			symptom = "video fails to start or freeze/buffering";
 		}
-		if(strstr(url,"-iframe"))
-		{
-			contentType = "iframe";
-			symptom = "trickplay ends or freezes";
-		}
-		else if(strstr(url,"-muxed"))
-		{
-			contentType = "muxed segment";
-			symptom = "freeze/buffering";
-		}
-		else if(strstr(url,"-video"))
+			break;
+
+		case eMEDIATYPE_VIDEO:
 		{
 			contentType = "video segment";
 			symptom = "freeze/buffering";
 		}
-		else if(strstr(url,"-audio"))
+			break;
+
+		case eMEDIATYPE_AUDIO:
 		{
 			contentType = "audio segment";
-			symptom = "freeze/buffering";
+			symptom = "audio drop or freeze/buffering";
 		}
+			break;
+
+		case eMEDIATYPE_IFRAME:
+		{
+			contentType = "iframe";
+			symptom = "trickplay ends or freezes";
+		}
+			break;
 	}
 
 	if(strstr(url,"//mm."))
