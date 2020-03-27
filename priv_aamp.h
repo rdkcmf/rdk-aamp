@@ -82,6 +82,7 @@ static const char *mMediaFormatName[] =
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
 #define DEF_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
+#define MAX_DIFF_BETWEEN_PTS_POS_MS (3600*1000)
 
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
@@ -663,7 +664,7 @@ public:
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
 		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
-		,curlStallTimeout(5), curlDownloadStartTimeout(3)
+		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
@@ -686,7 +687,7 @@ public:
 		,mUseAverageBWForABR(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,parallelPlaylistRefresh(eUndefinedState)
-		,abrBufferCheckEnabled(eUndefinedState)
+		,abrBufferCheckEnabled(eUndefinedState) 		
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1707,6 +1708,7 @@ public:
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
+	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
 	pthread_t fragmentCollectorThreadID;

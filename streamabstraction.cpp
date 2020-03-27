@@ -1061,19 +1061,22 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 	// Lower threshold before rampdown to happen - 5sec 
 	// Higher threshold before attempting rampup - 15sec
 	// So player to maintain steady state ABR if 10sec buffer is available and absorb all the shocks
-	if(newBandwidth > currentBandwidth)
+	if(bufferValue > 0 )
 	{
-		// Rampup attempt . check if buffer availability is good before profile change
-		// else retain current profile  
-		if(bufferValue < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
-			newProfileIndex = currProfileIndex;
-	}
-	else
-	{
-		// Rampdown attempt. check if buffer availability is good before profile change
-		// else retain current profile
-		if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
-			newProfileIndex = currProfileIndex;
+		if(newBandwidth > currentBandwidth)
+		{
+			// Rampup attempt . check if buffer availability is good before profile change
+			// else retain current profile  
+			if(bufferValue < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+				newProfileIndex = currProfileIndex;
+		}
+		else
+		{
+			// Rampdown attempt. check if buffer availability is good before profile change
+			// else retain current profile
+			if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
+				newProfileIndex = currProfileIndex;
+		}
 	}
 }
 
@@ -1082,18 +1085,21 @@ void StreamAbstractionAAMP::GetDesiredProfileOnCBR(int currProfileIndex, int &ne
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
 	newProfileIndex = currProfileIndex;
-	if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN && mABRProfileChangeIndicator > gpGlobalConfig->abrCacheLength)
+	if(bufferValue > 0)
 	{
-		newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
-		if(newProfileIndex  != currProfileIndex)
+		if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN && mABRProfileChangeIndicator > gpGlobalConfig->abrCacheLength)
 		{
-			logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
+			newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+			if(newProfileIndex  != currProfileIndex)
+			{
+				logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
 				currProfileIndex,newProfileIndex,bufferValue);
+			}
+			// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
+			// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
+			// counter is set back to 0 to prevent frequent rampup from multiple valley points
+			mABRProfileChangeIndicator = 0;
 		}
-		// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
-		// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
-		// counter is set back to 0 to prevent frequent rampup from multiple valley points
-		mABRProfileChangeIndicator = 0;
 	}
 }
 
@@ -1110,34 +1116,42 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 		// If buffer is high , set high timeout , not to fail the download 
 		// If buffer is low , set timeout less than the buffer availability
 		double vBufferDuration = video->GetBufferedDuration();
-		long timeoutMs = (long)(vBufferDuration*1000); ;
-		if(vBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+		if(vBufferDuration > 0)
 		{
-			timeoutMs = std::min(timeoutMs,aamp->mNetworkTimeoutMs);
+			long timeoutMs = (long)(vBufferDuration*1000); ;
+			if(vBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+			{
+				timeoutMs = aamp->mNetworkTimeoutMs;
+			}
+			else
+			{	// enough buffer available 
+				timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
+				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
+			}
+			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_VIDEO);
+			AAMPLOG_INFO("Setting Video timeout to :%ld %f",timeoutMs,vBufferDuration);
 		}
-		else
-		{	// enough buffer available 
-			timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
-		}
-		aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_VIDEO);
-		AAMPLOG_INFO("Setting Video timeout to :%ld %f",timeoutMs,vBufferDuration);
 	}
 	if(audio->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download
 		// If buffer is low , set timeout less than the buffer availability
 		double aBufferDuration = audio->GetBufferedDuration();
-		long timeoutMs = (long)(aBufferDuration*1000);
-		if(aBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+		if(aBufferDuration > 0)
 		{
-			timeoutMs = std::min(timeoutMs,aamp->mNetworkTimeoutMs);
+			long timeoutMs = (long)(aBufferDuration*1000);
+			if(aBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+			{
+				timeoutMs = aamp->mNetworkTimeoutMs;
+			}
+			else
+			{
+				timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
+				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
+			}
+			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_AUDIO);
+			AAMPLOG_INFO("Setting Audio timeout to :%ld %f",timeoutMs,aBufferDuration);
 		}
-		else
-		{
-			timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
-		}
-		aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_AUDIO);
-		AAMPLOG_INFO("Setting Audio timeout to :%ld %f",timeoutMs,aBufferDuration);
 	}
 }
 
@@ -1167,6 +1181,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 		desiredProfileIndex = mAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
 				currentBandwidth, networkBandwidth, nwConsistencyCnt);
 
+		AAMPLOG_INFO("%s currBW:%ld NwBW=%ld currProf:%d desiredProf:%d",__FUNCTION__,currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex);
 		// For first time after tune, not to check for buffer availability, go for existing method .
 		// during steady state run check the buffer for ramp up or ramp down
 		if(!mNwConsistencyBypass && aamp->mABRBufferCheckEnabled)

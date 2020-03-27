@@ -2074,7 +2074,6 @@ void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , 
 		mAbrBitrateData.erase(mAbrBitrateData.begin(),mAbrBitrateData.end());
 	}
 	pthread_mutex_unlock(&mLock);
-	AAMPLOG_WARN("ABRMonitor-Reset::{\"Reason\":\"%s\",\"Bandwidth\":%ld,\"Profile\":%d}",(trickPlay)?"TrickPlay":"Tune",bitsPerSecond,profile);
 }
 
 /**
@@ -4324,6 +4323,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 	else
 	{
+		prevPositionMiliseconds = -1;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
@@ -6427,43 +6427,7 @@ long long PrivateInstanceAAMP::GetDurationMs()
  */
 long long PrivateInstanceAAMP::GetPositionMs()
 {
-	long long positionMiliseconds = (seek_pos_seconds)* 1000.0;
-	if (!pipeline_paused && trickStartUTCMS >= 0)
-	{
-		long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
-		positionMiliseconds += elapsedTime*rate;
-
-		if (positionMiliseconds < 0)
-		{
-			logprintf("%s : Correcting positionMiliseconds %lld to zero", __FUNCTION__, positionMiliseconds);
-			positionMiliseconds = 0;
-		}
-		else if (mpStreamAbstractionAAMP)
-		{
-			if (!mIsLive)
-			{
-				long long durationMs  = GetDurationMs();
-				if(positionMiliseconds > durationMs)
-				{
-					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld", __FUNCTION__, positionMiliseconds, durationMs);
-					positionMiliseconds = durationMs;
-				}
-			}
-			else
-			{
-				long long tsbEndMs = GetDurationMs() + (culledSeconds * 1000.0);
-				if(positionMiliseconds > tsbEndMs)
-				{
-					logprintf("%s : Correcting positionMiliseconds %lld to duration %lld", __FUNCTION__, positionMiliseconds, tsbEndMs);
-					positionMiliseconds = tsbEndMs;
-				}
-			}
-		}
-		// note, using mStreamerInterface->GetPositionMilliseconds() instead of elapsedTime
-		// would likely be more accurate, but would need to be tested to accomodate
-		// and compensate for FF/REW play rates
-	}
-	return positionMiliseconds;
+	return (prevPositionMiliseconds!=-1)?prevPositionMiliseconds:GetPositionMilliseconds();
 }
 
 
@@ -6485,6 +6449,17 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 		{
 			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
 			positionMiliseconds += (((elapsedTime > 1000) ? elapsedTime : 0) * rate);
+		}
+
+		if ((-1 != prevPositionMiliseconds) && (AAMP_NORMAL_PLAY_RATE == rate))
+		{
+			long long diff = positionMiliseconds - prevPositionMiliseconds;
+
+			if ((diff > MAX_DIFF_BETWEEN_PTS_POS_MS) || (diff < 0))
+			{
+				AAMPLOG_WARN("%s:%d diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", __FUNCTION__, __LINE__, diff, prevPositionMiliseconds, positionMiliseconds);
+				positionMiliseconds = prevPositionMiliseconds;
+			}
 		}
 
 		if (positionMiliseconds < 0)
@@ -6514,6 +6489,8 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			}
 		}
 	}
+
+	prevPositionMiliseconds = positionMiliseconds;
 	return positionMiliseconds;
 }
 
@@ -7092,6 +7069,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mParallelPlaylistFetchLock()
 	, mAppName()
 	, mABRBufferCheckEnabled(false)
+	, prevPositionMiliseconds(-1)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7103,6 +7081,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
+
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
