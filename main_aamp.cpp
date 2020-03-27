@@ -2337,9 +2337,13 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param curlInstance instance to be used to fetch
  * @param resetBuffer true to reset buffer before fetch
  * @param fileType media type of the file
+ * @param fragmentDurationSeconds to know the current fragment length in case fragment fetch
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate, int * fogError)
+bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl, 
+				long * http_error, const char *range, unsigned int curlInstance, 
+				bool resetBuffer, MediaType fileType, long *bitrate, int * fogError,
+				double fragmentDurationSeconds 	)
 {
 	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
 	long http_code = -1;
@@ -2349,6 +2353,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
+	long long fragmentDurationMs = 0;
 
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO)
 	{
@@ -2567,7 +2572,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					 * Latency should be printed in the case of successful download which exceeds the download threshold value,
 					 * other than this case is assumed as network error and those will be logged with AAMP_LOG_NETWORK_ERROR.
 					 */
-					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
+					if (fragmentDurationSeconds != 0.0)
+					{ 
+						/*in case of fetch fragment this will be non zero value */
+						fragmentDurationMs = (long long)(fragmentDurationSeconds*1000);/*convert to MS */
+						if (downloadTimeMS > fragmentDurationMs )
+						{
+							AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, fragmentDurationMs, simType);
+						}
+					}
+					else if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
 						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD, simType);
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
@@ -2687,7 +2701,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			{
 				{
 					pthread_mutex_lock(&mLock);
-					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,((long)(buffer->len / downloadTimeMS)*8000)));
+					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
+					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
+					// extra coding to avoid picking lower profile
+					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%lld fragmentDurationMs:%lld",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
+					if(fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && downloadbps < currentProfilebps)
+					{
+						downloadbps = currentProfilebps;
+					}
+					
+					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
 					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
@@ -5518,11 +5541,12 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate,int * fogError)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
+					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, long *bitrate,int * fogError, double fragmentDurationSeconds)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
+	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType, *http_code);
