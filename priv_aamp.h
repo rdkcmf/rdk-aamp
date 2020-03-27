@@ -406,12 +406,13 @@ public:
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
+	bool curlHeader; /**< Curl header logs*/
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false)
 	{
 	}
 
@@ -643,6 +644,7 @@ public:
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
+	char *pcustomHeader;	/*** custom header data to be appended to curl request */
 public:
 
 	/**
@@ -705,6 +707,7 @@ public:
 		,bPositionQueryEnabled(true)
 #endif
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
+		,pcustomHeader(NULL)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

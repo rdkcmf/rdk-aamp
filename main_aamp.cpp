@@ -1615,15 +1615,22 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 struct CurlCallbackContext
 {
 	PrivateInstanceAAMP *aamp;
+	MediaType fileType;
+	std::vector<std::string> allResponseHeadersForErrorLogging;
 	GrowableBuffer *buffer;
 	httpRespHeaderData *responseHeaderData;
 	long bitrate;
 	bool downloadIsEncoded;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false)
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}
 	{
 
 	}
+
+	~CurlCallbackContext() {}
+
+	CurlCallbackContext(const CurlCallbackContext &other) = delete;
+	CurlCallbackContext& operator=(const CurlCallbackContext& other) = delete;
 };
 
 /**
@@ -1691,6 +1698,14 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	}
 
 	ptr[len-2] = 0x00; // replace the unprintable \r, and convert to NUL-terminated C-String
+
+	if (gpGlobalConfig->logging.curlHeader &&
+			ptr[0] &&
+			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
+	{
+		context->allResponseHeadersForErrorLogging.push_back(ptr);
+	}
+
     // As per Hypertext Transfer Protocol ==> Field names are case-insensitive
     // HTTP/1.1 4.2 Message Headers : Each header field consists of a name followed by a colon (":") and the field value. Field names are case-insensitive
     if (STARTS_WITH_IGNORE_CASE(ptr, FOG_REASON_STRING))
@@ -2410,6 +2425,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
+			context.fileType = simType;
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
 			if(gpGlobalConfig->disableSslVerifyPeer)
@@ -2476,6 +2492,12 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
+
+				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
+				{
+					httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->pcustomHeader);
+				}
+
 				if (httpHeaders != NULL)
 				{
 					curl_easy_setopt(curl, CURLOPT_HTTPHEADER, httpHeaders);
@@ -2513,11 +2535,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					char *effectiveUrlPtr = NULL;
 					if (http_code != 200 && http_code != 204 && http_code != 206)
 					{
-#if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
-						logprintf("HTTP RESPONSE CODE: %ld", http_code);
-#else
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code, simType);
-#endif /* 0 */
+
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
 							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
@@ -2577,6 +2596,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
+
+						if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == context.fileType || eMEDIATYPE_PLAYLIST_VIDEO == context.fileType))
+						{
+							int size = context.allResponseHeadersForErrorLogging.size();
+							logprintf("################ Start :: Print Header response ################");
+							for (int i=0; i < size; i++)
+							{
+								logprintf("* %s", context.allResponseHeadersForErrorLogging.at(i).c_str());
+							}
+							logprintf("################ End :: Print Header response ################");
+						}
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
@@ -2601,6 +2631,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						http_code = CURLE_PARTIAL_FILE;
 					}
 				}
+
+				context.allResponseHeadersForErrorLogging.clear();
 
 				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
 				{
@@ -3405,6 +3437,15 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->logging.failover = true;
 			logprintf("failover logging %s", gpGlobalConfig->logging.failover ? "on" : "off");
+		}
+		else if (cfg.compare("curlHeader") == 0)
+		{
+			gpGlobalConfig->logging.curlHeader = true;
+			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
+		}
+		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&gpGlobalConfig->pcustomHeader))
+		{
+			logprintf("customHeader = %s", gpGlobalConfig->pcustomHeader);
 		}
 		else if (cfg.compare("gst") == 0)
 		{

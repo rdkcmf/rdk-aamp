@@ -192,6 +192,8 @@ reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
+curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
+customHeader=<customHeaderString> custom header string data to be appended to curl request
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
