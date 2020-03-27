@@ -1117,6 +1117,14 @@ public:
 	void SetBulkTimedMetaReport(bool bValue);
 
 	/**
+	 *	 @brief Set unpaired discontinuity retune flag
+	 *	 @param[in] bValue - true if unpaired discontinuity retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForUnpairedDiscontinuity(bool bValue);
+
+	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
 	 *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.

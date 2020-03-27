@@ -1057,12 +1057,15 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 
 	if (!g_source_is_destroyed(g_main_current_source()))
 	{
-		aamp->ProcessPendingDiscontinuity();
-
-		aamp->SyncBegin();
-		aamp->mDiscontinuityTuneOperationId = 0;
-		pthread_cond_signal(&aamp->mCondDiscontinuity);
-		aamp->SyncEnd();
+		bool ret = aamp->ProcessPendingDiscontinuity();
+		// This is to avoid calling cond signal, in case Stop() interrupts the ProcessPendingDiscontinuity
+		if (!ret)
+		{
+			aamp->SyncBegin();
+			aamp->mDiscontinuityTuneOperationId = 0;
+			pthread_cond_signal(&aamp->mCondDiscontinuity);
+			aamp->SyncEnd();
+		}
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -1080,22 +1083,25 @@ bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 
 /**
  * @brief Process pending discontinuity and continue playback of stream after discontinuity
+ *
+ * @return true if pending discontinuity was processed successful, false if interrupted
  */
-void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
+bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 {
+	bool ret = true;
 	SyncBegin();
 	if (mDiscontinuityTuneOperationInProgress)
 	{
 		SyncEnd();
 		logprintf("PrivateInstanceAAMP::%s:%d Discontinuity Tune Operation already in progress", __FUNCTION__, __LINE__);
-		return;
+		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
 
 	if (!(mProcessingDiscontinuity[eMEDIATYPE_VIDEO] && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d Discontinuity status of video - (%d) and audio - (%d)", __FUNCTION__, __LINE__, mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
-		return;
+		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 
 	SyncBegin();
@@ -1104,33 +1110,77 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 
 	if (mProcessingDiscontinuity[eMEDIATYPE_AUDIO] && mProcessingDiscontinuity[eMEDIATYPE_VIDEO])
 	{
+		bool continueDiscontProcessing = true;
 		logprintf("PrivateInstanceAAMP::%s:%d mProcessingDiscontinuity set", __FUNCTION__, __LINE__);
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
-		seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f\n", __FUNCTION__, __LINE__, seek_pos_seconds);
-		trickStartUTCMS = -1;
-		mpStreamAbstractionAAMP->StopInjection();
-#ifndef AAMP_STOP_SINK_ON_SEEK
-		if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
 		{
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			double newPosition = GetPositionMilliseconds() / 1000.0;
+			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d last injected position:%f position calcualted: %f", __FUNCTION__, __LINE__, injectedPosition, newPosition);
+	
+			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
+			// GStreamer position reporting is taken care of.
+			if (injectedPosition != 0 && fabs(injectedPosition - newPosition) < 5.0)
+			{
+				seek_pos_seconds = injectedPosition;
+			}
+			else
+			{
+				seek_pos_seconds = newPosition;
+			}
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f", __FUNCTION__, __LINE__, seek_pos_seconds);
 		}
+		trickStartUTCMS = -1;
+
+		SyncBegin();
+		mProgressReportFromProcessDiscontinuity = true;
+		SyncEnd();
+
+		// To notify app of discontinuity processing complete
+		ReportProgress();
+
+		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
+		// Make sure we have still mDiscontinuityTuneOperationInProgress set
+		SyncBegin();
+		mProgressReportFromProcessDiscontinuity = false;
+		continueDiscontProcessing = mDiscontinuityTuneOperationInProgress;
+		SyncEnd();
+
+		if (continueDiscontProcessing)
+		{
+			mpStreamAbstractionAAMP->StopInjection();
+#ifndef AAMP_STOP_SINK_ON_SEEK
+			if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			}
 #else
-		mStreamSink->Stop(true);
+			mStreamSink->Stop(true);
 #endif
-		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
-		mpStreamAbstractionAAMP->StartInjection();
-		mStreamSink->Stream();
-		mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-		mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-		mLastDiscontinuityTimeMs = 0;
+			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
+			mpStreamAbstractionAAMP->StartInjection();
+			mStreamSink->Stream();
+			mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+			mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+			mLastDiscontinuityTimeMs = 0;
+		}
+		else
+		{
+			ret = false;
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d mDiscontinuityTuneOperationInProgress was reset during operation, since other command received from app!", __FUNCTION__, __LINE__);
+		}
 	}
 
-	SyncBegin();
-	mDiscontinuityTuneOperationInProgress = false;
-	SyncEnd();
+	if (ret)
+	{
+		SyncBegin();
+		mDiscontinuityTuneOperationInProgress = false;
+		SyncEnd();
+	}
+
+	return ret;
 }
 
 /**
@@ -1541,15 +1591,22 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 struct CurlCallbackContext
 {
 	PrivateInstanceAAMP *aamp;
+	MediaType fileType;
+	std::vector<std::string> allResponseHeadersForErrorLogging;
 	GrowableBuffer *buffer;
 	httpRespHeaderData *responseHeaderData;
 	long bitrate;
 	bool downloadIsEncoded;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false)
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}
 	{
 
 	}
+
+	~CurlCallbackContext() {}
+
+	CurlCallbackContext(const CurlCallbackContext &other) = delete;
+	CurlCallbackContext& operator=(const CurlCallbackContext& other) = delete;
 };
 
 /**
@@ -1595,6 +1652,26 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 }
 
 /**
+ * @brief function to print header response during download failure and latency.
+ * @param type current media type
+ */
+static void print_headerResponse(std::vector<std::string> &allResponseHeadersForErrorLogging, MediaType fileType)
+{
+	if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == fileType || eMEDIATYPE_PLAYLIST_VIDEO == fileType))
+	{
+		int size = allResponseHeadersForErrorLogging.size();
+		logprintf("################ Start :: Print Header response ################");
+		for (int i=0; i < size; i++)
+		{
+			logprintf("* %s", allResponseHeadersForErrorLogging.at(i).c_str());
+		}
+		logprintf("################ End :: Print Header response ################");
+	}
+
+	allResponseHeadersForErrorLogging.clear();
+}
+
+/**
  * @brief callback invoked on http header by curl
  * @param ptr pointer to buffer containing the data
  * @param size size of the buffer
@@ -1617,6 +1694,14 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	}
 
 	ptr[len-2] = 0x00; // replace the unprintable \r, and convert to NUL-terminated C-String
+
+	if (gpGlobalConfig->logging.curlHeader &&
+			ptr[0] &&
+			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
+	{
+		context->allResponseHeadersForErrorLogging.push_back(ptr);
+	}
+
     // As per Hypertext Transfer Protocol ==> Field names are case-insensitive
     // HTTP/1.1 4.2 Message Headers : Each header field consists of a name followed by a colon (":") and the field value. Field names are case-insensitive
     if (STARTS_WITH_IGNORE_CASE(ptr, FOG_REASON_STRING))
@@ -2256,6 +2341,19 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 		long long downloadTimeMS = 0;
 		bool isDownloadStalled = false;
 		pthread_mutex_unlock(&mLock);
+
+		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
+		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST)
+		{
+			if (remoteUrl.find("?") == std::string::npos)
+			{
+				gpGlobalConfig->uriParameter[0] = '?';
+			}
+
+			remoteUrl.append(gpGlobalConfig->uriParameter);
+			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
+		}
+
 		AAMPLOG_INFO("aamp url: %s", remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
@@ -2265,6 +2363,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
+			context.fileType = simType;
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
 			if(gpGlobalConfig->disableSslVerifyPeer)
@@ -2340,6 +2439,20 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
+
+				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
+				{
+					int size = gpGlobalConfig->customHeaderStr.size();
+					for (int i=0; i < size; i++)
+					{
+						if (!gpGlobalConfig->customHeaderStr.at(i).empty())
+						{
+							//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, gpGlobalConfig->customHeaderStr.at(i).c_str());
+							httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->customHeaderStr.at(i).c_str());
+						}
+					}
+				}
+
 				if (httpHeaders != NULL)
 				{
 					curl_easy_setopt(curl, CURLOPT_HTTPHEADER, httpHeaders);
@@ -2377,11 +2490,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					char *effectiveUrlPtr = NULL;
 					if (http_code != 200 && http_code != 204 && http_code != 206)
 					{
-#if 0 /* Commented since the same is supported via AAMP_LOG_NETWORK_ERROR */
-						logprintf("HTTP RESPONSE CODE: %ld", http_code);
-#else
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code, simType);
-#endif /* 0 */
+						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
+
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
 							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
@@ -2424,6 +2535,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
 						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD, simType);
+						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
 				}
 				else
@@ -2441,12 +2553,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
+						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < 2)
 					{
-						if(mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->GetBufferedDuration()*1000 > curlDownloadTimeoutMS)
+						if(mpStreamAbstractionAAMP) 
 						{	
 							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
 							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) ||
@@ -3214,6 +3327,26 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->logging.logMetadata = true;
 			logprintf("logMetadata logging %s", gpGlobalConfig->logging.logMetadata ? "on" : "off");
 		}
+		else if (cfg.compare("curlHeader") == 0)
+		{
+			gpGlobalConfig->logging.curlHeader = true;
+			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
+		}
+		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&tmpValue))
+		{
+			if (tmpValue)
+			{
+				gpGlobalConfig->customHeaderStr.push_back(tmpValue);
+				logprintf("customHeader = %s", tmpValue);
+
+				free(tmpValue);
+				tmpValue = NULL;
+			}
+		}
+		else if (ReadConfigStringHelper(cfg, "uriParameter=", (const char**)&gpGlobalConfig->uriParameter))
+		{
+			logprintf("uriParameter = %s", gpGlobalConfig->uriParameter);
+		}
 		else if (cfg.compare("gst") == 0)
 		{
 			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
@@ -3397,6 +3530,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
 			logprintf("bulk-timedmeta-report=%d", value);
+		}
+		else if (ReadConfigNumericHelper(cfg, "useRetuneForUnpairedDiscontinuity=", value) == 1)
+		{
+			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
+			logprintf("useRetuneForUnpairedDiscontinuity=%d", value);
 		}
 		else if (ReadConfigNumericHelper(cfg, "useWesterosSink=", value) == 1)
 		{
@@ -3805,17 +3943,44 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	//Have to perfom this for trick and stop operations but avoid ad insertion related ones
 	if ((mDiscontinuityTuneOperationId != 0) && (!newTune || mState == eSTATE_IDLE))
 	{
-		//wait for discont tune operation to finish before proceeding with stop
-		if (mDiscontinuityTuneOperationInProgress)
+		bool waitForDiscontinuityProcessing = true;
+		if (mProgressReportFromProcessDiscontinuity)
 		{
-			pthread_cond_wait(&mCondDiscontinuity, &mLock);
+			gint callbackID = 0;
+			GSource *source = g_main_current_source();
+			if (source != NULL)
+			{
+				callbackID = g_source_get_id(source);
+			}
+			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
+			{
+				AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set, mDiscontinuityTuneOperationId[%d]!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
+				waitForDiscontinuityProcessing = false; // to avoid deadlock
+				mDiscontinuityTuneOperationInProgress = false;
+				mDiscontinuityTuneOperationId = 0;
+			}
 		}
-		else
+		if (waitForDiscontinuityProcessing)
 		{
-			g_source_remove(mDiscontinuityTuneOperationId);
-			mDiscontinuityTuneOperationId = 0;
+			//wait for discont tune operation to finish before proceeding with stop
+			if (mDiscontinuityTuneOperationInProgress)
+			{
+				pthread_cond_wait(&mCondDiscontinuity, &mLock);
+			}
+			else
+			{
+				g_source_remove(mDiscontinuityTuneOperationId);
+				mDiscontinuityTuneOperationId = 0;
+			}
 		}
 	}
+	// Maybe mDiscontinuityTuneOperationId is 0, ProcessPendingDiscontinuity can be invoked from NotifyEOSReached too
+	else if (mProgressReportFromProcessDiscontinuity)
+	{
+		AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set!", __FUNCTION__, __LINE__);
+		mDiscontinuityTuneOperationInProgress = false;
+	}
+
 	//reset discontinuity related flags
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
@@ -4465,6 +4630,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigurePlaylistTimeout();
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
+	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
 	
@@ -4732,32 +4898,29 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
 	AAMPLOG_TRACE("%s:%d : Enter mediaType %d", __FUNCTION__, __LINE__, mediaType);
-	if(mProcessingDiscontinuity[eMEDIATYPE_VIDEO] && mProcessingDiscontinuity[eMEDIATYPE_AUDIO])
+	if(!(mStreamSink->CheckForPTSChange()))
 	{
-		if(!(mStreamSink->CheckForPTSChange()))
+		auto now =  aamp_GetCurrentTimeMS();
+		if(mLastDiscontinuityTimeMs == 0)
 		{
-			auto now =  aamp_GetCurrentTimeMS();
-			if(mLastDiscontinuityTimeMs == 0)
-			{
-				mLastDiscontinuityTimeMs = now;
-			}
-			else
-			{
-				auto diff = now - mLastDiscontinuityTimeMs;
-				AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms\n",__FUNCTION__, __LINE__, diff);
-				if(diff > gpGlobalConfig->discontinuityTimeout)
-				{
-					mLastDiscontinuityTimeMs = 0;
-					mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-					mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-					ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
-				}
-			}
+			mLastDiscontinuityTimeMs = now;
 		}
 		else
 		{
-			mLastDiscontinuityTimeMs = 0;
+			auto diff = now - mLastDiscontinuityTimeMs;
+			AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms\n",__FUNCTION__, __LINE__, diff);
+			if(diff > gpGlobalConfig->discontinuityTimeout)
+			{
+				mLastDiscontinuityTimeMs = 0;
+				mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+				mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+				ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
+			}
 		}
+	}
+	else
+	{
+		mLastDiscontinuityTimeMs = 0;
 	}
 	AAMPLOG_TRACE("%s:%d : Exit mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
 }
@@ -6108,7 +6271,14 @@ void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 	aamp->SetBulkTimedMetaReport(bValue);
 }
 
-
+/**
+ *   @brief Set unpaired discontinuity retune flag
+ */
+void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetRetuneForUnpairedDiscontinuity(bValue);
+}
 
 /**
  *   @brief Setting the alternate contents' (Ads/blackouts) URL.
@@ -6587,7 +6757,9 @@ void PrivateInstanceAAMP::Stop()
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 	// send signal to any thread waiting for play
+	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
+	pthread_mutex_unlock(&mMutexPlaystart);
 	if(mPreCachePlaylistThreadFlag)
 	{
 		pthread_join(mPreCachePlaylistThreadId,NULL);
@@ -6781,7 +6953,9 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
 	SetState(eSTATE_PLAYING);
+	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
+	pthread_mutex_unlock(&mMutexPlaystart);
 
 	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
@@ -7047,6 +7221,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
+	,mMutexPlaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 	,mUseAvgBandwidthForABR(false)
 #ifdef AAMP_HLS_DRM
@@ -7063,6 +7238,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldTimeWindow(0)
 	, mABRBufferCheckEnabled(false)
 	, prevPositionMiliseconds(-1)
+	, mProgressReportFromProcessDiscontinuity(false)
+	, mUseRetuneForUnpairedDiscontinuity(true)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -7110,6 +7287,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
+	pthread_mutex_init(&mMutexPlaystart, NULL);
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mNetworkProxy = NULL;
@@ -7173,6 +7351,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
+	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 #ifdef AAMP_HLS_DRM
@@ -8470,6 +8649,31 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
                 mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
         }
         AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
+}
+
+/**
+ *   @brief To set unpaired discontinuity retune configuration
+ *
+ */
+void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
+{
+    if(gpGlobalConfig->useRetuneForUnpairedDiscontinuity != eUndefinedState)
+    {
+            mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
+    }
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For Unpaired Discontinuity [%d]", __FUNCTION__, __LINE__, mUseRetuneForUnpairedDiscontinuity);
+}
+
+/**
+ *   @brief Set unpaired discontinuity retune flag
+ *   @param[in] bValue - true if unpaired discontinuity retune set
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
+{
+    mUseRetuneForUnpairedDiscontinuity = bValue;
+    AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**

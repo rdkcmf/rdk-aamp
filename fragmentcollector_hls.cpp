@@ -4791,8 +4791,8 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 double StreamAbstractionAAMP_HLS::GetBufferedDuration()
 {
 	TrackState *video = trackState[eTRACK_VIDEO];
-	double retval = 0.0;
-	if (video->enabled)
+	double retval = -1.0;
+	if (video && video->enabled)
 	{
 		retval = video->GetBufferedDuration();
 	}
@@ -6200,6 +6200,7 @@ void TrackState::StartInjection()
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::StartInjection(void)
 {
+	mTrackState = eDISCONTIUITY_FREE;
 	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
 	{
 		TrackState *track = trackState[iTrack];
@@ -6293,6 +6294,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
 							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
+							AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
 							if(reportBulkMeta)
 							{

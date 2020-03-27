@@ -185,6 +185,13 @@ enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splun
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
+useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
+useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
+curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
+customHeader=<customHeaderString> custom header string data to be appended to curl request
+        Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
+uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
+useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

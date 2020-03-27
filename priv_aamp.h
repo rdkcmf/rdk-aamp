@@ -410,12 +410,13 @@ public:
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
 	bool logMetadata;	 /**< Timed metadata logs*/
+	bool curlHeader; /**< Curl header logs*/
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), logMetadata(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), logMetadata(false),curlHeader(false)
 	{
 	}
 
@@ -565,6 +566,7 @@ public:
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
 	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
+	TriState useRetuneForUnpairedDiscontinuity; /**< Used for unpaired discontinuity retune logic*/
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
@@ -643,6 +645,8 @@ public:
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
+	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
+	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 public:
 
 	/**
@@ -700,8 +704,11 @@ public:
 		,enableBulkTimedMetaReport(eUndefinedState)
 		,fragmp4LicensePrefetch(true)
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
+		,uriParameter(NULL)
+		,customHeaderStr{""}
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1714,6 +1721,7 @@ public:
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
+	bool mUseRetuneForUnpairedDiscontinuity;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
@@ -1737,6 +1745,7 @@ public:
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
+	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;
 	long long playStartUTCMS;
 	double durationSeconds;
@@ -2663,6 +2672,14 @@ public:
 	void SetBulkTimedMetaReport(bool bValue);
 
 	/**
+	 *	 @brief Set unpaired discontinuity retune flag
+	 *	 @param[in] bValue - true if unpaired discontinuity retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForUnpairedDiscontinuity(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
@@ -2795,9 +2812,9 @@ public:
 	/**
 	 *   @brief Process pending discontinuity
 	 *
-	 *   @return void
+	 *   @return true if pending discontinuity was processed successful, false if interrupted
 	 */
-	void ProcessPendingDiscontinuity();
+	bool ProcessPendingDiscontinuity();
 
 	/**
 	 *   @brief Notify if first buffer processed by gstreamer
@@ -2953,6 +2970,12 @@ public:
 	*
 	*/
 	void ConfigureBulkTimedMetadata();
+
+	/**
+	 *	 @brief To set unpaired discontinuity retune configuration
+	 *
+	 */
+	void ConfigureRetuneForUnpairedDiscontinuity();
 
 	/**
 	 *	 @brief Function to configure PreCachePlaylist
@@ -3410,6 +3433,7 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
 	std::string mAppName;
 	PreCacheUrlList mPreCacheDnldList;
+	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 };
 
 #endif // PRIVAAMP_H

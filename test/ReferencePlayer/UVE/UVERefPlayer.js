@@ -175,6 +175,10 @@ var defaultInitConfig = {
      * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
      */
     //preCachePlaylistTime: 5
+    /**
+     * enable unpaired discontinuity retune config
+     */
+    //useRetuneForUnpairedDiscontinuity: true
     
 };
 
