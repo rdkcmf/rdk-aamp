@@ -405,12 +405,13 @@ public:
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
+	bool curlHeader; /**< Curl header logs*/
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false)
 	{
 	}
 
@@ -636,6 +637,7 @@ public:
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
+	char *pcustomHeader;	/*** custom header data to be appended to curl request */
 public:
 
 	/**
@@ -693,6 +695,7 @@ public:
 		,enableBulkTimedMetaReport(eUndefinedState)
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
 		,fragmp4LicensePrefetch(true)
+		,pcustomHeader(NULL)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
