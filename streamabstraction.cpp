@@ -296,7 +296,8 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 			ret = false;
 		}
 	}
-	else if (numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
+
+	if ( ret && (numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack) )
 	{
 		if (timeoutMs >= 0)
 		{
