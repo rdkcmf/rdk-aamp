@@ -614,7 +614,8 @@ private:
 	int mNumberOfTracks;
 	int mCurrentPeriodIdx;
 	double mEndPosition;
-	bool mIsLive;
+	bool mIsLiveStream;        //Stream is live or not; won't change during runtime.
+	bool mIsLiveManifest;      //Current manifest is dynamic or static; may change during runtime. eg: Hot DVR.
 	StreamAbstractionAAMP_MPD* mContext;
 	StreamInfo* mStreamInfo;
 	double mPrevStartTimeSeconds;
@@ -650,6 +651,7 @@ private:
 	double mLiveEndPosition;
 	double mCulledSeconds;
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
+	double mAvailabilityStartTime;
 };
 
 
@@ -662,7 +664,7 @@ private:
  */
 PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate) : aamp(aamp),
 	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seekpos), rate(rate), fragmentCollectorThreadID(0), createDRMSessionThreadID(0),
-	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLive(true), mContext(context),
+	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true), mContext(context),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0), lastProcessedKeyId(NULL),
 	lastProcessedKeyIdLen(0), mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
@@ -672,6 +674,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mMaxTSBBandwidth(0), mTSBDepth(0)
 	,mVideoPosRemainder(0)
 	,mPresentationOffsetDelay(0)
+	,mAvailabilityStartTime(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -1324,7 +1327,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					{ // DELIA-35059
 						startTime = pMediaStreamContext->fragmentDescriptor.Time;
 					}
-					if(startTime && mIsLive)
+					if(startTime && mIsLiveStream)
 					{
 						// After mpd refresh , Time will be 0. Need to traverse to the right fragment for playback
 						if(0 == pMediaStreamContext->fragmentDescriptor.Time)
@@ -1456,7 +1459,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
 						((pMediaStreamContext->lastSegmentTime - pMediaStreamContext->fragmentDescriptor.Time) > TIMELINE_START_RESET_DIFF))
 				{
-					if(!mIsLive || !aamp->IsLiveAdjustRequired())
+					if(!mIsLiveStream || !aamp->IsLiveAdjustRequired())
 					{
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time - 1;
 						return false;
@@ -1532,7 +1535,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 			if (0 == pMediaStreamContext->lastSegmentNumber)
 			{
-				if (mIsLive)
+				if (mIsLiveStream)
 				{
 					double liveTime = currentTimeSeconds - aamp->mLiveOffset;
 					if(liveTime < mPeriodStartTime)
@@ -1558,7 +1561,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 
 			// Recalculate the fragmentDescriptor.Time after periodic manifest updates
-			if (mIsLive && 0 == pMediaStreamContext->fragmentDescriptor.Time)
+			if (mIsLiveStream && 0 == pMediaStreamContext->fragmentDescriptor.Time)
 			{
 				pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
 				if(pMediaStreamContext->lastSegmentNumber > segmentTemplate->GetStartNumber())
@@ -1572,16 +1575,16 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			 *Second block is for LIVE, where boundaries are
                          *  mPeriodStartTime and currentTime
 			 */
-			if ((!mIsLive && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))
 							|| (rate < 0 && pMediaStreamContext->fragmentDescriptor.Time < 0)))
-					|| (mIsLive && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
+					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))
 			{
 				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%lld mPeriodStartTime %lld  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
-			else if(mIsLive && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= (currentTimeSeconds-mPresentationOffsetDelay))
+			else if(mIsLiveStream && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= (currentTimeSeconds-mPresentationOffsetDelay))
 			{
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
@@ -1592,7 +1595,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 			else
 			{
-				if (mIsLive)
+				if (mIsLiveStream)
 				{
 					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
@@ -2782,15 +2785,8 @@ double PrivateStreamAbstractionMPD::GetPeriodStartTime(IMPD *mpd, int periodInde
 	{
 		ParseISO8601Duration(statTimeStr.c_str(), periodStartMs);
 	}
-	string availabilityStr = mpd->GetAvailabilityStarttime();
-	double availabilityStartTime = 0;
-	if(!availabilityStr.empty())
-	{
-		availabilityStartTime = (double)ISO8601DateTimeToUTCSeconds(availabilityStr.c_str());
-
-	}
-	periodStart =  availabilityStartTime + ((double)periodStartMs / (double)1000);
-
+	periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
+	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodStart %lld", __FUNCTION__, __LINE__, periodStart);
 	return periodStart;
 }
 
@@ -2806,16 +2802,14 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	uint64_t periodStartMs = 0;
 	uint64_t periodDurationMs = 0;
 	double periodEndTime = 0;
-	double availablilityStart = 0;
 	IPeriod *period = mpd->GetPeriods().at(periodIndex);
 	string statTimeStr = period->GetStart();
-	string availabilityStartStr = mpd->GetAvailabilityStarttime();
 	periodDurationMs = aamp_GetPeriodDuration(mpd, periodIndex, mpdRefreshTime);
 	if(statTimeStr.empty())
 	{
 		AAMPLOG_WARN("%s:%d :  Period statTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
 	}
-	else if(availabilityStartStr.empty() && !(mpd->GetType() == "static"))
+	else if((0 == mAvailabilityStartTime) && !(mpd->GetType() == "static"))
 	{
 		AAMPLOG_WARN("%s:%d :  availabilityStartTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
 	}
@@ -2826,13 +2820,9 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 	else
 	{
 		ParseISO8601Duration(statTimeStr.c_str(), periodStartMs);
-		if (!availabilityStartStr.empty())
-		{
-			availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str());
-		}
-		periodEndTime = availablilityStart + ((double)(periodStartMs + periodDurationMs) /1000);
+		periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
 	}
-	AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %lld", __FUNCTION__, __LINE__, periodEndTime);
+	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %lld", __FUNCTION__, __LINE__, periodEndTime);
 	return periodEndTime;
 }
 
@@ -3059,7 +3049,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - MPD duration str %s val %" PRIu64 " seconds", __FUNCTION__, __LINE__, tempString.c_str(), durationMs/1000);
 		}
 
-		mIsLive = !(mpd->GetType() == "static");
+		mIsLiveStream = !(mpd->GetType() == "static");
+		aamp->SetIsLive(mIsLiveStream);
 		map<string, string> mpdAttributes = mpd->GetRawAttributes();
 		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
 		{
@@ -3067,7 +3058,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			mCdaiObject->mIsFogTSB = true;
 		}
 
-		if(mIsLive)
+		if(mIsLiveStream)
 		{
 			std::string tempStr = mpd->GetMinimumUpdatePeriod();
 			if(!tempStr.empty())
@@ -3079,7 +3070,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				mMinUpdateDurationMs = DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS;
 			}
 
-			
+			std::string availabilityStr = mpd->GetAvailabilityStarttime();
+			if(!availabilityStr.empty())
+			{
+				mAvailabilityStartTime = (double)ISO8601DateTimeToUTCSeconds(availabilityStr.c_str());
+			}
+			logprintf("PrivateStreamAbstractionMPD::%s:%d - AvailabilityStartTime=%f", __FUNCTION__, __LINE__, mAvailabilityStartTime);
+
 			tempStr = mpd->GetTimeShiftBufferDepth();
 			uint64_t timeshiftBufferDepthMS = 0;
 			if(!tempStr.empty())
@@ -3234,7 +3231,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		bool segmentTagsPresent = true;
 		//The OR condition is added to see if segment info is available in live MPD
 		//else we need to calculate fragments based on time
-		if (0 == durationMs || (mpdDurationAvailable && mIsLive && !mIsFogTSB))
+		if (0 == durationMs || (mpdDurationAvailable && mIsLiveStream && !mIsFogTSB))
 		{
 			durationMs = aamp_GetDurationFromRepresentation(mpd);
 			logprintf("%s:%d - Duration after GetDurationFromRepresentation %" PRIu64 " seconds", __FUNCTION__, __LINE__, durationMs/1000);
@@ -3252,7 +3249,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
 		bool notifyEnteringLive = false;
-		if (mIsLive)
+		if (mIsLiveStream)
 		{
 			double duration = (double) durationMs / 1000;
 			mLiveEndPosition = duration;
@@ -3382,7 +3379,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		else if(mNumberOfTracks)
 		{
 			aamp->SendEventAsync(AAMP_EVENT_PLAYLIST_INDEXED);
-			TunedEventConfig tunedEventConfig =  mIsLive ?
+			TunedEventConfig tunedEventConfig =  mIsLiveStream ?
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
@@ -3621,11 +3618,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 				delete this->mpd;
 			}
 			this->mpd = mpd;
-			mIsLive = !(mpd->GetType() == "static");
-			aamp->SetIsLive(mIsLive);
-			if (!retrievedPlaylistFromCache && !mIsLive)
+			mIsLiveManifest = !(mpd->GetType() == "static");
+			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
-				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLive,eMEDIATYPE_MANIFEST);
+				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
 			}
 		}
 		else
@@ -3635,7 +3631,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		}
 		aamp_Free(&manifest.ptr);
 		mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
-		if(mIsLive && gpGlobalConfig->enableClientDai)
+		if(mIsLiveStream && gpGlobalConfig->enableClientDai)
 		{
 			mCdaiObject->PlaceAds(mpd);
 		}
@@ -4837,8 +4833,6 @@ double PrivateStreamAbstractionMPD::GetCulledSeconds()
 			else
 			{
 				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline. Hence modifying culling logic based on MPD availabilityStartTime, periodStartTime, fragment number and current time", __FUNCTION__, __LINE__);
-				string startTimestr = mpd->GetAvailabilityStarttime();
-				double availabilityStartTime = (double)ISO8601DateTimeToUTCSeconds(startTimestr.c_str());
 				double newStartSegment = 0;
 				ISegmentTemplate *firstSegTempate = NULL;
 
@@ -5387,7 +5381,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 						//for VOD and cDVR
 						logprintf("%s:%d Period(%s - %d/%d) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
-							mBasePeriodId.c_str(), mCurrentPeriodIdx,numPeriods, mBasePeriodOffset, mIsLive,aamp->IsInProgressCDVR());
+							mBasePeriodId.c_str(), mCurrentPeriodIdx,numPeriods, mBasePeriodOffset, mIsLiveStream,aamp->IsInProgressCDVR());
 
 						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
 						int adaptationSetCount = adapatationSets.size();
@@ -5488,12 +5482,12 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					// Vod/CDVR for PeriodChange , resetTimeLineIndex = 1
 					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState || (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && periodChanged))
 					{
-						bool resetTimeLineIndex = (mIsLive || lastLiveFlag|| periodChanged);
+						bool resetTimeLineIndex = (mIsLiveStream || lastLiveFlag|| periodChanged);
 						UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
 					}
 
 
-					if(mIsLive || lastLiveFlag)
+					if(mIsLiveStream || lastLiveFlag)
 					{
 						double culled = 0;
 						if(mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
@@ -5540,7 +5534,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 					}
 
-					lastLiveFlag = mIsLive;
+					lastLiveFlag = mIsLiveStream;
 					/*Discontinuity handling on period change*/
 					if (periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
 							(gpGlobalConfig->mpdDiscontinuityHandlingCdvr || (!aamp->IsInProgressCDVR())))
@@ -5624,7 +5618,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 
 									if(PushNextFragment(pMediaStreamContext,i))
 									{
-										if (mIsLive)
+										if (mIsLiveManifest)
 										{
 											mContext->CheckForPlaybackStall(true);
 										}
@@ -5640,7 +5634,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 											}
 										}
 									}
-									else if (pMediaStreamContext->eos == true && mIsLive && i == eMEDIATYPE_VIDEO)
+									else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
 									{
 										mContext->CheckForPlaybackStall(false);
 									}
@@ -5694,7 +5688,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 								((rate > 0 && mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime >= mLiveEndPosition)
 								||(rate < 0 && mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime <= 0)));
 
-						if((!mIsLive || (rate != AAMP_NORMAL_PLAY_RATE))
+						if((!mIsLiveStream || (rate != AAMP_NORMAL_PLAY_RATE))
 							&& (eosOutSideAd || eosAdPlayback))
 						{
 							if(vEos)
@@ -5752,7 +5746,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						lastPrdOffset = mBasePeriodOffset;
 					}
 					int timeoutMs =  MAX_DELAY_BETWEEN_MPD_UPDATE_MS - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if(timeoutMs <= 0 && mIsLive && rate > 0)
+					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0)
 					{
 						liveMPDRefresh = true;
 						break;
@@ -5787,7 +5781,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					iPeriod--;
 				}
 			} //Loop 2: End of Period while loop
-			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || mpd->GetType() == "static")
+			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || !mIsLiveManifest)
 			{
 				break;
 			}
