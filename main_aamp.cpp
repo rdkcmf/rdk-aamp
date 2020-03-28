@@ -9202,8 +9202,8 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 
 #ifdef PLACEMENT_EMULATION
 	static int sampleAdIdx = 0;
-	static const std::string sampleAds[] = {"http://ccr.ip-ads.xcr.comcast.net/omg04/354092102255/nbcuni.comNBCU2019012500009006/HD_VOD_DAI_XFS09004000H_0125_LVLH03.mpd",
-											"http://ccr.ip-ads.xcr.comcast.net/omg07/346241094255/nbcuni.comNBCU2019010200010506/HD_VOD_DAI_QAOA5052100H_0102_LVLH06.mpd"
+	static const std::string sampleAds[] = {"http://ccr.ip-ads.xcr.comcast.net/omg08/UNI_Packaging_-_Production/316269638415/6563a411-908b-4abd-b3ae-23dc910fd136/563/237/CSNF8700103700100001_mezz_LVLH07.mpd",
+											"http://ccr.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/450921542127/e5c6fac0-74a4-4301-807b-4ecdca384d86/977/301/CSAF8000010270110001_mezz_LVLH07.mpd"
 											};
 #endif
 
