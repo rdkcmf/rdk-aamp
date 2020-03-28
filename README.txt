@@ -183,6 +183,8 @@ enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splun
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
+curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
+customHeader=<customHeaderString> custom header string data to be appended to curl request
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
