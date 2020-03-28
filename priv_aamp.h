@@ -2791,9 +2791,9 @@ public:
 	/**
 	 *   @brief Process pending discontinuity
 	 *
-	 *   @return void
+	 *   @return true if pending discontinuity was processed successful, false if interrupted
 	 */
-	void ProcessPendingDiscontinuity();
+	bool ProcessPendingDiscontinuity();
 
 	/**
 	 *   @brief Notify if first buffer processed by gstreamer
@@ -3462,6 +3462,7 @@ private:
 	std::string mAppName;
 	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
+	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 };
 
 #endif // PRIVAAMP_H

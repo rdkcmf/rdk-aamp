@@ -1081,12 +1081,15 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 
 	if (!g_source_is_destroyed(g_main_current_source()))
 	{
-		aamp->ProcessPendingDiscontinuity();
-
-		aamp->SyncBegin();
-		aamp->mDiscontinuityTuneOperationId = 0;
-		pthread_cond_signal(&aamp->mCondDiscontinuity);
-		aamp->SyncEnd();
+		bool ret = aamp->ProcessPendingDiscontinuity();
+		// This is to avoid calling cond signal, in case Stop() interrupts the ProcessPendingDiscontinuity
+		if (!ret)
+		{
+			aamp->SyncBegin();
+			aamp->mDiscontinuityTuneOperationId = 0;
+			pthread_cond_signal(&aamp->mCondDiscontinuity);
+			aamp->SyncEnd();
+		}
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -1104,22 +1107,25 @@ bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 
 /**
  * @brief Process pending discontinuity and continue playback of stream after discontinuity
+ *
+ * @return true if pending discontinuity was processed successful, false if interrupted
  */
-void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
+bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 {
+	bool ret = true;
 	SyncBegin();
 	if (mDiscontinuityTuneOperationInProgress)
 	{
 		SyncEnd();
 		logprintf("PrivateInstanceAAMP::%s:%d Discontinuity Tune Operation already in progress", __FUNCTION__, __LINE__);
-		return;
+		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
 
 	if (!(mProcessingDiscontinuity[eMEDIATYPE_VIDEO] && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d Discontinuity status of video - (%d) and audio - (%d)", __FUNCTION__, __LINE__, mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
-		return;
+		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 
 	SyncBegin();
@@ -1128,33 +1134,77 @@ void PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 
 	if (mProcessingDiscontinuity[eMEDIATYPE_AUDIO] && mProcessingDiscontinuity[eMEDIATYPE_VIDEO])
 	{
+		bool continueDiscontProcessing = true;
 		logprintf("PrivateInstanceAAMP::%s:%d mProcessingDiscontinuity set", __FUNCTION__, __LINE__);
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
-		seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f", __FUNCTION__, __LINE__, seek_pos_seconds);
-		trickStartUTCMS = -1;
-		mpStreamAbstractionAAMP->StopInjection();
-#ifndef AAMP_STOP_SINK_ON_SEEK
-		if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
 		{
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			double newPosition = GetPositionMilliseconds() / 1000.0;
+			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d last injected position:%f position calcualted: %f", __FUNCTION__, __LINE__, injectedPosition, newPosition);
+
+			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
+			// GStreamer position reporting is taken care of.
+			if (injectedPosition != 0 && fabs(injectedPosition - newPosition) < 5.0)
+			{
+				seek_pos_seconds = injectedPosition;
+			}
+			else
+			{
+				seek_pos_seconds = newPosition;
+			}
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f", __FUNCTION__, __LINE__, seek_pos_seconds);
 		}
+		trickStartUTCMS = -1;
+
+		SyncBegin();
+		mProgressReportFromProcessDiscontinuity = true;
+		SyncEnd();
+
+		// To notify app of discontinuity processing complete
+		ReportProgress();
+
+		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
+		// Make sure we have still mDiscontinuityTuneOperationInProgress set
+		SyncBegin();
+		mProgressReportFromProcessDiscontinuity = false;
+		continueDiscontProcessing = mDiscontinuityTuneOperationInProgress;
+		SyncEnd();
+
+		if (continueDiscontProcessing)
+		{
+			mpStreamAbstractionAAMP->StopInjection();
+#ifndef AAMP_STOP_SINK_ON_SEEK
+			if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			}
 #else
-		mStreamSink->Stop(true);
+			mStreamSink->Stop(true);
 #endif
-		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
-		mpStreamAbstractionAAMP->StartInjection();
-		mStreamSink->Stream();
-		mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-		mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-		mLastDiscontinuityTimeMs = 0;
+			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
+			mpStreamAbstractionAAMP->StartInjection();
+			mStreamSink->Stream();
+			mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+			mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+			mLastDiscontinuityTimeMs = 0;
+		}
+		else
+		{
+			ret = false;
+			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d mDiscontinuityTuneOperationInProgress was reset during operation, since other command received from app!", __FUNCTION__, __LINE__);
+		}
 	}
 
-	SyncBegin();
-	mDiscontinuityTuneOperationInProgress = false;
-	SyncEnd();
+	if (ret)
+	{
+		SyncBegin();
+		mDiscontinuityTuneOperationInProgress = false;
+		SyncEnd();
+	}
+
+	return ret;
 }
 
 /**
@@ -3967,17 +4017,44 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	//Have to perfom this for trick and stop operations but avoid ad insertion related ones
 	if ((mDiscontinuityTuneOperationId != 0) && (!newTune || mState == eSTATE_IDLE))
 	{
-		//wait for discont tune operation to finish before proceeding with stop
-		if (mDiscontinuityTuneOperationInProgress)
+		bool waitForDiscontinuityProcessing = true;
+		if (mProgressReportFromProcessDiscontinuity)
 		{
-			pthread_cond_wait(&mCondDiscontinuity, &mLock);
+			gint callbackID = 0;
+			GSource *source = g_main_current_source();
+			if (source != NULL)
+			{
+				callbackID = g_source_get_id(source);
+			}
+			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
+			{
+				AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set, mDiscontinuityTuneOperationId[%d]!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
+				waitForDiscontinuityProcessing = false; // to avoid deadlock
+				mDiscontinuityTuneOperationInProgress = false;
+				mDiscontinuityTuneOperationId = 0;
+			}
 		}
-		else
+		if (waitForDiscontinuityProcessing)
 		{
-			g_source_remove(mDiscontinuityTuneOperationId);
-			mDiscontinuityTuneOperationId = 0;
+			//wait for discont tune operation to finish before proceeding with stop
+			if (mDiscontinuityTuneOperationInProgress)
+			{
+				pthread_cond_wait(&mCondDiscontinuity, &mLock);
+			}
+			else
+			{
+				g_source_remove(mDiscontinuityTuneOperationId);
+				mDiscontinuityTuneOperationId = 0;
+			}
 		}
 	}
+	// Maybe mDiscontinuityTuneOperationId is 0, ProcessPendingDiscontinuity can be invoked from NotifyEOSReached too
+	else if (mProgressReportFromProcessDiscontinuity)
+	{
+		AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set!", __FUNCTION__, __LINE__);
+		mDiscontinuityTuneOperationInProgress = false;
+	}
+
 	//reset discontinuity related flags
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
@@ -7533,6 +7610,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mParallelPlaylistFetchLock()
 	, mAppName()
 	, mABRBufferCheckEnabled(false)
+	, mProgressReportFromProcessDiscontinuity(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)

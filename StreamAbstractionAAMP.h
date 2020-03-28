@@ -812,6 +812,13 @@ public:
 	*/
 	virtual void SeekPosUpdate(double secondsRelativeToTuneTime) = 0;
 
+	/*
+	 *   @brief Function to returns last injected fragment position
+	 *
+	 *   @return double last injected fragment position in seconds
+	 */
+	double GetLastInjectedFragmentPosition();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
