@@ -1874,3 +1874,22 @@ bool StreamAbstractionAAMP::IsEOSReached()
 	}
 	return eos;
 }
+
+/*
+ *   @brief Function to returns last injected fragment position
+ *
+ *   @return double last injected fragment position in seconds
+ */
+double StreamAbstractionAAMP::GetLastInjectedFragmentPosition()
+{
+	// We get the position of video, we use video position for most of our position related things
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	double pos = 0;
+	if (video)
+	{
+		pos = video->GetTotalInjectedDuration();
+	}
+	AAMPLOG_INFO("%s:%d Last Injected fragment Position : %f", __FUNCTION__, __LINE__, pos);
+	return pos;
+}
+

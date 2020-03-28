@@ -2789,9 +2789,9 @@ public:
 	/**
 	 *   @brief Process pending discontinuity
 	 *
-	 *   @return void
+	 *   @return true if pending discontinuity was processed successful, false if interrupted
 	 */
-	void ProcessPendingDiscontinuity();
+	bool ProcessPendingDiscontinuity();
 
 	/**
 	 *   @brief Notify if first buffer processed by gstreamer
@@ -3398,6 +3398,7 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
 	PreCacheUrlList mPreCacheDnldList;
 	std::string mAppName;
+	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 };
 
 #endif // PRIVAAMP_H
