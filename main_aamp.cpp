@@ -3838,7 +3838,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			}
 			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
 			{
-				AAMPLOG_WARN("%s:%d TeardownStream invoked by mDiscontinuityTuneOperationId[%u] handler!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
+				AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set, mDiscontinuityTuneOperationId[%d]!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
 				waitForDiscontinuityProcessing = false; // to avoid deadlock
 				mDiscontinuityTuneOperationInProgress = false;
 				mDiscontinuityTuneOperationId = 0;
@@ -3858,6 +3858,13 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			}
 		}
 	}
+	// Maybe mDiscontinuityTuneOperationId is 0, ProcessPendingDiscontinuity can be invoked from NotifyEOSReached too
+	else if (mProgressReportFromProcessDiscontinuity)
+	{
+		AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set!", __FUNCTION__, __LINE__);
+		mDiscontinuityTuneOperationInProgress = false;
+	}
+
 	//reset discontinuity related flags
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
