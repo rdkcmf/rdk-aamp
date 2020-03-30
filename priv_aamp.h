@@ -102,6 +102,9 @@ static const char *mMediaFormatName[] =
 #define MAX_PTS_ERRORS_THRESHOLD 4
 
 #define MANIFEST_TEMP_DATA_LENGTH 100				/**< Manifest temp data length */
+#define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 // 10sec buffer before rampdown
+#define AAMP_HIGH_BUFFER_BEFORE_RAMPUP  15 // 15sec buffer before rampup
+
 
 #define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
@@ -585,7 +588,9 @@ public:
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
-	TriState abrBufferCheckEnabled;             /**< Flag to enable/disable buffer based ABR handling*/
+	int minABRBufferForRampDown;		/**< Mininum ABR Buffer for Rampdown*/
+	int maxABRBufferForRampUp;		/**< Maximum ABR Buffer for Rampup*/
+	TriState abrBufferCheckEnabled;         /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -697,6 +702,8 @@ public:
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
 		,fragmp4LicensePrefetch(true)
 		,pcustomHeader(NULL)
+		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
+		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

@@ -40,8 +40,7 @@
 #include "base16.h"
 #endif
 
-#define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 5 // 5sec buffer before rampdown
-#define AAMP_HIGH_BUFFER_BEFORE_RAMPUP 15 // 15sec buffer before rampup
+
 
 #define AAMP_STALL_CHECK_TOLERANCE 2
 #define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
@@ -1073,14 +1072,14 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 		{
 			// Rampup attempt . check if buffer availability is good before profile change
 			// else retain current profile  
-			if(bufferValue < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+			if(bufferValue < gpGlobalConfig->maxABRBufferForRampUp)
 				newProfileIndex = currProfileIndex;
 		}
 		else
 		{
 			// Rampdown attempt. check if buffer availability is good before profile change
 			// else retain current profile
-			if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
+			if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
 				newProfileIndex = currProfileIndex;
 		}
 	}
@@ -1093,7 +1092,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnCBR(int currProfileIndex, int &ne
 	newProfileIndex = currProfileIndex;
 	if(bufferValue > 0)
 	{
-		if(bufferValue > AAMP_LOW_BUFFER_BEFORE_RAMPDOWN && mABRProfileChangeIndicator > gpGlobalConfig->abrCacheLength)
+		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown && mABRProfileChangeIndicator > gpGlobalConfig->abrCacheLength)
 		{
 			newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
 			if(newProfileIndex  != currProfileIndex)
@@ -1125,13 +1124,13 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 		if(vBufferDuration > 0)
 		{
 			long timeoutMs = (long)(vBufferDuration*1000); ;
-			if(vBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+			if(vBufferDuration < gpGlobalConfig->maxABRBufferForRampUp)
 			{
 				timeoutMs = aamp->mNetworkTimeoutMs;
 			}
 			else
 			{	// enough buffer available 
-				timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
+				timeoutMs = std::min(timeoutMs/2,(long)(gpGlobalConfig->maxABRBufferForRampUp*1000));
 				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
 			}
 			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_VIDEO);
@@ -1146,13 +1145,13 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 		if(aBufferDuration > 0)
 		{
 			long timeoutMs = (long)(aBufferDuration*1000);
-			if(aBufferDuration < AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
+			if(aBufferDuration < gpGlobalConfig->maxABRBufferForRampUp)
 			{
 				timeoutMs = aamp->mNetworkTimeoutMs;
 			}
 			else
 			{
-				timeoutMs = std::min(timeoutMs/2,(long)(AAMP_HIGH_BUFFER_BEFORE_RAMPUP*1000));
+				timeoutMs = std::min(timeoutMs/2,(long)(gpGlobalConfig->maxABRBufferForRampUp*1000));
 				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
 			}
 			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_AUDIO);
