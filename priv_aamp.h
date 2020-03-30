@@ -60,7 +60,8 @@ static const char *mMediaFormatName[] =
 #define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-#define CURL_FRAGMENT_DL_TIMEOUT 10L     /**< Curl timeout for fragment download */
+#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
+#define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
@@ -580,7 +581,8 @@ public:
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
 	long networkTimeoutMs;                 	/**< Fragment download timeout in ms*/
-	long manifestTimeoutMs;                 	/**< Manifest download timeout in ms*/
+	long manifestTimeoutMs;                 /**< Manifest download timeout in ms*/
+	long playlistTimeoutMs;                 /**< Playlist download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
@@ -686,6 +688,7 @@ public:
 		,useAppSrcForProgressivePlayback(false)
 		,reportBufferEvent(true)
 		,manifestTimeoutMs(-1)
+		,playlistTimeoutMs(-1)
 		,mAsyncTuneConfig(eUndefinedState)
 		,mWesterosSinkConfig(eUndefinedState)
 		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
@@ -1709,6 +1712,7 @@ public:
 	double mLiveOffset;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
+	long mPlaylistTimeoutMs;
 	bool mParallelFetchPlaylist;
 	bool mParallelFetchPlaylistRefresh;
 	bool mAsyncTuneEnabled;
@@ -2928,7 +2932,7 @@ public:
 	 *
 	 *   @param[in] preferred timeout value
 	 */
-	void SetNetworkTimeout(long timeout);
+	void SetNetworkTimeout(double timeout);
 	/**
 	 *   @brief To set the network timeout as per priority
 	 *
@@ -2939,6 +2943,12 @@ public:
 	 *
 	*/
 	void ConfigureManifestTimeout();
+	/**
+	*   @brief To set the manifest timeout as per priority
+	*
+	*/
+	void ConfigurePlaylistTimeout();
+
 	/**
 	*   @brief To set the parallel playlist fetch configuration
 	*
@@ -2976,6 +2986,12 @@ public:
 	 *   @param[in] preferred timeout value
 	 */
 	void SetManifestTimeout(double timeout);
+	/**
+	*   @brief To set the playlist download timeout value.
+	*
+	*   @param[in] preferred timeout value
+	*/
+	void SetPlaylistTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value

@@ -73,7 +73,7 @@ public:
 	long GetMaxBitrate(void) override;
 	void StopInjection(void) override;
 	void StartInjection(void) override;
-
+	double GetBufferedDuration();
 	void SeekPosUpdate(double secondsRelativeToTuneTime) { };
 	void NotifyFirstVideoPTS(unsigned long long pts) { };
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;

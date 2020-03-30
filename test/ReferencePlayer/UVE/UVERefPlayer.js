@@ -63,6 +63,10 @@ var defaultInitConfig = {
      * manifest request timeout (seconds)
      */
     manifestTimeout: 0.5,
+    /**
+     * manifest request timeout (seconds)
+     */
+    playlistTimeout: 10,
 
     /**
      * max number of fragments to keep as playback buffer (number)

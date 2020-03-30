@@ -925,7 +925,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRProfileChangeIndicator(0),
+		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE)
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
@@ -1096,26 +1096,54 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 	}
 }
 
-void StreamAbstractionAAMP::GetDesiredProfileOnCBR(int currProfileIndex, int &newProfileIndex)
+void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex, int &newProfileIndex, long nwBandwidth)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
-	newProfileIndex = currProfileIndex;
-	if(bufferValue > 0)
+
+	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
-		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown && mABRProfileChangeIndicator > gpGlobalConfig->abrCacheLength)
+		logprintf("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
+		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
 		{
-			newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
-			if(newProfileIndex  != currProfileIndex)
+			mABRHighBufferCounter++;
+			mABRLowBufferCounter = 0 ;
+			if(mABRHighBufferCounter > gpGlobalConfig->abrCacheLength)
 			{
-				logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
-				currProfileIndex,newProfileIndex,bufferValue);
+				newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				if(newProfileIndex  != currProfileIndex)
+				{
+					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
+					currProfileIndex,newProfileIndex,bufferValue);
+				}
+				// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
+				// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
+				// counter is set back to 0 to prevent frequent rampup from multiple valley points
+				mABRHighBufferCounter = 0;
 			}
-			// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
-			// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
-			// counter is set back to 0 to prevent frequent rampup from multiple valley points
-			mABRProfileChangeIndicator = 0;
 		}
+		// steady state ,with no ABR cache available to determine actual bandwidth
+		// this state can happen due to timeouts
+		if(nwBandwidth == -1 && bufferValue < gpGlobalConfig->minABRBufferForRampDown)
+		{
+			mABRLowBufferCounter++;
+			mABRHighBufferCounter = 0;
+			if(mABRLowBufferCounter > gpGlobalConfig->abrCacheLength)
+			{
+				newProfileIndex =  mAbrManager.getRampedDownProfileIndex(currProfileIndex);
+				if(newProfileIndex  != currProfileIndex)
+				{
+					logprintf("%s Attempted rampdown from steady state with low buffer ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
+					currProfileIndex,newProfileIndex,bufferValue);
+				}
+				mABRLowBufferCounter = 0 ;
+			}
+		}
+	}
+	else
+	{
+		mABRLowBufferCounter = 0 ;
+		mABRHighBufferCounter = 0;
 	}
 }
 
@@ -1209,16 +1237,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 			}
 
 			// Now check for Fixed BitRate for longer time(valley)
-			if(currentProfileIndex == desiredProfileIndex)
-			{
-				mABRProfileChangeIndicator++;
-				GetDesiredProfileOnCBR(currentProfileIndex,desiredProfileIndex);
-			}
-			else
-			{
-				// if profile got change . keep a note of the it
-				mABRProfileChangeIndicator = 0;
-			}
+			GetDesiredProfileOnSteadyState(currentProfileIndex,desiredProfileIndex,networkBandwidth);
 
 			// After ABR is done , next configure the timeouts for next downloads based on buffer
 			ConfigureTimeoutOnBuffer();

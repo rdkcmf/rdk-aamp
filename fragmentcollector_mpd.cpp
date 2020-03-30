@@ -6031,6 +6031,18 @@ MediaTrack* StreamAbstractionAAMP_MPD::GetMediaTrack(TrackType type)
 }
 
 
+double StreamAbstractionAAMP_MPD::GetBufferedDuration()
+{
+	MediaTrack *video = mPriv->GetMediaTrack(eTRACK_VIDEO);
+	double retval = 0.0;
+	if (video->enabled)
+	{
+		retval = video->GetBufferedDuration();
+	}
+	return retval;
+}
+
+
 /**
  *   @brief Return MediaTrack of requested type
  *

@@ -2309,9 +2309,18 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
 			//Disable download stall detection checks for FOG playback done by JS PP
+			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
+				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
+				simType == eMEDIATYPE_PLAYLIST_IFRAME)
+			{				
+				progressCtx.startTimeout = 0;
+			}
+			else
+			{
+				progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
+			}
 			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
-			progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
-
+                  
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
 
@@ -2479,8 +2488,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					//Attempt retry for partial downloads, which have a higher chance to succeed
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < 2)
 					{
-						logprintf("Download failed due to curl timeout or isDownloadStalled:%d. Retrying!", isDownloadStalled);
-						loopAgain = true;
+						if(mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->GetBufferedDuration()*1000 > curlDownloadTimeoutMS)
+						{	
+							// Check if buffer is available and more than timeout interval then only reattempt
+							// Not to retry download if there is no buffer left 
+							loopAgain = true;
+						}						
+						logprintf("Download failed due to curl timeout or isDownloadStalled:%d. Retrying:%d", isDownloadStalled,loopAgain);
 					}
 					/*
 					* Assigning curl error to http_code, for sending the error code as
@@ -3208,6 +3222,12 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_DOUBLE("manifestTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
 			gpGlobalConfig->manifestTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
 			logprintf("manifestTimeout=%ld ms", gpGlobalConfig->manifestTimeoutMs);
+		}
+		else if (ReadConfigNumericHelper(cfg, "playlistTimeout=", inputTimeout) == 1)
+		{
+			VALIDATE_DOUBLE("playlist", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
+			gpGlobalConfig->playlistTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
+			logprintf("playlistTimeout=%ld ms", gpGlobalConfig->playlistTimeoutMs);
 		}
 		else if (cfg.compare("dash-ignore-base-url-if-slash") == 0)
 		{
@@ -4517,6 +4537,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
+	ConfigurePlaylistTimeout();
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
 	ConfigureWesterosSink();
@@ -6092,7 +6113,7 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
  *
  *   @param[in] preferred timeout value
  */
-void PlayerInstanceAAMP::SetNetworkTimeout(long timeout)
+void PlayerInstanceAAMP::SetNetworkTimeout(double timeout)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetNetworkTimeout(timeout);
@@ -6107,6 +6128,17 @@ void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetManifestTimeout(timeout);
+}
+
+/**
+ *   @brief To set the playlist download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PlayerInstanceAAMP::SetPlaylistTimeout(double timeout)
+{
+        ERROR_STATE_CHECK_VOID();
+        aamp->SetPlaylistTimeout(timeout);
 }
 
 /**
@@ -7134,6 +7166,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCustomLicenseHeaders()
 	, mIsIframeTrackPresent(false)
 	,mManifestTimeoutMs(-1)
+	,mPlaylistTimeoutMs(-1)
 	,mNetworkTimeoutMs(-1)
 	,mParallelFetchPlaylist(false)
 	,mParallelFetchPlaylistRefresh(true)
@@ -8417,7 +8450,7 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
  *
  *   @param[in] preferred timeout value
  */
-void PrivateInstanceAAMP::SetNetworkTimeout(long timeout)
+void PrivateInstanceAAMP::SetNetworkTimeout(double timeout)
 {
 	if(timeout > 0)
 	{
@@ -8460,6 +8493,20 @@ void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
 }
 
 /**
+ *   @brief To set the playlist download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
+void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
+{
+        if (timeout > 0)
+	{
+		mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
+	}
+}
+
+/**
  *   @brief To set the manifest timeout as per priority
  *
  */
@@ -8475,6 +8522,24 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 	}
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 }
+
+/**
+ *   @brief To set the playlist timeout as per priority
+ *
+ */
+void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
+{
+        if(gpGlobalConfig->playlistTimeoutMs != -1)
+        {
+                mPlaylistTimeoutMs = gpGlobalConfig->playlistTimeoutMs;
+        }
+        else if(mPlaylistTimeoutMs == -1)
+        {
+                mPlaylistTimeoutMs = mNetworkTimeoutMs;
+        }
+        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
+}
+
 
 /**
  *   @brief To set Parallel Download configuration
@@ -9212,6 +9277,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 		if(state != eSTATE_RELEASED)
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE,1,GetNetworkProxy());
+			SetCurlTimeout(mPlaylistTimeoutMs,eCURLINSTANCE_PLAYLISTPRECACHE);
 			// calculate the cache size, consider 1 MB/playlist
 			int maxCacheSz = szPlaylistCount * 1024*1024;
 			// get the current cache max size , to restore later 
