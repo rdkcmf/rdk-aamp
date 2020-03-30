@@ -1724,6 +1724,7 @@ public:
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
+	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;
 	long long playStartUTCMS;
 	double durationSeconds;
