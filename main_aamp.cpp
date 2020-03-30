@@ -6683,7 +6683,9 @@ void PrivateInstanceAAMP::Stop()
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 	// send signal to any thread waiting for play
+	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
+	pthread_mutex_unlock(&mMutexPlaystart);
 	if(mPreCachePlaylistThreadFlag)
 	{
 		pthread_join(mPreCachePlaylistThreadId,NULL);
@@ -6873,7 +6875,9 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
 	SetState(eSTATE_PLAYING);
+	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
+	pthread_mutex_unlock(&mMutexPlaystart);
 
 	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
@@ -7139,6 +7143,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mWesterosSinkEnabled(false)
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
+	,mMutexPlaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 	,mUseAvgBandwidthForABR(false)
 #ifdef AAMP_HLS_DRM
@@ -7203,6 +7208,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
+	pthread_mutex_init(&mMutexPlaystart, NULL);
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mNetworkProxy = NULL;
@@ -7267,6 +7273,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
+	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 #ifdef AAMP_HLS_DRM
@@ -9196,9 +9203,9 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 	{
 		PrivAAMPState state;
 		// First wait for Tune to complete to start this functionality
-		pthread_mutex_lock(&mLock);
-		pthread_cond_wait(&waitforplaystart, &mLock);
-		pthread_mutex_unlock(&mLock);
+		pthread_mutex_lock(&mMutexPlaystart);
+		pthread_cond_wait(&waitforplaystart, &mMutexPlaystart);
+		pthread_mutex_unlock(&mMutexPlaystart);
 		// May be Stop is called to release all resources .
 		// Before download , check the state 
 		GetState(state);
