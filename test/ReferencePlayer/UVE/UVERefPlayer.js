@@ -175,6 +175,10 @@ var defaultInitConfig = {
      * Progress Report Interval (in seconds)
      */
     //progressReportingInterval: 2,
+    /**
+     * enable unpaired discontinuity retune config
+     */
+    //useRetuneForUnpairedDiscontinuity: true
     
 };
 
