@@ -3766,9 +3766,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest", __FUNCTION__, __LINE__);
 		// take the original url before its gets changed in GetFile
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
-		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_VIDEO);
+		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
-		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, eCURLINSTANCE_VIDEO);
+		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 		if (this->mainManifest.len)
