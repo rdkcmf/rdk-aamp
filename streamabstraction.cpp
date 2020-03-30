@@ -147,12 +147,18 @@ void MediaTrack::MonitorBufferHealth()
 						GetBufferHealthStatusString(bufferStatus));
 			}
 
+			pthread_mutex_unlock(&mutex);
+
+			// We use another lock inside CheckForMediaTrackInjectionStall for synchronization
 			GetContext()->CheckForMediaTrackInjectionStall(type);
+
+			pthread_mutex_lock(&mutex);
 
 			if((!aamp->pipeline_paused) && aamp->IsDiscontinuityProcessPending() && gpGlobalConfig->discontinuityTimeout)
 			{
 				aamp->CheckForDiscontinuityStall((MediaType)type);
 			}
+
 		}
 		else
 		{
