@@ -803,15 +803,12 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
  */
 bool PrivateInstanceAAMP::PausePipeline(bool pause)
 {
-#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-	if ( true != mStreamSink->Pause(pause) )
+	if (true != mStreamSink->Pause(pause))
 	{
-		return(false);
+		return false;
 	}
 	pipeline_paused = pause;
-	return(true);
-#endif
-
+	return true;
 }
 
 /**
@@ -1059,7 +1056,7 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 	{
 		bool ret = aamp->ProcessPendingDiscontinuity();
 		// This is to avoid calling cond signal, in case Stop() interrupts the ProcessPendingDiscontinuity
-		if (!ret)
+		if (ret)
 		{
 			aamp->SyncBegin();
 			aamp->mDiscontinuityTuneOperationId = 0;
@@ -1143,6 +1140,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
 		SyncBegin();
+		AAMPLOG_WARN("%s:%d Progress event sent as part of ProcessPendingDiscontinuity, mDiscontinuityTuneOperationInProgress:%d", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationInProgress);
 		mProgressReportFromProcessDiscontinuity = false;
 		continueDiscontProcessing = mDiscontinuityTuneOperationInProgress;
 		SyncEnd();
@@ -2562,7 +2560,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if(mpStreamAbstractionAAMP) 
 						{	
 							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
-							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) ||
+							// buffer is -1 when sesssion not created . buffer is 0 when session created but playlist not downloaded
+							if(buffer == -1.0 || buffer == 0 || (buffer*1000 > curlDownloadTimeoutMS) || 
 								simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_AUDIO)
 							{
 								// GetBuffer will return -1 if session is not created 
@@ -2595,8 +2594,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
 				}
 
-				if(loopAgain) continue;
-
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
@@ -2622,7 +2619,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						totalPerformRequest,
 						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code, simType );
 				}
-				break;
+				
+				if(!loopAgain)
+					break;
 			}
 		}
 
@@ -3404,6 +3403,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->abrBufferCheckEnabled  = (TriState)(value != 0);
 			logprintf("useNewABR =%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useNewAdBreaker=", value) == 1)
+		{
+			gpGlobalConfig->useNewDiscontinuity  = (TriState)(value != 0);
+			logprintf("useNewAdBreaker =%d", value);
+		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{
 			gpGlobalConfig->bReportVideoPTS = true;
@@ -3941,11 +3945,13 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 {
 	pthread_mutex_lock(&mLock);
 	//Have to perfom this for trick and stop operations but avoid ad insertion related ones
+	AAMPLOG_WARN("%s:%d mProgressReportFromProcessDiscontinuity:%d mDiscontinuityTuneOperationId:%d newTune:%d", __FUNCTION__, __LINE__, mProgressReportFromProcessDiscontinuity, mDiscontinuityTuneOperationId, newTune);
 	if ((mDiscontinuityTuneOperationId != 0) && (!newTune || mState == eSTATE_IDLE))
 	{
 		bool waitForDiscontinuityProcessing = true;
 		if (mProgressReportFromProcessDiscontinuity)
 		{
+			AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity and mDiscontinuityTuneOperationId[%d] set!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
 			gint callbackID = 0;
 			GSource *source = g_main_current_source();
 			if (source != NULL)
@@ -3954,7 +3960,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			}
 			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
 			{
-				AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set, mDiscontinuityTuneOperationId[%d]!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
+				AAMPLOG_WARN("%s:%d TeardownStream idle callback id[%d] and mDiscontinuityTuneOperationId[%d] match. Ignore further discontinuity processing!", __FUNCTION__, __LINE__, callbackID, mDiscontinuityTuneOperationId);
 				waitForDiscontinuityProcessing = false; // to avoid deadlock
 				mDiscontinuityTuneOperationInProgress = false;
 				mDiscontinuityTuneOperationId = 0;
@@ -6415,6 +6421,19 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 }
 
 /**
+ *   @brief Configure New AdBreaker Enable/Disable
+ *   @param[in] bValue - true if new AdBreaker enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
+{
+	aamp->SetNewAdBreakerConfig(bValue);
+}
+
+
+
+/**
  *   @brief Set Westeros sink Configuration
  *   @param[in] bValue - true if westeros sink enabled
  *
@@ -6450,6 +6469,38 @@ void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	}
 	AAMPLOG_INFO("%s:%d New ABR Config : %s ",__FUNCTION__,__LINE__,(mABRBufferCheckEnabled)?"True":"False");
+
+	// temp code until its enabled in Peacock App - Remove it later.
+	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
+	{
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
+	}
+	else
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;		
+	}
+	AAMPLOG_INFO("%s:%d New AdBreaker/PDT Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
+}
+
+/**
+ *   @brief Configure New AdBreaker Enable/Disable
+ *   @param[in] bValue - true if new ABR enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
+{
+	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
+	{
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
+	}
+	else
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
+	}
+	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
 }
 
 
@@ -6841,10 +6892,11 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
  * @param szName name of metadata
  * @param szContent  metadata content
  * @param id - Identifier of the TimedMetadata
+ * @param bSyncCall - Sync or Async Event
  * @param durationMS - Duration in milliseconds
  * @param nb unused
  */
-void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
+void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb,bool bSyncCall, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
 	bool bFireEvent = false;
@@ -6859,7 +6911,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 			continue;
 		}
 
-		if ((i->_timeMS == timeMilliseconds) &&
+		// Add a boundary check of 1 sec for rounding correction
+		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ) &&
 			(i->_name.compare(szName) == 0)	&&
 			(i->_content.compare(content) == 0))
 		{
@@ -6910,7 +6963,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 				eventData.data.timedMetadata.szContent);
 		}
 
-		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || (mState > eSTATE_PREPARED))
+
+		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || !bSyncCall )
 		{
 			SendEventAsync(eventData);
 		}
@@ -7237,6 +7291,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0)
 	, mABRBufferCheckEnabled(false)
+	, mNewAdBreakerEnabled(false)
 	, prevPositionMiliseconds(-1)
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
@@ -7297,6 +7352,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdProgressId = "";
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
+	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
+		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -8834,7 +8891,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
 		}
 #else
-		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
+		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
 #endif
 	}
 }
@@ -9595,6 +9652,42 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
         AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
+/**
+ * @brief Check if track can inject data into GStreamer.
+ * Called from MonitorBufferHealth
+ *
+ * @param[in] Media type
+ * @return bool true if track can inject data, false otherwise
+ */
+bool PrivateInstanceAAMP::TrackDownloadsAreEnabled(MediaType type)
+{
+	bool ret = true;
+	if (type > AAMP_TRACK_COUNT)
+	{
+		AAMPLOG_ERR("%s:%d type[%d] is un-supported, returning default as false!", __FUNCTION__, __LINE__, type);
+		ret = false;
+	}
+	else
+	{
+		pthread_mutex_lock(&mLock);
+		// If blocked, track downloads are disabled
+		ret = !mbTrackDownloadsBlocked[type];
+		pthread_mutex_unlock(&mLock);
+	}
+	return ret;
+}
+
+/**
+ * @brief Stop buffering in AAMP and un-pause pipeline.
+ * Called from MonitorBufferHealth
+ *
+ * @param[in] forceStop - stop buffering forcefully
+ * @return void
+ */
+void PrivateInstanceAAMP::StopBuffering(bool forceStop)
+{
+	mStreamSink->StopBuffering(forceStop);
+}
 
 /**
  * @}
