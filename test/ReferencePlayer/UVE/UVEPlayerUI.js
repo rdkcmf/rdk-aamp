@@ -678,6 +678,7 @@ function resetUIOnNewAsset(){
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
+    document.getElementById('errorModal').style.display = "none";
     document.getElementById("jumpPosition").value = "";
 };
 

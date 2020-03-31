@@ -29,6 +29,7 @@ var urls = [
      { name:"AD (DASH)", url: "http://ccr.ip-ads.xcr.comcast.net/omg07/346241094255/nbcuni.comNBCU2019010200010506/HD_VOD_DAI_QAOA5052100H_0102_LVLH06.mpd", useComcastDrmConfig: true },
      { name:"HLN_MIMIC (SCTE35)", url: "http://172.27.223.96:8880/HLN_MIMIC.mpd", useDefaultDrmConfig: true },
      { name:"TRUTV_MIMIC (SCTE35)", url: "http://172.27.223.96:8880/TRUTV_MIMIC.mpd", useDefaultDrmConfig: true },
+     { name:"CNN (LIVE)", url: "http://cdn-ec-pan-03.linear-nat-pil.xcr.comcast.net/CNNHD_HD_NAT_16141_0_5646493630829879163.mpd", useDefaultDrmConfig: true },
      { name:"Transformers (DASH)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod11/TVNC0000000003007630/movie/1558999503868/manifest.mpd", useDefaultDrmConfig: true },
      { name:"Deadpool (HLS)", url: "http://ccr.ipvod-t6.xcr.comcast.net/ipvod4/PFXM3033039820190601/movie/1558895446379/manifest.m3u8", useDefaultDrmConfig: true }
 ];
