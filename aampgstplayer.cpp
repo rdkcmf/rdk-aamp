@@ -198,7 +198,7 @@ static gboolean buffering_timeout (gpointer data);
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
-AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL)
+AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL), mBufferingLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
@@ -206,6 +206,8 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
 	privateContext->pipelineState = GST_STATE_NULL;
 	this->aamp = aamp;
+
+	pthread_mutex_init(&mBufferingLock, NULL);
 
 	CreatePipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
@@ -220,6 +222,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
 	free(privateContext);
+	pthread_mutex_destroy(&mBufferingLock);
 }
 
 /**
@@ -3179,6 +3182,7 @@ std::string AAMPGstPlayer::GetVideoRectangle()
  */
 void AAMPGstPlayer::StopBuffering(bool forceStop)
 {
+	pthread_mutex_lock(&mBufferingLock);
 	//Check if we are in buffering
 	if (gpGlobalConfig->reportBufferEvent && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
 	{
@@ -3188,6 +3192,8 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 	        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
 		stopBuffering = stopBuffering || (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN) || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum byte and frame values should be configurable from aamp.cfg
+#else
+		stopBuffering = true;
 #endif
 		if (stopBuffering)
 		{
@@ -3200,7 +3206,14 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 				aamp->SendBufferChangeEvent();
 			}
 	        }
+		else
+		{
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+			AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+#endif
+		}
 	}
+	pthread_mutex_unlock(&mBufferingLock);
 }
 
 /**

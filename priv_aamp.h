@@ -593,6 +593,7 @@ public:
 	int minABRBufferForRampDown;		/**< Mininum ABR Buffer for Rampdown*/
 	int maxABRBufferForRampUp;		/**< Maximum ABR Buffer for Rampup*/
 	TriState abrBufferCheckEnabled;         /**< Flag to enable/disable buffer based ABR handling*/
+	TriState useNewDiscontinuity;         /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -696,6 +697,7 @@ public:
 		,parallelPlaylistRefresh(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,abrBufferCheckEnabled(eUndefinedState)
+		,useNewDiscontinuity(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1779,6 +1781,7 @@ public:
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
 	bool mABRBufferCheckEnabled;
+	bool mNewAdBreakerEnabled;
 
 	/**
 	 * @brief Curl initialization function
@@ -2233,11 +2236,12 @@ public:
 	 * @param[in] szName - Metadata name
 	 * @param[in] szContent - Metadata content
 	 * @param[in] nb - ContentSize
+	 * @param[in] bSyncCall - Sync /Async Event reporting
 	 * @param[in] id - Identifier of the TimedMetadata
 	 * @param[in] durationMS - Duration in milliseconds
 	 * @return void
 	 */
-	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
+	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, bool bSyncCall=false,const char* id = "", double durationMS = -1);
 
 	/**
 	 * @brief Save timed metadata for later bulk reporting
@@ -3287,6 +3291,13 @@ public:
 	 *	 @return void
 	 */
 	void SetNewABRConfig(bool bValue);
+	/**
+	 *	 @brief Configure New AdBreaker Enable/Disable
+	 *	 @param[in] bValue - true if new AdBreaker enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewAdBreakerConfig(bool bValue);
 
 	/**
 	 *   @brief To flush buffers in streamsink
@@ -3337,6 +3348,22 @@ public:
 	 *   @return void
 	 */
 	void SetAppName(std::string name);
+
+	/**
+	 * @brief Check if track can inject data into GStreamer.
+	 *
+	 * @param[in] Media type
+	 * @return bool true if track can inject data, false otherwise
+	 */
+	bool TrackDownloadsAreEnabled(MediaType type);
+
+	/**
+	 * @brief Stop buffering in AAMP and un-pause pipeline.
+	 *
+	 * @param[in] forceStop - stop buffering forcefully
+	 * @return void
+	 */
+	void StopBuffering(bool forceStop);
 
 private:
 

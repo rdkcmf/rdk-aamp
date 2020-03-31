@@ -863,6 +863,14 @@ public:
 	 *   @return current video co-ordinates in x,y,w,h format
 	 */
 	virtual std::string GetVideoRectangle() { return std::string(); };
+
+	/**
+	 *   @brief Stop buffering in sink
+	 *
+	 *   @param[in] forceStop - true if buffering to be stopped without any checks
+	 *   @return void
+	 */
+	virtual void StopBuffering(bool forceStop) { };
 };
 
 
@@ -1388,6 +1396,13 @@ public:
 	 */
 	void SetNewABRConfig(bool bValue);
 
+	/**
+	 *	 @brief Configure New AdBreaker Enable/Disable
+	 *	 @param[in] bValue - true if new AdBreaker enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewAdBreakerConfig(bool bValue);
 
 	/**
 	 *   @brief Get available audio tracks.

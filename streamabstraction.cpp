@@ -158,6 +158,22 @@ void MediaTrack::MonitorBufferHealth()
 				aamp->CheckForDiscontinuityStall((MediaType)type);
 			}
 
+			// If underflow occurred and cached fragments are full
+			if (aamp->GetBufUnderFlowStatus() && bufferStatus == BUFFER_STATUS_GREEN && type == eTRACK_VIDEO)
+			{
+				// There is a chance for deadlock here
+				// We hit an underflow in a scenario where its not actually an underflow
+				// If track injection to GStreamer is stopped because of this special case, we can't come out of
+				// buffering even if we have enough data
+				if (!aamp->TrackDownloadsAreEnabled(eMEDIATYPE_VIDEO))
+				{
+					// This is a deadlock, buffering is active and enough-data received from GStreamer
+					AAMPLOG_WARN("%s:%d Possible deadlock with buffering. Enough buffers cached, un-pause pipeline!", __FUNCTION__, __LINE__);
+					aamp->StopBuffering(true);
+				}
+
+			}
+
 		}
 		else
 		{
