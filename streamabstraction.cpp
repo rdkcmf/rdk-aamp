@@ -1132,7 +1132,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 		}
 		// steady state ,with no ABR cache available to determine actual bandwidth
 		// this state can happen due to timeouts
-		if(nwBandwidth == -1 && bufferValue < gpGlobalConfig->minABRBufferForRampDown)
+		if(nwBandwidth == -1 && bufferValue < gpGlobalConfig->minABRBufferForRampDown && !video->IsInjectionAborted())
 		{
 			mABRLowBufferCounter++;
 			mABRHighBufferCounter = 0;

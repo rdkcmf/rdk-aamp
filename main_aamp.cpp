@@ -2463,10 +2463,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 				{
 					long curlDownloadTimeoutMS = curlDLTimeout[curlInstance]; // curlDLTimeout is in msec
 					//abortReason for progress_callback exit scenarios
+					// curl sometimes exceeds the wait time by few milliseconds.Added buffer of 10msec
 					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
 									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
 									(buffer->len >= 0) &&
-									(downloadTimeMS <= curlDownloadTimeoutMS));
+									((downloadTimeMS-10) <= curlDownloadTimeoutMS));
 
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
 					//Log errors due to curl stall/start detection abort
@@ -2492,7 +2493,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if(mpStreamAbstractionAAMP) 
 						{	
 							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
-							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS))
+							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) ||
+								simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_AUDIO)
 							{
 								// GetBuffer will return -1 if session is not created 
 								// Check if buffer is available and more than timeout interval then only reattempt
