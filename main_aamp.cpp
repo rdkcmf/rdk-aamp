@@ -2488,11 +2488,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					//Attempt retry for partial downloads, which have a higher chance to succeed
 					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < 2)
 					{
-						if(mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->GetBufferedDuration()*1000 > curlDownloadTimeoutMS)
+						if(mpStreamAbstractionAAMP) 
 						{	
-							// Check if buffer is available and more than timeout interval then only reattempt
-							// Not to retry download if there is no buffer left 
-							loopAgain = true;
+							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
+							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS))
+							{
+								// GetBuffer will return -1 if session is not created 
+								// Check if buffer is available and more than timeout interval then only reattempt
+								// Not to retry download if there is no buffer left 
+								loopAgain = true;
+							}
 						}						
 						logprintf("Download failed due to curl timeout or isDownloadStalled:%d. Retrying:%d", isDownloadStalled,loopAgain);
 					}

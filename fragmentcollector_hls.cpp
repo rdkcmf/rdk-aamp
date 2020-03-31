@@ -4767,8 +4767,8 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 double StreamAbstractionAAMP_HLS::GetBufferedDuration()
 {
 	TrackState *video = trackState[eTRACK_VIDEO];
-	double retval = 0.0;
-	if (video->enabled)
+	double retval = -1.0;
+	if (video && video->enabled)
 	{
 		retval = video->GetBufferedDuration();
 	}
