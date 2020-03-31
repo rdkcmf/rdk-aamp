@@ -1031,7 +1031,7 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 	{
 		bool ret = aamp->ProcessPendingDiscontinuity();
 		// This is to avoid calling cond signal, in case Stop() interrupts the ProcessPendingDiscontinuity
-		if (!ret)
+		if (ret)
 		{
 			aamp->SyncBegin();
 			aamp->mDiscontinuityTuneOperationId = 0;
@@ -1115,6 +1115,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
 		SyncBegin();
+		AAMPLOG_WARN("%s:%d Progress event sent as part of ProcessPendingDiscontinuity, mDiscontinuityTuneOperationInProgress:%d", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationInProgress);
 		mProgressReportFromProcessDiscontinuity = false;
 		continueDiscontProcessing = mDiscontinuityTuneOperationInProgress;
 		SyncEnd();
@@ -3863,11 +3864,13 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 {
 	pthread_mutex_lock(&mLock);
 	//Have to perfom this for trick and stop operations but avoid ad insertion related ones
+	AAMPLOG_WARN("%s:%d mProgressReportFromProcessDiscontinuity:%d mDiscontinuityTuneOperationId:%d newTune:%d", __FUNCTION__, __LINE__, mProgressReportFromProcessDiscontinuity, mDiscontinuityTuneOperationId, newTune);
 	if ((mDiscontinuityTuneOperationId != 0) && (!newTune || mState == eSTATE_IDLE))
 	{
 		bool waitForDiscontinuityProcessing = true;
 		if (mProgressReportFromProcessDiscontinuity)
 		{
+			AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity and mDiscontinuityTuneOperationId[%d] set!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
 			gint callbackID = 0;
 			GSource *source = g_main_current_source();
 			if (source != NULL)
@@ -3876,7 +3879,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			}
 			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
 			{
-				AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity set, mDiscontinuityTuneOperationId[%d]!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
+				AAMPLOG_WARN("%s:%d TeardownStream idle callback id[%d] and mDiscontinuityTuneOperationId[%d] match. Ignore further discontinuity processing!", __FUNCTION__, __LINE__, callbackID, mDiscontinuityTuneOperationId);
 				waitForDiscontinuityProcessing = false; // to avoid deadlock
 				mDiscontinuityTuneOperationInProgress = false;
 				mDiscontinuityTuneOperationId = 0;
