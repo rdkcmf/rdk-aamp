@@ -653,13 +653,13 @@ public:
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
-	char *pcustomHeader;	/*** custom header data to be appended to curl request */
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
 	long minBitrate;		/*** Minimum bandwidth of playback profile */
 	long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
-
+	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
+	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 public:
 
 	/**
@@ -724,7 +724,8 @@ public:
 		,bPositionQueryEnabled(true)
 #endif
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
-		,pcustomHeader(NULL)
+		,uriParameter(NULL)
+		,customHeaderStr{""}
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
