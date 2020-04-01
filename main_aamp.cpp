@@ -775,15 +775,12 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
  */
 bool PrivateInstanceAAMP::PausePipeline(bool pause)
 {
-#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-	if ( true != mStreamSink->Pause(pause) )
+	if (true != mStreamSink->Pause(pause))
 	{
-		return(false);
+		return false;
 	}
 	pipeline_paused = pause;
-	return(true);
-#endif
-
+	return true;
 }
 
 /**
@@ -9547,6 +9544,42 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
         AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
+/**
+ * @brief Check if track can inject data into GStreamer.
+ * Called from MonitorBufferHealth
+ *
+ * @param[in] Media type
+ * @return bool true if track can inject data, false otherwise
+ */
+bool PrivateInstanceAAMP::TrackDownloadsAreEnabled(MediaType type)
+{
+	bool ret = true;
+	if (type > AAMP_TRACK_COUNT)
+	{
+		AAMPLOG_ERR("%s:%d type[%d] is un-supported, returning default as false!", __FUNCTION__, __LINE__, type);
+		ret = false;
+	}
+	else
+	{
+		pthread_mutex_lock(&mLock);
+		// If blocked, track downloads are disabled
+		ret = !mbTrackDownloadsBlocked[type];
+		pthread_mutex_unlock(&mLock);
+	}
+	return ret;
+}
+
+/**
+ * @brief Stop buffering in AAMP and un-pause pipeline.
+ * Called from MonitorBufferHealth
+ *
+ * @param[in] forceStop - stop buffering forcefully
+ * @return void
+ */
+void PrivateInstanceAAMP::StopBuffering(bool forceStop)
+{
+	mStreamSink->StopBuffering(forceStop);
+}
 
 /**
  * @}

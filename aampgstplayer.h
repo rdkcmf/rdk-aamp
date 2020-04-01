@@ -27,6 +27,7 @@
 
 #include <stddef.h>
 #include "priv_aamp.h"
+#include <pthread.h>
 
 /**
  * @struct AAMPGstPlayerPriv
@@ -89,6 +90,8 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
+
+	pthread_mutex_t mBufferingLock;
 };
 
 #endif // AAMPGSTPLAYER_H

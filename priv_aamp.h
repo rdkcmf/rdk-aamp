@@ -3344,6 +3344,22 @@ public:
 	 */
 	void SetAppName(std::string name);
 
+	/**
+	 * @brief Check if track can inject data into GStreamer.
+	 *
+	 * @param[in] Media type
+	 * @return bool true if track can inject data, false otherwise
+	 */
+	bool TrackDownloadsAreEnabled(MediaType type);
+
+	/**
+	 * @brief Stop buffering in AAMP and un-pause pipeline.
+	 *
+	 * @param[in] forceStop - stop buffering forcefully
+	 * @return void
+	 */
+	void StopBuffering(bool forceStop);
+
 private:
 
 	/**
