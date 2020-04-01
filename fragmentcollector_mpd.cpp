@@ -565,7 +565,7 @@ private:
 	void StreamSelection(bool newTune = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
-	void UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
+	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
 	double SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType);
@@ -3340,7 +3340,16 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					logprintf("aamp: mpd - sent tune event after indexing playlist");
 				}
 			}
-			UpdateTrackInfo(!newTune, true, true);
+			ret = UpdateTrackInfo(!newTune, true, true);
+
+			if(eAAMPSTATUS_OK != ret)
+			{
+				if (ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
+				{
+					AAMPLOG_ERR("%s:%d ERROR: No playable profiles found", __FUNCTION__, __LINE__);
+				}
+				return ret;
+			}
 
 			if(notifyEnteringLive)
 			{
@@ -4582,8 +4591,9 @@ static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vect
 /**
  * @brief Updates track information based on current state
  */
-void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
+AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
 {
+	AAMPStatusType ret = eAAMPSTATUS_OK;
 	long defaultBitrate = gpGlobalConfig->defaultBitrate;
 	long iframeBitrate = gpGlobalConfig->iframeBitrate;
 	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
@@ -4680,6 +4690,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 					}
 					mContext->GetABRManager().clearProfiles();
 					mBitrateIndexMap.clear();
+					int addedProfiles = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
 						IRepresentation *representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(idx);
@@ -4706,6 +4717,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 								mStreamInfo[idx].resolution.width,
 								mStreamInfo[idx].resolution.height,
 							});
+							addedProfiles++;
 
 							//Update profile resolution with VideoEnd Metrics object.
 							aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
@@ -4722,6 +4734,12 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 						}
 					}
 
+					if (0 == addedProfiles)
+					{
+						ret = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+						AAMPLOG_WARN("%s:%d No video profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
+						return ret;
+					}
 					if (modifyDefaultBW)
 					{
 						long persistedBandwidth = aamp->GetPersistedBandwidth();
@@ -4821,6 +4839,7 @@ void PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW, bool per
 			}
 		}
 	}
+	return ret;
 }
 
 
