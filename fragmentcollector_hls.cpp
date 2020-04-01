@@ -1079,7 +1079,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 		// Check if there are are valid profiles to do playback 
 		if(vProfileCount == 0)
 		{
-			logprintf("%s:%d ERROR No video profiles available in manifest for playback",__FUNCTION__,__LINE__);
+			AAMPLOG_WARN("%s:%d ERROR No video profiles available in manifest for playback, minBitrate:%ld maxBitrate:%ld",__FUNCTION__,__LINE__, minBitrate, maxBitrate);
 			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 		else
@@ -1867,7 +1867,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 								if(aamp->mDrmDecryptFailCount <= segDrmDecryptFailCount)
 								{
 									decryption_error = true;
-									logprintf("FetchFragmentHelper : drm_Decrypt failed for fragments, reached failure threshold sending failure event");
+									AAMPLOG_ERR("FetchFragmentHelper : drm_Decrypt failed for fragments, reached failure threshold (%d) sending failure event", aamp->mDrmDecryptFailCount);
 									aamp->SendErrorEvent(AAMP_TUNE_DRM_DECRYPT_FAILED);
 								}
 							}
@@ -6175,14 +6175,7 @@ void TrackState::FetchInitFragment()
 			// TODO: Remove profile if init fragment is not available from ABR.
 			if (context->CheckForRampDownProfile(http_code))
 			{
-				if (context->rate == AAMP_NORMAL_PLAY_RATE)
-				{
-					playTarget -= fragmentDurationSeconds;
-				}
-				else
-				{
-					playTarget -= context->rate / context->mTrickPlayFPS;
-				}
+				AAMPLOG_INFO("%s:%d Init fragment fetch failed, Successfully ramped down to lower profile", __FUNCTION__, __LINE__);
 				context->mCheckForRampdown = true;
 			}
 			else
