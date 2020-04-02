@@ -2621,7 +2621,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if(mpStreamAbstractionAAMP) 
 						{	
 							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
-							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) ||
+							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) || 
 								simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_AUDIO)
 							{
 								// GetBuffer will return -1 if session is not created 
@@ -3526,6 +3526,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->abrBufferCheckEnabled  = (TriState)(value != 0);
 			logprintf("useNewABR =%d", value);
+		}
+		else if (ReadConfigNumericHelper(cfg, "useNewAdBreaker=", value) == 1)
+		{
+			gpGlobalConfig->useNewDiscontinuity  = (TriState)(value != 0);
+			logprintf("useNewAdBreaker =%d", value);
 		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{
@@ -6871,6 +6876,18 @@ const char* PlayerInstanceAAMP::GetPreferredLanguages()
 
 	return NULL;
 }
+/*
+ *   @brief Configure New AdBreaker Enable/Disable
+ *   @param[in] bValue - true if new AdBreaker enabled
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
+{
+	aamp->SetNewAdBreakerConfig(bValue);
+}
+
+
 
 /**
  *   @brief Set Westeros sink Configuration
@@ -6908,6 +6925,38 @@ void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	}
 	AAMPLOG_INFO("%s:%d New ABR Config : %s ",__FUNCTION__,__LINE__,(mABRBufferCheckEnabled)?"True":"False");
+
+	// temp code until its enabled in Peacock App - Remove it later.
+	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
+	{
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
+	}
+	else
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;		
+	}
+	AAMPLOG_INFO("%s:%d New AdBreaker/PDT Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
+}
+
+/**
+ *   @brief Configure New AdBreaker Enable/Disable
+ *   @param[in] bValue - true if new ABR enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
+{
+	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
+	{
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
+	}
+	else
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
+	}
+	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
 }
 
 
@@ -7313,7 +7362,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 			continue;
 		}
 
-		if ((i->_timeMS == timeMilliseconds) &&
+		// Add a boundary check of 1 sec for rounding correction
+		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ) &&
 			(i->_name.compare(szName) == 0)	&&
 			(i->_content.compare(content) == 0))
 		{
@@ -7686,6 +7736,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mParallelPlaylistFetchLock()
 	, mAppName()
 	, mABRBufferCheckEnabled(false)
+	, mNewAdBreakerEnabled(false)
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1)
@@ -7751,6 +7802,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	SetAsyncTuneConfig(false);
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
+	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
+		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
