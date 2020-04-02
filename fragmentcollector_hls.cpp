@@ -85,6 +85,8 @@ extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDat
 extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
+#define UseProgramDateTimeIfAvailable() (gpGlobalConfig->hlsAVTrackSyncUsingStartTime || aamp->mIsVSS)
+
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -607,28 +609,32 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 	}
 }
 
-static bool ParseTimeFromProgramDateTime(const char* ptr, struct timeval &programDateTimeVal )
+/**
+ * @brief parse ISO/IEC 8601:2004 timestamp
+ */
+static double ParseTimeFromProgramDateTime(const char* ptr )
 {
-	bool retVal = false;
+	double  rc = 0;
 	struct tm timeinfo;
 	int ms = 0;
 	memset(&timeinfo, 0, sizeof(timeinfo));
 	/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-	int ret = sscanf(ptr, "%d-%d-%dT%d:%d:%d.%d", &timeinfo.tm_year, &timeinfo.tm_mon,
-			&timeinfo.tm_mday, &timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec, &ms);
+	int ret = sscanf(ptr, "%d-%d-%dT%d:%d:%d.%d",
+			&timeinfo.tm_year, &timeinfo.tm_mon, &timeinfo.tm_mday,
+			&timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec,
+			&ms );
 	if (ret >= 6)
 	{
 		timeinfo.tm_year -= 1900;
-		programDateTimeVal.tv_sec = mktime(&timeinfo);
-		programDateTimeVal.tv_usec = ms * 1000;
-		retVal = true;
+		rc = mktime(&timeinfo) + ms/1000.0;
 	}
 	else
 	{
 		logprintf("Parse error on DATE-TIME: %*s ret = %d", 30, ptr, ret);
 	}
-	return retVal;
+	return rc;
 }
+
 /***************************************************************************
 * @fn ParseXStartTimeOffset
 * @brief Helper function to Parse XStart Tag and attributes
@@ -1140,7 +1146,6 @@ char *TrackState::GetFragmentUriFromIndex()
 		for (idx = currentIdx; idx >= 0; idx--)
 		{ // search in direction until out-of-bounds
 			const IndexNode *node = &index[idx];
-			//logprintf("%s rate %f completionTimeSecondsFromStart %f playTarget %f",__FUNCTION__, rate, node->completionTimeSecondsFromStart, playTarget);
 			if (node->completionTimeSecondsFromStart <= playTarget)
 			{ // found target iframe
 #ifdef TRACE
@@ -1369,16 +1374,11 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					{
 						programDateTime = ptr;
 						// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
-						if (startTimeForPlaylistSync.tv_sec == 0 && startTimeForPlaylistSync.tv_usec == 0)
+						if (startTimeForPlaylistSync == 0.0 )
 						{
 							/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-							bool ret = ParseTimeFromProgramDateTime(ptr, startTimeForPlaylistSync);
-							if (ret)
-							{
-								AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %ld.%06ld",
-										ptr ,startTimeForPlaylistSync.tv_sec,
-										(long)startTimeForPlaylistSync.tv_usec);
-							}
+							startTimeForPlaylistSync = ParseTimeFromProgramDateTime(ptr);
+							logprintf("%s %s StartTimeForPlaylistSync : %f ",__FUNCTION__,name, startTimeForPlaylistSync);							
 						}
 					}
 				}
@@ -1538,39 +1538,36 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 								}
 								else
 								{
-									struct timeval programDateTimeVal;
-									bool ret = ParseTimeFromProgramDateTime(programDateTime, programDateTimeVal);
-									if (ret)
-									{
-										AAMPLOG_TRACE("DATE-TIME: %s startTime updated to %ld.%06ld",
-												ptr ,programDateTimeVal.tv_sec,
-												(long)programDateTimeVal.tv_usec);
-									}
-									position = programDateTimeVal.tv_sec + (double)programDateTimeVal.tv_usec/1000000;
+									position = ParseTimeFromProgramDateTime(programDateTime );
 									logprintf("%s:%d [%s] Discontinuity - position from program-date-time %f", __FUNCTION__, __LINE__, name, position);
 								}
-								if (!other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition))
+								logprintf("%s %s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",__FUNCTION__,name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
+								if (!mDiscontinuityCheckingOn) 
 								{
-									logprintf("%s:%d [%s] Ignoring discontinuity as %s track does not have discontinuity", __FUNCTION__, __LINE__, name, other->name);
-									discontinuity = false;
-								}
-								else if (programDateTime)
-								{
-									logprintf("%s:%d [%s] diff %f ", __FUNCTION__, __LINE__, name, diff);
-									/*If other track's discontinuity is in advanced position, diff is positive*/
-									if (diff > fragmentDurationSeconds/2 )
+									if(false == other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition,mCulledSeconds,mProgramDateTime))
 									{
-										/*Skip fragment*/
-										logprintf("%s:%d [%s] Discontinuity - other track's discontinuity time greater by %f. updating playTarget %f to %f",
-												__FUNCTION__, __LINE__, name, diff, playTarget, playlistPosition + diff);
-										mSyncAfterDiscontinuityInProgress = true;
-										playTarget = playlistPosition + diff;
+										logprintf("%s:%d [%s] Ignoring discontinuity as %s track does not have discontinuity", __FUNCTION__, __LINE__, name, other->name);
 										discontinuity = false;
-										programDateTime = NULL;
-										ptr = next;
-										continue;
+									}
+									else if (programDateTime)
+									{
+										logprintf("%s:%d [%s] diff %f ", __FUNCTION__, __LINE__, name, diff);
+										/*If other track's discontinuity is in advanced position, diff is positive*/
+										if (diff > fragmentDurationSeconds/2 )
+										{
+											/*Skip fragment*/
+											logprintf("%s:%d [%s] Discontinuity - other track's discontinuity time greater by %f. updating playTarget %f to %f",
+													__FUNCTION__, __LINE__, name, diff, playTarget, playlistPosition + diff);
+											mSyncAfterDiscontinuityInProgress = true;
+											playTarget = playlistPosition + diff;
+											discontinuity = false;
+											programDateTime = NULL;
+											ptr = next;
+											continue;
+										}
 									}
 								}
+								
 							}
 						}
 						else
@@ -2084,18 +2081,18 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fr
 static double GetCompletionTimeForFragment(const TrackState *trackState, long long mediaSequenceNumber)
 {
 	double rc = 0.0;
-	int indexCount = trackState->indexCount;
+	int indexCount = trackState->indexCount; // number of fragments
 	if (indexCount>0)
 	{
 		int idx = (int)(mediaSequenceNumber - trackState->indexFirstMediaSequenceNumber);
 		if (idx >= 0)
 		{
 			if (idx >= indexCount)
-			{
+			{ // clamp
 				idx = indexCount - 1;
 			}
 			const IndexNode *node = &((IndexNode *)trackState->index.ptr)[idx];
-			rc = node->completionTimeSecondsFromStart;
+			rc = node->completionTimeSecondsFromStart; // pick up from indexed playlist
 		}
 		else
 		{
@@ -2135,6 +2132,7 @@ void TrackState::FlushIndex()
 {
 	aamp_Free(&index.ptr);
 	indexFirstMediaSequenceNumber = 0;
+	mProgramDateTime = 0.0; // new member - stored first program date time (if any) from playlist
 	indexCount = 0;
 	index.len = 0;
 	index.avail = 0;
@@ -2430,11 +2428,19 @@ static size_t FindLineLength(const char* ptr)
 *		 
 * @return double total duration from playlist
 ***************************************************************************/
-void TrackState::IndexPlaylist()
+void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 {
 	double totalDuration = 0.0;
 	traceprintf("%s:%d Enter ", __FUNCTION__, __LINE__);
 	pthread_mutex_lock(&mPlaylistMutex);
+	double prevProgramDateTime = mProgramDateTime;
+	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
+	double prevSecondsBeforePlayPoint; 
+	if(IsRefresh && !UseProgramDateTimeIfAvailable())
+	{
+		prevSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition); 
+	}
+
 	FlushIndex();
 	mIndexingInProgress = true;
 	if (playlist.ptr )
@@ -2496,6 +2502,7 @@ void TrackState::IndexPlaylist()
 				{
 					indexFirstMediaSequenceNumber = atoll(ptr);
 					mediaSequence = true;
+					//logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
 				}
 				else if(startswith(&ptr,"-X-TARGETDURATION:"))
 				{
@@ -2556,11 +2563,20 @@ void TrackState::IndexPlaylist()
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
+					//logprintf("%s %s Discontinuity Posn : %f ",__FUNCTION__,name, totalDuration);
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
-					programDateTimeIdxOfFragment = ptr;
-					traceprintf("Got EXT-X-PROGRAM-DATE-TIME: %.*s ", 30, programDateTimeIdxOfFragment);
+					programDateTimeIdxOfFragment = ptr;					
+					mProgramDateTime = ParseTimeFromProgramDateTime(ptr);
+					AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
+					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
+					if (startTimeForPlaylistSync == 0.0 )
+					{
+						/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
+						startTimeForPlaylistSync = mProgramDateTime; 
+						AAMPLOG_WARN("%s %s StartTimeForPlaylistSync : %f ",__FUNCTION__,name, startTimeForPlaylistSync);
+					}
 				}
 				else if (startswith(&ptr, "-X-KEY:"))
 				{
@@ -2768,6 +2784,21 @@ void TrackState::IndexPlaylist()
 	{
 		AveDrmManager::FlushAfterIndexList(name,(int)type);
 	}
+
+	if(IsRefresh)
+	{
+		if(!UseProgramDateTimeIfAvailable())
+		{
+			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
+			culledSec = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
+			AAMPLOG_INFO("%s %s Prev:%f Now:%f culled with sequence %f ",__FUNCTION__,name,prevSecondsBeforePlayPoint,newSecondsBeforePlayPoint,culledSec);
+		}
+		else
+		{
+			culledSec = mProgramDateTime - prevProgramDateTime;
+			AAMPLOG_INFO("%s %s Prev:%f Now:%f  culled with ProgramDateTime %f",__FUNCTION__,name,prevProgramDateTime,mProgramDateTime, culledSec);		
+		}
+	}	
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
@@ -2841,11 +2872,6 @@ void TrackState::ABRProfileChanged()
 ***************************************************************************/
 void TrackState::RefreshPlaylist(void)
 {
-	// use current, not next position to synchronize and detect culling
-	// important, as 'next position' typically isn't present in both
-	// the before and after playlist
-	long long commonPlayPosition = nextMediaSequenceNumber - 1;
-	double prevSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
 	GrowableBuffer tempBuff;
 	long http_error = 0;
 
@@ -2923,7 +2949,9 @@ void TrackState::RefreshPlaylist(void)
 			printf("***New Playlist:**************\n\n%s\n*************\n", playlist.ptr);
 		}
 #endif
-		IndexPlaylist();
+
+		double culled;
+		IndexPlaylist(true, culled);
 		// Update culled seconds if playlist download was successful
 		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
 		// culledSeconds and FindTimedMetadata have been moved up here, because FindMediaForSequenceNumber
@@ -2931,17 +2959,25 @@ void TrackState::RefreshPlaylist(void)
 		// FindTimedMetadata failing to parse playlist
 		if (IsLive())
 		{
-			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
-			double culled = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-			if (culled > 0)
+			if(UseProgramDateTimeIfAvailable())
 			{
+				// both negative and positive values added 
 				mCulledSeconds += culled;
-				if (eTRACK_VIDEO == type)
-				{
-					aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download
-				}
 			}
-
+			else if (culled > 0)
+			{
+				// Only positive values 
+				mCulledSeconds += culled;
+			}
+			else
+			{
+				culled = 0;
+			}
+			AAMPLOG_INFO("%s %s culled :%f AampCulled:%f TrackCulled:%f ",__FUNCTION__,name,culled,aamp->culledSeconds,mCulledSeconds);
+			if(eTRACK_VIDEO == type)
+			{
+				aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
+			}
 			// Metadata refresh is needed for live content only , not for VOD
 			// Across ABR , for VOD no metadata change is expected from initial reported ones
 			FindTimedMetadata();
@@ -3458,8 +3494,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 * @param useProgramDateTimeIfAvailable use program date time tag to sync if available
 * @return eAAMPSTATUS_OK on success
 ***************************************************************************/
-AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAvailable)
+AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 {
+	bool useProgramDateTimeIfAvailable = UseProgramDateTimeIfAvailable();
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	bool startTimeAvailable = true;
 	bool syncedUsingSeqNum = false;
@@ -3467,7 +3504,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-	double diffBetweenStartTimes = 0;
+	double diffBetweenStartTimes = 0.0;
 	for(int i = 0; i<AAMP_TRACK_COUNT; i++)
 	{
 		TrackState *ts = trackState[i];
@@ -3477,9 +3514,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 			/*Update playTarget to playlistPostion to correct the seek position to start of a fragment*/
 			ts->playTarget = ts->playlistPosition;
 			logprintf("syncTracks loop : track[%d] pos %f start %f frag-duration %f trackState->fragmentURI %s ts->nextMediaSequenceNumber %lld", i, ts->playlistPosition, ts->playTarget, ts->fragmentDurationSeconds, ts->fragmentURI, ts->nextMediaSequenceNumber);
-			if (ts->startTimeForPlaylistSync.tv_sec == 0)
+			if (ts->startTimeForPlaylistSync == 0.0 )
 			{
-				logprintf("startTime not available for track %d", i);
+				logprintf("%s startTime not available for track %d",__FUNCTION__, i);
 				startTimeAvailable = false;
 			}
 			mediaSequenceNumber[i] = ts->nextMediaSequenceNumber - 1;
@@ -3489,8 +3526,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 	if (startTimeAvailable)
 	{
 		//Logging irregularities in the playlist for debugging purposes
-		diffBetweenStartTimes = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec
-			+ (float)(trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_usec - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_usec) / 1000000;
+		diffBetweenStartTimes = trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync - trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync;
+		logprintf("%s Difference in PDT between A/V: %f Audio:%f Video:%f ",__FUNCTION__,diffBetweenStartTimes , trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync,
+								trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync);
 		if (!useProgramDateTimeIfAvailable)
 		{
 			if (video->targetDurationSeconds != audio->targetDurationSeconds)
@@ -3512,9 +3550,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 
 		if((diffBetweenStartTimes < -10 || diffBetweenStartTimes > 10))
 		{
-			logprintf("syncTracks diff debug : Audio start time sec : %ld  Video start time sec : %ld ",
-			trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync.tv_sec,
-			trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync.tv_sec);
+			logprintf("syncTracks diff debug : Audio start time : %f  Video start time : %f ",
+			trackState[eMEDIATYPE_AUDIO]->startTimeForPlaylistSync,
+			trackState[eMEDIATYPE_VIDEO]->startTimeForPlaylistSync );
 		}
 	}
 
@@ -3632,9 +3670,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 				{
 					if (video->mDuration > (ts->playTarget + diffBetweenStartTimes))
 					{
-						logprintf("%s:%d Audio track in front, catchup videotrack", __FUNCTION__, __LINE__);
 						ts->playTarget += diffBetweenStartTimes;
 						ts->playTargetOffset = diffBetweenStartTimes;
+						logprintf("%s:%d Audio track in front, catchup videotrack video playTarget:%f playTargetOffset:%f", __FUNCTION__, __LINE__,ts->playTarget ,ts->playTargetOffset);
 					}
 					else
 					{
@@ -3656,9 +3694,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 				{
 					if (audio->mDuration > (ts->playTarget - diffBetweenStartTimes))
 					{
-						logprintf("%s:%d Video track in front, catchup audio track", __FUNCTION__, __LINE__);
 						ts->playTarget -= diffBetweenStartTimes;
 						ts->playTargetOffset = -diffBetweenStartTimes;
+						logprintf("%s:%d Video track in front, catchup audiotrack audio playTarget:%f playTargetOffset:%f", __FUNCTION__, __LINE__,ts->playTarget ,ts->playTargetOffset);
 					}
 					else
 					{
@@ -3677,18 +3715,17 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 			if (subtitle->enabled)
 			{
 				//Compare subtitle and audio start time
-				const double subtitleDiff = audio->startTimeForPlaylistSync.tv_sec - subtitle->startTimeForPlaylistSync.tv_sec
-							+ (float)(audio->startTimeForPlaylistSync.tv_usec - subtitle->startTimeForPlaylistSync.tv_usec) / 1000000;
+				const double subtitleDiff = audio->startTimeForPlaylistSync - subtitle->startTimeForPlaylistSync;
 				if (subtitleDiff > 0)
 				{
 					//Audio is at a higher start time that subtitle. Subtitle track needs to catch-up
 					if (subtitleDiff > (subtitle->fragmentDurationSeconds / 2))
 					{
 						if (subtitle->mDuration > (subtitle->playTarget + subtitleDiff))
-						{
-							logprintf("%s:%d Audio track in front, catch up subtitle track", __FUNCTION__, __LINE__);
+						{	
 							subtitle->playTarget += subtitleDiff;
 							subtitle->playTargetOffset = subtitleDiff;
+							logprintf("%s:%d Audio track in front, catchup subtitle  playTarget:%f playTargetOffset:%f", __FUNCTION__, __LINE__,subtitle->playTarget ,subtitle->playTargetOffset);
 						}
 						else
 						{
@@ -3704,8 +3741,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 				{
 					//Can't catch-up audio to subtitle, since audio and video are already sync-ed
 					logprintf("syncTracks : Skip subtitle sync to audio for subtitle startTime %f, audio startTime %f. Subtitle will be starting late",
-							(subtitle->startTimeForPlaylistSync.tv_sec + (subtitle->startTimeForPlaylistSync.tv_usec / 1000000)),
-							(audio->startTimeForPlaylistSync.tv_sec + (audio->startTimeForPlaylistSync.tv_usec / 1000000)));
+							subtitle->startTimeForPlaylistSync,
+							audio->startTimeForPlaylistSync );
 				}
 			}
 		}
@@ -3727,6 +3764,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(bool useProgramDateTimeIfAv
 
 	return retval;
 }
+
 /***************************************************************************
 * @fn Init
 * @brief Function to initialize member variables,download main manifest and parse 
@@ -4027,6 +4065,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if(ts->enabled)
 			{
+				double dummy;
 				bool playContextConfigured = false;
 				aamp_AppendNulTerminator(&ts->playlist); // make safe for cstring operations
 				if (gpGlobalConfig->logging.trace  )
@@ -4039,7 +4078,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 #endif
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = (newTune || mTuneType == eTUNETYPE_RETUNE); //these tune types have new gstreamer pipeline
-				ts->IndexPlaylist();
+				ts->IndexPlaylist(false,dummy);
 
 				if (ts->mDuration == 0.0f)
 				{
@@ -4457,14 +4496,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 					if (!syncDone)
 					{
-						bool useProgramDateTimeIfAvailable = gpGlobalConfig->hlsAVTrackSyncUsingStartTime;
-						/*For VSS streams, use program-date-time if available*/
-						if (aamp->mIsVSS)
-						{
-							logprintf("StreamAbstractionAAMP_HLS::%s:%d : VSS stream", __FUNCTION__, __LINE__);
-							useProgramDateTimeIfAvailable = true;
-						}
-						AAMPStatusType retValue = SyncTracks(useProgramDateTimeIfAvailable);
+						AAMPStatusType retValue = SyncTracks();
 						if (eAAMPSTATUS_OK != retValue)
 						{
 							return retValue;
@@ -5044,7 +5076,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		manifestDLFailCount(0),
 		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
 		mInjectInitFragment(false), mInitFragmentInfo(NULL), mDrmKeyTagCount(0), mIndexingInProgress(false), mForceProcessDrmMetadata(false),
-		mDuration(0), mLastMatchedDiscontPosition(-1), mCulledSeconds(0),
+		mDuration(0), mLastMatchedDiscontPosition(-1), mCulledSeconds(0),mCulledSecondsOld(0),
 		mEffectiveUrl(""), mPlaylistUrl(""), mFragmentURIFromIndex(""),
 		mDiscontinuityIndexCount(0), mSyncAfterDiscontinuityInProgress(false), playlist(),
 		index(), targetDurationSeconds(1), mDeferredDrmKeyMaxTime(0), startTimeForPlaylistSync(),
@@ -5054,6 +5086,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mByteOffsetCalculation(false),mSkipAbr(false),
 		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
 		,mXStartTimeOFfset(0), mCulledSecondsAtStart(0.0)
+		,mProgramDateTime(0.0)
+		,mDiscontinuityCheckingOn(false)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
@@ -5800,117 +5834,237 @@ int TrackState::GetNumberOfPeriods()
 * @param[out] diffBetweenDiscontinuities discontinuity position minus input position
 * @return true if discontinuity present around given position
 ***************************************************************************/
-bool TrackState::HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition)
+bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscontinuityDateTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime)
 {
-	bool discontinuityPending = false;
+	bool discontinuityFound = false;
+	bool useProgramDateTimeIfAvailable = UseProgramDateTimeIfAvailable();
 	double discDiscardTolreanceInSec = (3 * targetDurationSeconds); /* Used by discontinuity handling logic to ensure both tracks have discontinuity tag around same area */
 	double low = position - discDiscardTolreanceInSec;
 	double high = position + discDiscardTolreanceInSec;
 	int playlistRefreshCount = 0;
 	diffBetweenDiscontinuities = DBL_MAX;
+	bool newDiscHandling = true;
 	pthread_mutex_lock(&mPlaylistMutex);
+	mDiscontinuityCheckingOn = true;
+
 	while (aamp->DownloadsAreEnabled())
 	{
-		if (0 != mDiscontinuityIndexCount)
+		if(aamp->mNewAdBreakerEnabled)
 		{
+			// No condition to check DiscontinuityCount.Possible that in next refresh it will be available, 
+			// Case where one discontinnuity in one track ,but other track not having it	
+			// New code -enabled by config 
 			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
+			double deltaCulledSec = inputCulledSec - mCulledSeconds;
+			bool foundmatchingdisc = false;
 			for (int i = 0; i < mDiscontinuityIndexCount; i++)
 			{
-				if (IsLive())
-				{
-					AAMPLOG_WARN("%s:%d [%s] loop %d mLastMatchedDiscontPosition %f mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f",
-						__FUNCTION__, __LINE__, name, i, mLastMatchedDiscontPosition, mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds);
-				}
+				// Live is complicated lets finish that 
+					double discdatetime = 0.0;
+					if(discontinuityIndex[i].programDateTime)
+						discdatetime = ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime);
 
-				if ((mLastMatchedDiscontPosition < 0) || (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
-				{
-					if (!useStartTime)
+					AAMPLOG_WARN("%s:%d [%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f",__FUNCTION__, __LINE__, name, i,
+						mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds,mProgramDateTime);
+
+					AAMPLOG_WARN("%s:%d Visitor loop %d Input track position:%f useDateTime:%d CulledSeconds :%f playlistRefreshTime :%f DeltaCulledSec:%f", __FUNCTION__, __LINE__, i,
+						position ,useDiscontinuityDateTime, inputCulledSec , inputProgramDateTime , deltaCulledSec);
+
+					// check if date and time for discontinuity tag exists 
+					if(useDiscontinuityDateTime && discdatetime)
 					{
-						AAMPLOG_WARN("%s:%d [%s] low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
-								__FUNCTION__, __LINE__, name, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
-						if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
+						// unfortunately date and time of calling track is passed in position arguement
+						AAMPLOG_INFO("%s Comparing two disc date&time input pdt:%f %s pdt:%f",__FUNCTION__,position,discdatetime);
+						if(std::round(discdatetime) == std::round(position)) 
 						{
-							mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-							discontinuityPending = true;
-							AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
+							foundmatchingdisc = true;
+							diffBetweenDiscontinuities = discdatetime - position;
+							AAMPLOG_WARN("%s:%d [%s] Found the matching discontinuity with pdt at position:%f",__FUNCTION__, __LINE__, name,position);
+							break;
+						}			
+					}
+					else
+					{
+						// No PDT , now compare the position based on culled delta 
+						// Additional fragmentDuration is considered as rounding with decimal is missing the position when culled delta is same 
+						// Ignore milli second accuracy 
+						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds);
+						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds);
+						int roundedPosn = (int)position;
+						AAMPLOG_INFO("%s Comparing position input posn:%d index[%d] position:%d deltaCulled:%f limit1:%d limit2:%d  ",__FUNCTION__,roundedPosn,i,(int)(discontinuityIndex[i].position),deltaCulledSec,
+										limit1, limit2);
+						if(roundedPosn >= limit1 && roundedPosn <= limit2 )
+						{
+							foundmatchingdisc = true;	
+							AAMPLOG_WARN("%s:%d [%s] Found the matching discontinuity at position:%f for position:%f",__FUNCTION__, __LINE__, name,discontinuityIndex[i].position,position);
+							break;
+						}
+					}
+			}
+
+			// Now the worst part . Not found matching discontinuity.How long to wait ??? 
+			if(!foundmatchingdisc)
+			{
+				AAMPLOG_WARN("%s:%d ##[%s] Discontinuity not found mDuration %f playPosition %f  playlistType %d useStartTime %d ",
+					__FUNCTION__, __LINE__, name, mDuration, playPosition, (int)mPlaylistType, (int)useDiscontinuityDateTime);
+				if (IsLive())
+				{						
+					int maxPlaylistRefreshCount;
+					bool liveNoTSB; 						
+					if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
+					{
+						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
+						liveNoTSB = false;
+					}
+					else
+					{
+						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
+						liveNoTSB = true;
+					}
+					// how long to wait?? Two ways to check .
+					// 1. using Program Date and Time of playlist update .
+					// 2. using the position and count of target duration.
+					if(useProgramDateTimeIfAvailable)
+					{
+						// check if the track called have higher PDT or not 
+						// if my refresh time is higher to calling track playlist track by an extra target duration,no point in waiting							
+						if (mProgramDateTime >= inputProgramDateTime+targetDurationSeconds || playlistRefreshCount > maxPlaylistRefreshCount)
+						{
+							AAMPLOG_WARN("%s %s Discontinuity not found mProgramDateTime:%f > inputProgramDateTime:%f playlistRefreshCount:%d maxPlaylistRefreshCount:%d",__FUNCTION__,name,
+								mProgramDateTime,inputProgramDateTime,playlistRefreshCount,maxPlaylistRefreshCount);								
 							break;
 						}
 					}
 					else
 					{
-						struct timeval programDateTimeVal;
-						if (ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime, programDateTimeVal))
+
+						if(!((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec)))))
 						{
-							double discPos = programDateTimeVal.tv_sec + (double) programDateTimeVal.tv_usec/1000000;
-							logprintf ("%s:%d [%s] low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
-								__FUNCTION__, __LINE__, name, low, high, position, discPos, discDiscardTolreanceInSec);
-
-							if (low < discPos && high > discPos)
-							{
-								double diff = discPos - position;
-								discontinuityPending = true;
-								if (fabs(diff) < fabs(diffBetweenDiscontinuities))
-								{
-									diffBetweenDiscontinuities = diff;
-									mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-								}
-								else
-								{
-									AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
-									break;
-								}
-							}
-						}
+							AAMPLOG_WARN("%s %s Discontinuity not found After playlistRefreshCount:%d",__FUNCTION__,name,playlistRefreshCount);	
+							break;
+						}							
 					}
-				}
-			}
-		}
-		if (!discontinuityPending)
-		{
-			logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d discontinuity-discardTolreanceInSec %f",
-				__FUNCTION__, __LINE__, name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useStartTime, discDiscardTolreanceInSec);
-
-			if (IsLive())
-			{
-				int maxPlaylistRefreshCount;
-				bool liveNoTSB;
-				if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
-				{
-					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
-					liveNoTSB = false;
-				}
-				else
-				{
-					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
-					liveNoTSB = true;
-				}
-
-				if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
-				{
-					logprintf("%s:%d Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
-					        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
+					AAMPLOG_WARN("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
 					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-					logprintf("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
 					playlistRefreshCount++;
-				}
-				else
-				{
-					AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
-					break;
 				}
 			}
 			else
 			{
+				discontinuityFound = true;
 				break;
 			}
 		}
 		else
 		{
-			break;
+			// existing code logic 
+			if (0 != mDiscontinuityIndexCount)
+			{
+				DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
+				for (int i = 0; i < mDiscontinuityIndexCount; i++)
+				{
+					if (IsLive())
+					{
+						AAMPLOG_WARN("%s:%d [%s] loop %d mLastMatchedDiscontPosition %f mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f",
+							__FUNCTION__, __LINE__, name, i, mLastMatchedDiscontPosition, mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds);
+					}
+
+					if ((mLastMatchedDiscontPosition < 0) || (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
+					{
+						if (!useDiscontinuityDateTime)
+						{
+							AAMPLOG_WARN("%s:%d [%s] low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
+									__FUNCTION__, __LINE__, name, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
+							if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
+							{
+								mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
+								discontinuityFound = true;
+								AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
+								break;
+							}
+						}
+						else
+						{
+							double discPos = ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime);
+							{
+								logprintf ("%s:%d [%s] low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
+									__FUNCTION__, __LINE__, name, low, high, position, discPos, discDiscardTolreanceInSec);
+
+								if (low < discPos && high > discPos)
+								{
+									double diff = discPos - position;
+									discontinuityFound = true;
+									if (fabs(diff) < fabs(diffBetweenDiscontinuities))
+									{
+										diffBetweenDiscontinuities = diff;
+										mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
+									}
+									else
+									{
+										AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if (!discontinuityFound)
+				{
+					logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d discontinuity-discardTolreanceInSec %f",
+						__FUNCTION__, __LINE__, name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useDiscontinuityDateTime, discDiscardTolreanceInSec);
+
+					if (IsLive())
+					{
+						int maxPlaylistRefreshCount;
+						bool liveNoTSB;
+						if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
+						{
+							maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
+							liveNoTSB = false;
+						}
+						else
+						{
+							maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
+							liveNoTSB = true;
+						}
+
+						if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
+						{
+							logprintf("%s:%d Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
+							        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
+							pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
+							logprintf("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
+							playlistRefreshCount++;
+						}
+						else
+						{
+							AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
+							break;
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				// No discontinuity present , just break
+				break;
+			}
 		}
+
 	}
+	mDiscontinuityCheckingOn = false;
 	pthread_mutex_unlock(&mPlaylistMutex);
-	return discontinuityPending;
+	return discontinuityFound;
 }
 
 /***************************************************************************
@@ -6269,7 +6423,8 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 						{
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
-							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
+							long long positionMilliseconds = (long long) std::round(mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0;
+							AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
 							if(reportBulkMeta)
 							{

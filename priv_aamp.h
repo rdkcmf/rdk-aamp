@@ -594,6 +594,7 @@ public:
 	int minABRBufferForRampDown;		/**< Mininum ABR Buffer for Rampdown*/
 	int maxABRBufferForRampUp;		/**< Maximum ABR Buffer for Rampup*/
 	TriState abrBufferCheckEnabled;         /**< Flag to enable/disable buffer based ABR handling*/
+	TriState useNewDiscontinuity;         /**< Flag to enable/disable buffer based ABR handling*/
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
@@ -696,7 +697,8 @@ public:
 		,mUseAverageBWForABR(eUndefinedState)
 		,mPreCacheTimeWindow(0)
 		,parallelPlaylistRefresh(eUndefinedState)
-		,abrBufferCheckEnabled(eUndefinedState) 		
+		,abrBufferCheckEnabled(eUndefinedState)
+		,useNewDiscontinuity(eUndefinedState)
 #ifdef INTELCE
 		,bPositionQueryEnabled(false)
 #else
@@ -1779,6 +1781,7 @@ public:
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
 	bool mABRBufferCheckEnabled;
+	bool mNewAdBreakerEnabled;
 
 	/**
 	 * @brief Curl initialization function
@@ -3292,6 +3295,13 @@ public:
 	 *	 @return void
 	 */
 	void SetNewABRConfig(bool bValue);
+	/**
+	 *	 @brief Configure New AdBreaker Enable/Disable
+	 *	 @param[in] bValue - true if new AdBreaker enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewAdBreakerConfig(bool bValue);
 
 	/**
 	 *   @brief To flush buffers in streamsink
