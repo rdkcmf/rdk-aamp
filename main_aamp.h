@@ -1421,6 +1421,13 @@ public:
 	 */
 	void SetNewABRConfig(bool bValue);
 
+	/**
+	 *	 @brief Configure New AdBreaker Enable/Disable
+	 *	 @param[in] bValue - true if new AdBreaker enabled
+	 *
+	 *	 @return void
+	 */
+	void SetNewAdBreakerConfig(bool bValue);
 
 	/**
 	 *   @brief Get available audio tracks.

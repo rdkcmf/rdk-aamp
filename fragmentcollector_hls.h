@@ -187,7 +187,7 @@ public:
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
-	void IndexPlaylist();
+	void IndexPlaylist(bool IsRefresh, double &culledSec);
 	/// Function to handle Profile change after ABR  
 	void ABRProfileChanged(void);
 	/// Function to get next fragment URI for download 
@@ -224,7 +224,7 @@ public:
 	int GetNumberOfPeriods();
 
 	/// Check if discontinuity present around given position
-	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition);
+	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime);
 
 	/**
 	 * @brief Start fragment injection
@@ -292,7 +292,8 @@ public:
 	std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
 	std::string mPlaylistUrl; 		/**< uri associated with downloaded playlist */
 	GrowableBuffer playlist; 				/**< downloaded playlist contents */
-		
+	
+	double mProgramDateTime;
 	GrowableBuffer index; 			/**< packed IndexNode records for associated playlist */
 	int indexCount; 				/**< number of indexed fragments in currently indexed playlist */
 	int currentIdx; 				/**< index for currently-presenting fragment used during FF/REW (-1 if undefined) */
@@ -312,7 +313,7 @@ public:
 	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
 	MediaProcessor* playContext; /**< state for s/w demuxer / pts/pcr restamper module */
-	struct timeval startTimeForPlaylistSync; /**< used for time-based track synchronization when switching between playlists */
+	double startTimeForPlaylistSync; /**< used for time-based track synchronization when switching between playlists */
 	double playTargetOffset; /**< For correcting timestamps of streams with audio and video tracks */
 	bool discontinuity; /**< Set when discontinuity is found in track*/
 	StreamAbstractionAAMP_HLS* context; /**< To get  settings common across tracks*/
@@ -329,6 +330,7 @@ public:
 	bool mIndexingInProgress;  /**< indicates if indexing is in progress*/
 	GrowableBuffer mDiscontinuityIndex;  /**< discontinuity start position mapping of associated playlist */
 	int mDiscontinuityIndexCount; /**< number of records in discontinuity position index */
+	bool mDiscontinuityCheckingOn;
 	double mDuration;  /** Duration of the track*/
 	typedef std::vector<KeyTagStruct> KeyHashTable;
 	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
@@ -352,6 +354,7 @@ private:
 	pthread_mutex_t mTrackDrmMutex;         /**< protect DRM Interactions for the track */
 	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
 	double mCulledSeconds;                  /**< Total culled duration in this streamer instance*/
+	double mCulledSecondsOld;                  /**< Total culled duration in this streamer instance*/
 	bool mSyncAfterDiscontinuityInProgress; /**< Indicates if a synchronization after discontinuity tag is in progress*/
 	PlaylistType mPlaylistType;		/**< Playlist Type */
 	bool mReachedEndListTag;		/**< Flag indicating if End list tag reached in parser */
@@ -376,7 +379,7 @@ class StreamAbstractionAAMP_HLS : public StreamAbstractionAAMP
 {
 public:
 	/// Function to to handle parse and indexing of individual tracks 
-	double IndexPlaylist(TrackState *trackState);
+	void IndexPlaylist(TrackState *trackState);
 	/// Constructor 
 	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle);
 	/// Copy Constructor
@@ -460,7 +463,7 @@ protected:
 	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
-	AAMPStatusType SyncTracks(bool useProgramDateTimeIfAvalible);
+	AAMPStatusType SyncTracks(void);
 	/// Function to update play target based on audio video exact discontinuity positions.
 	void CheckDiscontinuityAroundPlaytarget(void);
 	/// Function to Synchronize timing of Audio/ Video for streams with discontinuities and uneven track length.
