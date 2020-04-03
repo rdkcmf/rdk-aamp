@@ -250,7 +250,10 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 								abObj.endPeriodOffset = 0;//Aligning the last period
 								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
 							}
+							{
 							//TODO: else We need to calculate duration of the end period in the Adbreak
+								AAMPLOG_WARN("%s:%d [CDAI] else_part:%lld", __FUNCTION__, __LINE__, abObj.endPeriodOffset);
+							}
 
 							//Printing the placement positions
 							std::stringstream ss;
