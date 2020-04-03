@@ -6504,7 +6504,8 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 								{
 									timeScale = eventStream->GetTimescale();
 								}
-								duration = (event->GetDuration()/timeScale)*1000; //milliseconds
+								//first multiply then divide to avoid magnifying rounding off issues.
+								duration = ((uint64_t)event->GetDuration()*1000)/timeScale; //milliseconds
 								scte35 = signalChild->GetText();
 								if(scte35.length())
 								{
