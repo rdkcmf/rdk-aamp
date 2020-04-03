@@ -4202,7 +4202,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				HarvestFile(ts->mPlaylistUrl, &ts->playlist, false, prefix);
 #endif
 				// Flag also denotes if first encrypted init fragment was pushed or not
-				ts->mCheckForInitialFragEnc = (newTune || mTuneType == eTUNETYPE_RETUNE); //these tune types have new gstreamer pipeline
+				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
 				ts->IndexPlaylist(false,dummy);
 
 				if (ts->mDuration == 0.0f)
