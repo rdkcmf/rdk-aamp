@@ -5990,12 +5990,15 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					if(discontinuityIndex[i].programDateTime)
 						discdatetime = ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime);
 
-					AAMPLOG_WARN("%s:%d [%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f",__FUNCTION__, __LINE__, name, i,
-						mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds,mProgramDateTime);
 
-					AAMPLOG_WARN("%s:%d Visitor loop %d Input track position:%f useDateTime:%d CulledSeconds :%f playlistRefreshTime :%f DeltaCulledSec:%f", __FUNCTION__, __LINE__, i,
-						position ,useDiscontinuityDateTime, inputCulledSec , inputProgramDateTime , deltaCulledSec);
+					if (IsLive())
+					{
+						AAMPLOG_WARN("%s:%d [%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f",__FUNCTION__, __LINE__, name, i,
+							mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds,mProgramDateTime);
 
+						AAMPLOG_WARN("%s:%d Visitor loop %d Input track position:%f useDateTime:%d CulledSeconds :%f playlistRefreshTime :%f DeltaCulledSec:%f", __FUNCTION__, __LINE__, i,
+							position ,useDiscontinuityDateTime, inputCulledSec , inputProgramDateTime , deltaCulledSec);
+					}
 					// check if date and time for discontinuity tag exists 
 					if(useDiscontinuityDateTime && discdatetime)
 					{
@@ -6073,6 +6076,10 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					AAMPLOG_WARN("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
 					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
 					playlistRefreshCount++;
+				}
+				else
+				{
+					break;
 				}
 			}
 			else
