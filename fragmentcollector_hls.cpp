@@ -960,6 +960,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				else if (startswith(&ptr, "-X-FAXS-CM"))
 				{ // not needed - present in playlist
 					hasDrm = true;
+					AveDrmManager::ApplySessionToken();
 				}
 				else if (startswith(&ptr, "M3U"))
 				{
@@ -2749,6 +2750,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		if (mDrmMetaDataIndexCount > 1)
 		{
 			logprintf("%s:%d[%d] Indexed %d drm metadata", __FUNCTION__, __LINE__,type, mDrmMetaDataIndexCount);
+			AveDrmManager::ApplySessionToken();	
 		}
 
 		// DELIA-33434
@@ -4180,7 +4182,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 					}
 					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
-
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 					bSetStatePreparing = true;
