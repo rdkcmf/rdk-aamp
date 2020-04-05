@@ -6430,7 +6430,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 						{
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
-							long long positionMilliseconds = (long long) std::round(mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0;
+							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
 							AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
 							if(reportBulkMeta)
