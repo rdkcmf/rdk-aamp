@@ -4344,7 +4344,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	int audioRepresentationIndex = -1;
  	int desiredRepIdx = -1;	
 	int audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
-	IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
+	IAdaptationSet *audioAdaptationSet = NULL;
+	if ( audioAdaptationSetIndex >= 0 )
+	{
+		audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
+	}
+
 	if( audioAdaptationSet )
 	{
 		std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
@@ -4355,6 +4360,10 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			mAudioType = selectedCodecType;
 		}
 		logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
+	}
+	else
+	{
+		logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
 	}
 
 	for (int i = 0; i < numTracks; i++)
