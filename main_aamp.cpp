@@ -2524,7 +2524,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						if(mpStreamAbstractionAAMP) 
 						{	
 							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
-							if(buffer == -1.0 || (buffer*1000 > curlDownloadTimeoutMS) || 
+							// buffer is -1 when sesssion not created . buffer is 0 when session created but playlist not downloaded
+							if(buffer == -1.0 || buffer == 0 || (buffer*1000 > curlDownloadTimeoutMS) || 
 								simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_AUDIO)
 							{
 								// GetBuffer will return -1 if session is not created 
@@ -2559,8 +2560,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
 				}
 
-				if(loopAgain) continue;
-
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
@@ -2586,7 +2585,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						totalPerformRequest,
 						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code, simType );
 				}
-				break;
+				
+				if(!loopAgain)
+					break;
 			}
 		}
 
