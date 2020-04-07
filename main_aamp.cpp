@@ -881,20 +881,6 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 	if(e.type != AAMP_EVENT_PROGRESS)
 		AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, e.type);
 
-	GSource *source = g_main_current_source();
-	if (source != NULL)
-	{
-		if(e.type != AAMP_EVENT_PROGRESS)
-		{
-			AAMPLOG_INFO("[AAMP_JS] %s(type=%d) and callbackID:%d", __FUNCTION__, e.type, g_source_get_id(source));
-		}
-	}
-	else
-	{
-		AAMPLOG_WARN("[AAMP_JS] %s(type=%d) with no callbackID which means its executed from non-UI thread!!", __FUNCTION__, e.type);
-		assert(false); // to crash for bt
-	}
-
 	//TODO protect mEventListener
 	if (mEventListener)
 	{

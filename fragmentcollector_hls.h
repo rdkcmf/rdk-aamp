@@ -454,7 +454,6 @@ public:
 
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts);
-	void DumpManifest();
 
 protected:
 	/// Function to get StreamInfo stucture based on the index input

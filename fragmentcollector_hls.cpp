@@ -785,10 +785,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					if (streamInfo->uri == NULL)
 					{ // uri on following line
 						streamInfo->uri = next;
-						if (next == NULL)
-						{
-							DumpManifest();
-						}
 						next = mystrpbrk(next);
 					}
 
@@ -815,10 +811,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					if (streamInfo->uri == NULL)
 					{ // uri on following line
 						streamInfo->uri = next;
-						if (next == NULL)
-						{
-							DumpManifest();
-						}
 						next = mystrpbrk(next);
 					}
 					if(streamInfo->averageBandwidth!=0 && mUseAvgBandwidthForABR)
@@ -6540,22 +6532,6 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 {
 	seekPosition = secondsRelativeToTuneTime;
-}
-
-
-void StreamAbstractionAAMP_HLS::DumpManifest()
-{
-	GrowableBuffer manifest;
-	std::string url;
-
-	memset(&manifest, 0, sizeof(manifest));
-	aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &manifest, url);
-	aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-
-	printf("############ Manifest URL: %s \n", url.c_str());
-	printf("############ Main manifest content: %s \n", manifest.ptr);
-	fflush(stdout);
-	aamp_Free(&manifest.ptr);
 }
 
 /**
