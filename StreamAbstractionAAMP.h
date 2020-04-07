@@ -663,12 +663,6 @@ public:
 
 	double GetElapsedTime();
 
-	/**
-	 *   @brief Check for ramp down limit reached by player
-	 *   @return true if limit reached, false otherwise
-	 */
-	bool CheckForRampDownLimitReached();
-
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
 	int currentProfileIndex;                /**< current profile index of the track*/
 	int profileIdxForBandwidthNotification; /**< internal - profile index for bandwidth change notification*/
@@ -680,7 +674,6 @@ public:
 	bool mNetworkDownDetected;              /**< Network down status indicator */
 	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
 	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
-	int mRampDownCount;			/**< Total number of rampdowns */
 
 
 	/**
@@ -931,7 +924,6 @@ private:
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
 	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
-	int mRampDownLimit;		/**< stores ramp down limit value */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;

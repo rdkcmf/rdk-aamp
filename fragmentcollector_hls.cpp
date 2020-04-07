@@ -749,8 +749,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 	int vProfileCount, iFrameCount, lineNum ;
 	// tmp buffer to retrieve the manifest if second pass needed
 	GrowableBuffer tmpMainManifest;
-	long minBitrate = aamp->GetMinimumBitrate();
-	long maxBitrate = aamp->GetMaximumBitrate();
 	// Main manifest contents
 	// Case 1: Handled
 	//	Media , Stream Profile (Single Codec) , IFrame Profiles ( In Order)
@@ -800,17 +798,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					}
 
 					streamInfo->isIframeTrack = true;
-					// Check that the profile is in between max and min bitrate values.
-					if ((streamInfo->bandwidthBitsPerSecond > minBitrate) && (streamInfo->bandwidthBitsPerSecond < maxBitrate))
-					{
-						mAbrManager.addProfile({
-							streamInfo->isIframeTrack,
-							streamInfo->bandwidthBitsPerSecond,
-							streamInfo->resolution.width,
-							streamInfo->resolution.height,
-						});
-						iFrameCount++;
-					}
+					mAbrManager.addProfile({
+						streamInfo->isIframeTrack,
+						streamInfo->bandwidthBitsPerSecond,
+						streamInfo->resolution.width,
+						streamInfo->resolution.height,
+					});
+					iFrameCount++;					
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
@@ -932,16 +926,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 					// add profile only if ignore is not set
 					if(!ignoreProfile)
 					{
-						if ((streamInfo->bandwidthBitsPerSecond > minBitrate) && (streamInfo->bandwidthBitsPerSecond < maxBitrate))
-						{
-							mAbrManager.addProfile({
-								streamInfo->isIframeTrack,
-								streamInfo->bandwidthBitsPerSecond,
-								streamInfo->resolution.width,
-								streamInfo->resolution.height
-							});
-							vProfileCount++;
-						}
+						mAbrManager.addProfile({
+							streamInfo->isIframeTrack,
+							streamInfo->bandwidthBitsPerSecond,
+							streamInfo->resolution.width,
+							streamInfo->resolution.height
+						});
+						vProfileCount++;
 					}
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))
@@ -1800,26 +1791,16 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				//cleanup is done in aamp_GetFile itself
 
 				aamp->profiler.ProfileError(mediaTrackBucketTypes[type], http_error);
-				if (mSkipSegmentOnError)
-				{
-					// Skipping segment on error, increase fail count
-					segDLFailCount += 1;
-				}
-				else
-				{
-					// Already attempted rampdown on same segment
-					// Skip segment if there is no profile to rampdown.
-					mSkipSegmentOnError = true;
-				}
+				segDLFailCount += 1;
 				if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
 				{
-					AAMPLOG_WARN("FetchFragmentHelper aamp_GetFile failed");
+					logprintf("FetchFragmentHelper aamp_GetFile failed");
 				}
 				//Adding logic to report error if fragment downloads are failing continuously
 				//Avoid sending error for failure to download subtitle fragments
-				if((MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount) && aamp->DownloadsAreEnabled() && type != eTRACK_SUBTITLE)
+				if(MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount && aamp->DownloadsAreEnabled() && type != eTRACK_SUBTITLE)
 				{
-					AAMPLOG_ERR("Not able to download fragments; reached failure threshold sending tune failed event");
+					logprintf("Not able to download fragments; reached failure threshold sending tune failed event");
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_error);
 				}
 				aamp_Free(&cachedFragment->fragment.ptr);
@@ -1871,7 +1852,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 								/* Added to send tune error when fragments decryption failed */
 								segDrmDecryptFailCount +=1;
 
-								if(aamp->mDrmDecryptFailCount <= segDrmDecryptFailCount)
+								if(MAX_SEG_DRM_DECRYPT_FAIL_COUNT <= segDrmDecryptFailCount)
 								{
 									decryption_error = true;
 									logprintf("FetchFragmentHelper : drm_Decrypt failed for fragments, reached failure threshold sending failure event");
@@ -1968,39 +1949,28 @@ void TrackState::FetchFragment()
 				if (eTRACK_VIDEO == type && http_error != 0)
 				{
 					context->lastSelectedProfileIndex = context->currentProfileIndex;
-					// Check whether player reached rampdown limit, then rampdown
-					if(!context->CheckForRampDownLimitReached())
+					if (context->CheckForRampDownProfile(http_error))
 					{
-						if (context->CheckForRampDownProfile(http_error))
+						if (context->rate == AAMP_NORMAL_PLAY_RATE)
 						{
-							if (context->rate == AAMP_NORMAL_PLAY_RATE)
-							{
-								playTarget -= fragmentDurationSeconds;
-							}
-							else
-							{
-								playTarget -= context->rate / context->mTrickPlayFPS;
-							}
-							//DELIA-33346 -- if rampdown attempted , then set the flag so that abr is not attempted.
-							context->mCheckForRampdown = true;
-							// Rampdown attempt success, download same segment from lower profile.
-							mSkipSegmentOnError = false;
+							playTarget -= fragmentDurationSeconds;
 						}
 						else
 						{
-							AAMPLOG_WARN("%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
-							context->mRampDownCount = 0;
+							playTarget -= context->rate / context->mTrickPlayFPS;
 						}
-						AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 					}
+					logprintf("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
+					//DELIA-33346 -- if rampdown attempted , then set the flag so that abr is not attempted . 
+					context->mCheckForRampdown = true;
 				}
 				else if (decryption_error)
 				{
-					AAMPLOG_WARN("%s:%d: Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__, segDLFailCount);
+					logprintf("%s:%d: Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__, segDLFailCount);
 				}
 				else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
 				{
-					AAMPLOG_WARN("%s:%d: Error on fetching %s fragment. failedCount:%d", __FUNCTION__, __LINE__, name, segDLFailCount);
+					logprintf("%s:%d: Error on fetching %s fragment. failedCount:%d", __FUNCTION__, __LINE__, name, segDLFailCount);
 				}
 			}
 			else
@@ -5123,9 +5093,9 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
 		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
+		,mXStartTimeOFfset(0), mCulledSecondsAtStart(0.0)
 		,mProgramDateTime(0.0)
 		,mDiscontinuityCheckingOn(false)
-		,mXStartTimeOFfset(0), mCulledSecondsAtStart(0.0), mSkipSegmentOnError(true)
 {
 	memset(&playlist, 0, sizeof(playlist));
 	memset(&index, 0, sizeof(index));
@@ -6171,35 +6141,6 @@ void TrackState::FetchInitFragment()
 			mCheckForInitialFragEnc = false; //Push encrypted header is a one-time operation
 
 			UpdateTSAfterFetch();
-		}
-		else if (type == eTRACK_VIDEO && !context->CheckForRampDownLimitReached())
-		{
-			// Attempt rampdown for init fragment to get playable profiles.
-			// TODO: Remove profile if init fragment is not available from ABR.
-			if (context->CheckForRampDownProfile(http_code))
-			{
-				if (context->rate == AAMP_NORMAL_PLAY_RATE)
-				{
-					playTarget -= fragmentDurationSeconds;
-				}
-				else
-				{
-					playTarget -= context->rate / context->mTrickPlayFPS;
-				}
-				context->mCheckForRampdown = true;
-			}
-			else
-			{
-				// Failed to get init framgent from all attempted profiles
-				if (aamp->DownloadsAreEnabled())
-				{
-					AAMPLOG_ERR("TrackState::%s:%d Init fragment fetch failed", __FUNCTION__, __LINE__);
-					aamp->profiler.ProfileError(bucketType, http_code);
-					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-				}
-				context->mRampDownCount = 0;
-			}
-			AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{
