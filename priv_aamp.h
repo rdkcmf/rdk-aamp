@@ -649,6 +649,12 @@ public:
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	char *pcustomHeader;	/*** custom header data to be appended to curl request */
+	int rampdownLimit;		/*** Fragment rampdown/retry limit */
+	long minBitrate;		/*** Minimum bandwidth of playback profile */
+	long maxBitrate;		/*** Maximum bandwidth of playback profile */
+	int segInjectFailCount;		/*** Inject failure retry threshold */
+	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
+
 public:
 
 	/**
@@ -712,6 +718,7 @@ public:
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
+		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
