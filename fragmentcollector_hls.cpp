@@ -6549,7 +6549,7 @@ void StreamAbstractionAAMP_HLS::DumpManifest()
 	std::string url;
 
 	memset(&manifest, 0, sizeof(manifest));
-	AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &manifest, url);
+	aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &manifest, url);
 	aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
 
 	printf("############ Manifest URL: %s \n", url.c_str());
