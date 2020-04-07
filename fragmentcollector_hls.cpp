@@ -897,6 +897,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 							AampCacheHandler::GetInstance()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &tmpMainManifest, tmpUrlString);
 							if (tmpMainManifest.len)
 							{
+								aamp_AppendNulTerminator(&tmpMainManifest); // make safe for cstring operations
 								ptr = tmpMainManifest.ptr;
 								secondPass = true;
 							}
