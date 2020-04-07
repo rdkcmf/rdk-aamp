@@ -3930,6 +3930,31 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mPreCacheTimeWindow= value;
 			logprintf("preCachePlaylistTime=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "fragmentRetryLimit=", value) == 1)
+		{
+			gpGlobalConfig->rampdownLimit = value;
+			logprintf("fragmentRetryLimit=%d", value);
+		}
+		else if (ReadConfigNumericHelper(cfg, "segmentInjectFailThreshold=", gpGlobalConfig->segInjectFailCount) == 1)
+		{
+			VALIDATE_INT("segmentInjectFailThreshold", gpGlobalConfig->segInjectFailCount, MAX_SEG_INJECT_FAIL_COUNT);
+			logprintf("segmentInjectFailThreshold=%d", gpGlobalConfig->segInjectFailCount);
+		}
+		else if (ReadConfigNumericHelper(cfg, "drmDecryptFailThreshold=", gpGlobalConfig->drmDecryptFailCount) ==1)
+		{
+			VALIDATE_INT("drmDecryptFailThreshold", gpGlobalConfig->drmDecryptFailCount, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+			logprintf("drmDecryptFailThreshold=%d", gpGlobalConfig->drmDecryptFailCount);
+		}
+		else if (ReadConfigNumericHelper(cfg, "minBitrate=", gpGlobalConfig->minBitrate) ==1)
+		{
+			VALIDATE_LONG("minBitrate", gpGlobalConfig->minBitrate, 0);
+			logprintf("minBitrate=%d", gpGlobalConfig->minBitrate);
+		}
+		else if (ReadConfigNumericHelper(cfg, "maxBitrate=", gpGlobalConfig->maxBitrate) ==1)
+		{
+			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
+			logprintf("maxBitrate=%d", gpGlobalConfig->maxBitrate);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -5325,14 +5350,22 @@ void PlayerInstanceAAMP::RegisterEvents(AAMPEventListener* eventListener)
  */
 void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
 {
-	if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+	if(gpGlobalConfig->segInjectFailCount > 0)
 	{
-		aamp->mSegInjectFailCount = value;
-		AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
+		aamp->mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_INJECT_FAIL_COUNT);
+		if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+		{
+			aamp->mSegInjectFailCount = value;
+			AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_INJECT_FAIL_COUNT);
+		}
 	}
 }
 
@@ -5342,14 +5375,22 @@ void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
  */
 void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 {
-	if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+	if (gpGlobalConfig->drmDecryptFailCount > 0)
 	{
-		aamp->mDrmDecryptFailCount = value;
-		AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
+		aamp->mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+		if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+		{
+			aamp->mDrmDecryptFailCount = value;
+			AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
+		}
 	}
 }
 
@@ -5369,14 +5410,22 @@ void PlayerInstanceAAMP::SetRampDownLimit(int limit)
  */
 void PrivateInstanceAAMP::SetRampDownLimit(int limit)
 {
-	if (limit >= 0)
+	if (gpGlobalConfig->rampdownLimit >= 0)
 	{
-		AAMPLOG_INFO("%s:%d Setting Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
-		mRampDownLimit = limit;
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, gpGlobalConfig->rampdownLimit);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid limit value %d", __FUNCTION__,__LINE__, limit);
+		if (limit >= 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
+			mRampDownLimit = limit;
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid limit value %d", __FUNCTION__,__LINE__, limit);
+		}
 	}
 }
 
@@ -5386,14 +5435,22 @@ void PrivateInstanceAAMP::SetRampDownLimit(int limit)
  */
 void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
-	if (bitrate > 0)
+	if (gpGlobalConfig->minBitrate > 0)
 	{
-		AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
-		aamp->SetMinimumBitrate(bitrate);
+		aamp->SetMinimumBitrate(gpGlobalConfig->minBitrate);
+		AAMPLOG_INFO("%s:%d Setting minBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->minBitrate);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
+		if (bitrate > 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
+			aamp->SetMinimumBitrate(bitrate);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
+		}
 	}
 }
 
@@ -5412,14 +5469,22 @@ void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
  */
 void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 {
-	if (bitrate > 0)
+	if (gpGlobalConfig->maxBitrate > 0)
 	{
-		AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
-		aamp->SetMaximumBitrate(bitrate);
+		aamp->SetMinimumBitrate(gpGlobalConfig->maxBitrate);
+		AAMPLOG_INFO("%s:%d Setting maxBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->maxBitrate);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
+		if (bitrate > 0)
+		{
+			AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
+			aamp->SetMaximumBitrate(bitrate);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
+		}
 	}
 }
 
@@ -7800,6 +7865,26 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mAdPrevProgressTime = 0;
 	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
+	if(gpGlobalConfig->rampdownLimit >= 0)
+	{
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+	}
+	if(gpGlobalConfig->minBitrate > 0)
+	{
+		mMinBitrate = gpGlobalConfig->minBitrate;
+	}
+	if(gpGlobalConfig->maxBitrate > 0)
+	{
+		mMaxBitrate = gpGlobalConfig->maxBitrate;
+	}
+	if(gpGlobalConfig->segInjectFailCount > 0)
+	{
+		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+	}
+	if(gpGlobalConfig->drmDecryptFailCount > 0)
+	{
+		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+	}
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
