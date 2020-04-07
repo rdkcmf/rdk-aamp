@@ -4948,17 +4948,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	mbPlayEnabled = autoPlay;
 
+	ResumeDownloads();
+
 	if (!autoPlay)
 	{
 		pipeline_paused = true;
 		logprintf("%s:%d - AutoPlay disabled; Just caching the stream now.\n",__FUNCTION__,__LINE__);
-	}
-
-	if (pipeline_paused)
-	{
-		// resume downloads and clear paused flag. state change will be done
-		// on streamSink configuration.
-		ResumeDownloads();
 	}
 
 	if (-1 != seek_pos_seconds)
@@ -7451,6 +7446,10 @@ void PrivateInstanceAAMP::Stop()
 	{
 		delete mCdaiObject;
 		mCdaiObject = NULL;
+	}
+	if (pipeline_paused)
+	{
+		pipeline_paused = false;
 	}
 	EnableDownloads();
 }
