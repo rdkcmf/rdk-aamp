@@ -253,7 +253,7 @@ public:
 	/**
 	 * @brief Function to search playlist for subscribed tags
 	 */
-	void FindTimedMetadata(bool reportbulk=false);
+	void FindTimedMetadata(bool reportbulk=false, bool bInitCall = false);
 	// Function to set XStart Time Offset Value 
 	void SetXStartTimeOffset(double offset) { mXStartTimeOFfset = offset; }
 	// Function to retune XStart Time Offset

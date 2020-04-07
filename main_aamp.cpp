@@ -6877,10 +6877,11 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
  * @param szName name of metadata
  * @param szContent  metadata content
  * @param id - Identifier of the TimedMetadata
+ * @param bSyncCall - Sync or Async Event
  * @param durationMS - Duration in milliseconds
  * @param nb unused
  */
-void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
+void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb,bool bSyncCall, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
 	bool bFireEvent = false;
@@ -6947,7 +6948,8 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 				eventData.data.timedMetadata.szContent);
 		}
 
-		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || (mState > eSTATE_PREPARED))
+
+		if(!strcmp(eventData.data.timedMetadata.szName,"SCTE35") || !bSyncCall )
 		{
 			SendEventAsync(eventData);
 		}
@@ -8846,7 +8848,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
 		}
 #else
-		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
+		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
 #endif
 	}
 }

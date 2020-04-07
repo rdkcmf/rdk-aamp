@@ -4104,7 +4104,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Send Metadata for Video playlist
 				if(iTrack == eTRACK_VIDEO)
 				{
-					ts->FindTimedMetadata(aamp->mBulkTimedMetadata);
+					ts->FindTimedMetadata(aamp->mBulkTimedMetadata , true);
 					if(aamp->mBulkTimedMetadata && newTune)
 					{
 						// Send bulk report
@@ -6413,7 +6413,7 @@ void TrackState::RestoreDrmState()
 *
 * @return void
 ***************************************************************************/
-void TrackState::FindTimedMetadata(bool reportBulkMeta)
+void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 {
 	double totalDuration = 0.0;
 	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
@@ -6447,7 +6447,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 							}
 							else
 							{
-								aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb);
+								aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb,bInitCall);
 							}
 							break;
 						}
