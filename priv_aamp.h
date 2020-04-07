@@ -2249,11 +2249,12 @@ public:
 	 * @param[in] szName - Metadata name
 	 * @param[in] szContent - Metadata content
 	 * @param[in] nb - ContentSize
+	 * @param[in] bSyncCall - Sync /Async Event reporting
 	 * @param[in] id - Identifier of the TimedMetadata
 	 * @param[in] durationMS - Duration in milliseconds
 	 * @return void
 	 */
-	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
+	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, bool bSyncCall=false,const char* id = "", double durationMS = -1);
 
 	/**
 	 * @brief Save timed metadata for later bulk reporting
