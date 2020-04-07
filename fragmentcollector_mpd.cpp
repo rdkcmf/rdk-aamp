@@ -384,6 +384,7 @@ public:
 			}
 #endif
 			segDLFailCount = 0;
+			mContext->mRampDownCount = 0;
 			UpdateTSAfterFetch();
 			ret = true;
 		}

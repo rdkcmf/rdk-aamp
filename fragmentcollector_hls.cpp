@@ -2030,6 +2030,8 @@ void TrackState::FetchFragment()
 
 			return;
 		}
+		// reset rampdown count on success
+		context->mRampDownCount = 0;
 
 		if (mInjectInitFragment)
 		{
