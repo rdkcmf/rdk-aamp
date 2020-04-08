@@ -411,7 +411,7 @@ void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
 	DrmSessionDataInfo *drmSessioData = NULL;
 	pthread_mutex_lock(&drmProcessingMutex);
 	while (!drmSessionDataPool_g.empty())
-	  {
+	{
 		drmSessioData = drmSessionDataPool_g.back();
 		drmSessionDataPool_g.pop_back();
 		// check if session Data is not NULL . This is not freed any other place
@@ -430,9 +430,9 @@ void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
 		// clear the session
 		if(drmSessioData)
 		{
-			free(drmSessioData);
+			delete drmSessioData;
 		}
-	  }
+	}
 	pthread_mutex_unlock(&drmProcessingMutex);
 }
 
@@ -442,7 +442,7 @@ void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
 void* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName){
 	AAMPLOG_INFO("%s:%d AAMP_HLS_DRM not enabled", 
 				__FUNCTION__, __LINE__);
-	return 0;
+	return NULL;
 }
 #endif /** AAMP_HLS_DRM */
 
