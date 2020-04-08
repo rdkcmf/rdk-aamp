@@ -239,10 +239,9 @@ int AampDRMSessionManager::progress_callback(
 	if(drmSessionManager->getCurlAbort())
 	{
 		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-		returnCode = CURLE_ABORTED_BY_CALLBACK ;
+		returnCode = -1; // Return non-zero for CURLE_ABORTED_BY_CALLBACK
 		//Reset the abort variable
 		drmSessionManager->setCurlAbort(false);
-
 	}
 
 	return returnCode;
@@ -266,9 +265,10 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
         if(callbackData->mDRMSessionManager->getCurlAbort())
         {
                 logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-                //Reset the abort variable
-                numBytesForBlock = 0;
-                callbackData->mDRMSessionManager->setCurlAbort(false);
+                numBytesForBlock = 0; // Will cause CURLE_WRITE_ERROR
+		//Reset the abort variable
+		callbackData->mDRMSessionManager->setCurlAbort(false);
+
         }
         else if (NULL == data->getData())        
         {
@@ -512,21 +512,25 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		downloadTimeMS = tEndTime - tStartTime;
 		if (res != CURLE_OK)
 		{
-			if (res == CURLE_OPERATION_TIMEDOUT || res == CURLE_COULDNT_CONNECT)
+			// To avoid scary logging
+			if (res != CURLE_ABORTED_BY_CALLBACK && res != CURLE_WRITE_ERROR)
 			{
-				// Retry for curl 28 and curl 7 errors.
-				loopAgain = true;
+	                        if (res == CURLE_OPERATION_TIMEDOUT || res == CURLE_COULDNT_CONNECT)
+	                        {
+	                                // Retry for curl 28 and curl 7 errors.
+	                                loopAgain = true;
 
-				delete keyInfo;
-				delete callbackData;
-				keyInfo = new DrmData();
-				callbackData = new writeCallbackData();
-				callbackData->data = keyInfo;
-				callbackData->mDRMSessionManager = this;
-				curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
+	                                delete keyInfo;
+	                                delete callbackData;
+	                                keyInfo = new DrmData();
+	                                callbackData = new writeCallbackData();
+	                                callbackData->data = keyInfo;
+	                                callbackData->mDRMSessionManager = this;
+	                                curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
+        	                }
+                	        logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
+                        	logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
 			}
-			logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
-			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
 			*httpCode = res;
 		}
 		else
@@ -1194,7 +1198,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				e->data.dash_drmmetadata.responseCode = responseCode;
 			}
 		}
-		delete key;
+
+		if (key != NULL)
+		{
+			delete key;
+		}
 	}
 	else
 	{
@@ -1363,15 +1371,19 @@ void *CreateDRMSession(void *arg)
 					contentMetadata, sessionParams->aamp, &e);
 	if(NULL == drmSession)
 	{
-		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", 
-	 __FUNCTION__, __LINE__, systemId);
+		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", __FUNCTION__, __LINE__, systemId);
 		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
-		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
-		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
-					&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
-		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
-					&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+		long responseCode = e.data.dash_drmmetadata.responseCode;
+		bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED && (responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
+		if (!selfAbort)
+		{
+			bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+						&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
+						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
+						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
+			sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+		}
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 	}

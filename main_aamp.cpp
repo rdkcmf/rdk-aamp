@@ -196,6 +196,8 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR, 10, "AAMP: init failed (unable to download manifest)"},
 	{AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR, 10, "AAMP: init failed (manifest missing tracks)"},
 	{AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR, 10, "AAMP: init failed (corrupt/invalid manifest)"},
+	{AAMP_TUNE_INIT_FAILED_PLAYLIST_VIDEO_DNLD_ERROR, 10, "AAMP: init failed (unable to download video playlist)"},
+	{AAMP_TUNE_INIT_FAILED_PLAYLIST_AUDIO_DNLD_ERROR, 10, "AAMP: init failed (unable to download audio playlist)"},
 	{AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR, 10, "AAMP: init failed (unsynchronized tracks)"},
 	{AAMP_TUNE_MANIFEST_REQ_FAILED, 10, "AAMP: Manifest Download failed"}, //"Playlist refresh failed"
 	{AAMP_TUNE_AUTHORISATION_FAILURE, 40, "AAMP: Authorization failure"},
@@ -744,7 +746,27 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 	if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 	{
 		char description[128] = {};
-		if(error_code < 100)
+		if (((error_code >= PARTIAL_FILE_CONNECTIVITY_AAMP) && (error_code <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)) || error_code == CURLE_OPERATION_TIMEDOUT)
+		{
+			switch(error_code)
+			{
+				case PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP:
+						error_code = CURLE_PARTIAL_FILE;
+				case CURLE_OPERATION_TIMEDOUT:
+						sprintf(description, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
+						break;
+				case PARTIAL_FILE_START_STALL_TIMEOUT_AAMP:
+						sprintf(description, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						break;
+				case OPERATION_TIMEOUT_CONNECTIVITY_AAMP:
+						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_OPERATION_TIMEDOUT);
+						break;
+				case PARTIAL_FILE_CONNECTIVITY_AAMP:
+						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						break;
+			}
+		}
+		else if(error_code < 100)
 		{
 			sprintf(description, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
 		}
@@ -1438,6 +1460,31 @@ void aamp_Error(const char *msg)
 {
 	logprintf("aamp ERROR: %s", msg);
 	//exit(1);
+}
+
+
+/**
+ * @brief Convert custom curl errors to original
+ *
+ * @param[in] http_error - Error code
+ * @return error code
+ */
+long aamp_GetOriginalCurlError(long http_error)
+{
+	long ret = http_error;
+	if (http_error >= PARTIAL_FILE_CONNECTIVITY_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
+	{
+			if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
+			{
+				ret = CURLE_OPERATION_TIMEDOUT;
+			}
+			else
+			{
+				ret = CURLE_PARTIAL_FILE;
+			}
+	}
+	// return original error code
+	return ret;
 }
 
 
@@ -2456,6 +2503,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	{
 		long long downloadTimeMS = 0;
 		bool isDownloadStalled = false;
+		CurlAbortReason abortReason = eCURL_ABORT_REASON_NONE;
+		double connectTime = 0;
 		pthread_mutex_unlock(&mLock);
 
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
@@ -2589,6 +2638,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				}
 
 				isDownloadStalled = false;
+				abortReason = eCURL_ABORT_REASON_NONE;
 
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
@@ -2672,6 +2722,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
 									(buffer->len >= 0) &&
 									((downloadTimeMS-10) <= curlDownloadTimeoutMS));
+					// set flag if download aborted with start/stall timeout.
+					abortReason = progressCtx.abortReason;
 
 					/* Curl 23 and 42 is not a real network error, so no need to log it here */
 					//Log errors due to curl stall/start detection abort
@@ -2737,6 +2789,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
 
 				curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME , &total);
+				curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
+				connectTime = connect;
 				if(res != CURLE_OK || http_code == 0 || http_code >= 400 || total > 2.0 /*seconds*/)
 				{
 					reqEndLogLevel = eLOGLEVEL_WARN;
@@ -2745,7 +2799,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				{
 					double totalPerformRequest = (double)(downloadTimeMS)/1000;
 					curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
-					curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
 					curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appConnect);
 					curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME, &preTransfer);
 					curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &startTransfer);
@@ -2912,6 +2965,32 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		{
 			AAMPLOG_INFO("Received getfile Bitrate : %ld", context.bitrate);
 			*bitrate = context.bitrate;
+		}
+
+		if(simType == eMEDIATYPE_PLAYLIST_VIDEO || simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_VIDEO )
+		{
+			// send customized error code for curl 28 and 18 playlist/init fragment download failures
+			if (connectTime == 0.0)
+			{
+				//curl connection is failure
+				if(CURLE_PARTIAL_FILE == http_code)
+				{
+					http_code = PARTIAL_FILE_CONNECTIVITY_AAMP;
+				}
+				else if(CURLE_OPERATION_TIMEDOUT == http_code)
+				{
+					http_code = OPERATION_TIMEOUT_CONNECTIVITY_AAMP;
+				}
+			}
+			else if(abortReason != eCURL_ABORT_REASON_NONE)
+			{
+				http_code = PARTIAL_FILE_START_STALL_TIMEOUT_AAMP;
+			}
+			else if (CURLE_PARTIAL_FILE == http_code)
+			{
+				// download time expired with partial file for playlists/init fragments
+				http_code = PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP;
+			}
 		}
 		pthread_mutex_lock(&mLock);
 	}
@@ -4783,6 +4862,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			{
 			case eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR:
 				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR; break;
+			case eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_PLAYLIST_VIDEO_DNLD_ERROR; break;
+			case eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR:
+				failReason = AAMP_TUNE_INIT_FAILED_PLAYLIST_AUDIO_DNLD_ERROR; break;
 			case eAAMPSTATUS_MANIFEST_CONTENT_ERROR:
 				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR; break;
 			case eAAMPSTATUS_MANIFEST_PARSE_ERROR:
@@ -4792,7 +4875,16 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			default :
 				break;
 			}
-			SendErrorEvent (failReason);
+
+			if (failReason == AAMP_TUNE_INIT_FAILED_PLAYLIST_VIDEO_DNLD_ERROR || failReason == AAMP_TUNE_INIT_FAILED_PLAYLIST_AUDIO_DNLD_ERROR)
+			{
+				long http_error = mPlaylistFetchFailError;
+				SendDownloadErrorEvent(failReason, http_error);
+			}
+			else
+			{
+				SendErrorEvent(failReason);
+			}
 			
 			//event.data.mediaError.description = "kECFileNotFound (90)";
 			//event.data.mediaError.playerRecoveryEnabled = false;
@@ -7108,7 +7200,7 @@ void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
 	{
 		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;		
 	}
-	AAMPLOG_INFO("%s:%d New AdBreaker/PDT Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
+	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
 }
 
 /**
@@ -7122,7 +7214,7 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
 	{
 		mNewAdBreakerEnabled = bValue;
-		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;	
 	}
 	else
 	{
@@ -7929,12 +8021,13 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
 	, mInitFragmentRetryCount(-1)
-	,mbPlayEnabled(true)
-	,mAampCacheHandler(new AampCacheHandler())
+	, mbPlayEnabled(true)
+	, mAampCacheHandler(new AampCacheHandler())
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
-	,mAsyncTuneEnabled(false)
+	, mAsyncTuneEnabled(false)
+	, mPlaylistFetchFailError(0L)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
