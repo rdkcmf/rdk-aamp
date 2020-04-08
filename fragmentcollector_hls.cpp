@@ -729,13 +729,12 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 * @fn ParseMainManifest
 * @brief Function to parse main manifest 
 *		 
-* @param ptr[in] Manifest file content string
-*	
 * @return AAMPStatusType
 ***************************************************************************/
-AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
+AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 {
 	AAMPStatusType retval = eAAMPSTATUS_OK;
+	char* ptr = mainManifest.ptr;
 	bool secondPass = false;
 	// Get the initial configuration to filter the profiles
 	bool bDisableEC3 = gpGlobalConfig->disableEC3;
@@ -745,8 +744,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 
 	bool ignoreProfile = false, clearProfiles = false;
 	int vProfileCount, iFrameCount, lineNum ;
-	// tmp buffer to retrieve the manifest if second pass needed
-	GrowableBuffer tmpMainManifest;
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
 	// Main manifest contents
@@ -896,13 +893,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 						{
 							// IFrame and Stream Profile mixed, only way is reparse from beginning
 							// Retrieve the MainManifest content from cache .
-							memset(&tmpMainManifest, 0, sizeof(tmpMainManifest));
-							std::string tmpUrlString;
-							aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &tmpMainManifest, tmpUrlString);
-							if (tmpMainManifest.len)
+							aamp_Free(&(mainManifest.ptr));
+							memset(&mainManifest, 0, sizeof(GrowableBuffer));
+							std::string url;
+							aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, url);
+							if (mainManifest.len)
 							{
-								aamp_AppendNulTerminator(&tmpMainManifest); // make safe for cstring operations
-								ptr = tmpMainManifest.ptr;
+								aamp_AppendNulTerminator(&mainManifest); // make safe for cstring operations
+								ptr = mainManifest.ptr;
 								secondPass = true;
 							}
 							else
@@ -2977,7 +2975,7 @@ void TrackState::RefreshPlaylist(void)
 			context->mNetworkDownDetected = false;
 		}
 		aamp_Free(&tempBuff.ptr);
-		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operationsaamp_AppendNulTerminator(&this->mainManifest); // make safe for cstring operations
+		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operations
 #ifdef TRACE
 		if (gpGlobalConfig->logging.trace)
 		{
@@ -3879,7 +3877,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
-		AAMPStatusType mainManifestResult = ParseMainManifest(this->mainManifest.ptr);
+		AAMPStatusType mainManifestResult = ParseMainManifest();
 		// Check if Main manifest is good or not 
 		if(mainManifestResult != eAAMPSTATUS_OK)
 		{				
