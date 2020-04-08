@@ -407,7 +407,11 @@ public:
 			}
 #endif
 			segDLFailCount = 0;
-			mContext->mRampDownCount = 0;
+			if ((eTRACK_VIDEO == type) && (!initSegment))
+			{
+				// reset count on video fragment success
+				mContext->mRampDownCount = 0;
+			}
 			UpdateTSAfterFetch();
 			ret = true;
 		}

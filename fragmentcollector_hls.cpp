@@ -75,7 +75,6 @@
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
-
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
@@ -86,7 +85,6 @@ extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
 #define UseProgramDateTimeIfAvailable() (gpGlobalConfig->hlsAVTrackSyncUsingStartTime || aamp->mIsVSS)
-
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information 
@@ -2013,12 +2011,16 @@ void TrackState::FetchFragment()
 
 			return;
 		}
-		// reset rampdown count on success
-		context->mRampDownCount = 0;
 
 		if (mInjectInitFragment)
 		{
 			return;
+		}
+
+		if (eTRACK_VIDEO == type)
+		{
+			// reset rampdown count on success
+			context->mRampDownCount = 0;
 		}
 
 		CachedFragment* cachedFragment = GetFetchBuffer(false);
