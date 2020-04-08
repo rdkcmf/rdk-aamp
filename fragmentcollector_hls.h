@@ -437,7 +437,7 @@ public:
 	bool mStartTimestampZero;						/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
 	int mNumberOfTracks;							/**< Number of media tracks.*/
 	/// Function to parse Main manifest 
-	AAMPStatusType ParseMainManifest(char *ptr);
+	AAMPStatusType ParseMainManifest();
 	/// Function to get playlist URI for the track type 
 	const char *GetPlaylistURI(TrackType trackType, StreamOutputFormat* format = NULL);
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
