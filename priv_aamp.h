@@ -647,8 +647,7 @@ public:
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
-	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
-	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
+	char *pcustomHeader;	/*** custom header data to be appended to curl request */
 public:
 
 	/**
@@ -708,8 +707,7 @@ public:
 		,enableBulkTimedMetaReport(eUndefinedState)
 		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
 		,fragmp4LicensePrefetch(true)
-		,uriParameter(NULL)
-		,customHeaderStr{""}
+		,pcustomHeader(NULL)
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)

@@ -1613,26 +1613,6 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 }
 
 /**
- * @brief function to print header response during download failure and latency.
- * @param type current media type
- */
-static void print_headerResponse(std::vector<std::string> &allResponseHeadersForErrorLogging, MediaType fileType)
-{
-	if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == fileType || eMEDIATYPE_PLAYLIST_VIDEO == fileType))
-	{
-		int size = allResponseHeadersForErrorLogging.size();
-		logprintf("################ Start :: Print Header response ################");
-		for (int i=0; i < size; i++)
-		{
-			logprintf("* %s", allResponseHeadersForErrorLogging.at(i).c_str());
-		}
-		logprintf("################ End :: Print Header response ################");
-	}
-
-	allResponseHeadersForErrorLogging.clear();
-}
-
-/**
  * @brief callback invoked on http header by curl
  * @param ptr pointer to buffer containing the data
  * @param size size of the buffer
@@ -2302,19 +2282,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 		long long downloadTimeMS = 0;
 		bool isDownloadStalled = false;
 		pthread_mutex_unlock(&mLock);
-
-		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST)
-		{
-			if (remoteUrl.find("?") == std::string::npos)
-			{
-				gpGlobalConfig->uriParameter[0] = '?';
-			}
-
-			remoteUrl.append(gpGlobalConfig->uriParameter);
-			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
-		}
-
 		AAMPLOG_INFO("aamp url: %s", remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
@@ -2403,15 +2370,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 
 				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
 				{
-					int size = gpGlobalConfig->customHeaderStr.size();
-					for (int i=0; i < size; i++)
-					{
-						if (!gpGlobalConfig->customHeaderStr.at(i).empty())
-						{
-							//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, gpGlobalConfig->customHeaderStr.at(i).c_str());
-							httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->customHeaderStr.at(i).c_str());
-						}
-					}
+					httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->pcustomHeader);
 				}
 
 				if (httpHeaders != NULL)
@@ -2452,7 +2411,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (http_code != 200 && http_code != 204 && http_code != 206)
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code, simType);
-						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
 						{
@@ -2496,7 +2454,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
 						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD, simType);
-						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
 				}
 				else
@@ -2514,7 +2471,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					if (AAMP_IS_LOG_WORTHY_ERROR(res) || progressCtx.abortReason != eCURL_ABORT_REASON_NONE)
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
-						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
+
+						if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == context.fileType || eMEDIATYPE_PLAYLIST_VIDEO == context.fileType))
+						{
+							int size = context.allResponseHeadersForErrorLogging.size();
+							logprintf("################ Start :: Print Header response ################");
+							for (int i=0; i < size; i++)
+							{
+								logprintf("* %s", context.allResponseHeadersForErrorLogging.at(i).c_str());
+							}
+							logprintf("################ End :: Print Header response ################");
+						}
 					}
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
@@ -2551,6 +2518,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						http_code = CURLE_PARTIAL_FILE;
 					}
 				}
+
+				context.allResponseHeadersForErrorLogging.clear();
 
 				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
 				{
@@ -3292,20 +3261,9 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->logging.curlHeader = true;
 			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
 		}
-		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&tmpValue))
+		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&gpGlobalConfig->pcustomHeader))
 		{
-			if (tmpValue)
-			{
-				gpGlobalConfig->customHeaderStr.push_back(tmpValue);
-				logprintf("customHeader = %s", tmpValue);
-
-				free(tmpValue);
-				tmpValue = NULL;
-			}
-		}
-		else if (ReadConfigStringHelper(cfg, "uriParameter=", (const char**)&gpGlobalConfig->uriParameter))
-		{
-			logprintf("uriParameter = %s", gpGlobalConfig->uriParameter);
+			logprintf("customHeader = %s", gpGlobalConfig->pcustomHeader);
 		}
 		else if (cfg.compare("gst") == 0)
 		{

@@ -186,8 +186,6 @@ aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default va
 useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
 customHeader=<customHeaderString> custom header string data to be appended to curl request
-	Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
-uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 =================================================================================================================
 Overriding channels in aamp.cfg
