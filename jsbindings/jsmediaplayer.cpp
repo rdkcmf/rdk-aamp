@@ -80,6 +80,7 @@ enum ConfigParamType
 	ePARAM_USE_NEWABR,
 	ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY,
 	ePARAM_USE_NEW_ADBREAKER,
+	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
 	ePARAM_MAX_COUNT
 };
 
@@ -129,6 +130,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_NEWABR, "useNewABR" },
 	{ ePARAM_USE_NEW_ADBREAKER, "useNewAdBreaker" },
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
+	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -451,6 +453,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_DOWNLOADSTARTTIMEOUT:
 			case ePARAM_PROGRESSREPORTINTERVAL:
 			case ePARAM_PRECACHEPLAYLISTTIME:
+			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -504,6 +507,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PROGRESSREPORTINTERVAL:
 					privObj->_aamp->SetReportInterval((valueAsNumber*1000));
+					break;
+				case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+					privObj->_aamp->SetInitFragTimeoutRetryCount(valueAsNumber);
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);
