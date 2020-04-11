@@ -907,7 +907,16 @@ void PrivateInstanceAAMP::SendEventAsync(const AAMPEvent &e)
 void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 {
 	if(e.type != AAMP_EVENT_PROGRESS)
-		AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, e.type);
+	{
+		if (e.type != AAMP_EVENT_STATE_CHANGED)
+		{
+			AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, e.type);
+		}
+		else
+		{
+			AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, e.type, e.data.stateChanged.state);
+		}
+	}
 
 	//TODO protect mEventListener
 	if (mEventListener)
@@ -2313,17 +2322,32 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param curlInstance instance to be used to fetch
  * @param resetBuffer true to reset buffer before fetch
  * @param fileType media type of the file
+ * @param fragmentDurationSeconds to know the current fragment length in case fragment fetch
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long * http_error, const char *range, unsigned int curlInstance, bool resetBuffer, MediaType fileType, long *bitrate, int * fogError)
+bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl, 
+				long * http_error, const char *range, unsigned int curlInstance, 
+				bool resetBuffer, MediaType fileType, long *bitrate, int * fogError,
+				double fragmentDurationSeconds 	)
 {
 	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
 	long http_code = -1;
 	bool ret = false;
 	int downloadAttempt = 0;
+	int maxDownloadAttempt = 1;
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
+	long long fragmentDurationMs = 0;
+
+	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO)
+	{
+		maxDownloadAttempt += mInitFragmentRetryCount;
+	}
+	else
+	{
+		maxDownloadAttempt += DEFAULT_DOWNLOAD_RETRY_COUNT;
+	}
 
 	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
@@ -2457,7 +2481,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 				}
 			}
 
-			while(downloadAttempt < 2)
+			while(downloadAttempt < maxDownloadAttempt)
 			{
 				progressCtx.downloadStartTime = NOW_STEADY_TS_MS;
 				progressCtx.downloadUpdatedTime = -1;
@@ -2491,10 +2515,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorHttp, (int)http_code, simType);
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 
-						if((http_code >= 500 && http_code != 502) && downloadAttempt < 2)
+						if((http_code >= 500 && http_code != 502) && downloadAttempt < maxDownloadAttempt)
 						{
 							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
-							logprintf("Download failed due to Server error. Retrying!");
+							logprintf("Download failed due to Server error. Retrying Attempt:%d!", downloadAttempt);
 							loopAgain = true;
 						}
 					}
@@ -2530,7 +2554,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 					 * Latency should be printed in the case of successful download which exceeds the download threshold value,
 					 * other than this case is assumed as network error and those will be logged with AAMP_LOG_NETWORK_ERROR.
 					 */
-					if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
+					if (fragmentDurationSeconds != 0.0)
+					{ 
+						/*in case of fetch fragment this will be non zero value */
+						fragmentDurationMs = (long long)(fragmentDurationSeconds*1000);/*convert to MS */
+						if (downloadTimeMS > fragmentDurationMs )
+						{
+							AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, fragmentDurationMs, simType);
+						}
+					}
+					else if (downloadTimeMS > FRAGMENT_DOWNLOAD_WARNING_THRESHOLD )
 					{
 						AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, FRAGMENT_DOWNLOAD_WARNING_THRESHOLD, simType);
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
@@ -2553,25 +2586,36 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
+
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < 2)
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
 					{
-						if(mpStreamAbstractionAAMP) 
-						{	
-							double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
-							// buffer is -1 when sesssion not created . buffer is 0 when session created but playlist not downloaded
-							if(buffer == -1.0 || buffer == 0 || (buffer*1000 > curlDownloadTimeoutMS) || 
-								simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_AUDIO)
-							{
-								// GetBuffer will return -1 if session is not created 
-								// Check if buffer is available and more than timeout interval then only reattempt
-								// Not to retry download if there is no buffer left 
+						if(mpStreamAbstractionAAMP)
+						{
+							if( simType == eMEDIATYPE_MANIFEST ||
+								simType == eMEDIATYPE_AUDIO ||
+							    simType == eMEDIATYPE_INIT_VIDEO ||
+							    simType == eMEDIATYPE_INIT_AUDIO )
+							{ // always retry small, critical fragments on timeout
 								loopAgain = true;
 							}
+							else
+							{
+								double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
+								// buffer is -1 when sesssion not created . buffer is 0 when session created but playlist not downloaded
+								if( buffer == -1.0 || buffer == 0 || (buffer*1000 > curlDownloadTimeoutMS) )
+								{
+									// GetBuffer will return -1 if session is not created
+									// Check if buffer is available and more than timeout interval then only reattempt
+									// Not to retry download if there is no buffer left
+									loopAgain = true;
+								}
+							}
 						}						
-						logprintf("Download failed due to curl timeout or isDownloadStalled:%d. Retrying:%d", isDownloadStalled,loopAgain);
+						logprintf("Download failed due to curl timeout or isDownloadStalled:%d Retrying:%d Attempt:%d", isDownloadStalled, loopAgain, downloadAttempt);
 					}
+
 					/*
 					* Assigning curl error to http_code, for sending the error code as
 					* part of error event if required
@@ -2636,7 +2680,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl, struct GrowableBuffer *
 			{
 				{
 					pthread_mutex_lock(&mLock);
-					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,((long)(buffer->len / downloadTimeMS)*8000)));
+					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
+					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
+					// extra coding to avoid picking lower profile
+					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%lld fragmentDurationMs:%lld",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
+					if(fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && downloadbps < currentProfilebps)
+					{
+						downloadbps = currentProfilebps;
+					}
+					
+					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
 					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
@@ -3777,6 +3830,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->mPreCacheTimeWindow= value;
 			logprintf("preCachePlaylistTime=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "initFragmentRetryCount=", gpGlobalConfig->initFragmentRetryCount) == 1)
+		{
+			logprintf("initFragmentRetryCount=%d", gpGlobalConfig->initFragmentRetryCount);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4639,6 +4696,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
+	ConfigureInitFragTimeoutRetryCount();
 	
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
@@ -5164,11 +5222,12 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType, long * http_code, long *bitrate,int * fogError)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
+					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, long *bitrate,int * fogError, double fragmentDurationSeconds)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false, fileType, bitrate))
+	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType, *http_code);
@@ -5982,6 +6041,18 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 	}
 }
 
+/**
+ *   @brief To set the max retry attempts for init frag curl timeout failures
+ *
+ *   @param  count - max attempt for timeout retry count
+ */
+void PlayerInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
+{
+	if(count >= 0)
+	{
+		aamp->SetInitFragTimeoutRetryCount(count);
+	}
+}
 
 /**
  *   @brief To get the current playback position.
@@ -7295,6 +7366,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, prevPositionMiliseconds(-1)
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
+	, mInitFragmentRetryCount(-1)
 {
 	LazilyLoadConfigIfNeeded();
 	pthread_cond_init(&mDownloadsDisabled, NULL);
@@ -8217,6 +8289,11 @@ void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
 	gpGlobalConfig->stallTimeoutInMS = timeoutMS;
 }
 
+/**
+ *	 @brief To set the Playback Position reporting interval.
+ *
+ *	 @param  reportIntervalMS - playback reporting interval in milliseconds.
+ */
 void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
 {
 	if(gpGlobalConfig->reportProgressInterval != 0)
@@ -8228,6 +8305,20 @@ void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
 		mReportProgressInterval = reportIntervalMS;
 	}
 	AAMPLOG_WARN("%s Progress Interval configured %d",__FUNCTION__,mReportProgressInterval);		
+}
+
+/**
+ *   @brief To set the max retry attempts for init frag curl timeout failures
+ *
+ *   @param  count - max attempt for timeout retry count
+ */
+void PrivateInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
+{
+	if(-1 == gpGlobalConfig->initFragmentRetryCount)
+	{
+		mInitFragmentRetryCount = count;
+		AAMPLOG_WARN("%s Init frag timeout retry count configured %d", __FUNCTION__, mInitFragmentRetryCount);
+	}
 }
 
 /**
@@ -8744,6 +8835,24 @@ void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
 		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
 		AAMPLOG_WARN("%s Playlist PreCaching configured from config  time %d Mins",__FUNCTION__,mPreCacheDnldTimeWindow);
 	}
+}
+
+/**
+ *   @brief Function to set the max retry attempts for init frag curl timeout failures
+ *
+ */
+void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
+{
+	if(gpGlobalConfig->initFragmentRetryCount >= 0)
+	{
+		// given priority - if specified in /opt/aamp.cfg
+		mInitFragmentRetryCount = gpGlobalConfig->initFragmentRetryCount;
+	}
+	else if (-1 == mInitFragmentRetryCount)
+	{
+		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
+	}
+	AAMPLOG_WARN("%s Init frag timeout retry count configured %d", __FUNCTION__, mInitFragmentRetryCount);
 }
 
 /**

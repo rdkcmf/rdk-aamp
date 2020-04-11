@@ -524,6 +524,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	bool requestFailed = true;
 	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
+		bool loopAgain = false;
 		attemptCount++;
 		long long tStartTime = NOW_STEADY_TS_MS;
 		res = curl_easy_perform(curl);
@@ -531,10 +532,18 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		downloadTimeMS = tEndTime - tStartTime;
 		if (res != CURLE_OK)
 		{
+			if (res == CURLE_OPERATION_TIMEDOUT || res == CURLE_COULDNT_CONNECT)
+			{
+				// Retry for curl 28 and curl 7 errors.
+				loopAgain = true;
+
+				delete keyInfo;
+				keyInfo = new DrmData();
+				curl_easy_setopt(curl, CURLOPT_WRITEDATA, keyInfo);
+			}
 			logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
 			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
 			*httpCode = res;
-			break;
 		}
 		else
 		{
@@ -552,37 +561,38 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
 					mssleep(gpGlobalConfig->licenseRetryWaitTime);
 				}
-				else
-				{
-					break;
-				}
 			}
 			else
 			{
 				logprintf("%s:%d DRM Session Manager Received license data from server; Curl total time  = %.1f", __FUNCTION__, __LINE__, totalTime);
 				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : http %d",__FUNCTION__, __LINE__, attemptCount, *httpCode);
 				requestFailed = false;
-				break;
-                        }
-                }
-        }
-	double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
-	long reqSize;
-	double totalPerformRequest = (double)(downloadTimeMS)/1000;
-	curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
-	curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
-	curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appConnect);
-	curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME, &preTransfer);
-	curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &startTransfer);
-	curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME, &redirect);
-	curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
-	curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
-	AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
-			destinationURL.c_str(),
-			totalPerformRequest,
-			totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
+			}
+		}
 
-	if(requestFailed && keyInfo !=NULL)
+		double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
+		long reqSize;
+		double totalPerformRequest = (double)(downloadTimeMS)/1000;
+
+		curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME, &resolve);
+		curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
+		curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME, &appConnect);
+		curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME, &preTransfer);
+		curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME, &startTransfer);
+		curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME, &redirect);
+		curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
+		curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
+
+		AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
+				destinationURL.c_str(),
+				totalPerformRequest,
+				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
+
+		if(!loopAgain)
+			break;
+	}
+
+	if(requestFailed && keyInfo != NULL)
 	{
 		delete keyInfo;
 		keyInfo = NULL;
@@ -591,6 +601,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	delete destURL;
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
+
 	return keyInfo;
 }
 
