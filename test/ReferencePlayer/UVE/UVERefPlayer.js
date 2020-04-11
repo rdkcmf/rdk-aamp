@@ -183,19 +183,26 @@ var defaultInitConfig = {
      * use Average bandwidth for ABR switching
      */
     //useAverageBandwidth: true,
+
     /**
      * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
      */
     //preCachePlaylistTime: 5
+
     /**
      * Progress Report Interval (in seconds)
      */
     //progressReportingInterval: 2,
+
     /**
      * enable unpaired discontinuity retune config
      */
-    //useRetuneForUnpairedDiscontinuity: true
-    
+    //useRetuneForUnpairedDiscontinuity: true,
+
+    /**
+     * max attempts for init frag curl timeout failures
+     */
+    //initFragmentRetryCount: 3
 };
 
 var playerState = playerStatesEnum.idle;

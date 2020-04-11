@@ -1212,6 +1212,13 @@ public:
 	void SetReportInterval(int reportIntervalMS);
 
 	/**
+	 *	 @brief To set the max retry attempts for init frag curl timeout failures
+	 *
+	 *	 @param  count - max attempt for timeout retry count
+	 */
+	void SetInitFragTimeoutRetryCount(int count);
+
+	/**
 	 *   @brief To get the current playback position.
 	 *
 	 *   @ret current playback position in seconds
