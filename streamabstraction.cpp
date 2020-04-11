@@ -1321,6 +1321,12 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 		aamp->UpdateVideoEndMetrics(stAbrInfo);
 
+		if(aamp->mABRBufferCheckEnabled)
+		{
+			// After Rampdown, configure the timeouts for next downloads based on buffer
+			ConfigureTimeoutOnBuffer();
+		}
+
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
