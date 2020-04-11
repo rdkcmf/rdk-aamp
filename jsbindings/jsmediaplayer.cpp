@@ -148,6 +148,7 @@ enum ConfigParamType
 	ePARAM_RAMPDOWN_LIMIT,
 	ePARAM_SEGMENTINJECTLIMIT,
 	ePARAM_DRMDECRYPTLIMIT,
+	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
 	ePARAM_MAX_COUNT
 };
 
@@ -201,6 +202,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_RAMPDOWN_LIMIT, "fragmentRetryLimit" },
 	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
 	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
+	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -570,6 +572,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_RAMPDOWN_LIMIT:
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
+			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -624,6 +627,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PROGRESSREPORTINTERVAL:
 					privObj->_aamp->SetReportInterval((valueAsNumber*1000));
+					break;
+				case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+					privObj->_aamp->SetInitFragTimeoutRetryCount(valueAsNumber);
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);
