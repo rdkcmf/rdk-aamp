@@ -143,9 +143,12 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 #define DEFAULT_PRECACHE_WINDOW (10) 	// 10 mins for full precaching
-
 #define DEFAULT_DOWNLOAD_RETRY_COUNT (1)		// max download failure retry attempt count
-
+// These error codes are used internally to identify the cause of error from GetFile
+#define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (130)
+#define PARTIAL_FILE_CONNECTIVITY_AAMP (131)
+#define OPERATION_TIMEOUT_CONNECTIVITY_AAMP (132)
+#define PARTIAL_FILE_START_STALL_TIMEOUT_AAMP (133)
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -258,6 +261,8 @@ enum AAMPStatusType
 	eAAMPSTATUS_OK,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
+	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
+	eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR,
 	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
 	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
 	eAAMPSTATUS_MANIFEST_INVALID_TYPE,
@@ -1810,6 +1815,7 @@ public:
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
+	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 
 	/**
 	 * @brief Curl initialization function
