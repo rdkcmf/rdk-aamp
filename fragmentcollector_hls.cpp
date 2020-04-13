@@ -4163,10 +4163,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			pthread_join(trackPLDownloadThreadID, NULL);
 		}
-		if ((video->enabled && !video->playlist.len) || (audio->enabled && !audio->playlist.len))
+		if (video->enabled && !video->playlist.len)
 		{
-			logprintf("StreamAbstractionAAMP_HLS::%s:%d Playlist download failed",__FUNCTION__,__LINE__);
-			return eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
+			AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Video Playlist download failed",__FUNCTION__,__LINE__);
+			return eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR;
+		}
+		else if (audio->enabled && !audio->playlist.len)
+		{
+			AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Audio Playlist download failed",__FUNCTION__,__LINE__);
+			return eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR;
 		}
 
 		bool bSetStatePreparing = false;
@@ -5802,7 +5807,7 @@ void TrackState::UpdateDrmIV(const char *ptr)
 void TrackState::FetchPlaylist()
 {
 	int playlistDownloadFailCount = 0;
-	long http_error;
+	long http_error, main_error;
 
 	ProfilerBucketType bucketId = (this->type == eTRACK_SUBTITLE)?PROFILE_BUCKET_PLAYLIST_SUBTITLE:(this->type == eTRACK_AUDIO)?PROFILE_BUCKET_PLAYLIST_AUDIO:PROFILE_BUCKET_PLAYLIST_VIDEO;
 	logprintf("TrackState::%s [%s] start", __FUNCTION__, name);
@@ -5815,8 +5820,21 @@ void TrackState::FetchPlaylist()
 	{
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
+		main_error = http_error;
+		if (http_error >= PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
+		{
+			if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
+			{
+				main_error = CURLE_OPERATION_TIMEDOUT;
+			}
+			else
+			{
+				main_error = CURLE_PARTIAL_FILE;
+			}
+		}
+
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
-									http_error,mEffectiveUrl);
+									main_error,mEffectiveUrl);
 		if(playlist.len)
 		{
 			aamp->profiler.ProfileEnd(bucketId);
@@ -5830,7 +5848,8 @@ void TrackState::FetchPlaylist()
 	aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 	if (!playlist.len)
 	{
-		aamp->profiler.ProfileError(bucketId, http_error);
+		aamp->mPlaylistFetchFailError = http_error;
+		aamp->profiler.ProfileError(bucketId, main_error);
 	}
 
 }
@@ -6418,7 +6437,20 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false,  actualType);
 
-			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), http_code, mEffectiveUrl);
+			long main_error = http_code;
+			if (http_code >= PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP && http_code <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
+			{
+				if (http_code == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
+				{
+					main_error = CURLE_OPERATION_TIMEDOUT;
+				}
+				else
+				{
+					main_error = CURLE_PARTIAL_FILE;
+				}
+			}
+
+			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl);
 
 			if (!fetched)
 			{

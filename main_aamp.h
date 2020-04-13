@@ -128,6 +128,8 @@ typedef enum
 	AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR,	/**< Tune failure due to manifest download error*/
 	AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR,	/**< Tune failure due to manifest content error*/
 	AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR,	/**< Tune failure due to manifest parse error*/
+	AAMP_TUNE_INIT_FAILED_PLAYLIST_VIDEO_DNLD_ERROR,	/**<Tune failure due to video playlist download error*/
+	AAMP_TUNE_INIT_FAILED_PLAYLIST_AUDIO_DNLD_ERROR,	/**<Tune failure due to audio playlist download error*/
 	AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR, 	/**< Tune failure due to A/V track sync error*/
 	AAMP_TUNE_MANIFEST_REQ_FAILED,          /**< Tune failure caused by manifest fetch failure*/
 	AAMP_TUNE_AUTHORISATION_FAILURE,        /**< Not authorised to view the content*/
