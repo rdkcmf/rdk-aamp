@@ -608,29 +608,28 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 }
 
 /**
- * @brief parse ISO/IEC 8601:2004 timestamp
+ * @brief Parse date time from ISO8601 string and return value in seconds
+ * @param ptr ISO8601 string
+ * @retval durationMs duration in milliseconds
  */
-static double ParseTimeFromProgramDateTime(const char* ptr )
+static double ISO8601DateTimeToUTCSeconds(const char *ptr)
 {
-	double  rc = 0;
-	struct tm timeinfo;
-	int ms = 0;
-	memset(&timeinfo, 0, sizeof(timeinfo));
-	/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-	int ret = sscanf(ptr, "%d-%d-%dT%d:%d:%d.%d",
-			&timeinfo.tm_year, &timeinfo.tm_mon, &timeinfo.tm_mday,
-			&timeinfo.tm_hour, &timeinfo.tm_min, &timeinfo.tm_sec,
-			&ms );
-	if (ret >= 6)
+	time_t timeSeconds = 0;
+	if(ptr)
 	{
-		timeinfo.tm_year -= 1900;
-		rc = mktime(&timeinfo) + ms/1000.0;
+		time_t offsetFromUTC = 0;
+		std::tm timeObj = { 0 };
+
+		//Find out offset from utc by convering epoch
+		std::tm baseTimeObj = { 0 };
+		strptime("1970-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ", &baseTimeObj);
+		offsetFromUTC = mktime(&baseTimeObj);
+
+		//Convert input string to time
+		strptime(ptr, "%Y-%m-%dT%H:%M:%SZ", &timeObj);
+		timeSeconds = mktime(&timeObj) - offsetFromUTC;
 	}
-	else
-	{
-		logprintf("Parse error on DATE-TIME: %*s ret = %d", 30, ptr, ret);
-	}
-	return rc;
+	return (double)timeSeconds;
 }
 
 /***************************************************************************
@@ -1383,7 +1382,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 						if (startTimeForPlaylistSync == 0.0 )
 						{
 							/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
-							startTimeForPlaylistSync = ParseTimeFromProgramDateTime(ptr);
+							startTimeForPlaylistSync = ISO8601DateTimeToUTCSeconds(ptr);
 							logprintf("%s %s StartTimeForPlaylistSync : %f ",__FUNCTION__,name, startTimeForPlaylistSync);							
 						}
 					}
@@ -1544,7 +1543,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 								}
 								else
 								{
-									position = ParseTimeFromProgramDateTime(programDateTime );
+									position = ISO8601DateTimeToUTCSeconds(programDateTime );
 									logprintf("%s:%d [%s] Discontinuity - position from program-date-time %f", __FUNCTION__, __LINE__, name, position);
 								}
 								logprintf("%s %s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",__FUNCTION__,name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
@@ -2601,7 +2600,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
-					mProgramDateTime = ParseTimeFromProgramDateTime(ptr);
+					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
 					AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
@@ -4572,7 +4571,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				//DELIA-28451
 				// a) Get OffSet to Live for Video and Audio separately. 
 				// b) Set to minimum value among video /audio instead of setting to 0 position
-				int offsetToLiveVideo,offsetToLiveAudio,offsetToLive;
+				double offsetToLiveVideo,offsetToLiveAudio,offsetToLive;
 				offsetToLiveVideo = offsetToLiveAudio = video->mDuration - offsetFromLive - video->playTargetOffset;
 				if (audio->enabled)
 				{ 
@@ -4581,7 +4580,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					if( audio->mDuration > (offsetFromLive + audio->playTargetOffset))
 						offsetToLiveAudio = audio->mDuration - offsetFromLive -  audio->playTargetOffset;
 					else
-						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%d] + AplayTargetOffset[%f]) A-target[%f]", audio->mDuration,offsetFromLive,audio->playTargetOffset,audio->playTarget);
+						logprintf("aamp: live adjust not possible ATotal[%f]< (AoffsetFromLive[%f] + AplayTargetOffset[%f]) A-target[%f]", audio->mDuration,offsetFromLive,audio->playTargetOffset,audio->playTarget);
 				}
 				// pick the min of video/audio offset
 				offsetToLive = (std::min)(offsetToLiveVideo,offsetToLiveAudio);
@@ -4597,16 +4596,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Entering live will happen if offset is adjusted , if its 0 playback is starting from beginning 
 				if(offsetToLive)
 					mIsAtLivePoint = true;
-				logprintf("aamp: after live adjust - V-target %f A-target %f S-target %f offsetFromLive %d offsetToLive %d offsetVideo[%d] offsetAudio[%d] AtLivePoint[%d]",
+				logprintf("aamp: after live adjust - V-target %f A-target %f S-target %f offsetFromLive %f offsetToLive %f offsetVideo[%f] offsetAudio[%f] AtLivePoint[%d]",
 				        video->playTarget, audio->playTarget, subtitle->playTarget, offsetFromLive, offsetToLive,offsetToLiveVideo,offsetToLiveAudio,mIsAtLivePoint);
 			}
 			else
 			{
-				logprintf("aamp: live adjust not possible VTotal[%f] < (VoffsetFromLive[%d] + VplayTargetOffset[%f]) V-target[%f]", 
+				logprintf("aamp: live adjust not possible VTotal[%f] < (VoffsetFromLive[%f] + VplayTargetOffset[%f]) V-target[%f]", 
 					video->mDuration,offsetFromLive,video->playTargetOffset,video->playTarget);
 			}
 			//Set live adusted position to seekPosition
-			seekPosition = video->playTarget;
+			SeekPosUpdate(video->playTarget);
 		}
 		/*Adjust for discontinuity*/
 		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
@@ -4699,6 +4698,30 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting setProgressEventOffset value of %.3f ms", __FUNCTION__, __LINE__, offset);
 			subtitle->mSubtitleParser->setProgressEventOffset(offset);
 		}
+
+	
+		if (rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			// this functionality needed for normal playback , not for trickplay .
+			// After calling GetNextFragmentUriFromPlaylist , all LFs are removed from fragment info
+			// inside GetFragmentUriFromIndex , there is check for LF which fails as its already removed and ends up returning NULL uri
+			// So enforcing this strictly for normal playrate
+
+			// DELIA-42052 
+			for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+			{
+				TrackState *ts = trackState[iTrack];
+				if(ts->enabled)
+				{
+					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
+					ts->playTarget = ts->playlistPosition;
+				}
+			}
+			//Set live adusted position to seekPosition
+			SeekPosUpdate(video->playTarget);
+			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
+		}
+		
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
@@ -5918,7 +5941,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 				// Live is complicated lets finish that 
 					double discdatetime = 0.0;
 					if(discontinuityIndex[i].programDateTime)
-						discdatetime = ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime);
+						discdatetime = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
 
 
 					if (IsLive())
@@ -6048,7 +6071,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 						}
 						else
 						{
-							double discPos = ParseTimeFromProgramDateTime(discontinuityIndex[i].programDateTime);
+							double discPos = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
 							{
 								logprintf ("%s:%d [%s] low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
 									__FUNCTION__, __LINE__, name, low, high, position, discPos, discDiscardTolreanceInSec);
