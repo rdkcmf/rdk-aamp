@@ -245,15 +245,53 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 							//Place the end markers of adbreak
 							abObj.endPeriodId = periodId;	//If it is the exact period boundary, end period will be the next one
 							abObj.endPeriodOffset = p2AdData.duration - periodDelta;
+
+							//Inserted Ads finishes in < 4 seconds of new period (inside the adbreak) : Playhead goes to the period’s beginning.
 							if(abObj.endPeriodOffset < 2*OFFSET_ALIGN_FACTOR)
 							{
 								abObj.endPeriodOffset = 0;//Aligning the last period
 								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
 							}
+							else
 							{
-							//TODO: else We need to calculate duration of the end period in the Adbreak
-								AAMPLOG_WARN("%s:%d [CDAI] else_part:%lld", __FUNCTION__, __LINE__, abObj.endPeriodOffset);
-							}
+								// get current period duration
+								uint64_t currPeriodDuration = aamp_GetPeriodDuration(mpd, iter, 0);
+
+								// Are we too close to current period end?
+								//--> Inserted Ads finishes < 2 seconds behind new period : Channel playback starts from new period.
+								uint32_t diff = currPeriodDuration - abObj.endPeriodOffset;
+								if(diff <  OFFSET_ALIGN_FACTOR)
+								{
+									//check if next period available
+									iter++;
+									if( iter < periods.size() )
+									{
+										// get next period duration and check if it is not ZERO
+										uint64_t nextPeriodDuration = aamp_GetPeriodDuration(mpd, iter, 0);
+										auto nextPeriod = periods.at(iter);
+										if(nextPeriodDuration > 0 )
+										{
+											abObj.endPeriodOffset = 0;//Aligning to next period start
+											abObj.endPeriodId = nextPeriod->GetId();
+											mPeriodMap[abObj.endPeriodId] = Period2AdData();
+											AAMPLOG_WARN("%s:%d [CDAI] [%u] close to period end [%lld],Aligning to next period:%s", __FUNCTION__, __LINE__,
+																		diff,currPeriodDuration,abObj.endPeriodId.c_str());
+										}
+										else
+										{
+											AAMPLOG_WARN("%s:%d [CDAI] [%u] close to period end [%lld],but next period is empty:%s", __FUNCTION__, __LINE__,
+																					diff,currPeriodDuration,nextPeriod->GetId().c_str());
+										}
+
+									}
+									else
+									{
+										AAMPLOG_WARN("%s:%d [CDAI] [%u] close to period end [%lld],but next period not available", __FUNCTION__, __LINE__,
+																	diff,currPeriodDuration);
+									}
+								}//else --> Inserted Ads finishes >= 2 seconds behind new period : Channel playback starts from that position in the current period.
+							}//--> Inserted Ads finishes in >= 4 seconds of new period (inside the adbreak) : Channel playback starts from that position in the period.
+
 
 							//Printing the placement positions
 							std::stringstream ss;
