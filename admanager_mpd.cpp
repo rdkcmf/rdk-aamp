@@ -169,129 +169,207 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 	//Populate the map to specify the period boundaries
 	if(mpd && (-1 != mPlacementObj.curAdIdx) && "" != mPlacementObj.pendingAdbrkId && isAdBreakObjectExist(mPlacementObj.pendingAdbrkId)) //Some Ad is still waiting for the placement
 	{
-		bool openPrdFound = false;
-
 		AdBreakObject &abObj = mAdBreaks[mPlacementObj.pendingAdbrkId];
 		vector<IPeriod *> periods = mpd->GetPeriods();
-		for(int iter = 0; iter < periods.size(); iter++)
+		if(!abObj.adjustEndPeriodOffset) // not all ads are placed
 		{
-			auto period = periods.at(iter);
-			const std::string &periodId = period->GetId();
-			//We need to check, open period is available in the manifest. Else, something wrong
-			if(mPlacementObj.openPeriodId == periodId)
-			{
-				openPrdFound = true;
-			}
-			else if(openPrdFound)
-			{
-				if(aamp_GetPeriodDuration(mpd, iter, 0) > 0)
-				{
-					//Previous openPeriod ended. New period in the adbreak will be the new open period
-					mPeriodMap[mPlacementObj.openPeriodId].filled = true;
-					mPlacementObj.openPeriodId = periodId;
-					mPlacementObj.curEndNumber = 0;
-				}
-				else
-				{
-					continue;		//Empty period may come early; excluding them
-				}
-			}
+			bool openPrdFound = false;
 
-			if(openPrdFound && -1 != mPlacementObj.curAdIdx)
+			for(int iter = 0; iter < periods.size(); iter++)
 			{
-				uint64_t periodDelta = aamp_GetPeriodNewContentDuration(period, mPlacementObj.curEndNumber);
-				Period2AdData& p2AdData = mPeriodMap[periodId];
-
-				if("" == p2AdData.adBreakId)
+				if(abObj.adjustEndPeriodOffset)
 				{
-					//New period opened
-					p2AdData.adBreakId = mPlacementObj.pendingAdbrkId;
-					p2AdData.offset2Ad[0] = AdOnPeriod{mPlacementObj.curAdIdx,mPlacementObj.adNextOffset};
+					// placement done no need to run for loop now
+					break;
 				}
 
-				p2AdData.duration += periodDelta;
-
-				while(periodDelta > 0)
+				auto period = periods.at(iter);
+				const std::string &periodId = period->GetId();
+				//We need to check, open period is available in the manifest. Else, something wrong
+				if(mPlacementObj.openPeriodId == periodId)
 				{
-					AdNode &curAd = abObj.ads->at(mPlacementObj.curAdIdx);
-					if("" == curAd.basePeriodId)
+					openPrdFound = true;
+				}
+				else if(openPrdFound)
+				{
+					if(aamp_GetPeriodDuration(mpd, iter, 0) > 0)
 					{
-						//Next ad started placing
-						curAd.basePeriodId = periodId;
-						curAd.basePeriodOffset = p2AdData.duration - periodDelta;
-						int offsetKey = curAd.basePeriodOffset;
-						offsetKey = offsetKey - (offsetKey%OFFSET_ALIGN_FACTOR);
-						p2AdData.offset2Ad[offsetKey] = AdOnPeriod{mPlacementObj.curAdIdx,0};	//At offsetKey of the period, new Ad starts
-					}
-					if(periodDelta < (curAd.duration - mPlacementObj.adNextOffset))
-					{
-						mPlacementObj.adNextOffset += periodDelta;
-						periodDelta = 0;
-					}
-					else if((mPlacementObj.curAdIdx < (abObj.ads->size()-1))    //If it is not the last Ad, we can start placement immediately.
-							|| periodDelta >= OFFSET_ALIGN_FACTOR)              //Making sure that period has sufficient space to fallback
-					{
-						//Current Ad completely placed. But more space available in the current period for next Ad
-						curAd.placed = true;
-						periodDelta -= (curAd.duration - mPlacementObj.adNextOffset);
-						mPlacementObj.curAdIdx++;
-						if(mPlacementObj.curAdIdx < abObj.ads->size())
-						{
-							mPlacementObj.adNextOffset = 0; //New Ad's offset
-						}
-						else
-						{
-							mPlacementObj.curAdIdx = -1;
-							//Place the end markers of adbreak
-							abObj.endPeriodId = periodId;	//If it is the exact period boundary, end period will be the next one
-							abObj.endPeriodOffset = p2AdData.duration - periodDelta;
-							if(abObj.endPeriodOffset < 2*OFFSET_ALIGN_FACTOR)
-							{
-								abObj.endPeriodOffset = 0;//Aligning the last period
-								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
-							}
-							{
-							//TODO: else We need to calculate duration of the end period in the Adbreak
-								AAMPLOG_WARN("%s:%d [CDAI] else_part:%lld", __FUNCTION__, __LINE__, abObj.endPeriodOffset);
-							}
-
-							//Printing the placement positions
-							std::stringstream ss;
-							ss<<"{AdbreakId: "<<mPlacementObj.pendingAdbrkId;
-							ss<<", duration: "<<abObj.adsDuration;
-							ss<<", endPeriodId: "<<abObj.endPeriodId;
-							ss<<", endPeriodOffset: "<<abObj.endPeriodOffset;
-							ss<<", #Ads: "<<abObj.ads->size() << ",[";
-							for(int k=0;k<abObj.ads->size();k++)
-							{
-								AdNode &ad = abObj.ads->at(k);
-								ss<<"\n{AdIdx:"<<k <<",AdId:"<<ad.adId<<",duration:"<<ad.duration<<",basePeriodId:"<<ad.basePeriodId<<", basePeriodOffset:"<<ad.basePeriodOffset<<"},";
-							}
-							ss<<"],\nUnderlyingPeriods:[ ";
-							for(auto it = mPeriodMap.begin();it != mPeriodMap.end();it++)
-							{
-								if(it->second.adBreakId == mPlacementObj.pendingAdbrkId)
-								{
-									ss<<"\n{PeriodId:"<<it->first<<", duration:"<<it->second.duration;
-									for(auto pit = it->second.offset2Ad.begin(); pit != it->second.offset2Ad.end() ;pit++)
-									{
-										ss<<", offset["<<pit->first<<"]=> Ad["<<pit->second.adIdx<<"@"<<pit->second.adStartOffset<<"]";
-									}
-								}
-							}
-							ss<<"]}";
-							AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.", __FUNCTION__, __LINE__, ss.str().c_str());
-							break;
-						}
+						//Previous openPeriod ended. New period in the adbreak will be the new open period
+						mPeriodMap[mPlacementObj.openPeriodId].filled = true;
+						mPlacementObj.openPeriodId = periodId;
+						mPlacementObj.curEndNumber = 0;
 					}
 					else
 					{
-						//No more ads to place & No sufficient space to finalize. Wait for next period/next mpd refresh.
-						break;
+						continue;		//Empty period may come early; excluding them
+					}
+				}
+
+				if(openPrdFound && -1 != mPlacementObj.curAdIdx)
+				{
+					uint64_t periodDelta = aamp_GetPeriodNewContentDuration(period, mPlacementObj.curEndNumber);
+					Period2AdData& p2AdData = mPeriodMap[periodId];
+
+					if("" == p2AdData.adBreakId)
+					{
+						//New period opened
+						p2AdData.adBreakId = mPlacementObj.pendingAdbrkId;
+						p2AdData.offset2Ad[0] = AdOnPeriod{mPlacementObj.curAdIdx,mPlacementObj.adNextOffset};
+					}
+
+					p2AdData.duration += periodDelta;
+
+					while(periodDelta > 0)
+					{
+						AdNode &curAd = abObj.ads->at(mPlacementObj.curAdIdx);
+						if("" == curAd.basePeriodId)
+						{
+							//Next ad started placing
+							curAd.basePeriodId = periodId;
+							curAd.basePeriodOffset = p2AdData.duration - periodDelta;
+							int offsetKey = curAd.basePeriodOffset;
+							offsetKey = offsetKey - (offsetKey%OFFSET_ALIGN_FACTOR);
+							p2AdData.offset2Ad[offsetKey] = AdOnPeriod{mPlacementObj.curAdIdx,0};	//At offsetKey of the period, new Ad starts
+						}
+						if(periodDelta < (curAd.duration - mPlacementObj.adNextOffset))
+						{
+							mPlacementObj.adNextOffset += periodDelta;
+							periodDelta = 0;
+						}
+						else if((mPlacementObj.curAdIdx < (abObj.ads->size()-1))    //If it is not the last Ad, we can start placement immediately.
+								|| periodDelta >= OFFSET_ALIGN_FACTOR)              //Making sure that period has sufficient space to fallback
+						{
+							//Current Ad completely placed. But more space available in the current period for next Ad
+							curAd.placed = true;
+							periodDelta -= (curAd.duration - mPlacementObj.adNextOffset);
+							mPlacementObj.curAdIdx++;
+							if(mPlacementObj.curAdIdx < abObj.ads->size())
+							{
+								mPlacementObj.adNextOffset = 0; //New Ad's offset
+							}
+							else
+							{
+								//Place the end markers of adbreak
+								abObj.endPeriodId = periodId;	//If it is the exact period boundary, end period will be the next one
+								abObj.endPeriodOffset = p2AdData.duration - periodDelta;
+								abObj.adjustEndPeriodOffset = true; // marked for later adjustment
+								break;
+							}
+						}
+						else
+						{
+							//No more ads to place & No sufficient space to finalize. Wait for next period/next mpd refresh.
+							break;
+						}
 					}
 				}
 			}
 		}
+		if(abObj.adjustEndPeriodOffset) // make endPeriodOffset adjustment 
+		{
+			bool endPeriodFound = false;
+			int iter =0;
+
+			for(iter = 0; iter < periods.size(); iter++)
+			{
+				auto period = periods.at(iter);
+				const std::string &periodId = period->GetId();
+				//We need to check, end period is available in the manifest. Else, something wrong
+				if(abObj.endPeriodId == periodId)
+				{
+					endPeriodFound = true;
+					break;
+				}
+			}
+
+			if(false == endPeriodFound) // something wrong keep the end-period positions same and proceed.
+			{
+				abObj.adjustEndPeriodOffset = false;
+				AAMPLOG_WARN("%s:%d [CDAI] Couldn't adjust offset [endPeriodNotFound] ", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				//Inserted Ads finishes in < 4 seconds of new period (inside the adbreak) : Play-head goes to the period’s beginning.
+				if(abObj.endPeriodOffset < 2*OFFSET_ALIGN_FACTOR)
+				{
+					abObj.adjustEndPeriodOffset = false; // done with Adjustment
+					abObj.endPeriodOffset = 0;//Aligning the last period
+					mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small out-lier.
+					AAMPLOG_INFO("%s:%d [CDAI] Adjusted endperiodOffset", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					// get current period duration
+					uint64_t currPeriodDuration = aamp_GetPeriodDuration(mpd, iter, 0);
+
+					// Are we too close to current period end?
+					//--> Inserted Ads finishes < 2 seconds behind new period : Channel play-back starts from new period.
+					int diff = currPeriodDuration - abObj.endPeriodOffset;
+					// if diff is negative or < OFFSET_ALIGN_FACTOR we have to wait for it to catch up
+					// and either period will end with diff < OFFSET_ALIGN_FACTOR then adjust to next period start
+					// or diff will be more than OFFSET_ALIGN_FACTOR then don't do any adjustment
+					if(diff <  OFFSET_ALIGN_FACTOR)
+					{
+						//check if next period available
+						iter++;
+						if( iter < periods.size() )
+						{
+							auto nextPeriod = periods.at(iter);
+							abObj.adjustEndPeriodOffset = false; // done with Adjustment
+							abObj.endPeriodOffset = 0;//Aligning to next period start
+							abObj.endPeriodId = nextPeriod->GetId();
+							mPeriodMap[abObj.endPeriodId] = Period2AdData();
+							AAMPLOG_INFO("%s:%d [CDAI] [%d] close to period end [%lld],Aligning to next-period:%s", __FUNCTION__, __LINE__,
+														diff,currPeriodDuration,abObj.endPeriodId.c_str());
+						}
+						else
+						{
+							AAMPLOG_INFO("%s:%d [CDAI] [%d] close to period end [%lld],but next period not available,waiting", __FUNCTION__, __LINE__,
+														diff,currPeriodDuration);
+						}
+					}// --> Inserted Ads finishes >= 2 seconds behind new period : Channel playback starts from that position in the current period.
+					// OR //--> Inserted Ads finishes in >= 4 seconds of new period (inside the adbreak) : Channel playback starts from that position in the period.
+					else
+					{
+						AAMPLOG_INFO("%s:%d [CDAI] [%d] NOT close to period end [%lld] Done", __FUNCTION__, __LINE__,diff);
+						abObj.adjustEndPeriodOffset = false; // done with Adjustment
+					}
+				}
+			}
+
+			if(!abObj.adjustEndPeriodOffset) // placed all ads now print the placement data and set mPlacementObj.curAdIdx = -1;
+			{
+				mPlacementObj.curAdIdx = -1;
+				//Printing the placement positions
+				std::stringstream ss;
+				ss<<"{AdbreakId: "<<mPlacementObj.pendingAdbrkId;
+				ss<<", duration: "<<abObj.adsDuration;
+				ss<<", endPeriodId: "<<abObj.endPeriodId;
+				ss<<", endPeriodOffset: "<<abObj.endPeriodOffset;
+				ss<<", #Ads: "<<abObj.ads->size() << ",[";
+				for(int k=0;k<abObj.ads->size();k++)
+				{
+					AdNode &ad = abObj.ads->at(k);
+					ss<<"\n{AdIdx:"<<k <<",AdId:"<<ad.adId<<",duration:"<<ad.duration<<",basePeriodId:"<<ad.basePeriodId<<", basePeriodOffset:"<<ad.basePeriodOffset<<"},";
+				}
+				ss<<"],\nUnderlyingPeriods:[ ";
+				for(auto it = mPeriodMap.begin();it != mPeriodMap.end();it++)
+				{
+					if(it->second.adBreakId == mPlacementObj.pendingAdbrkId)
+					{
+						ss<<"\n{PeriodId:"<<it->first<<", duration:"<<it->second.duration;
+						for(auto pit = it->second.offset2Ad.begin(); pit != it->second.offset2Ad.end() ;pit++)
+						{
+							ss<<", offset["<<pit->first<<"]=> Ad["<<pit->second.adIdx<<"@"<<pit->second.adStartOffset<<"]";
+						}
+					}
+				}
+				ss<<"]}";
+				AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.", __FUNCTION__, __LINE__, ss.str().c_str());
+
+			}
+		}
+
 		if(-1 == mPlacementObj.curAdIdx)
 		{
 			mPlacementObj.pendingAdbrkId = "";
