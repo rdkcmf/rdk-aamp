@@ -176,11 +176,12 @@ struct AdBreakObject{
 	std::string                          endPeriodId;     /**< Base period's id after the adbreak playback */
 	uint64_t                             endPeriodOffset; /**< Base period's offset after the adbreak playback */
 	uint32_t                             adsDuration;     /**< Ads' duration in the Adbreak */
+	bool                        	     adjustEndPeriodOffset;     /**< endPeriodOffset needs be re-adjusted or not */
 
 	/**
 	* @brief AdBreakObject default constructor
 	*/
-	AdBreakObject() : brkDuration(0), ads(), endPeriodId(), endPeriodOffset(0), adsDuration(0)
+	AdBreakObject() : brkDuration(0), ads(), endPeriodId(), endPeriodOffset(0), adsDuration(0), adjustEndPeriodOffset(false)
 	{
 	}
 
@@ -195,7 +196,7 @@ struct AdBreakObject{
 	*/
 	AdBreakObject(uint32_t _duration, std::shared_ptr<std::vector<AdNode>> _ads, std::string _endPeriodId,
 	uint64_t _endPeriodOffset, uint32_t _adsDuration)
-	: brkDuration(_duration), ads(_ads), endPeriodId(_endPeriodId), endPeriodOffset(_endPeriodOffset), adsDuration(_adsDuration)
+	: brkDuration(_duration), ads(_ads), endPeriodId(_endPeriodId), endPeriodOffset(_endPeriodOffset), adsDuration(_adsDuration), adjustEndPeriodOffset(false)
 	{
 	}
 };
