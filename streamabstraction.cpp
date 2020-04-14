@@ -1128,7 +1128,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
-		logprintf("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
+		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
 		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
 		{
 			mABRHighBufferCounter++;
