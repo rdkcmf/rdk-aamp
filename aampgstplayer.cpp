@@ -210,6 +210,11 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
  */
 static gboolean buffering_timeout (gpointer data);
 
+/** 
+ * @brief check if elemement is instance (BCOM-3563)
+ */
+void type_check_instance(char * str, GstElement * elem);
+
 /**
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
@@ -1010,6 +1015,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
 					GstElement * audio_dec = (GstElement *) msg->src;
+
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
 					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
@@ -1156,12 +1162,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
+					type_check_instance("bus_sync_handle: video_dec ", _this->privateContext->video_dec);
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
 				}
 				else
 				{
 					_this->privateContext->audio_dec = (GstElement *) msg->src;
+					type_check_instance("bus_sync_handle: audio_dec ", _this->privateContext->audio_dec);
 					g_signal_connect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
@@ -1389,7 +1397,7 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 		g_object_get(privateContext->video_dec, "decode-handle", &dec_handle, NULL);
 #endif
 	}
-	logprintf("video decoder handle received %p", dec_handle);
+	logprintf("video decoder handle received %p for video_dec %p", dec_handle, privateContext->video_dec);
 	return (unsigned long)dec_handle;
 }
 
@@ -2280,10 +2288,12 @@ void AAMPGstPlayer::DisconnectCallbacks()
 {
 	if(privateContext->video_dec)
 	{
+		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: video_dec ", privateContext->video_dec);
 		g_signal_handlers_disconnect_by_data(privateContext->video_dec, this);
 	}
 	if(privateContext->audio_dec)
 	{
+		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: audio_dec ", privateContext->audio_dec);
 		g_signal_handlers_disconnect_by_data(privateContext->audio_dec, this);
 	}
 }
@@ -3461,6 +3471,10 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	pthread_mutex_unlock(&mBufferingLock);
 }
 
+void type_check_instance(char * str, GstElement * elem)
+{
+	logprintf("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
+}
 /**
  * @}
  */
