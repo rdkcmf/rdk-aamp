@@ -96,8 +96,8 @@ typedef enum {
 }AAMPGetTypes;
 
 /**
- * @enum AAMPGetTypes
- * @brief Define the enum values of get types
+ * @enum AAMPSetTypes
+ * @brief Define the enum values of set types
  */
 typedef enum{
 	eAAMP_SET_RateAndSeek = 1,
@@ -136,6 +136,7 @@ typedef enum{
 	eAAMP_SET_MaximumBitrate,
 	eAAMP_SET_MaximumSegmentInjFailCount,
 	eAAMP_SET_MaximumDrmDecryptFailCount,
+	eAAMP_SET_RegisterForID3MetadataEvents,
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -361,6 +362,7 @@ void ShowHelpSet(){
 	logprintf("34 - Set Maximum bitrate");
 	logprintf("35 - Set Maximum segment injection fail count");
 	logprintf("36 - Set Maximum DRM Decryption fail count");
+	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
 }
 
 #define LOG_CLI_EVENTS
@@ -414,6 +416,17 @@ public:
 			break;
 		case AAMP_EVENT_BITRATE_CHANGED:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
+			break;
+		case AAMP_EVENT_ID3_METADATA:
+			logprintf("AAMP_EVENT_ID3_METADATA");
+
+			logprintf("ID3 payload, length %d bytes:", e.data.id3Metadata.length);
+			printf("\t");
+			for (int i = 0; i < e.data.id3Metadata.length; i++)
+			{
+				printf("%c", *(e.data.id3Metadata.data+i));
+			}
+			printf("\n");
 			break;
 		default:
 			break;
@@ -1064,6 +1077,24 @@ static void ProcessCliCommand(char *cmd)
 					logprintf("Matched Command eAAMP_SET_MaximumDrmDecryptFailCount - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentDecryptFailCount(failCount);
+					}
+					break;
+                                }
+
+				case eAAMP_SET_RegisterForID3MetadataEvents:
+                                {
+					bool id3MetadataEventsEnabled;
+					logprintf("Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &id3MetadataEventsEnabled) == 2){
+						if (id3MetadataEventsEnabled)
+						{
+							mSingleton->AddEventListener(AAMP_EVENT_ID3_METADATA, myEventListener);
+						}
+						else
+						{
+							mSingleton->RemoveEventListener(AAMP_EVENT_ID3_METADATA, myEventListener);
+						}
+
 					}
 					break;
                                 }

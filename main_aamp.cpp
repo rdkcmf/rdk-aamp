@@ -7174,6 +7174,19 @@ void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
 }
 
+
+/**
+ *   @brief Sends an ID3 metadata event.
+ *
+ *   @param[in] data pointer to ID3 metadata
+ *   @param[in] length length of ID3 metadata
+ */
+void PlayerInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
+{
+	aamp->SendId3MetadataEvent(data, length);
+}
+
+
 /**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
@@ -10189,6 +10202,44 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	mParallelFetchPlaylist = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+
+/**
+ *   @brief Sends an ID3 metadata event.
+ *
+ *   @param[in] data pointer to ID3 metadata.
+ *   @param[in] length length of ID3 metadata.
+ */
+void PrivateInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
+{
+	AAMPEvent e;
+
+	e.type = AAMP_EVENT_ID3_METADATA;
+	e.data.id3Metadata.data = data;
+	e.data.id3Metadata.length = length;
+
+	SendEventSync(e);
+
+	g_free(data);
+	data = NULL;
+}
+
+
+/**
+ * @brief Gets the listener registration status of a given event
+ * @param[in] eventType - type of the event to be checked
+ *
+ * @retval bool - True if an event listener for the event type exists
+ */
+bool PrivateInstanceAAMP::GetEventListenerStatus(AAMPEventType eventType)
+{
+	if (mEventListeners[eventType] != NULL)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 

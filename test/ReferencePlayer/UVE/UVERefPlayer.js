@@ -458,6 +458,11 @@ function reservationEnd(event) {
     console.log("ReservationEnd event: " + JSON.stringify(event));
 }
 
+function id3Metadata(event) {
+    // Event when ID3 metadata received
+    console.log("id3Metadata event: " + JSON.stringify(event));
+}
+
 function mediaProgressUpdate(event) {
     //console.log("Media progress update event: " + JSON.stringify(event));
     //TSB length for live assets = (event.endMiliseconds - event.startMiliseconds)
@@ -561,6 +566,7 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("seeked", playbackSeeked);
     newPlayer.addEventListener("tuneProfiling", tuneProfiling);
     //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
+    newPlayer.addEventListener("id3Metadata", id3Metadata);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
     return newPlayer;

@@ -72,6 +72,7 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_AD_PLACEMENT_ERROR, "placementError" },
 	{ AAMP_EVENT_REPORT_METRICS_DATA, "metricsData" },
 	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
+	{ AAMP_EVENT_ID3_METADATA, "id3Metadata"},
 	{ (AAMPEventType)0, "" }
 };
 
@@ -117,6 +118,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_AD_PLACEMENT_END, "placementEnd" },
 	{ AAMP_EVENT_AD_PLACEMENT_ERROR, "placementError" },
 	{ AAMP_EVENT_AD_PLACEMENT_PROGRESS, "placementProgress" },
+	{ AAMP_EVENT_ID3_METADATA, "id3Metadata"},
 	{ (AAMPEventType)0, "" }
 };
 

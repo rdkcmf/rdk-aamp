@@ -3406,6 +3406,22 @@ public:
 	AampCacheHandler * getAampCacheHandler();
 
 	/**
+	 *   @brief Sends an ID3 metadata event.
+	 *
+	 *   @param[in] data pointer to ID3 metadata
+	 *   @param[in] length length of ID3 metadata
+	 */
+	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+
+	/**
+	 * @brief Gets the registration status of a given event
+	 * @param[in] eventType - type of the event to be checked
+	 *
+	 * @retval bool - True if event is registered
+	 */
+	bool GetEventListenerStatus(AAMPEventType eventType);
+
+	/**
 	 *   @brief Get available audio tracks.
 	 *
 	 *   @return std::string JSON formatted list of audio tracks
