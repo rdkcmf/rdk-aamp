@@ -217,6 +217,7 @@ void MediaTrack::UpdateTSAfterFetch()
 	bool notifyCacheCompleted = false;
 	pthread_mutex_lock(&mutex);
 	cachedFragment[fragmentIdxToFetch].profileIndex = GetContext()->profileIdxForBandwidthNotification;
+	GetContext()->UpdateStreamInfoBitrateData(cachedFragment[fragmentIdxToFetch].profileIndex, cachedFragment[fragmentIdxToFetch].cacheFragStreamInfo);
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -571,7 +572,7 @@ bool MediaTrack::InjectFragment()
 				}
 				if (eTRACK_VIDEO == type)
 				{
-					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex);
+					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo);
 				}
 				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
 				if (!fragmentDiscarded)
@@ -1036,35 +1037,51 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
  *
  *   @param[in]  profileIndex - profile index of last injected fragment.
  */
-void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
+void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo)
 {
 	if (profileIndex != aamp->GetPersistedProfileIndex())
 	{
-		StreamInfo* streamInfo = GetStreamInfo(profileIndex);
+		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
 
 		bool lGetBWIndex = false;
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		if(aamp->IsTuneTypeNew &&
-			streamInfo->bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
+		if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
 		{
 			MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f",
-				streamInfo->bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
+			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f", cacheFragStreamInfo.bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
 			aamp->IsTuneTypeNew = false;
 			lGetBWIndex = true;
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 		// Send bitrate notification
-		aamp->NotifyBitRateChangeEvent(streamInfo->bandwidthBitsPerSecond,
-				"BitrateChanged - Network Adaptation", streamInfo->resolution.width,
-				streamInfo->resolution.height, streamInfo->resolution.framerate, lGetBWIndex);
+		aamp->NotifyBitRateChangeEvent(cacheFragStreamInfo.bandwidthBitsPerSecond,
+				"BitrateChanged - Network Adaptation", cacheFragStreamInfo.resolution.width,
+				cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, lGetBWIndex);
 		// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 		aamp->SetPersistedProfileIndex(profileIndex);
 	}
 }
 
+/**
+ *	 @brief Function to update stream info of current fetched fragment
+ *
+ *	 @param[in]  profileIndex - profile index of current fetched fragment
+ *	 @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
+ */
+void StreamAbstractionAAMP::UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo)
+{
+	StreamInfo* streamInfo = GetStreamInfo(profileIndex);
 
+	if (streamInfo)
+	{
+		cacheFragStreamInfo.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond;
+		cacheFragStreamInfo.resolution.height = streamInfo->resolution.height;
+		cacheFragStreamInfo.resolution.framerate = streamInfo->resolution.framerate;
+		cacheFragStreamInfo.resolution.width = streamInfo->resolution.width;
+		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
+	}
+}
 
 /**
  * @brief Update profile state based on bandwidth of fragments downloaded

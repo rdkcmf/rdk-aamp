@@ -446,7 +446,7 @@ public:
 	 */
 	bool IsAtEndOfTrack()
 	{
-		return eos;
+		return eosReached;
 	}
 
 	MediaType mediaType;
@@ -4709,6 +4709,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 					{
 						delete[] mStreamInfo;
 						mStreamInfo = NULL;
+						// reset representationIndex to -1 to allow updating the currentProfileIndex for period change.
+						pMediaStreamContext->representationIndex = -1;
+						AAMPLOG_WARN("%s:%d representationIndex set to (-1) to find currentProfileIndex", __FUNCTION__, __LINE__);
 					}
 					if (!mStreamInfo)
 					{
@@ -5445,7 +5448,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
   
 	if(rate < 0)
 		direction = -1;
-	bool adStateChange = false;
+	bool adStateChanged = false;
 #ifdef AAMP_MPD_DRM
 	if (mPushEncInitFragment && CheckForInitalClearPeriod())
 	{
@@ -5472,7 +5475,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			while(iPeriod < numPeriods && iPeriod >= 0 && !exitFetchLoop)
 			{
 				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
-				if (periodChanged || mpdChanged || adStateChange)
+				if (periodChanged || mpdChanged || adStateChanged)
 				{
 					bool discontinuity = false;
 					bool requireStreamSelection = false;
@@ -5516,14 +5519,14 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						mBasePeriodId = newPeriod->GetId();
 						periodChanged = false; //If the playing period changes, it will be detected below [if(currentPeriodId != mCurrentPeriod->GetId())]
 					}
-					adStateChange = onAdEvent(AdEvent::DEFAULT);		//TODO: Vinod, We can optimize here.
+					adStateChanged = onAdEvent(AdEvent::DEFAULT);		//TODO: Vinod, We can optimize here.
 
 					if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
 					{
 						waitForAdBreakCatchup= true;
 						break;
 					}
-					if(adStateChange && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
+					if(adStateChanged && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
 					{
 						//Just came out from the Adbreak. Need to search the right period
 						for(iPeriod=0;iPeriod < numPeriods;  iPeriod++)
@@ -5574,7 +5577,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							}
 						}
 					}
-					adStateChange = false;
+					adStateChanged = false;
 
 					if(requireStreamSelection)
 					{
@@ -5589,7 +5592,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						bool resetTimeLineIndex = (mIsLiveStream || lastLiveFlag|| periodChanged);
 						UpdateTrackInfo(true, periodChanged, resetTimeLineIndex);
 					}
-
 
 					if(mIsLiveStream || lastLiveFlag)
 					{
@@ -5685,7 +5687,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					FetchAndInjectInitialization(discontinuity);
 					if(mCdaiObject->mAdFailed)
 					{
-						adStateChange = onAdEvent(AdEvent::AD_FAILED);
+						adStateChanged = onAdEvent(AdEvent::AD_FAILED);
 						mCdaiObject->mAdFailed = false;
 						continue;
 					}
@@ -5826,7 +5828,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop ", __FUNCTION__, __LINE__);
 							if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
 							{
-								adStateChange = onAdEvent(AdEvent::AD_FINISHED);
+								adStateChanged = onAdEvent(AdEvent::AD_FINISHED);
 							}
 							break;
 						}
@@ -5843,8 +5845,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						else if(lastPrdOffset != mBasePeriodOffset && AdState::IN_ADBREAK_AD_NOT_PLAYING == mCdaiObject->mAdState)
 						{
 							//In adbreak, but somehow Ad is not playing. Need to check whether the position reached the next Ad start.
-							adStateChange = onAdEvent(AdEvent::BASE_OFFSET_CHANGE);
-							if(adStateChange)
+							adStateChanged = onAdEvent(AdEvent::BASE_OFFSET_CHANGE);
+							if(adStateChanged)
 								break;
 						}
 						lastPrdOffset = mBasePeriodOffset;
