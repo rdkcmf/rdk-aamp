@@ -6874,13 +6874,14 @@ void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
 	// temp code until its enabled in Peacock App - Remove it later.
 	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
 	{
-		mNewAdBreakerEnabled = bValue;		
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
 	}
 	else
 	{
 		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;		
 	}
-	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
+	AAMPLOG_INFO("%s:%d New AdBreaker/PDT Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
 }
 
 /**
@@ -6893,7 +6894,8 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 {
 	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
 	{
-		mNewAdBreakerEnabled = bValue;		
+		mNewAdBreakerEnabled = bValue;
+		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
 	}
 	else
 	{
