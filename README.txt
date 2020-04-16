@@ -93,6 +93,7 @@ progress	enable periodic logging of position
 trace		enable dumps of manifests
 curl		enable verbose curl logging
 debug		enable debul level logs
+logMetadata	enable timed metadata logging
 abr		disable abr mode (defaults on)
 default-bitrate	specify initial bitrate while tuning, or target bitrate while abr disabled (defaults to 2500000)
 default-bitrate-4k	specify initial bitrate while tuning 4K contents, or target bitrate while abr disabled for 4K contents (defaults to 13000000)

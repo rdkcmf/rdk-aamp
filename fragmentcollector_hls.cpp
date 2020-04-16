@@ -4523,11 +4523,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 				}
 			}
-			//reiterate loop when player receive an update in seek position
-			for (int jTrack = AAMP_TRACK_COUNT - 1; jTrack >= 0; jTrack--)
-			{
-				ts->playTarget = seekPosition;
-			}
+		}
+
+		//reiterate loop when player receive an update in seek position
+		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+		{
+			trackState[iTrack]->playTarget = seekPosition;
 		}
 
 		if ((video->enabled && video->mDuration == 0.0f) || (audio->enabled && audio->mDuration == 0.0f))

@@ -3582,6 +3582,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->logging.curlHeader = true;
 			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
 		}
+		else if(cfg.compare("logMetadata") == 0)
+		{
+			gpGlobalConfig->logging.logMetadata = true;
+			logprintf("logMetadata logging %s", gpGlobalConfig->logging.logMetadata ? "on" : "off");
+		}
 		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&tmpValue))
 		{
 			if (tmpValue)
@@ -6046,7 +6051,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 
 	ERROR_STATE_CHECK_VOID();
 
-	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && eSTATE_INITIALIZING == state  && aamp->mpStreamAbstractionAAMP)
+	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
 	{
 		logprintf("Seeking to %lf at the middle of tune, no fragments downloaded yet.", secondsRelativeToTuneTime);
 		aamp->mpStreamAbstractionAAMP->SeekPosUpdate(secondsRelativeToTuneTime);
@@ -7539,14 +7544,18 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				cJSON_AddStringToObject(item, "data", iter->_content.c_str());
 			}
 
-			char* bulkData = cJSON_Print(root);
+			char* bulkData = cJSON_PrintUnformatted(root);
 			if(bulkData)
 			{
 
 				AAMPEvent eventData;
 				eventData.type = AAMP_EVENT_BULK_TIMED_METADATA;
 				eventData.data.bulktimedMetadata.szMetaContent = bulkData;
-				AAMPLOG_INFO("%s:%d:: Generated bulkTimedData : %s", __FUNCTION__, __LINE__, bulkData);
+				AAMPLOG_INFO("%s:%d:: Sending bulkTimedData", __FUNCTION__, __LINE__);
+				if (gpGlobalConfig->logging.logMetadata)
+				{
+					printf("%s:%d:: bulkTimedData : %s\n", __FUNCTION__, __LINE__, bulkData);
+				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
 				SendEventSync(eventData);
@@ -7629,7 +7638,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
 		eventData.data.timedMetadata.szContent = eventData.additionalEventData[2].c_str();
 
-		if (gpGlobalConfig->logging.progress)
+		if (gpGlobalConfig->logging.logMetadata)
 		{
 			logprintf("aamp timedMetadata: [%ld] '%s'",
 				(long)(eventData.data.timedMetadata.timeMilliseconds),
