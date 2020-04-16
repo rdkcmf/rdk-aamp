@@ -145,8 +145,8 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_PRECACHE_WINDOW (10) 	// 10 mins for full precaching
 #define DEFAULT_DOWNLOAD_RETRY_COUNT (1)		// max download failure retry attempt count
 // These error codes are used internally to identify the cause of error from GetFile
-#define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (130)
-#define PARTIAL_FILE_CONNECTIVITY_AAMP (131)
+#define PARTIAL_FILE_CONNECTIVITY_AAMP (130)
+#define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (131)
 #define OPERATION_TIMEOUT_CONNECTIVITY_AAMP (132)
 #define PARTIAL_FILE_START_STALL_TIMEOUT_AAMP (133)
 /**
