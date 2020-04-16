@@ -420,12 +420,13 @@ public:
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
 	bool curlHeader; /**< Curl header logs*/
+	bool logMetadata;	 /**< Timed metadata logs*/
 	static bool disableLogRedirection;
 
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false), logMetadata(false)
 	{
 	}
 
