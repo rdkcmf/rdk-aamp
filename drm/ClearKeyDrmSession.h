@@ -52,7 +52,12 @@ private:
 	unsigned char* m_keyId;
 	size_t m_keyIdLen;
 	void initAampDRMSession();
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	EVP_CIPHER_CTX *mOpensslCtx;
+#else
 	EVP_CIPHER_CTX mOpensslCtx;
+#endif
 
 public:
 
