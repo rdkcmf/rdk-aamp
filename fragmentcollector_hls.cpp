@@ -5736,19 +5736,7 @@ void TrackState::FetchPlaylist()
 	{
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
-		main_error = http_error;
-		if (http_error >= PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
-		{
-			if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
-			{
-				main_error = CURLE_OPERATION_TIMEDOUT;
-			}
-			else
-			{
-				main_error = CURLE_PARTIAL_FILE;
-			}
-		}
-
+		main_error = aamp_GetOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									main_error,mEffectiveUrl);
 		if(playlist.len)
@@ -6218,7 +6206,8 @@ void TrackState::FetchInitFragment()
 		{
 			// Attempt rampdown for init fragment to get playable profiles.
 			// TODO: Remove profile if init fragment is not available from ABR.
-			if (context->CheckForRampDownProfile(http_code))
+			long http_error = aamp_GetOriginalCurlError(http_code);
+			if (context->CheckForRampDownProfile(http_error))
 			{
 				AAMPLOG_INFO("%s:%d Init fragment fetch failed, Successfully ramped down to lower profile", __FUNCTION__, __LINE__);
 				context->mCheckForRampdown = true;
@@ -6229,7 +6218,7 @@ void TrackState::FetchInitFragment()
 				if (aamp->DownloadsAreEnabled())
 				{
 					AAMPLOG_ERR("TrackState::%s:%d Init fragment fetch failed", __FUNCTION__, __LINE__);
-					aamp->profiler.ProfileError(bucketType, http_code);
+					aamp->profiler.ProfileError(bucketType, http_error);
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 				}
 				context->mRampDownCount = 0;
@@ -6238,8 +6227,9 @@ void TrackState::FetchInitFragment()
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{
+			long http_error = aamp_GetOriginalCurlError(http_code);
 			AAMPLOG_ERR("TrackState::%s:%d Init fragment fetch failed", __FUNCTION__, __LINE__);
-			aamp->profiler.ProfileError(bucketType, http_code);
+			aamp->profiler.ProfileError(bucketType, http_error);
 			aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 		}
 	}
@@ -6353,19 +6343,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false,  actualType);
 
-			long main_error = http_code;
-			if (http_code >= PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP && http_code <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
-			{
-				if (http_code == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
-				{
-					main_error = CURLE_OPERATION_TIMEDOUT;
-				}
-				else
-				{
-					main_error = CURLE_PARTIAL_FILE;
-				}
-			}
-
+			long main_error = aamp_GetOriginalCurlError(http_code);
 			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl);
 
 			if (!fetched)
