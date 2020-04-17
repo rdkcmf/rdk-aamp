@@ -150,10 +150,10 @@ void AampOutputProtection::SetHDMIStatus()
 
     DEBUG_FUNC;
 
-    //Get the HDMI port
-    ::device::VideoOutputPort &vPort = ::device::Host::getInstance().getVideoOutputPort("HDMI0");
 
     try {
+        //Get the HDMI port
+        ::device::VideoOutputPort &vPort = ::device::Host::getInstance().getVideoOutputPort("HDMI0");
         isConnected        = vPort.isDisplayConnected();
         hdcpProtocol       = (dsHdcpProtocolVersion_t)vPort.getHDCPProtocol();
         if(isConnected) {
