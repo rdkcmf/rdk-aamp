@@ -1370,14 +1370,17 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 			{
 				retValue = true;
 			}
-		else if (RampDownProfile(http_error))
+			else if (RampDownProfile(http_error))
 			{
 				retValue = true;
 			}
 		}
 	}
+
 	if ((true == retValue) && (mRampDownLimit > 0))
+	{
 		mRampDownCount++;
+	}
 
 	return retValue;
 }

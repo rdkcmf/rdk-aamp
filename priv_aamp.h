@@ -813,6 +813,14 @@ long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_T
 void aamp_Error(const char *msg);
 
 /**
+ * @brief Convert custom curl errors to original
+ *
+ * @param[in] http_error - Error code
+ * @return error code
+ */
+long aamp_GetOriginalCurlError(long http_error);
+
+/**
  * @brief AAMP's custom implementation of memory deallocation
  *
  * @param[in] pptr - Buffer to be deallocated
