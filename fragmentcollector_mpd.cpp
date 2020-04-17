@@ -2459,63 +2459,75 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		{
 			logprintf("[HHH]Comcast DRM Agnostic CENC system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			string psshData = node.at(0)->GetText();
-			data = base64_Decode(psshData.c_str(), &dataLength);
+			if (!node.empty())
+			{
+				string psshData = node.at(0)->GetText();
+				data = base64_Decode(psshData.c_str(), &dataLength);
 
-			if(gpGlobalConfig->logging.trace)
-			{
-				logprintf("content metadata from manifest; length %d", dataLength);
-				DumpBlob( data, dataLength );
-			}
-			if(dataLength != 0)
-			{
-				int contentMetadataLen = 0;
-				contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
 				if(gpGlobalConfig->logging.trace)
 				{
-					logprintf("content metadata from PSSH; length %d", contentMetadataLen);
-					DumpBlob( contentMetadata, contentMetadataLen );
+					logprintf("content metadata from manifest; length %d", dataLength);
+					DumpBlob( data, dataLength );
 				}
+				if(dataLength != 0)
+				{
+					int contentMetadataLen = 0;
+					contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
+					if(gpGlobalConfig->logging.trace)
+					{
+						logprintf("content metadata from PSSH; length %d", contentMetadataLen);
+						DumpBlob( contentMetadata, contentMetadataLen );
+					}
+				}
+				if(data) free(data);
 			}
-			if(data) free(data);
 		}
 		else if (schemeIdUri.find(WIDEVINE_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]Widevine system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			string psshData = node.at(0)->GetText();
-			wvData = base64_Decode(psshData.c_str(), &wvDataLength);
-			mContext->hasDrm = true;
-			if(gpGlobalConfig->logging.trace)
+			if (!node.empty())
 			{
-				logprintf("init data from manifest; length %d", wvDataLength);
-				DumpBlob(wvData, wvDataLength);
+				string psshData = node.at(0)->GetText();
+				wvData = base64_Decode(psshData.c_str(), &wvDataLength);
+				mContext->hasDrm = true;
+				if(gpGlobalConfig->logging.trace)
+				{
+					logprintf("init data from manifest; length %d", wvDataLength);
+					DumpBlob(wvData, wvDataLength);
+				}
 			}
 		}
 		else if (schemeIdUri.find(PLAYREADY_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]Playready system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			string psshData = node.at(0)->GetText();
-			prData = base64_Decode(psshData.c_str(), &prDataLength);
-			mContext->hasDrm = true;
-			if(gpGlobalConfig->logging.trace)
+			if (!node.empty())
 			{
-				logprintf("init data from manifest; length %d", prDataLength);
-				DumpBlob(prData, prDataLength);
+				string psshData = node.at(0)->GetText();
+				prData = base64_Decode(psshData.c_str(), &prDataLength);
+				mContext->hasDrm = true;
+				if(gpGlobalConfig->logging.trace)
+				{
+					logprintf("init data from manifest; length %d", prDataLength);
+					DumpBlob(prData, prDataLength);
+				}
 			}
 		}
 		else if (schemeIdUri.find(CLEARKEY_SYSTEM_ID) != string::npos)
 		{
 			logprintf("[HHH]ClearKey system ID found!");
 			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			string psshData = node.at(0)->GetText();
-			ckData = base64_Decode(psshData.c_str(), &ckDataLength);
-			mContext->hasDrm = true;
-			if(gpGlobalConfig->logging.trace)
+			if (!node.empty())
 			{
-				logprintf("init data from manifest; length %d", prDataLength);
-				DumpBlob(prData, prDataLength);
+				string psshData = node.at(0)->GetText();
+				ckData = base64_Decode(psshData.c_str(), &ckDataLength);
+				mContext->hasDrm = true;
+				if(gpGlobalConfig->logging.trace)
+				{
+					logprintf("init data from manifest; length %d", prDataLength);
+					DumpBlob(prData, prDataLength);
+				}
 			}
 		}
 	}
