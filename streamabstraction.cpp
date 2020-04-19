@@ -299,7 +299,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 		aamp->GetState(state);
 		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount)
 		{
-		logprintf("%s Total downloaded segments : %d State : %d Waiting for PLAYING state",name,totalFragmentsDownloaded,state);
+		AAMPLOG_INFO("%s Total downloaded segments : %d State : %d Waiting for PLAYING state",name,totalFragmentsDownloaded,state);
 		timeoutMs = 500;
 		struct timespec tspec;
 		struct timeval tv;
@@ -1127,7 +1127,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
-		logprintf("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
+		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
 		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
 		{
 			mABRHighBufferCounter++;
