@@ -40,6 +40,7 @@
 #include <inttypes.h>
 #include <libxml/xmlreader.h>
 #include <math.h>
+#include <cmath> // For double abs(double)
 #include <algorithm>
 #include <cctype>
 #include "AampCacheHandler.h"
@@ -1963,7 +1964,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						}
 						continue;
 					}
-					if (fabs(skipTime) < fragmentDuration)
+					if (abs(skipTime) < fragmentDuration)
 					{ // last iteration
 						AAMPLOG_INFO("%s:%d [%s] firstPTS %f, nextPTS %f  skipTime %f  fragmentDuration %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, firstPTS, nextPTS, skipTime, fragmentDuration);
 						if (updateFirstPTS)
@@ -2041,7 +2042,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 						pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
 						break;
 					}
-					else if(fabs(skipTime) < segmentDuration)
+					else if(abs(skipTime) < segmentDuration)
 					{
 						break;
 					}					
