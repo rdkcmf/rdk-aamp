@@ -26,6 +26,8 @@
 #include "jsevent.h"
 #include "jsutils.h"
 #include <stdio.h>
+#include <algorithm>
+#include <list>
 
 //#define _DEBUG
 
@@ -35,6 +37,22 @@
 #define LOG(...)
 #endif
 
+long gActiveEventCount = 0;
+long long gTotalEventCount = 0;
+
+
+/**
+ * @brief Get count of active events in memory
+ * @param[in] logStats - if true, log the stats
+ */
+long getEventStats(bool logStats)
+{
+	if (logStats)
+	{
+		ERROR("%s:%d Number of active events in memory: %ld, total: %lld", __FUNCTION__, __LINE__, gActiveEventCount, gTotalEventCount);
+	}
+	return gActiveEventCount; 
+}
 
 
 /**
@@ -454,7 +472,8 @@ void AAMPJSEvent_initialize (JSContextRef ctx, JSObjectRef object)
         AAMPJSEvent* ev = new AAMPJSEvent();
         JSObjectSetPrivate(object, ev);
 
-
+	gActiveEventCount++;
+	gTotalEventCount++;
 }
 
 
@@ -467,6 +486,8 @@ void AAMPJSEvent_finalize(JSObjectRef object)
 	AAMPJSEvent *ev = (AAMPJSEvent *) JSObjectGetPrivate(object);
 
 	delete ev;
+
+	gActiveEventCount--;
 }
 
 /**
