@@ -4896,7 +4896,7 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 		// Add Video and IFrame Profiles
 		PreCacheUrlStruct newelem;
 		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri);
-		newelem.type = streamInfo[idx].isIframeTrack?eMEDIATYPE_IFRAME:eMEDIATYPE_PLAYLIST_VIDEO;
+		newelem.type = streamInfo[idx].isIframeTrack?eMEDIATYPE_PLAYLIST_IFRAME:eMEDIATYPE_PLAYLIST_VIDEO;
 		dnldList.push_back(newelem);
 	}
 

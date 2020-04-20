@@ -224,12 +224,11 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_DRM_KEY_UPDATE_FAILED, 50, "AAMP: Failed to process DRM key"},
 	{AAMP_TUNE_DEVICE_NOT_PROVISIONED, 52, "AAMP: Device not provisioned"},
 	{AAMP_TUNE_HDCP_COMPLIANCE_ERROR, 53, "AAMP: HDCP Compliance Check Failure"},
-    	{AAMP_TUNE_INVALID_MANIFEST_FAILURE, 10, "AAMP: Invalid Manifest, parse failed"},
+	{AAMP_TUNE_INVALID_MANIFEST_FAILURE, 10, "AAMP: Invalid Manifest, parse failed"},
 	{AAMP_TUNE_FAILED_PTS_ERROR, 80, "AAMP: Playback failed due to PTS error"},
 	{AAMP_TUNE_MP4_INIT_FRAGMENT_MISSING, 10, "AAMP: init fragments missing in playlist"},
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
 };
-
 
 static constexpr const char *ADEVENT_STR[] =
 {
@@ -665,7 +664,7 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
-	logprintf("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
+	AAMPLOG_INFO("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 	{
 		pthread_mutex_lock(&mLock);
@@ -677,7 +676,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 			{
 				*ppLast = pListener->pNext;
 				pthread_mutex_unlock(&mLock);
-				logprintf("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
+				AAMPLOG_WARN("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
 				delete pListener;
 				return;
 			}
@@ -1487,6 +1486,39 @@ long aamp_GetOriginalCurlError(long http_error)
 	return ret;
 }
 
+MediaTypeTelemetry aamp_GetMediaTypeForTelemetry(MediaType type)
+{
+	MediaTypeTelemetry ret;
+	switch(type)
+	{
+			case eMEDIATYPE_VIDEO:
+			case eMEDIATYPE_AUDIO:
+			case eMEDIATYPE_SUBTITLE:
+			case eMEDIATYPE_IFRAME:
+						ret = eMEDIATYPE_TELEMETRY_AVS;
+						break;
+			case eMEDIATYPE_MANIFEST:
+			case eMEDIATYPE_PLAYLIST_VIDEO:
+			case eMEDIATYPE_PLAYLIST_AUDIO:
+			case eMEDIATYPE_PLAYLIST_SUBTITLE:
+			case eMEDIATYPE_PLAYLIST_IFRAME:
+						ret = eMEDIATYPE_TELEMETRY_MANIFEST;
+						break;
+			case eMEDIATYPE_INIT_VIDEO:
+			case eMEDIATYPE_INIT_AUDIO:
+			case eMEDIATYPE_INIT_SUBTITLE:
+			case eMEDIATYPE_INIT_IFRAME:
+						ret = eMEDIATYPE_TELEMETRY_INIT;
+						break;
+			case eMEDIATYPE_LICENCE:
+						ret = eMEDIATYPE_TELEMETRY_DRM;
+						break;
+			default:
+						ret = eMEDIATYPE_TELEMETRY_UNKNOWN;
+						break;
+	}
+	return ret;
+}
 
 /**
  * @brief Free memory allocated by aamp_Malloc
@@ -2805,10 +2837,23 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME, &redirect);
 					curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 					curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
-					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: {\"url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld,\"type\":%d}",
-						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str()), // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
-						totalPerformRequest,
-						total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, http_code, simType );
+
+					MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(simType);
+					std::string appName, timeoutClass;
+					if (!mAppName.empty())
+					{
+						// append app name with class data
+						appName = mAppName + ",";
+					}
+					if (CURLE_OPERATION_TIMEDOUT == res || CURLE_PARTIAL_FILE == res || CURLE_COULDNT_CONNECT == res)
+					{
+						// introduce  extra marker for connection status curl 7/18/28,
+						// example 18(0) if connection failure with PARTIAL_FILE code
+						timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+					}
+					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
+						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
+						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str())); // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
 				}
 				
 				if(!loopAgain)
@@ -4435,14 +4480,13 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
 	if (aamp)
 	{
-		aamp->Stop();
-#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-		//Clear session data on clean up of last PlayerInstanceAAMP
-		if (gActivePrivAAMPs.size() == 1)
+		PrivAAMPState state;
+		aamp->GetState(state);
+		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
 		{
-			aamp->mDRMSessionManager->clearSessionData();
+			//Avoid stop call since already stopped
+			aamp->Stop();
 		}
-#endif /*AAMP_MPD_DRM*/
 		delete aamp;
 	}
 	if (mInternalStreamSink)
@@ -4574,11 +4618,11 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 	//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
-		logprintf("aamp_stop ignored since already at eSTATE_IDLE");
+		logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
 		return;
 	}
 
-	logprintf("aamp_stop PlayerState=%d",state);
+	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
 	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
 	{
 		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
@@ -10453,6 +10497,16 @@ std::string PrivateInstanceAAMP::GetVideoRectangle()
 void PrivateInstanceAAMP::SetAppName(std::string name)
 {
 	mAppName = name;
+}
+
+/*
+ *   @brief Get the application name
+ *
+ *   @return string application name
+ */
+std::string PrivateInstanceAAMP::GetAppName()
+{
+	return mAppName;
 }
 
 /**

@@ -418,7 +418,7 @@ bool ParseJSPropAsBoolean(JSContextRef ctx, JSObjectRef jsObject, const char *pr
  * @brief API to release internal resources of an AAMPMediaPlayerJS object
  * @param[in] object AAMPMediaPlayerJS object being released
  */
-void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
+static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 {
 	if (privObj != NULL)
 	{
@@ -439,6 +439,42 @@ void AAMPMediaPlayer_JS_release(AAMPMediaPlayer_JS *privObj)
 
 		delete privObj;
 	}
+}
+
+
+/**
+ * @brief API to check if AAMPMediaPlayer_JS object present in cache and release it
+ *
+ * @param[in] object AAMPMediaPlayerJS object
+ * @return true if instance was found and native resources released, false otherwise
+ */
+static bool findInGlobalCacheAndRelease(AAMPMediaPlayer_JS *privObj)
+{
+	bool found = false;
+
+	if (privObj != NULL)
+	{
+		pthread_mutex_lock(&jsMediaPlayerCacheMutex);
+		for (std::vector<AAMPMediaPlayer_JS *>::iterator iter = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.begin(); iter != AAMPMediaPlayer_JS::_jsMediaPlayerInstances.end(); iter++)
+		{
+			if (privObj == *iter)
+			{
+				//Remove this instance from global cache
+				AAMPMediaPlayer_JS::_jsMediaPlayerInstances.erase(iter);
+				found = true;
+				break;
+			}
+		}
+		pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
+
+		if (found)
+		{
+			//Release private resources
+			releaseNativeResources(privObj);
+		}
+	}
+
+	return found;
 }
 
 
@@ -2090,7 +2126,26 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
-	//Release all resources
+
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call release() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (false == findInGlobalCacheAndRelease(privObj))
+	{
+		ERROR("%s:%d [WARN] Invoked release of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+	}
+	else
+	{
+		ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS object(%p)!!", __FUNCTION__, __LINE__, privObj);
+	}
+
+	// This prevents further release/clean up on the native object
+	JSObjectSetPrivate(thisObject, NULL);
 
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -2457,32 +2512,24 @@ void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 {
 	ERROR("Enter %s()", __FUNCTION__);
 
-	bool isFound = false;
 	AAMPMediaPlayer_JS *privObj = (AAMPMediaPlayer_JS *) JSObjectGetPrivate(object);
-
-	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
-	//Remove this instance from global cache
-	for (std::vector<AAMPMediaPlayer_JS *>::iterator iter = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.begin(); iter != AAMPMediaPlayer_JS::_jsMediaPlayerInstances.end(); iter++)
+	if (privObj != NULL)
 	{
-		if (privObj == *iter)
+		if (false == findInGlobalCacheAndRelease(privObj))
 		{
-			AAMPMediaPlayer_JS::_jsMediaPlayerInstances.erase(iter);
-			isFound = true;
-			break;
+			ERROR("%s:%d [WARN] Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
 		}
-	}
-	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
-
-	if (isFound)
-	{
-		//Release private resources
-		AAMPMediaPlayer_JS_release(privObj);
+		else
+		{
+			ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS object(%p)!!", __FUNCTION__, __LINE__, privObj);
+		}
+		JSObjectSetPrivate(object, NULL);
 	}
 	else
 	{
-		ERROR("%s:%d [WARN]Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+		ERROR("%s:%d Native memory already cleared, since privObj is NULL", __FUNCTION__, __LINE__);
 	}
-	JSObjectSetPrivate(object, NULL);
+
 	ERROR("Exit %s()", __FUNCTION__);
 }
 
@@ -2621,7 +2668,7 @@ void ClearAAMPPlayerInstances(void)
 	while(AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size() > 0)
 	{
 		AAMPMediaPlayer_JS *obj = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.back();
-		AAMPMediaPlayer_JS_release(obj);
+		releaseNativeResources(obj);
 		AAMPMediaPlayer_JS::_jsMediaPlayerInstances.pop_back();
 	}
 	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
