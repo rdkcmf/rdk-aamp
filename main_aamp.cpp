@@ -3555,13 +3555,15 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("disableATMOS=%d", gpGlobalConfig->disableATMOS);
 		}
-		else if (ReadConfigNumericHelper(cfg, "live-offset=", gpGlobalConfig->liveOffset) == 1)
-		{			
-			logprintf("live-offset=%d", gpGlobalConfig->liveOffset);
-		}
 		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
 		{
+                        VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
 			logprintf("cdvrlive-offset=%d", gpGlobalConfig->cdvrliveOffset);
+		}
+		else if (ReadConfigNumericHelper(cfg, "live-offset=", gpGlobalConfig->liveOffset) == 1)
+		{
+                        VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
+			logprintf("live-offset=%d", gpGlobalConfig->liveOffset);
 		}
 		else if (ReadConfigNumericHelper(cfg, "disablePlaylistIndexEvent=", gpGlobalConfig->disablePlaylistIndexEvent) == 1)
 		{
@@ -5116,7 +5118,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			// if aamp cfg has override that will be set 		
 			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
 		}
-		else if(!mNewLiveOffsetflag)
+                else if(!mNewLiveOffsetflag)
 		{
 			// if App has not set the value , set it to default		
 			mLiveOffset	=	AAMP_CDVR_LIVE_OFFSET;
@@ -5131,7 +5133,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			// if aamp cfg has override that will be set 
 			mLiveOffset	=	gpGlobalConfig->liveOffset;
 		}
-		else if(!mNewLiveOffsetflag)
+                else if(!mNewLiveOffsetflag)
 		{
 			// if App has not set the value , set it to default 
 			mLiveOffset	=	AAMP_LIVE_OFFSET;
@@ -8940,9 +8942,16 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
  */
 void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 {
-	mLiveOffset = liveoffset;
-	mNewLiveOffsetflag = true;
-	logprintf("PrivateInstanceAAMP::%s(), liveoffset %d", __FUNCTION__, liveoffset);
+	if(liveoffset > 0 )
+        {
+		mLiveOffset = liveoffset;
+		mNewLiveOffsetflag = true;
+		logprintf("PrivateInstanceAAMP::%s(), liveoffset %d", __FUNCTION__, liveoffset);
+        }
+	else
+        {
+		logprintf("PrivateInstanceAAMP::%s(), liveoffset beyond limits %d", __FUNCTION__, liveoffset);
+        }  
 }
 
 
