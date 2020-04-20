@@ -998,6 +998,51 @@ public:
 
 
 /**
+ * @class AAMP_Listener_Id3Metadata
+ * @brief Event listener impl for AAMP_EVENT_ID3_METADATA event.
+ */
+class AAMP_Listener_Id3Metadata: public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_Id3Metadata Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_Id3Metadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& e, JSObjectRef jsEventObj)
+	{
+		JSStringRef prop;
+
+		JSValueRef* array = new JSValueRef[e.data.id3Metadata.length];
+		for (int32_t i = 0; i < e.data.id3Metadata.length; i++)
+		{
+			array[i] = JSValueMakeNumber(p_obj->_ctx, *(e.data.id3Metadata.data + i));
+		}
+
+		prop = JSStringCreateWithUTF8CString("data");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, e.data.id3Metadata.length, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		delete [] array;
+
+		prop = JSStringCreateWithUTF8CString("length");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, e.data.id3Metadata.length), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -1159,6 +1204,11 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 		case AAMP_EVENT_AD_PLACEMENT_ERROR:
 			pListener = new AAMP_Listener_AdPlacementError(obj, type, jsCallback);
 			break;
+		case AAMP_EVENT_ID3_METADATA:
+			pListener = new AAMP_Listener_Id3Metadata(obj, type, jsCallback);
+			break;
+		// Following events are not having payload and hence falls under default case
+		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
 			break;

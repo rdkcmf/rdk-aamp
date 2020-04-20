@@ -1615,9 +1615,11 @@ public:
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
+	 * @param[in] audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 * @return void
 	 */
-	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
+	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1819,6 +1821,8 @@ public:
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
+	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
+	                                in gst brcmaudiodecoder, default: True */
 
 	/**
 	 * @brief Curl initialization function
@@ -3420,6 +3424,22 @@ public:
 	*   @return string application name
 	*/
 	std::string GetAppName();
+
+	/**
+	 *   @brief Sends an ID3 metadata event.
+	 *
+	 *   @param[in] data pointer to ID3 metadata
+	 *   @param[in] length length of ID3 metadata
+	 */
+	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+
+	/**
+	 * @brief Gets the registration status of a given event
+	 * @param[in] eventType - type of the event to be checked
+	 *
+	 * @retval bool - True if event is registered
+	 */
+	bool GetEventListenerStatus(AAMPEventType eventType);
 
 	/**
 	 * @brief Check if track can inject data into GStreamer.

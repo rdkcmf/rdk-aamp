@@ -1610,6 +1610,53 @@ public:
 
 
 /**
+ * @class AAMP_JSListener_Id3Metadata
+ * @brief Event listener impl for (AAMP_JSListener_Id3Metadata) AAMP event
+ */
+class AAMP_JSListener_Id3Metadata: public AAMP_JSListener
+{
+public:
+
+        /**
+         * @brief AAMP_JSListener_Id3Metadata Constructor
+         * @param[in] aamp instance of AAMP_JS
+         * @param[in] type event type
+         * @param[in] jsCallback callback to be registered as listener
+         */
+	AAMP_JSListener_Id3Metadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+
+		JSValueRef* array = new JSValueRef[e.data.id3Metadata.length];
+		for (int32_t i = 0; i < e.data.id3Metadata.length; i++)
+		{
+			array[i] = JSValueMakeNumber(context, *(e.data.id3Metadata.data + i));
+		}
+
+		prop = JSStringCreateWithUTF8CString("data");
+		JSObjectSetProperty(context, eventObj, prop, JSObjectMakeArray(context, e.data.id3Metadata.length, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		delete [] array;
+
+		prop = JSStringCreateWithUTF8CString("length");
+		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, e.data.id3Metadata.length), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+
+
+/**
  * @brief Callback invoked from JS to add an event listener for a particular event
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
@@ -1759,6 +1806,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_BUFFERING_CHANGED)
 	{
 		pListener = new AAMP_JSListener_BufferingChanged(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_ID3_METADATA)
+	{
+		pListener = new AAMP_JSListener_Id3Metadata(aamp, type, jsCallback);
 	}
 	else
 	{

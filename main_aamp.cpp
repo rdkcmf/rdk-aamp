@@ -5077,7 +5077,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID)
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
@@ -5089,7 +5089,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
 	}
 	aamp->getAampCacheHandler()->StartPlaylistCache();
-	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID);
+	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
 
 
@@ -5100,7 +5100,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID)
+void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
 	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
@@ -5140,6 +5140,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
 	
+	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -7290,6 +7291,19 @@ const char* PlayerInstanceAAMP::GetPreferredLanguages()
 	return NULL;
 }
 
+
+/**
+ *   @brief Sends an ID3 metadata event.
+ *
+ *   @param[in] data pointer to ID3 metadata
+ *   @param[in] length length of ID3 metadata
+ */
+void PlayerInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
+{
+	aamp->SendId3MetadataEvent(data, length);
+}
+
+
 /**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
@@ -8164,6 +8178,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	, mAsyncTuneEnabled(false)
 	, mPlaylistFetchFailError(0L)
+	,mAudioDecoderStreamSync(true)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -10343,6 +10358,44 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	mParallelFetchPlaylist = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+
+/**
+ *   @brief Sends an ID3 metadata event.
+ *
+ *   @param[in] data pointer to ID3 metadata.
+ *   @param[in] length length of ID3 metadata.
+ */
+void PrivateInstanceAAMP::SendId3MetadataEvent(uint8_t* data, int32_t length)
+{
+	AAMPEvent e;
+
+	e.type = AAMP_EVENT_ID3_METADATA;
+	e.data.id3Metadata.data = data;
+	e.data.id3Metadata.length = length;
+
+	SendEventSync(e);
+
+	g_free(data);
+	data = NULL;
+}
+
+
+/**
+ * @brief Gets the listener registration status of a given event
+ * @param[in] eventType - type of the event to be checked
+ *
+ * @retval bool - True if an event listener for the event type exists
+ */
+bool PrivateInstanceAAMP::GetEventListenerStatus(AAMPEventType eventType)
+{
+	if (mEventListeners[eventType] != NULL)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 

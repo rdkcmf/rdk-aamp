@@ -95,6 +95,7 @@ typedef enum
 	AAMP_EVENT_AD_PLACEMENT_ERROR,  /**< Ad playback error */
 	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
 	AAMP_EVENT_REPORT_METRICS_DATA,       /**< AAMP VideoEnd info reporting */
+	AAMP_EVENT_ID3_METADATA,		/**< ID3 metadata from audio stream */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -442,6 +443,14 @@ struct AAMPEvent
 			uint32_t duration;
 			int errorCode;
 		} adPlacement;
+
+		/** @brief Structure of the id3 metadata event
+		 */
+		struct
+		{
+			uint8_t* data;		/**< Data pointer to ID3 metadata blob */
+			int32_t length;		/**< Length of the ID3 metadata blob */
+		} id3Metadata;
 	} data;
 
 	std::vector<std::string> additionalEventData;
@@ -929,9 +938,11 @@ public:
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  autoPlay - Start playback immediately or not
 	 *   @param[in]  contentType - Content type of the asset
+	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL);
+	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 *   @brief Stop playback and release resources.
@@ -1430,6 +1441,15 @@ public:
 	 *   @return void
 	*/
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *   @brief Sends an ID3 metadata event.
+	 *
+	 *   @param[in] data pointer to ID3 metadata
+	 *   @param[in] length length of ID3 metadata
+	 */
+	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
