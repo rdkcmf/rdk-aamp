@@ -1672,6 +1672,14 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
 		}
+		else if (!_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
+		{
+			GstElement* vidsink = gst_element_factory_make("brcmvideosink", NULL);
+#ifdef CONTENT_4K_SUPPORTED
+			g_object_set(vidsink, "secure-video", TRUE, NULL);
+#endif
+			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+		}
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 		else if(_this->cbExportYUVFrame)
 		{
