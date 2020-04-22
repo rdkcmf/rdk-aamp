@@ -539,7 +539,7 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	{
 		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			retValue = aamp->mStreamSink->Pause(false);
+			retValue = aamp->mStreamSink->Pause(false, false);
 			aamp->pipeline_paused = false;
 		}
 		else
@@ -664,7 +664,6 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
-	AAMPLOG_INFO("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 	{
 		pthread_mutex_lock(&mLock);
@@ -676,7 +675,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 			{
 				*ppLast = pListener->pNext;
 				pthread_mutex_unlock(&mLock);
-				AAMPLOG_WARN("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
+				AAMPLOG_INFO("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
 				delete pListener;
 				return;
 			}
@@ -689,46 +688,55 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 
 /**
  * @brief Handles DRM errors and sends events to application if required.
- * @param tuneFailure Reason of error
- * @param error_code Drm error code (http, curl or secclient)
+ * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
+ * @param[in] isRetryEnabled drm retry enabled
  */
-void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled)
+void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPEvent *event, bool isRetryEnabled)
 {
-
-	if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
+	if (event)
 	{
-		char description[128] = {};
+		AAMPTuneFailure tuneFailure = event->data.dash_drmmetadata.failure;
+		long error_code = event->data.dash_drmmetadata.responseCode;
+		bool isSecClientError = event->data.dash_drmmetadata.isSecClientError;
 
-		if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
-#ifdef USE_SECCLIENT
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
-#else
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
-#endif
+			char description[128] = {};
+
+			if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+			{
+				if (isSecClientError)
+				{
+					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+				}
+				else
+				{
+					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+				}
+			}
+			else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Access Token Parse Error", tuneFailureMap[tuneFailure].description);
+			}
+			else if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_INVALID_STATUS_CODE == (AuthTokenErrors)error_code)
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Invalid status code", tuneFailureMap[tuneFailure].description);
+			}
+			else
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			}
+			SendErrorEvent(tuneFailure, description, isRetryEnabled);
 		}
-		else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
+		else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Access Token Parse Error", tuneFailureMap[tuneFailure].description);
-		}
-		else if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_INVALID_STATUS_CODE == (AuthTokenErrors)error_code)
-		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Invalid status code", tuneFailureMap[tuneFailure].description);
+			SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
 		}
 		else
 		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			logprintf("%s:%d : Received unknown error event %d", __FUNCTION__, __LINE__, tuneFailure);
+			SendErrorEvent(AAMP_TUNE_FAILURE_UNKNOWN);
 		}
-		SendErrorEvent(tuneFailure, description, isRetryEnabled);
-	}
-	else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
-	{
-		SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
-	}
-	else
-	{
-		logprintf("%s:%d : Received unknown error event %d", __FUNCTION__, __LINE__, tuneFailure);
-		SendErrorEvent(AAMP_TUNE_FAILURE_UNKNOWN);
 	}
 }
 
@@ -844,11 +852,12 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
  * @brief To change the the gstreamer pipeline to pause/play
  *
  * @param[in] pause- true for pause and false for play
+ * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
  * @return true on success
  */
-bool PrivateInstanceAAMP::PausePipeline(bool pause)
+bool PrivateInstanceAAMP::PausePipeline(bool pause, bool forceStopGstreamerPreBuffering)
 {
-	if (true != mStreamSink->Pause(pause))
+	if (true != mStreamSink->Pause(pause, forceStopGstreamerPreBuffering))
 	{
 		return false;
 	}
@@ -2870,6 +2879,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
 			{
+				if(mABRBufferCheckEnabled || (!mABRBufferCheckEnabled && buffer->len > gpGlobalConfig->aampAbrThresholdSize))
 				{
 					pthread_mutex_lock(&mLock);
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
@@ -4488,6 +4498,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			aamp->Stop();
 		}
 		delete aamp;
+		aamp = NULL;
 	}
 	if (mInternalStreamSink)
 	{
@@ -4612,45 +4623,48 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
  */
 void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 {
-	PrivAAMPState state;
-	aamp->GetState(state);
-
-	//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
-	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
+	if (aamp)
 	{
-		logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
-		return;
-	}
+		PrivAAMPState state;
+		aamp->GetState(state);
 
-	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
-	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
-	{
-		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
-		aamp->sendTuneMetrics(false);
-	}
-
-	if (sendStateChangeEvent)
-	{
-		aamp->SetState(eSTATE_IDLE);
-	}
-
-	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
-	{
-		if (aamp == iter->pAAMP)
+		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
+		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
-			if (iter->reTune && aamp->mIsRetuneInProgress)
-			{
-				// Wait for any ongoing re-tune operation to complete
-				pthread_cond_wait(&gCond, &gMutex);
-			}
-			iter->reTune = false;
-			break;
+			logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
+			return;
 		}
+
+		logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
+		if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
+		{
+			/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
+			aamp->sendTuneMetrics(false);
+		}
+
+		if (sendStateChangeEvent)
+		{
+			aamp->SetState(eSTATE_IDLE);
+		}
+
+		pthread_mutex_lock(&gMutex);
+		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+		{
+			if (aamp == iter->pAAMP)
+			{
+				if (iter->reTune && aamp->mIsRetuneInProgress)
+				{
+					// Wait for any ongoing re-tune operation to complete
+					pthread_cond_wait(&gCond, &gMutex);
+				}
+				iter->reTune = false;
+				break;
+			}
+		}
+		pthread_mutex_unlock(&gMutex);
+		AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
+		aamp->Stop();
 	}
-	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
-	aamp->Stop();
 }
 
 
@@ -4999,7 +5013,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mSeekOperationInProgress = false;
 		if (pipeline_paused == true)
 		{
-			mStreamSink->Pause(true);
+			mStreamSink->Pause(true, false);
 		}
 	}
 
@@ -5064,6 +5078,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
+	}
+
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if(NULL == mAampCacheHandler)
+		{
+			mAampCacheHandler = new AampCacheHandler();
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if(NULL == mDRMSessionManager)
+		{
+			mDRMSessionManager = new AampDRMSessionManager();
+		}
+#endif
 	}
 
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
@@ -6007,7 +6035,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				retValue = aamp->mStreamSink->Pause(false);
+				retValue = aamp->mStreamSink->Pause(false, false);
 				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
@@ -6020,7 +6048,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
-				retValue = aamp->mStreamSink->Pause(true);
+				retValue = aamp->mStreamSink->Pause(true, false);
 				aamp->pipeline_paused = true;
 			}
 		}
@@ -7582,6 +7610,23 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadId = NULL;
 	}
 	getAampCacheHandler()->StopPlaylistCache();
+
+	//temporary hack for peacock
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if (mAampCacheHandler)
+		{
+			delete mAampCacheHandler;
+			mAampCacheHandler = NULL;
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if (mDRMSessionManager)
+		{
+			delete mDRMSessionManager;
+			mDRMSessionManager = NULL;
+		}
+#endif
+	}
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
@@ -7591,6 +7636,7 @@ void PrivateInstanceAAMP::Stop()
 	{
 		pipeline_paused = false;
 	}
+
 	EnableDownloads();
 }
 
@@ -7923,7 +7969,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
 			if ( false == pipeline_paused )
 			{
-				if ( true != PausePipeline(true) )
+				if ( true != PausePipeline(true, true) )
 				{
 					AAMPLOG_ERR("%s(): Failed to pause the Pipeline", __FUNCTION__);
 				}
@@ -8217,10 +8263,17 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
 #endif
-
-	delete mAampCacheHandler;
+	if (mAampCacheHandler)
+	{
+		delete mAampCacheHandler;
+		mAampCacheHandler = NULL;
+	}
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-	delete mDRMSessionManager;
+	if (mDRMSessionManager)
+	{
+		delete mDRMSessionManager;
+		mAampCacheHandler = NULL;
+	}
 #endif
 }
 

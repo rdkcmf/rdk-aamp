@@ -6297,6 +6297,10 @@ void TrackState::FetchInitFragment()
 			// Attempt rampdown for init fragment to get playable profiles.
 			// TODO: Remove profile if init fragment is not available from ABR.
 			long http_error = aamp_GetOriginalCurlError(http_code);
+
+			mFirstEncInitFragmentInfo = NULL; // need to reset the previous profile's first encrypted init fragment in case of init fragment rampdown.
+			AAMPLOG_WARN("%s:%d: Reset mFirstEncInitFragmentInfo since rampdown for another profile", __FUNCTION__, __LINE__);
+
 			if (context->CheckForRampDownProfile(http_error))
 			{
 				AAMPLOG_INFO("%s:%d Init fragment fetch failed, Successfully ramped down to lower profile", __FUNCTION__, __LINE__);
@@ -6313,7 +6317,7 @@ void TrackState::FetchInitFragment()
 				}
 				context->mRampDownCount = 0;
 			}
-			AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
+			AAMPLOG_WARN("%s:%d: Error while fetching init fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{

@@ -2508,19 +2508,32 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 /**
  * @brief To pause/play pipeline
  * @param[in] Pause flag to pause/play the pipeline
+ * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
  * @retval true if content successfully paused
  */
-bool AAMPGstPlayer::Pause( bool pause )
+bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 {
 	bool retValue = true;
 
 	aamp->SyncBegin();
 
-	logprintf("entering AAMPGstPlayer_Pause");
+	logprintf("entering AAMPGstPlayer_Pause - pause(%d) stop-pre-buffering(%d)", pause, forceStopGstreamerPreBuffering);
 
 	if (privateContext->pipeline != NULL)
 	{
 		GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
+
+		if (GST_STATE_PAUSED == nextState && forceStopGstreamerPreBuffering)
+		{
+			/* maybe in a timing case during the playback start,
+			 * gstreamer pre buffering and underflow buffering runs simultaneously and 
+			 * it will end up pausing the pipeline due to buffering_target_state has the value as GST_STATE_PAUSED.
+			 * To avoid this case, stopping the gstreamer pre buffering logic by setting the buffering_in_progress to false
+			 * and the resume play will be handled from StopBuffering once after getting enough buffer/frames.
+			 */
+			privateContext->buffering_in_progress = false;
+		}
+
 		gst_element_set_state(this->privateContext->pipeline, nextState);
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
@@ -3258,7 +3271,10 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 #endif
 		if (stopBuffering)
 		{
-			if( true != aamp->PausePipeline(false) )
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+#endif
+			if( true != aamp->PausePipeline(false, false) )
 			{
 				AAMPLOG_ERR("%s(): Failed to un-pause pipeline for stop buffering!", __FUNCTION__);
 			}
@@ -3269,9 +3285,13 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	        }
 		else
 		{
+			static int bufferLogCount = 0;
+			if (0 == (bufferLogCount++ % 10) )
+			{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-			AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+				AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
 #endif
+			}
 		}
 	}
 	pthread_mutex_unlock(&mBufferingLock);
