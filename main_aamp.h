@@ -528,6 +528,25 @@ enum MediaType
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 
+enum MediaTypeTelemetry
+{
+	eMEDIATYPE_TELEMETRY_AVS,		/**< Type audio, video or subtitle */
+	eMEDIATYPE_TELEMETRY_DRM,		/**< Type DRM license */
+	eMEDIATYPE_TELEMETRY_INIT,		/**< Type audio or video init fragment */
+	eMEDIATYPE_TELEMETRY_MANIFEST,		/**< Type main or sub manifest file */
+	eMEDIATYPE_TELEMETRY_UNKNOWN,		/**< Type unknown*/
+};
+
+
+/**
+ * @brief  Structure holding aamp media type strings
+ */
+struct MediaTypeMapTelemetry
+{
+	MediaTypeTelemetry type;		/**< Failure ID */
+	const char* description;		/**< Textual description */
+};
+
 /**
  * @brief Media output format
  */

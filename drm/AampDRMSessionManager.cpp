@@ -429,7 +429,7 @@ static void mssleep(int milliseconds)
  *
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
+		string destinationURL, long *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
 {
 
 	*httpCode = -1;
@@ -575,10 +575,24 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 		curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 
-		AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
+		MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(streamType);
+		std::string appName, timeoutClass;
+		if (!aamp->GetAppName().empty())
+		{
+			// append app name with class data
+			appName = ",\"app\":\"" + aamp->GetAppName() + "\"";
+		}
+		if (CURLE_OPERATION_TIMEDOUT == res || CURLE_PARTIAL_FILE == res)
+		{
+			// introduce timeoutClass marker for curl 18/28, 0 if ulSize = 0 and 1 if ulSize > 0
+			timeoutClass = ",\"timeoutClass\":" + to_string(reqSize > 0);
+		}
+
+		AAMPLOG(eLOGLEVEL_WARN, "HttpRequestEnd: {\"url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld}%s%s,\"responseCode\":%ld,\"type\":%d,\"class\":\"drm\",\"drmType\":%d}",
 				destinationURL.c_str(),
 				totalPerformRequest,
-				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
+				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
+				appName.c_str(), timeoutClass.c_str(), *httpCode, streamType, drmSystem);
 
 		if(!loopAgain)
 			break;
@@ -1112,7 +1126,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers, drmType);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, streamType, aamp, isComcastStream, licenseProxy, headers, drmType);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -1129,7 +1143,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers, drmType);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, streamType, aamp, isComcastStream, licenseProxy, headers, drmType);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)
