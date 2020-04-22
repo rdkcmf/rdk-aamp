@@ -260,11 +260,38 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 {
 	bool ret = true;
 	int pthreadReturnValue = 0;
-
+	PrivAAMPState state;
+	aamp->GetState(state);
 	pthread_mutex_lock(&mutex);
 	if(abort)
 	{
 		ret = false;
+	}
+	else if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount)
+	{
+		// Still in preparation mode , not to inject any more fragments beyond capacity
+		// Wait for 100ms
+		logprintf("%s Total downloaded segments : %d State : %d Waiting for PLAYING state",name,totalFragmentsDownloaded,state);
+		timeoutMs = 500;
+		struct timespec tspec;
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		tspec.tv_sec = time(NULL) + timeoutMs / 1000;
+		tspec.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeoutMs % 1000));
+		tspec.tv_sec += tspec.tv_nsec / (1000 * 1000 * 1000);
+		tspec.tv_nsec %= (1000 * 1000 * 1000);
+
+		pthreadReturnValue = pthread_cond_timedwait(&aamp->waitforplaystart, &mutex, &tspec);
+
+		if (ETIMEDOUT == pthreadReturnValue)
+		{
+			ret = false;
+		}
+		else if (0 != pthreadReturnValue)
+		{
+			logprintf("%s:%d [%s] pthread_cond_timedwait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+			ret = false;
+		}
 	}
 	else if (numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
 	{
@@ -385,7 +412,9 @@ void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 		}
 #endif
 		pthread_cond_signal(&fragmentInjected);
+
 	}
+	pthread_cond_signal(&aamp->waitforplaystart);
 	pthread_cond_signal(&fragmentFetched);
 	pthread_mutex_unlock(&mutex);
 }
