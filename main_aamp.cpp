@@ -496,7 +496,7 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	{
 		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			retValue = aamp->mStreamSink->Pause(false);
+			retValue = aamp->mStreamSink->Pause(false, false);
 			aamp->pipeline_paused = false;
 		}
 		else
@@ -810,11 +810,12 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
  * @brief To change the the gstreamer pipeline to pause/play
  *
  * @param[in] pause- true for pause and false for play
+ * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
  * @return true on success
  */
-bool PrivateInstanceAAMP::PausePipeline(bool pause)
+bool PrivateInstanceAAMP::PausePipeline(bool pause, bool forceStopGstreamerPreBuffering)
 {
-	if (true != mStreamSink->Pause(pause))
+	if (true != mStreamSink->Pause(pause, forceStopGstreamerPreBuffering))
 	{
 		return false;
 	}
@@ -4738,7 +4739,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		mSeekOperationInProgress = false;
 		if (pipeline_paused == true)
 		{
-			mStreamSink->Pause(true);
+			mStreamSink->Pause(true, false);
 		}
 	}
 
@@ -5751,7 +5752,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				retValue = aamp->mStreamSink->Pause(false);
+				retValue = aamp->mStreamSink->Pause(false, false);
 				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
@@ -5764,7 +5765,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				AAMPLOG_INFO("Pausing Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
-				retValue = aamp->mStreamSink->Pause(true);
+				retValue = aamp->mStreamSink->Pause(true, false);
 				aamp->pipeline_paused = true;
 			}
 		}
@@ -7615,7 +7616,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
 			if ( false == pipeline_paused )
 			{
-				if ( true != PausePipeline(true) )
+				if ( true != PausePipeline(true, true) )
 				{
 					AAMPLOG_ERR("%s(): Failed to pause the Pipeline", __FUNCTION__);
 				}
