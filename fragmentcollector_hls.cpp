@@ -4102,16 +4102,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		lastSelectedProfileIndex = currentProfileIndex;
 		aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond, trickplayMode, this->currentProfileIndex);
 		aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
-		{
-			BitrateChangeReason bitrateReason = (newTune) ? eAAMP_BITRATE_CHANGE_BY_TUNE : (trickplayMode ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK);
-			aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
-						bitrateReason,
-						this->streamInfo[this->currentProfileIndex].resolution.width,
-						this->streamInfo[this->currentProfileIndex].resolution.height,
-						this->streamInfo[this->currentProfileIndex].resolution.framerate,
-						true);
-		}
-
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -4729,7 +4719,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//TODO:Muxed track with subtitles. Need to sync tracks
 		}
 
-
 		if (liveAdjust)
 		{
 			double xStartOffset = video->GetXStartTimeOffset();
@@ -4912,6 +4901,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			
 			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
 		}
+
+		if (video->enabled)
+		{
+			BitrateChangeReason bitrateReason = (newTune) ? eAAMP_BITRATE_CHANGE_BY_TUNE : (trickplayMode ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK);
+			aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
+						bitrateReason,
+						this->streamInfo[this->currentProfileIndex].resolution.width,
+						this->streamInfo[this->currentProfileIndex].resolution.height,
+						this->streamInfo[this->currentProfileIndex].resolution.framerate,
+						video->playTarget, true);
+			aamp->SetPersistedProfileIndex(currentProfileIndex);
+		}
+
 		
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{

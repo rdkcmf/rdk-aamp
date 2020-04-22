@@ -483,7 +483,6 @@ void MediaTrack::AbortWaitForCachedFragment()
 	GetContext()->AbortWaitForDiscontinuity();
 }
 
-
 /**
  * @brief Inject next cached fragment
  */
@@ -581,7 +580,7 @@ bool MediaTrack::InjectFragment()
 				}
 				if (eTRACK_VIDEO == type)
 				{
-					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo);
+					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
 				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
 				if (!fragmentDiscarded)
@@ -1052,7 +1051,7 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
  *
  *   @param[in]  profileIndex - profile index of last injected fragment.
  */
-void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo)
+void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position)
 {
 	if (profileIndex != aamp->GetPersistedProfileIndex())
 	{
@@ -1072,7 +1071,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 		// Send bitrate notification
 		aamp->NotifyBitRateChangeEvent(cacheFragStreamInfo.bandwidthBitsPerSecond,
 				cacheFragStreamInfo.reason, cacheFragStreamInfo.resolution.width,
-				cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, lGetBWIndex);
+				cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, position, lGetBWIndex);
 		// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 		aamp->SetPersistedProfileIndex(profileIndex);
 	}

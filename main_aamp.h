@@ -304,6 +304,7 @@ struct AAMPEvent
 			int width;                  /**< Video width */
 			int height;                 /**< Video height */
 			double framerate;			/**< FrameRate */
+			double position;        /**< bitrate changed position*/
 		} bitrateChanged;
 
 		/**

@@ -632,8 +632,8 @@ public:
 	 *   @param[in]  cacheFragStreamInfo - stream info for the last injected fragment.
 	 *   @return void
 	 */
-	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo);
-
+	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
+	
 	/**
 	 *   @brief Fragment Buffering is required before playing.
 	 *
