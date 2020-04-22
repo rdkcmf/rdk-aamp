@@ -1067,7 +1067,6 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				{
 					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isComcastStream, licenseServerProxy));
 				}
-
 			}
 		}
 	}
@@ -1365,7 +1364,7 @@ void *CreateDRMSession(void *arg)
 	{
 		AAMPLOG_ERR("%s:%d Failed DRM Session Creation,  no helper", __FUNCTION__, __LINE__);
 		
-		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, false);
+		sessionParams->aamp->SendDrmErrorEvent(&e, false);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 	}
@@ -1377,6 +1376,12 @@ void *CreateDRMSession(void *arg)
 		sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data.data(), data.size(), sessionParams->stream_type);
 		drmSession = sessionManger->createDrmSession(sessionParams->drmHelper, &e, sessionParams->aamp, sessionParams->stream_type);
 
+#ifdef USE_SECCLIENT
+		e.data.dash_drmmetadata.isSecClientError = true;
+#else
+		e.data.dash_drmmetadata.isSecClientError = false;
+#endif
+
 		if(NULL == drmSession)
 		{
 			AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s",
@@ -1387,7 +1392,7 @@ void *CreateDRMSession(void *arg)
 						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
 						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
 						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-			sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+			sessionParams->aamp->SendDrmErrorEvent(&e, isRetryEnabled);
 			sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 		}
