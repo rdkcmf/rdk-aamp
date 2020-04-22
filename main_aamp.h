@@ -741,10 +741,11 @@ public:
 	/**
 	 *   @brief Enabled or disable playback pause
 	 *
-	 *   @param[in]  pause  Enable/Disable
+	 *   @param[in] pause  Enable/Disable
+	 *   @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
 	 *   @return true if content successfully paused
 	 */
-	virtual bool Pause(bool pause){ return true; }
+	virtual bool Pause(bool pause, bool forceStopGstreamerPreBuffering){ return true; }
 
 	/**
 	 *   @brief Get playback position in milliseconds

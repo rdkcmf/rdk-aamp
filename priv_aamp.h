@@ -1168,9 +1168,10 @@ public:
 	 * @brief To pause/play the gstreamer pipeline
 	 *
 	 * @param[in] success - true for pause and false for play
+	 * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
 	 * @return true on success
 	 */
-	bool PausePipeline(bool pause);
+	bool PausePipeline(bool pause, bool forceStopGstreamerPreBuffering);
 
 	/**
 	 * @brief Convert media file type to profiler bucket type
