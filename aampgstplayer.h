@@ -51,7 +51,7 @@ public:
 	void Stop(bool keepLastFrame);
 	void DumpStatus(void);
 	void Flush(double position, int rate, bool shouldTearDown);
-	bool Pause(bool pause);
+	bool Pause(bool pause, bool forceStopGstreamerPreBuffering);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
 	virtual long long GetVideoPTS(void);
