@@ -1192,6 +1192,8 @@ int main(int argc, char **argv)
 	myEventListener = new myAAMPEventListener();
 	mSingleton->RegisterEvents(myEventListener);
 #endif
+	//std::string name = "testApp";
+	//mSingleton->SetAppName(name);
 
 #ifdef WIN32
 	FILE *f = fopen(mLogManager.getAampCliCfgPath(), "rb");

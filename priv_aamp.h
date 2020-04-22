@@ -832,6 +832,8 @@ void aamp_Error(const char *msg);
  */
 long aamp_GetOriginalCurlError(long http_error);
 
+MediaTypeTelemetry aamp_GetMediaTypeForTelemetry(MediaType type);
+
 /**
  * @brief AAMP's custom implementation of memory deallocation
  *
@@ -3421,6 +3423,13 @@ public:
 	 *   @return void
 	 */
 	void SetAppName(std::string name);
+
+	/*
+	*   @brief Get the application name
+	*
+	*   @return string application name
+	*/
+	std::string GetAppName();
 
 	/**
 	 * @brief Check if track can inject data into GStreamer.
