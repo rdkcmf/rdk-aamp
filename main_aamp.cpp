@@ -652,46 +652,55 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 
 /**
  * @brief Handles DRM errors and sends events to application if required.
- * @param tuneFailure Reason of error
- * @param error_code Drm error code (http, curl or secclient)
+ * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
+ * @param[in] isRetryEnabled drm retry enabled
  */
-void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled)
+void PrivateInstanceAAMP::SendDrmErrorEvent(AAMPEvent *event, bool isRetryEnabled)
 {
-
-	if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
+	if (event)
 	{
-		char description[128] = {};
+		AAMPTuneFailure tuneFailure = event->data.dash_drmmetadata.failure;
+		long error_code = event->data.dash_drmmetadata.responseCode;
+		bool isSecClientError = event->data.dash_drmmetadata.isSecClientError;
 
-		if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
-#ifdef USE_SECCLIENT
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
-#else
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
-#endif
+			char description[128] = {};
+
+			if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+			{
+				if (isSecClientError)
+				{
+					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+				}
+				else
+				{
+					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+				}
+			}
+			else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Access Token Parse Error", tuneFailureMap[tuneFailure].description);
+			}
+			else if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_INVALID_STATUS_CODE == (AuthTokenErrors)error_code)
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Invalid status code", tuneFailureMap[tuneFailure].description);
+			}
+			else
+			{
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			}
+			SendErrorEvent(tuneFailure, description, isRetryEnabled);
 		}
-		else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
+		else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Access Token Parse Error", tuneFailureMap[tuneFailure].description);
-		}
-		else if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_INVALID_STATUS_CODE == (AuthTokenErrors)error_code)
-		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Invalid status code", tuneFailureMap[tuneFailure].description);
+			SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
 		}
 		else
 		{
-			snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			logprintf("%s:%d : Received unknown error event %d", __FUNCTION__, __LINE__, tuneFailure);
+			SendErrorEvent(AAMP_TUNE_FAILURE_UNKNOWN);
 		}
-		SendErrorEvent(tuneFailure, description, isRetryEnabled);
-	}
-	else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
-	{
-		SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
-	}
-	else
-	{
-		logprintf("%s:%d : Received unknown error event %d", __FUNCTION__, __LINE__, tuneFailure);
-		SendErrorEvent(AAMP_TUNE_FAILURE_UNKNOWN);
 	}
 }
 

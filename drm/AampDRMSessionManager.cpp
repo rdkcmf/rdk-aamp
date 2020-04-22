@@ -967,6 +967,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			externLicenseServerURL = gpGlobalConfig->licenseServerURL;
 		}
 
+		e->data.dash_drmmetadata.isSecClientError = false;
 
 		if(contentMetaData)
 		{
@@ -1099,6 +1100,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 					break;
 				}
 			}
+
+			e->data.dash_drmmetadata.isSecClientError = true;
 
 			if (gpGlobalConfig->logging.debug)
 			{
@@ -1390,12 +1393,12 @@ void *CreateDRMSession(void *arg)
 		bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED && (responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
 		if (!selfAbort)
 		{
-			bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+			bool isRetryEnabled = (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
 						&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
 						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
 						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
 						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-			sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+			sessionParams->aamp->SendDrmErrorEvent(&e, isRetryEnabled);
 		}
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);

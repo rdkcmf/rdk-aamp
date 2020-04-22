@@ -2050,10 +2050,10 @@ public:
 
 	/**
 	 * @brief Handles DRM errors and sends events to application if required.
-	 * @param[in] tuneFailure Reason of error
-	 * @param[in] error_code Drm error code (http, curl or secclient)
+	 * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
+	 * @param[in] isRetryEnabled drm retry enabled
 	 */
-	void SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled = true);
+	void SendDrmErrorEvent(AAMPEvent *event = NULL, bool isRetryEnabled = true);
 
 	/**
 	 * @brief Handles download errors and sends events to application if required.

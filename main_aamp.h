@@ -369,6 +369,7 @@ struct AAMPEvent
 			const char *accessStatus;
 			int accessStatus_value;
 			long responseCode;
+			bool isSecClientError;
 		} dash_drmmetadata;
 
 		/**
