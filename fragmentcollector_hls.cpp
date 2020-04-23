@@ -455,6 +455,11 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 		{
 			mediaInfo->type = eMEDIATYPE_SUBTITLE;
 		}
+		else if (SubStringMatch(valuePtr, fin, "CLOSED-CAPTIONS"))
+		{
+			mediaInfo->type = eMEDIATYPE_SUBTITLE;
+			mediaInfo->isCC = true;
+		}
 	}
 	else if (AttributeNameMatch(attrName, "GROUP-ID"))
 	{
@@ -501,6 +506,10 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 		{
 			mediaInfo->forced = true;
 		}
+	}
+	else if (AttributeNameMatch(attrName, "CHARACTERISTICS"))
+	{
+		mediaInfo->characteristics = GetAttributeValueString(valuePtr, fin);
 	}
 	else
 	{
@@ -728,12 +737,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 	// Get the initial configuration to filter the profiles
 	bool bDisableEC3 = gpGlobalConfig->disableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (gpGlobalConfig->disableEC3)?true:gpGlobalConfig->disableATMOS;
+	bool bDisableATMOS = (gpGlobalConfig->disableEC3) ? true : gpGlobalConfig->disableATMOS;
 	bool bDisableAAC = false;
 
-	bool ignoreProfile = false,clearProfiles = false;
-	int aacProfiles=0,ec3Profiles=0,atmosProfiles=0;
-	int vProfileCount ,iFrameCount ,lineNum ;
+	bool ignoreProfile = false, clearProfiles = false;
+	int vProfileCount, iFrameCount, lineNum ;
 	// tmp buffer to retrieve the manifest if second pass needed
 	GrowableBuffer tmpMainManifest;
 	// Main manifest contents
@@ -747,8 +755,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 	//	Media , Stream(Multi Codec) and IFrame profiles mixed up( not in order)
 
 	// Priority of Profile selection if no filter set : ATMOS , EAC3 , AAC .
-	do{
-	int aacProfiles=0,ec3Profiles=0,atmosProfiles=0;
+	do {
+	int aacProfiles = 0, ec3Profiles = 0, atmosProfiles = 0;
 	mMediaCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
@@ -1064,7 +1072,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest(char *ptr)
 		}
 		ptr = next;
 	}// while till end of file
-	}while(secondPass);
+	} while (secondPass);
 
 	if(retval == eAAMPSTATUS_OK)
 	{
@@ -3819,6 +3827,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 			}
 		}
+		else
+		{
+			// For new tune, generate audio and text track structures
+			PopulateAudioAndTextTracks();
+		}
+
 		currentProfileIndex = GetDesiredProfile(false);
 		lastSelectedProfileIndex = currentProfileIndex;
 		aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,trickplayMode,this->currentProfileIndex);
@@ -6135,6 +6149,76 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta)
 		pthread_mutex_unlock(&mPlaylistMutex);
 	}
 	traceprintf("%s:%d Exit", __FUNCTION__, __LINE__);
+}
+
+/***************************************************************************
+* @fn PopulateAudioAndTextTracks
+* @brief Function to populate available audio and text tracks info from manifest
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
+{
+	AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Enter!", __FUNCTION__, __LINE__);
+	int profileCount = GetProfileCount();
+	if (mMediaCount > 0 && profileCount > 0)
+	{
+		for (int i = 0; i < mMediaCount; i++)
+		{
+			struct MediaInfo *media = &(mediaInfo[i]);
+			if (media->type == eMEDIATYPE_AUDIO)
+			{
+				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
+				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
+				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
+				std::string characteristics = (media->characteristics != NULL) ? std::string(media->characteristics) : std::string();
+				std::string codec;
+				//Find audio codec from X-STREAM-INF: or streamInfo
+				for (int j = 0; j < profileCount; j++)
+				{
+					struct HlsStreamInfo *stream = &this->streamInfo[j];
+					//Find the X-STREAM_INF having same group id as audio track to parse codec info
+					if (!stream->isIframeTrack && stream->audio != NULL && media->group_id != NULL &&
+						strcmp(stream->audio, media->group_id) == 0)
+					{
+						for (int k = 0; k < AAMP_AUDIO_FORMAT_MAP_LEN; k++)
+						{
+							if (strstr(stream->codecs, audioFormatMap[k].codec))
+							{
+								AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Found matching codec:%s", __FUNCTION__, __LINE__, audioFormatMap[k].codec);
+								codec = audioFormatMap[k].codec;
+								break;
+							}
+						}
+						if (!codec.empty())
+						{
+							AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d codec:%s", __FUNCTION__, __LINE__, codec.c_str());
+							break;
+						}
+					}
+				}
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d lang:%s, group_id:%s, name:%s, codec:%s, characteristics:%s, channels:%d", __FUNCTION__, __LINE__,
+							language.c_str(), group_id.c_str(), name.c_str(), codec.c_str(), characteristics.c_str(), media->channels);
+				mAudioTracks.push_back(AudioTrackInfo(language, group_id, name, codec, characteristics, media->channels));
+			}
+			else if (media->type == eMEDIATYPE_SUBTITLE)
+			{
+				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
+				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
+				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
+				std::string instreamID = (media->instreamID != NULL) ? std::string(media->instreamID) : std::string();
+				std::string characteristics = (media->characteristics != NULL) ? std::string(media->characteristics) : std::string();
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d lang:%s, isCC:%d, group_id:%s, name:%s, instreamID:%s, characteristics:%s", __FUNCTION__, __LINE__,
+							language.c_str(), media->isCC, group_id.c_str(), name.c_str(), instreamID.c_str(), characteristics.c_str());
+				mTextTracks.push_back(TextTrackInfo(language, media->isCC, group_id, name, instreamID, characteristics));
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, profileCount);
+	}
+	AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Exit!", __FUNCTION__, __LINE__);
 }
 
 /**
