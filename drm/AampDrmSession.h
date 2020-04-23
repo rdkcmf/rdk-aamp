@@ -25,10 +25,14 @@
 
 #ifndef AampDrmSession_h
 #define AampDrmSession_h
-#include "AampDRMutils.h"
 #include <string>
 #include <stdint.h>
+#include <vector>
 #include <gst/gst.h>
+
+#include "AampDRMutils.h"
+#include "GlobalConfigAAMP.h"
+
 using namespace std;
 
 #define PLAYREADY_PROTECTION_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
@@ -80,18 +84,31 @@ public:
 
 	/**
 	 * @brief Generate key request from DRM session
-	 *	      Caller function should free the returned memory.
+	 *        Caller function should free the returned memory.
 	 * @param destinationURL : gets updated with license server url
+	 * @param timeout: max timeout untill which to wait for cdm key generation.
 	 * @retval Pointer to DrmData containing license request.
 	 */
-	virtual DrmData* aampGenerateKeyRequest(string& destinationURL) = 0;
+	virtual DrmData* aampGenerateKeyRequest(string& destinationURL, uint32_t timeout) = 0;
 
 	/**
 	 * @brief Updates the received key to DRM session
 	 * @param key : License key from license server.
+	 * @param timeout: max timeout untill which to wait for cdm key processing.
 	 * @retval returns status of update request
 	 */
-	virtual int aampDRMProcessKey(DrmData* key) = 0;
+	virtual int aampDRMProcessKey(DrmData* key, uint32_t timeout) = 0;
+
+	/**
+	 * @brief Function to decrypt GStreamer stream  buffer.
+	 * @param keyIDBuffer : Key ID.
+	 * @param ivBuffer : Initialization vector.
+	 * @param buffer : Data to decrypt.
+	 * @param subSampleCount : Number of subsamples.
+	 * @param subSamplesBuffer : Subsamples buffer.
+	 * @retval Returns status of decrypt request.
+	 */
+	virtual int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer);
 
 	/**
 	 * @brief Function to decrypt stream  buffer.
@@ -102,17 +119,22 @@ public:
 	 * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
 	 * @retval Returns status of decrypt request.
 	 */
-#if defined(USE_OPENCDM_ADAPTER)
-	virtual int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer) = 0;
-#else
-	virtual int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData) = 0;
-#endif
+	virtual int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV, const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
 
 	/**
 	 * @brief Get the current state of DRM Session.
 	 * @retval KeyState
 	 */
 	virtual KeyState getState() = 0;
+
+	/**
+	 * @brief Waits for the current state of DRM Session to match required.. Timeout is that from the helper.
+	 * Only used by OCDM Adapter for now
+	 * @param state the KeyState to achieve
+	 * @param timeout how long to wait in mSecs
+	 * @return true if obtained, false otherwise
+	 */
+	virtual bool waitForState(KeyState state, const uint32_t timeout) { return true; }
 
 	/**
 	 * @brief Clear the current session context
@@ -138,7 +160,7 @@ public:
 	string getKeySystem();
 
 #if defined(USE_OPENCDM_ADAPTER)
-	virtual void setKeyId(const char* keyId, int32_t keyLen) = 0;
+	virtual void setKeyId(const std::vector<uint8_t>& keyId) = 0;
 #endif
 };
 #endif

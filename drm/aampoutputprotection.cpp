@@ -60,7 +60,9 @@ AampOutputProtection::AampOutputProtection()
     pthread_mutex_init(&m_opProtectMutex,NULL);
 
 #ifndef USE_OPENCDM
+#if defined(USE_PLAYREADY)    
     memset(&m_minOPLevels, 0, sizeof(MinOPLevelsplayReady));
+#endif    
 #endif
 
     // Get initial HDCP status
@@ -267,6 +269,10 @@ void AampOutputProtection::SetResolution(int width, int height)
     }
 
 #ifndef USE_OPENCDM
+#if defined(USE_PLAYREADY)    
+// TODO: this PlayReady-specific logic should ideally be split out into a separate subclass.
+// Note that it is only used by the (non-OCDM) PlayReadyDRMSession class.
+
 // Pleayrady OP Callback
 /**
  * @brief Pleayrady OP Callback to ensure HDCP compliance
@@ -340,6 +346,7 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
     // All done.
     return res;
 }
+#endif
 #endif
 
 #ifdef IARM_MGR

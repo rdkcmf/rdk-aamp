@@ -898,7 +898,7 @@ static void ProcessCliCommand(char *cmd)
                                 {
                                         double networkTimeout;
 					logprintf("Matchde Command eAAMP_SET_NetworkTimeout - %s ", cmd);
-					if (sscanf(cmd, "set %d %f", &opt, &networkTimeout) == 2){
+					if (sscanf(cmd, "set %d %lf", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
 					break;
@@ -1017,7 +1017,7 @@ static void ProcessCliCommand(char *cmd)
 					const char* listStart = NULL;
 					const char* listEnd = NULL;
 					if((listStart = strchr(cmd, '"')) == NULL
-							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) ) == NULL)
+							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) == NULL) )
 					{
 						logprintf("preferred languages string has to be wrapped with \" \" ie \"eng, ger\"");
 						break;
@@ -1215,11 +1215,16 @@ static void ProcessCliCommand(char *cmd)
 	}
 }
 
-static void * run_command(void *arg)
+static void * run_command(void* param)
 {
     char cmd[MAX_BUFFER_LENGTH];
     ShowHelp();
     char *ret = NULL;
+    std::string* startUrl = (std::string*) param;
+    if ((startUrl != nullptr) && (startUrl->size() > 0)) {
+	    strncpy(cmd, startUrl->c_str(), MAX_BUFFER_LENGTH-1);
+	    ProcessCliCommand(cmd);
+    }
     do
     {
         printf("[AAMP-PLAYER] aamp-cli> ");
@@ -1528,7 +1533,10 @@ int main(int argc, char **argv)
 	AampLogManager mLogManager;
 	AampLogManager::disableLogRedirection = true;
 	ABRManager mAbrManager;
-
+	std::string startUrl;
+	if (argc > 1) {
+		startUrl = argv[1];
+	}
 	/* Set log directory path for AAMP and ABR Manager */
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
@@ -1572,7 +1580,7 @@ int main(int argc, char **argv)
 	}
 
 	pthread_t cmdThreadId;
-	pthread_create(&cmdThreadId,NULL,run_command,NULL);
+	pthread_create(&cmdThreadId,NULL,run_command,&startUrl);
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	// Render frames in graphics plane using opengl
 	glutInit(&argc, argv);

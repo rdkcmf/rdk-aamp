@@ -65,7 +65,6 @@
 */
 typedef struct HlsProtectionInfo
 { 
-	DRMSystems drmType;
 	struct DrmSessionParams* drmData;	/**< Session data */
 	HlsProtectionInfo *next; /** < pointer to access next element of Queue **/
 } HlsProtectionInfo;
