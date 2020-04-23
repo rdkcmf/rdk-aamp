@@ -82,7 +82,7 @@
 #ifdef AAMP_HLS_DRM
 extern DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
-extern void ReleaseContentProtectionCache();
+extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
 /**
@@ -5182,7 +5182,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 	else if(clearChannelData && aamp->fragmentCdmEncrypted)
 	{
 		// check for WV and PR , if anything to be flushed 
-		ReleaseContentProtectionCache();
+		ReleaseContentProtectionCache(aamp);
 	}
 	AampDRMSessionManager::getInstance()->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
