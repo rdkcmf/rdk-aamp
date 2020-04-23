@@ -1813,13 +1813,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			aamp->NotifyFirstBufferProcessed();
 		}
 		privateContext->numberOfVideoBuffersSent++;
-		if ( gpGlobalConfig->reportBufferEvent && privateContext->video_dec  && aamp->GetBufUnderFlowStatus() )
-		{
-			if ( true != SendBufferEndEvent() )
-			{
-				AAMPLOG_ERR("%s(): Failed to send BufferEndEvent", __FUNCTION__);
-			}
-		}
+		StopBuffering(false);
 	}
 }
 
@@ -1902,13 +1896,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 			aamp->NotifyFirstBufferProcessed();
 		}
 		privateContext->numberOfVideoBuffersSent++;
-		if ( gpGlobalConfig->reportBufferEvent &&  privateContext->video_dec  && aamp->GetBufUnderFlowStatus() )
-		{
-			if ( true != SendBufferEndEvent() )
-			{
-				AAMPLOG_ERR("%s(): Failed to send BufferEndEvent", __FUNCTION__);
-			}
-		}
+		StopBuffering(false);
 	}
 
 }
@@ -2091,6 +2079,8 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 				AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_SUBTITLE].source);
 			}
 		}
+		// We are in buffering, but we received end of stream, un-pause pipeline
+		StopBuffering(true);
 	}
 }
 
@@ -2832,6 +2822,8 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	{
 		traceprintf("%s(): stream->format %d, stream->resetPosition %d, stream->flush %d", __FUNCTION__,stream->format , stream->resetPosition, stream->flush);
 		AAMPGstPlayer_SignalEOS(stream->source);
+		// We are in buffering, but we received discontinuity, un-pause pipeline
+		StopBuffering(true);
 		ret = true;
 	}
 	return ret;
@@ -3171,34 +3163,44 @@ void AAMPGstPlayer::SeekStreamSink(double position, double rate)
 }
 
 /**
- * @brief Notify buffer end event to player.
- *
- */
-bool AAMPGstPlayer::SendBufferEndEvent()
-{
-#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-	uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
-        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
-        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
-        if ( ( bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN )  || ( frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN ) ) //TODO: the minimum byte and frame values should be configurable from aamp.cfg
-        {
-		if( true != aamp->PausePipeline(false) )
-		{
-			return false;
-		}
-		aamp->SendBufferChangeEvent();
-        }
-	return true;
-#endif
-}
-
-/**
  *   @brief Get the video rectangle co-ordinates
  *
  */
 std::string AAMPGstPlayer::GetVideoRectangle()
 {
 	return std::string(privateContext->videoRectangle);
+}
+
+
+/**
+ * @brief Un-pause pipeline and notify buffer end event to player.
+ *
+ * @param[in] forceStop - true to force end buffering
+ */
+void AAMPGstPlayer::StopBuffering(bool forceStop)
+{
+	//Check if we are in buffering
+	if (gpGlobalConfig->reportBufferEvent && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
+	{
+		bool stopBuffering = forceStop;
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+		uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
+	        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
+	        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
+		stopBuffering = stopBuffering || (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN) || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum byte and frame values should be configurable from aamp.cfg
+#endif
+		if (stopBuffering)
+		{
+			if( true != aamp->PausePipeline(false) )
+			{
+				AAMPLOG_ERR("%s(): Failed to un-pause pipeline for stop buffering!", __FUNCTION__);
+			}
+			else
+			{
+				aamp->SendBufferChangeEvent();
+			}
+	        }
+	}
 }
 
 /**
