@@ -721,11 +721,6 @@ AveDrm::~AveDrm()
 		delete[] mDrmInfo.iv;
 		mDrmInfo.iv = NULL; 
 	}
-	if(mDrmInfo.uri)
-	{
-		delete[] mDrmInfo.uri;
-		mDrmInfo.uri = NULL;
-	}
 }
 
 #endif // !AVE_DRM
@@ -745,7 +740,6 @@ AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 	mDrmInfo.method = DrmMethod::eMETHOD_NONE;
 	mDrmInfo.useFirst16BytesAsIV = false;
 	mDrmInfo.iv = NULL;
-	mDrmInfo.uri = NULL;
 }
 
 

@@ -24,41 +24,60 @@
 
 #include "aampdrmsessionfactory.h"
 #if defined(USE_OPENCDM_ADAPTER)
-#include "opencdmsessionadapter.h"
+#include "AampOcdmBasicSessionAdapter.h"
+#include "AampOcdmGstSessionAdapter.h"
 #elif defined(USE_OPENCDM)
 #include "opencdmsession.h"
 #else
+#if defined(USE_PLAYREADY)
 #include "playreadydrmsession.h"
+#endif
 #endif
 #include "ClearKeyDrmSession.h"
 
 /**
- *  @brief		Creates appropriate DRM systems Session objects based
- *  			on the requested systemID, like PlayReady or WideVine
+ *  @brief		Creates an appropriate DRM session based on the given DrmHelper
  *
- *  @param[in]	systemid - DRM systems uuid
+ *  @param[in]	drmHelper - DrmHelper instance
  *  @return		Pointer to DrmSession.
  */
-AampDrmSession* AampDrmSessionFactory::GetDrmSession(const char* systemid)
+AampDrmSession* AampDrmSessionFactory::GetDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks)
 {
-	AampDrmSession* drmSession = NULL;
-	if(!strcmp(PLAYREADY_PROTECTION_SYSTEM_ID, systemid))
+	const std::string systemId = drmHelper->ocdmSystemId();
+
+#if defined (USE_OPENCDM_ADAPTER)
+	if (drmHelper->isClearDecrypt())
 	{
-#ifdef USE_OPENCDM
-        std::string key_system = PLAYREADY_KEY_SYSTEM_STRING;
-        drmSession = new AAMPOCDMSession(key_system);
-#else
-		drmSession = new PlayReadyDRMSession();
+#if defined(USE_CLEARKEY)
+		if (systemId == CLEAR_KEY_SYSTEM_STRING)
+		{
+			return new ClearKeySession();
+		}
+		else
 #endif
-	} else if(!strcmp(WIDEVINE_PROTECTION_SYSTEM_ID, systemid)) 
-    {
-#ifdef USE_OPENCDM
-        std::string key_system = WIDEVINE_KEY_SYSTEM_STRING;
-        drmSession = new AAMPOCDMSession(key_system);
-#endif
-    } else if(!strcmp(CLEARKEY_PROTECTION_SYSTEM_ID, systemid))
-    {
-        drmSession = new ClearKeySession();
-    }
-	return drmSession;
+		{
+			return new AAMPOCDMBasicSessionAdapter(drmHelper, drmCallbacks);
+		}
+	}
+	else
+	{
+		return new AAMPOCDMGSTSessionAdapter(drmHelper);
+	}
+#elif defined (USE_OPENCDM)
+	return new AAMPOCDMSession(systemId);
+#else // No form of OCDM support. Attempt to fallback to hardcoded session classes
+	if (systemId == PLAYREADY_KEY_SYSTEM_STRING)
+	{
+#if defined(USE_PLAYREADY)
+		return new PlayReadyDRMSession();
+#endif // USE_PLAYREADY
+	}
+	else if (systemId == CLEAR_KEY_SYSTEM_STRING)
+	{
+#if defined(USE_CLEARKEY)
+		return new ClearKeySession();
+#endif // USE_CLEARKEY
+	}
+#endif // Not USE_OPENCDM
+	return NULL;
 }

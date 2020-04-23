@@ -20,7 +20,7 @@
 
 /**
 * @file AampDRMutils.h
-* @brief Data structures to help with DRM sessions. 
+* @brief Data structures to help with DRM sessions.
 */
 
 #ifndef AampDRMutils_h
@@ -31,8 +31,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "main_aamp.h"
-#include "priv_aamp.h"
+#include "AampDrmMediaFormat.h"
+#include "AampDrmData.h"
+#include "AampDrmInfo.h"
+#include "AampDrmSystems.h"
 
 /**
  * @brief Macros to track the value of API success or failure
@@ -41,31 +43,23 @@
 #define DRM_API_FAILED  (-1)
 
 /**
- * @class DrmData
- * @brief To hold DRM key, license request etc.
+ * @brief start and end tags for Comcast DRM policy
  */
-class DrmData{
+#define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
+#define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
 
-private:
-	unsigned char *data;
-	int dataLength;
-public:
+void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
 
-	DrmData();
-	DrmData(unsigned char *data, int dataLength);
-	DrmData(const DrmData&) = delete;
-	DrmData& operator=(const DrmData&) = delete;
-	~DrmData();
+char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
 
-	unsigned char * getData();
+unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
 
-	int getDataLength();
+unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
+										const char* startStr, const char* endStr, int *len);
 
-	void setData(unsigned char * data, int dataLength);
+std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength);
 
-	void addData(unsigned char * data, int dataLength);
-
-};
+std::string aamp_getAbsoluteKeyUri(std::string manifestUrl, std::string keyUri);
 
 char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
 

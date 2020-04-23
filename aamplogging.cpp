@@ -22,6 +22,9 @@
  * @brief AAMP logging mechanisum source file
  */
 
+#include <iomanip>
+#include <algorithm>
+
 #include "priv_aamp.h"
 using namespace std;
 
@@ -89,6 +92,15 @@ const char* AampLogManager::getAampCfgPath(void)
 const char* AampLogManager::getAampCliCfgPath(void)
 {
 	return gAampCliCfg;
+}
+
+std::string AampLogManager::getHexDebugStr(const std::vector<uint8_t>& data)
+{
+	std::ostringstream hexSs;
+	hexSs << "0x";
+	hexSs << std::hex << std::uppercase << std::setfill('0');
+	std::for_each(data.cbegin(), data.cend(), [&](int c) { hexSs << std::setw(2) << c; });
+	return hexSs.str();
 }
 
 /**
@@ -191,13 +203,13 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 						"PLAYLIST_IFRAME",
 						"INIT_IFRAME"};
 
-	contentType = "unknown";
-	symptom = "unknown";
-	location = "unknown";
-
 	if (type < eMEDIATYPE_DEFAULT)
 	{
 		contentType = mMediaTypes[type];
+	}
+	else
+	{
+		contentType = "unknown";
 	}
 
 	switch (type)
@@ -241,6 +253,10 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 			symptom = "trickplay ends or freezes";
 		}
 			break;
+
+		default:
+			symptom = "unknown";
+			break;
 	}
 
 	if(strstr(url,"//mm."))
@@ -254,6 +270,10 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 	else if(strstr(url,"127.0.0.1:9080"))
 	{
 		location = "fog";
+	}
+	else
+	{
+		location = "unknown";
 	}
 }
 

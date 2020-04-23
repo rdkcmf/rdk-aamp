@@ -27,6 +27,7 @@
 
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
+#include "AampDRMutils.h"
 #include <memory>
 
 #define MAX_DRM_CONTEXT 6
@@ -37,15 +38,6 @@
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
-/**
- * @enum DrmMethod
- * @brief AVE drm method
- */
-typedef enum
-{
-	eMETHOD_NONE,
-	eMETHOD_AES_128, /// encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding
-} DrmMethod;
 
 /**
  * @struct DrmMetadata
@@ -55,20 +47,6 @@ struct DrmMetadata
 { // from EXT-X-FAXS-CM
 	unsigned char * metadataPtr;
 	size_t metadataSize;
-};
-
-/**
- * @struct DrmInfo
- * @brief DRM information required to decrypt
- */
-struct DrmInfo
-{ // from EXT-X-KEY
-	DrmMethod method;
-	bool useFirst16BytesAsIV;
-	unsigned char *iv; // [16]
-	char *uri;
-//	unsigned char *CMSha1Hash;// [20]; // unused
-//	unsigned char *encryptedRotationKey;
 };
 #endif /*AVE_DRM*/
 
