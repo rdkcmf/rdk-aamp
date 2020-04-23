@@ -43,6 +43,7 @@
 #include <cmath> // For double abs(double)
 #include <algorithm>
 #include <cctype>
+#include <regex>
 #include "AampCacheHandler.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
@@ -582,6 +583,7 @@ private:
 	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
+	int GetDrmPrefs(const std::string& uuid);
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -602,8 +604,6 @@ private:
 	double mPrevStartTimeSeconds;
 	std::string mPrevLastSegurlMedia;
 	long mPrevLastSegurlOffset; //duration offset from beginning of TSB
-	unsigned char *lastProcessedKeyId;
-	int lastProcessedKeyIdLen;
 	uint64_t mPeriodEndTime;
 	uint64_t mPeriodStartTime;
 	int64_t mMinUpdateDurationMs;
@@ -633,6 +633,7 @@ private:
 	double mCulledSeconds;
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
 	double mAvailabilityStartTime;
+	std::map<std::string, int> mDrmPrefs;
 };
 
 
@@ -646,8 +647,8 @@ private:
 PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_MPD* context, PrivateInstanceAAMP *aamp,double seekpos, float rate) : aamp(aamp),
 	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seekpos), rate(rate), fragmentCollectorThreadID(0), createDRMSessionThreadID(0),
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true), mContext(context),
-	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0), lastProcessedKeyId(NULL),
-	lastProcessedKeyIdLen(0), mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
+	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
+	mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
 	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
@@ -656,12 +657,40 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mVideoPosRemainder(0)
 	,mPresentationOffsetDelay(0)
 	,mAvailabilityStartTime(0)
+	,mDrmPrefs({{CLEARKEY_SYSTEM_ID, 1}, {WIDEVINE_SYSTEM_ID, 2}, {PLAYREADY_SYSTEM_ID, 3}})// Default values, may get changed due to config file
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
 	for (int i=0; i<AAMP_TRACK_COUNT; i++) mFirstFragPTS[i] = 0.0;
 	mContext->GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
+
+	// setup DRM prefs from config
+	int highestPref = 0;
+	std::vector<std::string> values;
+	if (gpGlobalConfig->getMatchingUnknownKeys("drm-preference.", values))
+	{
+		for(auto&& item : values)
+		{
+			int i = atoi(item.substr(item.find(".") + 1).c_str());
+			mDrmPrefs[gpGlobalConfig->getUnknownValue(item)] = i;
+			if (i > highestPref)
+			{
+				highestPref = i;
+			}
+		}
+	}
+
+	// Elevate widevine if required
+	if (aamp->GetPreferredDRM() == eDRM_WideVine)
+	{
+		mDrmPrefs[WIDEVINE_SYSTEM_ID] = highestPref+1;
+	}
+
+	logprintf("DRM prefs");
+	for (auto const& pair: mDrmPrefs) {
+		logprintf("{ %s, %d }", pair.first.c_str(), pair.second);
+	}
 };
 
 
@@ -924,9 +953,17 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 {
 	const char **f = &start;
 	unsigned int len = Read32(f);
-	assert(len == size);
+    if (len != size) {
+        AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %d expected", len, size);
+        return false;
+    }
 	unsigned int type = Read32(f);
-	assert(type == 'sidx');
+	if (type != 'sidx') {
+        AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %d expected",
+                     (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
+        return false;
+
+    }
 	unsigned int version = Read32(f);
 	unsigned int reference_ID = Read32(f);
 	unsigned int timescale = Read32(f);
@@ -2419,11 +2456,25 @@ static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string
 
 #ifdef AAMP_MPD_DRM
 
-/**
- * @brief thread function for create DRM session 
- * which defined in AampDrmSessionManager
- */
 extern void *CreateDRMSession(void *arg);
+
+
+/**
+ * @brief Get the DRM preference value.
+ * @param The UUID for the DRM type.
+ * @return The preference level for the DRM type.
+ */
+int PrivateStreamAbstractionMPD::GetDrmPrefs(const std::string& uuid)
+{
+	auto iter = mDrmPrefs.find(uuid);
+
+	if (iter != mDrmPrefs.end())
+	{
+		return iter->second;
+	}
+
+	return 0; // Unknown DRM
+}
 
 /**
  * @brief Process content protection of adaptation
@@ -2433,204 +2484,114 @@ extern void *CreateDRMSession(void *arg);
 void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet, MediaType mediaType)
 {
 	const vector<IDescriptor*> contentProt = adaptationSet->GetContentProtection();
-	unsigned char* data   = NULL;
-	unsigned char* wvData = NULL;
-	unsigned char* prData = NULL;
-	unsigned char* ckData = NULL;
-	size_t dataLength     = 0;
-	size_t wvDataLength   = 0;
-	size_t ckDataLength   = 0;
-	size_t prDataLength   = 0;
-	DRMSystems drmType    = eDRM_NONE;
-	unsigned char* contentMetadata = NULL;
+	unsigned char* data = NULL;
+	size_t dataLength = 0;
+	std::shared_ptr<AampDrmHelper> tmpDrmHelper;
+	std::shared_ptr<AampDrmHelper> drmHelper;
+	DrmInfo drmInfo;
+	std::string contentMetadata;
 
 	AAMPLOG_TRACE("[HHH]contentProt.size=%d", contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
 	{
+		// extract the UUID
 		std::string schemeIdUri = contentProt.at(iContentProt)->GetSchemeIdUri();
-		if (schemeIdUri.empty())
+		// Look for UUID in schemeIdUri by matching any UUID to maintian backwards compatibility
+		std::regex rgx(".*([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}).*");
+		std::smatch uuid;
+		if (!std::regex_search(schemeIdUri, uuid, rgx))
 		{
 			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d type[%d], got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, mediaType, iContentProt);
 			continue;
 		}
+
+		drmInfo.method = eMETHOD_AES_128;
+		drmInfo.mediaFormat = eMEDIAFORMAT_DASH;
+		drmInfo.systemUUID = uuid[1];
 		//Convert UUID to all lowercase
-		std::transform(schemeIdUri.begin(), schemeIdUri.end(), schemeIdUri.begin(), [](unsigned char ch){ return std::tolower(ch); });
+		std::transform(drmInfo.systemUUID.begin(), drmInfo.systemUUID.end(), drmInfo.systemUUID.begin(), [](unsigned char ch){ return std::tolower(ch); });
 
-		if (schemeIdUri.find(COMCAST_DRM_INFO_ID) != string::npos)
+		// Extract the PSSH data
+		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
+		string psshData = node.at(0)->GetText();
+		data = base64_Decode(psshData.c_str(), &dataLength);
+		if (0 == dataLength)
 		{
-			logprintf("[HHH]Comcast DRM Agnostic CENC system ID found!");
-			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			if (!node.empty())
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+			if (data)
 			{
-				string psshData = node.at(0)->GetText();
-				data = base64_Decode(psshData.c_str(), &dataLength);
-
-				if(gpGlobalConfig->logging.trace)
-				{
-					logprintf("content metadata from manifest; length %d", dataLength);
-					DumpBlob( data, dataLength );
-				}
-				if(dataLength != 0)
-				{
-					int contentMetadataLen = 0;
-					contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength, &contentMetadataLen);
-					if(gpGlobalConfig->logging.trace)
-					{
-						logprintf("content metadata from PSSH; length %d", contentMetadataLen);
-						DumpBlob( contentMetadata, contentMetadataLen );
-					}
-				}
-				if(data) free(data);
+				free(data);
 			}
 		}
-		else if (schemeIdUri.find(WIDEVINE_SYSTEM_ID) != string::npos)
-		{
-			logprintf("[HHH]Widevine system ID found!");
-			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			if (!node.empty())
-			{
-				string psshData = node.at(0)->GetText();
-				wvData = base64_Decode(psshData.c_str(), &wvDataLength);
-				mContext->hasDrm = true;
-				if(gpGlobalConfig->logging.trace)
-				{
-					logprintf("init data from manifest; length %d", wvDataLength);
-					DumpBlob(wvData, wvDataLength);
-				}
-			}
-		}
-		else if (schemeIdUri.find(PLAYREADY_SYSTEM_ID) != string::npos)
-		{
-			logprintf("[HHH]Playready system ID found!");
-			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			if (!node.empty())
-			{
-				string psshData = node.at(0)->GetText();
-				prData = base64_Decode(psshData.c_str(), &prDataLength);
-				mContext->hasDrm = true;
-				if(gpGlobalConfig->logging.trace)
-				{
-					logprintf("init data from manifest; length %d", prDataLength);
-					DumpBlob(prData, prDataLength);
-				}
-			}
-		}
-		else if (schemeIdUri.find(CLEARKEY_SYSTEM_ID) != string::npos)
-		{
-			logprintf("[HHH]ClearKey system ID found!");
-			const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-			if (!node.empty())
-			{
-				string psshData = node.at(0)->GetText();
-				ckData = base64_Decode(psshData.c_str(), &ckDataLength);
-				mContext->hasDrm = true;
-				if(gpGlobalConfig->logging.trace)
-				{
-					logprintf("init data from manifest; length %d", prDataLength);
-					DumpBlob(prData, prDataLength);
-				}
-			}
-		}
-	}
 
-	if(wvData != NULL && wvDataLength > 0 && ((DRMSystems)gpGlobalConfig->preferredDrm == eDRM_WideVine || prData == NULL))
-	{
-		drmType = eDRM_WideVine;
-		data = wvData;
-		dataLength = wvDataLength;
-
-		if(prData)
+		// Comcast use a special PSSH to signal data to append to the widevine challenge request
+		if (drmInfo.systemUUID == COMCAST_DRM_INFO_ID)
 		{
-			free(prData);
+			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
+			free(data);
+			continue;
 		}
-		if(ckData)
-		{
-			free(ckData);
-		}
-	}
-	else if(prData != NULL && prDataLength > 0)
-	{
-		drmType = eDRM_PlayReady;
-		data = prData;
-		dataLength = prDataLength;
-		if(wvData)
-		{
-			free(wvData);
-		}
-		if(ckData)
-		{
-			free(ckData);
-		}	
-	}
-	else if(ckData != NULL && ckDataLength > 0)
-	{
-		drmType = eDRM_ClearKey;
-		data = ckData;
-		dataLength = ckDataLength;
-	}
 
-	if(dataLength != 0)
-	{
-		int keyIdLen = 0;
-		unsigned char* keyId = NULL;
-		aamp->licenceFromManifest = true;
-		keyId = aamp_ExtractKeyIdFromPssh((const char*)data, dataLength, &keyIdLen, drmType);
-
-
-		if (!(keyIdLen == lastProcessedKeyIdLen && 0 == memcmp(lastProcessedKeyId, keyId, keyIdLen)))
+		// Try and create a DRM helper
+		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
-			struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)malloc(sizeof(struct DrmSessionParams));
-			sessionParams->initData = data;
-			sessionParams->initDataLen = dataLength;
-			sessionParams->stream_type = mediaType;
-			sessionParams->aamp = aamp;
-			sessionParams->drmType = drmType;
-			sessionParams->contentMetadata = contentMetadata;
-
-			if(drmSessionThreadStarted) //In the case of license rotation
-			{
-				void *value_ptr = NULL;
-				int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
-				if (rc != 0)
-				{
-					logprintf("pthread_join returned %d for createDRMSession Thread", rc);
-				}
-				drmSessionThreadStarted = false;
-			}
-			/*
-			* Memory allocated for data via base64_Decode() and memory for sessionParams
-			* is released in CreateDRMSession.
-			* Memory for keyId allocated in _extractDataFromPssh() is released
-			* a. In the else block of this 'if', if it's previously processed keyID
-			* b. Assigned to lastProcessedKeyId which is released before new keyID is assigned
-			*     or in the distructor of PrivateStreamAbstractionMPD
-			*/
-			if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
-			{
-				drmSessionThreadStarted = true;
-				if(lastProcessedKeyId)
-				{
-					free(lastProcessedKeyId);
-				}
-				lastProcessedKeyId =  keyId;
-				lastProcessedKeyIdLen = keyIdLen;
-				aamp->setCurrentDrm(drmType);
-			}
-			else
-			{
-				logprintf("%s %d pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
-			}
+			AAMPLOG_WARN("%s:%d Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, drmInfo.systemUUID.c_str());
 		}
 		else
 		{
-			if(keyId)
+			tmpDrmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
+			logprintf("%s:%d Created helper for UUID %s", __FUNCTION__, __LINE__, drmInfo.systemUUID.c_str());
+
+			if (!tmpDrmHelper->parsePssh(data, dataLength))
 			{
-				free(keyId);
+				AAMPLOG_WARN("%s:%d Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__);
 			}
-			free(data);
+			else
+			{
+				// Track the best DRM available to use
+				if ((!drmHelper) || (GetDrmPrefs(drmInfo.systemUUID) > GetDrmPrefs(drmHelper->getUuid())))
+				{
+					logprintf("%s:%d New helper is best helper", __FUNCTION__, __LINE__);
+					drmHelper = tmpDrmHelper;
+				}
+			}
 		}
+		free(data);
 	}
 
+	if(drmHelper)
+	{
+		drmHelper->setDrmMetaData(contentMetadata);
+		mContext->hasDrm = true;
+		aamp->licenceFromManifest = true;
+		DrmSessionParams* sessionParams = new DrmSessionParams;
+		sessionParams->aamp = aamp;
+		sessionParams->drmHelper = drmHelper;
+
+		if(drmSessionThreadStarted) //In the case of license rotation
+		{
+			void *value_ptr = NULL;
+			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
+			if (rc != 0)
+			{
+				logprintf("pthread_join returned %d for createDRMSession Thread", rc);
+			}
+			drmSessionThreadStarted = false;
+		}
+		/*
+		* Memory allocated for data via base64_Decode() and memory for sessionParams
+		* is released in CreateDRMSession.
+		*/
+		if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
+		{
+			drmSessionThreadStarted = true;
+			aamp->setCurrentDrm(drmHelper);
+		}
+		else
+		{
+			logprintf("%s %d pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
+		}
+	}
 }
 
 #else
@@ -3501,7 +3462,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	GrowableBuffer manifest;
 	AAMPStatusType ret = AAMPStatusType::eAAMPSTATUS_OK;
 	std::string manifestUrl = aamp->GetManifestUrl();
-	
+
 	// take the original url before it gets changed in GetFile
 	std::string origManifestUrl = manifestUrl;
 	bool gotManifest = false;
@@ -6140,11 +6101,6 @@ PrivateStreamAbstractionMPD::~PrivateStreamAbstractionMPD(void)
 		{
 			delete track;
 		}
-	}
-
-	if(lastProcessedKeyId)
-	{
-		free(lastProcessedKeyId);
 	}
 
 	aamp->SyncBegin();

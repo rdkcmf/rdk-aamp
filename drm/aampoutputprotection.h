@@ -53,12 +53,15 @@ typedef int dsHdcpProtocolVersion_t;
 #include <gst/gst.h>
 
 #ifndef USE_OPENCDM
+#ifdef USE_PLAYREADY
+
 #include <drmbuild_oem.h>
 #include <drmcommon.h>
 #include <drmmanager.h>
 #include <drmmathsafe.h>
 #include <drmtypes.h>
 #include <drmerr.h>
+#endif
 #endif
 
 #undef __in
@@ -117,6 +120,7 @@ class AampOutputProtection : public ReferenceCount
 
 private:
 #ifndef USE_OPENCDM
+#ifdef USE_PLAYREADY
     // Protection levels from CDM
     struct MinOPLevelsplayReady
     {
@@ -127,11 +131,14 @@ private:
         DRM_WORD uncompressedDigitalAudio;
     };
 #endif
+#endif
 
     pthread_mutex_t         m_opProtectMutex;
 
 #ifndef USE_OPENCDM
+#ifdef USE_PLAYREADY
     MinOPLevelsplayReady    m_minOPLevels;
+#endif
 #endif
     int                     m_sourceWidth;
     int                     m_sourceHeight;
@@ -162,13 +169,16 @@ public:
      * @brief Get PlayRedy OP levels
      * @retval m_minOPLevels
      */
+#ifdef USE_PLAYREADY
+
     MinOPLevelsplayReady* getPlayReadyLevels() { return & m_minOPLevels; }
 
     static DRM_RESULT DRM_CALL PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
                                               DRM_POLICY_CALLBACK_TYPE f_dwCallbackType,
                                               const DRM_VOID *data);
 #endif
-
+#endif
+    
 #ifdef IARM_MGR
     // IARM Callbacks
 

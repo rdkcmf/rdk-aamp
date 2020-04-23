@@ -165,6 +165,7 @@ private:
 	bool trickmode;
 	bool finalized_base_pts;
 	int sentESCount;
+	bool allowPtsRewind;
 
 
 	/**
@@ -217,7 +218,7 @@ public:
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
 		es(), position(0), duration(0), base_pts(0), current_pts(0),
 		current_dts(0), type(type), trickmode(false), finalized_base_pts(false),
-		sentESCount(0), first_pts(0)
+		sentESCount(0), allowPtsRewind(false), first_pts(0)
 	{
 		init(0, 0, false, true);
 	}
@@ -266,6 +267,7 @@ public:
 		memset(&es, 0x00, sizeof(GrowableBuffer));
 		sentESCount = 0;
 		pes_state = PES_STATE_WAITING_FOR_HEADER;
+		allowPtsRewind = gpGlobalConfig->getUnknownValue("dmx.allowPtsRewind", false);
 		DEBUG_DEMUX("init : position %f, duration %f resetBasePTS %d", position, duration, resetBasePTS);
 	}
 
@@ -451,9 +453,15 @@ public:
 			}
 			if (current_pts < base_pts)
 			{
-				WARNING("current_pts[%llu] < base_pts[%llu]", current_pts, base_pts);
-				ptsError = true;
-				return;
+				if (finalized_base_pts && !allowPtsRewind) 
+				{
+					WARNING("current_pts[%llu] < base_pts[%llu], ptsError", current_pts, base_pts);
+					ptsError = true;
+					return;
+				}
+				// It's not so bad, reset to current
+				INFO("current_pts[%llu] < non-finalised base_pts[%llu], reset", current_pts, base_pts);
+				base_pts = current_pts;
 			}
 
 			if (first_pts == 0)
@@ -621,7 +629,7 @@ static void dumpPacket(unsigned char *packet, int packetSize)
 
 		int col = 0;
 		int buffPos = 0;
-		buffPos += sprintf(&buff[buffPos], "\n");
+		buffPos += sprintf(&buff[buffPos], "");
 		for (i = 0; i < packetSize; ++i)
 		{
 			buffPos += snprintf(&buff[buffPos], (sizeof(buff) - buffPos), "%02X\n", packet[i]);
