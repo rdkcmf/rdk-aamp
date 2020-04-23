@@ -34,7 +34,6 @@
 #include <glib.h>
 #include "subtitleParser.h"
 
-
 /**
  * @brief Media Track Types
  */
@@ -65,6 +64,8 @@ struct StreamInfo
 	StreamResolution resolution;    /**< Resolution of the stream*/
 	BitrateChangeReason reason;	/**< Reason for bitrate change*/
 };
+
+
 
 /**
  * @brief Structure of cached fragment data

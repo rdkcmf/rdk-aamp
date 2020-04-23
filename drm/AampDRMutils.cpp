@@ -24,14 +24,17 @@
 */
 
 #include "AampDRMutils.h"
+#include "GlobalConfigAAMP.h"
 #include "_base64.h"
 
-#include <cjson/cJSON.h>
 #include <uuid/uuid.h>
+#include <regex>
 
 #define KEYID_TAG_START "<KID>"
 #define KEYID_TAG_END "</KID>"
 
+/* Regex to detect if a string starts with a protocol definition e.g. http:// */
+static const std::string PROTOCOL_REGEX = "^[a-zA-Z0-9\\+\\.-]+://";
 #define KEY_ID_SZE_INDICATOR 0x12
 
 /**
@@ -52,8 +55,8 @@ DrmData::DrmData() : data(NULL), dataLength(0)
  */
 DrmData::DrmData(unsigned char *data, int dataLength) : data(NULL), dataLength(dataLength)
 {
-	this->data =(unsigned char*) malloc(dataLength + 1);
-	memcpy(this->data,data,dataLength + 1);
+	this->data =(unsigned char*) malloc(dataLength);
+	memcpy(this->data,data,dataLength);
 }
 
 /**
@@ -102,11 +105,11 @@ void DrmData::setData(unsigned char * data, int dataLength)
 {
 	if(this->data != NULL)
 	{
-		free(data);
+		free(this->data);
 	}
-	this->data =  (unsigned char*) malloc(dataLength + 1);
+	this->data =  (unsigned char*) malloc(dataLength);
 	this->dataLength = dataLength;
-	memcpy(this->data,data,dataLength + 1);
+	memcpy(this->data,data,dataLength);
 }
 
 /**
@@ -124,9 +127,9 @@ void DrmData::addData(unsigned char * data, int dataLength)
 	}
 	else
 	{
-		this->data = (unsigned char*) realloc(this->data, this->dataLength + dataLength + 1);
+		this->data = (unsigned char*) realloc(this->data, this->dataLength + dataLength);
 		assert(this->data);
-		memcpy(&(this->data[this->dataLength]),data,dataLength + 1);
+		memcpy(&(this->data[this->dataLength]),data,dataLength);
 		this->dataLength = this->dataLength + dataLength;
 	}
 }
@@ -142,8 +145,9 @@ void DrmData::addData(unsigned char * data, int dataLength)
 char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len)
 {
 	char * b64Src = base64_Encode(src, len);
-	char* urlEncodedSrc = (char*)malloc(sizeof(char) * strlen(b64Src));
-	for (int iter = 0; iter < strlen(b64Src); iter++)
+	size_t encodedLen = strlen(b64Src);
+	char* urlEncodedSrc = (char*)malloc(sizeof(char) * (encodedLen + 1));
+	for (int iter = 0; iter < encodedLen; iter++)
 	{
 		if (b64Src[iter] == '+')
 		{
@@ -164,6 +168,7 @@ char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len)
 		}
 	}
 	free(b64Src);
+	urlEncodedSrc[encodedLen] = '\0';
 	return urlEncodedSrc;
 }
 
@@ -220,7 +225,7 @@ static int aamp_FindSubstr(const char* psshData, int dataLength, int pos, const 
 	int psshIter = pos;
 	int subStrIter = 0;
 	bool strMatched = false;
-	while (psshIter < dataLength - (subStrLen - 1))
+	while (psshIter < dataLength)
 	{
 		if (psshData[psshIter] == substr[subStrIter])
 		{
@@ -277,7 +282,7 @@ static void aamp_SwapBytes(unsigned char *bytes, int pos1, int pos2)
  *  @param[out]	guidBytes - Pointer to destination byte block.
  *  @return		void.
  */
-static void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
+void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
 {
 	memcpy(guidBytes, original, 16);
 	aamp_SwapBytes(guidBytes, 0, 3);
@@ -287,145 +292,18 @@ static void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidB
 }
 
 /**
- *  @brief		Extract the keyId from PSSH data.
- *  			Different procedures are used for PlayReady and WideVine.
- *
- *  @param[in]	psshData - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of keyId.
- *  @param[in]	isWidevine - Flag to indicate WV.
- *  @return		Pointer to extracted keyId.
- *  @note		Memory for keyId is dynamically allocated, deallocation
- *				should be handled at the caller side.
- */
-unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem)
-{
-	unsigned char* key_id = NULL;
-	if(drmSystem == eDRM_WideVine)
-	{
-                uint8_t psshDataVer = psshData[8];
-                AAMPLOG_INFO("%s:%d wv pssh data version - %d ",
-                         __FUNCTION__, __LINE__, psshDataVer);
-		if (psshDataVer == 0){
-			//The following 2 are for Widevine
-			//PSSH version 0
-			//4+4+4+16(system id)+4(data size)+2(keyId size indicator + keyid size)+ keyId +
-			//2 (unknown byte + content id size) + content id
-			uint32_t header = 0;
-			if (psshData[32] == KEY_ID_SZE_INDICATOR){
-				header = 33; //pssh data in comcast format
-			}else if(psshData[34] == KEY_ID_SZE_INDICATOR){
-				header = 35; //pssh data in sling format
-			}else{
-				AAMPLOG_WARN("%s:%d wv version %d keyid indicator"
-				" byte not found using default logic",
-				__FUNCTION__, __LINE__);
-				header = 33; //pssh data in comcast format
-			}
-			uint8_t  key_id_size = (uint8_t)psshData[header];
-			key_id = (unsigned char*)malloc(key_id_size + 1);
-			memset(key_id, 0, key_id_size + 1);
-			memcpy(reinterpret_cast<char*>(key_id), psshData + header + 1, key_id_size);
-			*len = (int)key_id_size;
-			AAMPLOG_INFO("%s:%d wv version %d keyid: %s keyIdlen: %d",
-			__FUNCTION__, __LINE__, psshDataVer, key_id, key_id_size);
-			if(gpGlobalConfig->logging.trace)
-			{
-				DumpBlob(key_id, key_id_size);
-			}
-		}else if (psshDataVer == 1){
-			//PSSH version 1
-			//8 byte BMFF box header + 4 byte Full box header + 16 (system id) +
-			// 4(KID Count) + 16 byte KID 1 + .. + 4 byte Data Size
-			/** TODO : Handle multiple key Id logic ,
-			 * right now we are choosing only first one if have multiple key Id **/
-			uint32_t header = 32;
-			uint8_t  key_id_size = 16;
-			key_id = (unsigned char*)malloc(key_id_size + 1 );
-			memset(key_id, 0, key_id_size + 1);
-		        memcpy(reinterpret_cast<char*>(key_id), psshData + header, key_id_size);
-			*len = (int)key_id_size;
-			AAMPLOG_INFO("%s:%d wv version %d keyid: %s keyIdlen: %d",
-			__FUNCTION__, __LINE__, psshDataVer, key_id, key_id_size);
-			if(gpGlobalConfig->logging.trace)
-			{
-				DumpBlob(key_id, key_id_size);
-			}
-		}
-
-	}
-	else if (drmSystem == eDRM_PlayReady) {
-
-		int keyIdLen = 0;
-		unsigned char *keydata = aamp_ExtractDataFromPssh(psshData, dataLength, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen);
-
-		AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, keydata, keyIdLen);
-
-		size_t decodedDataLen = 0;
-		unsigned char* decodedKeydata = base64_Decode((const char *) keydata, &decodedDataLen);
-		if(decodedDataLen != 16)
-		{
-			AAMPLOG_ERR("invalid key size found while extracting PR KeyID: %d", decodedDataLen);
-			free (keydata);
-			free (decodedKeydata);
-			return NULL;
-		}
-
-		unsigned char *swappedKeydata = (unsigned char*)malloc(16);
-
-		aamp_ConvertEndianness(decodedKeydata, swappedKeydata);
-
-		key_id = (unsigned char *)calloc(37, sizeof(char));
-		uuid_t *keyiduuid = (uuid_t *) swappedKeydata;
-		uuid_unparse_lower(*keyiduuid, reinterpret_cast<char*>(key_id));
-
-		*len = 37;
-
-		free (keydata);
-		free (decodedKeydata);
-		free (swappedKeydata);
-	}
-	else if (drmSystem == eDRM_ClearKey) {
-		/*
-			00 00 00 34 70 73 73 68 01 00 00 00 10 77 ef ec
-			c0 b2 4d 02 ac e3 3c 1e 52 e2 fb 4b 00 00 00 01
-
-			fe ed f0 0d ee de ad be ef f0 ba ad f0 0d d0 0d
-			00 00 00 00
-		*/
-		uint32_t header = 32;
-		uint8_t  key_id_count = (uint8_t)psshData[header];
-		key_id = (unsigned char*)malloc(16 + 1);
-		memset(key_id, 0, 16 + 1);
-		strncpy(reinterpret_cast<char*>(key_id), psshData + header, 16);
-		*len = (int)16;
-		AAMPLOG_INFO("%s:%d ck keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, key_id, 16);
-		if(gpGlobalConfig->logging.trace)
-		{
-			DumpBlob(key_id, 16);
-		}
-	}
-
-	return key_id;
-}
-
-/**
  *  @brief		Extract WideVine content meta data from Comcast DRM
  *  			Agnostic PSSH header. Might not work with WideVine PSSH header
  *
  *  @param[in]	Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[out]	len - Gets updated with length of content meta data.
  *  @return		Extracted ContentMetaData.
- *  @note		Memory for ContentMetaData is dynamically allocated, deallocation
- *				should be handled at the caller side.
  */
-unsigned char * aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len)
+std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength)
 {
-
 	//WV PSSH format 4+4+4+16(system id)+4(data size)
 	uint32_t header = 28;
 	unsigned char* content_id = NULL;
+	std::string metadata;
 	uint32_t  content_id_size =
                     (uint32_t)((psshData[header] & 0x000000FFu) << 24 |
                                (psshData[header+1] & 0x000000FFu) << 16 |
@@ -433,14 +311,16 @@ unsigned char * aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int 
                                (psshData[header+3] & 0x000000FFu));
 
 	AAMPLOG_INFO("%s:%d content meta data length  : %d", __FUNCTION__, __LINE__,content_id_size);
+	if ((header + 4 + content_id_size) <= dataLength)
+	{
+		metadata = std::string(psshData + header + 4, content_id_size);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d  psshData : %d bytes in length, metadata would read past end of buffer", __FUNCTION__, __LINE__,dataLength);
+	}
 
-	content_id = (unsigned char*)malloc(content_id_size + 1);
-	memset(content_id, 0, content_id_size + 1);
-	strncpy(reinterpret_cast<char*>(content_id), psshData + header + 4, content_id_size);
-//	logprintf("%s:%d content meta data : %s", __FUNCTION__, __LINE__,content_id);
-
-	*len = (int)content_id_size;
-	return content_id;
+	return metadata;
 }
 //End of special for Widevine
 
@@ -504,4 +384,46 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 	}
 	free(cleanedPssh);
 	return contentMetaData;
+}
+
+/**
+ * @brief Get the base URI of a resource
+ *
+ * @param uri URI of a resource
+ * @param originOnly if true, only the domain (and port, if present) is returned.
+ *					 if false, the full parent path of the resource is returned
+ * @return base URI
+ */
+static std::string aamp_getBaseUri(std::string uri, bool originOnly)
+{
+	std::smatch results;
+	if (std::regex_match(uri, results, std::regex("(" + PROTOCOL_REGEX + "[^/]+)/.*")))
+	{
+		return originOnly ? results[1].str() : uri.substr(0, uri.rfind("/"));
+	}
+
+	return uri;
+}
+
+/**
+ * @brief Get the absolute URI for the key based on the manifest URL
+ *
+ * @param manifestUrl URL of manifest
+ * @param keyUri URI of key. If already absolute, it will be returned as-is
+ *
+ * @return absolute key URI
+ */
+std::string aamp_getAbsoluteKeyUri(std::string manifestUrl, std::string keyUri)
+{
+	// Check if the URI is relative, based on the lack of a protocol at the start (e.g. http://).
+	// If it is, then we need to make it absolute based on the manifest URL
+	if (!std::regex_search(keyUri, std::regex(PROTOCOL_REGEX)))
+	{
+		std::stringstream uriSs;
+		bool isAbsolute = !keyUri.empty() && keyUri.front() == '/';
+		uriSs << aamp_getBaseUri(manifestUrl, isAbsolute) << (isAbsolute ? "" : "/") << keyUri;
+		return uriSs.str();
+	}
+
+	return keyUri;
 }

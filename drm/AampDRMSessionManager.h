@@ -28,9 +28,11 @@
 #include "aampdrmsessionfactory.h"
 #include "AampDrmSession.h"
 #include "AampDRMutils.h"
+#include "priv_aamp.h"
 #include "main_aamp.h"
 #include <string>
 #include <curl/curl.h>
+#include "AampDrmHelper.h"
 
 #ifdef USE_SECCLIENT
 #include "sec_client.h"
@@ -40,6 +42,15 @@
 #define AUDIO_SESSION 1
 
 /**
+ *  @struct	DrmSessionCacheInfo
+ *  @brief	Drm Session Cache Information for keeping single DRM session always.
+ */
+typedef struct DrmSessionCacheInfo{
+	pthread_t createDRMSessionThreadID; /**< Thread Id for DrM Session thread */
+	bool drmSessionThreadStarted; /**< DRM Session start flag to identify the DRM Session thread running */
+}DrmSessionCacheInfo;
+
+/**
  *  @struct	DrmSessionDataInfo
  *  @brief	Drm Session Data Information 
  * for storing in a pool from parser.
@@ -47,7 +58,6 @@
 typedef struct DrmSessionDataInfo{
 	struct DrmSessionParams* sessionData; /**< DRM Session Data */
 	bool isProcessedLicenseAcquire; /**< Flag to avoid multiple acquire for a key */
-	DRMSystems drmType; /**< DRM Type */
 	unsigned char *processedKeyId; /**< Pointer to store last processed key Id */
 	int processedKeyIdLen; /**< Last processed key Id size */
 }DrmSessionDataInfo;
@@ -58,13 +68,25 @@ typedef struct DrmSessionDataInfo{
  */
 struct DrmSessionContext
 {
-	size_t dataLength;
-	unsigned char* data;
+	std::vector<uint8_t> data;
 	pthread_mutex_t sessionMutex;
 	AampDrmSession * drmSession;
 
-	DrmSessionContext() : dataLength(0), data(NULL), sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL)
+	DrmSessionContext() : sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL),data()
 	{
+	}
+	DrmSessionContext(const DrmSessionContext& other) : sessionMutex(other.sessionMutex), data(), drmSession()
+	{
+		// Releases memory allocated after destructing any of these objects
+		drmSession = other.drmSession;
+		data = other.data;
+	}
+	DrmSessionContext& operator=(const DrmSessionContext& other)
+	{
+		sessionMutex = other.sessionMutex;
+		data = other.data;
+		drmSession = other.drmSession;
+		return *this;
 	}
 };
 
@@ -74,12 +96,17 @@ struct DrmSessionContext
  */
 struct DrmSessionParams
 {
+	DrmSessionParams() : initData(NULL), initDataLen(0), stream_type(eMEDIATYPE_DEFAULT),
+		aamp(NULL), drmType(eDRM_NONE), drmHelper()
+	{};
+	DrmSessionParams(const DrmSessionParams&) = delete;
+	DrmSessionParams& operator=(const DrmSessionParams&) = delete;
 	unsigned char *initData;
 	int initDataLen;
 	MediaType stream_type;
 	PrivateInstanceAAMP *aamp;
 	DRMSystems drmType;
-	unsigned char *contentMetadata;
+	std::shared_ptr<AampDrmHelper> drmHelper;
 };
 
 /**
@@ -89,8 +116,7 @@ struct DrmSessionParams
  */
 struct KeyID
 {
-	size_t len;
-	unsigned char* data;
+	std::vector<uint8_t> data;
 	long long creationTime;
 	bool isFailedKeyId;
 	bool isPrimaryKeyId;
@@ -140,14 +166,18 @@ public:
 
 	~AampDRMSessionManager();
 
-	AampDrmSession * createDrmSession(const char* systemId,
-			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp, AAMPEvent *e);
-
-	AampDrmSession * createDrmSession(const char* systemId,
+	AampDrmSession * createDrmSession(const char* systemId, MediaFormat mediaFormat,
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
-			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e,bool isPrimarySession = false);
+			PrivateInstanceAAMP* aamp, AAMPEvent *e, const unsigned char *contentMetadata = nullptr,
+			bool isPrimarySession = false);
 
-	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL, struct curl_slist *customHeader = NULL, DRMSystems drmSystem = eDRM_NONE);
+	AampDrmSession* createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance,MediaType streamType);
+
+#ifdef USE_SECCLIENT
+	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
+			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle);
+#endif
+	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
 
 	void clearSessionData();
 
@@ -162,6 +192,22 @@ public:
 	bool getCurlAbort(void);
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
+
+	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession = false);
+
+	KeyState initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, AAMPEvent* eventHandle);
+
+	KeyState acquireLicense(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+                AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType);
+
+	KeyState handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+			long httpResponseCode, shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance);
+
+	KeyState processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+			shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance);
+
+	bool configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest& licRequest,
+			char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance);
 };
 
 typedef struct writeCallbackData{

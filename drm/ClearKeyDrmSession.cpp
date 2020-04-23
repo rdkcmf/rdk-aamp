@@ -25,6 +25,7 @@
 #include "config.h"
 #include "ClearKeyDrmSession.h"
 #include "AampDRMutils.h"
+#include "GlobalConfigAAMP.h"
 #include <gst/gst.h>
 #include <sstream>
 #include <string>
@@ -85,6 +86,42 @@ void ClearKeySession::setKeyId(const char* keyId, int32_t keyIDLen)
 }
 
 /**
+ *  @brief		Extract the keyId from PSSH data.
+ *  			Different procedures are used for PlayReady and WideVine.
+ *
+ *  @param[in]	psshData - Pointer to PSSH data.
+ *  @param[in]	dataLength - Length of PSSH data.
+ *  @param[out]	len - Gets updated with length of keyId.
+ *  @return		Pointer to extracted keyId.
+ *  @note		Memory for keyId is dynamically allocated, deallocation
+ *				should be handled at the caller side.
+ */
+static unsigned char * extractKeyIdFromPssh(const char* psshData, int dataLength, int *len)
+{
+	unsigned char* key_id = NULL;
+	/*
+		00 00 00 34 70 73 73 68 01 00 00 00 10 77 ef ec
+		c0 b2 4d 02 ac e3 3c 1e 52 e2 fb 4b 00 00 00 01
+
+		fe ed f0 0d ee de ad be ef f0 ba ad f0 0d d0 0d
+		00 00 00 00
+	*/
+	uint32_t header = 32;
+	uint8_t  key_id_count = (uint8_t)psshData[header];
+	key_id = (unsigned char*)malloc(16 + 1);
+	memset(key_id, 0, 16 + 1);
+	strncpy(reinterpret_cast<char*>(key_id), psshData + header, 16);
+	*len = (int)16;
+	AAMPLOG_INFO("%s:%d ck keyid: %s keyIdlen: %d",__FUNCTION__, __LINE__, key_id, 16);
+	if(gpGlobalConfig->logging.trace)
+	{
+		DumpBlob(key_id, 16);
+	}
+
+	return key_id;
+}
+
+/**
  * @brief Create drm session with given init data
  *        state will be KEY_INIT on success KEY_ERROR if failed
  * @param f_pbInitData pointer to initdata
@@ -97,7 +134,7 @@ void ClearKeySession::generateAampDRMSession(const uint8_t *f_pbInitData,
 	if(f_pbInitData != NULL && f_cbInitData > 0)
 	{
 		int keyIDLen = 0;
-		keyId = aamp_ExtractKeyIdFromPssh(reinterpret_cast<const char*>(f_pbInitData),f_cbInitData, &keyIDLen, eDRM_ClearKey);
+		keyId = extractKeyIdFromPssh(reinterpret_cast<const char*>(f_pbInitData),f_cbInitData, &keyIDLen);
 		if (keyId == NULL)
 		{
 			AAMPLOG_ERR("ClearKeySession:: %s:%d ERROR: Key Id not found in initdata", __FUNCTION__, __LINE__);
@@ -152,9 +189,10 @@ ClearKeySession::~ClearKeySession()
  * @brief Generate key request from DRM session
  *        Caller function should free the returned memory.
  * @param destinationURL : gets updated with license server url
+ * @param timeout: max timeout untill which to wait for cdm key generation.
  * @retval Pointer to DrmData containing license request, NULL if failure.
  */
-DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL)
+DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
 	DrmData *licenseChallenge = NULL;
 	if(NULL == m_keyId || m_keyIdLen <= 0)
@@ -181,7 +219,7 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL)
 						AAMPLOG_INFO("%s:%d:: Generated license request : %s", __FUNCTION__, __LINE__, requestBody);
 						licenseChallenge = new DrmData(reinterpret_cast<unsigned char*>(requestBody), strlen(requestBody));
 						m_eKeyState = KEY_PENDING;
-						free(requestBody);
+						cJSON_free(requestBody);
 					}
 				}
 				cJSON_Delete(licenseRequest);
@@ -196,15 +234,23 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL)
 /**
  * @brief Updates the received key to DRM session
  * @param key : License key from license server.
+ * @param timeout: max timeout untill which to wait for cdm processing.
  * @retval DRM_SUCCESS if no errors encountered
  */
-int ClearKeySession::aampDRMProcessKey(DrmData* key)
+int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	int ret = 0;
-	AAMPLOG_INFO("ClearKeySession:: %s:%d:: Processing license response %s", __FUNCTION__, __LINE__, key->getData());
+	if (!key)
+	{
+		AAMPLOG_ERR("ClearKeySession:: %s:%d:: Cannot Process Null Key ", __FUNCTION__, __LINE__);
+		return ret;
+	}
+
+	std::string keyDataStr((const char*)key->getData(), key->getDataLength());
+	AAMPLOG_INFO("ClearKeySession:: %s:%d:: Processing license response %s", __FUNCTION__, __LINE__, keyDataStr.c_str());
 	if (m_eKeyState == KEY_PENDING)
 	{
-		cJSON *licenseResponse = cJSON_Parse(reinterpret_cast<const char*>(key->getData()));
+		cJSON *licenseResponse = cJSON_Parse(keyDataStr.c_str());
 		if (licenseResponse)
 		{
 			if (cJSON_HasObjectItem(licenseResponse, "keys"))
