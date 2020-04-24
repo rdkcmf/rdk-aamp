@@ -258,6 +258,7 @@ public:
 	void SetXStartTimeOffset(double offset) { mXStartTimeOFfset = offset; }
 	// Function to retune XStart Time Offset
 	double GetXStartTimeOffset() { return mXStartTimeOFfset;}
+	double GetBufferedDuration();
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex();
@@ -413,6 +414,7 @@ public:
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
 	/// Function to initiate precaching of playlist
 	void PreCachePlaylist();	
+	double GetBufferedDuration();
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

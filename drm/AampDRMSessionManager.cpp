@@ -357,7 +357,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
