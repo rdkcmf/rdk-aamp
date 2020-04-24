@@ -274,6 +274,7 @@ struct AAMPEvent
 			double startMiliseconds;    /**< time shift buffer start position (relative to tune time - starts at zero) */
 			double endMiliseconds;      /**< time shift buffer end position (relative to tune time - starts at zero) */
 			long long videoPTS; 		/**< Video Presentation 90 Khz time-stamp  */
+			double videoBufferedMiliseconds;	/**< current duration of buffered video ready to playback */
 		} progress;
 
 		/**

@@ -889,6 +889,13 @@ public:
 	 */
 	void UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo);
 
+	/**
+	 *   @brief Get buffered video duration in seconds
+	 *
+	 *   @return duration of currently buffered video in seconds
+	 */
+	double GetBufferedVideoDurationSec();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

@@ -2240,3 +2240,19 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 		pthread_mutex_unlock(&mStateLock);
 	}
 }
+
+/**
+ *   @brief Get buffered video duration in seconds
+ *
+ *   @return duration of currently buffered video in seconds
+ */
+double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
+{
+	// do not support trickplay track
+	if(AAMP_NORMAL_PLAY_RATE != aamp->rate)
+	{
+		return -1.0;
+	}
+
+	return GetBufferedDuration();
+}
