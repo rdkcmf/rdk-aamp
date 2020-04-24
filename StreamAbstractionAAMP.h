@@ -879,6 +879,13 @@ public:
 	 */
 	void CheckForMediaTrackInjectionStall(TrackType type);
 
+	/**
+	 *   @brief Get buffered video duration in seconds
+	 *
+	 *   @return duration of currently buffered video in seconds
+	 */
+	double GetBufferedVideoDurationSec();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

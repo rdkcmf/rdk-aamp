@@ -393,7 +393,8 @@ public:
 			logprintf("AAMP_EVENT_PLAYLIST_INDEXED");
 			break;
 		case AAMP_EVENT_PROGRESS:
-			//			logprintf("AAMP_EVENT_PROGRESS");
+			//logprintf("AAMP_EVENT_PROGRESS");
+			//logprintf("videoBufferedMilliseconds: %.0f", e.data.progress.videoBufferedMiliseconds);
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED");
