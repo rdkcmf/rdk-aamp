@@ -137,6 +137,7 @@ typedef enum{
 	eAAMP_SET_MaximumSegmentInjFailCount,
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
+	eAAMP_SET_LanguageFormat,
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -363,6 +364,7 @@ void ShowHelpSet(){
 	logprintf("35 - Set Maximum segment injection fail count");
 	logprintf("36 - Set Maximum DRM Decryption fail count");
 	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
+	logprintf("38 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
 }
 
 #define LOG_CLI_EVENTS
@@ -1098,7 +1100,16 @@ static void ProcessCliCommand(char *cmd)
 					}
 					break;
                                 }
-
+				case eAAMP_SET_LanguageFormat:
+				{
+					LangCodePreference preference;
+					bool useRole;
+					if (sscanf(cmd, "set %d %d %d", &opt, &preference, &useRole) == 3)
+					{
+						mSingleton->SetLanguageFormat(preference, useRole);
+					}
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}

@@ -5679,6 +5679,22 @@ void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 	aamp->SetRampDownLimit(limit);
 }
 
+
+/**
+ * @brief Set Language Format
+ * @param[in] preferredFormat - one of \ref LangCodePreference
+ * @param[in] useRole - if enabled, the language in format <lang>-<role>
+ *                      if <role> attribute available in stream
+ *
+ * @return void
+ */
+void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, bool useRole)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+	gpGlobalConfig->langCodePreference = preferredFormat;
+	gpGlobalConfig->bDescriptiveAudioTrack = useRole;
+}
+
 /**
  * @brief Set profile ramp down limit.
  *
