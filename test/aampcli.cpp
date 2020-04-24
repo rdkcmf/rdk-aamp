@@ -505,7 +505,7 @@ void CacheChannel(const char *url)
 #endif
 			);
 	mBackgroundPlayer->RegisterEvents(myEventListener);
-	mBackgroundPlayer->Tune(url, false);
+	mBackgroundPlayer->Tune(url/*, false*/);
 }
 
 /**

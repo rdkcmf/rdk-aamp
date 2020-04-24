@@ -933,7 +933,12 @@ public:
 	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL,bool audioDecoderStreamSync = true);
+	void Tune_1(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL,bool audioDecoderStreamSync = true);
+
+void Tune(const char *mainManifestUrl, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL,bool audioDecoderStreamSync = true)
+{
+Tune_1(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
+}
 
 	/**
 	 *   @brief Stop playback and release resources.

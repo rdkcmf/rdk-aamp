@@ -4981,7 +4981,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
  * @param[in] autoPlay - Start playback immediately or not
  * @param  contentType - content Type.
  */
-void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
+void PlayerInstanceAAMP::Tune_1(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
