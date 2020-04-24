@@ -1075,7 +1075,8 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 	JSObjectRef event = createNewAAMPJSEvent(p_obj->_ctx, aampPlayer_getNameFromEventType(e.type), false, false);
 	if (event)
 	{
-		JSValueProtect(p_obj->_ctx, event);
+		JSGlobalContextRef ctx = p_obj->_ctx;
+		JSValueProtect(ctx, event);
 		SetEventProperties(e, event);
 		//send this event through promise callback if an event listener is not registered
 		if (p_type == AAMP_EVENT_AD_RESOLVED && p_jsCallback == NULL)
@@ -1084,23 +1085,23 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 			JSObjectRef cbObj = p_obj->getCallbackForAdId(adIdStr);
 			if (cbObj != NULL)
 			{
-				aamp_dispatchEventToJS(p_obj->_ctx, cbObj, event);
+				aamp_dispatchEventToJS(ctx, cbObj, event);
 				p_obj->removeCallbackForAdId(adIdStr); //promise callbacks are intended for a single-time use for an ad id
 			}
 			else
 			{
-				ERROR("AAMP_JSEventListener::%s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, p_obj->_ctx, cbObj);
+				ERROR("AAMP_JSEventListener::%s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, ctx, cbObj);
 			}
 		}
 		else if (p_jsCallback != NULL)
 		{
-			aamp_dispatchEventToJS(p_obj->_ctx, p_jsCallback, event);
+			aamp_dispatchEventToJS(ctx, p_jsCallback, event);
 		}
 		else
 		{
 			ERROR("AAMP_JSEventListener::%s() Callback registered is (%p) for event=%d", __FUNCTION__, p_jsCallback, p_type);
 		}
-		JSValueUnprotect(p_obj->_ctx, event);
+		JSValueUnprotect(ctx, event);
 	}
 }
 

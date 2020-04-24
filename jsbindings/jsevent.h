@@ -27,6 +27,12 @@
 
 #include <JavaScriptCore/JavaScript.h>
 
+// DELIA-39828: JS garbage collector has pretty high threshold values for execution
+// Also GC doesn't monitor the native memory attached to a JS object. So its in our best
+// interest, we don't enabled below macro, so no native objects are allocated for/tied to a JS event
+//#define JSEVENT_WITH_NATIVE_MEMORY
+
+#ifdef JSEVENT_WITH_NATIVE_MEMORY
 /**
  * @enum EventPhase
  * @brief Phase of the event flow that is currently being evaluated.
@@ -190,7 +196,7 @@ private:
 
 	JSContextRef _ctx;  /** JS execution context **/
 };
-
+#endif
 
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
 

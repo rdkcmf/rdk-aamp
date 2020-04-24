@@ -289,6 +289,7 @@ static void ShowHelp(void)
 	logprintf("live\t\t\t// Seek to live point");
 	logprintf("underflow\t\t\t// Simulate underflow");
 	logprintf("retune\t\t\t// schedule retune");
+	logprintf("reset\t\t\t// delete player instance and create a new one");
 	logprintf("help\t\t\t// Show this list again");
 	logprintf("get help // Show help of get command");
 	logprintf("set help // Show help of set command");
@@ -720,6 +721,28 @@ static void ProcessCliCommand(char *cmd)
 		std::vector<std::string> headerValue;
 		logprintf("customheader Command is %s " , cmd); 
 		mSingleton->AddCustomHTTPHeader("", headerValue, false);
+	}
+	else if (memcmp(cmd, "reset", 5) == 0 )
+	{
+		logprintf(" Reset mSingleton instance %p ", mSingleton);
+		mSingleton->Stop();
+
+		delete mSingleton;
+		mSingleton = NULL;
+
+		mSingleton = new PlayerInstanceAAMP(
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+				NULL
+				,updateYUVFrame
+#endif
+				);
+
+#ifdef LOG_CLI_EVENTS
+		myEventListener = new myAAMPEventListener();
+		mSingleton->RegisterEvents(myEventListener);
+#endif
+		logprintf(" New mSingleton instance %p ", mSingleton);
+
 	}
 	else if (memcmp(cmd, "set", 3) == 0 )
 	{

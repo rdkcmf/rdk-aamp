@@ -35,8 +35,9 @@
 #define LOG(...)
 #endif
 
+static JSClassRef AAMPJSEvent_class_ref();
 
-
+#ifdef JSEVENT_WITH_NATIVE_MEMORY
 /**
  * @brief AAMPJSEvent Constructor
  */
@@ -82,8 +83,6 @@ AAMPJSEvent::AAMPJSEvent(const char *type, bool bubble, bool cancelable)
 {
 
 }
-
-static JSClassRef AAMPJSEvent_class_ref();
 
 /**
  * @brief AAMPJSEvent Destructor
@@ -453,8 +452,6 @@ void AAMPJSEvent_initialize (JSContextRef ctx, JSObjectRef object)
 {
         AAMPJSEvent* ev = new AAMPJSEvent();
         JSObjectSetPrivate(object, ev);
-
-
 }
 
 
@@ -497,6 +494,7 @@ static JSStaticValue AAMPJSEvent_static_values[] =
 	{ "isTrusted", AAMPJSEvent_getproperty_isTrusted, NULL, kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, NULL, 0 }
 };
+#endif
 
 /**
  * @brief Structure contains properties and callbacks of Event object of AAMP_JSController
@@ -507,10 +505,17 @@ static const JSClassDefinition AAMPJSEvent_object_def =
 	kJSClassAttributeNone,
 	"__Event_AAMPJS",
 	NULL,
+#ifdef JSEVENT_WITH_NATIVE_MEMORY
 	AAMPJSEvent_static_values,
 	AAMPJSEvent_static_functions,
 	AAMPJSEvent_initialize,
 	AAMPJSEvent_finalize,
+#else
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+#endif
 	NULL,
 	NULL,
 	NULL,
@@ -521,52 +526,6 @@ static const JSClassDefinition AAMPJSEvent_object_def =
 	NULL,
 	NULL
 };
-
-
-/**
- * @brief Callback invoked when an object is used as a constructor in a 'new' expression
- * @param[in] ctx JS execution context
- * @param[in] constructor JSObject that is the constructor being called
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of the args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval JSObject that is the constructor's return value
- */
-static JSObjectRef AAMPJSEvent_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
-{
-	JSClassRef classDef = JSClassCreate(&AAMPJSEvent_object_def);
-	JSObjectRef eventObj = JSObjectMake(ctx, classDef, NULL);
-
-	initEvent(ctx, eventObj, argumentCount, arguments, exception);
-	JSClassRelease(classDef);
-
-	return eventObj;
-}
-
-/**
- * @brief Structure contains properties and callbacks of Event class of AAMP_JSController
- */
-static const JSClassDefinition AAMPJSEvent_class_def =
-{
-	0,
-	kJSClassAttributeNone,
-	"__Event_AAMPJS_class",
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	AAMPJSEvent_class_constructor,
-	NULL,
-	NULL
-};
-
 
 /**
  * @brief To create a new JS event instance
@@ -579,9 +538,10 @@ static const JSClassDefinition AAMPJSEvent_class_def =
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable)
 {
         JSObjectRef eventObj = JSObjectMake(ctx, AAMPJSEvent_class_ref(), NULL);
-
+#ifdef JSEVENT_WITH_NATIVE_MEMORY
 	AAMPJSEvent *eventPriv = (AAMPJSEvent *) JSObjectGetPrivate(eventObj);
 	eventPriv->initEvent(type, bubbles, cancelable);
+#endif
 
 	return eventObj;
 }

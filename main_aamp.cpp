@@ -669,7 +669,7 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
-	logprintf("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
+	AAMPLOG_INFO("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 	{
 		pthread_mutex_lock(&mLock);
@@ -681,7 +681,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 			{
 				*ppLast = pListener->pNext;
 				pthread_mutex_unlock(&mLock);
-				logprintf("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
+				AAMPLOG_WARN("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
 				delete pListener;
 				return;
 			}
@@ -4475,7 +4475,13 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
 	if (aamp)
 	{
-		aamp->Stop();
+		PrivAAMPState state;
+		aamp->GetState(state);
+		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
+		{
+			//Avoid stop call since already stopped
+			aamp->Stop();
+		}
 		delete aamp;
 	}
 	if (mInternalStreamSink)
@@ -4607,11 +4613,11 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 	//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
-		logprintf("aamp_stop ignored since already at eSTATE_IDLE");
+		logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
 		return;
 	}
 
-	logprintf("aamp_stop PlayerState=%d",state);
+	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
 	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
 	{
 		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
