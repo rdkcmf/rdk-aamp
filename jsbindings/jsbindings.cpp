@@ -754,6 +754,10 @@ public:
 		name = JSStringCreateWithUTF8CString("currentPTS");
 		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, e.data.progress.videoPTS), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("videoBufferedMiliseconds");
+		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, e.data.progress.videoBufferedMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
 	}
 };
 

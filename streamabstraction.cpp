@@ -2173,7 +2173,7 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					}
 					// If discontinuity is not seen in future fragments or if the unblocked track has finished more than 2 * fragmentDurationSeconds,
 					// unblock this track
-					else if (diff > (2 * track->fragmentDurationSeconds) || (cachedDuration > (2 * track->fragmentDurationSeconds)))
+					else if ((diff + cachedDuration) > (2 * track->fragmentDurationSeconds))
 					{
 						AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
@@ -2221,4 +2221,20 @@ bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
 		AAMPLOG_WARN("%s:%d Rampdown limit reached, Limit is %d", __FUNCTION__, __LINE__, mRampDownLimit);
 	}
 	return ret;
+}
+
+/**
+ *   @brief Get buffered video duration in seconds
+ *
+ *   @return duration of currently buffered video in seconds
+ */
+double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
+{
+	// do not support trickplay track
+	if(AAMP_NORMAL_PLAY_RATE != aamp->rate)
+	{
+		return -1.0;
+	}
+
+	return GetBufferedDuration();
 }

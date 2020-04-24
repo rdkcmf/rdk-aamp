@@ -4287,6 +4287,8 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 	int not_explicit_user_lang_track = -1;
 	int preferred_audio_track = -1;
 	int current_preferred_lang_index = aamp->preferredLanguagesList.size();
+	int codecTypeForPreferredCmp = -1;
+
 	std::string lang;
 	const char *delim = strchr(aamp->language,'-');
 	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
@@ -4304,39 +4306,56 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 		{
 			lang = GetLanguageForAdaptationSet(adaptationSet);
 			const char *track_language = lang.c_str();
-			if(strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-			{ // exact match, i.e. to eng-commentary, great - we're done!
-				AudioType selectedCodecType = eAUDIO_UNKNOWN;
-				IAdaptationSet *audioAdaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-				if( audioAdaptationSet )
-				{
-					uint32_t selRepBandwidth = 0;
-					int audioRepresentationIndex = GetDesiredCodecIndex(audioAdaptationSet, selectedCodecType, selRepBandwidth);
-					if (iAdaptationSet_codec_cmp < selectedCodecType)
-					{
-						desiredRepIdx = audioRepresentationIndex;
-						iAdaptationSet_codec_cmp = selectedCodecType;
-						first_audio_track = iAdaptationSet;
-						first_audio_track_matching_language = iAdaptationSet;
-						not_explicit_user_lang_track = iAdaptationSet;
-						CodecType = selectedCodecType;
-					}
-				}
-			}
+			std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
+
+			// exact match
+			bool isExactMatch = (strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0);
+
+			// check for better preferred lang
 			if(current_preferred_lang_index > 0)
 			{
 				// find language part in preferred language list
 				// but not further than current index
-				std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
 				auto iter = std::find(aamp->preferredLanguagesList.begin(),
 						(aamp->preferredLanguagesList.begin() + current_preferred_lang_index), langPart);
 				if(iter != (aamp->preferredLanguagesList.begin() + current_preferred_lang_index) )
 				{
+					//Found adaptation for new better language, reset old codec info
 					current_preferred_lang_index = std::distance(aamp->preferredLanguagesList.begin(),
 							iter);
 					preferred_audio_track = iAdaptationSet;
+					codecTypeForPreferredCmp = -1;
 				}
 			}
+
+			// match Lang part with current preferred lang
+			bool isPreferredMatch = (current_preferred_lang_index < aamp->preferredLanguagesList.size()
+					&& langPart == aamp->preferredLanguagesList.at(current_preferred_lang_index));
+
+			// find best audio codec for exact match and preferred
+			if( isExactMatch || isPreferredMatch )
+			{
+				AudioType selectedCodecType = eAUDIO_UNKNOWN;
+				uint32_t selRepBandwidth = 0;
+				int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth);
+
+				if (isExactMatch && iAdaptationSet_codec_cmp < selectedCodecType)
+				{
+					desiredRepIdx = audioRepresentationIndex;
+					iAdaptationSet_codec_cmp = selectedCodecType;
+					first_audio_track = iAdaptationSet;
+					first_audio_track_matching_language = iAdaptationSet;
+					not_explicit_user_lang_track = iAdaptationSet;
+					CodecType = selectedCodecType;
+				}
+
+				if (isPreferredMatch && codecTypeForPreferredCmp < selectedCodecType)
+				{
+					codecTypeForPreferredCmp = selectedCodecType;
+					preferred_audio_track = iAdaptationSet;
+				}
+			}
+
 			if( first_audio_track < 0 )
 			{ // remember first track as lowest-priority fallback
 				first_audio_track = iAdaptationSet;
@@ -4362,15 +4381,7 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 	else if ( preferred_audio_track>=0 )
 	{
 		retAdapSetValue = preferred_audio_track;
-		// if preferred one is different than
-		// first_audio_track_matching_language,then clear codec info,
-		// since current values do not refer to selected track
-		if(preferred_audio_track != first_audio_track_matching_language)
-		{
-			iAdaptationSet_codec_cmp = -1;
-			desiredRepIdx = -1;
-			CodecType = eAUDIO_UNKNOWN;
-		}
+		iAdaptationSet_codec_cmp = -1;
 	}
 	else if ( not_explicit_user_lang_track>=0 )
 	{

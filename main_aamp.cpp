@@ -466,17 +466,27 @@ void PrivateInstanceAAMP::ReportProgress(void)
 		{
 			eventData.data.progress.videoPTS = -1; // if -1 , this parameter wont be added to JSPP event 
 		}
+
+		if (mpStreamAbstractionAAMP)
+		{
+			eventData.data.progress.videoBufferedMiliseconds = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec()*1000.0;
+		}
+		else
+		{
+			eventData.data.progress.videoBufferedMiliseconds = 0.0;
+		}
         
 		if (gpGlobalConfig->logging.progress)
 		{
 			static int tick;
 			if ((tick++ % 4) == 0)
 			{
-				logprintf("aamp pos: [%ld..%ld..%ld..%lld]",
+				logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
 					(long)(eventData.data.progress.startMiliseconds / 1000),
 					(long)(eventData.data.progress.positionMiliseconds / 1000),
 					(long)(eventData.data.progress.endMiliseconds / 1000),
-					(long long) eventData.data.progress.videoPTS);
+					(long long) eventData.data.progress.videoPTS,
+					(long)(eventData.data.progress.videoBufferedMiliseconds / 1000) );
 			}
 		}
 		mReportProgressPosn = eventData.data.progress.positionMiliseconds;
@@ -6375,7 +6385,12 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	ERROR_STATE_CHECK_VOID();
 
 	logprintf("aamp_SetLanguage(%s)->(%s)",aamp->language, language);
-
+	if(strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+	{
+	    aamp->noExplicitUserLanguageSelection = false;
+	    aamp->languageSetByUser = true;
+	    return;
+	}
 	// There is no active playback session, save the language for later
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
