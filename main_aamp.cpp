@@ -5185,6 +5185,19 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 }
 
+/**
+ *   @brief Tune to a URL.
+ *   This extra Tune function is included for backwards compatibility
+ *   @param[in]  url - HTTP/HTTPS url to be played.
+ *   @param[in]  contentType - Content type of the asset
+ *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+ *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+ *   @return void
+ */
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
+{
+	Tune(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
+}
 
 /**
  * @brief Tune to a URL.
