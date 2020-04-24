@@ -91,7 +91,7 @@ static void* do_AsyncTune(void* arg)
 
 	INFO("[AAMP_JS] %s() ASYNC_TUNE START url='%s'", __FUNCTION__, szUrl);
 
-	pAsyncTune->_aamp->Tune(szUrl);
+	pAsyncTune->_aamp->Tune_1(szUrl);
 
 	INFO("[AAMP_JS] %s() ASYNC_TUNE FINISH url='%s'", __FUNCTION__, szUrl);
 	delete pAsyncTune;
@@ -578,7 +578,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	                                tuneThreadId = NULL;
 				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
-				privObj->_aamp->Tune(url,autoPlay);
+				privObj->_aamp->Tune_1(url,autoPlay);
 				delete [] url;
 			}
 		

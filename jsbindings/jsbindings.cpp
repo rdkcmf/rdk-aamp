@@ -1975,7 +1975,7 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 		case 1:
 			{
 				char* url = aamp_JSValueToCString(context, arguments[0], exception);
-				pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);
+				pAAMP->_aamp->Tune_1(url, true, contentType, bFirstAttempt, bFinalAttempt);
 				delete [] url;
 			}
 			if(NULL != contentType)
@@ -2056,7 +2056,7 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		}
 
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
-		pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
+		pAAMP->_aamp->Tune_1(url, true, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
 		delete [] url;
 		if (contentType)
