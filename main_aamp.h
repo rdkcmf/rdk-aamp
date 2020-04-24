@@ -924,7 +924,8 @@ public:
 	PlayerInstanceAAMP& operator=(const PlayerInstanceAAMP& other) = delete;
 
 	/**
-	 *   @brief Tune to a URL.
+	 *   @brief Tune to a URL.  
+	 *    This extra Tune function is included for backwards compatibility 
 	 *
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  contentType - Content type of the asset

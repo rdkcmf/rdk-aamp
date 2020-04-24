@@ -4975,7 +4975,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 /**
  *   @brief Tune to a URL.
- *
+ *   This extra Tune function is included for backwards compatibility
  *   @param[in]  url - HTTP/HTTPS url to be played.
  *   @param[in]  contentType - Content type of the asset
  *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
