@@ -597,6 +597,17 @@ enum AuthTokenErrors {
 };
 
 /**
+ *  @brief Language Code Preference types
+ */
+typedef enum
+{
+    ISO639_NO_LANGCODE_PREFERENCE,
+    ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE,
+    ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE,
+    ISO639_PREFER_2_CHAR_LANGCODE
+} LangCodePreference;
+
+/**
  * @brief Structure for audio track information
  *        Holds information about an audio track in playlist
  */
@@ -1532,6 +1543,16 @@ public:
 	 *
 	 */
 	void SetSegmentDecryptFailCount(int value);
+
+	/**
+	 * @brief Set Language Format
+	 * @param[in] preferredFormat - one of \ref LangCodePreference
+	 * @param[in] useRole - if enabled, the language in format <lang>-<role>
+	 *                      if <role> attribute available in stream
+	 *
+	 * @return void
+	 */
+	void SetLanguageFormat(LangCodePreference preferredFormat, bool useRole = false);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
