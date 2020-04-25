@@ -4857,6 +4857,20 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
 
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if(NULL == mAampCacheHandler)
+		{
+			mAampCacheHandler = new AampCacheHandler();
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if(NULL == mDRMSessionManager)
+		{
+			mDRMSessionManager = new AampDRMSessionManager();
+		}
+#endif
+	}
+
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
@@ -7330,11 +7344,29 @@ void PrivateInstanceAAMP::Stop()
 		mPreCachePlaylistThreadId = 0;
 	}
 	getAampCacheHandler()->StopPlaylistCache();
+
+	//temporary hack for peacock
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if (mAampCacheHandler)
+		{
+			delete mAampCacheHandler;
+			mAampCacheHandler = NULL;
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if (mDRMSessionManager)
+		{
+			delete mDRMSessionManager;
+			mDRMSessionManager = NULL;
+		}
+#endif
+	}
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
 		mCdaiObject = NULL;
 	}
+
 	EnableDownloads();
 }
 
@@ -7959,10 +7991,17 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
 #endif
-
-	delete mAampCacheHandler;
+	if (mAampCacheHandler)
+	{
+		delete mAampCacheHandler;
+		mAampCacheHandler = NULL;
+	}
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-	delete mDRMSessionManager;
+	if (mDRMSessionManager)
+	{
+		delete mDRMSessionManager;
+		mAampCacheHandler = NULL;
+	}
 #endif
 }
 

@@ -870,8 +870,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				keyId = NULL;
 				return NULL;
 			}
-
-			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
+			AAMPLOG_INFO("%s:%d Deleting drmSesson for slot :%d", __FUNCTION__, __LINE__, sessionSlot);
+			delete drmSessionContexts[sessionSlot].drmSession;
+			drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
 	}
 
 	if(drmSessionContexts[sessionSlot].drmSession)
