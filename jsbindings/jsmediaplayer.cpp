@@ -27,7 +27,6 @@
 #include "jsutils.h"
 #include "jseventlistener.h"
 #include <vector>
-#include <glib.h>
 
 #define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "1.0"
 
@@ -38,7 +37,6 @@ extern "C"
 
 static pthread_t tuneThreadId = NULL;
 static bool bTuneInProgress = false;
-static guint gMemoryStatusMonitor = 0;
 
 /**
  * @class AsyncTune
@@ -214,32 +212,6 @@ std::vector<AAMPMediaPlayer_JS *> AAMPMediaPlayer_JS::_jsMediaPlayerInstances = 
  * @brief Mutex for global cache of AAMPMediaPlayer_JS instances
  */
 static pthread_mutex_t jsMediaPlayerCacheMutex = PTHREAD_MUTEX_INITIALIZER;
-
-
-/**
- * @brief Monitor memory usage
- *
- * @param[in] user_data user data pointer
- * return true if timer should continue running
- */
-static gboolean monitorMemoryStats(gpointer user_data)
-{
-	JSGlobalContextRef ctx  = (JSGlobalContextRef) user_data;
-
-	long eventCount = getEventStats(false);
-	int instanceCount = 0;
-
-	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
-	instanceCount = AAMPMediaPlayer_JS::_jsMediaPlayerInstances.size();
-	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
-
-	if (eventCount > 500 || instanceCount > 5)
-	{
-		ERROR("%s:%d Memory stats exceed threshold values, eventCount(%ld) and instanceCount(%d), force garbage collect on ctx(%p)!", __FUNCTION__, __LINE__, eventCount, instanceCount, ctx);
-		JSGarbageCollect(ctx);
-	}
-	return G_SOURCE_CONTINUE;
-}
 
 
 /**
@@ -858,7 +830,6 @@ JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObj
 		return JSValueMakeUndefined(ctx);
 	}
 	privObj->_aamp->Stop();
-	getEventStats(true); //to log the events that are remaining at the end of playback
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -2322,7 +2293,6 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	AAMPMediaPlayer_JS* privObj = new AAMPMediaPlayer_JS();
 
 	privObj->_ctx = JSContextGetGlobalContext(ctx);
-	ERROR("%s(), context = %p and JSContextGetGlobalContext = %p", __FUNCTION__, ctx, JSContextGetGlobalContext(ctx));
 	privObj->_aamp = new PlayerInstanceAAMP(NULL, PLAYERMODE_MEDIAPLAYER);
 	if (!appName.empty())
 	{
@@ -2330,14 +2300,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	}
 	privObj->_listeners.clear();
 
-	JSObjectRef newObj = JSObjectMake(privObj->_ctx, AAMPMediaPlayer_object_ref(), privObj);
-
-	if (gMemoryStatusMonitor == 0)
-	{
-		gMemoryStatusMonitor = g_timeout_add(20000, monitorMemoryStats, privObj->_ctx); // every 20 seconds
-		ERROR("%s:%d Started gMemoryStatusMonitor: %u", __FUNCTION__, __LINE__, gMemoryStatusMonitor);
-	}
-
+	JSObjectRef newObj = JSObjectMake(ctx, AAMPMediaPlayer_object_ref(), privObj);
 
 	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
 	AAMPMediaPlayer_JS::_jsMediaPlayerInstances.push_back(privObj);
@@ -2346,9 +2309,9 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	// Required for viper-player
 	JSStringRef fName = JSStringCreateWithUTF8CString("toString");
 	JSStringRef fString = JSStringCreateWithUTF8CString("return \"[object __AAMPMediaPlayer]\";");
-	JSObjectRef toStringFunc = JSObjectMakeFunction(privObj->_ctx, NULL, 0, NULL, fString, NULL, 0, NULL);
+	JSObjectRef toStringFunc = JSObjectMakeFunction(ctx, NULL, 0, NULL, fString, NULL, 0, NULL);
 
-	JSObjectSetProperty(privObj->_ctx, newObj, fName, toStringFunc, kJSPropertyAttributeReadOnly | kJSPropertyAttributeDontEnum | kJSPropertyAttributeDontDelete, NULL);
+	JSObjectSetProperty(ctx, newObj, fName, toStringFunc, kJSPropertyAttributeReadOnly | kJSPropertyAttributeDontEnum | kJSPropertyAttributeDontDelete, NULL);
 
 	JSStringRelease(fName);
 	JSStringRelease(fString);
@@ -2469,11 +2432,5 @@ void AAMPPlayer_UnloadJS(void* context)
 	// Force a garbage collection to clean-up all AAMP objects.
 	LOG("[AAMP_JS] JSGarbageCollect() context=%p", context);
 	JSGarbageCollect(jsContext);
-
-	if (gMemoryStatusMonitor != 0)
-	{
-		g_source_remove(gMemoryStatusMonitor);
-		gMemoryStatusMonitor = 0;
-	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 }

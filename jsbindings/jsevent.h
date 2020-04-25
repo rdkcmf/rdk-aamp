@@ -193,4 +193,5 @@ private:
 
 
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
+
 #endif // __AAMP_JSEVENT_H__

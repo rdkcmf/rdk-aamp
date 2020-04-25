@@ -81,6 +81,4 @@ const char* aampPlayer_getNameFromEventType(AAMPEventType type);
 
 JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, long long timeMS, const char* szName, const char* szContent, const char* id, double durationMS);
 
-long getEventStats(bool logStats);
-
 #endif /* __AAMP_JSUTILS_H__ */
