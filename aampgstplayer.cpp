@@ -89,7 +89,7 @@ typedef enum {
 #define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
-#define G_TIMEOUT_PRIORITY_HIGH -70
+
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -996,6 +996,18 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		}
 		break;
 
+	case GST_MESSAGE_ASYNC_DONE:
+		{
+			if (_this->privateContext->buffering_in_progress)
+			{
+				if (buffering_timeout(_this)) { // call immediately and if already buffered enough don't start timer.
+				    if (0 == _this->privateContext->bufferingTimeoutTimerId)
+						_this->privateContext->bufferingTimeoutTimerId = g_timeout_add((guint)DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
+				}
+			}
+		}
+		break;
+
 	case GST_MESSAGE_TAG:
 		break;
 
@@ -1204,17 +1216,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
         }
         break;
 #endif
-	case GST_MESSAGE_ASYNC_DONE:
-		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
-		if (_this->privateContext->buffering_in_progress)
-		{
-			if (buffering_timeout(_this))
-			{
-				g_timeout_add_full(G_TIMEOUT_PRIORITY_HIGH,DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this,NULL);
-			}
-		}
-		break;
-
 	default:
 		break;
 	}
