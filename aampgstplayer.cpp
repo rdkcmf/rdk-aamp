@@ -2781,15 +2781,19 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
+		GstStateChangeReturn ret;
 		bool bPauseNeeded = false;
 
-		gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+		ret = gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+
+		logprintf("AAMPGstPlayer::%s:%d Pipeline stats - current:%s, pending:%s, ret:%d, shouldTearDown:%d",
+					__FUNCTION__, __LINE__, gst_element_state_get_name(current), gst_element_state_get_name(pending), ret, shouldTearDown);
 
 		if (current != GST_STATE_PLAYING && current != GST_STATE_PAUSED)
 		{
 			if (shouldTearDown)
 			{
-				logprintf("AAMPGstPlayer::%s:%d Pipeline is not in playing/paused state, hence resetting it", __FUNCTION__, __LINE__);
+				logprintf("AAMPGstPlayer::%s:%d Pipeline is not in playing/paused state (or ret:%d), hence resetting it", __FUNCTION__, __LINE__, ret);
 				Stop(true);
 			}
 			return;
