@@ -717,10 +717,11 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 	JSObjectRef event = createNewAAMPJSEvent(p_obj->_ctx, aampPlayer_getNameFromEventType(e.type), false, false);
 	if (event)
 	{
-		JSValueProtect(p_obj->_ctx, event);
+		JSGlobalContextRef ctx = p_obj->_ctx;
+		JSValueProtect(ctx, event);
 		SetEventProperties(e, event);
-		aamp_dispatchEventToJS(p_obj->_ctx, p_jsCallback, event);
-		JSValueUnprotect(p_obj->_ctx, event);
+		aamp_dispatchEventToJS(ctx, p_jsCallback, event);
+		JSValueUnprotect(ctx, event);
 	}
 }
 
