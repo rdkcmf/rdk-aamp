@@ -438,6 +438,7 @@ static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 		}
 
 		delete privObj;
+		privObj = NULL;
 	}
 }
 
@@ -946,7 +947,7 @@ JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObj
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || (privObj && !privObj->_aamp))
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call stop() on instances of AAMPPlayer");
