@@ -620,7 +620,6 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, AAMPEventLis
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEventListener* eventListener)
 {
-	AAMPLOG_INFO("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
 	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 	{
 		pthread_mutex_lock(&mLock);
@@ -632,7 +631,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, AAMPEvent
 			{
 				*ppLast = pListener->pNext;
 				pthread_mutex_unlock(&mLock);
-				AAMPLOG_WARN("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
+				AAMPLOG_INFO("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
 				delete pListener;
 				return;
 			}
@@ -4278,6 +4277,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			aamp->Stop();
 		}
 		delete aamp;
+		aamp = NULL;
 	}
 	if (mInternalStreamSink)
 	{
@@ -4403,45 +4403,48 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
  */
 void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 {
-	PrivAAMPState state;
-	aamp->GetState(state);
-
-	//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
-	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
+	if (aamp)
 	{
-		logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
-		return;
-	}
+		PrivAAMPState state;
+		aamp->GetState(state);
 
-	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
-	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
-	{
-		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
-		aamp->sendTuneMetrics(false);
-	}
-
-	if (sendStateChangeEvent)
-	{
-		aamp->SetState(eSTATE_IDLE);
-	}
-
-	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
-	{
-		if (aamp == iter->pAAMP)
+		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
+		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
-			if (iter->reTune && aamp->mIsRetuneInProgress)
-			{
-				// Wait for any ongoing re-tune operation to complete
-				pthread_cond_wait(&gCond, &gMutex);
-			}
-			iter->reTune = false;
-			break;
+			logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
+			return;
 		}
+
+		logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
+		if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
+		{
+			/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
+			aamp->sendTuneMetrics(false);
+		}
+
+		if (sendStateChangeEvent)
+		{
+			aamp->SetState(eSTATE_IDLE);
+		}
+
+		pthread_mutex_lock(&gMutex);
+		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+		{
+			if (aamp == iter->pAAMP)
+			{
+				if (iter->reTune && aamp->mIsRetuneInProgress)
+				{
+					// Wait for any ongoing re-tune operation to complete
+					pthread_cond_wait(&gCond, &gMutex);
+				}
+				iter->reTune = false;
+				break;
+			}
+		}
+		pthread_mutex_unlock(&gMutex);
+		AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
+		aamp->Stop();
 	}
-	pthread_mutex_unlock(&gMutex);
-	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
-	aamp->Stop();
 }
 
 
