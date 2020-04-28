@@ -200,6 +200,7 @@ langcodepref=<X>
 	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
+useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
