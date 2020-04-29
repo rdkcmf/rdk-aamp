@@ -172,6 +172,16 @@ function changeCCTrack() {
         //if CC is enabled
         var trackID =  document.getElementById("ccTracks").value; // get selected cc track
         XREReceiver.onEvent("onClosedCaptions", { setTrack: trackID });
+	}
+}
+//function to jump to user entered position
+function jumpToPPosition() {
+    if(document.getElementById("jumpPosition").value) {
+        var position = Number(document.getElementById("jumpPosition").value)/1000;
+        if (!isNaN(position)) {
+            playerObj.seek(position);
+        }
+        document.getElementById("jumpPosition").value = "";
     }
 }
 
@@ -232,6 +242,7 @@ var HTML5PlayerControls = function() {
         this.muteButton = document.getElementById("muteVideoButton");
         this.ccButton = document.getElementById("ccButton");
         this.autoVideoLogButton = document.getElementById("autoLogButton");
+        this.jumpButton = document.getElementById("jumpButton");
         this.homeContentButton = document.getElementById('homeButton');
 
         // Sliders
@@ -239,6 +250,7 @@ var HTML5PlayerControls = function() {
         this.cacheOnlyButton = document.getElementById("cacheOnlyButton");
         this.videoFileList = document.getElementById("videoURLs");
         this.ccTracksList = document.getElementById("ccTracks");
+        this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
         this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton, this.vidtoggleButton ];
@@ -350,6 +362,8 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.nextCCSelect();
+	} else if (this.dropDownBitrateListVisible) {
+	    this.nextBitrateSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton)  || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
@@ -574,6 +588,21 @@ var HTML5PlayerControls = function() {
                 case 68: // D
                         loadPrevAsset();
                         break;
+                case 48: // Number 0
+                case 49: // Number 1
+                case 50: // Number 2
+                case 51: // Number 3
+                case 52: // Number 4
+                case 53: // Number 5
+                case 54: // Number 6
+                case 55: // Number 7
+                case 56: // Number 8
+                case 57: // Number 9
+                         // If keypress is for input to the progress position field
+                         if(this.currentObj === this.jumpPositionInput) {
+                             document.getElementById("jumpPosition").value =  document.getElementById("jumpPosition").value + String(e.key);
+                         }
+                         break;
                 default:
                         break;
             }
@@ -649,6 +678,7 @@ function resetUIOnNewAsset(){
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
+    document.getElementById("jumpPosition").value = "";
 };
 
 function initPlayerControls() {
