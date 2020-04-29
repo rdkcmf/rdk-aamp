@@ -6765,9 +6765,8 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 	}
 	if(stateChanged)
 	{
-		AAMPLOG_WARN("%s:%d [CDAI]: State changed from [%s] => [%s].",__FUNCTION__,__LINE__, ADSTATE_STR[static_cast<int>(oldState)],ADSTATE_STR[static_cast<int>(mCdaiObject->mAdState)]);
-
 		mAdPlayingFromCDN = false;
+		bool fogManifestFailed = false;
 		if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
 		{
 			AdNode &adNode = mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx);
@@ -6779,31 +6778,44 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 
 				if(NULL == adNode.mpd)
 				{
-					//TODO: Vinod, if mpd is still NULL we need to revert everything. This is a temporary fix
+					AAMPLOG_WARN("%s:%d [CDAI]: Ad playback failed. Not able to download Ad manifest from FOG.",__FUNCTION__,__LINE__);
 					mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
-					return stateChanged;
+					fogManifestFailed = true;
+					if(AdState::IN_ADBREAK_AD_NOT_PLAYING == oldState)
+					{
+						stateChanged = false;
+					}
 				}
 			}
-			mCurrentPeriod = adNode.mpd->GetPeriods().at(0);
-			/* TODO: Fix redundancy from UpdateTrackInfo */
-			for (int i = 0; i < mNumberOfTracks; i++)
+			if(adNode.mpd)
 			{
-				mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = adNode.url.c_str();
-			}
+				mCurrentPeriod = adNode.mpd->GetPeriods().at(0);
+				/* TODO: Fix redundancy from UpdateTrackInfo */
+				for (int i = 0; i < mNumberOfTracks; i++)
+				{
+					mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = adNode.url.c_str();
+				}
 
-			placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_START;
-			adId2Send = adNode.adId;
+				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_START;
+				adId2Send = adNode.adId;
 
-			map<string, string> mpdAttributes = adNode.mpd->GetRawAttributes();
-			if(mpdAttributes.find("fogtsb") == mpdAttributes.end())
-			{
-				//No attribute 'fogtsb' in MPD. Hence, current ad is from CDN
-				mAdPlayingFromCDN = true;
+				map<string, string> mpdAttributes = adNode.mpd->GetRawAttributes();
+				if(mpdAttributes.find("fogtsb") == mpdAttributes.end())
+				{
+					//No attribute 'fogtsb' in MPD. Hence, current ad is from CDN
+					mAdPlayingFromCDN = true;
+				}
 			}
+		}
+
+		if(stateChanged)
+		{
+			AAMPLOG_WARN("%s:%d [CDAI]: State changed from [%s] => [%s].",__FUNCTION__,__LINE__, ADSTATE_STR[static_cast<int>(oldState)],ADSTATE_STR[static_cast<int>(mCdaiObject->mAdState)]);
 		}
 
 		if(AAMP_NORMAL_PLAY_RATE == rate)
 		{
+			//Sending Ad events
 			uint64_t resPosMS = 0;
 			if(AAMP_EVENT_AD_RESERVATION_START == reservationEvt2Send || AAMP_EVENT_AD_RESERVATION_END == reservationEvt2Send)
 			{
@@ -6831,8 +6843,13 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 					aamp->SendAnomalyEvent(ANOMALY_TRACE, "[CDAI] AdId=%s starts. Duration=%u sec URL=%s",
 							adId2Send.c_str(),(adDuration/1000), mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).url.c_str());
 				}
+
 				aamp->SendAdPlacementEvent(placementEvt2Send,adId2Send, adPos2Send, adOffset, adDuration, sendImmediate);
-				if(AAMP_EVENT_AD_PLACEMENT_ERROR == placementEvt2Send)
+				if(fogManifestFailed)
+				{
+					aamp->SendAdPlacementEvent(AAMP_EVENT_AD_PLACEMENT_ERROR,adId2Send, adPos2Send, adOffset, adDuration, true);
+				}
+				if(AAMP_EVENT_AD_PLACEMENT_ERROR == placementEvt2Send || fogManifestFailed)
 				{
 					aamp->SendAdPlacementEvent(AAMP_EVENT_AD_PLACEMENT_END,adId2Send, adPos2Send, adOffset, adDuration, true);	//Ad ended with error
 					aamp->SendAnomalyEvent(ANOMALY_ERROR, "[CDAI] AdId=%s encountered error.", adId2Send.c_str());
