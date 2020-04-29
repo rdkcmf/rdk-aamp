@@ -408,11 +408,11 @@ typedef enum
  */
 enum AudioType
 {
+	eAUDIO_UNSUPPORTED,
 	eAUDIO_UNKNOWN,
 	eAUDIO_AAC,
 	eAUDIO_DDPLUS,
-	eAUDIO_ATMOS,
-	eAUDIO_UNSUPPORTED
+	eAUDIO_ATMOS
 };
 
 /**

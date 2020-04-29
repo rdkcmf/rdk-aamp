@@ -95,6 +95,7 @@ protected:
 
 	Event m_challengeReady;
 	Event m_keyStatusReady;
+	Event m_keyStatusWait;
 	string m_sessionID;
 
 	std::vector<uint8_t> m_keyId;
@@ -123,6 +124,7 @@ public:
 	KeyState getState();
 	void clearDecryptContext();
 	void setKeyId(const std::vector<uint8_t>& keyId);
+	bool waitForState(KeyState state, const uint32_t timeout) override;
 };
 
 #endif

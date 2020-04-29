@@ -128,6 +128,15 @@ public:
 	virtual KeyState getState() = 0;
 
 	/**
+	 * @brief Waits for the current state of DRM Session to match required.. Timeout is that from the helper.
+	 * Only used by OCDM Adapter for now
+	 * @param state the KeyState to achieve
+	 * @param timeout how long to wait in mSecs
+	 * @return true if obtained, false otherwise
+	 */
+	virtual bool waitForState(KeyState state, const uint32_t timeout) { return true; }
+
+	/**
 	 * @brief Clear the current session context
 	 *        So that new init data can be bound.
 	 */

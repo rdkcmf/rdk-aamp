@@ -347,4 +347,5 @@ install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
 message("LIBAAMP_SOURCES is ${LIBAAMP_SOURCES}")
+message("LIBAAMP_HELP_SOURCES is ${LIBAAMP_HELP_SOURCES}")
 

@@ -147,6 +147,16 @@ void AampDRMSessionManager::clearSessionData()
 			cachedKeyIDs[i] = KeyID();
 		}
 	}
+	if (drmSessionContexts != NULL)
+	{
+		delete[] drmSessionContexts;
+		drmSessionContexts = NULL;
+	}
+	if (cachedKeyIDs != NULL)
+	{
+		delete[] cachedKeyIDs;
+		cachedKeyIDs = NULL;
+	}
 }
 
 /**
@@ -491,7 +501,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 
 	return licenseResponse;
 }
-#else
+#endif
 /**
  *  @brief		Get DRM license key from DRM server.
  *
@@ -661,7 +671,6 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 
 	return keyInfo;
 }
-#endif
 
 /**
  *  @brief		Creates and/or returns the DRM session corresponding to keyId (Present in initDataPtr)
@@ -868,13 +877,35 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
 	if (drmSessionContexts[sessionSlot].drmSession != NULL)
 	{
-		if ((keyIdArray == drmSessionContexts[sessionSlot].data)
-				&& (drmSessionContexts[sessionSlot].drmSession->getState() == KEY_READY))
+		if (keyIdArray == drmSessionContexts[sessionSlot].data)
 		{
-			AAMPLOG_WARN("%s:%d Found drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
-			return KEY_READY;
+			KeyState existingState = drmSessionContexts[sessionSlot].drmSession->getState();
+			if (existingState == KEY_READY)
+			{
+				AAMPLOG_WARN("%s:%d Found drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+				return KEY_READY;
+			}
+			else if (existingState <= KEY_READY)
+			{
+				if (drmSessionContexts[sessionSlot].drmSession->waitForState(KEY_READY, drmHelper->keyProcessTimeout()))
+				{
+					AAMPLOG_WARN("%s:%d Waited for drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+					return KEY_READY;
+				}
+				AAMPLOG_WARN("%s:%d key was never ready for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+				return KEY_ERROR;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d existing DRM session for %s has error state %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), existingState);
+				return KEY_ERROR;
+			}
 		}
-		AAMPLOG_WARN("%s:%d deleting exsisting DRM session for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+		else
+		{
+			AAMPLOG_WARN("%s:%d existing DRM session for %s has different key in slot %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), sessionSlot);
+		}
+		AAMPLOG_WARN("%s:%d deleting existing DRM session for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
 		delete drmSessionContexts[sessionSlot].drmSession;
 		drmSessionContexts[sessionSlot].drmSession = nullptr;
 	}
@@ -1015,10 +1046,16 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
 #ifdef USE_SECCLIENT
-				licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
-#else
-				licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, isComcastStream, licenseServerProxy));
+				if (isComcastStream)
+				{
+					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
+				}
+				else
 #endif
+				{
+					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, isComcastStream, licenseServerProxy));
+				}
+
 			}
 		}
 	}
@@ -1186,31 +1223,32 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		}
 	}
 
-#ifndef USE_SECCLIENT
-	std::unordered_map<std::string, std::vector<std::string>> customHeaders;
-	aampInstance->GetCustomLicenseHeaders(customHeaders);
-
-	if (!customHeaders.empty())
+	if(!isComcastStream)
 	{
-		// Override headers from the helper with custom headers
-		licenseRequest.headers = customHeaders;
-	}
+		std::unordered_map<std::string, std::vector<std::string>> customHeaders;
+		aampInstance->GetCustomLicenseHeaders(customHeaders);
 
-	if (isComcastStream)
-	{
-		// Comcast stream, add Comcast headers
-		if (customHeaders.empty())
+		if (!customHeaders.empty())
 		{
-			// Not using custom headers, Comcast headers will also override any headers from the helper
-			licenseRequest.headers.clear();
+			// Override headers from the helper with custom headers
+			licenseRequest.headers = customHeaders;
 		}
 
-		licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_ACCEPT, {COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE}});
-		licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE, {COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE}});
-	}
+		if (isComcastStream)
+		{
+			// Comcast stream, add Comcast headers
+			if (customHeaders.empty())
+			{
+				// Not using custom headers, Comcast headers will also override any headers from the helper
+				licenseRequest.headers.clear();
+			}
 
-	licenseServerProxy = aampInstance->GetLicenseReqProxy();
-#endif
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_ACCEPT, {COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE}});
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE, {COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE}});
+		}
+
+		licenseServerProxy = aampInstance->GetLicenseReqProxy();
+	}
 
 	return isComcastStream;
 }
@@ -1300,6 +1338,15 @@ void *CreateDRMSession(void *arg)
 	e.data.dash_drmmetadata.responseCode = 0;
 	AampDrmSession *drmSession = NULL;
 	const char * systemId;
+
+	if (sessionParams->aamp == nullptr) {
+		AAMPLOG_ERR("%s:%d: no aamp in sessionParams", __FUNCTION__, __LINE__);
+		return nullptr;
+	}
+	if (sessionParams->aamp->mDRMSessionManager == nullptr) {
+		AAMPLOG_ERR("%s:%d: no aamp->mDrmSessionManager in sessionParams", __FUNCTION__, __LINE__);
+		return nullptr;
+	}
 
 
 	if (sessionParams->drmHelper == nullptr)

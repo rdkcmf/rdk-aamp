@@ -515,6 +515,7 @@ void PrivateInstanceAAMP::ReportAdProgress(void)
 	}
 }
 
+
 /**
  * @brief Update duration of stream.
  *

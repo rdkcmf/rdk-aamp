@@ -158,9 +158,8 @@ public:
 #ifdef USE_SECCLIENT
 	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle);
-#else
-	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
 #endif
+	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
 
 	void clearSessionData();
 

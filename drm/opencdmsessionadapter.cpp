@@ -183,6 +183,8 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 	DrmData * result = NULL;
 
 	m_eKeyState = KEY_ERROR;
+	AAMPLOG_INFO("%s:%d: About to request keyRequest", __FUNCTION__, __LINE__ );
+
 	if (m_challengeReady.wait(timeout) == true) {
 		if (m_challenge.empty() != true) {
 			std::string delimiter (":Type:");
@@ -196,7 +198,13 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 			logprintf("destination url is %s", destinationURL.c_str());
 			m_eKeyState = KEY_PENDING;
 		}
+		else {
+			AAMPLOG_WARN("%s:%d: Empty keyRequest", __FUNCTION__, __LINE__ );
+		}
+	} else {
+		AAMPLOG_WARN("%s:%d: Timed out waiting for keyRequest", __FUNCTION__, __LINE__ );
 	}
+
 	return result;
 }
 
@@ -302,10 +310,22 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			}
 			m_eKeyState = KEY_ERROR;
 		}
-	} else {
 	}
+	m_keyStatusWait.signal();
 	return retValue;
 }
+
+bool AAMPOCDMSessionAdapter::waitForState(KeyState state, const uint32_t timeout)
+{
+	if (m_eKeyState == state) {
+		return true;
+	}
+	if (!m_keyStatusWait.wait(timeout)) {
+		return false;
+	}
+	return m_eKeyState == state;
+}
+
 
 KeyState AAMPOCDMSessionAdapter::getState()
 {

@@ -623,6 +623,7 @@ private:
 	std::string mBasePeriodId;
 	double mBasePeriodOffset;
 	PrivateCDAIObjectMPD *mCdaiObject;
+	std::shared_ptr<AampDrmHelper> mLastDrmHelper;
 
 	// DASH does not use abr manager to store the supported bandwidth values,
 	// hence storing max TSB bandwith in this variable which will be used for VideoEnd Metric data via
@@ -2497,7 +2498,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		// extract the UUID
 		std::string schemeIdUri = contentProt.at(iContentProt)->GetSchemeIdUri();
 		// Look for UUID in schemeIdUri by matching any UUID to maintian backwards compatibility
-		std::regex rgx(".*([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}).*");
+		std::regex rgx(".*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}).*");
 		std::smatch uuid;
 		if (!std::regex_search(schemeIdUri, uuid, rgx))
 		{
@@ -2559,7 +2560,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		free(data);
 	}
 
-	if(drmHelper)
+	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
 	{
 		drmHelper->setDrmMetaData(contentMetadata);
 		mContext->hasDrm = true;
@@ -2567,6 +2568,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		DrmSessionParams* sessionParams = new DrmSessionParams;
 		sessionParams->aamp = aamp;
 		sessionParams->drmHelper = drmHelper;
+		sessionParams->stream_type = mediaType;
 
 		if(drmSessionThreadStarted) //In the case of license rotation
 		{
@@ -2579,18 +2581,24 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			drmSessionThreadStarted = false;
 		}
 		/*
+		*
 		* Memory allocated for data via base64_Decode() and memory for sessionParams
 		* is released in CreateDRMSession.
 		*/
 		if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
 		{
 			drmSessionThreadStarted = true;
+			mLastDrmHelper = drmHelper;
 			aamp->setCurrentDrm(drmHelper);
 		}
 		else
 		{
 			logprintf("%s %d pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
 		}
+	}
+	else
+	{
+		logprintf("Skipping creation of session for duplicate helper");
 	}
 }
 
@@ -5682,7 +5690,6 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 										delta = SkipFragments(pMediaStreamContext, delta);
 										mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 									}
-
 									if(PushNextFragment(pMediaStreamContext,i))
 									{
 										if (mIsLiveManifest)
