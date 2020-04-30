@@ -1229,7 +1229,7 @@ public:
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName)
+	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId)
 	{
 		if(!enabled )
 		{
@@ -1243,11 +1243,11 @@ public:
 		memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
 		if (!appName.empty())
 		{
-			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "APP: %s IP_AAMP_TUNETIME", appName.c_str());
+			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] APP: %s IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId,appName.c_str());
 		}
 		else
 		{
-			strcpy(tuneTimeStrPrefix, "IP_AAMP_TUNETIME");
+			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId);
 		}
 
 		logprintf("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
