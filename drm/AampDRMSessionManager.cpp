@@ -421,7 +421,7 @@ static void mssleep(int milliseconds)
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
 {
-	DrmData *licenseResponse;
+	DrmData *licenseResponse = nullptr;
 	const char *mediaUsage = "stream";
 	string contentMetaData = drmHelper->getDrmMetaData();
 	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());

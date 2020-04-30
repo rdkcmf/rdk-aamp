@@ -185,7 +185,9 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER)
     endif()
 
     # DRM Helpers
-    set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampWidevineDrmHelper.cpp)
+    if(CMAKE_USE_WIDEVINE)
+        set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampWidevineDrmHelper.cpp)
+    endif()
 
     if(CMAKE_USE_VGDRM)
         set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampVgdrmHelper.cpp)
@@ -208,7 +210,7 @@ endif()
 set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampAveDrmHelper.cpp)
 
 if(CMAKE_CDM_DRM)
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1 -DAAMP_HLS_DRM=1")
 endif()
 
 if(CMAKE_USE_OPENCDM_ADAPTER)

@@ -233,7 +233,9 @@ static std::shared_ptr<AampDrmHelper> getDrmHelper(string attrName){
 	if (systemId.find("urn:uuid:") != std::string::npos){
 		systemId = systemId.substr(strlen("urn:uuid:"));
 	}
-	DrmInfo drmInfo { .mediaFormat = eMEDIAFORMAT_HLS_MP4, .systemUUID=systemId };
+	DrmInfo drmInfo;
+	drmInfo.mediaFormat = eMEDIAFORMAT_HLS_MP4;
+	drmInfo.systemUUID=systemId;
 	return AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 }
 
