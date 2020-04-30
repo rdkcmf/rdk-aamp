@@ -243,6 +243,7 @@ AampCacheHandler::AampCacheHandler():
 	else
 	{
 		mAsyncThreadStartedFlag = true;
+		mAsyncCacheCleanUpThread = true;
 	}
 }
 
@@ -252,10 +253,10 @@ AampCacheHandler::AampCacheHandler():
 AampCacheHandler::~AampCacheHandler()
 {
 	mCacheActive = true;
-	mAsyncCacheCleanUpThread = false;
 	pthread_mutex_lock(&mCondVarMutex);
+	mAsyncCacheCleanUpThread = false;
 	pthread_cond_signal(&mCondVar);
-	pthread_mutex_unlock(&mCondVarMutex );
+	pthread_mutex_unlock(&mCondVarMutex);
 	if(mAsyncThreadStartedFlag)
 	{
 		void *ptr = NULL;
@@ -304,10 +305,10 @@ void AampCacheHandler::StopPlaylistCache()
  */
 void AampCacheHandler::AsyncCacheCleanUpTask()
 {
-	mAsyncCacheCleanUpThread	=	true;
-	do{
-		pthread_mutex_lock( &mCondVarMutex );
-		pthread_cond_wait( &mCondVar, &mCondVarMutex );
+	pthread_mutex_lock(&mCondVarMutex);
+	while (mAsyncCacheCleanUpThread)
+	{
+		pthread_cond_wait(&mCondVar, &mCondVarMutex);
 		if(!mCacheActive)
 		{
 			int timeInMs = 10000;
@@ -325,8 +326,8 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 				ClearPlaylistCache();
 			}
 		}
-		pthread_mutex_unlock( &mCondVarMutex );
-	}while(mAsyncCacheCleanUpThread);
+	}
+	pthread_mutex_unlock(&mCondVarMutex);
 }
 
 
