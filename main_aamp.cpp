@@ -918,11 +918,11 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 		if (!mAppName.empty())
 		{
-			logprintf("APP: %s %s PLAYER[%d] Sending error %s ", mAppName.c_str(),(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] APP: %s Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str(), e.data.mediaError.description);
 		}
 		else
 		{
-			logprintf("%s PLAYER[%d] Sending error %s ",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		SendEventAsync(e);
 	}
@@ -1181,7 +1181,9 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	
 			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
 			// GStreamer position reporting is taken care of.
-			if (injectedPosition != 0 && fabs(injectedPosition - newPosition) < 5.0)
+			// BCOM-4765: Set seek_pos_seconds to injected position only in case of westerossink. In cases with
+			// brcmvideodecoder, we have noticed a drift of 500ms for HLS-TS assets (due to PTS restamping
+			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && mWesterosSinkEnabled)
 			{
 				seek_pos_seconds = injectedPosition;
 			}
@@ -1381,7 +1383,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 {
 	bool success = true; // TODO
 	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName);
+	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
     if(!IsTSBSupported())
@@ -2513,6 +2515,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				double fragmentDurationSeconds 	)
 {
 	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
+	MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(fileType);
 	long http_code = -1;
 	bool ret = false;
 	int downloadAttempt = 0;
@@ -2520,8 +2523,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	CURL* curl = this->curl[curlInstance];
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
-	long long fragmentDurationMs = 0;
-
+	int fragmentDurationMs = (int)(fragmentDurationSeconds*1000);/*convert to MS */
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO)
 	{
 		maxDownloadAttempt += mInitFragmentRetryCount;
@@ -2542,7 +2544,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	}
 	if (mDownloadsEnabled)
 	{
-		long long downloadTimeMS = 0;
+		int downloadTimeMS = 0;
 		bool isDownloadStalled = false;
 		CurlAbortReason abortReason = eCURL_ABORT_REASON_NONE;
 		double connectTime = 0;
@@ -2560,7 +2562,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
-		AAMPLOG_INFO("aamp url: %s", remoteUrl.c_str());
+		AAMPLOG_INFO("aamp url:%d,%d,%s",mediaType, simType, remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
 		{
@@ -2689,7 +2691,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
 
-				downloadTimeMS = tEndTime - tStartTime;
+				downloadTimeMS = (int)(tEndTime - tStartTime);
 				bool loopAgain = false;
 				if (res == CURLE_OK)
 				{ // all data collected
@@ -2742,7 +2744,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					if (fragmentDurationSeconds != 0.0)
 					{ 
 						/*in case of fetch fragment this will be non zero value */
-						fragmentDurationMs = (long long)(fragmentDurationSeconds*1000);/*convert to MS */
 						if (downloadTimeMS > fragmentDurationMs )
 						{
 							AAMP_LOG_NETWORK_LATENCY (effectiveUrl.c_str(), downloadTimeMS, fragmentDurationMs, simType);
@@ -2783,20 +2784,32 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 							if( simType == eMEDIATYPE_MANIFEST ||
 								simType == eMEDIATYPE_AUDIO ||
 							    simType == eMEDIATYPE_INIT_VIDEO ||
+							    simType == eMEDIATYPE_PLAYLIST_AUDIO ||
 							    simType == eMEDIATYPE_INIT_AUDIO )
 							{ // always retry small, critical fragments on timeout
 								loopAgain = true;
 							}
 							else
 							{
-								double buffer = mpStreamAbstractionAAMP->GetBufferedDuration();
+								double buffervalue = mpStreamAbstractionAAMP->GetBufferedDuration();
 								// buffer is -1 when sesssion not created . buffer is 0 when session created but playlist not downloaded
-								if( buffer == -1.0 || buffer == 0 || (buffer*1000 > curlDownloadTimeoutMS) )
+								if( buffervalue == -1.0 || buffervalue == 0 || buffervalue*1000 > (curlDownloadTimeoutMS + fragmentDurationMs))
 								{
 									// GetBuffer will return -1 if session is not created
 									// Check if buffer is available and more than timeout interval then only reattempt
-									// Not to retry download if there is no buffer left
+									// Not to retry download if there is no buffer left									
 									loopAgain = true;
+									if(simType == eMEDIATYPE_VIDEO)
+									{
+										if(buffer->len)
+										{
+											long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
+											long currentProfilebps	= mpStreamAbstractionAAMP->GetVideoBitrate();
+											if(currentProfilebps - downloadbps >  BITRATE_ALLOWED_VARIATION_BAND)
+												loopAgain = false;
+										}
+										curlDownloadTimeoutMS = mNetworkTimeoutMs;	
+									}																		
 								}
 							}
 						}						
@@ -2811,6 +2824,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					*/
 					http_code = res;
 
+					#if 0
 					if (isDownloadStalled)
 					{
 						AAMPLOG_INFO("Curl download stall detected - curl result:%d abortReason:%d downloadTimeMS:%lld curlTimeout:%ld", res, progressCtx.abortReason,
@@ -2818,6 +2832,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						//To avoid updateBasedonFragmentCached being called on rampdown and to be discarded from ABR
 						http_code = CURLE_PARTIAL_FILE;
 					}
+					#endif
 				}
 
 				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
@@ -2847,7 +2862,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 					curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 
-					MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(simType);
 					std::string appName, timeoutClass;
 					if (!mAppName.empty())
 					{
@@ -2874,7 +2888,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		{
 			if (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)
 			{
-				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%lld and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
+				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%d and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
 			}
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
@@ -2885,7 +2899,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
 					// extra coding to avoid picking lower profile
-					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%lld fragmentDurationMs:%lld",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
+					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%d fragmentDurationMs:%d",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
 					if(fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && downloadbps < currentProfilebps)
 					{
 						downloadbps = currentProfilebps;
@@ -3337,7 +3351,22 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
 			// uri = "frag-787563519.ts"
 			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
-			pos = dst.rfind('/');
+			pos = std::string::npos;
+			const char *ptr = dst.c_str();
+			std::size_t idx = 0;
+			for(;;)
+			{
+				char c = ptr[idx];
+				if( c=='/' )
+				{ // remember final '/'
+					pos = idx;
+				}
+				else if( c == '?' || c==0 )
+				{ // bail if we find uri param delimiter or reach end of stream
+					break;
+				}
+				idx++;
+			}
 		}
 
 		assert(pos!=std::string::npos);
@@ -5305,7 +5334,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
 		if (!mAppName.empty())
 		{
-			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s %s PLAYER[%d]", mAppName.c_str(), (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "%s PLAYER[%d] APP: %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str());
 		}
 		else
 		{
