@@ -1776,6 +1776,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				if (!mInjectInitFragment)
 					playTarget = playlistPosition + fragmentDurationSeconds;
+
 				if (IsLive())
 				{
 					context->CheckForPlaybackStall(true);
@@ -1862,6 +1863,11 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				}
 				aamp_Free(&cachedFragment->fragment.ptr);
 				return false;
+			}
+			else
+			{
+				// increment the buffer value after download 
+				playTargetBufferCalc += fragmentDurationSeconds;
 			}
 
 			if((eTRACK_VIDEO == type)  && (aamp->IsTSBSupported()))
@@ -3586,8 +3592,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 						AAMPLOG_WARN("%s:%d (audio != video) - vid start: %f, audio start: %f", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget );
 					}
 
-					seekPosition = video->playTarget;
-
+					SeekPosUpdate(video->playTarget);					
+					
 					AAMPLOG_WARN("%s:%d VP: %f, AP: %f, seek_pos_seconds changed to %f based on video playTarget", __FUNCTION__, __LINE__, video->playTarget, audio->playTarget, seekPosition);
 
 					retVal = eAAMPSTATUS_OK;
@@ -3907,6 +3913,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 			retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
 		}
 	}
+	// New calculated playTarget assign back for buffer calculation
+	video->playTargetBufferCalc = video->playTarget;
 	if (subtitle->enabled)
 	{
 		logprintf("syncTracks Exit : audio track start %f, vid track start %f sub track start %f", audio->playTarget, video->playTarget, subtitle->playTarget);
@@ -4101,6 +4109,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			TrackState *ts = trackState[iTrack];
 			ts->playlistPosition = -1;
 			ts->playTarget = seekPosition;
+			ts->playTargetBufferCalc = seekPosition;
 			if (iTrack == eTRACK_SUBTITLE && !aamp->IsSubtitleEnabled())
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d subtitles disabled by application", __FUNCTION__, __LINE__);
@@ -4576,6 +4585,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			trackState[iTrack]->playTarget = seekPosition;
+			trackState[iTrack]->playTargetBufferCalc = seekPosition;
 		}
 
 		if ((video->enabled && video->mDuration == 0.0f) || (audio->enabled && audio->mDuration == 0.0f))
@@ -4730,13 +4740,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// pick the min of video/audio offset
 				offsetToLive = (std::min)(offsetToLiveVideo,offsetToLiveAudio);
 				video->playTarget += offsetToLive;
+				video->playTargetBufferCalc = video->playTarget;
 				if (audio->enabled )
 				{
 					audio->playTarget += offsetToLive;
+					audio->playTargetBufferCalc = audio->playTarget;
 				}
 				if (subtitle->enabled)
 				{
 					subtitle->playTarget += offsetToLive;
+					subtitle->playTargetBufferCalc = subtitle->playTarget;
 				}
 				// Entering live will happen if offset is adjusted , if its 0 playback is starting from beginning
 				if(offsetToLive)
@@ -4751,6 +4764,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			//Set live adusted position to seekPosition
 			SeekPosUpdate(video->playTarget);
+			
 		}
 		/*Adjust for discontinuity*/
 		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
@@ -4795,12 +4809,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [video] playTarget(%f) advance to discontinuity(%f)",
 										__FUNCTION__, __LINE__, video->playTarget, videoPrevDiscontinuity);
 								video->playTarget = videoPrevDiscontinuity;
+								video->playTargetBufferCalc = video->playTarget;
 							}
 							if (audio->playTarget < audioPrevDiscontinuity)
 							{
 								logprintf( "StreamAbstractionAAMP_HLS::%s:%d : [audio] playTarget(%f) advance to discontinuity(%f)",
 										__FUNCTION__, __LINE__, audio->playTarget, audioPrevDiscontinuity);
 								audio->playTarget = audioPrevDiscontinuity;
+								audio->playTargetBufferCalc = audio->playTarget;
 							}
 							break;
 						}
@@ -4838,6 +4854,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				video->fragmentURI = video->GetNextFragmentUriFromPlaylist(true);
 				video->playTarget = video->playlistPosition;
+				video->playTargetBufferCalc = video->playTarget;
 			}
 			double offset = (video->playlistPosition - seekPosition) * 1000.0;
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting setProgressEventOffset value of %.3f ms", __FUNCTION__, __LINE__, offset);
@@ -4860,10 +4877,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
 					ts->playTarget = ts->playlistPosition;
+					ts->playTargetBufferCalc = ts->playTarget;
 				}
 			}
 			//Set live adusted position to seekPosition
 			SeekPosUpdate(video->playTarget);
+			
 			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
 		}
 		
@@ -5015,7 +5034,7 @@ double StreamAbstractionAAMP_HLS::GetBufferedDuration()
 
 double TrackState::GetBufferedDuration()
 {
-	return (playTarget - (aamp->GetPositionMs() / 1000));
+	return (playTargetBufferCalc - (aamp->GetPositionMs() / 1000));
 }
 
 
@@ -5099,6 +5118,7 @@ void TrackState::RunFetchLoop()
 				{
 					AAMPLOG_INFO("%s:%d: Refreshing playlist as maximum refresh delay exceeded", __FUNCTION__, __LINE__);
 					RefreshPlaylist();
+					refreshPlaylist = false;
 				}
 #ifdef TRACE
 				else
@@ -5273,7 +5293,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name) :
 		MediaTrack(type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
-		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),
+		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),playTargetBufferCalc(0),
 		streamOutputFormat(FORMAT_NONE), playContext(NULL),
 		playTargetOffset(0),
 		discontinuity(false),
