@@ -28,6 +28,7 @@
 #include <math.h>
 #include <iterator>
 #include <sys/time.h>
+#include <cmath>
 
 #ifdef USE_MAC_FOR_RANDOM_GEN
 #include <sys/types.h>
@@ -949,7 +950,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),
+		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(gpGlobalConfig->abrCacheLength),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0)
 {
@@ -1114,8 +1115,11 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 		else
 		{
 			// Rampdown attempt. check if buffer availability is good before profile change
+			// Also if delta of current profile to new profile is 1 , then ignore the change
+			// if bigger rampdown , then adjust to new profile 
 			// else retain current profile
-			if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
+			double minBufferNeeded = video->fragmentDurationSeconds + aamp->mNetworkTimeoutMs/1000;
+			if(bufferValue > minBufferNeeded && mAbrManager.getRampedDownProfileIndex(currProfileIndex) == newProfileIndex)
 				newProfileIndex = currProfileIndex;
 		}
 	}
@@ -1129,17 +1133,23 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
 		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
-		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
+		if(bufferValue > gpGlobalConfig->maxABRBufferForRampUp)
 		{
 			mABRHighBufferCounter++;
 			mABRLowBufferCounter = 0 ;
-			if(mABRHighBufferCounter > gpGlobalConfig->abrCacheLength)
+			if(mABRHighBufferCounter > mMaxBufferCountCheck)
 			{
-				newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				int nProfileIdx =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				long newBandwidth = GetStreamInfo(nProfileIdx)->bandwidthBitsPerSecond;
+				if(newBandwidth - nwBandwidth < 2000000)
+					newProfileIndex = nProfileIdx;
 				if(newProfileIndex  != currProfileIndex)
 				{
-					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
+					static int loop = 1;
+					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f",__FUNCTION__,
 					currProfileIndex,newProfileIndex,bufferValue);
+					loop = (++loop >4)?1:loop;
+					mMaxBufferCountCheck =  pow(gpGlobalConfig->abrCacheLength ,loop);
 				}
 				// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
 				// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
@@ -1338,6 +1348,8 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 		// Send abr notification to XRE
 		video->ABRProfileChanged();
+		mABRLowBufferCounter = 0 ;
+		mABRHighBufferCounter = 0;
 	}
 
 	return ret;
@@ -1542,6 +1554,8 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 		video->SetCurrentBandWidth(newBW);
 		aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
+		mABRLowBufferCounter = 0 ;
+		mABRHighBufferCounter = 0;
 		retVal = true;
 	}
 	return retVal;
@@ -1678,6 +1692,8 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 			long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 			video->SetCurrentBandWidth(newBW);
 			aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
+			mABRLowBufferCounter = 0 ;
+			mABRHighBufferCounter = 0;
 		}
 	}
 }
