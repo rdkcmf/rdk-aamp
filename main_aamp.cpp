@@ -7635,9 +7635,10 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	// Set the state to released as all resources are released for the session
+	// Set the state to eSTATE_IDLE
 	// directly setting state variable . Calling SetState will trigger event :(
-	mState = eSTATE_RELEASED;
+	mState = eSTATE_IDLE;
+  
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 	// send signal to any thread waiting for play
