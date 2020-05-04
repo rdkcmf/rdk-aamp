@@ -125,7 +125,7 @@ void AampClearKeyHelper::transformLicenseResponse(std::shared_ptr<DrmData> licen
 bool AampClearKeyHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 {
 	return ((drmInfo.method == eMETHOD_AES_128) &&
-			((drmInfo.mediaFormat == eMEDIAFORMAT_HLS) || (drmInfo.mediaFormat == eMEDIAFORMAT_DASH) ||
+			((drmInfo.mediaFormat == eMEDIAFORMAT_DASH) ||
 			(drmInfo.mediaFormat == eMEDIAFORMAT_HLS_MP4))
 		);
 }
