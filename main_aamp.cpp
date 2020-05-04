@@ -3286,7 +3286,22 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
 			// uri = "frag-787563519.ts"
 			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
-			pos = dst.rfind('/');
+			pos = std::string::npos;
+			const char *ptr = dst.c_str();
+			std::size_t idx = 0;
+			for(;;)
+			{
+				char c = ptr[idx];
+				if( c=='/' )
+				{ // remember final '/'
+					pos = idx;
+				}
+				else if( c == '?' || c==0 )
+				{ // bail if we find uri param delimiter or reach end of stream
+					break;
+				}
+				idx++;
+			}
 		}
 
 		assert(pos!=std::string::npos);
