@@ -2959,11 +2959,11 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		bool bPauseNeeded = false;
-
-		gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
-
-		if (current != GST_STATE_PLAYING && current != GST_STATE_PAUSED)
+		GstStateChangeReturn ret;
+		ret = gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+		if ((current != GST_STATE_PLAYING && current != GST_STATE_PAUSED) || ret == GST_STATE_CHANGE_FAILURE)
 		{
+			logprintf("AAMPGstPlayer::%s:%d Pipeline state %s, ret %u", __FUNCTION__, __LINE__, gst_element_state_get_name(current), ret);
 			if (shouldTearDown)
 			{
 				logprintf("AAMPGstPlayer::%s:%d Pipeline is not in playing/paused state, hence resetting it", __FUNCTION__, __LINE__);
@@ -2973,7 +2973,23 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		else
 		{
-			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+			/* BCOM-3563, pipeline may enter paused state even when audio decoder is not ready, check again */
+			if (privateContext->audio_dec)
+			{
+				GstState aud_current, aud_pending;
+				ret = gst_element_get_state(privateContext->audio_dec, &aud_current, &aud_pending, 0);
+				if ((aud_current != GST_STATE_PLAYING && aud_current != GST_STATE_PAUSED) || ret == GST_STATE_CHANGE_FAILURE)
+				{
+					if (shouldTearDown)
+					{
+						logprintf("AAMPGstPlayer::%s:%d Pipeline is in playing/paused state, but audio_dec is in %s state, resetting it ret %u\n",
+							 __FUNCTION__, __LINE__, gst_element_state_get_name(aud_current), ret);
+						Stop(true);
+						return;
+					}
+				}
+			}
+			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f ret %d\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position, ret);
 
 			if ((aamp->getStreamType() < 20) && (current == GST_STATE_PAUSED))
 			{
