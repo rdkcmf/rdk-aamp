@@ -142,9 +142,6 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 #define DEFAULT_PRECACHE_WINDOW (10) 	// 10 mins for full precaching
-
-#define DEFAULT_DOWNLOAD_RETRY_COUNT (1)		// max download failure retry attempt count
-
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -651,7 +648,6 @@ public:
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	char *pcustomHeader;	/*** custom header data to be appended to curl request */
-	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 public:
 
 	/**
@@ -715,7 +711,6 @@ public:
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
-		,initFragmentRetryCount(-1)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -1713,7 +1708,6 @@ public:
 
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
 	int mReportProgressInterval;					// To store the refresh interval in millisec
-	int mInitFragmentRetryCount;		// max attempts for init frag curl timeout failures
 	bool mUseAvgBandwidthForABR;
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -2805,14 +2799,6 @@ public:
 	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
 	 */
 	void SetReportInterval(int reportIntervalMS);
-
-	/**
-	 *	 @brief To set the max retry attempts for init frag curl timeout failures
-	 *
-	 *	 @param  count - max attempt for timeout retry count
-	 */
-	void SetInitFragTimeoutRetryCount(int count);
-
 	/**
 	 *   @brief Send stalled error
 	 *
@@ -3000,12 +2986,6 @@ public:
 	 *
 	 */
 	void ConfigurePreCachePlaylist();
-
-	/**
-	 *	 @brief Function to set the max retry attempts for init frag curl timeout failures
-	 *
-	 */
-	void ConfigureInitFragTimeoutRetryCount();
 
 	/**
 	 *	 @brief To set westeros sink configuration

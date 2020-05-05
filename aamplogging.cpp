@@ -175,69 +175,48 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
  */
 void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type)
 {
-	static const char *mMediaTypes[eMEDIATYPE_DEFAULT] = { // enum MediaType
-						"VIDEO",
-						"AUDIO",
-						"SUBTITLE",
-						"MANIFEST",
-						"LICENCE",
-						"IFRAME",
-						"INIT_VIDEO",
-						"INIT_AUDIO",
-						"INIT_SUBTITLE",
-						"PLAYLIST_VIDEO",
-						"PLAYLIST_AUDIO",
-						"PLAYLIST_SUBTITLE",
-						"PLAYLIST_IFRAME",
-						"INIT_IFRAME"};
-
-	contentType = "unknown";
-	symptom = "unknown";
-	location = "unknown";
-
-	if (type < eMEDIATYPE_DEFAULT)
-	{
-		contentType = mMediaTypes[type];
-	}
+	contentType="unknown";
+	location="unknown";
+	symptom="unknown";
 
 	switch (type)
 	{
 		case eMEDIATYPE_MANIFEST:
 		{
+			contentType = "main manifest";
 			symptom = "video fails to start, has delayed start or freezes/buffers";
-		}
-			break;
-
-		case eMEDIATYPE_PLAYLIST_VIDEO:
-		case eMEDIATYPE_PLAYLIST_AUDIO:
-		case eMEDIATYPE_PLAYLIST_IFRAME:
-		{
-			symptom = "video fails to start or freeze/buffering";
 		}
 			break;
 
 		case eMEDIATYPE_INIT_VIDEO:
 		case eMEDIATYPE_INIT_AUDIO:
 		case eMEDIATYPE_INIT_IFRAME:
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+		case eMEDIATYPE_PLAYLIST_IFRAME:
 		{
-			symptom = "video fails to start";
+			contentType = "sub manifest";
+			symptom = "video fails to start or freeze/buffering";
 		}
 			break;
 
 		case eMEDIATYPE_VIDEO:
 		{
+			contentType = "video segment";
 			symptom = "freeze/buffering";
 		}
 			break;
 
 		case eMEDIATYPE_AUDIO:
 		{
+			contentType = "audio segment";
 			symptom = "audio drop or freeze/buffering";
 		}
 			break;
 
 		case eMEDIATYPE_IFRAME:
 		{
+			contentType = "iframe";
 			symptom = "trickplay ends or freezes";
 		}
 			break;
