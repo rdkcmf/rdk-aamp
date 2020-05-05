@@ -441,16 +441,15 @@ std::shared_ptr<AesDec> AesDec::GetInstance()
  * @retval
  */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
-		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(nullptr),
+		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(""),
 		mCond(), mMutex(), mOpensslCtx(),
 		mDrmInfo(), mAesKeyBuf(), mCurlInstance(-1),
-		licenseAcquisitionThreadId(),
+		licenseAcquisitionThreadId(0),
 		licenseAcquisitionThreadStarted(false)
 {
 	pthread_cond_init(&mCond, NULL);
 	pthread_mutex_init(&mMutex, NULL);
 	EVP_CIPHER_CTX_init(&mOpensslCtx);
-	memset( &mDrmInfo, 0 , sizeof(DrmInfo));
 }
 
 
