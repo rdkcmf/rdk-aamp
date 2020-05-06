@@ -682,10 +682,39 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 		}
 	}
 
-	// Elevate widevine if required
-	if (aamp->GetPreferredDRM() == eDRM_WideVine)
+	// Get the highest number
+	for (auto const& pair: mDrmPrefs)
 	{
-		mDrmPrefs[WIDEVINE_SYSTEM_ID] = highestPref+1;
+		if(pair.second > highestPref)
+		{
+			highestPref = pair.second;
+		}
+	}
+
+	// Give preference based on GetPreferredDRM.
+	switch (aamp->GetPreferredDRM())
+	{
+		case eDRM_WideVine:
+		{
+			AAMPLOG_INFO("DRM Selected: WideVine");
+			mDrmPrefs[WIDEVINE_SYSTEM_ID] = highestPref+1;
+		}
+			break;
+
+		case eDRM_ClearKey:
+		{
+			AAMPLOG_INFO("DRM Selected: ClearKey");
+			mDrmPrefs[CLEARKEY_SYSTEM_ID] = highestPref+1;
+		}
+			break;
+
+		case eDRM_PlayReady:
+		default:
+		{
+			AAMPLOG_INFO("DRM Selected: PlayReady");
+			mDrmPrefs[PLAYREADY_SYSTEM_ID] = highestPref+1;
+		}
+			break;
 	}
 
 	logprintf("DRM prefs");
