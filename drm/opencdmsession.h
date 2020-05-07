@@ -47,14 +47,14 @@ private:
 	void initAampDRMSession();
 
 public:
-    AAMPOCDMSession(string& keySystem);
+    AAMPOCDMSession(const string& keySystem);
 	~AAMPOCDMSession();
 	AAMPOCDMSession(const AAMPOCDMSession&) = delete;
 	AAMPOCDMSession& operator=(const AAMPOCDMSession&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
 			uint32_t f_cbInitData);
-	DrmData * aampGenerateKeyRequest(string& destinationURL);
-	int aampDRMProcessKey(DrmData* key);
+	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
+	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
 	KeyState getState();

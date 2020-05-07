@@ -28,10 +28,19 @@
 #include <pthread.h>
 #include "_base64.h"
 #include <iostream>
+#include "AampMutex.h"
+#include "AampDrmHelper.h"
+#include "AampJsonObject.h"
+
+
 //#define LOG_TRACE 1
-#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"
-#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1"
-#define LICENCE_RESPONSE_JSON_LICENCE_KEY "license\":\""
+#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
+#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE "application/vnd.xcal.mds.licenseResponse+json; version=1"
+
+#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
+#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE "application/vnd.xcal.mds.licenseRequest+json; version=1"
+
+#define LICENCE_RESPONSE_JSON_LICENCE_KEY "license"
 #ifdef USE_SECCLIENT
 #define COMCAST_QA_DRM_LICENCE_SERVER_URL "mds-qa.ccp.xcal.tv"
 #define COMCAST_DRM_LICENCE_SERVER_URL "mds.ccp.xcal.tv"
@@ -46,11 +55,14 @@
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
 #define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
+#define INVALID_SESSION_SLOT -1
+#define DEFUALT_CDM_WAIT_TIMEOUT_MS 2000
+
 static const char *sessionTypeName[] = {"video", "audio"};
 
 static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
 
-KeyID::KeyID() : len(0), data(NULL), creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
+KeyID::KeyID() : creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
 {
 }
 
@@ -124,22 +136,17 @@ void AampDRMSessionManager::clearSessionData()
 	logprintf("%s:%d AampDRMSessionManager:: Clearing session data", __FUNCTION__, __LINE__);
 	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if(drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
+		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
-			delete drmSessionContexts[i].data;
-			drmSessionContexts[i].data = NULL;
-			drmSessionContexts[i].dataLength = 0;
 			delete drmSessionContexts[i].drmSession;
-			drmSessionContexts[i].drmSession = NULL;
+			drmSessionContexts[i] = DrmSessionContext();
 		}
-		if(cachedKeyIDs != NULL && cachedKeyIDs[i].data != NULL)
+
+		if (cachedKeyIDs != NULL)
 		{
-			delete cachedKeyIDs[i].data;
-			cachedKeyIDs[i].data = NULL;
-			cachedKeyIDs[i].len = 0;
+			cachedKeyIDs[i] = KeyID();
 		}
 	}
-
 	if (drmSessionContexts != NULL)
 	{
 		delete[] drmSessionContexts;
@@ -189,11 +196,9 @@ void AampDRMSessionManager::clearFailedKeyIds()
 	pthread_mutex_lock(&cachedKeyMutex);
 	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if(cachedKeyIDs[i].data != NULL && cachedKeyIDs[i].isFailedKeyId)
+		if((!cachedKeyIDs[i].data.empty()) && cachedKeyIDs[i].isFailedKeyId)
 		{
-			delete cachedKeyIDs[i].data;
-			cachedKeyIDs[i].data = NULL;
-			cachedKeyIDs[i].len = 0;
+			cachedKeyIDs[i].data.clear();
 			cachedKeyIDs[i].isFailedKeyId = false;
 			cachedKeyIDs[i].creationTime = 0;
 		}
@@ -411,11 +416,96 @@ static void mssleep(int milliseconds)
 	}
 }
 
+
+#ifdef USE_SECCLIENT
+DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
+		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
+{
+	DrmData *licenseResponse = nullptr;
+	const char *mediaUsage = "stream";
+	string contentMetaData = drmHelper->getDrmMetaData();
+	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());
+	char *encodedChallengeData = base64_Encode(challengeInfo.data->getData(), challengeInfo.data->getDataLength());
+	const char *keySystem = drmHelper->ocdmSystemId().c_str();
+	const char *secclientSessionToken = challengeInfo.accessToken.c_str();
+
+	int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
+	char *licenseResponseStr = NULL;
+	size_t licenseResponseLength = 2;
+	uint32_t refreshDuration = 3;
+	SecClient_ExtendedStatus statusInfo;
+	const char *requestMetadata[1][2];
+	std::string moneytracestr;
+	requestMetadata[0][0] = "X-MoneyTrace";
+	aampInstance->GetMoneyTraceString(moneytracestr);
+	requestMetadata[0][1] = moneytracestr.c_str();
+
+	logprintf("[HHH] Before calling SecClient_AcquireLicense-----------");
+	logprintf("destinationURL is %s", licenseRequest.url.c_str());
+	logprintf("MoneyTrace[%s]", requestMetadata[0][1]);
+	//logprintf("encodedData is %s, length=%d", encodedData, strlen(encodedData));
+	//logprintf("licenseRequest is %s", licenseRequest);
+	logprintf("keySystem is %s", keySystem);
+	//logprintf("mediaUsage is %s", mediaUsage);
+	//logprintf("sessionToken is %s", sessionToken);
+	unsigned int attemptCount = 0;
+	int sleepTime = gpGlobalConfig->licenseRetryWaitTime;
+				if(sleepTime<=0) sleepTime = 100;
+	while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+	{
+		attemptCount++;
+		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
+							requestMetadata, 0, NULL,
+							encodedData,
+							strlen(encodedData),
+							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
+							secclientSessionToken,
+							&licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
+
+		if (((sec_client_result >= 500 && sec_client_result < 600)||
+			(sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
+			&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+		{
+			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+			if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
+			mssleep(sleepTime);
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (gpGlobalConfig->logging.debug)
+	{
+		logprintf("licenseResponse is %s", licenseResponseStr);
+		logprintf("licenseResponse len is %zd", licenseResponseLength);
+		logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
+		logprintf("refreshDuration is %d", refreshDuration);
+	}
+
+	if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
+	{
+		logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+		*httpCode = sec_client_result;
+	}
+	else
+	{
+		logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
+		eventHandle->type = AAMP_EVENT_DRM_METADATA;
+		eventHandle->data.dash_drmmetadata.accessStatus_value = statusInfo.accessAttributeStatus;
+		licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+	}
+	if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+
+	return licenseResponse;
+}
+#endif
 /**
  *  @brief		Get DRM license key from DRM server.
  *
- *  @param[in]	keyChallenge - Structure holding license request and it's length.
- *  @param[in]	destinationURL - Destination url to which request is send.
+ *  @param[in]	licenseRequest - License request details (URL, headers etc.)
  *  @param[out]	httpCode - Gets updated with http error; default -1.
  *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
  *  			are to be used.
@@ -428,10 +518,9 @@ static void mssleep(int milliseconds)
  *			customHeader ownership should be taken up by getLicense function
  *
  */
-DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
+DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
+		long *httpCode, bool isComcastStream, char* licenseProxy)
 {
-
 	*httpCode = -1;
 	CURL *curl;
 	CURLcode res;
@@ -441,46 +530,22 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	writeCallbackData *callbackData = new writeCallbackData();
 	callbackData->data = keyInfo;
 	callbackData->mDRMSessionManager = this;
-	const long challegeLength = keyChallenge->getDataLength();
-	char* destURL = new char[destinationURL.length() + 1];
-	long long downloadTimeMS = 0;
+	long challengeLength = 0;
+    long long downloadTimeMS = 0;
+    
 	curl = curl_easy_init();
-	if (customHeader != NULL)
+
+	for (auto& header : licenseRequest.headers)
 	{
-		headers = customHeader;
+		std::string customHeaderStr = header.first;
+		customHeaderStr.push_back(' ');
+		// For scenarios with multiple header values, its most likely a custom defined.
+		// Below code will have to extended to support the same (eg: money trace headers)
+		customHeaderStr.append(header.second.at(0));
+		headers = curl_slist_append(headers, customHeaderStr.c_str());
 	}
 
-	if(isComcastStream)
-	{
-		headers = curl_slist_append(headers, COMCAST_LICENCE_REQUEST_HEADER_ACCEPT);
-		headers = curl_slist_append(headers, COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE);
-		headers = curl_slist_append(headers, "Expect:");
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "AAMP/1.0.0");
-	//	headers = curl_slist_append(headers, "X-MoneyTrace: trace-id=226c94fc4d-3535-4945-a173-61af53444a3d;parent-id=4557953636469444377;span-id=803972323171353973");
-	}
-	else if(customHeader == NULL)
-	{
-		if(drmSystem == eDRM_WideVine)
-		{
-			AAMPLOG_WARN("No custom header, setting default for Widevine");
-			headers = curl_slist_append(headers,"Content-Type: application/octet-stream");
-		}
-		else if (drmSystem == eDRM_PlayReady)
-		{
-			AAMPLOG_WARN("No custom header, setting default for Playready");
-			headers = curl_slist_append(headers,"Content-Type: text/xml; charset=utf-8");
-		}
-		else
-		{
-			AAMPLOG_WARN("!!! Custom header is missing and default is not processed.");
-		}
-	}
-
-	strcpy((char*) destURL, destinationURL.c_str());
-
-	//headers = curl_slist_append(headers, destURL);
-
-	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, destinationURL.c_str());
+	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, licenseRequest.url.c_str());
 	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
@@ -488,12 +553,22 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
 	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_URL, destURL);
+	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challegeLength);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )keyChallenge->getData());
+
+	if(licenseRequest.method == AampLicenseRequest::POST)
+	{
+		challengeLength = licenseRequest.payload.size();
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challengeLength);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )licenseRequest.payload.data());
+	}
+	else
+	{
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+	}
+
 	if (licenseProxy)
 	{
 		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy);
@@ -509,7 +584,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		long long tStartTime = NOW_STEADY_TS_MS;
 		res = curl_easy_perform(curl);
 		long long tEndTime = NOW_STEADY_TS_MS;
-		downloadTimeMS = tEndTime - tStartTime;
+		long long downloadTimeMS = tEndTime - tStartTime;
 		if (res != CURLE_OK)
 		{
 			// To avoid scary logging
@@ -576,7 +651,7 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 
 		AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
-				destinationURL.c_str(),
+				licenseRequest.url.c_str(),
 				totalPerformRequest,
 				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
 
@@ -590,32 +665,11 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		keyInfo = NULL;
 	}
 
-	delete destURL;
 	delete callbackData;
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 
 	return keyInfo;
-}
-
-/**
- *  @brief		Overloaded version of createDrmSession where contentMetadataPtr is not there
- *  			Called from gstaampopencdmiplugins.
- *
- *  @param[in]	systemId - UUID of the DRM system.
- *  @param[in]	initDataPtr - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	streamType - Whether audio or video.
- *  @param[in]	aamp - Pointer to PrivateInstanceAAMP, for DRM related profiling.
- *  @param[out]	error_code - Gets updated with proper error code, if session creation fails.
- *  			No NULL checks are done for error_code, caller should pass a valid pointer.
- *  @return		Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
- */
-AampDrmSession * AampDRMSessionManager::createDrmSession(
-		const char* systemId, const unsigned char * initDataPtr,
-		uint16_t dataLength, MediaType streamType, PrivateInstanceAAMP* aamp,  AAMPEvent *e)
-{
-	return createDrmSession(systemId, initDataPtr, dataLength, streamType, NULL, aamp, e);
 }
 
 /**
@@ -639,628 +693,566 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
  *  @return		Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
  */
 AampDrmSession * AampDRMSessionManager::createDrmSession(
-		const char* systemId, const unsigned char * initDataPtr,
-		uint16_t dataLength, MediaType streamType,
-		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPEvent *e, bool isPrimarySession)
+		const char* systemId, MediaFormat mediaFormat, const unsigned char * initDataPtr,
+		uint16_t initDataLen, MediaType streamType,
+		PrivateInstanceAAMP* aamp, AAMPEvent *e, const unsigned char* contentMetadataPtr,
+		bool isPrimarySession)
 {
-	KeyState code = KEY_CLOSED;
-	long responseCode = -1;
-	unsigned char * contentMetaData = NULL;
-	int contentMetaDataLen = 0;
-	unsigned char *keyId = NULL;
-	int keyIdLen = 0;
-	string destinationURL;
-	DrmData * key = NULL;
-	bool keySlotFound = false;
-	bool isCachedKeyId = false;
-	int sessionSlot = 0;
-	int processKeyRetValue = -1;
-	if(gpGlobalConfig->logging.debug)
-	{
-		logprintf("%s:%d Received DRM Session request, Init Data length  : %d", __FUNCTION__, __LINE__,dataLength);
-		logprintf("%s:%d Printing InitData from %s stream ", __FUNCTION__, __LINE__,systemId,sessionTypeName[streamType]);
-		for (int i = 0; i < dataLength; ++i)
-			cout <<(char)initDataPtr[i];
-		cout << endl;
-	}
+	DrmInfo drmInfo;
+	std::shared_ptr<AampDrmHelper> drmHelper;
+	AampDrmSession *drmSession = NULL;
 
-	e->data.dash_drmmetadata.accessStatus = "accessAttributeStatus";
-	e->data.dash_drmmetadata.accessStatus_value = 3;
-	e->data.dash_drmmetadata.responseCode = 0;
+	drmInfo.method = eMETHOD_AES_128;
+	drmInfo.mediaFormat = mediaFormat;
+	drmInfo.systemUUID = systemId;
 
-	if(!(eMEDIATYPE_VIDEO == streamType || eMEDIATYPE_AUDIO == streamType))
+	if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 	{
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_UNSUPPORTED_STREAM_TYPE;
-		return NULL;
-	}
-
-	const char *keySystem = NULL;
-	DRMSystems drmType = eDRM_NONE;
-	if (!strncmp(systemId, PLAYREADY_PROTECTION_SYSTEM_ID, sizeof(PLAYREADY_PROTECTION_SYSTEM_ID)))
-	{
-		AAMPLOG_INFO("%s:%d [HHH]systemId is PLAYREADY", __FUNCTION__, __LINE__);
-		drmType = eDRM_PlayReady;
-#ifdef USE_SECCLIENT
-		keySystem = SEC_CLIENT_PLAYREADY_KEYSYSTEMID;
-#else
-		keySystem = PLAYREADY_KEY_SYSTEM_STRING;
-#endif
-	}
-	else if (!strncmp(systemId, WIDEVINE_PROTECTION_SYSTEM_ID, sizeof(WIDEVINE_PROTECTION_SYSTEM_ID)))
-	{
-#ifdef USE_SECCLIENT
-		keySystem = SEC_CLIENT_WIDEVINE_KEYSYSTEMID;
-#else
-		keySystem = WIDEVINE_KEY_SYSTEM_STRING;
-#endif
-		AAMPLOG_INFO("%s:%d [HHH]systemId is Widevine", __FUNCTION__, __LINE__);
-		drmType = eDRM_WideVine;
-	}
-	else if (!strncmp(systemId, CLEARKEY_PROTECTION_SYSTEM_ID, sizeof(CLEARKEY_PROTECTION_SYSTEM_ID)))
-	{
-		keySystem = CLEAR_KEY_SYSTEM_STRING;
-		drmType = eDRM_ClearKey;
+		logprintf("%s:%d Failed to locate DRM helper", __FUNCTION__, __LINE__);
 	}
 	else
 	{
-		logprintf("Unsupported systemid: %s !", systemId);
-	}
-	logprintf("keysystem is %s", keySystem);
+		drmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
-	keyId = aamp_ExtractKeyIdFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength, &keyIdLen, drmType);
-
-	if (keyId == NULL)
-	{
-		logprintf("%s:%d Key Id not found in initdata", __FUNCTION__, __LINE__);
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_KEYID;
-		return NULL;
-	}
-
-	pthread_mutex_lock(&cachedKeyMutex);
-
-	/*Find drmSession slot by going through cached keyIds */
-
-	/* Check if requested keyId is already cached*/
-	for (; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
-	{
-		if (keyIdLen == cachedKeyIDs[sessionSlot].len && 0 == memcmp(cachedKeyIDs[sessionSlot].data, keyId, keyIdLen))
+		if (!drmHelper->parsePssh(initDataPtr, initDataLen))
 		{
-			if(gpGlobalConfig->logging.debug)
-			{
-				logprintf("%s:%d  Session created/inprogress with same keyID %s at slot %d, can reuse same for %s",
-							__FUNCTION__, __LINE__, keyId, sessionSlot, sessionTypeName[streamType]);
-			}
-			keySlotFound = true;
-			isCachedKeyId = true;
-			break;
+			logprintf("%s:%d Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__);
+			e->data.dash_drmmetadata.failure = AAMP_TUNE_CORRUPT_DRM_METADATA;
+		}
+		else
+		{
+			drmSession = AampDRMSessionManager::createDrmSession(drmHelper, e, aamp);
 		}
 	}
 
-	if(!keySlotFound)
-	{
-		/*Key Id not in cached list so we need to find out oldest slot to use;
-		 * Oldest slot may be used by current playback which is marked primary
-		 * Avoid selecting that slot*/
+	return drmSession;
+}
 
-		/*First select the first slot that is not primary*/
-		for (int iter = 0; iter < gpGlobalConfig->dash_MaxDRMSessions; iter++)
+/**
+ * Create DrmSession by using the AampDrmHelper object
+ * @return AampdrmSession
+ */
+AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+{
+	if (!drmHelper || !eventHandle || !aampInstance)
+	{
+		/* This should never happen, since the caller should have already
+		ensure the provided DRMInfo is supported using hasDRM */
+		logprintf("%s:%d Failed to create DRM Session invalid parameters ", __FUNCTION__, __LINE__);
+		return nullptr;
+	}
+
+	int cdmError = -1;
+	KeyState code = KEY_ERROR;
+
+	if (SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState)
+	{
+		logprintf("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
+		return nullptr;
+	}
+
+	int selectedSlot = INVALID_SESSION_SLOT;
+
+	code = getDrmSession(drmHelper, selectedSlot, eventHandle, aampInstance);
+	/**
+	 * KEY_READY code indicates that a previously created session is being reused.
+	 */
+	if (code == KEY_READY)
+	{
+		return drmSessionContexts[selectedSlot].drmSession;
+	}
+
+	if ((code != KEY_INIT) || (selectedSlot == INVALID_SESSION_SLOT))
+	{
+		logprintf("%s:%d Unable to get DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		return nullptr;
+	}
+
+	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle);
+	if (code != KEY_INIT)
+	{
+		logprintf("%s:%d Unable to initialize DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		return nullptr;
+	}
+
+	code = acquireLicense(drmHelper, selectedSlot, cdmError, eventHandle, aampInstance);
+	if (code != KEY_READY)
+	{
+		logprintf("%s:%d Unable to get Ready Status DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		return nullptr;
+	}
+
+	return drmSessionContexts[selectedSlot].drmSession;
+}
+
+/**
+ * Create a DRM Session using the Drm Helper
+ * Determine a slot in the drmSession Contexts which can be used
+ * @return index to the selected drmSessionContext which has been selected
+ */
+KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+{
+	KeyState code = KEY_ERROR;
+	bool keySlotFound = false;
+	bool isCachedKeyId = false;
+	unsigned char *keyId = NULL;
+
+	std::vector<uint8_t> keyIdArray;
+	drmHelper->getKey(keyIdArray);
+
+	//Need to Check , Are all Drm Schemes/Helpers capable of providing a non zero keyId?
+	if (keyIdArray.empty())
+	{
+		eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_KEYID;
+		return code;
+	}
+
+	std::string keyIdDebugStr = AampLogManager::getHexDebugStr(keyIdArray);
+
+	/* Slot Selection
+	* Find drmSession slot by going through cached keyIds
+	* Check if requested keyId is already cached
+	*/
+	int sessionSlot = 0;
+
+	{
+		AampMutexHold keymutex(cachedKeyMutex);
+
+		for (; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
 		{
-			if(!cachedKeyIDs[iter].isPrimaryKeyId)
+			if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 			{
+				logprintf("%s:%d Session created/inprogress with same keyID %s at slot %d",__FUNCTION__, __LINE__, keyIdDebugStr.c_str(), sessionSlot);
 				keySlotFound = true;
-				sessionSlot = iter;
+				isCachedKeyId = true;
 				break;
 			}
 		}
 
-		/*Check if there's an older slot */
-		for (int iter = sessionSlot + 1; iter < gpGlobalConfig->dash_MaxDRMSessions; iter++)
+		if (!keySlotFound)
 		{
-			if(cachedKeyIDs[iter].creationTime < cachedKeyIDs[sessionSlot].creationTime)
+			/* Key Id not in cached list so we need to find out oldest slot to use;
+			 * Oldest slot may be used by current playback which is marked primary
+			 * Avoid selecting that slot
+			 * */
+			/*select the first slot that is not primary*/
+			for (int index = 0; index < gpGlobalConfig->dash_MaxDRMSessions; index++)
 			{
-				sessionSlot = iter;
-			}
-		}
-
-		if(keySlotFound)
-		{
-			if(gpGlobalConfig->logging.debug)
-			{
-				logprintf("%s:%d  Selected slot %d for keyId %s sessionType %s",
-							__FUNCTION__, __LINE__, sessionSlot, keyId, sessionTypeName[streamType]);
-			}
-		}
-		else
-		{
-			//@TODO It should not come to this unless license rotation is involved
-			//add new error code for this
-			logprintf("%s:%d  Unable to find keySlot for keyId %s sessionType %s, max sessions supported %d",
-							__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType], gpGlobalConfig->dash_MaxDRMSessions);
-			free(keyId);
-			keyId = NULL;
-			pthread_mutex_unlock(&cachedKeyMutex);
-			return NULL;
-		}
-	}
-
-	if(!isCachedKeyId)
-	{
-		if(cachedKeyIDs[sessionSlot].data != NULL)
-		{
-			delete cachedKeyIDs[sessionSlot].data;
-		}
-
-		cachedKeyIDs[sessionSlot].len = keyIdLen;
-		cachedKeyIDs[sessionSlot].isFailedKeyId = false;
-		cachedKeyIDs[sessionSlot].data = new unsigned char[keyIdLen];
-		memcpy(reinterpret_cast<void*>(cachedKeyIDs[sessionSlot].data),
-									reinterpret_cast<const void*>(keyId), keyIdLen);
-	}
-	cachedKeyIDs[sessionSlot].creationTime = aamp_GetCurrentTimeMS();
-	cachedKeyIDs[sessionSlot].isPrimaryKeyId = isPrimarySession;
-
-	pthread_mutex_unlock(&cachedKeyMutex);
-
-
-	pthread_mutex_lock(&(drmSessionContexts[sessionSlot].sessionMutex));
-	aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_PREPROC);
-	//logprintf("%s:%d Locked session mutex for %s", __FUNCTION__, __LINE__, sessionTypeName[sessionType]);
-	if(drmSessionContexts[sessionSlot].drmSession == NULL)
-	{
-		drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
-	}
-	else if(drmSessionContexts[sessionSlot].drmSession->getKeySystem() != string(keySystem))
-	{
-		AAMPLOG_WARN("%s:%d Switching DRM from %s to %s", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), keySystem);
-		delete drmSessionContexts[sessionSlot].drmSession;
-		drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
-	}
-	else
-	{
-			if(keyIdLen == drmSessionContexts[sessionSlot].dataLength)
-			{
-				if ((0 == memcmp(drmSessionContexts[sessionSlot].data, keyId, keyIdLen))
-						&& (drmSessionContexts[sessionSlot].drmSession->getState()
-								== KEY_READY))
+				if (!cachedKeyIDs[index].isPrimaryKeyId)
 				{
-					AAMPLOG_INFO("%s:%d Found drm session READY with same keyID %s - Reusing drm session for %s",
-								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
-					pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-#if defined(USE_OPENCDM_ADAPTER)
-					drmSessionContexts[sessionSlot].drmSession->setKeyId(reinterpret_cast<const char*>(keyId), keyIdLen);
-#endif
-					free(keyId);
-					keyId = NULL;
-					return drmSessionContexts[sessionSlot].drmSession;
-				}
-			}
-
-			bool abortSessionRequest = false;
-			if(SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState && isCachedKeyId)
-			{
-				//This means that the previous session request for the same keyId already failed
-				abortSessionRequest = true;
-				AAMPLOG_INFO("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
-			}
-
-			if(!abortSessionRequest && isCachedKeyId && NULL == contentMetadataPtr)
-			{
-				AAMPLOG_INFO("%s:%d Aborting session creation for keyId %s: StreamType %s, since previous try failed",
-								__FUNCTION__, __LINE__, keyId, sessionTypeName[streamType]);
-				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
-				abortSessionRequest = true;
-			}
-
-			if(abortSessionRequest)
-			{
-				pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-				free(keyId);
-				keyId = NULL;
-				return NULL;
-			}
-
-			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
-	}
-
-	if(drmSessionContexts[sessionSlot].drmSession)
-	{
-		code = drmSessionContexts[sessionSlot].drmSession->getState();
-	}
-	if (code != KEY_INIT)
-	{
-		logprintf("%s:%d DRM initialization failed : Key State %d ", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-		free(keyId);
-		keyId = NULL;
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_INIT_FAILED;
-		return NULL;
-	}
-
-
-	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(initDataPtr, dataLength);
-	code = drmSessionContexts[sessionSlot].drmSession->getState();
-	if(code == KEY_ERROR_EMPTY_SESSION_ID)
-	{
-		AAMPLOG_ERR("%s:%d DRM session ID is empty: Key State %d ", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-		free(keyId);
-		keyId = NULL;
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_SESSIONID_EMPTY;
-		return NULL;
-	}
-	if (code != KEY_INIT)
-	{
-		logprintf("%s:%d DRM init data binding failed: Key State %d ", __FUNCTION__, __LINE__, code);
-		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-		free(keyId);
-		keyId = NULL;
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_DATA_BIND_FAILED;
-		return NULL;
-	}
-
-	DrmData * licenceChallenge = drmSessionContexts[sessionSlot].drmSession->aampGenerateKeyRequest(
-			destinationURL);
-	code = drmSessionContexts[sessionSlot].drmSession->getState();
-	if (code == KEY_PENDING)
-	{
-		aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
-		//license request logic here
-		if (gpGlobalConfig->logging.debug)
-		{
-			logprintf("%s:%d Licence challenge from DRM  : length = %d ",
-						__FUNCTION__, __LINE__, licenceChallenge->getDataLength());
-		}
-
-#ifdef LOG_TRACE
-		logprintf("\n\n%s:%d Licence challenge = \n", __FUNCTION__, __LINE__);
-		unsigned char * data = licenceChallenge->getData();
-		DumpBlob( data, licenceChallenge->getDataLength() );
-		cout << endl;
-#endif
-
-		if (contentMetadataPtr)
-		{
-			contentMetaDataLen = strlen((const char*)contentMetadataPtr);
-			contentMetaData = (unsigned char *)malloc(contentMetaDataLen + 1);
-			memset(contentMetaData, 0, contentMetaDataLen + 1);
-			strncpy(reinterpret_cast<char*>(contentMetaData), reinterpret_cast<const char*>(contentMetadataPtr), contentMetaDataLen);
-			logprintf("%s:%d [HHH]contentMetaData length=%d", __FUNCTION__, __LINE__, contentMetaDataLen);
-		}
-		//For WV _extractWVContentMetadataFromPssh() won't work at this point
-		//Since the content meta data is with Agnostic DRM PSSH.
-		else if (drmType == eDRM_PlayReady)
-		{
-				contentMetaData = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initDataPtr),dataLength,COMCAST_DRM_METADATA_TAG_START, COMCAST_DRM_METADATA_TAG_END, &contentMetaDataLen);
-		}
-
-		bool isComcastStream = false;
-
-		char *externLicenseServerURL = NULL;
-		if (gpGlobalConfig->prLicenseServerURL && drmType == eDRM_PlayReady)
-		{
-			externLicenseServerURL = gpGlobalConfig->prLicenseServerURL;
-		}
-		else if (gpGlobalConfig->wvLicenseServerURL && drmType == eDRM_WideVine)
-		{
-			externLicenseServerURL = gpGlobalConfig->wvLicenseServerURL;
-		}
-		else if (gpGlobalConfig->ckLicenseServerURL && drmType == eDRM_ClearKey)
-		{
-			externLicenseServerURL = gpGlobalConfig->ckLicenseServerURL;
-		}
-		else if (gpGlobalConfig->licenseServerURL)
-		{
-			externLicenseServerURL = gpGlobalConfig->licenseServerURL;
-		}
-
-
-		if(contentMetaData)
-		{
-			/*
-				Constuct the licence challenge in the form of JSON message which can be parsed by MDS server
-				For the time keySystem and mediaUsage are constants
-				licenceChallenge from drm and contentMetadata are to be b64 encoded in the JSON
-			*/
-			logprintf("%s:%d MDS server spcific conent metadata found in initdata", __FUNCTION__, __LINE__);
-
-#ifdef LOG_TRACE
-			logprintf("\n\n%s:%d ContentMetaData = \n", __FUNCTION__, __LINE__);
-			DumpBlob( contentMetaData, contentMetaDataLen );
-			cout<<endl;
-#endif
-			GrowableBuffer comChallenge = {0,0,0};
-			const char * availableFields = "{\"keySystem\":\"playReady\",\"mediaUsage\":\"stream\",\"licenseRequest\":\"";
-			aamp_AppendBytes(&comChallenge, availableFields, strlen(availableFields));
-
-			char *licenseRequest = base64_Encode(licenceChallenge->getData(),licenceChallenge->getDataLength());
-			delete licenceChallenge;
-			aamp_AppendBytes(&comChallenge, licenseRequest, strlen(licenseRequest));
-			aamp_AppendBytes(&comChallenge,"\",\"contentMetadata\":\"", strlen("\",\"contentMetadata\":\""));
-			char * encodedData = base64_Encode(contentMetaData,contentMetaDataLen);
-			free(contentMetaData);
-			aamp_AppendBytes(&comChallenge, encodedData,strlen(encodedData));
-
-			int tokenLen = 0;
-			long tokenError = 0;
-			const char * sessionToken = getAccessToken(tokenLen, tokenError);
-			const char * secclientSessionToken = NULL;
-			if(sessionToken != NULL && !gpGlobalConfig->licenseAnonymousRequest)
-			{
-				logprintf("%s:%d access token is available", __FUNCTION__, __LINE__);
-				aamp_AppendBytes(&comChallenge,"\",\"accessToken\":\"", strlen("\",\"accessToken\":\""));
-				aamp_AppendBytes(&comChallenge, sessionToken, tokenLen);
-				secclientSessionToken = sessionToken;
-			}
-			else
-			{
-				if(NULL == sessionToken)
-				{
-					e->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN;
-					e->data.dash_drmmetadata.responseCode = tokenError;
-				}
-				logprintf("%s:%d Trying to get license without token", __FUNCTION__, __LINE__);
-			}
-			aamp_AppendBytes(&comChallenge, "\"}",strlen("\"}"));
-
-#ifdef LOG_TRACE
-			cout << systemId << endl << "Inside Session manager; printing Challenge : ";
-			DumpBlob( (const unsigned char *)comChallenge.ptr, comChallenge.len );
-			cout << endl;
-#endif
-			licenceChallenge = new DrmData(reinterpret_cast<unsigned char*>(comChallenge.ptr),comChallenge.len);
-			aamp_Free(&comChallenge.ptr);
-
-			if (externLicenseServerURL)
-			{
-#ifdef USE_SECCLIENT
-				destinationURL = getFormattedLicenseServerURL(string(externLicenseServerURL));
-#else
-				destinationURL = string(externLicenseServerURL);
-#endif
-			}
-			else
-			{
-				if (string::npos != destinationURL.find("rogers.ccp.xcal.tv"))
-				{
-					destinationURL = string(COMCAST_ROGERS_DRM_LICENCE_SERVER_URL);
-				}
-				else if (string::npos != destinationURL.find("qa.ccp.xcal.tv"))
-				{
-					destinationURL = string(COMCAST_QA_DRM_LICENCE_SERVER_URL);
-				}
-				else if (string::npos != destinationURL.find("ccp.xcal.tv"))
-				{
-					destinationURL = string(COMCAST_DRM_LICENCE_SERVER_URL);
-				}
-			}
-			isComcastStream = true;
-			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
-#ifdef USE_SECCLIENT
-			const char *mediaUsage = "stream";
-
-			int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
-			char *licenseResponse = NULL;
-			size_t licenseResponseLength = 2;
-			uint32_t refreshDuration = 3;
-			SecClient_ExtendedStatus statusInfo;
-			const char *requestMetadata[1][2];
-			std::string moneytracestr;
-			requestMetadata[0][0] = "X-MoneyTrace";
-			aamp->GetMoneyTraceString(moneytracestr);
-			requestMetadata[0][1] = moneytracestr.c_str();			
-
-			logprintf("[HHH] Before calling SecClient_AcquireLicense-----------");
-			logprintf("destinationURL is %s", destinationURL.c_str());
-			logprintf("MoneyTrace[%s]", requestMetadata[0][1]);
-			//logprintf("encodedData is %s, length=%d", encodedData, strlen(encodedData));
-			//logprintf("licenseRequest is %s", licenseRequest);
-			logprintf("keySystem is %s", keySystem);
-			//logprintf("mediaUsage is %s", mediaUsage);
-			//logprintf("sessionToken is %s", sessionToken);
-			unsigned int attemptCount = 0;
-			int sleepTime = gpGlobalConfig->licenseRetryWaitTime;
-                        if(sleepTime<=0) sleepTime = 100;
-			while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
-			{
-				attemptCount++;
-				sec_client_result = SecClient_AcquireLicense(destinationURL.c_str(), 1,
-									requestMetadata, 0, NULL,
-									encodedData,
-									strlen(encodedData),
-									licenseRequest, strlen(licenseRequest), keySystem, mediaUsage,
-									secclientSessionToken,
-									&licenseResponse, &licenseResponseLength, &refreshDuration, &statusInfo);
-
-				if (((sec_client_result >= 500 && sec_client_result < 600)||
-					(sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
-					&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
-				{
-					logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
-					if (licenseResponse) SecClient_FreeResource(licenseResponse);
-					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
-					mssleep(sleepTime);
-				}
-				else
-				{
+					keySlotFound = true;
+					sessionSlot = index;
 					break;
 				}
 			}
 
-			if (gpGlobalConfig->logging.debug)
+			if (!keySlotFound)
 			{
-				logprintf("licenseResponse is %s", licenseResponse);
-				logprintf("licenseResponse len is %zd", licenseResponseLength);
-				logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
-				logprintf("refreshDuration is %d", refreshDuration);
+				logprintf("%s:%d  Unable to find keySlot for keyId %s ",__FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+				return KEY_ERROR;
 			}
 
-			if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
+			/*Check if there's an older slot */
+			for (int index= sessionSlot + 1; index< gpGlobalConfig->dash_MaxDRMSessions; index++)
 			{
-				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
-				responseCode = sec_client_result;
+				if (cachedKeyIDs[index].creationTime < cachedKeyIDs[sessionSlot].creationTime)
+				{
+					sessionSlot = index;
+				}
+			}
+			logprintf("%s:%d  Selected slot %d for keyId %s",__FUNCTION__, __LINE__, sessionSlot, keyIdDebugStr.c_str());
+		}
+
+		if (!isCachedKeyId)
+		{
+			cachedKeyIDs[sessionSlot].isFailedKeyId = false;
+			cachedKeyIDs[sessionSlot].data = keyIdArray;
+		}
+		cachedKeyIDs[sessionSlot].creationTime = aamp_GetCurrentTimeMS();
+		cachedKeyIDs[sessionSlot].isPrimaryKeyId = true;
+	}
+
+	selectedSlot = sessionSlot;
+	const std::string systemId = drmHelper->ocdmSystemId();
+	AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
+	if (drmSessionContexts[sessionSlot].drmSession != NULL)
+	{
+		if (keyIdArray == drmSessionContexts[sessionSlot].data)
+		{
+			KeyState existingState = drmSessionContexts[sessionSlot].drmSession->getState();
+			if (existingState == KEY_READY)
+			{
+				AAMPLOG_WARN("%s:%d Found drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+				return KEY_READY;
+			}
+			else if (existingState <= KEY_READY)
+			{
+				if (drmSessionContexts[sessionSlot].drmSession->waitForState(KEY_READY, drmHelper->keyProcessTimeout()))
+				{
+					AAMPLOG_WARN("%s:%d Waited for drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+					return KEY_READY;
+				}
+				AAMPLOG_WARN("%s:%d key was never ready for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+				return KEY_ERROR;
 			}
 			else
 			{
-				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
-				e->type = AAMP_EVENT_DRM_METADATA;
-                                e->data.dash_drmmetadata.accessStatus_value = statusInfo.accessAttributeStatus;
-				key = new DrmData((unsigned char *)licenseResponse, licenseResponseLength);
+				AAMPLOG_WARN("%s:%d existing DRM session for %s has error state %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), existingState);
+				return KEY_ERROR;
 			}
-			if (licenseResponse) SecClient_FreeResource(licenseResponse);
-#else
-			struct curl_slist *headers = NULL;
-			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
-			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers, drmType);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d existing DRM session for %s has different key in slot %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), sessionSlot);
+		}
+		AAMPLOG_WARN("%s:%d deleting existing DRM session for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+		delete drmSessionContexts[sessionSlot].drmSession;
+		drmSessionContexts[sessionSlot].drmSession = nullptr;
+	}
+
+	aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_PREPROC);
+
+	drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(drmHelper, aampInstance);
+	if (drmSessionContexts[sessionSlot].drmSession != NULL)
+	{
+		AAMPLOG_INFO("%s:%d Created new DrmSession for DrmSystemId %s", __FUNCTION__, __LINE__, systemId.c_str());
+		drmSessionContexts[sessionSlot].data = keyIdArray;
+		code = drmSessionContexts[sessionSlot].drmSession->getState();
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d Unable to Get DrmSession for DrmSystemId %s", __FUNCTION__, __LINE__, systemId.c_str());
+		eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_INIT_FAILED;
+	}
+
+#if defined(USE_OPENCDM_ADAPTER)
+	drmSessionContexts[sessionSlot].drmSession->setKeyId(keyIdArray);
 #endif
-			free(licenseRequest);
-			free(encodedData);
 
-		}
-		else 
+	return code;
+}
+
+/**
+ * Initialize the Drm System with InitData(PSSH)
+ */
+KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, AAMPEvent* eventHandle)
+{
+	KeyState code = KEY_ERROR;
+
+	std::vector<uint8_t> drmInitData;
+	drmHelper->createInitData(drmInitData);
+
+	AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
+	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(drmInitData.data(), drmInitData.size());
+
+	code = drmSessionContexts[sessionSlot].drmSession->getState();
+	if (code != KEY_INIT)
+	{
+		AAMPLOG_ERR("%s:%d DRM session was not initialized : Key State %d ", __FUNCTION__, __LINE__, code);
+		if (code == KEY_ERROR_EMPTY_SESSION_ID)
 		{
-			if (externLicenseServerURL)
+			AAMPLOG_ERR("%s:%d DRM session ID is empty: Key State %d ", __FUNCTION__, __LINE__, code);
+			eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_SESSIONID_EMPTY;
+		}
+		else
+		{
+			eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_DATA_BIND_FAILED;
+		}
+	}
+
+	return code;
+}
+
+/**
+ * sent license challenge to the DRM server and provide the respone to CDM
+ */
+KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+		AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+{
+	shared_ptr<DrmData> licenseResponse;
+	long httpResponseCode = -1;
+	KeyState code = KEY_ERROR;
+
+	if (drmHelper->isExternalLicense())
+	{
+		// External license, assuming the DRM system is ready to proceed
+		code = KEY_PENDING;
+	}
+	else
+	{
+		AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
+
+		/**
+		 * Generate a License challenge from the CDM
+		 */
+		AAMPLOG_INFO("%s:%d Request to generate license challenge to the aampDRMSession(CDM)", __FUNCTION__, __LINE__);
+
+		AampChallengeInfo challengeInfo;
+		challengeInfo.data.reset(drmSessionContexts[sessionSlot].drmSession->aampGenerateKeyRequest(challengeInfo.url, drmHelper->licenseGenerateTimeout()));
+		code = drmSessionContexts[sessionSlot].drmSession->getState();
+
+		if (code != KEY_PENDING)
+		{
+			AAMPLOG_ERR("%s:%d Error in getting license challenge : Key State %d ", __FUNCTION__, __LINE__, code);
+			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC, AAMP_TUNE_DRM_CHALLENGE_FAILED);
+			eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_CHALLENGE_FAILED;
+		}
+		else
+		{
+			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
+
+			if (!(drmHelper->getDrmMetaData().empty() || gpGlobalConfig->licenseAnonymousRequest))
 			{
-				destinationURL = string(externLicenseServerURL);
+				AampMutexHold accessTokenMutexHold(accessTokenMutex);
+
+				int tokenLen = 0;
+				long tokenError = 0;
+				const char *sessionToken = getAccessToken(tokenLen, tokenError);
+
+				if (NULL == sessionToken)
+				{
+					// Failed to get access token, but will still try without it
+					AAMPLOG_WARN("%s:%d failed to get access token", __FUNCTION__, __LINE__);
+					eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN;
+					eventHandle->data.dash_drmmetadata.responseCode = tokenError;
+				}
+				else
+				{
+					AAMPLOG_INFO("%s:%d access token is available", __FUNCTION__, __LINE__);
+					challengeInfo.accessToken = std::string(sessionToken, tokenLen);
+				}
 			}
-			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-			struct curl_slist *headers = NULL;
-			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
-			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
-			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers, drmType);
-		}
 
-		if(key != NULL && key->getDataLength() != 0)
-		{
-			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
-			if(isComcastStream)
+			AampLicenseRequest licenseRequest;
+			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
+
+			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
 			{
+				AAMPLOG_ERR("%s:%d Error!! License challenge was not generated by the CDM : Key State %d", __FUNCTION__, __LINE__, code);
+				eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_CHALLENGE_FAILED;
+			}
+			else
+			{
+				/**
+				 * Configure the License acquisition parameters
+				 */
+				char *licenseServerProxy = nullptr;
+				bool isComcastStream = configureLicenseServerParameters(drmHelper, licenseRequest, licenseServerProxy, challengeInfo, aampInstance);
+
+				/**
+				 * Perform License acquistion by invoking http license request to license server
+				 */
+				AAMPLOG_WARN("%s:%d Request License from the Drm Server %s", __FUNCTION__, __LINE__, licenseRequest.url.c_str());
+				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
+
+#ifdef USE_SECCLIENT
+				if (isComcastStream)
+				{
+					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
+				}
+				else
+#endif
+				{
+					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, isComcastStream, licenseServerProxy));
+				}
+
+			}
+		}
+	}
+
+	if (code == KEY_PENDING)
+	{
+		code = handleLicenseResponse(drmHelper, sessionSlot, cdmError, httpResponseCode, licenseResponse, eventHandle, aampInstance);
+	}
+
+	return code;
+}
+
+KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+		long httpResponseCode, shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+{
+	if (!drmHelper->isExternalLicense())
+	{
+		if ((licenseResponse != NULL) && (licenseResponse->getDataLength() != 0))
+		{
+			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
+
 #ifndef USE_SECCLIENT
+			if (!drmHelper->getDrmMetaData().empty())
+			{
 				/*
 					Licence response from MDS server is in JSON form
 					Licence to decrypt the data can be found by extracting the contents for JSON key licence
 					Format : {"licence":"b64encoded licence","accessAttributes":"0"}
 				*/
-				size_t keylen = 0;
-				string jsonStr = string(reinterpret_cast<char*>(key->getData()));
-				string keyStr = _extractSubstring(jsonStr, LICENCE_RESPONSE_JSON_LICENCE_KEY, "\"");
-				if(keyStr.length() != 0)
+				string jsonStr(reinterpret_cast<char*>(licenseResponse->getData()), licenseResponse->getDataLength());
+
+				try
 				{
-					delete key;
-					unsigned char* keydata = base64_Decode(keyStr.c_str(),&keylen);
-					key = new DrmData(keydata, keylen);
-					free(keydata);
+					AampJsonObject jsonObj(jsonStr);
+
+					std::vector<uint8_t> keyData;
+					if (!jsonObj.get(LICENCE_RESPONSE_JSON_LICENCE_KEY, keyData, AampJsonObject::ENCODING_BASE64))
+					{
+						AAMPLOG_WARN("%s:%d Unable to retrieve license from JSON response", __FUNCTION__, __LINE__, jsonStr.c_str());
+					}
+					else
+					{
+						licenseResponse = make_shared<DrmData>(keyData.data(), keyData.size());
+					}
 				}
-#endif
-#ifdef LOG_TRACE
-				cout << "Printing key data  from server \n";
-				unsigned char * data1 = key->getData();
-				DumpBlob( data1, key->getDataLength() );
-				cout << endl;
-#endif
+				catch (AampJsonParseException& e)
+				{
+					AAMPLOG_WARN("%s:%d Failed to parse JSON response", __FUNCTION__, __LINE__, jsonStr.c_str());
+				}
 			}
-			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_POSTPROC);
-			processKeyRetValue = drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(key);
-			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_POSTPROC);
+#endif
+			AAMPLOG_INFO("%s:%d license acquisition completed", __FUNCTION__, __LINE__);
+			drmHelper->transformLicenseResponse(licenseResponse);
 		}
 		else
 		{
-			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, responseCode);
-			logprintf("%s:%d Could not get license from server for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
+			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
 
-			if(412 == responseCode)
+			AAMPLOG_ERR("%s:%d Error!! Invalid License Response was provided by the Server", __FUNCTION__, __LINE__);
+			if (412 == httpResponseCode)
 			{
-				if(e->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
+				if (eventHandle->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
-					e->data.dash_drmmetadata.failure = AAMP_TUNE_AUTHORISATION_FAILURE;
+					eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_AUTHORISATION_FAILURE;
 				}
 			}
-#ifdef USE_SECCLIENT
-			else if(SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TIMEOUT == responseCode)
+			else if (CURLE_OPERATION_TIMEDOUT == httpResponseCode)
 			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
-			}
-			else if(SEC_CLIENT_RESULT_MAC_AUTH_NOT_PROVISIONED == responseCode)
-			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_DEVICE_NOT_PROVISIONED;
-				e->data.dash_drmmetadata.responseCode = responseCode;
-			}
-#endif
-			else if(CURLE_OPERATION_TIMEDOUT == responseCode)
-			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
+				eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_TIMEOUT;
 			}
 			else
 			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_REQUEST_FAILED;
-				e->data.dash_drmmetadata.responseCode = responseCode;
+				eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_LICENCE_REQUEST_FAILED;
+				eventHandle->data.dash_drmmetadata.responseCode = httpResponseCode;
 			}
-		}
 
-		if (key != NULL)
-		{
-			delete key;
+			return KEY_ERROR;
 		}
 	}
-	else
-	{
-		logprintf("%s:%d Error in getting license challenge for %s stream : Key State %d ",
-					__FUNCTION__, __LINE__, sessionTypeName[streamType], code);
-		aamp->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC, AAMP_TUNE_DRM_CHALLENGE_FAILED);
-		e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_CHALLENGE_FAILED;
-	}
 
-	delete licenceChallenge;
-	code = drmSessionContexts[sessionSlot].drmSession->getState();
+	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aampInstance);
+}
 
-	if (code == KEY_READY)
+KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+		shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+{
+	/**
+	 * Provide the acquired License response from the DRM license server to the CDM.
+	 * For DRMs with external license acquisition, we will provide a NULL response
+	 * for processing and the DRM session should await the key from the DRM implementation
+	 */
+	AAMPLOG_INFO("%s:%d Updating the license response to the aampDRMSession(CDM)", __FUNCTION__, __LINE__);
+
+	aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_POSTPROC);
+	cdmError = drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(licenseResponse.get(), drmHelper->keyProcessTimeout());
+	aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_POSTPROC);
+
+	KeyState code = drmSessionContexts[sessionSlot].drmSession->getState();
+
+	if (code == KEY_ERROR)
 	{
-		logprintf("%s:%d Key Ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
-		if(drmSessionContexts[sessionSlot].data != NULL)
+		if (AAMP_TUNE_FAILURE_UNKNOWN == eventHandle->data.dash_drmmetadata.failure)
 		{
-			delete drmSessionContexts[sessionSlot].data;
-		}
-		drmSessionContexts[sessionSlot].dataLength = keyIdLen;
-		drmSessionContexts[sessionSlot].data = new unsigned char[keyIdLen];
-		memcpy(reinterpret_cast<void*>(drmSessionContexts[sessionSlot].data),
-		reinterpret_cast<const void*>(keyId),keyIdLen);
-		pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-		free(keyId);
-		keyId = NULL;
-		return drmSessionContexts[sessionSlot].drmSession;
-	}
-	else if (code == KEY_ERROR)
-	{
-		if(AAMP_TUNE_FAILURE_UNKNOWN == e->data.dash_drmmetadata.failure)
-		{
-			// check if key failure is due to HDCP , if so report it appropriately instead of Failed to get keys 
-			if(processKeyRetValue == HDCP_OUTPUT_PROTECTION_FAILURE || processKeyRetValue == HDCP_COMPLIANCE_CHECK_FAILURE)
+			// check if key failure is due to HDCP , if so report it appropriately instead of Failed to get keys
+			if (cdmError == HDCP_OUTPUT_PROTECTION_FAILURE || cdmError == HDCP_COMPLIANCE_CHECK_FAILURE)
 			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_HDCP_COMPLIANCE_ERROR;
+				eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_HDCP_COMPLIANCE_ERROR;
 			}
 			else
 			{
-				e->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
+				eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_DRM_KEY_UPDATE_FAILED;
 			}
 		}
 	}
 	else if (code == KEY_PENDING)
 	{
-		logprintf("%s:%d Failed to get %s DRM keys for %s stream",
-					__FUNCTION__, __LINE__, systemId ,sessionTypeName[streamType]);
-		if(AAMP_TUNE_FAILURE_UNKNOWN == e->data.dash_drmmetadata.failure)
+		logprintf("%s:%d Failed to get DRM keys",__FUNCTION__, __LINE__ );
+		if (AAMP_TUNE_FAILURE_UNKNOWN == eventHandle->data.dash_drmmetadata.failure)
 		{
-			e->data.dash_drmmetadata.failure = AAMP_TUNE_INVALID_DRM_KEY;
+			eventHandle->data.dash_drmmetadata.failure = AAMP_TUNE_INVALID_DRM_KEY;
 		}
 	}
 
-	pthread_mutex_unlock(&(drmSessionContexts[sessionSlot].sessionMutex));
-	free(keyId);
-	keyId = NULL;
-	return NULL;
+	return code;
 }
+
+/**
+ * Configure the Drm license server parameters for URL/proxy and custom http request headers
+ */
+bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest &licenseRequest,
+		char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
+{
+	string contentMetaData = drmHelper->getDrmMetaData();
+	bool isComcastStream = !contentMetaData.empty();
+
+	if (gpGlobalConfig->licenseServerURL)
+	{
+		licenseRequest.url = string(gpGlobalConfig->licenseServerURL);
+	}
+
+	if (!contentMetaData.empty())
+	{
+		string externLicenseServerURL;
+
+		if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
+		{
+			externLicenseServerURL = string(COMCAST_ROGERS_DRM_LICENCE_SERVER_URL);
+		}
+		else if (string::npos != licenseRequest.url.find("qa.ccp.xcal.tv"))
+		{
+			externLicenseServerURL = string(COMCAST_QA_DRM_LICENCE_SERVER_URL);
+		}
+		else if (string::npos != licenseRequest.url.find("ccp.xcal.tv"))
+		{
+			externLicenseServerURL = string(COMCAST_DRM_LICENCE_SERVER_URL);
+		}
+
+		if (!externLicenseServerURL.empty())
+		{
+#ifdef USE_SECCLIENT
+			licenseRequest.url = getFormattedLicenseServerURL(externLicenseServerURL);
+#else
+			licenseRequest.url = string(externLicenseServerURL);
+#endif
+		}
+	}
+
+	if(!isComcastStream)
+	{
+		std::unordered_map<std::string, std::vector<std::string>> customHeaders;
+		aampInstance->GetCustomLicenseHeaders(customHeaders);
+
+		if (!customHeaders.empty())
+		{
+			// Override headers from the helper with custom headers
+			licenseRequest.headers = customHeaders;
+		}
+
+		if (isComcastStream)
+		{
+			// Comcast stream, add Comcast headers
+			if (customHeaders.empty())
+			{
+				// Not using custom headers, Comcast headers will also override any headers from the helper
+				licenseRequest.headers.clear();
+			}
+
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_ACCEPT, {COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE}});
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE, {COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE}});
+		}
+
+		licenseServerProxy = aampInstance->GetLicenseReqProxy();
+	}
+
+	return isComcastStream;
+}
+
 
 /**
  *  @brief		Function to release the DrmSession if it running
@@ -1303,12 +1295,12 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
 		ReleaseDRMLicenseAcquireThread(aamp);
 		AAMPLOG_INFO("%s:%d Creating thread with sessionData = 0x%08x",
 					__FUNCTION__, __LINE__, drmData->sessionData );
-        if(0 == pthread_create(&aamp->createDRMSessionThreadID, NULL,\
+		if(0 == pthread_create(&aamp->createDRMSessionThreadID, NULL,\
 		 CreateDRMSession, drmData->sessionData))
 		{
 			drmData->isProcessedLicenseAcquire = true;
 			aamp->drmSessionThreadStarted = true;
-			aamp->setCurrentDrm(drmData->drmType);
+			aamp->setCurrentDrm(drmData->sessionData->drmHelper);
 			iState = DRM_API_SUCCESS;
 		}
 		else
@@ -1344,58 +1336,60 @@ void *CreateDRMSession(void *arg)
 	e.type = AAMP_EVENT_DRM_METADATA;
 	e.data.dash_drmmetadata.failure = AAMP_TUNE_FAILURE_UNKNOWN;
 	e.data.dash_drmmetadata.responseCode = 0;
-	unsigned char * data = sessionParams->initData;
-	int dataLength = sessionParams->initDataLen;
-
-	unsigned char *contentMetadata = sessionParams->contentMetadata;
 	AampDrmSession *drmSession = NULL;
-	const char * systemId = WIDEVINE_PROTECTION_SYSTEM_ID;
-	if (sessionParams->drmType == eDRM_WideVine)
-	{
-		AAMPLOG_INFO("Found Widevine encryption from manifest");
+	const char * systemId;
+
+	if (sessionParams->aamp == nullptr) {
+		AAMPLOG_ERR("%s:%d: no aamp in sessionParams", __FUNCTION__, __LINE__);
+		return nullptr;
 	}
-	else if(sessionParams->drmType == eDRM_PlayReady)
-	{
-		AAMPLOG_INFO("Found Playready encryption from manifest");
-		systemId = PLAYREADY_PROTECTION_SYSTEM_ID;
+	if (sessionParams->aamp->mDRMSessionManager == nullptr) {
+		AAMPLOG_ERR("%s:%d: no aamp->mDrmSessionManager in sessionParams", __FUNCTION__, __LINE__);
+		return nullptr;
 	}
-	else if(sessionParams->drmType == eDRM_ClearKey)
+
+
+	if (sessionParams->drmHelper == nullptr)
 	{
-		AAMPLOG_INFO("Found ClearKey encryption from manifest");
-		systemId = CLEARKEY_PROTECTION_SYSTEM_ID;
+		AAMPLOG_ERR("%s:%d Failed DRM Session Creation,  no helper", __FUNCTION__, __LINE__);
+		
+		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, false);
+		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
+		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 	}
-	sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data, dataLength, sessionParams->stream_type);
-	//Hao Li: review changes for Widevine, contentMetadata is freed inside the following calls
-	drmSession = sessionManger->createDrmSession(systemId, data, dataLength, sessionParams->stream_type,
-					contentMetadata, sessionParams->aamp, &e);
-	if(NULL == drmSession)
+	else
 	{
-		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", __FUNCTION__, __LINE__, systemId);
-		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
-		long responseCode = e.data.dash_drmmetadata.responseCode;
-		bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED && (responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
-		if (!selfAbort)
+		std::vector<uint8_t> data;
+		systemId = sessionParams->drmHelper->getUuid().c_str();
+		sessionParams->drmHelper->createInitData(data);
+		sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data.data(), data.size(), sessionParams->stream_type);
+		drmSession = sessionManger->createDrmSession(sessionParams->drmHelper, &e, sessionParams->aamp);
+
+		if(NULL == drmSession)
 		{
+			AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s",
+		 __FUNCTION__, __LINE__, systemId);
+			AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
 			bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
 						&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
 						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
 						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
 						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
 			sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+			sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
+			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 		}
-		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
-		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
-	}
-	else
-	{
-		if(e.data.dash_drmmetadata.accessStatus_value != 3)
+		else
 		{
-			AAMPLOG_INFO("Sending DRMMetaData");
-			sessionParams->aamp->SendDRMMetaData(e);
+			if(e.data.dash_drmmetadata.accessStatus_value != 3)
+			{
+				AAMPLOG_INFO("Sending DRMMetaData");
+				sessionParams->aamp->SendDRMMetaData(e);
+			}
+			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 		}
-		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
-
-	//AAMPLOG_INFO("%s:%d Exited",  __FUNCTION__, __LINE__ );
-	return NULL;
+	delete sessionParams;
 }
+
+

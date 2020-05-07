@@ -148,7 +148,7 @@ struct Rpc_Secbuf_Info {
 //The following flag is used to use old or new(wpeframework) OpenCDM implementation
 #define USE_NEW_OPENCDM 1
 
-AAMPOCDMSession::AAMPOCDMSession(string& keySystem) :
+AAMPOCDMSession::AAMPOCDMSession(const string& keySystem) :
 		AampDrmSession(keySystem),
 		m_eKeyState(KEY_INIT), 
 		m_pOutputProtection(NULL),
@@ -229,7 +229,7 @@ AAMPOCDMSession::~AAMPOCDMSession()
 }
 
 
-DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
+DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
 	DrmData * result = NULL;
 
@@ -284,7 +284,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 }
 
 
-int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
+int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	int retvalue = -1;
 
@@ -292,7 +292,20 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif
 	std::string responseMessage;
-	media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Update(key->getData(), key->getDataLength(), responseMessage);
+
+	media::OpenCdm::KeyStatus keyStatus = media::OpenCdm::KeyStatus::InternalError;
+	const uint8_t* keyMessage = key ? key->getData() : nullptr;
+	const uint16_t keyMessageLength = key ? key->getDataLength() : 0;
+
+	if (keyMessage)
+	{
+		keyStatus = m_pOpencdm->Update(keyMessage, keyMessageLength, responseMessage);
+	}
+	else
+	{
+		keyStatus = m_pOpencdm->Status();
+	}
+
 	retvalue = (int)keyStatus;
 	if (keyStatus == media::OpenCdm::KeyStatus::Usable) 
 	{

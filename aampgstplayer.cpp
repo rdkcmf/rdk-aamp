@@ -1317,12 +1317,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		gst_message_parse_context_type(msg, &contextType);
 		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
 		{
-			logprintf("Setting %s as preferred drm",GetDrmSystemName((DRMSystems)gpGlobalConfig->preferredDrm));
+			logprintf("Setting %s as preferred drm",GetDrmSystemName(_this->aamp->GetPreferredDRM()));
 			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
 			GstStructure* contextStructure = gst_context_writable_structure(context);
-			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID((DRMSystems)gpGlobalConfig->preferredDrm),  NULL);
+			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID(_this->aamp->GetPreferredDRM()),  NULL);
 			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
-			_this->aamp->setCurrentDrm((DRMSystems)gpGlobalConfig->preferredDrm);
+/* TODO: Fix this once preferred DRM is correct 			
+			_this->aamp->setCurrentDrm(_this->aamp->GetPreferredDRM());
+ */
 		}
 
 		break;

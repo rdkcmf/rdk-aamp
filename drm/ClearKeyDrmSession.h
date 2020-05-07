@@ -83,16 +83,18 @@ public:
 	 * @brief Generate key request from DRM session
 	 *        Caller function should free the returned memory.
 	 * @param destinationURL : gets updated with license server url
+	 * @param timeout: max timeout untill which to wait for cdm key generation.
 	 * @retval Pointer to DrmData containing license request, NULL if failure.
 	 */
-	DrmData * aampGenerateKeyRequest(string& destinationURL);
+	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 
 	/**
 	 * @brief Updates the received key to DRM session
 	 * @param key : License key from license server.
+	 * @param timeout: max timeout untill which to wait for cdm processing.
 	 * @retval 1 if no errors encountered
 	 */
-	int aampDRMProcessKey(DrmData* key);
+	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 
 	/**
 	 * @brief SetKid for this session.
