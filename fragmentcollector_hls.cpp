@@ -2521,7 +2521,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		bool mediaSequence = false;
 		const char* programDateTimeIdxOfFragment = NULL;
 		bool discontinuity = false;
-		double fragDuration = 0;
 		ptr = GetNextLineStart(playlist.ptr);
 		while (ptr)
 		{
@@ -2544,33 +2543,21 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					programDateTimeIdxOfFragment = NULL;
 					node.pFragmentInfo = ptr-8;//Point to beginning of #EXTINF
 					indexCount++;
-					fragDuration = atof(ptr);
-					totalDuration += fragDuration;
+					totalDuration += atof(ptr);
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
 					aamp_AppendBytes(&index, &node, sizeof(node));
-					if(gpGlobalConfig->logging.stream)
-					{
-						std::string urlname;
-						char *urlstrstart=GetNextLineStart(ptr);
-						char *urlstrend=GetNextLineStart(urlstrstart);
-						urlname.assign(urlstrstart,(urlstrend-urlstrstart));
-						AAMPLOG_WARN("%s:%s [%d]:[%f]:[%f]:[%s]",__FUNCTION__,name,indexCount,fragDuration,totalDuration,urlname.c_str());
-					}
 				}
 				else if(startswith(&ptr,"-X-MEDIA-SEQUENCE:"))
 				{
 					indexFirstMediaSequenceNumber = atoll(ptr);
 					mediaSequence = true;
-					if(gpGlobalConfig->logging.stream)
-					{
-						AAMPLOG_WARN("%s:%s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
-					}
+					//logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
 				}
 				else if(startswith(&ptr,"-X-TARGETDURATION:"))
 				{
 					targetDurationSeconds = atof(ptr);
-					AAMPLOG_INFO("%s:%s aamp: EXT-X-TARGETDURATION = %f",__FUNCTION__,name, targetDurationSeconds);
+					AAMPLOG_INFO("aamp: EXT-X-TARGETDURATION = %f", targetDurationSeconds);
 				}
 				else if(startswith(&ptr,"-X-X1-LIN-CK:"))
 				{
@@ -2626,22 +2613,19 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
-					if(gpGlobalConfig->logging.stream)
-					{
-						AAMPLOG_WARN("%s:%s Discontinuity Posn : %f ",__FUNCTION__,name, totalDuration);
-					}
+					//logprintf("%s %s Discontinuity Posn : %f ",__FUNCTION__,name, totalDuration);
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
 					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
-					AAMPLOG_INFO("%s:%s EXT-X-PROGRAM-DATE-TIME: %.*s ",__FUNCTION__,name, 30, programDateTimeIdxOfFragment);
+					AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
 					{
 						/* discarding timezone assuming audio and video tracks has same timezone and we use this time only for synchronization*/
 						startTimeForPlaylistSync = mProgramDateTime; 
-						AAMPLOG_WARN("%s:%s StartTimeForPlaylistSync : %f ",__FUNCTION__,name, startTimeForPlaylistSync);
+						AAMPLOG_WARN("%s %s StartTimeForPlaylistSync : %f ",__FUNCTION__,name, startTimeForPlaylistSync);
 					}
 				}
 				else if (startswith(&ptr, "-X-KEY:"))
@@ -2723,14 +2707,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 							mFirstEncInitFragmentInfo = ptr;
 						}
 					}
-					if(gpGlobalConfig->logging.stream)
-                                        {
-                                                std::string xmapname;
-                                                char *xmapend=GetNextLineStart(ptr);
-                                                xmapname.assign(ptr,(xmapend-ptr));
-                                                AAMPLOG_WARN("%s:%s X-MAP[%s]",__FUNCTION__,name,xmapname.c_str());
-                                        }
-
 				}
 				else if (startswith(&ptr, "-X-START:"))
 				{
@@ -3860,8 +3836,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 	TSProcessor* audioQueuedPC = NULL;
 	long http_error;
-	GrowableBuffer videoPlaylist;
-	memset(&videoPlaylist, '\0', sizeof(GrowableBuffer));
 
 	memset(&mainManifest, 0, sizeof(mainManifest));
 	if (newTune)
@@ -4123,9 +4097,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Audio Playlist download failed",__FUNCTION__,__LINE__);
 			return eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR;
 		}
-
-		//keep a backup of video playlist for logging
-		aamp_AppendBytes(&videoPlaylist, video->playlist.ptr, video->playlist.len);
 
 		bool bSetStatePreparing = false;
 
@@ -4782,18 +4753,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			
 			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
 		}
-	
-		if (video->streamOutputFormat == FORMAT_ISO_BMFF)
-		{
-			//Fragmented MP4 asset with no init fragment identified at the beginning
-			if (video->IsInitFragmentMissing())
-			{
-				aamp_AppendNulTerminator(&videoPlaylist);
-				printf("Video Playlist: \n %s", videoPlaylist.ptr);
-				fflush(stdout);
-			}
-		}
-	
+		
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
@@ -4837,13 +4797,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		retval = eAAMPSTATUS_OK;
 	}
-	aamp_Free(&videoPlaylist.ptr);
 	return retval;
-}
-
-bool TrackState::IsInitFragmentMissing()
-{
-	return (!mInitFragmentInfo || !mInjectInitFragment);
 }
 
 /***************************************************************************

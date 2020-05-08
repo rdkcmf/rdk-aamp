@@ -3509,11 +3509,6 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->logging.failover = true;
 			logprintf("failover logging %s", gpGlobalConfig->logging.failover ? "on" : "off");
 		}
-		else if (cfg.compare("stream") == 0)
-		{
-			gpGlobalConfig->logging.stream = true;
-			logprintf("stream logging %s", gpGlobalConfig->logging.stream ? "on" : "off");
-		}
 		else if (cfg.compare("curlHeader") == 0)
 		{
 			gpGlobalConfig->logging.curlHeader = true;

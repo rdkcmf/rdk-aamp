@@ -94,7 +94,6 @@ progress	enable periodic logging of position
 trace		enable dumps of manifests
 curl		enable verbose curl logging
 debug		enable debul level logs
-stream          enable stream manifest/playlist logging
 logMetadata	enable timed metadata logging
 abr		disable abr mode (defaults on)
 default-bitrate	specify initial bitrate while tuning, or target bitrate while abr disabled (defaults to 2500000)
