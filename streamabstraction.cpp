@@ -2208,7 +2208,7 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					}
 					// If discontinuity is not seen in future fragments or if the unblocked track has finished more than 2 * fragmentDurationSeconds,
 					// unblock this track
-					else if (diff > (2 * track->fragmentDurationSeconds) || (cachedDuration > (2 * track->fragmentDurationSeconds)))
+					else if ((diff + cachedDuration) > (2 * track->fragmentDurationSeconds))
 					{
 						AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
