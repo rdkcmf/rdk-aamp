@@ -20,10 +20,6 @@
 #ifndef AAMPDRMMEDIAFORMAT_H
 #define AAMPDRMMEDIAFORMAT_H
 
-#ifdef AVE_DRM
-#include "ave-adapter/Aamp_DrmMediaFormat.h"
-#else
-
 /**
  * @brief Media format types
  */
@@ -32,11 +28,9 @@ typedef enum
 	eMEDIAFORMAT_HLS,
 	eMEDIAFORMAT_DASH,
 	eMEDIAFORMAT_PROGRESSIVE,
-	eMEDIAFORMAT_HLS_MP4
+	eMEDIAFORMAT_HLS_MP4,
+	eMEDIAFORMAT_UNKNOWN
 } MediaFormat;
 
-
-
-#endif /* AVE_DRM */
 #endif /* AAMPDRMMEDIAFORMAT_H */
 
