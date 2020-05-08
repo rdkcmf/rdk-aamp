@@ -693,10 +693,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_DOWNLOADSTARTTIMEOUT:
 			case ePARAM_PROGRESSREPORTINTERVAL:
 			case ePARAM_PRECACHEPLAYLISTTIME:
-			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 			case ePARAM_RAMPDOWN_LIMIT:
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
+			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -820,7 +820,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
 					break;
 				case ePARAM_INITIALBUFFER:
+					privObj->_aamp->SetInitialBufferDuration((int) valueAsNumber);
+					break;
 				case ePARAM_PLAYBACKBUFFER:
+					break;
 				case ePARAM_MINBITRATE:
 					privObj->_aamp->SetMinimumBitrate((long) valueAsNumber);
 					break;

@@ -226,28 +226,6 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 #endif
 	totalFetchedDuration += cachedFragment[fragmentIdxToFetch].duration;
-
-	if((eTRACK_VIDEO == type) && aamp->IsFragmentBufferingRequired())
-	{
-		if(!notifiedCachingComplete)
-		{
-			cacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
-			if(cacheDurationSeconds >= gpGlobalConfig->minVODCacheSeconds)
-			{
-				logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
-				notifyCacheCompleted = true;
-			}
-			else
-			{
-				logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
-			}
-		}
-	}
-	fragmentIdxToFetch++;
-	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
-	{
-		fragmentIdxToFetch = 0;
-	}
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -259,6 +237,36 @@ void MediaTrack::UpdateTSAfterFetch()
 #endif
 	numberOfFragmentsCached++;
 	assert(numberOfFragmentsCached <= gpGlobalConfig->maxCachedFragmentsPerTrack);
+
+	if( (eTRACK_VIDEO == type)
+			&& aamp->IsFragmentBufferingRequired()
+			&& !notifiedCachingComplete)
+	{
+		currentInitialCacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
+		const int minInitialCacheSeconds = aamp->GetInitialBufferDuration();
+		if(currentInitialCacheDurationSeconds >= minInitialCacheSeconds)
+		{
+			logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minInitialCacheSeconds %d##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+			notifyCacheCompleted = true;
+		}
+		else if (sinkBufferIsFull && numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
+		{
+			logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+			notifyCacheCompleted = true;
+		}
+		else
+		{
+			logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+		}
+	}
+	fragmentIdxToFetch++;
+	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
+	{
+		fragmentIdxToFetch = 0;
+	}
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -814,8 +822,8 @@ int MediaTrack::GetCurrentBandWidth()
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), bufferMonitorThreadID(0), totalFragmentsDownloaded(0),
-		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
-		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), currentInitialCacheDurationSeconds(0),
+		sinkBufferIsFull(false), notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
@@ -1065,7 +1073,14 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
 	}
 }
 
-
+bool StreamAbstractionAAMP::IsFragmentBufferingRequired()
+{
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	return (video
+			&& video->enabled
+			&& aamp->rate == AAMP_NORMAL_PLAY_RATE
+			&& aamp->GetInitialBufferDuration() > 0);
+}
 
 /**
  * @brief Update profile state based on bandwidth of fragments downloaded
@@ -2014,6 +2029,37 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
+}
+
+void MediaTrack::OnSinkBufferFull()
+{
+	//check if we should stop initial caching here
+	if(sinkBufferIsFull)
+	{
+		return;
+	}
+
+	bool notifyCacheCompleted = false;
+
+	pthread_mutex_lock(&mutex);
+	sinkBufferIsFull = true;
+	// check if cache buffer is full and caching was needed
+	if( numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack
+			&& (eTRACK_VIDEO == type)
+			&& aamp->IsFragmentBufferingRequired()
+			&& !notifiedCachingComplete)
+	{
+		logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
+							__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, aamp->GetInitialBufferDuration());
+		notifyCacheCompleted = true;
+	}
+	pthread_mutex_unlock(&mutex);
+
+	if(notifyCacheCompleted)
+	{
+		aamp->NotifyFragmentCachingComplete();
+		notifiedCachingComplete = true;
+	}
 }
 
 /**
