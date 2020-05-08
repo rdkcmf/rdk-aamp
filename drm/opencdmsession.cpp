@@ -430,22 +430,11 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 	pthread_mutex_unlock(&decryptMutex);
 #ifdef USE_SAGE_SVP
-	AAMPLOG_WARN("%s : Decrypt returned : %d ", __FUNCTION__, retvalue);
-	if( 0 == retvalue )
-	{
-		memcpy(&sb_info, payloadData, sizeof(Rpc_Secbuf_Info));
-		if (B_Secbuf_AllocWithToken(sb_info.size, (B_Secbuf_Type)sb_info.type, sb_info.token, (void **)ppOpaqueData))
-		{
-			logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
-		}
-		else
-		{
-			logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.");
-		}
-	}
-	else
-	{
-		AAMPLOG_WARN("%s :Skipping  B_Secbuf_AllocWithToken call  : %d ", __FUNCTION__, retvalue);
+	memcpy(&sb_info, payloadData, sizeof(Rpc_Secbuf_Info));
+	if (B_Secbuf_AllocWithToken(sb_info.size, (B_Secbuf_Type)sb_info.type, sb_info.token, (void **)ppOpaqueData)) {
+		logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
+	} else {
+		//logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.");
 	}
 #endif
 	return retvalue;
