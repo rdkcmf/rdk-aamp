@@ -683,7 +683,8 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
 	return _this->privateContext->using_westerossink?
 		aamp_StartsWith(name, "westerossink"):
-		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omx"));
+		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
+		aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
 }
 
 /**
@@ -1005,7 +1006,9 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
+#if defined(REALTEKCE)
 				_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+#endif
 #if defined(INTELCE) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
