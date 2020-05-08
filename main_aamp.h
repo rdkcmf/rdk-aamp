@@ -819,6 +819,13 @@ public:
 	virtual void NotifyFragmentCachingComplete(){};
 
 	/**
+	 *   @brief API to notify that fragment caching is ongoing
+	 *
+	 *   @return void
+	 */
+	virtual void NotifyFragmentCachingOngoing(){};
+
+	/**
 	 *   @brief Get the video dimensions
 	 *
 	 *   @param[out]  w - Width

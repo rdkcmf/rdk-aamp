@@ -2147,11 +2147,11 @@ public:
 	bool SendVideoEndEvent();
 
 	/**
-	 *   @brief Check if fragment buffering needed
+	 *   @brief Check if fragment caching is required
 	 *
-	 *   @return true: needed, false: not needed
+	 *   @return true if required or ongoing, false if not needed
 	 */
-	bool IsFragmentBufferingRequired();
+	bool IsFragmentCachingRequired();
 
 	/**
 	 *   @brief Get player video size
@@ -3069,12 +3069,26 @@ public:
 	ContentType GetContentType() const;
 
 	/**
+	 *   @brief Get MediaFormatType
+	 *   @return MediaFormatType
+	*/
+
+	MediaFormat GetMediaFormatType(const char *url);
+
+	/**
 	 * @brief Get license server url for a drm type
 	 *
 	 * @param[in] type DRM type
 	 * @return license server url
 	 */
 	std::string GetLicenseServerUrlForDrm(DRMSystems type);
+
+	/**
+	 *   @brief Set eSTATE_BUFFERING if required
+	 *
+	 *   @return bool - true if has been set
+	 */
+	bool SetStateBufferingIfRequired();
 
 private:
 
@@ -3182,8 +3196,10 @@ private:
 	AampCacheHandler *mAampCacheHandler;
 	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
-	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
+	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
 	std::map<DRMSystems, std::string> mLicenseServerUrls;
+	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
+	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 };
 #endif // PRIVAAMP_H

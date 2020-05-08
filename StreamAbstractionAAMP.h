@@ -379,7 +379,7 @@ private:
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
 	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
 	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
-	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
+	bool cachingCompleted;              /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
 	int bandwidthBitsPerSecond;        /**< Bandwidth of last selected profile*/
@@ -643,11 +643,11 @@ public:
 	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
 	
 	/**
-	 *   @brief Fragment Buffering is required before playing.
+	 *   @brief Check if Initial Fragment Caching is supported
 	 *
-	 *   @return true if buffering is required.
+	 *   @return true if is supported
 	 */
-	virtual bool IsFragmentBufferingRequired();
+	virtual bool IsInitialCachingSupported();
 
 	/**
 	 *   @brief Whether we are playing at live point or not.

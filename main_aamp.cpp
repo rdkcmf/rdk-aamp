@@ -4446,7 +4446,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
                                        && minInitCache >= 0)
 			{
 				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
-				m_minInitialCacheSeconds = minInitCache;
+				mMinInitialCacheSeconds = minInitCache;
 			}
 		}
 
@@ -4499,7 +4499,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
-			m_minInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
+			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
 	}
 }
@@ -4957,6 +4957,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
+	mFragmentCachingRequired = false;
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -5042,18 +5043,27 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	else
+	else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 	{
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
-		if(NULL == mCdaiObject)
+		if (NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 
 	mInitSuccess = true;
-	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	AAMPStatusType retVal;
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
+		retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	}
+	else
+	{
+		retVal = eAAMPSTATUS_GENERIC_ERROR;
+	}
+
 	if (retVal != eAAMPSTATUS_OK)
 	{
 		// Check if the seek position is beyond the duration
@@ -5115,6 +5125,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		if (mVideoFormat == FORMAT_ISO_BMFF && mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
+		}
+
+		// Enable fragment initial caching. Retune not supported
+		if(tuneType != eTUNETYPE_RETUNE
+			&& mMinInitialCacheSeconds > 0
+			&& rate == AAMP_NORMAL_PLAY_RATE
+			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
+		{
+			mFragmentCachingRequired = true;
 		}
 
 #ifndef AAMP_STOP_SINK_ON_SEEK
@@ -5311,22 +5330,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
-	mMediaFormat = eMEDIAFORMAT_DASH;
-
-        if(strstr(mainManifestUrl, "m3u8"))
-        { // if m3u8 anywhere in locator, assume HLS
-          // supports HLS locators that end in .m3u8 with/without trailing URI parameters
-          // supports HLS locators passed through FOG
-                mMediaFormat = eMEDIAFORMAT_HLS;
-        }
-        else if(strstr(mainManifestUrl, ".mp4") || strstr(mainManifestUrl, ".mp3"))
-        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
-                mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
-        }
-        else
-        { // for any other locators, assume DASH
-                mMediaFormat = eMEDIAFORMAT_DASH;
-        }
+	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
@@ -5510,6 +5514,129 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		this->mTraceUUID = "unknown";
 	}
+}
+
+// Uncomment to test GetMediaFormatType without locator inspection
+#define TRUST_LOCATOR_EXTENSION_IF_PRESENT
+
+/**
+ *   @brief Assign the correct mediaFormat by parsing the url
+ *   @param[in]  manifest url
+ */
+MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
+{
+	MediaFormat rc = eMEDIAFORMAT_UNKNOWN;
+	std::string urlStr(url); // for convenience, convert to std::string
+
+#ifdef TRUST_LOCATOR_EXTENSION_IF_PRESENT // disable to exersize alternate path
+	if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
+	{ // where local host is used; inspect further to determine if this locator involves FOG
+
+		size_t fogUrlStart = urlStr.find("recordedUrl=", 16); // search forward, skipping 16-char http://127.0.0.1
+
+		if(fogUrlStart != std::string::npos)
+		{ // definitely FOG - extension is inside recordedUrl URI parameter
+
+			size_t fogUrlEnd = urlStr.find("&", fogUrlStart); // end of recordedUrl
+
+			if(fogUrlEnd != std::string::npos)
+			{
+				if(urlStr.rfind("m3u8", fogUrlEnd) != std::string::npos)
+				{
+					rc = eMEDIAFORMAT_HLS;
+				}
+				else if(urlStr.rfind("mpd", fogUrlEnd)!=std::string::npos)
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
+
+				// should never get here with UNKNOWN format, but if we do, just fall through to normal locator scanning
+			}
+		}
+	}
+	
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{ // do 'normal' (non-FOG) locator parsing
+
+		size_t extensionEnd = urlStr.find("?"); // delimited for URI parameters, or end-of-string
+		std::size_t extensionStart = urlStr.rfind(".", extensionEnd); // scan backwards to find final "."
+		int extensionLength;
+
+		if(extensionStart != std::string::npos)
+		{ // found an extension
+			if(extensionEnd == std::string::npos)
+			{
+				extensionEnd = urlStr.length();
+			}
+
+			extensionStart++; // skip past the "." - no reason to re-compare it
+
+			extensionLength = (int)(extensionEnd - extensionStart); // bytes between "." and end of query delimiter/end of string
+
+			if(extensionLength == 4 && urlStr.compare(extensionStart, extensionLength, "m3u8") == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if(extensionLength == 3)
+			{
+				if(urlStr.compare(extensionStart,extensionLength,"mpd") == 0)
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
+				else if(urlStr.compare(extensionStart,extensionLength,"mp3") == 0 || urlStr.compare(extensionStart,extensionLength,"mp4") == 0 )
+				{
+					rc = eMEDIAFORMAT_PROGRESSIVE;
+				}
+			}
+		}
+	}
+#endif // TRUST_LOCATOR_EXTENSION_IF_PRESENT
+
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{
+		// no extension - sniff first few bytes of file to disambiguate
+		struct GrowableBuffer sniffedBytes = {0, 0, 0};
+		std::string effectiveUrl;
+		long http_error;
+		long bitrate;
+		int fogError;
+
+		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
+
+		bool gotManifest = GetFile(
+							url,
+							&sniffedBytes,
+							effectiveUrl,
+							&http_error,
+							"0-100", // download first few bytes only
+							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
+							eCURLINSTANCE_MANIFEST_PLAYLIST,
+							false,
+							eMEDIATYPE_MANIFEST,
+							&bitrate,
+							&fogError,
+							0.0);
+
+		if(gotManifest)
+		{
+			if(sniffedBytes.len >= 7 && memcmp(sniffedBytes.ptr, "#EXTM3U8", 7) == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if((sniffedBytes.len >= 6 && memcmp(sniffedBytes.ptr, "<?xml ", 6) == 0) || // can start with xml
+					 (sniffedBytes.len >= 5 && memcmp(sniffedBytes.ptr, "<MPD ", 5) == 0)) // or directly with mpd
+			{ // note: legal to have whitespace before leading tag
+				rc = eMEDIAFORMAT_DASH;
+			}
+			else
+			{
+				rc = eMEDIAFORMAT_PROGRESSIVE;
+			}
+		}
+		aamp_Free(&sniffedBytes.ptr);
+	}
+
+	return rc;
 }
 
 /**
@@ -6144,6 +6271,22 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 		SyncBegin();
 		mStreamSink->EndOfStreamReached(mediaType);
 		SyncEnd();
+
+		// If EOS during Buffering, set Playing and let buffer to dry out
+		// Sink is already unpaused by EndOfStreamReached()
+		pthread_mutex_lock(&mFragmentCachingLock);
+		mFragmentCachingRequired = false;
+		PrivAAMPState state;
+		GetState(state);
+		if(state == eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+			}
+			SetState(eSTATE_PLAYING);
+		}
+		pthread_mutex_unlock(&mFragmentCachingLock);
 	}
 }
 
@@ -6285,10 +6428,14 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{ // no change in desired play rate
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
-				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
-				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				retValue = aamp->mStreamSink->Pause(false, false);
-				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				// check if unpausing in the middle of fragments caching
+				if(!aamp->SetStateBufferingIfRequired())
+				{
+					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+					retValue = aamp->mStreamSink->Pause(false, false);
+					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
 			}
@@ -6314,7 +6461,10 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		if(retValue)
 		{
-			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate);
+			// Do not update state if fragments caching is ongoing and pipeline not paused,
+			// target state will be updated once caching completed
+			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate,
+					(!aamp->IsFragmentCachingRequired() || aamp->pipeline_paused));
 		}
 	}
 	else
@@ -8106,7 +8256,10 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	SetState(eSTATE_PLAYING);
+	if(!SetStateBufferingIfRequired())
+	{
+		SetState(eSTATE_PLAYING);
+	}
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
@@ -8396,7 +8549,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mbPlayEnabled(true)
 	, mAampCacheHandler(new AampCacheHandler())
 	, mAsyncTuneEnabled(false)
-	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
@@ -8404,8 +8556,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
 	, mABRBufferCheckEnabled(false), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
-	, mCurrentDrm(), mDrmInitData()
-	, mLicenseServerUrls()
+	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8421,7 +8573,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
-
+	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -8555,6 +8707,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
+	pthread_mutex_destroy(&mFragmentCachingLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -8592,7 +8745,8 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		sentSync = false;
 	}
 
-	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
+	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING)
+		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
@@ -8696,7 +8850,20 @@ bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
  */
 void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 {
+	pthread_mutex_lock(&mFragmentCachingLock);
+	mFragmentCachingRequired = false;
 	mStreamSink->NotifyFragmentCachingComplete();
+	PrivAAMPState state;
+	GetState(state);
+	if (state == eSTATE_BUFFERING)
+	{
+		if(mpStreamAbstractionAAMP)
+		{
+			mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+		}
+		SetState(eSTATE_PLAYING);
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
 }
 
 
@@ -9147,18 +9314,13 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 }
 
 /**
- * @brief Check if fragment Buffering is required before playing.
+ *   @brief Check if fragment caching is required
  *
- * @retval true if buffering is required.
+ *   @return true if required or ongoing, false if not needed
  */
-bool PrivateInstanceAAMP::IsFragmentBufferingRequired()
+bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 {
-	if(mpStreamAbstractionAAMP)
-	{
-		return mpStreamAbstractionAAMP->IsFragmentBufferingRequired();
-	}
-
-	return false;
+	return mFragmentCachingRequired;
 }
 
 
@@ -9450,7 +9612,8 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
 	PrivAAMPState state;
 	GetState(state);
-	if (state == eSTATE_SEEKING)
+	if (state == eSTATE_SEEKING
+		&& !SetStateBufferingIfRequired())
 	{
 		//Playback started after end of seeking
 		SetState(eSTATE_PLAYING);
@@ -10931,7 +11094,7 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
  */
 void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
-	m_minInitialCacheSeconds = durationSec;
+	mMinInitialCacheSeconds = durationSec;
 }
 
 /**
@@ -10941,8 +11104,46 @@ void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
-	return m_minInitialCacheSeconds;
+	return mMinInitialCacheSeconds;
 }
+
+/**
+ *   @brief Set eSTATE_BUFFERING if required
+ *
+ *   @return bool - true if has been set
+ */
+bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
+{
+	bool bufferingSet = false;
+
+	pthread_mutex_lock(&mFragmentCachingLock);
+	if(IsFragmentCachingRequired())
+	{
+		bufferingSet = true;
+		PrivAAMPState state;
+		GetState(state);
+		if(state != eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+			}
+
+			if(mStreamSink)
+			{
+				mStreamSink->NotifyFragmentCachingOngoing();
+			}
+			SetState(eSTATE_BUFFERING);
+		}
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
+
+	return bufferingSet;
+}
+
+/**
+ * @}
+ */
 
 /**
  * @brief Check if track can inject data into GStreamer.
