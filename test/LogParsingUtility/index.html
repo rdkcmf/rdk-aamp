@@ -1,0 +1,131 @@
+<html>
+    <head>
+        <title>AAMP Log Unpacking Utility</title>
+<script>
+
+	function MapStreamType(streamType)
+	{
+		switch( parseInt(streamType) )
+		{
+		case 10: return "HLS/Clear";
+		case 11: return "HLS/Consec";
+		case 12: return "HLS/Access";
+		case 13: return "HLS/VanillaAES";
+        case 20: return "DASH/Clear";
+        case 21: return "DASH/Widevine";
+		case 22: return "DASH/Playready";
+		case 30: return "Progressive";
+		default: return "?";
+		}
+	}
+
+	function MapContentType( contentType )
+	{
+		switch( parseInt(contentType) )
+		{
+		case 0: return "UNKNOWN";
+		case 1: return "CDVR";
+		case 2: return "VOD";
+		case 3: return "LINEAR";
+		case 4: return "IVOD";
+		case 5: return "EAS";
+		case 6: return "CAMERA";
+		case 7: return "DVR";
+		case 8: return "MDVR";
+		case 9: return "IPDVR";
+		case 10: return "PPV";
+		default: return "?";
+		}
+    }
+
+function MapMediaType( mediaType )
+{
+	switch( parseInt(mediaType) )
+	{
+		case 0: return "VIDEO";
+		case 1: return "AUDIO";
+		case 2: return "SUBTITLE";
+		case 3: return "MANIFEST";
+		case 4: return "LICENCE";
+		case 5: return "IFRAME";
+		case 6: return "INIT_VIDEO";
+		case 7: return "INIT_AUDIO";
+		case 8: return "INIT_SUBTITLE";
+		case 9: return "PLAYLIST_VIDEO";
+		case 10: return "PLAYLIST_AUDIO";
+		case 11: return "PLAYLIST_SUBTITLE";
+		case 12: return "PLAYLIST_IFRAME";
+		case 13: return "INIT_IFRAME";
+		default: return "?";
+	}
+}
+
+function strip(firstValue)
+{
+	var part = firstValue.split(":");
+	return part[part.length-1];
+}
+	function ParseRaw()
+	{
+		var elem = document.getElementById("raw");
+		var value = elem.value.split(",");
+		var fields = null;
+		if( value[0].indexOf("IP_EX_TUNETIME")>=0 )
+		{
+			value[0] = strip(value[0]);
+			fields = "contentType,totalTime,networkTime,loadBucketTime,prepareToPlayBucketTime,playBucketTime,drmReadyBucketTime,decodedStreamingBucketTime,playingbackToXREBucketTime,firstManifestTIme,firstProfileTime,firstFragmentTime,firstLicenseTime,maniCount,manifestTotal,profCount,profilesTotal,fragCount,fragmentTotal,isLive,streamType,abrSwitch,isFOGEnabled,isDDPlus,isDemuxed,assetDuration,success,failRetryBucketTime,playbackCount,tuneRetries,tuneCompleteTime";
+			value[0] = "("+value[0]+")"+MapContentType(value[0]);
+			value[20] = "("+value[20]+")"+MapStreamType(value[20]);
+		}
+		else if( value[0].indexOf("IP_AAMP_TUNETIME")>=0 )
+		{
+			value[0] = strip(value[0]);
+			fields = "version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune";
+		}
+		else if( value[0].indexOf("HttpRequestEnd")>=0 )
+		{
+			value[0] = strip(value[0]);
+			fields = "appName,mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,url";
+			value[2] = "("+value[2]+")"+MapMediaType(value[2]); // simType
+		}
+		else if( value[0].indexOf("IP_TUNETIME")>=0 )
+		{
+			value[0] = strip(value[0]);
+			fields = "contentType,aampTuneTime,totalNetTime";
+			value[0] = "("+value[0]+")"+MapContentType(value[0]);
+		}
+		if( fields!=null )
+		{
+			var field = fields.split(",");
+			var output = [];
+			output.push( "<table border><tr>" );
+			for( var i=0; i<field.length; i++ )
+			{
+				output.push( "<th>" + field[i]+"</th>" );
+			}
+			output.push( "</tr><tr>" );
+			for( var i=0; i<value.length; i++ )
+			{
+				output.push( "<td>" + value[i]+"</td>" );
+			}
+			output.push( "</tr></table>" );
+
+			elem = document.getElementById("out");
+			elem.innerHTML = output.join("");
+		}
+	}
+</script>
+    </head>
+    <body>
+		<input type="text" id="raw" name="raw"/> <input type="button" value="Parse" onclick="ParseRaw();"/>
+		<hr/>
+		<div id="out"><div>
+    </body>
+</html>
+
+
+
+
+
+
+

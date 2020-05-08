@@ -1608,6 +1608,7 @@ void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 		pthread_mutex_lock(&mLock);
 		mbTrackDownloadsBlocked[type] = true;
 		pthread_mutex_unlock(&mLock);
+		NotifySinkBufferFull(type);
 	}
 	traceprintf ("PrivateInstanceAAMP::%s Enter. type = %d", __FUNCTION__, (int) type);
 }
@@ -3887,10 +3888,10 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{ // default is true; used with restamping?
 			logprintf("aamp throttle=%d", gpGlobalConfig->gThrottle);
 		}
-		else if (ReadConfigNumericHelper(cfg, "min-vod-cache=", gpGlobalConfig->minVODCacheSeconds) == 1)
-		{ // override for VOD cache
-			VALIDATE_INT("min-vod-cache", gpGlobalConfig->minVODCacheSeconds, DEFAULT_MINIMUM_CACHE_VOD_SECONDS)
-			logprintf("min-vod-cache=%d", gpGlobalConfig->minVODCacheSeconds);
+		else if (ReadConfigNumericHelper(cfg, "min-init-cache=", gpGlobalConfig->minInitialCacheSeconds) == 1)
+		{ // override for initial cache
+			VALIDATE_INT("min-init-cache", gpGlobalConfig->minInitialCacheSeconds, DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+			logprintf("min-init-cache=%d", gpGlobalConfig->minInitialCacheSeconds);
 		}
 		else if (ReadConfigNumericHelper(cfg, "buffer-health-monitor-delay=", gpGlobalConfig->bufferHealthMonitorDelay) == 1)
 		{ // override for buffer health monitor delay after tune/ seek
@@ -4348,14 +4349,16 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			gpGlobalConfig->disableATMOS = 1;
 		}
 
-		const char *env_aamp_min_vod_cache = getenv("AAMP_MIN_VOD_CACHE");
-		if(env_aamp_min_vod_cache)
+		const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
+		if(env_aamp_min_init_cache
+				&& gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
-			int minVodCache = 0;
-			if(sscanf(env_aamp_min_vod_cache,"%d",&minVodCache))
+			int minInitCache = 0;
+			if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache)
+					&& minInitCache >= 0)
 			{
-				logprintf("AAMP_MIN_VOD_CACHE present: Changing min vod cache to %d seconds",minVodCache);
-				gpGlobalConfig->minVODCacheSeconds = minVodCache;
+				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
+				m_minInitialCacheSeconds = minInitCache;
 			}
 		}
 
@@ -4386,6 +4389,11 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			{
 				mWesterosSinkEnabled = true;
 			}
+		}
+
+		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
+		{
+			m_minInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
 	}
 }
@@ -5536,6 +5544,21 @@ std::string  PrivateInstanceAAMP::GetContentTypString()
     return strRet;
 }
 
+void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
+{
+	if(type != eMEDIATYPE_VIDEO)
+		return;
+
+	if(mpStreamAbstractionAAMP)
+	{
+		MediaTrack* video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
+		if(video && video->enabled)
+		{
+			video->OnSinkBufferFull();
+		}
+	}
+}
+
 void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char *cType)
 {
 	mContentType = ContentType_UNKNOWN; //default unknown
@@ -5690,6 +5713,19 @@ void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 		{
 			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
 		}
+	}
+}
+
+/**
+ * @brief Set initial buffer duration in seconds
+ *
+ */
+void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+	if(gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
+	{
+		aamp->SetInitialBufferDuration(durationSec);
 	}
 }
 
@@ -8178,7 +8214,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	, mAsyncTuneEnabled(false)
 	, mPlaylistFetchFailError(0L)
-	,mAudioDecoderStreamSync(true)
+	, mAudioDecoderStreamSync(true)
+	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8890,7 +8927,12 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 bool PrivateInstanceAAMP::IsFragmentBufferingRequired()
 {
-	return mpStreamAbstractionAAMP->IsFragmentBufferingRequired();
+	if(mpStreamAbstractionAAMP)
+	{
+		return mpStreamAbstractionAAMP->IsFragmentBufferingRequired();
+	}
+
+	return false;
 }
 
 
@@ -10673,11 +10715,31 @@ std::string PrivateInstanceAAMP::GetAppName()
  *   @param[in] bValue - true if Application supports bulk reporting 
  *
  *   @return void
- */
+*/
 void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 {
-        mBulkTimedMetadata = bValue;
-        AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+	mBulkTimedMetadata = bValue;
+	AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+/**
+ *   @brief Set initial buffer duration in seconds
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
+{
+	m_minInitialCacheSeconds = durationSec;
+}
+
+/**
+ *   @brief Get current initial buffer duration in seconds
+ *
+ *   @return void
+ */
+int PrivateInstanceAAMP::GetInitialBufferDuration()
+{
+	return m_minInitialCacheSeconds;
 }
 
 /**

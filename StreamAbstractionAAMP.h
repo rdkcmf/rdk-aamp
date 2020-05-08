@@ -275,6 +275,13 @@ public:
 	 */
 	bool CheckForFutureDiscontinuity(double &cacheDuration);
 
+	/**
+	* @brief Called if sink buffer is full
+	*
+	* @return void
+	*/
+	void OnSinkBufferFull();
+
 protected:
 
 	/**
@@ -307,7 +314,6 @@ protected:
 	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
-
 
 	static int GetDeferTimeMs(long maxTimeSeconds);
 
@@ -348,7 +354,8 @@ private:
 	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
 	bool bufferMonitorThreadStarted;    /**< Buffer Monitor thread started or not */
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
-	int cacheDurationSeconds;           /**< Total fragment cache duration*/
+	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
+	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
 	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
@@ -628,7 +635,7 @@ public:
 	 *
 	 *   @return true if buffering is required.
 	 */
-	bool IsFragmentBufferingRequired() { return false; }
+	virtual bool IsFragmentBufferingRequired();
 
 	/**
 	 *   @brief Whether we are playing at live point or not.
