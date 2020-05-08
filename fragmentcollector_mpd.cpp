@@ -601,6 +601,7 @@ private:
 	bool mIsLiveManifest;      //Current manifest is dynamic or static; may change during runtime. eg: Hot DVR.
 	StreamAbstractionAAMP_MPD* mContext;
 	StreamInfo* mStreamInfo;
+	bool mUpdateStreamInfo; //Indicates mStreamInfo needs to be updated
 	double mPrevStartTimeSeconds;
 	std::string mPrevLastSegurlMedia;
 	long mPrevLastSegurlOffset; //duration offset from beginning of TSB
@@ -660,6 +661,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mAvailabilityStartTime(0)
 	,mDrmPrefs({{CLEARKEY_SYSTEM_ID, 1}, {WIDEVINE_SYSTEM_ID, 2}, {PLAYREADY_SYSTEM_ID, 3}})// Default values, may get changed due to config file
 	,mLastDrmHelper()
+	,mUpdateStreamInfo(false)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -4677,6 +4679,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
+	if(periodChanged)
+	{
+                // sometimes when period changes, period in manifest is empty hence mark it for later use when period gets filled with data. 
+		mUpdateStreamInfo = true;
+	}
 
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
@@ -4698,8 +4705,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 			/*Populate StreamInfo for ABR Processing*/
 			if (i == eMEDIATYPE_VIDEO)
 			{
-				if(isFogTsb && periodChanged)
+				if(isFogTsb && mUpdateStreamInfo)
 				{
+					mUpdateStreamInfo = false;
 					vector<Representation *> representations;
 					GetBitrateInfoFromCustomMpd(pMediaStreamContext->adaptationSet, representations);
 					int representationCount = representations.size();
@@ -4754,8 +4762,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 					aamp->profiler.SetBandwidthBitsPerSecondVideo(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
 				}
-				else if(!isFogTsb && periodChanged)
+				else if(!isFogTsb && mUpdateStreamInfo)
 				{
+					mUpdateStreamInfo = false;
 					int representationCount = pMediaStreamContext->adaptationSet->GetRepresentation().size();
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
 					{
