@@ -24,7 +24,7 @@ private:
 	pthread_cond_t condition;
        pthread_condattr_t condAttr;
 public:
-	Event() : signalled(false), lock(PTHREAD_MUTEX_INITIALIZER), condition(PTHREAD_COND_INITIALIZER) {
+	Event() : signalled(false), lock(PTHREAD_MUTEX_INITIALIZER), condition(PTHREAD_COND_INITIALIZER), condAttr() {
                pthread_mutex_init(&lock, NULL);
                pthread_condattr_init(&condAttr);
                pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC );

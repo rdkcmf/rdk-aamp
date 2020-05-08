@@ -659,6 +659,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mPresentationOffsetDelay(0)
 	,mAvailabilityStartTime(0)
 	,mDrmPrefs({{CLEARKEY_SYSTEM_ID, 1}, {WIDEVINE_SYSTEM_ID, 2}, {PLAYREADY_SYSTEM_ID, 3}})// Default values, may get changed due to config file
+	,mLastDrmHelper()
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));

@@ -49,15 +49,19 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampPlayReadyHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo) {}
+	AampPlayReadyHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("PlayReady"), CODEC_TYPE(2),
+		PLAYREADY_DECODED_KEY_ID_LEN(16u), PLAYREADY_KEY_ID_LEN(37u), mPsshStr(),
+		mInitData(), mKeyID(), mContentMetaData()
+	{}
+
 	~AampPlayReadyHelper() {}
 
 private:
 	static const std::string PLAYREADY_OCDM_ID;
-	const size_t PLAYREADY_DECODED_KEY_ID_LEN{16u}; // Expected size of base64 decoded key ID from the PSSH
-	const size_t PLAYREADY_KEY_ID_LEN{37u}; // PlayReady ID key length. A NULL character is included at the end
-	const std::string FRIENDLY_NAME{"PlayReady"};
-	const int CODEC_TYPE{2};
+	const size_t PLAYREADY_DECODED_KEY_ID_LEN; // Expected size of base64 decoded key ID from the PSSH
+	const size_t PLAYREADY_KEY_ID_LEN; // PlayReady ID key length. A NULL character is included at the end
+	const std::string FRIENDLY_NAME;
+	const int CODEC_TYPE;
 
 	std::string mPsshStr;
 	std::vector<uint8_t> mInitData;

@@ -44,19 +44,23 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampClearKeyHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo) {}
+	AampClearKeyHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), mInitData(), mKeyID(), mPsshStr(),
+		CLEARKEY_KEY_ID("1"), FRIENDLY_NAME("Clearkey"), CODEC_TYPE(0), CLEARKEY_DASH_KEY_ID_OFFSET(32u),
+		CLEARKEY_DASH_KEY_ID_LEN(16u), KEY_ID_OFFSET(12), KEY_PAYLOAD_OFFSET(14), BASE_16(16)
+	{}
+
 	~AampClearKeyHelper() { }
 
 private:
 	static const std::string CLEARKEY_OCDM_ID;
-	const std::string CLEARKEY_KEY_ID{"1"};
-	const std::string FRIENDLY_NAME{"Clearkey"};
-	const int CODEC_TYPE = 0;
-	const size_t CLEARKEY_DASH_KEY_ID_OFFSET{32u}; // Offset in the PSSH to find the key ID for DASH
-	const size_t CLEARKEY_DASH_KEY_ID_LEN{16u}; // Length of the key ID for DASH
-	const int KEY_ID_OFFSET{12};
-	const int KEY_PAYLOAD_OFFSET{14};
-	const int BASE_16{16};
+	const std::string CLEARKEY_KEY_ID;
+	const std::string FRIENDLY_NAME;
+	const int CODEC_TYPE;
+	const size_t CLEARKEY_DASH_KEY_ID_OFFSET; // Offset in the PSSH to find the key ID for DASH
+	const size_t CLEARKEY_DASH_KEY_ID_LEN; // Length of the key ID for DASH
+	const int KEY_ID_OFFSET;
+	const int KEY_PAYLOAD_OFFSET;
+	const int BASE_16;
 
 	std::string mPsshStr;
 	std::vector<uint8_t> mInitData;

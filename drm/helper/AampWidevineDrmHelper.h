@@ -50,17 +50,20 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampWidevineDrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo) {}
+	AampWidevineDrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("Widevine"),
+		CODEC_TYPE(1), WIDEVINE_KEY_ID_SIZE_INDICATOR(0x12), WIDEVINE_DASH_KEY_ID_OFFSET(32u),
+		WIDEVINE_CONTENT_METADATA_OFFSET(28u), mInitData(), mKeyID(), mContentMetadata()
+	{}
 
 	~AampWidevineDrmHelper() { }
 
 private:
 	static const std::string WIDEVINE_OCDM_ID;
-	const std::string FRIENDLY_NAME{"Widevine"};
-	const int CODEC_TYPE{1};
-	const uint8_t WIDEVINE_KEY_ID_SIZE_INDICATOR{0x12};
-	const size_t WIDEVINE_DASH_KEY_ID_OFFSET{32u}; // Offset in the PSSH to find the key ID for DASH
-	const uint8_t WIDEVINE_CONTENT_METADATA_OFFSET{28u}; // Offset of content metadata in Widevine PSSH data
+	const std::string FRIENDLY_NAME;
+	const int CODEC_TYPE;
+	const uint8_t WIDEVINE_KEY_ID_SIZE_INDICATOR;
+	const size_t WIDEVINE_DASH_KEY_ID_OFFSET; // Offset in the PSSH to find the key ID for DASH
+	const uint8_t WIDEVINE_CONTENT_METADATA_OFFSET; // Offset of content metadata in Widevine PSSH data
 
 	std::vector<uint8_t> mInitData;
 	std::vector<uint8_t> mKeyID;

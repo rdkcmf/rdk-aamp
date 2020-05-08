@@ -44,8 +44,33 @@ typedef enum
 
 struct DrmInfo
 {
-	DrmInfo() : method(eMETHOD_NONE), mediaFormat(eMEDIAFORMAT_HLS), useFirst16BytesAsIV(false), iv(nullptr) {};
+	DrmInfo() : method(eMETHOD_NONE), mediaFormat(eMEDIAFORMAT_HLS), useFirst16BytesAsIV(false), iv(nullptr),
+				masterManifestURL(), manifestURL(), keyURI(), keyFormat(), systemUUID(), initData()
+	{};
 	~DrmInfo() {};
+	// copy constructor
+	DrmInfo(const DrmInfo& other) : method(other.method), mediaFormat(other.mediaFormat),
+					useFirst16BytesAsIV(other.useFirst16BytesAsIV), masterManifestURL(other.masterManifestURL),
+					manifestURL(other.manifestURL), keyURI(other.keyURI), keyFormat(other.keyFormat),
+					systemUUID(other.systemUUID), initData(other.initData), iv()
+	{
+		// copying same iv, releases memory allocated after deleting any of these objects.
+		iv = other.iv;
+	}
+	DrmInfo& operator=(const DrmInfo& other)
+	{
+		method = other.method;
+		mediaFormat = other.mediaFormat;
+		useFirst16BytesAsIV = other.useFirst16BytesAsIV;
+		masterManifestURL = other.masterManifestURL;
+		manifestURL = other.manifestURL;
+		keyURI = other.keyURI;
+		keyFormat = other.keyFormat;
+		systemUUID = other.systemUUID;
+		initData = other.initData;
+		// copying same iv, releases memory allocated after deleting any of these objects.
+		iv = other.iv;
+	}
 	DrmMethod method;				// Encryption method
 	MediaFormat mediaFormat;		// Format of the media being played e.g. DASH, HLS
 	bool useFirst16BytesAsIV;

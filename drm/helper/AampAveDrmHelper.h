@@ -57,13 +57,12 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; }
 
-	AampAveDrmHelper() : AampDrmHelper(DrmInfo {} ) {}
+	AampAveDrmHelper() : AampDrmHelper(DrmInfo {} ), FRIENDLY_NAME("Adobe_Access"), EMPTY_STRING(), CODEC_TYPE(2) {}
 
 private:
-	const std::string FRIENDLY_NAME{"Adobe_Access"};
+	const std::string FRIENDLY_NAME;
 	const std::string EMPTY_STRING;
-	const int CODEC_TYPE = 2;
-
+	const int CODEC_TYPE;
 };
 
 #endif /* AAMPAVEDRMHELPER_H */

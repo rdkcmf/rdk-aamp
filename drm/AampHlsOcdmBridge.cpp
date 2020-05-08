@@ -27,7 +27,8 @@ AampHlsOcdmBridge::AampHlsOcdmBridge(AampDrmSession * aampDrmSession) :
 	m_drmInfo(nullptr),
 	m_aampInstance(nullptr),
 	m_drmSession(aampDrmSession),
-	m_drmState(eDRM_INITIALIZED)
+	m_drmState(eDRM_INITIALIZED),
+	m_Mutex()
 {
 	pthread_mutex_init(&m_Mutex, NULL);
 }

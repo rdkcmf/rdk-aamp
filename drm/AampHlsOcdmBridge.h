@@ -40,6 +40,10 @@ public:
 
 	~AampHlsOcdmBridge();
 
+	AampHlsOcdmBridge(const AampHlsOcdmBridge&) = delete;
+
+	AampHlsOcdmBridge& operator=(const AampHlsOcdmBridge&) = delete;
+
 	/*HlsDrmBase Methods*/
 
 	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata,int trackType) override {return eDRM_SUCCESS;};

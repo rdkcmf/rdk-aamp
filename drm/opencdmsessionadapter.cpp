@@ -33,7 +33,9 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(std::shared_ptr<AampDrmHelper> dr
 		m_OCDMSessionCallbacks(),
 		m_destUrl(),
 		m_drmHelper(drmHelper),
-		m_drmCallbacks(callbacks)
+		m_drmCallbacks(callbacks),
+		m_keyStatusWait(),
+		m_keyId()
 {
 	logprintf("AAMPOCDMSessionAdapter :: enter ");
 	pthread_mutex_init(&decryptMutex, NULL);

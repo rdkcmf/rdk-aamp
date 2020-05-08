@@ -62,7 +62,7 @@ static const char *sessionTypeName[] = {"video", "audio"};
 
 static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
 
-KeyID::KeyID() : creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false)
+KeyID::KeyID() : creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false), data()
 {
 }
 

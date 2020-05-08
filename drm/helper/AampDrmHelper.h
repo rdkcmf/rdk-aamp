@@ -33,6 +33,7 @@
 
 struct AampChallengeInfo
 {
+	AampChallengeInfo() : data(), url(), accessToken() {};
 	std::shared_ptr<DrmData> data; // Challenge data returned from the DRM system
 	std::string url;               // Challenge URL returned from the DRM system
 	std::string accessToken;       // Access token required for the license request (if applicable)
@@ -40,6 +41,8 @@ struct AampChallengeInfo
 
 struct AampLicenseRequest
 {
+	AampLicenseRequest() : method(), url(), payload(), headers()
+	{}
 	enum LicenseMethod
 	{
 		DRM_RETRIEVE,   // Don't fetch the license, it will be handled externally by the DRM
@@ -56,11 +59,11 @@ struct AampLicenseRequest
 class AampDrmHelper
 {
 public:
-	const uint32_t TWO_SECONDS = 2000U;
+	const uint32_t TWO_SECONDS;
 	const std::string EMPTY_DRM_METADATA;
 	const std::string EMPTY_STRING;
 
-	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo) {};
+	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TWO_SECONDS(2000U), EMPTY_DRM_METADATA(), EMPTY_STRING() {};
 
 	/**
 	 * Returns the OCDM system ID of the helper
@@ -248,6 +251,10 @@ private:
 	std::vector<AampDrmHelperFactory* > factories;
 
 public:
+	/*
+	 * AampDrmHelperEngine constructor
+	 */
+	AampDrmHelperEngine() : factories() {};
 	/**
 	 * Determines whether the helper engine has a DRM helper available for the
 	 * specified DrmInfo

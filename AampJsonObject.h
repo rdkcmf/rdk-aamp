@@ -33,6 +33,7 @@ public:
 	AampJsonObject(const std::string& jsonStr);
 	~AampJsonObject();
 	AampJsonObject(const AampJsonObject&) = delete;
+	AampJsonObject& operator=(const AampJsonObject&) = delete;
 
 	enum ENCODING
 	{

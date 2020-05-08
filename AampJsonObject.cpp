@@ -22,12 +22,12 @@
 #include "AampDRMutils.h"
 #include "_base64.h"
 
-AampJsonObject::AampJsonObject() : mParent(NULL)
+AampJsonObject::AampJsonObject() : mParent(NULL), mJsonObj()
 {
 	mJsonObj = cJSON_CreateObject();
 }
 
-AampJsonObject::AampJsonObject(const std::string& jsonStr) : mParent(NULL)
+AampJsonObject::AampJsonObject(const std::string& jsonStr) : mParent(NULL), mJsonObj()
 {
 	mJsonObj = cJSON_Parse(jsonStr.c_str());
 

@@ -55,11 +55,11 @@ public:
 
 	virtual void getKey(std::vector<uint8_t>& keyID) const {};
 
-	AampVanillaDrmHelper() : AampDrmHelper(DrmInfo {} ) {}
+	AampVanillaDrmHelper() : AampDrmHelper(DrmInfo {} ), FRIENDLY_NAME("Vanilla_AES"), CODEC_TYPE(3), EMPTY_STRING() {}
 
 private:
-	const std::string FRIENDLY_NAME{"Vanilla_AES"};
-	const int CODEC_TYPE{3};
+	const std::string FRIENDLY_NAME;
+	const int CODEC_TYPE;
 
 };
 

@@ -72,8 +72,20 @@ struct DrmSessionContext
 	pthread_mutex_t sessionMutex;
 	AampDrmSession * drmSession;
 
-	DrmSessionContext() : sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL)
+	DrmSessionContext() : sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL),data()
 	{
+	}
+	DrmSessionContext(const DrmSessionContext& other) : sessionMutex(other.sessionMutex), data(), drmSession()
+	{
+		// Releases memory allocated after destructing any of these objects
+		drmSession = other.drmSession;
+		data = other.data;
+	}
+	DrmSessionContext& operator=(const DrmSessionContext& other)
+	{
+		sessionMutex = other.sessionMutex;
+		data = other.data;
+		drmSession = other.drmSession;
 	}
 };
 
@@ -83,6 +95,11 @@ struct DrmSessionContext
  */
 struct DrmSessionParams
 {
+	DrmSessionParams() : initData(NULL), initDataLen(0), stream_type(eMEDIATYPE_DEFAULT),
+		aamp(NULL), drmType(eDRM_NONE), drmHelper()
+	{};
+	DrmSessionParams(const DrmSessionParams&) = delete;
+	DrmSessionParams& operator=(const DrmSessionParams&) = delete;
 	unsigned char *initData;
 	int initDataLen;
 	MediaType stream_type;
