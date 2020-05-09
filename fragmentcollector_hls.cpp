@@ -2450,7 +2450,7 @@ void TrackState::SetDrmContext()
 	{
 		// OCDM-based DRM decryption is available via the HLS OCDM bridge
 		AAMPLOG_INFO("%s:%d Drm support available", __FUNCTION__, __LINE__);
-		mDrm = AampHlsDrmSessionManager::getInstance().createSession(aamp, mDrmInfo);
+		mDrm = AampHlsDrmSessionManager::getInstance().createSession(aamp, mDrmInfo,(MediaType)(type));
 		if (!mDrm)
 		{
 			AAMPLOG_WARN("%s:%d Failed to create Drm Session", __FUNCTION__, __LINE__);

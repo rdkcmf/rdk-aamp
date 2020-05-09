@@ -519,7 +519,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
-		long *httpCode, bool isComcastStream, char* licenseProxy)
+		long *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy)
 {
 	*httpCode = -1;
 	CURL *curl;
@@ -531,7 +531,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	callbackData->data = keyInfo;
 	callbackData->mDRMSessionManager = this;
 	long challengeLength = 0;
-    long long downloadTimeMS = 0;
+	long long downloadTimeMS = 0;
     
 	curl = curl_easy_init();
 
@@ -650,10 +650,22 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 		curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 
-		AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
-				licenseRequest.url.c_str(),
-				totalPerformRequest,
-				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
+		MediaTypeTelemetry mediaType = eMEDIATYPE_TELEMETRY_DRM;
+		std::string appName, timeoutClass;
+		if (!aamp->GetAppName().empty())
+		{
+			// append app name with class data
+			appName = aamp->GetAppName() + ",";
+		}
+		if (CURLE_OPERATION_TIMEDOUT == res || CURLE_PARTIAL_FILE == res || CURLE_COULDNT_CONNECT == res)
+		{
+			// introduce  extra marker for connection status curl 7/18/28,
+			// example 18(0) if connection failure with PARTIAL_FILE code
+			timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+		}
+		AAMPLOG(eLOGLEVEL_WARN, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
+						appName.c_str(), mediaType, streamType, *httpCode, timeoutClass.c_str(), totalPerformRequest, totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
+						licenseRequest.url.c_str());
 
 		if(!loopAgain)
 			break;
@@ -721,7 +733,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		else
 		{
-			drmSession = AampDRMSessionManager::createDrmSession(drmHelper, e, aamp);
+			drmSession = AampDRMSessionManager::createDrmSession(drmHelper, e, aamp, streamType);
 		}
 	}
 
@@ -732,7 +744,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
  * Create DrmSession by using the AampDrmHelper object
  * @return AampdrmSession
  */
-AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType)
 {
 	if (!drmHelper || !eventHandle || !aampInstance)
 	{
@@ -775,7 +787,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
-	code = acquireLicense(drmHelper, selectedSlot, cdmError, eventHandle, aampInstance);
+	code = acquireLicense(drmHelper, selectedSlot, cdmError, eventHandle, aampInstance, streamType);
 	if (code != KEY_READY)
 	{
 		logprintf("%s:%d Unable to get Ready Status DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
@@ -967,7 +979,7 @@ KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelp
  * sent license challenge to the DRM server and provide the respone to CDM
  */
 KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
-		AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+		AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType)
 {
 	shared_ptr<DrmData> licenseResponse;
 	long httpResponseCode = -1;
@@ -1053,7 +1065,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				else
 #endif
 				{
-					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, isComcastStream, licenseServerProxy));
+					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isComcastStream, licenseServerProxy));
 				}
 
 			}
@@ -1363,7 +1375,7 @@ void *CreateDRMSession(void *arg)
 		systemId = sessionParams->drmHelper->getUuid().c_str();
 		sessionParams->drmHelper->createInitData(data);
 		sessionParams->aamp->mStreamSink->QueueProtectionEvent(systemId, data.data(), data.size(), sessionParams->stream_type);
-		drmSession = sessionManger->createDrmSession(sessionParams->drmHelper, &e, sessionParams->aamp);
+		drmSession = sessionManger->createDrmSession(sessionParams->drmHelper, &e, sessionParams->aamp, sessionParams->stream_type);
 
 		if(NULL == drmSession)
 		{

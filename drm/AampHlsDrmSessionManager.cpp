@@ -35,7 +35,7 @@ bool AampHlsDrmSessionManager::isDrmSupported(const struct DrmInfo& drmInfo) con
 	return AampDrmHelperEngine::getInstance().hasDRM(drmInfo);
 }
 
-std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo)
+std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo, MediaType streamType)
 {
 	std::shared_ptr<HlsDrmBase> bridge = nullptr;
 	std::shared_ptr<AampDrmHelper> drmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
@@ -43,7 +43,7 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 	aampInstance->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 
 	AAMPEvent aampEvent;
-	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, &aampEvent, aampInstance);
+	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, &aampEvent, aampInstance, streamType);
 	if (!mDrmSession)
 	{
 		AAMPLOG_WARN("%s:%d Failed to create Drm Session ", __FUNCTION__, __LINE__);

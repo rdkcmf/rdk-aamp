@@ -153,13 +153,13 @@ public:
 			PrivateInstanceAAMP* aamp, AAMPEvent *e, const unsigned char *contentMetadata = nullptr,
 			bool isPrimarySession = false);
 
-	AampDrmSession* createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance);
+	AampDrmSession* createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType);
 
 #ifdef USE_SECCLIENT
 	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle);
 #endif
-	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
+	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
 
 	void clearSessionData();
 
@@ -180,7 +180,7 @@ public:
 	KeyState initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, AAMPEvent* eventHandle);
 
 	KeyState acquireLicense(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
-			AAMPEvent* eventHandle,PrivateInstanceAAMP* aampInstance);
+			AAMPEvent* eventHandle,PrivateInstanceAAMP* aampInstance, MediaType streamType);
 
 	KeyState handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
 			long httpResponseCode, shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance);

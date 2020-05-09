@@ -45,7 +45,7 @@ public:
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return true if a DRM support available, false otherwise
 	 */
-	 std::shared_ptr<HlsDrmBase> createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo);
+	 std::shared_ptr<HlsDrmBase> createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo, MediaType streamType);
 };
 
 #endif //_AAMP_HLS_DRM_SESSION_MGR_H
