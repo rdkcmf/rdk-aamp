@@ -560,9 +560,9 @@ public:
 	bool IsTSBUsed() { return mIsFogTSB; }
 private:
 	AAMPStatusType UpdateMPD(bool init = false);
-	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false);
-	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit);
-	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit);
+	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
+	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
+	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
 	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS);
@@ -2261,7 +2261,12 @@ AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBu
 				{
 					mpd->SetFetchTime(fetchTime);
 #if 1
-					FindTimedMetadata(mpd, root, init);
+					FindTimedMetadata(mpd, root, init, aamp->mBulkTimedMetadata);
+					if(aamp->mBulkTimedMetadata && init && aamp->IsNewTune())
+					{
+						// Send bulk report
+						aamp->ReportBulkTimedMetadata();
+					}
 					ret = AAMPStatusType::eAAMPSTATUS_OK;
 #else
 					size_t prevPrdCnt = mCdaiObject->mAdBreaks.size();
@@ -3638,7 +3643,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
  * @param mpd MPD top level element
  * @param root XML root node
  */
-void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool init)
+void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool init, bool reportBulkMeta)
 {
 	std::vector<Node*> subNodes = root->GetSubNodes();
 
@@ -3685,11 +3690,11 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 				Node* child = children.at(j);
 				const std::string& name = child->GetName();
 				if (name == "SupplementalProperty") {
-					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS , init);
+					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS , init, reportBulkMeta);
 					continue;
 				}
 				if (name == "AssetIdentifier") {
-					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID,init);
+					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID,init, reportBulkMeta);
 					continue;
 				}
 				if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
@@ -3725,7 +3730,15 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 						{
 							const std::string& tag = aamp->subscribedTags.at(i);
 							if (tag == "#EXT-X-CONTENT-IDENTIFIER") {
-								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+
+								if(reportBulkMeta && init)
+								{
+									aamp->SaveTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
+								}
+								else
+								{
+									aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+								}
 								break;
 							}
 						}
@@ -3748,7 +3761,15 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-IDENTITY-ADS") {
-							aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+							if(reportBulkMeta && init)
+							{
+								aamp->SaveTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
+							}
+							else
+							{
+								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+							}
+							
 							break;
 						}
 					}
@@ -3763,7 +3784,14 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-MESSAGE-REF") {
-							aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+							if(reportBulkMeta && init)
+							{
+								aamp->SaveTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
+							}
+							else
+							{
+								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+							}
 							break;
 						}
 					}
@@ -3784,7 +3812,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
  * @param startMS start time in MS
  * @param durationMS duration in MS
  */
-void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit)
+void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta)
 {
 	if (node->HasAttribute("schemeIdUri")) {
 		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
@@ -3815,7 +3843,14 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-CUE") {
-							aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size() , isInit);
+							if(reportBulkMeta && isInit)
+							{
+								aamp->SaveTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+							}
+							else
+							{
+								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size() , isInit);
+							}
 							break;
 						}
 					}
@@ -3855,7 +3890,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
  * @param AssetID Asset Id
  * @param ProviderID Provider Id
  */
-void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID,bool isInit)
+void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID,bool isInit, bool reportBulkMeta)
 {
 	if (node->HasAttribute("schemeIdUri")) {
 		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
@@ -3894,7 +3929,14 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 					{
 						const std::string& tag = aamp->subscribedTags.at(i);
 						if (tag == "#EXT-X-ASSET-ID") {
-							aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(),isInit);
+							if(reportBulkMeta && isInit)
+							{
+								aamp->SaveTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+							}
+							else
+							{
+								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(),isInit);
+							}
 							break;
 						}
 					}
