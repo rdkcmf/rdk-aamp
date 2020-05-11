@@ -46,6 +46,27 @@ typedef enum
 } TrackType;
 
 /**
+ * @brief Structure holding the resolution of stream
+ */
+struct StreamResolution
+{
+	int width;      /**< Width in pixels*/
+	int height;     /**< Height in pixels*/
+	double framerate; /**< Frame Rate */
+};
+
+/**
+ * @brief Structure holding the information of a stream.
+ */
+struct StreamInfo
+{
+	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
+	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
+	StreamResolution resolution;    /**< Resolution of the stream*/
+	BitrateChangeReason reason;	/**< Reason for bitrate change*/
+};
+
+/**
  * @brief Structure of cached fragment data
  *        Holds information about a cached fragment
  */
@@ -59,6 +80,7 @@ struct CachedFragment
 #ifdef AAMP_DEBUG_INJECT
 	std::string uri;   /**< Fragment url */
 #endif
+	StreamInfo cacheFragStreamInfo; /**< Bitrate info of the fragment */
 };
 
 /**
@@ -368,27 +390,6 @@ private:
 
 };
 
-
-/**
- * @brief Structure holding the resolution of stream
- */
-struct StreamResolution
-{
-	int width;      /**< Width in pixels*/
-	int height;     /**< Height in pixels*/
-	double framerate; /**< Frame Rate */
-};
-
-/**
- * @brief Structure holding the information of a stream.
- */
-struct StreamInfo
-{
-	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
-	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
-	StreamResolution resolution;    /**< Resolution of the stream*/
-};
-
 /**
  * @brief StreamAbstraction class of AAMP
  */
@@ -626,10 +627,11 @@ public:
 	 *   Used internally by injection logic
 	 *
 	 *   @param[in]  profileIndex - profile index of last injected fragment.
+	 *   @param[in]  cacheFragStreamInfo - stream info for the last injected fragment.
 	 *   @return void
 	 */
-	void NotifyBitRateUpdate(int profileIndex);
-
+	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
+	
 	/**
 	 *   @brief Fragment Buffering is required before playing.
 	 *
@@ -893,6 +895,14 @@ public:
 	 */
 	double GetBufferedVideoDurationSec();
 
+	/**
+	 *   @brief Function to update stream info of current fetched fragment
+	 *
+	 *   @param[in]  profileIndex - profile index of current fetched fragment
+	 *   @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
+	 */
+	void UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo);
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -947,6 +957,7 @@ private:
 	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
 	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
 	int mRampDownLimit;		/**< stores ramp down limit value */
+	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;

@@ -230,6 +230,21 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_FAILURE_UNKNOWN, 100, "AAMP: Unknown Failure"}
 };
 
+static constexpr const char *BITRATECHANGE_STR[] =
+{
+	(const char *)"BitrateChanged - Network adaptation",				// eAAMP_BITRATE_CHANGE_BY_ABR
+	(const char *)"BitrateChanged - Rampdown due to network failure",		// eAAMP_BITRATE_CHANGE_BY_RAMPDOWN
+	(const char *)"BitrateChanged - Reset to default bitrate due to tune",		// eAAMP_BITRATE_CHANGE_BY_TUNE
+	(const char *)"BitrateChanged - Reset to default bitrate due to seek",		// eAAMP_BITRATE_CHANGE_BY_SEEK
+	(const char *)"BitrateChanged - Reset to default bitrate due to trickplay",	// eAAMP_BITRATE_CHANGE_BY_TRICKPLAY
+	(const char *)"BitrateChanged - Rampup since buffers are full",			// eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL
+	(const char *)"BitrateChanged - Rampdown since buffers are empty",		// eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY
+	(const char *)"BitrateChanged - Network adaptation by FOG",			// eAAMP_BITRATE_CHANGE_BY_FOG_ABR
+	(const char *)"BitrateChanged - Unknown reason"					// eAAMP_BITRATE_CHANGE_MAX
+};
+
+#define BITRATEREASON2STRING(id) BITRATECHANGE_STR[id]
+
 static constexpr const char *ADEVENT_STR[] =
 {
 	(const char *)"AAMP_EVENT_AD_RESERVATION_START",
@@ -1033,12 +1048,12 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 /**
  * @brief Notify bitrate change event to listeners
  * @param bitrate new bitrate
- * @param description description of rate change
+ * @param reason reason for bitrate change
  * @param width new width in pixels
  * @param height new height in pixels
  * @param GetBWIndex get bandwidth index - used for logging
  */
-void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *description ,int width ,int height,double frameRate, bool GetBWIndex)
+void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex)
 {
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_BITRATE_CHANGED])
 	{
@@ -1046,20 +1061,23 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
 		e->event.type = AAMP_EVENT_BITRATE_CHANGED;
 		e->event.data.bitrateChanged.time               =       (int)aamp_GetCurrentTimeMS();
 		e->event.data.bitrateChanged.bitrate            =       bitrate;
-		strncpy(e->event.data.bitrateChanged.description,description,sizeof(e->event.data.bitrateChanged.description));
+		strncpy(e->event.data.bitrateChanged.description, BITRATEREASON2STRING(reason), sizeof(e->event.data.bitrateChanged.description));
 		e->event.data.bitrateChanged.width              =       width;
 		e->event.data.bitrateChanged.height             =       height;
 		e->event.data.bitrateChanged.framerate          =       frameRate;
+		e->event.data.bitrateChanged.position           =       position;
 		
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
-			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f IndexFromTopProfile: %d%s",bitrate,description,width,height,frameRate,mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f IndexFromTopProfile: %d%s",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
 		}
 		else
 		{
-			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f %s",bitrate,description,width,height,frameRate,(IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "));
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
@@ -1070,11 +1088,13 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
-			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f IndexFromTopProfile: %d%s",bitrate,description,width,height,frameRate,mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f position:%f IndexFromTopProfile: %d%s", 
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
 		}
 		else
 		{
-			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d fps:%f %s",bitrate,description,width,height,frameRate,(IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s", 
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "));
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	}
@@ -1084,16 +1104,20 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
 /**
  * @brief Notify rate change event to listeners
  * @param rate new speed
+ * @param changeState true if state change to be done, false otherwise (default = true)
  */
-void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
+void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 {
-	if (rate == 0)
+	if (changeState)
 	{
-		SetState(eSTATE_PAUSED);
-	}
-	else if (rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		SetState(eSTATE_PLAYING);
+		if (rate == 0)
+		{
+			SetState(eSTATE_PAUSED);
+		}
+		else if (rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			SetState(eSTATE_PLAYING);
+		}
 	}
 
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SPEED_CHANGED])
@@ -6218,11 +6242,7 @@ static gboolean  SeekAfterPrepared(gpointer ptr)
 		aamp->TuneHelper(tuneType);
 		if (sentSpeedChangedEv)
 		{
-			aamp->NotifySpeedChanged(aamp->rate);
-		}
-		else
-		{
-			aamp->SetState(eSTATE_PLAYING);
+			aamp->NotifySpeedChanged(aamp->rate, false);
 		}
 	}
 	return true;
@@ -6304,11 +6324,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			aamp->TuneHelper(tuneType);
 			if (sentSpeedChangedEv)
 			{
-				aamp->NotifySpeedChanged(aamp->rate);
-			}
-			else
-			{
-				aamp->SetState(eSTATE_PLAYING);
+				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
 		}
 	}
@@ -8387,7 +8403,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		return;
 	}
 
-	if( state == eSTATE_PLAYING && mState == eSTATE_SEEKING )
+	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING)
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
@@ -9235,6 +9251,14 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
+	PrivAAMPState state;
+	GetState(state);
+	if (state == eSTATE_SEEKING)
+	{
+		//Playback started after end of seeking
+		SetState(eSTATE_PLAYING);
+	}
+
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
@@ -10526,7 +10550,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 				else
 				{
 					// this can come here if trickplay is done or play started late
-					if(state == eSTATE_SEEKING || eSTATE_PREPARED)
+					if(state == eSTATE_SEEKING || state == eSTATE_PREPARED)
 					{
 						// wait for seek to complete 
 						sleep(1);
