@@ -438,10 +438,6 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		{
 			logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
 		}
-		else
-		{
-			logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.");
-		}
 	}
 	else
 	{
