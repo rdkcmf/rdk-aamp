@@ -819,7 +819,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	GError *error;
 	gchar *dbg_info;
 	bool isPlaybinStateChangeEvent;
-
 	switch (GST_MESSAGE_TYPE(msg))
 	{ // see https://developer.gnome.org/gstreamer/stable/gstreamer-GstMessage.html#GstMessage
 	case GST_MESSAGE_ERROR:
@@ -1065,6 +1064,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_NEW_CLOCK:
 		break;
 	case GST_MESSAGE_APPLICATION:
+		logprintf("GST_MESSAGE_APPLICATION");
 		const GstStructure *msgS;
 		msgS = gst_message_get_structure (msg);
 		if (gst_structure_has_name (msgS, "HDCPProtectionFailure")) {
