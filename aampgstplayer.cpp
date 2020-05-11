@@ -502,11 +502,12 @@ static void httpsoup_source_setup (GstElement * element, GstElement * source, gp
 static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 {
         AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-		if (_this){
-			_this->aamp->NotifyFirstFrameReceived();
-			_this->privateContext->firstFrameCallbackIdleTaskPending = false;
-			_this->privateContext->firstFrameCallbackIdleTaskId = 0;
-		}
+	if (_this)
+	{
+		_this->aamp->NotifyFirstFrameReceived();
+		_this->privateContext->firstFrameCallbackIdleTaskPending = false;
+		_this->privateContext->firstFrameCallbackIdleTaskId = 0;
+	}
         return G_SOURCE_REMOVE;
 }
 
@@ -519,7 +520,8 @@ static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 static gboolean IdleCallbackOnEOS(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->privateContext->eosCallbackIdleTaskPending = false;
 		logprintf("%s:%d  eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->eosCallbackIdleTaskId);
 		_this->aamp->NotifyEOSReached();
@@ -555,7 +557,8 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
 static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->aamp->ReportProgress();
 		traceprintf("%s:%d current %d, stored %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 	}
@@ -571,7 +574,8 @@ static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 static gboolean IdleCallback(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->aamp->ReportProgress();
 		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
@@ -604,6 +608,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 
 	if (eMEDIATYPE_VIDEO == type)
 	{
+		// DELIA-42262: No additional checks added here, since the NotifyFirstFrame will be invoked only once
+		// in westerossink disabled case until BCOM fixes it. Also aware of NotifyFirstBufferProcessed called
+		// twice in this function, since it updates timestamp for calculating time elapsed, its trivial
+		aamp->NotifyFirstBufferProcessed();
+
 		if (!privateContext->decoderHandleNotified)
 		{
 			privateContext->decoderHandleNotified = true;
@@ -1987,7 +1996,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	}
 	if (eMEDIATYPE_VIDEO == mediaType)
 	{
-		if (isFirstBuffer)
+		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
+		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
+		if (isFirstBuffer && !privateContext->using_westerossink)
 		{
 			aamp->NotifyFirstBufferProcessed();
 		}
@@ -2070,7 +2081,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
 	if (eMEDIATYPE_VIDEO == mediaType)
 	{
-		if (isFirstBuffer)
+		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
+		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
+		if (isFirstBuffer && !privateContext->using_westerossink)
 		{
 			aamp->NotifyFirstBufferProcessed();
 		}
