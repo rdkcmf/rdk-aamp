@@ -308,6 +308,8 @@ typedef enum
 #define traceprintf(FORMAT, ...)
 #endif
 
+#define DEBUG_TRACE_LOG(FORMAT, ...) logprintf("Trace Logs :: %s:%d " FORMAT "\n", __FUNCTION__, __LINE__, ##__VA_ARGS__);
+
 /**
  * @brief Macro for validating the log level to be enabled
  */
@@ -416,7 +418,7 @@ public:
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(true), debug(false), trace(false), gst(false), curl(false), progress(true), failover(false), curlHeader(false)
 	{
 	}
 

@@ -2808,7 +2808,7 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	}
 	else
 	{
-		traceprintf("%s(): stream->format %d, stream->resetPosition %d, stream->flush %d", __FUNCTION__,stream->format , stream->resetPosition, stream->flush);
+		DEBUG_TRACE_LOG("Before push EOS: stream->format %d, stream->resetPosition %d, stream->flush %d", stream->format , stream->resetPosition, stream->flush);
 		AAMPGstPlayer_SignalEOS(stream->source);
 		// We are in buffering, but we received discontinuity, un-pause pipeline
 		StopBuffering(true);

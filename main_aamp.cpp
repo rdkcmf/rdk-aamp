@@ -1134,6 +1134,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stream();
 			mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
 			mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+			DEBUG_TRACE_LOG("mProcessingDiscontinuity(audio)(video) = 0");
 			mLastDiscontinuityTimeMs = 0;
 		}
 		else
@@ -1159,6 +1160,8 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 void PrivateInstanceAAMP::NotifyEOSReached()
 {
 	logprintf("%s: Enter . processingDiscontinuity %d",__FUNCTION__, (mProcessingDiscontinuity[eMEDIATYPE_VIDEO] || mProcessingDiscontinuity[eMEDIATYPE_AUDIO]));
+	DEBUG_TRACE_LOG("mProcessingDiscontinuity(video) = %d, mProcessingDiscontinuity(audio) = %d", mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
+
 	if (!IsDiscontinuityProcessPending())
 	{
 		if (!mpStreamAbstractionAAMP->IsEOSReached())
@@ -1168,6 +1171,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		}
 		if (!IsLive() && rate > 0)
 		{
+			DEBUG_TRACE_LOG("change state to COMPLETE and send EOS event");
 			SetState(eSTATE_COMPLETE);
 			SendEventAsync(AAMP_EVENT_EOS);
 			if (ContentType_EAS == mContentType) //Fix for DELIA-25590
@@ -3733,6 +3737,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 	std::string cfgPath = "";
 	if (!gpGlobalConfig)
 	{
+		DEBUG_TRACE_LOG("AAMPDebugLib");
 #ifdef AAMP_BUILD_INFO
 		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
 		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
@@ -3914,6 +3919,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	//reset discontinuity related flags
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+	DEBUG_TRACE_LOG("mProcessingDiscontinuity(audio)(video) = 0");
 	pthread_mutex_unlock(&mLock);
 
 	if (mpStreamAbstractionAAMP)
@@ -4842,6 +4848,7 @@ void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 				mLastDiscontinuityTimeMs = 0;
 				mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 				mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+				DEBUG_TRACE_LOG("mProcessingDiscontinuity(audio)(video) = 0");
 				ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
 			}
 		}
@@ -7023,6 +7030,7 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track)
 	if (ret)
 	{
 		mProcessingDiscontinuity[track] = true;
+		DEBUG_TRACE_LOG("mProcessingDiscontinuity(%s) = 1", (track == eMEDIATYPE_VIDEO ? "video": "audio"));
 	}
 	return ret;
 }
@@ -7300,6 +7308,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 		lastUnderFlowTimeMs[i] = 0;
 		mProcessingDiscontinuity[i] = false;
 	}
+
+	DEBUG_TRACE_LOG("mProcessingDiscontinuity(audio)(video) = 0");
 
 	pthread_mutex_lock(&gMutex);
 	gActivePrivAAMP_t gAAMPInstance = { this, false, 0 };
