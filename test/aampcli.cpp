@@ -138,6 +138,7 @@ typedef enum{
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
 	eAAMP_SET_LanguageFormat,
+	eAAMP_SET_InitialBufferDuration
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -366,6 +367,7 @@ void ShowHelpSet(){
 	logprintf("36 - Set Maximum DRM Decryption fail count");
 	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
 	logprintf("38 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
+	logprintf("39 - Set Initial Buffer Duration (int in sec)");
 }
 
 #define LOG_CLI_EVENTS
@@ -1131,6 +1133,16 @@ static void ProcessCliCommand(char *cmd)
 					if (sscanf(cmd, "set %d %d %d", &opt, &preference, &useRole) == 3)
 					{
 						mSingleton->SetLanguageFormat(preference, useRole);
+					}
+					break;
+				}
+				case eAAMP_SET_InitialBufferDuration:
+				{
+					int duration;
+					logprintf("Matched Command eAAMP_SET_InitialBufferDuration - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &duration) == 2)
+					{
+						mSingleton->SetInitialBufferDuration(duration);
 					}
 					break;
 				}
