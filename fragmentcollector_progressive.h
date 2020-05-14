@@ -50,6 +50,7 @@ public:
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
     double GetBufferedDuration() override;
+    bool IsFragmentBufferingRequired() override;
     int GetBWIndex(long bitrate) override;
     std::vector<long> GetVideoBitrates(void) override;
     std::vector<long> GetAudioBitrates(void) override;

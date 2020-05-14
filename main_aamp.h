@@ -1550,6 +1550,12 @@ public:
 	 */
 	void SetLanguageFormat(LangCodePreference preferredFormat, bool useRole = false);
 
+	/**
+	 * @brief Set initial buffer duration in seconds
+	 *
+	 */
+	void SetInitialBufferDuration(int durationSec);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

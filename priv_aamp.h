@@ -2999,6 +2999,21 @@ public:
 	void individualization(const std::string& payload);
 
 	/* End AampDrmCallbacks implementation */
+
+	/**
+	 *   @brief Set initial buffer duration in seconds
+	 *
+	 *   @return void
+	 */
+	void SetInitialBufferDuration(int durationSec);
+
+	/**
+	 *   @brief Get current initial buffer duration in seconds
+	 *
+	 *   @return void
+	 */
+	int GetInitialBufferDuration();
+
 private:
 
 	/**
@@ -3056,6 +3071,14 @@ private:
 	 */
 	const std::tuple<std::string, std::string> ExtractDrmInitData(const char *url);
 
+	/**
+	 *   @brief Notify about sink buffer full
+	 *
+	 *   @return void
+ 	 */
+	void NotifySinkBufferFull(MediaType type);
+
+
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
 	int m_fd;
@@ -3108,6 +3131,7 @@ private:
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
+	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 };
 
 #endif // PRIVAAMP_H

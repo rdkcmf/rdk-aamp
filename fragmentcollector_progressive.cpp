@@ -335,6 +335,11 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
 	return -1.0;
 }
 
+bool StreamAbstractionAAMP_PROGRESSIVE::IsFragmentBufferingRequired()
+{
+	return false;
+}
+
 /**
  * @brief Get index of profile corresponds to bandwidth
  * @param[in] bitrate Bitrate to lookup profile
