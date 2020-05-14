@@ -3590,10 +3590,19 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 #endif
 
 		MPD* mpd = nullptr;
+		vector<std::string> locationUrl;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
 		AAMPLOG_INFO("%s:%d Created MPD[%p]", __FUNCTION__, __LINE__, mpd);
 		if (eAAMPSTATUS_OK == ret)
 		{
+			/* DELIA-42794: All manifest requests after the first should
+			 * reference the url from the Location element. This is per MPEG
+			 * specification */
+			locationUrl = mpd->GetLocations();
+			if( !locationUrl.empty() )
+			{
+				aamp->SetManifestUrl(locationUrl[0].c_str());
+			}
 			if (this->mpd)
 			{
 				delete this->mpd;
