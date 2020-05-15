@@ -192,7 +192,7 @@ public:
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 
-	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance);
+	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession = false);
 
 	KeyState initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, AAMPEvent* eventHandle);
 

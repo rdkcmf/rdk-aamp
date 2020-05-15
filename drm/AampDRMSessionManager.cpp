@@ -726,6 +726,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		drmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
+		if(contentMetadataPtr)
+		{
+			std::string contentMetadataPtrString = reinterpret_cast<const char*>(contentMetadataPtr);
+			drmHelper->setDrmMetaData(contentMetadataPtrString);
+		}
+
 		if (!drmHelper->parsePssh(initDataPtr, initDataLen))
 		{
 			logprintf("%s:%d Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__);
@@ -765,7 +771,11 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	int selectedSlot = INVALID_SESSION_SLOT;
 
+	/**
+	 * Create drm session without primaryKeyId markup OR retrieve old DRM session.
+	 */
 	code = getDrmSession(drmHelper, selectedSlot, eventHandle, aampInstance);
+
 	/**
 	 * KEY_READY code indicates that a previously created session is being reused.
 	 */
@@ -802,7 +812,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
  * Determine a slot in the drmSession Contexts which can be used
  * @return index to the selected drmSessionContext which has been selected
  */
-KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession)
 {
 	KeyState code = KEY_ERROR;
 	bool keySlotFound = false;
@@ -877,11 +887,15 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 
 		if (!isCachedKeyId)
 		{
+			if(cachedKeyIDs[sessionSlot].data.size() != 0)
+			{
+				cachedKeyIDs[sessionSlot].data.clear();
+			}
 			cachedKeyIDs[sessionSlot].isFailedKeyId = false;
 			cachedKeyIDs[sessionSlot].data = keyIdArray;
 		}
 		cachedKeyIDs[sessionSlot].creationTime = aamp_GetCurrentTimeMS();
-		cachedKeyIDs[sessionSlot].isPrimaryKeyId = true;
+		cachedKeyIDs[sessionSlot].isPrimaryKeyId = isPrimarySession;
 	}
 
 	selectedSlot = sessionSlot;
@@ -889,7 +903,11 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
 	if (drmSessionContexts[sessionSlot].drmSession != NULL)
 	{
-		if (keyIdArray == drmSessionContexts[sessionSlot].data)
+		if (drmHelper->ocdmSystemId() != drmSessionContexts[sessionSlot].drmSession->getKeySystem())
+		{
+			AAMPLOG_WARN("%s:%d changing DRM session for %s to %s", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), drmHelper->ocdmSystemId().c_str());
+		}
+		else if (keyIdArray == drmSessionContexts[sessionSlot].data)
 		{
 			KeyState existingState = drmSessionContexts[sessionSlot].drmSession->getState();
 			if (existingState == KEY_READY)
@@ -905,6 +923,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 					return KEY_READY;
 				}
 				AAMPLOG_WARN("%s:%d key was never ready for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+				cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 				return KEY_ERROR;
 			}
 			else

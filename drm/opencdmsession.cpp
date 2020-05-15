@@ -182,6 +182,7 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
 	logprintf("generateAampDRMSession :: enter ");
+	pthread_mutex_lock(&decryptMutex);
 #if USE_NEW_OPENCDM
 	m_sessionID = m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);
 	logprintf("generateAampDRMSession :: sessionId : %s ", m_sessionID.c_str());
@@ -196,11 +197,14 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
 	}
 #endif
+	pthread_mutex_unlock(&decryptMutex);
 }
 
 AAMPOCDMSession::~AAMPOCDMSession()
 {
 	logprintf("[HHH]OCDMSession destructor called! keySystem %s", m_keySystem.c_str());
+	clearDecryptContext();
+
 	pthread_mutex_destroy(&decryptMutex);
 #if USE_NEW_OPENCDM
 	if(m_pOpencdmDecrypt)
@@ -235,6 +239,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32
 
 	std::string challenge;
 	int challengeLength = 0;
+	pthread_mutex_lock(&decryptMutex);
 
 #if USE_NEW_OPENCDM
 	unsigned char temporaryUrl[1024] = {'\0'};
@@ -244,6 +249,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32
 	if (challenge.empty() || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
 		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
+		pthread_mutex_unlock(&decryptMutex);
 		return result;
 	}
 
@@ -271,6 +277,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32
 	if (!challengeLength || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
 		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
+		pthread_mutex_unlock(&decryptMutex);
 		return result;
 	}
 
@@ -280,6 +287,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32
 #endif	
 	m_eKeyState = KEY_PENDING;
 
+	pthread_mutex_unlock(&decryptMutex);
 	return result;
 }
 
@@ -291,6 +299,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 #ifdef TRACE_LOG
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif
+	pthread_mutex_lock(&decryptMutex);
 	std::string responseMessage;
 
 	media::OpenCdm::KeyStatus keyStatus = media::OpenCdm::KeyStatus::InternalError;
@@ -364,6 +373,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			AAMPLOG_WARN("processKey: Update() returned keystatus: %d", (int) keyStatus);
 		}
 		m_eKeyState = KEY_ERROR;
+		pthread_mutex_unlock(&decryptMutex);
 		return retvalue;
 	}
 
@@ -371,6 +381,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 #if USE_NEW_OPENCDM
 	m_pOpencdmDecrypt = new media::OpenCdm(m_sessionID);
 #endif
+	pthread_mutex_unlock(&decryptMutex);
 	return retvalue;
 }
 
@@ -453,6 +464,7 @@ KeyState AAMPOCDMSession::getState()
 void AAMPOCDMSession:: clearDecryptContext()
 {
 	logprintf("[HHH] clearDecryptContext.");
+	pthread_mutex_lock(&decryptMutex);
 
 #if USE_NEW_OPENCDM < 1
 	if(m_pOpencdm) m_pOpencdm->ReleaseMem();
@@ -464,5 +476,6 @@ void AAMPOCDMSession:: clearDecryptContext()
 #endif
 	if(m_pOpencdm) m_pOpencdm->Close();
 	m_eKeyState = KEY_INIT;
+	pthread_mutex_unlock(&decryptMutex);
 }
 
