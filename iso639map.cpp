@@ -401,9 +401,31 @@ static void ConvertLanguage3to2( char lang[] )
         strcpy( lang, "un" ); // default - error
     }
 }
+/**
+* @brief Convert lang code to contain only lower case chars
+* @param lang string to convert
+*/
+static void ConvertToLowerCase( char lang[] )
+{
+    for (;;)
+    {
+        char code = *lang;
+        if ( code )
+        {
+            *lang++ = tolower(code);
+        }
+        else
+        {
+            break;
+        }
+    }
+}
 
 void iso639map_NormalizeLanguageCode( char lang[], LangCodePreference langCodePreference )
 {
+    //XIONE-503: Some streams contains lang codes with uppercase chars
+    ConvertToLowerCase(lang);
+
     switch( langCodePreference )
     {
         case ISO639_NO_LANGCODE_PREFERENCE:
@@ -480,6 +502,22 @@ void iso639map_Test( void )
     TestHelper( "ger", ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE, "ger" );
     TestHelper( "ger", ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE, "deu" );
     TestHelper( "ger", ISO639_PREFER_2_CHAR_LANGCODE, "de" );
+
+    //XIONE-503: Uppercase lang codes case:
+    TestHelper( "DE", ISO639_NO_LANGCODE_PREFERENCE, "de" );
+    TestHelper( "DE", ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE, "ger" );
+    TestHelper( "DE", ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE, "deu" );
+    TestHelper( "DE", ISO639_PREFER_2_CHAR_LANGCODE, "de" );
+
+    TestHelper( "DEU", ISO639_NO_LANGCODE_PREFERENCE, "deu" );
+    TestHelper( "DEU", ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE, "ger" );
+    TestHelper( "DEU", ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE, "deu" );
+    TestHelper( "DEU", ISO639_PREFER_2_CHAR_LANGCODE, "de" );
+
+    TestHelper( "GER", ISO639_NO_LANGCODE_PREFERENCE, "ger" );
+    TestHelper( "GER", ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE, "ger" );
+    TestHelper( "GER", ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE, "deu" );
+    TestHelper( "GER", ISO639_PREFER_2_CHAR_LANGCODE, "de" );
 }
 
 #endif // INCLUDE_ISO639MAP_TESTS
