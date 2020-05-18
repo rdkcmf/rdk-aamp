@@ -392,19 +392,21 @@ void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
 		drmSessioData = drmSessionDataPool_g.back();
 		drmSessionDataPool_g.pop_back();
 		// check if session Data is not NULL . This is not freed any other place
-		if(drmSessioData->sessionData)
+		if( drmSessioData )
 		{
-			if(drmSessioData->sessionData->initData)
-				free(drmSessioData->sessionData->initData);		
-			free(drmSessioData->sessionData);
-		}
-		if(drmSessioData->processedKeyId)
-		{
-			free(drmSessioData->processedKeyId);
-		}
-		// clear the session
-		if(drmSessioData)
-		{
+			if( drmSessioData->sessionData )
+			{
+				if( drmSessioData->sessionData->initData)
+				{
+					free(drmSessioData->sessionData->initData);
+					drmSessioData->sessionData->initData = NULL;
+				}
+			}
+			if(drmSessioData->processedKeyId)
+			{
+				free(drmSessioData->processedKeyId);
+				drmSessioData->processedKeyId = NULL;
+			}
 			delete drmSessioData;
 		}
 	}

@@ -5523,16 +5523,16 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		{
 			aamp->GetCurrentDRM()->cancelDrmSession();
 		}
-	}
 #ifdef AAMP_HLS_DRM 
-	else if(clearChannelData && aamp->fragmentCdmEncrypted)
-	{
-		// check for WV and PR , if anything to be flushed
-		ReleaseContentProtectionCache(aamp);
-		aamp->mStreamSink->ClearProtectionEvent();
-	}
-	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+		if(aamp->fragmentCdmEncrypted)
+	        {
+			// check for WV and PR , if anything to be flushed
+			ReleaseContentProtectionCache(aamp);
+			aamp->mStreamSink->ClearProtectionEvent();
+		}
+		aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
+	}
 	if(!clearChannelData)
 	{
 		aamp->EnableDownloads();
