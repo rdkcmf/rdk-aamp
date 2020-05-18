@@ -47,7 +47,6 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 #include <stdlib.h> // for malloc
 #include <pthread.h>
 #include <errno.h>
-#include "AampDRMutils.h"
 
 using namespace media;
 
@@ -665,6 +664,8 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 	logprintf("AveDrm::%s:%d[%p] drmState:%d Track[%d]", __FUNCTION__, __LINE__, this, mDrmState,trackType);
 }
 
+
+
 #else  // for Non-AVE macro
 
 DrmReturn AveDrm::SetMetaData(class PrivateInstanceAAMP *aamp, void *drmMetadata,int trackType)
@@ -885,7 +886,6 @@ void AveDrmManager::ReleaseAll()
 	
 	logprintf("[%s]Releasing AveDrmManager of size=%d ",__FUNCTION__,sAveDrmManager.size());
 	std::vector<AveDrmManager*>::iterator iter;
-	mSessionTokenWaitAbort = true;
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (iter = sAveDrmManager.begin(); iter != sAveDrmManager.end();)
 	{
@@ -896,7 +896,6 @@ void AveDrmManager::ReleaseAll()
 		delete aveDrmManager;
 		iter = sAveDrmManager.erase(iter);
 	}
-	mSessionTokenAcquireStarted = false;
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
@@ -1182,218 +1181,10 @@ int AveDrmManager::IsMetadataAvailable(char* sha1Hash)
         return idx;
 }
 
-#ifdef AVE_DRM
-
-extern "C"
-{
-	extern void setComcastSessionToken(const char *customData);
-}
-
-/**
- *  @brief Extract substring between (excluding) two string delimiters.
- *
- *  @param[in]  parentStr - Parent string from which substring is extracted.
- *  @param[in]  startStr, endStr - String delimiters.
- *  @return Returns the extracted substring; Empty string if delimiters not found.
- */
-std::string extractSubstring(std::string parentStr, std::string startStr, std::string endStr)
-{
-	std::string ret = "";
-	int startPos = parentStr.find(startStr);
-	if(std::string::npos != startPos)
-	{
-		int offset = strlen(startStr.c_str());
-		int endPos = parentStr.find(endStr, startPos + offset + 1);
-		if(std::string::npos != endPos)
-		{
-			ret = parentStr.substr(startPos + offset, endPos - (startPos + offset));
-		}
-	}
-	return ret;
-}
-
-/**
- * @brief
- * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
- * @param dltotal total bytes expected to download
- * @param dlnow downloaded bytes so far
- * @param ultotal total bytes expected to upload
- * @param ulnow uploaded bytes so far
- * @retval
- */
-int AveDrmManager::progress_callback(
-	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
-	double dltotal, // total bytes expected to download
-	double dlnow, // downloaded bytes so far
-	double ultotal, // total bytes expected to upload
-	double ulnow // uploaded bytes so far
-	)
-{
-	int returnCode = 0 ;
-	if(AveDrmManager::mSessionTokenWaitAbort)
-	{
-		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-		returnCode = CURLE_ABORTED_BY_CALLBACK ;
-	}
-
-	return returnCode;
-}
-
-/**
- *  @brief		Curl write callback, used to get the curl o/p
- *  			from DRM license, accessToken curl requests.
- *
- *  @param[in]	ptr - Pointer to received data.
- *  @param[in]	size, nmemb - Size of received data (size * nmemb).
- *  @param[out]	userdata - Pointer to buffer where the received data is copied.
- *  @return		returns the number of bytes processed.
- */
-size_t AveDrmManager::write_callback_session(char *ptr, size_t size,
-		size_t nmemb, void *userdata)
-{
-	DrmData *data = (DrmData *)userdata;
-	size_t numBytesForBlock = size * nmemb;
-	if(AveDrmManager::mSessionTokenWaitAbort)
-	{
-		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-		//Reset the abort variable
-		numBytesForBlock = 0;		
-	}
-	else if (NULL == data->getData())        
-	{
-		data->setData((unsigned char *) ptr, numBytesForBlock);
-	}
-	else
-	{
-		data->addData((unsigned char *) ptr, numBytesForBlock);
-	}
-	
-	return numBytesForBlock;
-}
-
-long AveDrmManager::setSessionToken()
-{
-	char *accessToken;
-	int accessTokenLen = 0;
-	long error_code = 0;
-	struct timeval tv;
-	time_t curtime;
-	int random;
-	char str[15];
-	char hex_characters[]={'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-	std::string messageID;
-	srand(time(0));
-	int j;
-	for(j=0;j<15;j++)
-	str[j]=hex_characters[rand()%16];
-
-	str[3] = '-';
-	str[7] = '-';
-	str[11] = '-';
-	str[15]=0;
-
-	messageID = str;
-
-	char* urlEncodedkeyId = aamp_Base64_URL_Encode(reinterpret_cast<const unsigned char *>(messageID.c_str()),20);
-	std::string nounce = urlEncodedkeyId;
-
-
-	std::string first ("{\"message:id\":\"");
-	std::string second ("\",\"message:type\":\"clientAccess\",\"message:nonce\":\"");
-	std::string third ("=\",\"client:accessToken\":\"");
-
-	first = first + messageID + second + nounce + third;
-
-	logprintf("%s:%d Token message %s", __FUNCTION__, __LINE__,first.c_str());
-	std::string last ("\",\"client:mediaUsage\":\"stream\"}");
-	std::string CustomToken;
-
-	DrmData * tokenReply = new DrmData();
-	CURLcode res;
-	long httpCode = -1;
-
-	CURL *curl = curl_easy_init();;
-	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback_session);
-	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, tokenReply);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
-
-	res = curl_easy_perform(curl);
-
-	if (res == CURLE_OK)
-	{
-		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-		if (httpCode == 200 || httpCode == 206)
-		{
-			std::string tokenReplyStr = std::string(reinterpret_cast<char*>(tokenReply->getData()));
-			std::string tokenStatusCode = extractSubstring(tokenReplyStr, "status\":", ",\"");
-			if(tokenStatusCode.length() == 0)
-			{
-				//StatusCode could be last element in the json
-				tokenStatusCode = extractSubstring(tokenReplyStr, "status\":", "}");
-			}
-			if(tokenStatusCode.length() == 1 && tokenStatusCode.c_str()[0] == '0')
-			{
-				std::string token = extractSubstring(tokenReplyStr, "token\":\"", "\"");
-				if(token.length() != 0)
-				{
-					logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
-					CustomToken = first + token + last;
-					setComcastSessionToken(CustomToken.c_str());
-				}
-				else
-				{
-					logprintf("%s:%d Could not get access token from session token reply", __FUNCTION__, __LINE__);
-					error_code = (long)eAUTHTOKEN_TOKEN_PARSE_ERROR;
-				}
-			}
-			else
-			{
-				logprintf("%s:%d Missing or invalid status code in session token reply", __FUNCTION__, __LINE__);
-				error_code = (long)eAUTHTOKEN_INVALID_STATUS_CODE;
-			}
-		}
-		else
-		{
-			logprintf("%s:%d Get Session token call failed with http error %d", __FUNCTION__, __LINE__, httpCode);
-			error_code = httpCode;
-		}
-	}
-	else
-	{
-		logprintf("%s:%d Get Session token call failed with curl error %d", __FUNCTION__, __LINE__, res);
-		error_code = res;
-	}
-	delete tokenReply;
-	curl_easy_cleanup(curl);
-	return error_code;
-}
-#endif
-
-void AveDrmManager::ApplySessionToken()
-{
-#ifdef AVE_DRM
-	pthread_mutex_lock(&aveDrmManagerMutex);
-	if(!mSessionTokenAcquireStarted)
-	{
-		mSessionTokenAcquireStarted = true;
-		mSessionTokenWaitAbort = false;
-		setSessionToken();
-	}
-	pthread_mutex_unlock(&aveDrmManagerMutex);
-#endif
-}
 
 
 std::vector<AveDrmManager*> AveDrmManager::sAveDrmManager;
-bool AveDrmManager::mSessionTokenAcquireStarted = false;
-bool AveDrmManager::mSessionTokenWaitAbort = false;
+
 
 
 
