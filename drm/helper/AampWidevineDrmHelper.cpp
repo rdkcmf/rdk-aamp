@@ -35,28 +35,45 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 	// Extract key
 	const char* keyIdBegin;
 	uint8_t keyIdSize = 0u;
-	uint8_t psshDataVer = initData[8];
+	uint8_t psshDataVer = initData[WIDEVINE_PSSH_DATA_VERSION_POSITION];
 	bool ret = false;
+
+	/*
+		WV PSSH Header Format :  for version 0 and version 1
+		readme : https://www.w3.org/TR/2014/WD-encrypted-media-20140828/cenc-format.html
+		online parser : https://tools.axinom.com/generators/PsshBox 
+		[ 4 bytes (total (header and data) size) + 4 bytes (type-PSSH)  + 
+		1 byte (version) + 3 bytes (flags)  +
+		16 bytes (system id) + 4 bytes (wv pssh data size) ]  
+
+		WV PSSH Data format:
+
+		Version 0:
+		[ optinal field: [2 byte ( Author Id Indicator + Author Id ) ] + 
+		2 bytes (keyId size indicator + keyid size) + ( keyId) + 
+		2 bytes (content id size  indiacater + content id size) +  (content id)]
+
+		Version 1:
+		[4 byte (Number of Key Id) + 16 Byte (Key Id 1) +  16 Byte (Key Id 2) +... +
+			4 byte (Data size) + (Data)  ]
+	*/
 
 	AAMPLOG_INFO("%s:%d wv pssh data version - %u ", __FUNCTION__, __LINE__, psshDataVer);
 	if (psshDataVer == 0)
 	{
-		//PSSH version 0
-		//4+4+4+16(system id)+4(data size)+2(keyId size indicator + keyid size)+ keyId +
-		//2 (unknown byte + content id size) + content id
 		uint32_t header = 0;
-		if (initData[32] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
+		if (initData[WIDEVINE_PSSH_KEYID_SIZE_OFFSET] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
 		{
-			header = 33; //pssh data in comcast format
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET + 1; //Skip key Id size indicator
 		}
-		else if(initData[34] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
+		else if(initData[WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
 		{
-			header = 35; //pssh data in sling format
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR + 1; //Skip key Id size indicator
 		}
 		else
 		{
 			AAMPLOG_WARN("%s:%d wv version %d keyid indicator byte not found using default logic", __FUNCTION__, __LINE__);
-			header = 33; //pssh data in comcast format
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET + 1;  //pssh data in default format
 		}
 
 		keyIdSize = initData[header];
@@ -69,7 +86,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		//4(KID Count) + 16 byte KID 1 + .. + 4 byte Data Size
 		//TODO : Handle multiple key Id logic, right now we are choosing only first one if have multiple key Id
 		uint32_t header = WIDEVINE_DASH_KEY_ID_OFFSET;
-		keyIdSize = 16;
+		keyIdSize = WIDEVINE_PSSH_VER1_KEY_ID_SIZE;
 		keyIdBegin = reinterpret_cast<const char*>(initData + header);
 	}
 	else

@@ -53,6 +53,8 @@ public:
 	AampWidevineDrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("Widevine"),
 		CODEC_TYPE(1), WIDEVINE_KEY_ID_SIZE_INDICATOR(0x12), WIDEVINE_DASH_KEY_ID_OFFSET(32u),
 		WIDEVINE_CONTENT_METADATA_OFFSET(28u), mInitData(), mKeyID(), mContentMetadata()
+		,WIDEVINE_PSSH_DATA_VERSION_POSITION(8u), WIDEVINE_PSSH_KEYID_SIZE_OFFSET(32u), 
+		WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR(34u), WIDEVINE_PSSH_VER1_KEY_ID_SIZE(16u)
 	{}
 
 	~AampWidevineDrmHelper() { }
@@ -64,7 +66,11 @@ private:
 	const uint8_t WIDEVINE_KEY_ID_SIZE_INDICATOR;
 	const size_t WIDEVINE_DASH_KEY_ID_OFFSET; // Offset in the PSSH to find the key ID for DASH
 	const uint8_t WIDEVINE_CONTENT_METADATA_OFFSET; // Offset of content metadata in Widevine PSSH data
-
+	const uint8_t WIDEVINE_PSSH_DATA_VERSION_POSITION; // Offset of pssh data version in Widevine PSSH data
+	const uint8_t WIDEVINE_PSSH_KEYID_SIZE_OFFSET; // Offset of content metadata in Widevine PSSH data without auther id
+	const uint8_t WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR; // Offset of content metadata in Widevine PSSH data with auther id
+	const uint8_t WIDEVINE_PSSH_VER1_KEY_ID_SIZE; // Const key id length for pSSH data version 1
+	
 	std::vector<uint8_t> mInitData;
 	std::vector<uint8_t> mKeyID;
 	std::string mContentMetadata;
