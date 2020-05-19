@@ -268,6 +268,13 @@ typedef enum
 bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
 /**
+ * @brief extract host string from url.
+ * @param url - Input URL
+ * @retval - host of input url
+ */
+std::string aamp_getHostFromURL(std::string url);
+
+/**
  * @brief Create file URL from the base and file path
  *
  * @param[out] dst - Created URL
@@ -2850,6 +2857,14 @@ public:
 	 *   @return void
 	 */
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *   @brief Set Matching BaseUrl Config Configuration
+	 *
+	 *   @param[in] bValue - true if Matching BaseUrl enabled
+	 *   @return void
+	 */
+	void SetMatchingBaseUrlConfig(bool bValue);
 
 	/**
 	 *	 @brief Configure New ABR Enable/Disable

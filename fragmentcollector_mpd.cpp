@@ -79,18 +79,21 @@
  */
 struct FragmentDescriptor
 {
-	std::string manifestUrl;
+private :
 	const std::vector<IBaseUrl *>*baseUrls;
+	std::string matchingBaseURL;
+public :
+	std::string manifestUrl;
 	uint32_t Bandwidth;
 	std::string RepresentationID; 
 	uint64_t Number;
 	double Time;
 
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID("")
+	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL("")
 	{
 	}
     
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time)
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL)
 	{
 	}
 
@@ -102,8 +105,51 @@ struct FragmentDescriptor
 		Bandwidth = p.Bandwidth;
 		Number = p.Number;
 		Time = p.Time;
+		matchingBaseURL = p.matchingBaseURL;
 		return *this;
 	}
+
+	const std::vector<IBaseUrl *>*  GetBaseURLs() const
+	{
+		return baseUrls;
+	}
+
+	std::string GetMatchingBaseUrl() const
+	{
+		return matchingBaseURL;
+	}
+	void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
+	{
+		if(baseurls)
+		{
+			this->baseUrls = baseurls;
+			if(this->baseUrls->size() > 0 )
+			{
+				// use baseurl which matches with host from manifest.
+				if(gpGlobalConfig->useMatchingBaseUrl == eTrueState)
+				{
+					std::string prefHost = aamp_getHostFromURL(manifestUrl);
+					for (auto & item : *this->baseUrls) {
+						std::string itemUrl =item->GetUrl();
+						std::string host  = aamp_getHostFromURL(itemUrl);
+						if(0 == prefHost.compare(host))
+						{
+							this->matchingBaseURL = item->GetUrl();
+							return; // return here, we are done
+						}
+					}
+				}
+				//we are here means useMatchingBaseUrl not enabled or host did not match
+				// hence initialize default to first baseurl
+				this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
+			}
+			else
+			{
+				this->matchingBaseURL.clear();
+			}
+		}
+	}
+
 };
 
 /**
@@ -414,7 +460,7 @@ public:
 			const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
 			if (baseUrls->size() != 0)
 			{
-				fragmentDescriptor.baseUrls = &representation->GetBaseURLs();
+				fragmentDescriptor.SetBaseURLs(baseUrls);
 			}
 			fragmentDescriptor.Bandwidth = representation->GetBandwidth();
 			fragmentDescriptor.RepresentationID.assign(representation->GetId());
@@ -1115,13 +1161,13 @@ static int replace(std::string& str, const std::string& from, const std::string&
  */
 static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
-	std::string constructedUri;
+	std::string constructedUri = fragmentDescriptor->GetMatchingBaseUrl();
 	if( media.compare(0, 7, "http://")==0 || media.compare(0, 8, "https://")==0 )
 	{	// don't pre-pend baseurl if media starts with http:// or https://
+		constructedUri.clear();
 	}
-	else if (fragmentDescriptor->baseUrls->size() > 0)
+	else if (!constructedUri.empty())
 	{
-		constructedUri = fragmentDescriptor->baseUrls->at(0)->GetUrl();
 		if(gpGlobalConfig->dashIgnoreBaseURLIfSlash)
 		{
 			if (constructedUri == "/")
@@ -4894,19 +4940,21 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 			}
 			pMediaStreamContext->representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
 
-			pMediaStreamContext->fragmentDescriptor.baseUrls = &pMediaStreamContext->representation->GetBaseURLs();
-			if (pMediaStreamContext->fragmentDescriptor.baseUrls->size() == 0)
+			const std::vector<IBaseUrl *>*baseUrls  = &pMediaStreamContext->representation->GetBaseURLs();
+			if (baseUrls->size() == 0)
 			{
-				pMediaStreamContext->fragmentDescriptor.baseUrls = &pMediaStreamContext->adaptationSet->GetBaseURLs();
-				if (pMediaStreamContext->fragmentDescriptor.baseUrls->size() == 0)
+				baseUrls = &pMediaStreamContext->adaptationSet->GetBaseURLs();
+				if (baseUrls->size() == 0)
 				{
-					pMediaStreamContext->fragmentDescriptor.baseUrls = &mCurrentPeriod->GetBaseURLs();
-					if (pMediaStreamContext->fragmentDescriptor.baseUrls->size() == 0)
+					baseUrls = &mCurrentPeriod->GetBaseURLs();
+					if (baseUrls->size() == 0)
 					{
-						pMediaStreamContext->fragmentDescriptor.baseUrls = &mpd->GetBaseUrls();
+						baseUrls = &mpd->GetBaseUrls();
 					}
 				}
 			}
+			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
+
 			pMediaStreamContext->fragmentIndex = 0;
 			if(resetTimeLineIndex)
 				pMediaStreamContext->timeLineIndex = 0;
@@ -5471,19 +5519,21 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 								ProcessContentProtection(adaptationSet, (MediaType)i);
 								representation = adaptationSet->GetRepresentation().at(representionIndex);
 								fragmentDescriptor->Bandwidth = representation->GetBandwidth();
-								fragmentDescriptor->baseUrls = &representation->GetBaseURLs();
-								if (fragmentDescriptor->baseUrls->size() == 0)
+								const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
+								if (baseUrls->size() == 0)
 								{
-									fragmentDescriptor->baseUrls = &adaptationSet->GetBaseURLs();
-									if (fragmentDescriptor->baseUrls->size() == 0)
+									baseUrls = &adaptationSet->GetBaseURLs();
+									if (baseUrls->size() == 0)
 									{
-										fragmentDescriptor->baseUrls = &period->GetBaseURLs();
-										if (fragmentDescriptor->baseUrls->size() == 0)
+										baseUrls = &period->GetBaseURLs();
+										if (baseUrls->size() == 0)
 										{
-											fragmentDescriptor->baseUrls = &mpd->GetBaseUrls();
+											baseUrls = &mpd->GetBaseUrls();
 										}
 									}
 								}
+								fragmentDescriptor->SetBaseURLs(baseUrls);
+
 								fragmentDescriptor->RepresentationID.assign(representation->GetId());
 								GetFragmentUrl(fragmentUrl,fragmentDescriptor , initialization);
 								if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())

@@ -4235,6 +4235,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->bPositionQueryEnabled = (value == 1);
 			logprintf("Position query based progress events: %s", gpGlobalConfig->bPositionQueryEnabled ? "ON" : "OFF");
 		}
+		else if (ReadConfigNumericHelper(cfg, "use-matching-baseurl=", value) == 1)
+		{
+			gpGlobalConfig->useMatchingBaseUrl = (TriState) (value == 1);
+			logprintf("use-matching-baseurl: %d", gpGlobalConfig->useMatchingBaseUrl);
+		}
 		else if (ReadConfigNumericHelper(cfg, "remove_Persistent=", gpGlobalConfig->aampRemovePersistent) == 1)
 		{
 			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
@@ -5205,7 +5210,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
-	
+
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
@@ -7318,6 +7323,36 @@ bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
 	aamp->SetWesterosSinkConfig(bValue);
+}
+
+/**
+ *   @brief Set Matching BaseUrl Config Configuration
+ *
+ *   @param[in] bValue - true if Matching BaseUrl enabled
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
+{
+	aamp->SetMatchingBaseUrlConfig(bValue);
+}
+
+/**
+ *   @brief Set Matching BaseUrl Config Configuration
+ *
+ *   @param[in] bValue - true if Matching BaseUrl enabled
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
+{
+	// app can set only if curr state is eUndefinedState
+	if(eUndefinedState == gpGlobalConfig->useMatchingBaseUrl)
+	{
+		gpGlobalConfig->useMatchingBaseUrl = (TriState) bValue;
+	}
+	else
+	{
+		AAMPLOG_WARN("%s : Ignoring app setting[%d] already set value:%d", __FUNCTION__, bValue ,gpGlobalConfig->useMatchingBaseUrl );
+	}
 }
 
 
@@ -10853,6 +10888,4 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 {
 	mStreamSink->StopBuffering(forceStop);
 }
-
-
 

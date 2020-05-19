@@ -236,6 +236,7 @@ enum ConfigParamType
 	ePARAM_USE_NEW_ADBREAKER,
 	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
 	ePARAM_INITIAL_BUFFER_DURATION,
+	ePARAM_USE_MATCHING_BASEURL,
 	ePARAM_MAX_COUNT
 };
 
@@ -291,6 +292,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_INITIAL_BUFFER_DURATION, "initialBuffer" },
+	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -723,6 +725,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_NEW_ADBREAKER:
 			case ePARAM_AVGBWFORABR:
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
+			case ePARAM_USE_MATCHING_BASEURL:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -844,6 +847,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_INITIAL_BUFFER_DURATION:
 					privObj->_aamp->SetInitialBufferDuration(valueAsNumber);
+					break;
+				case ePARAM_USE_MATCHING_BASEURL:
+					privObj->_aamp->SetMatchingBaseUrlConfig(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

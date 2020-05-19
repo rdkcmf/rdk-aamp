@@ -1443,6 +1443,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *   @brief Set Matching BaseUrl Config Configuration
+	 *
+	 *   @param[in] bValue - true if Matching BaseUrl enabled
+	 *   @return void
+	 */
+	void SetMatchingBaseUrlConfig(bool bValue);
+
+	/**
 	 *   @brief Sends an ID3 metadata event.
 	 *
 	 *   @param[in] data pointer to ID3 metadata
