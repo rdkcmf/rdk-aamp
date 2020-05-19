@@ -178,7 +178,7 @@ TEST(AampDrmHelperTests, TestCreateVgdrmHelper)
 		{eMETHOD_AES_128,
 		 eMEDIAFORMAT_HLS,
 		 "",
-		 "com.videoguard.drm",
+		 "net.vgdrm",
 		 "",
 		 {}}
 	};
