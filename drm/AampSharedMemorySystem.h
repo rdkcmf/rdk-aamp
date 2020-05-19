@@ -17,15 +17,28 @@
  * limitations under the License.
 */
 
-#ifndef AAMPMEMORYSYSTEM_H
-#define AAMPMEMORYSYSTEM_H
+#ifndef AAMPSHAREDMEMORYSYSTEM_H
+#define AAMPSHAREDMEMORYSYSTEM_H
 
-#include <stdint.h>
-#include <vector>
-#include <unistd.h>
+#include "AampMemorySystem.h"
 
-class AAMPMemorySystem {
+#include <fcntl.h>
+#include <string>
+
+struct AampSharedMemoryInterchangeBuffer {
+#ifdef AAMP_SHMEM_USE_SIZE_AND_INSTANCE
+	uint32_t size;       /// The size of this buffer, for testing
+	uint32_t instanceNo; /// The value appended to the SM file, 0 means no number, currently unused
+#endif
+	uint32_t dataSize;   /// The size of data stored in the shared memory
+};
+
+
+class AampSharedMemorySystem : public AAMPMemorySystem {
 public:
+	AampSharedMemorySystem();
+	virtual ~AampSharedMemorySystem();
+
 	/**
 	 * Encode a block of data to send over the divide
 	 * @param dataIn pointer to the data to encode
@@ -33,7 +46,7 @@ public:
 	 * @param out dataOut the data to send
 	 * @return true if data is encoded
 	 */
-	virtual bool encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) = 0;
+	virtual bool encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut);
 	/**
 	 * Decode from getting back
 	 * @param dataIn pointer to the data to decode
@@ -41,26 +54,15 @@ public:
 	 * @param out dataOut the data to recover
 	 * @param int dataOutSz the size of the space for data to recover
 	 */
-	virtual bool decode(const uint8_t* dataIn, uint32_t dataInSz, uint8_t *dataOut, uint32_t dataOutSz) = 0;
-
-	/**
-	 * Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
-	 */
-	virtual void terminateEarly() {}
-
-	AAMPMemorySystem() {}
-	virtual ~AAMPMemorySystem() {}
-};
-
-// This just closes a file on descope
-class AampMemoryHandleCloser {
-public:
-	AampMemoryHandleCloser(int handle) : handle_(handle) {};
-	~AampMemoryHandleCloser() { if (handle_ > 0) { close(handle_); } }
+	virtual bool decode(const uint8_t* dataIn, uint32_t dataInSz, uint8_t *dataOut, uint32_t dataOutSz);
 private:
-	int handle_;
+	const std::string AAMP_SHARED_MEMORY_NAME{"/aamp_drm"};
+	const int AAMP_SHARED_MEMORY_CREATE_OFLAGS{O_RDWR | O_CREAT};
+	const int AAMP_SHARED_MEMORY_READ_OFLAGS{O_RDONLY};
+	const mode_t AAMP_SHARED_MEMORY_MODE{ S_IRWXU | S_IRWXG | S_IRWXO };
+
 };
 
 
-#endif /* AAMPMEMORYSYSTEM_H */
+#endif /* AAMPSHAREDMEMORYSYSTEM_H */
 

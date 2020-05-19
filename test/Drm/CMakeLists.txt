@@ -58,10 +58,12 @@ if(CMAKE_USE_OPENCDM_ADAPTER)
                                      ${AAMP_ROOT}/drm/AampOcdmBasicSessionAdapter.cpp
                                      ${AAMP_ROOT}/drm/AampOcdmGstSessionAdapter.cpp
                                      ${AAMP_ROOT}/drm/AampHlsOcdmBridge.cpp
+                                     ${AAMP_ROOT}/drm/AampSharedMemorySystem.cpp
                                      ${AAMP_ROOT}/drm/helper/AampVgdrmHelper.cpp
                                      ${AAMP_ROOT}/drm/helper/AampClearKeyHelper.cpp
                                      ${AAMP_ROOT}/drm/helper/AampWidevineDrmHelper.cpp
                                      ${AAMP_ROOT}/drm/helper/AampPlayReadyHelper.cpp)
+    add_definitions(-DUSE_SHARED_MEMORY)
 else()
     add_definitions(-DUSE_CLEARKEY)
     set(AAMP_SOURCES ${AAMP_SOURCES} ${AAMP_ROOT}/drm/ClearKeyDrmSession.cpp

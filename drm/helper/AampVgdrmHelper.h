@@ -20,16 +20,19 @@
 #define _AAMP_VGDRM_HELPER_H
 
 #include <memory>
-#include <fcntl.h>
 #include <set>
 
 #include "AampDrmHelper.h"
 
-struct VgdrmInterchangeBuffer {
-	uint32_t dataSize;
-};
+#if USE_ION_MEMORY
+#include "AampIonMemorySystem.h"
+#elif USE_SHARED_MEMORY
+#include "AampSharedMemorySystem.h"
+#else
+#error "No memory model for interchange"
+#endif
 
-class AampVgdrmHelper : public AampDrmHelper, AAMPMemorySystem
+class AampVgdrmHelper : public AampDrmHelper
 {
 public:
 	friend class AampVgdrmHelperFactory;
@@ -56,11 +59,7 @@ public:
 
 	void generateLicenseRequest(const AampChallengeInfo& challengeInfo, AampLicenseRequest& licenseRequest) const;
 
-	AAMPMemorySystem* getMemorySystem() override { return this; };
-
-	bool encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) override;
-
-	bool decode(const uint8_t *dataIn, uint32_t dataInSz, uint8_t* dataOut, uint32_t dataOutSz) override;
+	AAMPMemorySystem* getMemorySystem() override { return &memorySystem; };
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
@@ -75,11 +74,11 @@ private:
 	const int KEY_PAYLOAD_OFFSET{14};
 	const int BASE_16{16};
 	std::string mPsshStr;
-
-	const std::string VGDRM_SHARED_MEMORY_NAME{"/aamp_drm"};
-	const int VGDRM_SHARED_MEMORY_CREATE_OFLAGS{O_RDWR | O_CREAT};
-	const int VGDRM_SHARED_MEMORY_READ_OFLAGS{O_RDONLY};
-	const mode_t VGDRM_SHARED_MEMORY_MODE{ S_IRWXU | S_IRWXG | S_IRWXO };
+#if USE_ION_MEMORY
+	AampIonMemorySystem memorySystem;
+#elif USE_SHARED_MEMORY
+	AampSharedMemorySystem memorySystem;
+#endif
 };
 
 class AampVgdrmHelperFactory : public AampDrmHelperFactory

@@ -20,18 +20,13 @@
 #include <memory>
 #include <iostream>
 
-// For shared memory
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "AampVgdrmHelper.h"
 #include "AampJsonObject.h"
 #include "GlobalConfigAAMP.h"
 
 static AampVgdrmHelperFactory vgdrm_helper_factory;
 
-const std::string AampVgdrmHelper::VGDRM_OCDM_ID = "com.videoguard.drm";
+const std::string AampVgdrmHelper::VGDRM_OCDM_ID = "net.vgdrm";
 
 const std::string& AampVgdrmHelper::ocdmSystemId() const
 {
@@ -122,99 +117,3 @@ void AampVgdrmHelperFactory::appendSystemId(std::vector<std::string>& systemIds)
 	systemIds.push_back(VGDRM_UUID);
 }
 
-// This just closes a file on descope
-class myContext {
-public:
-	myContext(int handle) : handle_(handle) {};
-	~myContext() { if (handle_ > 0) { close(handle_); } }
-private:
-	int handle_;
-};
-
-bool AampVgdrmHelper::encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) 
-{
-	int shmHandle = shm_open(VGDRM_SHARED_MEMORY_NAME.c_str(), VGDRM_SHARED_MEMORY_CREATE_OFLAGS, VGDRM_SHARED_MEMORY_MODE);
-	
-	if (shmHandle < 0) 
-	{
-		AAMPLOG_WARN("Failed to create Shared memory object: %d", errno);
-		return false;
-	}
-
-	// This will close the SM object regardless
-	myContext mc(shmHandle);
-	
-	int status = ftruncate(shmHandle, dataInSz);
-	if (status < 0) 
-	{
-		AAMPLOG_WARN("Failed to truncate the Shared memory object %d", status);
-		return false;
-	}
-
-	void *dataWr = mmap(NULL, dataInSz, PROT_WRITE | PROT_READ, MAP_SHARED, shmHandle, 0);
-	if (dataWr == 0) 
-	{
-		AAMPLOG_WARN("Failed to map the Shared memory object %d", errno);
-		return false;
-	}
-	
-	memmove(dataWr, dataIn, dataInSz);
-	
-	status = munmap(dataWr, dataInSz);
-	if (status < 0)
-	{
-		AAMPLOG_WARN("Failed to unmap the Shared memory object %d", errno);
-		return false;
-	}
-	// Only send the size of the shared memory, nothing else
-	VgdrmInterchangeBuffer ib { dataInSz };
-	
-	// Look away now, this is horrid
-	dataOut.resize(sizeof(ib));
-	memcpy(dataOut.data(), &ib, sizeof(ib));
-
-	return true;
-}
-
-bool AampVgdrmHelper::decode(const uint8_t * dataIn, uint32_t dataInSz, uint8_t* dataOut, uint32_t dataOutSz) 
-{
-	int shmHandle = shm_open(VGDRM_SHARED_MEMORY_NAME.c_str(), VGDRM_SHARED_MEMORY_READ_OFLAGS, VGDRM_SHARED_MEMORY_MODE);
-	
-	if (shmHandle < 0) 
-	{
-		AAMPLOG_WARN("Failed to create Shared memory object: %d", errno);
-		return false;
-	}
-
-	if (dataInSz != sizeof(VgdrmInterchangeBuffer))
-	{
-		AAMPLOG_WARN("Wrong data packet size, expected %d, got %d", sizeof(VgdrmInterchangeBuffer), dataInSz);
-		return false;
-	}
-	// This will close the SM object regardless
-	myContext mc(shmHandle);
-	
-	const VgdrmInterchangeBuffer *pib = reinterpret_cast<const VgdrmInterchangeBuffer *>(dataIn);
-	uint32_t packetSize = pib->dataSize;
-	void *dataRd = mmap(NULL, packetSize, PROT_READ, MAP_SHARED, shmHandle, 0);
-	if (dataRd == 0) 
-	{
-		AAMPLOG_WARN("Failed to map the Shared memory object %d", errno);
-		return false;
-	}
-	
-	if (packetSize > dataOutSz)
-	{
-		AAMPLOG_WARN("Received data is bigger than provided buffer. %d > %d", packetSize, dataOutSz);
-	}
-	memmove(dataOut, dataRd, std::min(packetSize, dataOutSz));
-	
-	int status = munmap(dataRd, packetSize);
-	if (status < 0)
-	{
-		AAMPLOG_WARN("Failed to unmap the Shared memory object %d", errno);
-		return false;
-	}
-	
-	return true;
-}
