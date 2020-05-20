@@ -1548,9 +1548,10 @@ public:
 	 * @brief Notify speed change
 	 *
 	 * @param[in] rate - New speed
+	 * @param[in] changeState - true if state change to be done, false otherwise (default = true)
 	 * @return void
 	 */
-	void NotifySpeedChanged(int rate);
+	void NotifySpeedChanged(int rate, bool changeState = true);
 
 	/**
 	 * @brief Notify bit rate change

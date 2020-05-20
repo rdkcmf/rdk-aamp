@@ -1087,16 +1087,20 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate ,const char *desc
 /**
  * @brief Notify rate change event to listeners
  * @param rate new speed
+ * @param changeState true if state change to be done, false otherwise (default = true)
  */
-void PrivateInstanceAAMP::NotifySpeedChanged(int rate)
+void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 {
-	if (rate == 0)
+	if (changeState)
 	{
-		SetState(eSTATE_PAUSED);
-	}
-	else if (rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		SetState(eSTATE_PLAYING);
+		if (rate == 0)
+		{
+			SetState(eSTATE_PAUSED);
+		}
+		else if (rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			SetState(eSTATE_PLAYING);
+		}
 	}
 
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SPEED_CHANGED])
@@ -6298,11 +6302,7 @@ static gboolean  SeekAfterPrepared(gpointer ptr)
 		aamp->TuneHelper(tuneType);
 		if (sentSpeedChangedEv)
 		{
-			aamp->NotifySpeedChanged(aamp->rate);
-		}
-		else
-		{
-			aamp->SetState(eSTATE_PLAYING);
+			aamp->NotifySpeedChanged(aamp->rate, false);
 		}
 	}
 	return true;
@@ -6384,11 +6384,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			aamp->TuneHelper(tuneType);
 			if (sentSpeedChangedEv)
 			{
-				aamp->NotifySpeedChanged(aamp->rate);
-			}
-			else
-			{
-				aamp->SetState(eSTATE_PLAYING);
+				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
 		}
 	}
@@ -8405,7 +8401,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		return;
 	}
 
-	if( state == eSTATE_PLAYING && mState == eSTATE_SEEKING )
+	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING)
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
@@ -9253,6 +9249,14 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
+	PrivAAMPState state;
+	GetState(state);
+	if (state == eSTATE_SEEKING)
+	{
+		//Playback started after end of seeking
+		SetState(eSTATE_PLAYING);
+	}
+
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
@@ -10520,7 +10524,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 				else
 				{
 					// this can come here if trickplay is done or play started late
-					if(state == eSTATE_SEEKING || eSTATE_PREPARED)
+					if(state == eSTATE_SEEKING || state == eSTATE_PREPARED)
 					{
 						// wait for seek to complete 
 						sleep(1);
