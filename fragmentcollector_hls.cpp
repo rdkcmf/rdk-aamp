@@ -111,7 +111,7 @@ struct FormatMap
 };
 
 /// Variable initialization for various audio formats
-static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
+static const FormatMap mAudioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 {
 	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
 	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
@@ -122,13 +122,43 @@ static const FormatMap audioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
 };
 
+static const FormatMap * GetAudioFormatForCodec( const char *codecs )
+{
+	if( codecs )
+	{
+		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
+		{
+			if( strstr( codecs, mAudioFormatMap[i].codec) )
+			{
+				return &mAudioFormatMap[i];
+			}
+		}
+	}
+	return NULL;
+}
+
 /// Variable initialization for various video formats
-static const FormatMap videoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
+static const FormatMap mVideoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
 {
 	{ "avc1.", FORMAT_VIDEO_ES_H264 },
 	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
 	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
 };
+
+static const FormatMap * GetVideoFormatForCodec( const char *codecs )
+{
+	if( codecs )
+	{
+		for( int i=0; i<AAMP_VIDEO_FORMAT_MAP_LEN; i++ )
+		{
+			if( strstr( codecs, mVideoFormatMap[i].codec) )
+			{
+				return &mVideoFormatMap[i];
+			}
+		}
+	}
+	return NULL;
+}
 
 /// Variable initialization for media profiler buckets
 static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
@@ -856,67 +886,67 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
-					if(streamInfo->codecs) {
-					// First Check point : if AAC profile. Commonly available profile , so checked first
-					if(strstr(streamInfo->codecs,"mp4a.40.2") || (strstr(streamInfo->codecs,"mp4a.40.5")))
+					const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
+					if( map )
 					{
-						if(bDisableAAC)
+						switch( map->format )
 						{
-							AAMPLOG_WARN("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-							ignoreProfile = true;
+							case FORMAT_AUDIO_ES_AAC:
+								if(bDisableAAC)
+								{
+									AAMPLOG_WARN("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+									ignoreProfile = true;
+								}
+								else
+								{
+									aacProfiles++;
+								}
+								break;
+
+							case FORMAT_AUDIO_ES_AC3:
+							case FORMAT_AUDIO_ES_EC3:
+								if(bDisableEC3)
+								{
+									AAMPLOG_WARN("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+									ignoreProfile = true;
+								}
+								else
+								{ // found EC3 profile , disable AAC profiles from adding
+									ec3Profiles++;
+									bDisableAAC = true;
+									if(aacProfiles)
+									{
+										// if already aac profiles added , clear it from local table and ABR table
+										aacProfiles = 0;
+										clearProfiles = true;
+									}
+								}
+								break;
+
+							case FORMAT_AUDIO_ES_ATMOS:
+								if(bDisableATMOS)
+								{
+									AAMPLOG_WARN("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+									ignoreProfile = true;
+								}
+								else
+								{ // found ATMOS Profile , disable EC3 and AAC profile from adding
+									atmosProfiles++;
+									bDisableAAC = true;
+									bDisableEC3 = true;
+									if(aacProfiles || ec3Profiles)
+									{
+										// if already aac or ec3 profiles added , clear it from local table and ABR table
+										aacProfiles = ec3Profiles = 0;
+										clearProfiles = true;
+									}
+								}
+								break;
+
+							default:
+								AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
+								break;
 						}
-						else
-						{
-							aacProfiles++;
-						}
-					}
-					// next check point on ec3 profiles
-					else if(strstr(streamInfo->codecs,"ec-3")|| (strstr(streamInfo->codecs,"eac3")))
-					{
-						if(bDisableEC3)
-						{
-							AAMPLOG_WARN("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-							ignoreProfile = true;
-						}
-						else
-						{
-							// found EC3 profile , disable AAC profiles from adding
-							ec3Profiles++;
-							bDisableAAC = true;
-							if(aacProfiles)
-							{
-								// if already aac profiles added , clear it from local table and ABR table
-								aacProfiles = 0;
-								clearProfiles = true;
-							}
-						}
-					}
-					// next checkpoint on atmos profiles
-					else if(strstr(streamInfo->codecs,"ec+3"))
-					{
-						if(bDisableATMOS)
-						{
-							AAMPLOG_WARN("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-							ignoreProfile = true;
-						}
-						else
-						{
-							// found ATMOS Profile , disable EC3 and AAC profile from adding
-							atmosProfiles++;
-							bDisableAAC = true;
-							bDisableEC3 = true;
-							if(aacProfiles || ec3Profiles)
-							{
-								// if already aac or ec3 profiles added , clear it from local table and ABR table
-								aacProfiles = ec3Profiles = 0;
-								clearProfiles = true;
-							}
-						}
-					}
-					else
-					{
-						AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
-					}
 
 					if(clearProfiles)
 					{
@@ -3265,18 +3295,18 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 				if( format )
 				{
 					*format = FORMAT_NONE;
-					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
-					if (this->mediaInfo[i].uri && streamInfo->codecs)
-					{
-						for (int j = 0; j < AAMP_AUDIO_FORMAT_MAP_LEN; j++)
-						{
-							if( strstr(streamInfo->codecs, audioFormatMap[j].codec) )
-							{
-								*format = audioFormatMap[j].format;
-								logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]", audioFormatMap[j].format, audioFormatMap[j].codec);
-								break;
-							}
-						}
+					HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
+					const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
+					if( map )
+					{ // video profile specifies audio format
+						*format = map->format;
+						logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]",
+								  map->format, map->codec );
+					}
+					else
+					{ // HACK
+						logprintf("GetPlaylistURI : AudioTrack: assuming stereo" );
+						*format = FORMAT_AUDIO_ES_AAC;
 					}
 				}
 			}
@@ -4466,15 +4496,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					format = FORMAT_INVALID;
 					if (streamInfo->codecs)
 					{
-						for (int j = 0; j < AAMP_VIDEO_FORMAT_MAP_LEN; j++)
+						const FormatMap *map = GetVideoFormatForCodec(streamInfo->codecs);
+						if( map )
 						{
-							if (strstr(streamInfo->codecs, videoFormatMap[j].codec))
-							{
-								format = videoFormatMap[j].format;
-								AAMPLOG_INFO("StreamAbstractionAAMP_HLS::Init : VideoTrack: format is %d [%s]",
-									videoFormatMap[j].format, videoFormatMap[j].codec);
-								break;
-							}
+							format = map->format;
+							AAMPLOG_INFO("StreamAbstractionAAMP_HLS::Init : VideoTrack: format is %d [%s]",
+								map->format, map->codec);
 						}
 					}
 					if (FORMAT_INVALID != format)
@@ -4489,15 +4516,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						{
 							if (streamInfo->codecs)
 							{
-								for (int j = 0; j < AAMP_AUDIO_FORMAT_MAP_LEN; j++)
+								const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
+								if( map )
 								{
-									if (strstr(streamInfo->codecs, audioFormatMap[j].codec))
-									{
-										trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = audioFormatMap[j].format;
-										logprintf("StreamAbstractionAAMP_HLS::Init : Audio format is %d [%s]",
-											audioFormatMap[j].format, audioFormatMap[j].codec);
-										break;
-									}
+									trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = map->format;
+									logprintf("StreamAbstractionAAMP_HLS::Init : Audio format is %d [%s]",
+										map->format, map->codec);
 								}
 							}
 							if(FORMAT_NONE != trackState[eMEDIATYPE_AUDIO]->streamOutputFormat)
@@ -6740,18 +6764,11 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 					if (!stream->isIframeTrack && stream->audio != NULL && media->group_id != NULL &&
 						strcmp(stream->audio, media->group_id) == 0)
 					{
-						for (int k = 0; k < AAMP_AUDIO_FORMAT_MAP_LEN; k++)
+						const FormatMap *map = GetAudioFormatForCodec(stream->codecs);
+						if( map )
 						{
-							if (strstr(stream->codecs, audioFormatMap[k].codec))
-							{
-								AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Found matching codec:%s", __FUNCTION__, __LINE__, audioFormatMap[k].codec);
-								codec = audioFormatMap[k].codec;
-								break;
-							}
-						}
-						if (!codec.empty())
-						{
-							AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d codec:%s", __FUNCTION__, __LINE__, codec.c_str());
+							AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d Found matching codec:%s", __FUNCTION__, __LINE__, map->codec);
+							codec = map->codec;
 							break;
 						}
 					}
