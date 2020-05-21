@@ -258,7 +258,7 @@ TEST(AampDrmSessionTests, TestVgdrmSessionDecrypt)
 	setupChallengeCallbacksForExternalLicense();
 
 	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper);
-	STRCMP_EQUAL("com.videoguard.drm", drmSession->getKeySystem().c_str());
+	STRCMP_EQUAL("net.vgdrm", drmSession->getKeySystem().c_str());
 
 	const uint8_t testIv[] = {'T', 'E', 'S', 'T', 'I', 'V'};
 	const uint8_t payloadData[] = {'E', 'N', 'C', 'R', 'Y', 'P', 'T', 'E', 'D'};
@@ -438,13 +438,13 @@ TEST(AampDrmSessionTests, TestMultipleSessionsDifferentKey)
 
 	// 1st time around - expecting standard session creation
 	AampDrmSession *drmSession1 = createDrmSessionForHelper(drmHelper1);
-	STRCMP_EQUAL("com.videoguard.drm", drmSession1->getKeySystem().c_str());
+	STRCMP_EQUAL("net.vgdrm", drmSession1->getKeySystem().c_str());
 
 	// 2nd time around - expecting another new session to be created
 	drmInfo.keyURI = "81701500000811367b131dd025ab0a7bd8d20c1314151600";
 	std::shared_ptr<AampVgdrmHelper> drmHelper2 = std::make_shared<AampVgdrmHelper>(drmInfo);
 	AampDrmSession *drmSession2 = createDrmSessionForHelper(drmHelper2);
-	STRCMP_EQUAL("com.videoguard.drm", drmSession2->getKeySystem().c_str());
+	STRCMP_EQUAL("net.vgdrm", drmSession2->getKeySystem().c_str());
 	CHECK_FALSE(drmSession1 == drmSession2);
 }
 
@@ -693,7 +693,7 @@ TEST(AampDrmSessionTests, TestDrmMessageCallback)
 	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
 	setupChallengeCallbacksForExternalLicense();
 	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper);
-	STRCMP_EQUAL("com.videoguard.drm", drmSession->getKeySystem().c_str());
+	STRCMP_EQUAL("net.vgdrm", drmSession->getKeySystem().c_str());
 
 	struct DrmMessageTestData
 	{
