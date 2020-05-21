@@ -1612,17 +1612,28 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		{
 			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 			/* set the playbin state to NULL before detach it */
-			if (stream->sinkbin && (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL)))
+			if (stream->sinkbin)
 			{
-				logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
+				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
+				}
+				if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin)))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline");
+				}
+			}
+			else
+			{
+				logprintf("AAMPGstPlayer::TearDownStream:  sinkbin = NULL, skip remove sinkbin from pipeline");
 			}
 
-			if (stream->sinkbin && (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin))))
+			if (stream->using_playersinkbin && stream->source)
 			{
-				logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline");
-			}
-			if (stream->using_playersinkbin)
-			{
+				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->source), GST_STATE_NULL))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for source");
+				}
 				if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->source)))
 				{
 					logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove source from pipeline");
