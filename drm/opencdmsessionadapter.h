@@ -92,6 +92,8 @@ protected:
 
 	std::string m_destUrl;
 	KeyStatus m_keyStatus;
+	bool m_keyStateIndeterminate;
+	std::vector<uint8_t> m_keyStored;
 
 	Event m_challengeReady;
 	Event m_keyStatusReady;

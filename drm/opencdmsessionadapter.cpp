@@ -29,6 +29,7 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(std::shared_ptr<AampDrmHelper> dr
 		m_challengeReady(),
 		m_challengeSize(0),
 		m_keyStatus(InternalError),
+		m_keyStateIndeterminate(false),
 		m_keyStatusReady(),
 		m_OCDMSessionCallbacks(),
 		m_destUrl(),
@@ -85,7 +86,7 @@ AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	logprintf("generateAampDRMSession :: enter ");
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
 	pthread_mutex_lock(&decryptMutex);
 
@@ -139,6 +140,8 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+
 	const std::string challengeData(reinterpret_cast<const char *>(challenge), challengeSize);
 	const std::set<std::string> individualisationTypes = {"individualization-request", "3"};
 	const std::string delimiter(":Type:");
@@ -170,22 +173,30 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 }
 
 void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t keySize) {
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	if (m_pOpenCDMSession) {
 		m_keyStatus = opencdm_session_status(m_pOpenCDMSession, key, keySize);
+		m_keyStateIndeterminate = false;
+	} 
+	else {
+		m_keyStored.clear();
+		m_keyStored.assign(key, key+keySize);
+		m_keyStateIndeterminate = true;
 	}
   
 }
 
 void AAMPOCDMSessionAdapter::keysUpdatedOCDM() {
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	m_keyStatusReady.signal();
 }
 
 DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	DrmData * result = NULL;
 
 	m_eKeyState = KEY_ERROR;
-	AAMPLOG_INFO("%s:%d: About to request keyRequest", __FUNCTION__, __LINE__ );
 
 	if (m_challengeReady.wait(timeout) == true) {
 		if (m_challenge.empty() != true) {
@@ -213,6 +224,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 
 int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
+	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	int retValue = -1;
 
 	const uint8_t* keyMessage = key ? key->getData() : nullptr;
@@ -236,6 +248,12 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	if (status == OpenCDMError::ERROR_NONE) {
 		if (m_keyStatusReady.wait(timeout) == true) {
 			logprintf("Key Status updated");
+		}
+		// The key could be signalled ready before the session is even created, so we need to check we didn't miss it
+		if (m_keyStateIndeterminate) {
+			m_keyStatus = opencdm_session_status(m_pOpenCDMSession, m_keyStored.data(), m_keyStored.size());
+			m_keyStateIndeterminate = false;
+			logprintf("Key arrived early, new state is %d", m_keyStatus);
 		}
 #ifdef USE_THUNDER_OCDM_API_0_2
 		if (m_keyStatus == Usable) {
