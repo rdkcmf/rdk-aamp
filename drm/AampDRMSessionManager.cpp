@@ -885,6 +885,11 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 				AAMPLOG_WARN("%s:%d Found drm session READY with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
 				return KEY_READY;
 			}
+			if (existingState == KEY_INIT)
+			{
+				AAMPLOG_WARN("%s:%d Found drm session in INIT state with same keyID %s - Reusing drm session", __FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+				return KEY_INIT;
+			}
 			else if (existingState <= KEY_READY)
 			{
 				if (drmSessionContexts[sessionSlot].drmSession->waitForState(KEY_READY, drmHelper->keyProcessTimeout()))
