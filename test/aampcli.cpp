@@ -483,6 +483,7 @@ static void ProcessCliCommand(char *cmd)
 	double seconds = 0;
 	int rate = 0;
 	char cacheUrl[200];
+	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
