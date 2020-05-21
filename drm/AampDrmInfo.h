@@ -70,6 +70,7 @@ struct DrmInfo
 		initData = other.initData;
 		// copying same iv, releases memory allocated after deleting any of these objects.
 		iv = other.iv;
+		return *this;
 	}
 	DrmMethod method;				// Encryption method
 	MediaFormat mediaFormat;		// Format of the media being played e.g. DASH, HLS

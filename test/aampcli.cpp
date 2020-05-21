@@ -1073,7 +1073,7 @@ static void ProcessCliCommand(char *cmd)
                                 {
 					long minBitrate;
 					logprintf("Matched Command eAAMP_SET_MinimumBitrate - %s ", cmd);
-					if (sscanf(cmd, "set %d %d", &opt, &minBitrate) == 2){
+					if (sscanf(cmd, "set %d %ld", &opt, &minBitrate) == 2){
 						mSingleton->SetMinimumBitrate(minBitrate);
 					}
 					break;
@@ -1083,7 +1083,7 @@ static void ProcessCliCommand(char *cmd)
                                 {
 					long maxBitrate;
 					logprintf("Matched Command eAAMP_SET_MaximumBitrate - %s ", cmd);
-					if (sscanf(cmd, "set %d %d", &opt, &maxBitrate) == 2){
+					if (sscanf(cmd, "set %d %ld", &opt, &maxBitrate) == 2){
 						mSingleton->SetMaximumBitrate(maxBitrate);
 					}
 					break;
@@ -1111,7 +1111,7 @@ static void ProcessCliCommand(char *cmd)
 
 				case eAAMP_SET_RegisterForID3MetadataEvents:
                                 {
-					bool id3MetadataEventsEnabled;
+					int id3MetadataEventsEnabled;
 					logprintf("Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &id3MetadataEventsEnabled) == 2){
 						if (id3MetadataEventsEnabled)
@@ -1129,10 +1129,11 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_LanguageFormat:
 				{
 					LangCodePreference preference;
-					bool useRole;
-					if (sscanf(cmd, "set %d %d %d", &opt, &preference, &useRole) == 3)
+					int useRole, preferenceInt;
+					if (sscanf(cmd, "set %d %d %d", &opt, &preferenceInt, &useRole) == 3)
 					{
-						mSingleton->SetLanguageFormat(preference, useRole);
+						preference = (LangCodePreference) preferenceInt;
+						mSingleton->SetLanguageFormat(preference, (bool)useRole);
 					}
 					break;
 				}

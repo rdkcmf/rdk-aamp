@@ -661,7 +661,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		{
 			// introduce  extra marker for connection status curl 7/18/28,
 			// example 18(0) if connection failure with PARTIAL_FILE code
-			timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+			timeoutClass = "(" + to_string(reqSize > 0) + ")";
 		}
 		AAMPLOG(eLOGLEVEL_WARN, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
 						appName.c_str(), mediaType, streamType, *httpCode, timeoutClass.c_str(), totalPerformRequest, totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,

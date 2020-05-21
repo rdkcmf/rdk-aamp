@@ -629,7 +629,7 @@ static void dumpPacket(unsigned char *packet, int packetSize)
 
 		int col = 0;
 		int buffPos = 0;
-		buffPos += sprintf(&buff[buffPos], "");
+		buff[buffPos] = 0x00;
 		for (i = 0; i < packetSize; ++i)
 		{
 			buffPos += snprintf(&buff[buffPos], (sizeof(buff) - buffPos), "%02X\n", packet[i]);
