@@ -240,6 +240,22 @@ enum CurlAbortReason
 	eCURL_ABORT_REASON_START_TIMEDOUT
 };
 
+/**
+ * @brief Different reasons for bitrate change
+ */
+typedef enum
+{
+	eAAMP_BITRATE_CHANGE_BY_ABR = 0,
+	eAAMP_BITRATE_CHANGE_BY_RAMPDOWN = 1,
+	eAAMP_BITRATE_CHANGE_BY_TUNE = 2,
+	eAAMP_BITRATE_CHANGE_BY_SEEK = 3,
+	eAAMP_BITRATE_CHANGE_BY_TRICKPLAY = 4,
+	eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL = 5,
+	eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY = 6,
+	eAAMP_BITRATE_CHANGE_BY_FOG_ABR = 7,
+	eAAMP_BITRATE_CHANGE_MAX = 8
+} BitrateChangeReason;
+
 
 // context-free utility functions
 
@@ -1557,14 +1573,14 @@ public:
 	 * @brief Notify bit rate change
 	 *
 	 * @param[in] bitrate - New bitrate
-	 * @param[in] description - Description
+	 * @param[in] reason - Bitrate change reason
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
  	 * @param[in] framerate - FRAME-RATE from manifest
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate , const char *description ,int width ,int height,double framerate, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, bool GetBWIndex = false);
 
 	/**
 	 * @brief Notify when end of stream reached

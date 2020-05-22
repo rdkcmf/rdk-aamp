@@ -62,6 +62,7 @@ struct StreamInfo
 	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
 	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
 	StreamResolution resolution;    /**< Resolution of the stream*/
+	BitrateChangeReason reason;	/**< Reason for bitrate change*/
 };
 
 
@@ -958,6 +959,7 @@ private:
 	int mRampDownLimit;		/**< stores ramp down limit value */
 	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
 	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
+	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;
