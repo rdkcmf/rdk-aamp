@@ -946,11 +946,11 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		SendAnomalyEvent(ANOMALY_ERROR,"Error[%d]:%s",tuneFailure,e.data.mediaError.description);
 		if (!mAppName.empty())
 		{
-			logprintf("APP: %s PLAYER[%d] Sending error %s ", mAppName.c_str(), mPlayerId, e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] APP: %s Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str(), e.data.mediaError.description);
 		}
 		else
 		{
-			logprintf("PLAYER[%d] Sending error %s ", mPlayerId, e.data.mediaError.description);
+			logprintf("%s PLAYER[%d] Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
 		SendEventAsync(e);
 	}
@@ -1413,7 +1413,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 {
 	bool success = true; // TODO
 	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName);
+	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
 
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
     if(!IsTSBSupported())
@@ -5394,7 +5394,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
 		if (!mAppName.empty())
 		{
-			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "APP: %s %s PLAYER[%d]", mAppName.c_str(), (mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
+			snprintf(tuneStrPrefix, sizeof(tuneStrPrefix), "%s PLAYER[%d] APP: %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mAppName.c_str());
 		}
 		else
 		{
