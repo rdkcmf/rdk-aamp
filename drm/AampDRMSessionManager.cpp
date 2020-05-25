@@ -413,6 +413,30 @@ static void mssleep(int milliseconds)
 
 /**
  *  @brief		Get DRM license key from DRM server.
+ *  @param[in]	keyIdArray - key Id extracted from pssh data
+ *  @return		bool - true if key is not cached/cached with no failure,
+ * 				false if keyId is already marked as failed.
+ */
+bool AampDRMSessionManager::IsKeyIdUsable(unsigned char* keyId, size_t keyIdLen)
+{
+	bool ret = true;
+	pthread_mutex_lock(&cachedKeyMutex);
+	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	{
+		if (keyIdLen == cachedKeyIDs[sessionSlot].len && 0 == memcmp(cachedKeyIDs[sessionSlot].data, keyId, keyIdLen))
+		{
+			AAMPLOG_INFO("%s:%d Session created/inprogress at slot %d",__FUNCTION__, __LINE__, sessionSlot);
+			ret = cachedKeyIDs[sessionSlot].isFailedKeyId;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&cachedKeyMutex);
+
+	return ret;
+}
+
+/**
+ *  @brief		Get DRM license key from DRM server.
  *
  *  @param[in]	keyChallenge - Structure holding license request and it's length.
  *  @param[in]	destinationURL - Destination url to which request is send.
