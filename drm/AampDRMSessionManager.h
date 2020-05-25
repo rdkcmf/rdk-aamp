@@ -179,6 +179,8 @@ public:
 #endif
 	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
 
+	bool IsKeyIdUsable(std::vector<uint8_t> keyIdArray);
+
 	void clearSessionData();
 
 	void clearAccessToken();

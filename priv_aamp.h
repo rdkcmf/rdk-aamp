@@ -44,6 +44,7 @@
 #include <VideoStat.h>
 #include <limits>
 #include <algorithm>
+#include <thread>
 
 #include "AampDrmHelper.h"
 #include "AampDrmMediaFormat.h"
@@ -257,6 +258,14 @@ typedef enum
 } BitrateChangeReason;
 
 // context-free utility functions
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
  * @brief Log error

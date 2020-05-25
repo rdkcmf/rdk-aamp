@@ -418,6 +418,31 @@ static void mssleep(int milliseconds)
 }
 
 
+/**
+ *  @brief		Get DRM license key from DRM server.
+ *  @param[in]	keyIdArray - key Id extracted from pssh data
+ *  @return		bool - true if key is not cached/cached with no failure,
+ * 				false if keyId is already marked as failed.
+ */
+bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
+{
+	bool ret = true;
+	pthread_mutex_lock(&cachedKeyMutex);
+	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	{
+		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
+		{
+			AAMPLOG_INFO("%s:%d Session created/inprogress at slot %d",__FUNCTION__, __LINE__, sessionSlot);
+			ret = cachedKeyIDs[sessionSlot].isFailedKeyId;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&cachedKeyMutex);
+
+	return ret;
+}
+
+
 #ifdef USE_SECCLIENT
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
@@ -937,6 +962,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			else
 			{
 				AAMPLOG_WARN("%s:%d existing DRM session for %s has error state %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), existingState);
+				cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 				return KEY_ERROR;
 			}
 		}
