@@ -114,8 +114,10 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
-		,curlSessionAbort(false)
+		,curlSessionAbort(false), mEnableAccessAtrributes(true)
 {
+	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
+	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
 }
 
 /**
@@ -418,6 +420,31 @@ static void mssleep(int milliseconds)
 }
 
 
+/**
+ *  @brief		Get DRM license key from DRM server.
+ *  @param[in]	keyIdArray - key Id extracted from pssh data
+ *  @return		bool - true if key is not cached/cached with no failure,
+ * 				false if keyId is already marked as failed.
+ */
+bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
+{
+	bool ret = true;
+	pthread_mutex_lock(&cachedKeyMutex);
+	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	{
+		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
+		{
+			AAMPLOG_INFO("%s:%d Session created/inprogress at slot %d",__FUNCTION__, __LINE__, sessionSlot);
+			ret = cachedKeyIDs[sessionSlot].isFailedKeyId;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&cachedKeyMutex);
+
+	return ret;
+}
+
+
 #ifdef USE_SECCLIENT
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
@@ -436,6 +463,30 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	uint32_t refreshDuration = 3;
 	SecClient_ExtendedStatus statusInfo;
 	const char *requestMetadata[1][2];
+	uint8_t numberOfAccessAttributes = 0;
+	const char *accessAttributes[2][2] = {NULL, NULL, NULL, NULL};
+	std::string serviceZone, streamID;
+	if(aampInstance->mIsVSS)
+	{
+		if (mEnableAccessAtrributes)
+		{
+			serviceZone = aampInstance->GetServiceZone();
+			streamID = aampInstance->GetVssVirtualStreamID();
+			if (!serviceZone.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_SERVICE_ZONE_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = serviceZone.c_str();
+				numberOfAccessAttributes++;
+			}
+			if (!streamID.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_VIRTUAL_STREAM_ID_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = streamID.c_str();
+				numberOfAccessAttributes++;
+			}
+		}
+		AAMPLOG_INFO("%s:%d accessAttributes : {\"%s\" : \"%s\", \"%s\" : \"%s\"}", __FUNCTION__, __LINE__, accessAttributes[0][0], accessAttributes[0][1], accessAttributes[1][0], accessAttributes[1][1]);
+	}
 	std::string moneytracestr;
 	requestMetadata[0][0] = "X-MoneyTrace";
 	aampInstance->GetMoneyTraceString(moneytracestr);
@@ -456,7 +507,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	{
 		attemptCount++;
 		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
-							requestMetadata, 0, NULL,
+							requestMetadata, numberOfAccessAttributes,
+							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
 							encodedData,
 							strlen(encodedData),
 							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
@@ -935,6 +987,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			else
 			{
 				AAMPLOG_WARN("%s:%d existing DRM session for %s has error state %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), existingState);
+				cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 				return KEY_ERROR;
 			}
 		}

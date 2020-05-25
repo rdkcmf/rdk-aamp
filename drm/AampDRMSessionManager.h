@@ -150,6 +150,7 @@ private:
 	pthread_mutex_t accessTokenMutex;
 	pthread_mutex_t cachedKeyMutex;
 	bool curlSessionAbort;
+	bool mEnableAccessAtrributes;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
@@ -178,6 +179,8 @@ public:
 			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle);
 #endif
 	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
+
+	bool IsKeyIdUsable(std::vector<uint8_t> keyIdArray);
 
 	void clearSessionData();
 

@@ -44,6 +44,7 @@
 #include <VideoStat.h>
 #include <limits>
 #include <algorithm>
+#include <thread>
 
 #include "AampDrmHelper.h"
 #include "AampDrmMediaFormat.h"
@@ -91,6 +92,9 @@ static const char *mMediaFormatName[] =
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
+#define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
+#define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
 //Upper and lower limit for dash drm sessions
 
@@ -257,6 +261,14 @@ typedef enum
 } BitrateChangeReason;
 
 // context-free utility functions
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
  * @brief Log error
@@ -2630,10 +2642,22 @@ public:
 	void SignalTrickModeDiscontinuity();
 
 	/**
-	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @brief  pass service zone, extracted from locator &sz URI parameter
 	 *   @return std::string
 	 */
-	std::string & getServiceZone() { return mServiceZone; }
+	std::string GetServiceZone() const{ return mServiceZone; }
+
+	/**
+	 *   @brief  pass virtual stream ID
+	 *   @return std::string
+	 */
+	std::string GetVssVirtualStreamID() const{ return mVssVirtualStreamId; }
+
+	/**
+	 *   @brief  set virtual stream ID, extracted from manifest
+	 */
+	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
 	 *
@@ -3267,6 +3291,7 @@ private:
 	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
+	std::string  mVssVirtualStreamId; // part of manifest file
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 #ifdef PLACEMENT_EMULATION

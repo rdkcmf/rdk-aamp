@@ -28,6 +28,8 @@
 #include <sys/time.h>
 #include <string.h>
 #include <assert.h>
+#include <ctime>
+#include <curl/curl.h>
 
 /**
  * @brief Get current time stamp
@@ -228,4 +230,25 @@ unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLe
 	unsigned char * decodedStr = base64_Decode(b64Src, len);
 	free(b64Src);
 	return decodedStr;
+}
+
+/**
+ * @brief unescape uri-encoded uri parameter
+ * @param uriParam string to un-escape
+ */
+void aamp_DecodeUrlParameter( std::string &uriParam )
+{
+	std::string rc;
+	CURL *curl = curl_easy_init();
+	if (curl != NULL)
+	{
+		int unescapedLen;
+		const char* unescapedData = curl_easy_unescape(curl, uriParam.c_str(), uriParam.size(), &unescapedLen);
+		if (unescapedData != NULL)
+		{
+			uriParam = std::string(unescapedData, unescapedLen);
+			curl_free((void*)unescapedData);
+		}
+		curl_easy_cleanup(curl);
+	}
 }

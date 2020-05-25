@@ -256,12 +256,13 @@ public:
 			return defaultValue;
 		}
 	}
-	int getUnknownValue(const std::string& key, bool defaultValue)
+	bool getUnknownValue(const std::string& key, bool defaultValue)
 	{
 		auto iter = unknownValues.find(key);
 		if (iter != unknownValues.end())
 		{
-			return iter->second.compare("true") == 0 || iter->second.compare("1") || iter->second.compare("on");
+			bool ret = (iter->second.compare("true") == 0 || iter->second.compare("1") == 0 || iter->second.compare("on") == 0);
+			return ret;
 		}
 		else
 		{

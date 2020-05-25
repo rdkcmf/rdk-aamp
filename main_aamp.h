@@ -228,6 +228,9 @@ typedef enum
 
 
 
+#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
+#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+
 typedef enum E_MetricsDataType
 {
 	AAMP_DATA_NONE,
