@@ -6512,7 +6512,12 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	ERROR_STATE_CHECK_VOID();
 
 	logprintf("aamp_SetLanguage(%s)->(%s)",aamp->language, language);
-
+	if(strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+	{
+	    aamp->noExplicitUserLanguageSelection = false;
+	    aamp->languageSetByUser = true;
+	    return;
+	}
 	// There is no active playback session, save the language for later
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
