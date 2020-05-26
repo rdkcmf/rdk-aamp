@@ -779,6 +779,13 @@ public:
 	virtual bool Pause(bool pause, bool forceStopGstreamerPreBuffering){ return true; }
 
 	/**
+          *   @brief Get playback duration in milliseconds
+          *
+          *   @return duration in ms.
+          */
+        virtual long GetDurationMilliseconds(void){ return 0; };
+
+	/**
 	 *   @brief Get playback position in milliseconds
 	 *
 	 *   @return Position in ms.

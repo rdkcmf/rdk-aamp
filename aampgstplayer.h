@@ -55,6 +55,7 @@ public:
 	void Flush(double position, int rate, bool shouldTearDown);
 	bool Pause(bool pause, bool forceStopGstreamerPreBuffering);
 	long GetPositionMilliseconds(void);
+        long GetDurationMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
 	virtual long long GetVideoPTS(void);
 	void SetVideoRectangle(int x, int y, int w, int h);
