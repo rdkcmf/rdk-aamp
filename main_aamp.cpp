@@ -7834,7 +7834,16 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
  */
 long long PrivateInstanceAAMP::GetDurationMs()
 {
-	return (long long)(durationSeconds*1000.0);
+	if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+	{
+	 	long long ms = mStreamSink->GetDurationMilliseconds();
+	 	durationSeconds = ms/1000.0;
+	 	return ms;
+	}
+	else
+	{
+		return (long long)(durationSeconds*1000.0);
+	}
 }
 
 
