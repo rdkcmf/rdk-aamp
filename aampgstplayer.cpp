@@ -215,7 +215,7 @@ static gboolean buffering_timeout (gpointer data);
 /** 
  * @brief check if elemement is instance (BCOM-3563)
  */
-void type_check_instance(char * str, GstElement * elem);
+static void type_check_instance( const char * str, GstElement * elem);
 
 /**
  * @brief AAMPGstPlayer Constructor
@@ -557,7 +557,7 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
 	id3->_this->privateContext->id3MetadataCallbackTaskPending = false;
 	id3->_this->privateContext->id3MetadataCallbackIdleTaskId = 0;
 
-	delete user_data;
+	delete id3;
 
 	return G_SOURCE_REMOVE;
 }
@@ -1831,7 +1831,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
 #if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
-		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
+		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
 			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]", __FUNCTION__, basePTS);
@@ -3542,7 +3542,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	pthread_mutex_unlock(&mBufferingLock);
 }
 
-void type_check_instance(char * str, GstElement * elem)
+static void type_check_instance( const char * str, GstElement * elem)
 {
 	logprintf("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
 }

@@ -33,7 +33,7 @@ public:
 
 	virtual void createInitData(std::vector<uint8_t>& initData){};
 
-	virtual bool parsePssh(const uint8_t* initData, uint32_t initDataLen){};
+	virtual bool parsePssh(const uint8_t* initData, uint32_t initDataLen){ return false; };
 
 	virtual bool isClearDecrypt() { return true; };
 

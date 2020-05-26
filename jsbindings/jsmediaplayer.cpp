@@ -35,7 +35,7 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
-static pthread_t tuneThreadId = NULL;
+static pthread_t tuneThreadId = 0;
 static bool bTuneInProgress = false;
 
 /**
@@ -592,7 +592,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 					INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
 					pthread_join(tuneThreadId, &status);
 					bTuneInProgress = false;
-					tuneThreadId = NULL;
+					tuneThreadId = 0;
 				}
 
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
@@ -606,7 +606,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 			}
 			else
 			{
-				if(bTuneInProgress && tuneThreadId != NULL)
+				if(bTuneInProgress && tuneThreadId != 0)
 				{
 					// if previous tune was Async and next tune app changed the configuration
 					// safe to check and join the thread 
@@ -614,7 +614,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	                                INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
 	                                pthread_join(tuneThreadId, &status);
 	                                bTuneInProgress = false;
-	                                tuneThreadId = NULL;
+	                                tuneThreadId = 0;
 				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url,autoPlay);

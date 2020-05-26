@@ -86,6 +86,7 @@ struct DrmSessionContext
 		sessionMutex = other.sessionMutex;
 		data = other.data;
 		drmSession = other.drmSession;
+		return *this;
 	}
 };
 

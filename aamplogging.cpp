@@ -203,13 +203,13 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 						"PLAYLIST_IFRAME",
 						"INIT_IFRAME"};
 
-	contentType = "unknown";
-	symptom = "unknown";
-	location = "unknown";
-
 	if (type < eMEDIATYPE_DEFAULT)
 	{
 		contentType = mMediaTypes[type];
+	}
+	else
+	{
+		contentType = "unknown";
 	}
 
 	switch (type)
@@ -253,6 +253,10 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 			symptom = "trickplay ends or freezes";
 		}
 			break;
+
+		default:
+			symptom = "unknown";
+			break;
 	}
 
 	if(strstr(url,"//mm."))
@@ -266,6 +270,10 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 	else if(strstr(url,"127.0.0.1:9080"))
 	{
 		location = "fog";
+	}
+	else
+	{
+		location = "unknown";
 	}
 }
 

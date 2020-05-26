@@ -413,6 +413,7 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 	case eDRM_NONE:
 	case eDRM_ClearKey:
 	case eDRM_MAX_DRMSystems:
+	default:
 		return "";
 	}
 }
@@ -2908,7 +2909,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						// introduce  extra marker for connection status curl 7/18/28,
 						// example 18(0) if connection failure with PARTIAL_FILE code
-						timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+						timeoutClass = "(" + to_string(reqSize > 0) + ")";
 					}
 					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
 						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
