@@ -221,12 +221,21 @@ typedef enum
 #define AD_ID_LENGTH 32
 #define MAX_BITRATE_COUNT 10
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
-#define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define METRIC_UUID_BUFF_LEN  256
 #define DRM_MESSAGE_BUFF_LEN  512
 
-
+// Player supported play/trick-play rates.
+#define AAMP_RATE_REW_1X		-4
+#define AAMP_RATE_REW_2X		-16
+#define AAMP_RATE_REW_3X		-32
+#define AAMP_RATE_REW_4X		-64
+#define AAMP_RATE_PAUSE			0
+#define AAMP_NORMAL_PLAY_RATE 	1
+#define AAMP_RATE_FWD_1X		4
+#define AAMP_RATE_FWD_2X		16
+#define AAMP_RATE_FWD_3X		32
+#define AAMP_RATE_FWD_4X		64
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -1000,6 +1009,13 @@ public:
 	 */
 	void Stop(bool sendStateChangeEvent = true);
 
+	/**
+	 *	 @brief Check given rate is valid.
+	 *
+	 *	 @param[in]  rate - Rate of playback.
+	 *	 @retval return true if the given rate is valid.
+	 */
+	bool IsValidRate(int rate);
 	/**
 	 *   @brief Set playback rate.
 	 *
