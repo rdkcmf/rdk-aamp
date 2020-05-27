@@ -800,6 +800,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	bool secondPass = false;
 	// Get the initial configuration to filter the profiles
 	bool bDisableEC3 = gpGlobalConfig->disableEC3;
+	bool bDisableAC3 = gpGlobalConfig->disableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
 	bool bDisableATMOS = (gpGlobalConfig->disableEC3) ? true : gpGlobalConfig->disableATMOS;
 	bool bDisableAAC = false;
@@ -820,7 +821,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 
 	// Priority of Profile selection if no filter set : ATMOS , EAC3 , AAC .
 	do {
-	int aacProfiles = 0, ec3Profiles = 0, atmosProfiles = 0;
+	int aacProfiles = 0, ac3Profiles = 0, ec3Profiles = 0, atmosProfiles = 0;
 	mMediaCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
@@ -904,6 +905,25 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 								break;
 
 							case FORMAT_AUDIO_ES_AC3:
+								if(bDisableAC3)
+								{
+									AAMPLOG_WARN("%s:%d: AC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+									ignoreProfile = true;
+								}
+								else
+								{
+									// found AC3 profile , disable AAC profiles from adding
+									ac3Profiles++;
+									bDisableAAC = true;
+									if(aacProfiles)
+									{
+										// if already aac profiles added , clear it from local table and ABR table
+										aacProfiles = 0;
+										clearProfiles = true;
+									}
+								}
+								break;
+
 							case FORMAT_AUDIO_ES_EC3:
 								if(bDisableEC3)
 								{
@@ -911,13 +931,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 									ignoreProfile = true;
 								}
 								else
-								{ // found EC3 profile , disable AAC profiles from adding
+								{ // found EC3 profile , disable AAC and AC3 profiles from adding
 									ec3Profiles++;
 									bDisableAAC = true;
-									if(aacProfiles)
+									bDisableAC3 = true;
+									if(aacProfiles || ac3Profiles)
 									{
-										// if already aac profiles added , clear it from local table and ABR table
-										aacProfiles = 0;
+										// if already aac or ac3 profiles added , clear it from local table and ABR table
+										aacProfiles = ac3Profiles = 0;
 										clearProfiles = true;
 									}
 								}
@@ -930,14 +951,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 									ignoreProfile = true;
 								}
 								else
-								{ // found ATMOS Profile , disable EC3 and AAC profile from adding
+								{ // found ATMOS Profile , disable AC3, EC3 and AAC profile from adding
 									atmosProfiles++;
 									bDisableAAC = true;
+									bDisableAC3 = true;
 									bDisableEC3 = true;
-									if(aacProfiles || ec3Profiles)
+									if(aacProfiles || ac3Profiles || ec3Profiles)
 									{
-										// if already aac or ec3 profiles added , clear it from local table and ABR table
-										aacProfiles = ec3Profiles = 0;
+										// if already aac or ac3 or ec3 profiles added , clear it from local table and ABR table
+										aacProfiles = ac3Profiles = ec3Profiles = 0;
 										clearProfiles = true;
 									}
 								}
@@ -979,8 +1001,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						}
 						else
 						{
-							// this will clear only video profiles already added in abr
-							// no iframes added yet ,hence no need to update StreamInfo table
+							if(GetProfileCount() > 0)
+							{
+								// copy currently parsed streamInfo into streamInfo[0] before clearing abr
+								// since it will be added later to abr at position 0
+								memcpy(&this->streamInfo[0], streamInfo, sizeof(HlsStreamInfo));
+								memset(streamInfo, 0, sizeof(HlsStreamInfo));
+								streamInfo = &this->streamInfo[0];
+							}
+
 							mAbrManager.clearProfiles();
 						}
 					}
