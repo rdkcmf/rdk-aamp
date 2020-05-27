@@ -186,6 +186,13 @@ var defaultInitConfig = {
      * max attempts for init frag curl timeout failures
      */
     //initFragmentRetryCount: 3
+    
+    /**
+     * Enabling use of matching base url, whenever there are multiple base urls are available, 
+     * with this option base url for which host of main tune url if matching is selected, 
+     * if not then first base url is selected ( default behavior ) 
+     */
+    //useMatchingBaseUrl : true
 };
 
 var playerState = playerStatesEnum.idle;

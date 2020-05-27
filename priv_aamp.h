@@ -676,6 +676,7 @@ public:
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
+	TriState useMatchingBaseUrl;
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
@@ -755,6 +756,7 @@ public:
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
+		,useMatchingBaseUrl(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -801,6 +803,13 @@ extern GlobalConfigAAMP *gpGlobalConfig;
  * @retval TRUE if substring is found in bigstring
  */
 bool aamp_StartsWith( const char *inputStr, const char *prefix);
+
+/**
+ * @brief extract host string from url.
+ * @param url - Input URL
+ * @retval - host of input url
+ */
+std::string aamp_getHostFromURL(std::string url);
 
 /**
  * @brief Create file URL from the base and file path
@@ -1811,7 +1820,7 @@ public:
 	bool discardEnteringLiveEvt;
 	bool mIsRetuneInProgress;
 	pthread_cond_t mCondDiscontinuity;
-	gint mDiscontinuityTuneOperationId;
+	guint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
@@ -2680,7 +2689,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsPending(gint id);
+	void SetCallbackAsPending(guint id);
 
 	/**
 	 *   @brief Set callback as event dispatched
@@ -2688,7 +2697,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsDispatched(gint id);
+	void SetCallbackAsDispatched(guint id);
 
 
 	/**
@@ -3372,6 +3381,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *   @brief Set Matching BaseUrl Config Configuration
+	 *
+	 *   @param[in] bValue - true if Matching BaseUrl enabled
+	 *   @return void
+	 */
+	void SetMatchingBaseUrlConfig(bool bValue);
+
+	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
 	 *
@@ -3616,7 +3633,7 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
-	std::map<gint, bool> mPendingAsyncEvents;
+	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */

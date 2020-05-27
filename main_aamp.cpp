@@ -425,6 +425,17 @@ long long aamp_GetCurrentTimeMS(void)
 	return (long long)(t.tv_sec*1e3 + t.tv_usec*1e-3);
 }
 
+static guint aamp_GetSourceID()
+{
+	guint callbackId = 0;
+	GSource *source = g_main_current_source();
+	if (source != NULL)
+	{
+		callbackId = g_source_get_id(source);
+	}
+	return callbackId;
+}
+
 
 /**
  * @brief Report progress event to listeners
@@ -1364,11 +1375,17 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 	//TODO protect mEventListener
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
 	if(e->event.type != AAMP_EVENT_PROGRESS)
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__,e->event.type);
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, e->event.type);
 	//Get current idle handler's id
-	gint callbackID = g_source_get_id(g_main_current_source());
-	e->aamp->SetCallbackAsDispatched(callbackID);
-
+	guint callbackID = aamp_GetSourceID();
+	if (callbackID != 0)
+	{
+		e->aamp->SetCallbackAsDispatched(callbackID);
+	}
+	else
+	{
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event.type);
+	}
 	e->aamp->SendEventSync(e->event);
 	return G_SOURCE_REMOVE;
 }
@@ -1382,7 +1399,7 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 {
 	//TODO protect mEventListener
 	e->aamp = this;
-	gint callbackID = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
+	guint callbackID = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
 	SetCallbackAsPending(callbackID);
 }
 
@@ -4212,6 +4229,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->enableMicroEvents = (value!=0);
 			logprintf( "enable-tune-profiling=%d", value );
 		}
+		else if (ReadConfigNumericHelper(cfg, "use-matching-baseurl=", value) == 1)
+		{
+			gpGlobalConfig->useMatchingBaseUrl = (TriState) (value == 1);
+			logprintf("use-matching-baseurl: %d", gpGlobalConfig->useMatchingBaseUrl);
+		}
 		else if (ReadConfigNumericHelper(cfg, "avgbwforABR=", value) == 1)
 		{
 			gpGlobalConfig->mUseAverageBWForABR= (TriState)(value != 0);
@@ -4438,12 +4460,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		if (mProgressReportFromProcessDiscontinuity)
 		{
 			AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity and mDiscontinuityTuneOperationId[%d] set!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
-			gint callbackID = 0;
-			GSource *source = g_main_current_source();
-			if (source != NULL)
-			{
-				callbackID = g_source_get_id(source);
-			}
+			guint callbackID = aamp_GetSourceID();
 			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
 			{
 				AAMPLOG_WARN("%s:%d TeardownStream idle callback id[%d] and mDiscontinuityTuneOperationId[%d] match. Ignore further discontinuity processing!", __FUNCTION__, __LINE__, callbackID, mDiscontinuityTuneOperationId);
@@ -5153,6 +5170,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
 
+	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{
 		if(NULL == mAampCacheHandler)
@@ -5171,7 +5189,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
 	}
-	
+
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
@@ -7246,6 +7264,36 @@ void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 }
 
 /**
+ *   @brief Set Matching BaseUrl Config Configuration
+ *
+ *   @param[in] bValue - true if Matching BaseUrl enabled
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
+{
+	aamp->SetMatchingBaseUrlConfig(bValue);
+}
+
+/**
+ *   @brief Set Matching BaseUrl Config Configuration
+ *
+ *   @param[in] bValue - true if Matching BaseUrl enabled
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
+{
+	// app can set only if curr state is eUndefinedState
+	if(eUndefinedState == gpGlobalConfig->useMatchingBaseUrl)
+	{
+		gpGlobalConfig->useMatchingBaseUrl = (TriState) bValue;
+	}
+	else
+	{
+		AAMPLOG_WARN("%s : Ignoring app setting[%d] already set value:%d", __FUNCTION__, bValue ,gpGlobalConfig->useMatchingBaseUrl );
+	}
+}
+
+/**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
  *
@@ -7678,7 +7726,7 @@ void PrivateInstanceAAMP::Stop()
 	if (mPendingAsyncEvents.size() > 0)
 	{
 		logprintf("PrivateInstanceAAMP::%s() - mPendingAsyncEvents.size - %d", __FUNCTION__, mPendingAsyncEvents.size());
-		for (std::map<gint, bool>::iterator it = mPendingAsyncEvents.begin(); it != mPendingAsyncEvents.end(); it++)
+		for (std::map<guint, bool>::iterator it = mPendingAsyncEvents.begin(); it != mPendingAsyncEvents.end(); it++)
 		{
 			if (it->first != 0)
 			{
@@ -7748,7 +7796,6 @@ void PrivateInstanceAAMP::Stop()
 	{
 		pipeline_paused = false;
 	}
-
 	EnableDownloads();
 }
 
@@ -8398,17 +8445,31 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
  */
 void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 {
+	bool sentSync = true;
+
 	if (mState == state)
 	{ // noop
 		return;
 	}
 
-	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING)
+	if (0 == aamp_GetSourceID())
+	{
+		sentSync = false;
+	}
+
+	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
 		eventData.data.seeked.positionMiliseconds = GetPositionMilliseconds();
-		SendEventSync(eventData);
+		if (sentSync)
+		{
+			SendEventSync(eventData);
+		}
+		else
+		{
+			SendEventAsync(eventData);
+		}
 	}
 
 	pthread_mutex_lock(&mLock);
@@ -8422,13 +8483,27 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 			AAMPEvent eventData;
 			eventData.type = AAMP_EVENT_STATE_CHANGED;
 			eventData.data.stateChanged.state = eSTATE_INITIALIZED;
-			SendEventSync(eventData);
+			if (sentSync)
+			{
+				SendEventSync(eventData);
+			}
+			else
+			{
+				SendEventAsync(eventData);
+			}
 		}
 
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_STATE_CHANGED;
 		eventData.data.stateChanged.state = mState;
-		SendEventSync(eventData);
+		if (sentSync)
+		{
+			SendEventSync(eventData);
+		}
+		else
+		{
+			SendEventAsync(eventData);
+		}
 	}
 }
 
@@ -8967,10 +9042,10 @@ void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
  * @brief Set an idle callback to dispatched state
  * @param id Idle task Id
  */
-void PrivateInstanceAAMP::SetCallbackAsDispatched(gint id)
+void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 {
 	pthread_mutex_lock(&mLock);
-	std::map<gint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
+	std::map<guint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
 		assert (itr->second);
@@ -8989,10 +9064,10 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(gint id)
  * @brief Set an idle callback to pending state
  * @param id Idle task Id
  */
-void PrivateInstanceAAMP::SetCallbackAsPending(gint id)
+void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 {
 	pthread_mutex_lock(&mLock);
-	std::map<gint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
+	std::map<guint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
 		assert (!itr->second);
@@ -10806,7 +10881,4 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 /**
  * @}
  */
-
-
-
 
