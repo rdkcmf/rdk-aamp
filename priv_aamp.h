@@ -1273,7 +1273,7 @@ public:
 	bool discardEnteringLiveEvt;
 	bool mIsRetuneInProgress;
 	pthread_cond_t mCondDiscontinuity;
-	gint mDiscontinuityTuneOperationId;
+	guint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
@@ -2152,7 +2152,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsPending(gint id);
+	void SetCallbackAsPending(guint id);
 
 	/**
 	 *   @brief Set callback as event dispatched
@@ -2160,7 +2160,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsDispatched(gint id);
+	void SetCallbackAsDispatched(guint id);
 
 
 	/**
@@ -3116,7 +3116,7 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
-	std::map<gint, bool> mPendingAsyncEvents;
+	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
