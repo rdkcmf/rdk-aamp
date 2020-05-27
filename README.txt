@@ -206,7 +206,7 @@ minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
-
+use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

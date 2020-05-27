@@ -28,7 +28,7 @@
 #include "jseventlistener.h"
 #include <vector>
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "1.0"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.4"
 
 extern "C"
 {
@@ -235,6 +235,7 @@ enum ConfigParamType
 	ePARAM_RAMPDOWN_LIMIT,
 	ePARAM_SEGMENTINJECTLIMIT,
 	ePARAM_DRMDECRYPTLIMIT,
+	ePARAM_USE_MATCHING_BASEURL,
 	ePARAM_MAX_COUNT
 };
 
@@ -289,6 +290,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_RAMPDOWN_LIMIT, "fragmentRetryLimit" },
 	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
 	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
+	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -720,6 +722,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_NEW_ADBREAKER:
 			case ePARAM_AVGBWFORABR:
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
+			case ePARAM_USE_MATCHING_BASEURL:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -841,6 +844,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_TSBLENGTH:
 					//TODO: Support these config params
+					break;
+				case ePARAM_USE_MATCHING_BASEURL:
+					privObj->_aamp->SetMatchingBaseUrlConfig(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

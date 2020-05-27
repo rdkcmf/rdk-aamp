@@ -44,6 +44,7 @@ sudo ln -s /usr/local/Cellar/openssl/<version> /usr/local/ssl
 
 ```
 brew install libxml2
+ln -s /usr/local/opt/libxml2/lib/pkgconfig/* /usr/local/lib/pkgconfig/
 ```
 **7. Install libdash**
 
