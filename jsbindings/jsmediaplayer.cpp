@@ -291,7 +291,6 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_NEW_ADBREAKER, "useNewAdBreaker" },
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
-	{ ePARAM_INITIAL_BUFFER_DURATION, "initialBuffer" },
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_MAX_COUNT, "" }
 };
@@ -701,7 +700,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
-			case ePARAM_INITIAL_BUFFER_DURATION:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -826,7 +824,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetPreCacheTimeWindow((int) valueAsNumber);
 					break;					
 				case ePARAM_INITIALBUFFER:
+					privObj->_aamp->SetInitialBufferDuration((int) valueAsNumber);
+					break;
 				case ePARAM_PLAYBACKBUFFER:
+					break;
 				case ePARAM_MINBITRATE:
 					privObj->_aamp->SetMinimumBitrate((long) valueAsNumber);
 					break;
@@ -844,9 +845,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_TSBLENGTH:
 					//TODO: Support these config params
-					break;
-				case ePARAM_INITIAL_BUFFER_DURATION:
-					privObj->_aamp->SetInitialBufferDuration(valueAsNumber);
 					break;
 				case ePARAM_USE_MATCHING_BASEURL:
 					privObj->_aamp->SetMatchingBaseUrlConfig(valueAsBoolean);
