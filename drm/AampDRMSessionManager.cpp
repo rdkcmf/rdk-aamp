@@ -1226,7 +1226,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isComcastStream = !contentMetaData.empty();
 
-	if (gpGlobalConfig->licenseServerURL)
+	if ((gpGlobalConfig->licenseServerURL) && (CLEAR_KEY_SYSTEM_STRING != drmHelper->ocdmSystemId()))
 	{
 		licenseRequest.url = string(gpGlobalConfig->licenseServerURL);
 	}

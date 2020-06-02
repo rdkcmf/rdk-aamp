@@ -160,7 +160,7 @@ public:
 	string getKeySystem();
 
 #if defined(USE_OPENCDM_ADAPTER)
-	virtual void setKeyId(const std::vector<uint8_t>& keyId) = 0;
+	virtual void setKeyId(const std::vector<uint8_t>& keyId) {};
 #endif
 };
 #endif

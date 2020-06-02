@@ -77,7 +77,7 @@ void AampClearKeyHelper::getKey(std::vector<uint8_t>& keyID) const
 
 void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challengeInfo, AampLicenseRequest& licenseRequest) const
 {
-	licenseRequest.method = AampLicenseRequest::GET;
+	licenseRequest.method = AampLicenseRequest::POST;
 
 	if (gpGlobalConfig->ckLicenseServerURL)
 	{
@@ -92,7 +92,7 @@ void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challen
 		licenseRequest.url = challengeInfo.url;
 	}
 
-	licenseRequest.payload = "";
+	licenseRequest.payload.assign(reinterpret_cast<const char *>(challengeInfo.data->getData()), challengeInfo.data->getDataLength());
 }
 
 void AampClearKeyHelper::transformLicenseResponse(std::shared_ptr<DrmData> licenseResponse) const

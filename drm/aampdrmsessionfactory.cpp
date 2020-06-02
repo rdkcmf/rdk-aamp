@@ -48,7 +48,16 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(std::shared_ptr<AampDrmHelp
 #if defined (USE_OPENCDM_ADAPTER)
 	if (drmHelper->isClearDecrypt())
 	{
-		return new AAMPOCDMBasicSessionAdapter(drmHelper, drmCallbacks);
+#if defined(USE_CLEARKEY)
+		if (systemId == CLEAR_KEY_SYSTEM_STRING)
+		{
+			return new ClearKeySession();
+		}
+		else
+#endif
+		{
+			return new AAMPOCDMBasicSessionAdapter(drmHelper, drmCallbacks);
+		}
 	}
 	else
 	{
