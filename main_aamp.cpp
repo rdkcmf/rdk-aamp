@@ -1162,7 +1162,9 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	
 			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
 			// GStreamer position reporting is taken care of.
-			if (injectedPosition != 0 && fabs(injectedPosition - newPosition) < 5.0)
+			// BCOM-4765: Set seek_pos_seconds to injected position only in case of westerossink. In cases with
+			// brcmvideodecoder, we have noticed a drift of 500ms for HLS-TS assets (due to PTS restamping
+			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && mWesterosSinkEnabled)
 			{
 				seek_pos_seconds = injectedPosition;
 			}
