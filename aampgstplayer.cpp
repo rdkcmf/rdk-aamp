@@ -860,16 +860,14 @@ static gboolean buffering_timeout (gpointer data)
 			_this->privateContext->bufferingTimeoutTimerId = 0;
 		}
 		return _this->privateContext->buffering_in_progress;
-		
 	}
 	else
 	{
 		logprintf("%s:%d in buffering_timeout got invalid or NULL handle ! _this =  %p   _this->privateContext = %p ", __FUNCTION__, __LINE__,
 		_this, (_this? _this->privateContext: NULL) );
-		_this->privateContext->bufferingTimeoutTimerId = 0;
 		return false;
 	}
-	
+
 }
 
 /**
@@ -1282,7 +1280,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
 		if (_this->privateContext->buffering_in_progress)
 		{
-			g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
+			_this->privateContext->bufferingTimeoutTimerId = g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
 		}
 		break;
 
