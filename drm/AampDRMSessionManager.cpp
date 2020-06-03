@@ -445,7 +445,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	logprintf("MoneyTrace[%s]", requestMetadata[0][1]);
 	//logprintf("encodedData is %s, length=%d", encodedData, strlen(encodedData));
 	//logprintf("licenseRequest is %s", licenseRequest);
-	logprintf("keySystem is %s", keySystem);
+	//logprintf("keySystem is %s", keySystem);
 	//logprintf("mediaUsage is %s", mediaUsage);
 	//logprintf("sessionToken is %s", sessionToken);
 	unsigned int attemptCount = 0;
@@ -771,6 +771,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	int selectedSlot = INVALID_SESSION_SLOT;
 
+	AAMPLOG_INFO("%s:%d keySystem is %s", __FUNCTION__, __LINE__, drmHelper->ocdmSystemId().c_str());
+
 	/**
 	 * Create drm session without primaryKeyId markup OR retrieve old DRM session.
 	 */
@@ -844,7 +846,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 		{
 			if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 			{
-				logprintf("%s:%d Session created/inprogress with same keyID %s at slot %d",__FUNCTION__, __LINE__, keyIdDebugStr.c_str(), sessionSlot);
+				AAMPLOG_INFO("%s:%d Session created/inprogress with same keyID %s at slot %d",__FUNCTION__, __LINE__, keyIdDebugStr.c_str(), sessionSlot);
 				keySlotFound = true;
 				isCachedKeyId = true;
 				break;

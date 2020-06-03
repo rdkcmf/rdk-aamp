@@ -766,9 +766,9 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 			break;
 	}
 
-	logprintf("DRM prefs");
+	AAMPLOG_INFO("DRM prefs");
 	for (auto const& pair: mDrmPrefs) {
-		logprintf("{ %s, %d }", pair.first.c_str(), pair.second);
+		AAMPLOG_INFO("{ %s, %d }", pair.first.c_str(), pair.second);
 	}
 };
 
@@ -2575,7 +2575,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 	DrmInfo drmInfo;
 	std::string contentMetadata;
 
-	AAMPLOG_TRACE("[HHH]contentProt.size=%d", contentProt.size());
+	AAMPLOG_TRACE("%s:%d [HHH]contentProt.size=%d", __FUNCTION__, __LINE__, contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
 	{
 		// extract the UUID
@@ -2585,7 +2585,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		std::smatch uuid;
 		if (!std::regex_search(schemeIdUri, uuid, rgx))
 		{
-			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d type[%d], got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, mediaType, iContentProt);
+			AAMPLOG_WARN("%s:%d (%s) got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], iContentProt);
 			continue;
 		}
 
@@ -2601,7 +2601,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		data = base64_Decode(psshData.c_str(), &dataLength);
 		if (0 == dataLength)
 		{
-			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
 			if (data)
 			{
 				free(data);
@@ -2619,23 +2619,22 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
-			AAMPLOG_WARN("%s:%d Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, drmInfo.systemUUID.c_str());
+			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
 		}
 		else
 		{
 			tmpDrmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
-			logprintf("%s:%d Created helper for UUID %s", __FUNCTION__, __LINE__, drmInfo.systemUUID.c_str());
 
 			if (!tmpDrmHelper->parsePssh(data, dataLength))
 			{
-				AAMPLOG_WARN("%s:%d Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("%s:%d (%s) Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
 			}
 			else
 			{
 				// Track the best DRM available to use
 				if ((!drmHelper) || (GetDrmPrefs(drmInfo.systemUUID) > GetDrmPrefs(drmHelper->getUuid())))
 				{
-					logprintf("%s:%d New helper is best helper", __FUNCTION__, __LINE__);
+					logprintf("%s:%d (%s) Created DRM helper for UUID %s and best to use", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
 					drmHelper = tmpDrmHelper;
 				}
 			}
@@ -2659,7 +2658,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 			if (rc != 0)
 			{
-				logprintf("pthread_join returned %d for createDRMSession Thread", rc);
+				logprintf("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
 			}
 			drmSessionThreadStarted = false;
 		}
@@ -2676,12 +2675,12 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		}
 		else
 		{
-			logprintf("%s %d pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
+			logprintf("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
 		}
 	}
 	else
 	{
-		logprintf("Skipping creation of session for duplicate helper");
+		logprintf("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
 	}
 }
 
