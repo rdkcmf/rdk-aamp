@@ -5208,6 +5208,21 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
 
+	//temporary hack for peacock
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if(NULL == mAampCacheHandler)
+		{
+			mAampCacheHandler = new AampCacheHandler();
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if(NULL == mDRMSessionManager)
+		{
+			mDRMSessionManager = new AampDRMSessionManager();
+		}
+#endif
+	}
+
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
@@ -7888,6 +7903,22 @@ void PrivateInstanceAAMP::Stop()
 	if (pipeline_paused)
 	{
 		pipeline_paused = false;
+	}
+	//temporary hack for peacock
+	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
+	{
+		if (mAampCacheHandler)
+		{
+			delete mAampCacheHandler;
+			mAampCacheHandler = NULL;
+		}
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if (mDRMSessionManager)
+		{
+			delete mDRMSessionManager;
+			mDRMSessionManager = NULL;
+		}
+#endif
 	}
 	EnableDownloads();
 }
