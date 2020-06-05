@@ -2256,8 +2256,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 			{
 				double duration = track->GetTotalInjectedDuration();
 				double otherTrackDuration = otherTrack->GetTotalInjectedDuration();
-				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f!",
-								__FUNCTION__, __LINE__, type, duration, otherTrackDuration);
+				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f!",
+								__FUNCTION__, __LINE__, type, duration, otherTrackDuration, track->fragmentDurationSeconds);
 				if (otherTrackDuration >= duration)
 				{
 					//Check for future discontinuity
@@ -2280,7 +2280,7 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					// unblock this track
 					else if ((diff + cachedDuration) > (2 * track->fragmentDurationSeconds))
 					{
-						AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+						AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
 						if (aamp->mUseRetuneForUnpairedDiscontinuity && type != eTRACK_AUDIO)
 						{
