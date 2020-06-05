@@ -614,22 +614,30 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
  */
 static double ISO8601DateTimeToUTCSeconds(const char *ptr)
 {
-	time_t timeSeconds = 0;
+	double timeSeconds = 0;
 	if(ptr)
 	{
 		time_t offsetFromUTC = 0;
 		std::tm timeObj = { 0 };
+		char *msString;
+		double msvalue = 0.0;;
 
 		//Find out offset from utc by convering epoch
 		std::tm baseTimeObj = { 0 };
-		strptime("1970-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ", &baseTimeObj);
+		strptime("1970-01-01T00:00:00.", "%Y-%m-%dT%H:%M:%S.", &baseTimeObj);
 		offsetFromUTC = mktime(&baseTimeObj);
 
 		//Convert input string to time
-		strptime(ptr, "%Y-%m-%dT%H:%M:%SZ", &timeObj);
-		timeSeconds = mktime(&timeObj) - offsetFromUTC;
+		msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
+
+		if(msString)
+		{
+			msvalue = (double)(atoi(msString)/1000.0);
+		}
+
+		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
 	}
-	return (double)timeSeconds;
+	return timeSeconds;
 }
 
 /***************************************************************************
@@ -4999,7 +5007,7 @@ void TrackState::RunFetchLoop()
 				        - lastPlaylistDownloadTimeMS);
 				if (context->maxIntervalBtwPlaylistUpdateMs <= timeSinceLastPlaylistDownload)
 				{
-					AAMPLOG_INFO("%s:%d: Refreshing playlist as maximum refresh delay exceeded", __FUNCTION__, __LINE__);
+					AAMPLOG_INFO("%s:%d: Refreshing '%s' playlist as maximum refresh delay exceeded", __FUNCTION__, __LINE__, name);
 					RefreshPlaylist();
 					refreshPlaylist = false;
 				}
@@ -5013,6 +5021,7 @@ void TrackState::RunFetchLoop()
 			pthread_mutex_lock(&mutex);
 			if(refreshPlaylist)
 			{
+				//AAMPLOG_INFO("%s:%d: Refreshing '%s' playlist", __FUNCTION__, __LINE__, name);
 				RefreshPlaylist();
 				refreshPlaylist = false;
 			}
@@ -5093,6 +5102,7 @@ void TrackState::RunFetchLoop()
 					__FUNCTION__, __LINE__, type,bufferAvailable,playTarget,minDelayBetweenPlaylistUpdates,endPositionAvailable,currentPlayPosition);
 			aamp->InterruptableMsSleep(minDelayBetweenPlaylistUpdates);
 		}
+		//AAMPLOG_INFO("%s:%d: Refreshing '%s' playlist", __FUNCTION__, __LINE__, name);
 		RefreshPlaylist();
 
 		AAMPLOG_FAILOVER("%s:%d: fragmentURI [%s] timeElapsedSinceLastFragment [%f]",
