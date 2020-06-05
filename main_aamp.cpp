@@ -5196,14 +5196,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
+
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
 		//Calling tune without closing previous tune
 		Stop(false);
 	}
-	if (state == eSTATE_RELEASED)
-	{
-		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
-	}
+
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
