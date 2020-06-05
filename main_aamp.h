@@ -914,6 +914,19 @@ public:
 
 	/**
 	 *   @brief Tune to a URL.
+	 *      DEPRECATED!  This is included for backwards compatibility with current Sky AS integration
+	 *      audioDecoderStreamSync is a broadcom-specific hack (for original xi6 POC build) - this doesn't belong in Tune API.
+	 *
+	 *   @param[in]  url - HTTP/HTTPS url to be played.
+	 *   @param[in]  contentType - Content type of the asset
+	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+	 *   @return void
+	 */
+	void Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync);
+
+	/**
+	 *   @brief Tune to a URL.
 	 *
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  autoPlay - Start playback immediately or not

@@ -1415,23 +1415,37 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize, MediaType type)
 {
 #ifdef AAMP_MPD_DRM
-  	GstBuffer *pssi;
+	/* There is a possibility that only single protection event is queued for multiple type since they are encrypted using same id.
+	 * Don't worry if you see only one protection event queued here.
+	 */
 
-	// There is a possibility that only single protection event is queued for multiple type
-	// since they are encrypted using same id. Don'tt worry if you see only one protection event queued here
-	logprintf("queueing protection event for type:%d keysystem: %s initdata size: %d", type, protSystemId, initDataSize);
-
-	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
-	if (this->aamp->IsDashAsset())
+	if (privateContext->protectionEvent[type] != NULL)
 	{
-		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
-	}
-	else
-	{
-		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+		AAMPLOG_WARN("%s:%d Previously cached protection event is present for type(%d), clearing!", __FUNCTION__, __LINE__, type);
+		gst_event_unref(privateContext->protectionEvent[type]);
+		privateContext->protectionEvent[type] = NULL;
 	}
 
-	gst_buffer_unref (pssi);
+	AAMPLOG_WARN("%s:%d Queueing protection event for type(%d) keysystem(%s) initData(%p) initDataSize(%d)", __FUNCTION__, __LINE__, type, protSystemId, initData, initDataSize);
+
+	/* Giving invalid initData into ProtectionEvent causing "GStreamer-CRITICAL" assertion error. So if the initData is valid then its good to call the ProtectionEvent further. */
+	if (initData && initDataSize)
+	{
+		GstBuffer *pssi;
+
+		pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
+
+		if (this->aamp->IsDashAsset())
+		{
+			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
+		}
+		else
+		{
+			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+		}
+
+		gst_buffer_unref (pssi);
+	}
 #endif
 }
 

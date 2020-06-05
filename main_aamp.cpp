@@ -5178,6 +5178,19 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 }
 
+/**
+ *   @brief Tune to a URL.
+ *   This extra Tune function is included for backwards compatibility
+ *   @param[in]  url - HTTP/HTTPS url to be played.
+ *   @param[in]  contentType - Content type of the asset
+ *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+ *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+ *   @return void
+ */
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
+{
+	Tune(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
+}
 
 /**
  * @brief Tune to a URL.
@@ -5189,14 +5202,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
+
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
 		//Calling tune without closing previous tune
 		Stop(false);
 	}
-	if (state == eSTATE_RELEASED)
-	{
-		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
-	}
+
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
@@ -5326,7 +5337,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 
-	SetContentType(mainManifestUrl, contentType);
+	if(contentType)
+	{
+		SetContentType(contentType, mainManifestUrl);
+	}
+
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -5660,7 +5675,13 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	}
 }
 
-void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char *cType)
+/**
+ * @brief set a content type
+ * @param[in] cType - content type 
+ * @param[in] mainManifestUrl - main manifest URL
+ * @retval none
+ */
+void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainManifestUrl)
 {
 	mContentType = ContentType_UNKNOWN; //default unknown
 	if(NULL != cType)
@@ -5714,7 +5735,14 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
-
+/**
+ * @brief Get Content Type
+ * @return ContentType
+ */
+ContentType PrivateInstanceAAMP::GetContentType() const
+{
+	return mContentType;
+}
 const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitData(const char *url)
 {
 	std::string urlStr(url);
