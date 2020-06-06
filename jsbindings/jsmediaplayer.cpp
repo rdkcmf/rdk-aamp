@@ -28,7 +28,7 @@
 #include "jseventlistener.h"
 #include <vector>
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "1.0"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.4"
 
 extern "C"
 {
