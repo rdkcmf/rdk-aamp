@@ -33,11 +33,11 @@
  */
 enum class AdState
 {
-	OUTSIDE_ADBREAK,		//Not in adbreak, wait for period change
-	IN_ADBREAK_AD_NOT_PLAYING,	//Base period in adbreak: But Ad not found/playing
-	IN_ADBREAK_AD_PLAYING,		//Ad playing
-	IN_ADBREAK_AD_READY2PLAY,	//Ready to play next Ad
-	IN_ADBREAK_WAIT2CATCHUP		//Waiting for base period to catchup
+	OUTSIDE_ADBREAK,             /**< Not in adbreak, wait for period change */
+	IN_ADBREAK_AD_NOT_PLAYING,   /**< Base period in adbreak: But Ad not found/playing */
+	IN_ADBREAK_AD_PLAYING,       /**< Ad playing */
+	IN_ADBREAK_AD_READY2PLAY,    /**< Ready to play next Ad */
+	IN_ADBREAK_WAIT2CATCHUP      /**< Waiting for base period to catchup */
 };
 
 static constexpr const char *ADSTATE_STR[] =
@@ -55,10 +55,12 @@ static constexpr const char *ADSTATE_STR[] =
 class CDAIObject
 {
 private:
-	PrivateInstanceAAMP* mAamp;
+	PrivateInstanceAAMP* mAamp;       /**< AAMP player's private instance */
 public:
 	/**
 	 * @brief CDAIObject constructor.
+	 *
+	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
 	 */
 	CDAIObject(PrivateInstanceAAMP* aamp): mAamp(aamp)
 	{

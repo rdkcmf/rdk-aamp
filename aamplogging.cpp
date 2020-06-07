@@ -96,15 +96,16 @@ const char* AampLogManager::getAampCliCfgPath(void)
  * @param[in] url - content url
  * @param[in] downloadTime - download time of the fragment or manifest
  * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs)
+void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs, MediaType type)
 {
 	std::string contentType;
 	std::string location;
 	std::string symptom;
 
-	ParseContentUrl(url, contentType, location, symptom);
+	ParseContentUrl(url, contentType, location, symptom, type);
 
 	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
@@ -115,15 +116,16 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
  * @param[in] url - content url
  * @param[in] errorType - it can be http or curl errors
  * @param[in] errorCode - it can be http error or curl error code
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode)
+void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode, MediaType type)
 {
 	std::string contentType;
 	std::string location;
 	std::string symptom;
 
-	ParseContentUrl(url, contentType, location, symptom);
+	ParseContentUrl(url, contentType, location, symptom, type);
 
 	switch(errorType)
 	{
@@ -168,54 +170,77 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
  * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
  * @param[out] location - server location
  * @param[out] symptom - issue exhibiting scenario for error case
+ * @param[in] type - media type
  * @retuen void
  */
-void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom)
+void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type)
 {
-	contentType="unknown";
-	location="unknown";
-	symptom="unknown";
+	static const char *mMediaTypes[eMEDIATYPE_DEFAULT] = { // enum MediaType
+						"VIDEO",
+						"AUDIO",
+						"SUBTITLE",
+						"MANIFEST",
+						"LICENCE",
+						"IFRAME",
+						"INIT_VIDEO",
+						"INIT_AUDIO",
+						"INIT_SUBTITLE",
+						"PLAYLIST_VIDEO",
+						"PLAYLIST_AUDIO",
+						"PLAYLIST_SUBTITLE",
+						"PLAYLIST_IFRAME",
+						"INIT_IFRAME"};
 
-	if(strstr(url,".m3u8") || strstr(url,".mpd") || strstr(url,"-init.seg"))
+	contentType = "unknown";
+	symptom = "unknown";
+	location = "unknown";
+
+	if (type < eMEDIATYPE_DEFAULT)
 	{
-		if(strstr(url,"-bandwidth-"))
+		contentType = mMediaTypes[type];
+	}
+
+	switch (type)
+	{
+		case eMEDIATYPE_MANIFEST:
 		{
-			contentType = "sub manifest";
-			symptom = "freeze/buffering";
-		}
-		else
-		{
-			contentType = "main manifest";
 			symptom = "video fails to start, has delayed start or freezes/buffers";
 		}
-	}
-	else if(strstr(url,".ts") || strstr(url,".mp4"))
-	{
-		if(strstr(url, "-header"))
+			break;
+
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+		case eMEDIATYPE_PLAYLIST_IFRAME:
 		{
-			contentType = "sub manifest";
+			symptom = "video fails to start or freeze/buffering";
+		}
+			break;
+
+		case eMEDIATYPE_INIT_VIDEO:
+		case eMEDIATYPE_INIT_AUDIO:
+		case eMEDIATYPE_INIT_IFRAME:
+		{
+			symptom = "video fails to start";
+		}
+			break;
+
+		case eMEDIATYPE_VIDEO:
+		{
 			symptom = "freeze/buffering";
 		}
-		if(strstr(url,"-iframe"))
+			break;
+
+		case eMEDIATYPE_AUDIO:
 		{
-			contentType = "iframe";
+			symptom = "audio drop or freeze/buffering";
+		}
+			break;
+
+		case eMEDIATYPE_IFRAME:
+		{
 			symptom = "trickplay ends or freezes";
 		}
-		else if(strstr(url,"-muxed"))
-		{
-			contentType = "muxed segment";
-			symptom = "freeze/buffering";
-		}
-		else if(strstr(url,"-video"))
-		{
-			contentType = "video segment";
-			symptom = "freeze/buffering";
-		}
-		else if(strstr(url,"-audio"))
-		{
-			contentType = "audio segment";
-			symptom = "freeze/buffering";
-		}
+			break;
 	}
 
 	if(strstr(url,"//mm."))

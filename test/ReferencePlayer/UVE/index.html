@@ -41,6 +41,7 @@
         <div id="controlDiv">
           <!-- Video Controls -->
           <div id="videoControlsDiv">
+              <button class="button" id="videoToggleButton"><img id="flipIcon" src="../icons/flip.png"></button>
               <button class="button" id="playOrPauseButton"><img id="playOrPauseIcon" src="../icons/play.png"></button>
               <button class="button" id="rewindButton"><img class="flipImg" src="../icons/fastForward.png"></button>
               <button class="button" id="skipBackwardButton"><img class="flipImg" src="../icons/skipForward.png"></button>
@@ -57,9 +58,17 @@
         </div>
         <div id="controlDivNext">
           <div id="videoControlsDivNext">
+             <select id="ccTracks">
+              </select>
               <select id="videoURLs">
               </select>
               <p id="playerType">UVE PLAYER</p>
+              <span id="cacheOnly" class="cacheOnly">Cache Only: </span>
+              <label id="cacheOnlyButton">
+                  <input type="checkbox" id="cacheOnlyCheck">
+              </label>
+              <input type="text" id="jumpPosition" placeholder=" position(ms)">
+              <button class="button" id="jumpButton">JUMP</button>
               <span id="logState">Diagnostics: </span>
               <label id="autoLogButton">
                   <input type="checkbox" id="logCheck">
@@ -94,6 +103,12 @@
       <img id="ffIMG" src="../icons/fastForward.png">
     </div>
     <p id="ffSpeed"></p>
+
+    <!-- Buffering Modal -->
+    <div id="buffModal" class="ccModal">
+      <p id="buffContent">Buffering...</p>
+    </div>
+
 </body>
 
 </html>

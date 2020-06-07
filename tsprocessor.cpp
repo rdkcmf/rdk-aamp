@@ -160,6 +160,7 @@ private:
 	unsigned long long base_pts;
 	unsigned long long current_pts;
 	unsigned long long current_dts;
+	unsigned long long first_pts;
 	MediaType type;
 	bool trickmode;
 	bool finalized_base_pts;
@@ -216,7 +217,7 @@ public:
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
 		es(), position(0), duration(0), base_pts(0), current_pts(0),
 		current_dts(0), type(type), trickmode(false), finalized_base_pts(false),
-		sentESCount(0)
+		sentESCount(0), first_pts(0)
 	{
 		init(0, 0, false, true);
 	}
@@ -259,6 +260,7 @@ public:
 		}
 		current_dts = 0;
 		current_pts = 0;
+		first_pts = 0;
 		finalized_base_pts = false;
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
@@ -305,11 +307,7 @@ public:
 	{
 		if (!trickmode)
 		{
-			NOTICE("Type[%d], basePTS %llu final %d", (int)type, basePTS, (int)isFinal);
-			if (isFinal)
-			{
-				aamp->NotifyBasePTS(basePTS);
-			}
+			NOTICE("Type[%d], basePTS %llu final %d\n", (int)type, basePTS, (int)isFinal);
 		}
 		base_pts = basePTS;
 		finalized_base_pts = isFinal;
@@ -456,6 +454,18 @@ public:
 				WARNING("current_pts[%llu] < base_pts[%llu]", current_pts, base_pts);
 				ptsError = true;
 				return;
+			}
+
+			if (first_pts == 0)
+			{
+				first_pts = current_pts;
+				//Notify first video PTS to AAMP for VTT initialization
+				if (!trickmode && type == eMEDIATYPE_VIDEO)
+				{
+					aamp->NotifyFirstVideoPTS(first_pts);
+					//Notifying BasePTS value for media progress event
+					aamp->NotifyVideoBasePTS(getBasePTS());
+				}
 			}
 			/*PARSE PES*/
 			{
@@ -2145,29 +2155,29 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 		{
 			if (eStreamOp_DEMUX_AUDIO == m_streamOperation)
 			{
-                if(!gpGlobalConfig->bAudioOnlyPlayback)
-                {
-                    pthread_mutex_lock(&m_mutex);
-                    if (-1 == m_basePTSFromPeer)
-                    {
-                        if (m_enabled)
-                        {
-                            logprintf("TSProcessor[%p]%s:%d - wait for base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
-                            pthread_cond_wait(&m_basePTSCond, &m_mutex);
-                        }
+				if(!gpGlobalConfig->bAudioOnlyPlayback)
+				{
+					pthread_mutex_lock(&m_mutex);
+					if (-1 == m_basePTSFromPeer)
+					{
+						if (m_enabled)
+						{
+							logprintf("TSProcessor[%p]%s:%d - wait for base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+							pthread_cond_wait(&m_basePTSCond, &m_mutex);
+						}
 
-                        if (!m_enabled)
-                        {
-                            INFO("Not Enabled, Returning");
-                            m_processing = false;
-                            pthread_cond_signal(&m_throttleCond);
-                            pthread_mutex_unlock(&m_mutex);
-                            return false;
-                        }
-                        logprintf("TSProcessor[%p]%s:%d - got base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
-                    }
-                    pthread_mutex_unlock(&m_mutex);
-                }
+						if (!m_enabled)
+						{
+							INFO("Not Enabled, Returning");
+							m_processing = false;
+							pthread_cond_signal(&m_throttleCond);
+							pthread_mutex_unlock(&m_mutex);
+							return false;
+						}
+						logprintf("TSProcessor[%p]%s:%d - got base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+					}
+					pthread_mutex_unlock(&m_mutex);
+				}
 				ret = demuxAndSend(packetStart, len, m_startPosition, duration, discontinuous);
 			}
 			else if(!gpGlobalConfig->demuxedAudioBeforeVideo)

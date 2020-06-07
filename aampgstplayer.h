@@ -27,6 +27,7 @@
 
 #include <stddef.h>
 #include "priv_aamp.h"
+#include <pthread.h>
 
 /**
  * @struct AAMPGstPlayerPriv
@@ -49,7 +50,7 @@ public:
 	void Stream(void);
 	void Stop(bool keepLastFrame);
 	void DumpStatus(void);
-	void Flush(double position, int rate);
+	void Flush(double position, int rate, bool shouldTearDown);
 	bool Pause(bool pause);
 	long GetPositionMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
@@ -64,8 +65,10 @@ public:
 	bool CheckForPTSChange();
 	void NotifyFragmentCachingComplete();
 	void GetVideoSize(int &w, int &h);
-	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len);
+	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
+	void StopBuffering(bool forceStop);
+
 
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp);
@@ -77,6 +80,12 @@ public:
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	std::function< void(uint8_t *, int, int, int) > cbExportYUVFrame;
+	static GstFlowReturn AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this);
+#endif
+	void SeekStreamSink(double position, double rate);
+	std::string GetVideoRectangle();
 private:
 	void PauseAndFlush(bool playAfterFlush);
 	void TearDownStream(MediaType mediaType);
@@ -85,6 +94,8 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
+
+	pthread_mutex_t mBufferingLock;
 };
 
 #endif // AAMPGSTPLAYER_H

@@ -38,6 +38,10 @@
 /* Static local variables */
 AampOutputProtection* s_pAampOP = NULL;
 
+#define DISPLAY_WIDTH_UNKNOWN       -1  // Parsing failed for getResolution().getName();
+#define DISPLAY_HEIGHT_UNKNOWN      -1  // Parsing failed for getResolution().getName();
+#define DISPLAY_RESOLUTION_NA        0   // Resolution not available yet or not connected to HDMI
+
 
 /**
  * @brief AampOutputProtection Constructor
@@ -45,8 +49,8 @@ AampOutputProtection* s_pAampOP = NULL;
 AampOutputProtection::AampOutputProtection()
 : m_sourceWidth(0)
 , m_sourceHeight(0)
-, m_displayWidth(1280)
-, m_displayHeight(720)
+, m_displayWidth(DISPLAY_RESOLUTION_NA)
+, m_displayHeight(DISPLAY_RESOLUTION_NA)
 , m_isHDCPEnabled(false)
 , m_gstElement(NULL)
 , m_hdcpCurrentProtocol(dsHDCP_VERSION_MAX)
@@ -157,10 +161,53 @@ void AampOutputProtection::SetHDMIStatus()
             isHDCPEnabled            = vPort.isContentProtected();
             hdcpReceiverProtocol     = (dsHdcpProtocolVersion_t)vPort.getHDCPReceiverProtocol();
             hdcpCurrentProtocol      = (dsHdcpProtocolVersion_t)vPort.getHDCPCurrentProtocol();
+            //get the resolution of the TV
+            int width,height;
+            int iResID = vPort.getResolution().getPixelResolution().getId();
+            if( device::PixelResolution::k720x480 == iResID )
+            {
+                width =  720;
+                height = 480;
+            }
+            else if(  device::PixelResolution::k720x576 == iResID )
+            {
+                width = 720;
+                height = 576;
+            }
+            else if(  device::PixelResolution::k1280x720 == iResID )
+            {
+                width =  1280;
+                height = 720;
+            }
+            else if(  device::PixelResolution::k1920x1080 == iResID )
+            {
+                width =  1920;
+                height = 1080;
+            }
+            else if(  device::PixelResolution::k3840x2160 == iResID )
+            {
+                width =  3840;
+                height = 2160;
+            }
+            else if(  device::PixelResolution::k4096x2160 == iResID )
+            {
+                width =  4096;
+                height = 2160;
+            }
+            else
+            {
+                width =  DISPLAY_WIDTH_UNKNOWN;
+                height = DISPLAY_HEIGHT_UNKNOWN;
+                std::string _res = vPort.getResolution().getName();
+                logprintf("%s:%d ERR parse failed for getResolution().getName():%s id:%d",__FUNCTION__,__LINE__,(_res.empty() ? "NULL" : _res.c_str()),iResID);
+            }
+
+            SetResolution(width, height);
         }
         else {
             isHDCPCompliant = false;
             isHDCPEnabled = false;
+            SetResolution(DISPLAY_RESOLUTION_NA,DISPLAY_RESOLUTION_NA);
         }
     }
     catch (const std::exception e) {
@@ -203,10 +250,21 @@ void AampOutputProtection::SetHDMIStatus()
 void AampOutputProtection::SetResolution(int width, int height)
 {
     DEBUG_FUNC;
-
+    logprintf("%s:%d Resolution : width %d height:%d",__FUNCTION__,__LINE__,width,height);
     m_displayWidth   = width;
     m_displayHeight  = height;
 }
+
+    /**
+     * @brief gets display resolution
+     * @param[out] int width : Display Width
+     * @param[out] int height : Display height
+     */
+    void AampOutputProtection::GetDisplayResolution(int &width, int &height)
+    {
+        width   = m_displayWidth;
+        height  = m_displayHeight;
+    }
 
 #ifndef USE_OPENCDM
 // Pleayrady OP Callback

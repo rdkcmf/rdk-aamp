@@ -40,6 +40,19 @@
 #define AUDIO_SESSION 1
 
 /**
+ *  @struct	DrmSessionDataInfo
+ *  @brief	Drm Session Data Information 
+ * for storing in a pool from parser.
+ */
+typedef struct DrmSessionDataInfo{
+	struct DrmSessionParams* sessionData; /**< DRM Session Data */
+	bool isProcessedLicenseAcquire; /**< Flag to avoid multiple acquire for a key */
+	DRMSystems drmType; /**< DRM Type */
+	unsigned char *processedKeyId; /**< Pointer to store last processed key Id */
+	int processedKeyIdLen; /**< Last processed key Id size */
+}DrmSessionDataInfo;
+
+/**
  *  @struct	DrmSessionContext
  *  @brief	To store drmSession and keyId data.
  */
@@ -53,6 +66,20 @@ struct DrmSessionContext
 	DrmSessionContext() : dataLength(0), data(NULL), sessionMutex(PTHREAD_MUTEX_INITIALIZER), drmSession(NULL)
 	{
 	}
+};
+
+/**
+ * @struct DrmSessionParams
+ * @brief Holds data regarding drm session
+ */
+struct DrmSessionParams
+{
+	unsigned char *initData;
+	int initDataLen;
+	MediaType stream_type;
+	PrivateInstanceAAMP *aamp;
+	DRMSystems drmType;
+	unsigned char *contentMetadata;
 };
 
 /**
@@ -81,7 +108,6 @@ typedef enum{
 	eSESSIONMGR_ACTIVE
 }SessionMgrState;
 
-
 /**
  *  @class	AampDRMSessionManager
  *  @brief	Controller for managing DRM sessions.
@@ -90,7 +116,6 @@ class AampDRMSessionManager
 {
 
 private:
-	static AampDRMSessionManager* _sessionMgr;
 	DrmSessionContext *drmSessionContexts;
 	KeyID *cachedKeyIDs;
 	char* accessToken;
@@ -98,17 +123,18 @@ private:
 	SessionMgrState sessionMgrState;
 	pthread_mutex_t accessTokenMutex;
 	pthread_mutex_t cachedKeyMutex;
-
-	AampDRMSessionManager();
+	bool curlSessionAbort;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
 
 	static size_t write_callback(char *ptr, size_t size, size_t nmemb,
 			void *userdata);
+	static int progress_callback(void *clientp,	double dltotal, 
+			double dlnow, double ultotal, double ulnow );
 public:
 
-	static AampDRMSessionManager* getInstance();
+	AampDRMSessionManager();
 
 	void initializeDrmSessions();
 
@@ -121,8 +147,7 @@ public:
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
 			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e,bool isPrimarySession = false);
 
-	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL);
-
+	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, bool isComcastStream = false, char* licenseProxy = NULL, struct curl_slist *customHeader = NULL, DRMSystems drmSystem = eDRM_NONE);
 
 	void clearSessionData();
 
@@ -131,8 +156,17 @@ public:
 	void clearFailedKeyIds();
 
 	void setSessionMgrState(SessionMgrState state);
+	
+	void setCurlAbort(bool isAbort);
+
+	bool getCurlAbort(void);
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 };
+
+typedef struct writeCallbackData{
+	DrmData *data ;
+	AampDRMSessionManager* mDRMSessionManager;
+}writeCallbackData;
 
 #endif

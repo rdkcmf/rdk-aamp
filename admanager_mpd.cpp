@@ -63,7 +63,7 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
 PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(PrivateInstanceAAMP* aamp) : mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
 					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj()
 {
-	mAamp->CurlInit(AAMP_DAI_CURL_IDX, 1);
+	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
 }
 
 PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
@@ -77,7 +77,7 @@ PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 		}
 		mAdObjThreadID = 0;
 	}
-	mAamp->CurlTerm(AAMP_DAI_CURL_IDX, 1);
+	mAamp->CurlTerm(eCURLINSTANCE_DAI);
 }
 
 void PrivateCDAIObjectMPD::InsertToPeriodMap(IPeriod * period)
@@ -250,7 +250,10 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 								abObj.endPeriodOffset = 0;//Aligning the last period
 								mPeriodMap[abObj.endPeriodId] = Period2AdData(); //Resetting the period with small outlier.
 							}
+							{
 							//TODO: else We need to calculate duration of the end period in the Adbreak
+								AAMPLOG_WARN("%s:%d [CDAI] else_part:%lld", __FUNCTION__, __LINE__, abObj.endPeriodOffset);
+							}
 
 							//Printing the placement positions
 							std::stringstream ss;
@@ -280,6 +283,11 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 							AAMPLOG_WARN("%s:%d [CDAI] Placement Done: %s.", __FUNCTION__, __LINE__, ss.str().c_str());
 							break;
 						}
+					}
+					else
+					{
+						//No more ads to place & No sufficient space to finalize. Wait for next period/next mpd refresh.
+						break;
 					}
 				}
 			}
@@ -394,7 +402,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	long http_error = 0;
 	std::string effectiveUrl;
 	memset(&manifest, 0, sizeof(manifest));
-	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, eCURLINSTANCE_DAI);
 	if (gotManifest)
 	{
 		AAMPLOG_TRACE("PrivateCDAIObjectMPD::%s - manifest download success", __FUNCTION__);
@@ -432,7 +440,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 			GrowableBuffer fogManifest;
 			memset(&fogManifest, 0, sizeof(manifest));
 			http_error = 0;
-			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, NULL, AAMP_DAI_CURL_IDX);
+			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, NULL, eCURLINSTANCE_DAI);
 			if(200 == http_error || 204 == http_error)
 			{
 				manifestUrl = effectiveUrl;

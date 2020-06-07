@@ -34,7 +34,7 @@
 
 #define AES_128_KEY_LEN_BYTES 16
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t instanceLock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief key acquistion thread
@@ -225,8 +225,8 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	mPrevDrmState = eDRM_INITIALIZED;
 	if (-1 == mCurlInstance)
 	{
-		mCurlInstance = AAMP_TRACK_COUNT;
-		aamp->CurlInit(mCurlInstance, 1);
+		mCurlInstance = eCURLINSTANCE_AES;
+		aamp->CurlInit((AampCurlInstance)mCurlInstance,1,aamp->GetLicenseReqProxy());
 	}
 
 	if (licenseAcquisitionThreadStarted)
@@ -390,7 +390,7 @@ void AesDec::Release()
 		if (mpAamp)
 		{
 			mpAamp->SyncBegin();
-			mpAamp->CurlTerm(mCurlInstance, 1);
+			mpAamp->CurlTerm((AampCurlInstance)mCurlInstance);
 			mpAamp->SyncEnd();
 		}
 		mCurlInstance = -1;
@@ -440,12 +440,12 @@ std::shared_ptr<AesDec> AesDec::mInstance = nullptr;
  */
 std::shared_ptr<AesDec> AesDec::GetInstance()
 {
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&instanceLock);
 	if (nullptr == mInstance)
 	{
 		mInstance = std::make_shared<AesDec>();
 	}
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&instanceLock);
 	return mInstance;
 }
 
