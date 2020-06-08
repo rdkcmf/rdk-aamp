@@ -3026,11 +3026,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				}
 			}
 		}
-
+		/* Disabling the flush flag as part of DELIA-42607 to avoid */
+		/* flush call again (which may cause freeze sometimes)      */
+		/* from AAMPGstPlayer_SendPendingEvents() API.              */
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		{
 			privateContext->stream[i].resetPosition = true;
-			privateContext->stream[i].flush = true;
+			privateContext->stream[i].flush = false;
 			privateContext->stream[i].eosReached = false;
 		}
 
@@ -3421,11 +3423,6 @@ void AAMPGstPlayer::SeekStreamSink(double position, double rate)
 	// pipeline. This has to be avoided.
 	Flush(position, rate, false);
 
-	// Flushing seek will flush buffers in pipeline
-	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
-	{
-		privateContext->stream[i].flush = false;
-	}
 }
 
 /**
