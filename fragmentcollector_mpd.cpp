@@ -610,10 +610,10 @@ private:
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
 	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
-	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS);
-	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS);
-	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS);
-	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS);
+	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
+	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
+	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
+	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void FetchAndInjectInitialization(bool discontinuity = false);
 	void StreamSelection(bool newTune = false);
 	bool CheckForInitalClearPeriod();
@@ -628,7 +628,7 @@ private:
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
 	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
-	AAMPStatusType  GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
+	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	int GetDrmPrefs(const std::string& uuid);
 
 	bool fragmentCollectorThreadStarted;
@@ -2287,12 +2287,14 @@ static void AddAttributesToNode(xmlTextReaderPtr *reader, Node *node)
 
 
 /**
- * @brief Get xml node form reader
- * @param reader pointer to reader object
- * @param url manifest url
- * @retval xml node
+ * @brief Get mpd object of manifest
+ * @param manifest buffer pointer
+ * @param mpd MPD object of manifest
+ * @param manifestUrl manifest url
+ * @param init true if this is the first playlist download for a tune/seek/trickplay
+ * @retval AAMPStatusType indicates if success or fail
 */
-AAMPStatusType  PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init)
+AAMPStatusType PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init)
 {
 	AAMPStatusType ret = eAAMPSTATUS_GENERIC_ERROR;
 	xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
@@ -3698,6 +3700,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
  * @brief Find timed metadata from mainifest
  * @param mpd MPD top level element
  * @param root XML root node
+ * @param init true if this is the first playlist download for a tune/seek/trickplay
+ * @param reportBulkMeta true if bulkTimedMetadata feature is enabled
  */
 void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool init, bool reportBulkMeta)
 {
@@ -3746,11 +3750,11 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 				Node* child = children.at(j);
 				const std::string& name = child->GetName();
 				if (name == "SupplementalProperty") {
-					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS , init, reportBulkMeta);
+					ProcessPeriodSupplementalProperty(child, AdID, periodStartMS, periodDurationMS, init, reportBulkMeta);
 					continue;
 				}
 				if (name == "AssetIdentifier") {
-					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID,init, reportBulkMeta);
+					ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID, init, reportBulkMeta);
 					continue;
 				}
 				if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
@@ -3793,7 +3797,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 								}
 								else
 								{
-									aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+									aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
 								}
 								break;
 							}
@@ -3823,7 +3827,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 							}
 							else
 							{
-								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
 							}
 							
 							break;
@@ -3846,7 +3850,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 							}
 							else
 							{
-								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(),init);
+								aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
 							}
 							break;
 						}
@@ -3867,6 +3871,8 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
  * @param[out] AdID AD Id
  * @param startMS start time in MS
  * @param durationMS duration in MS
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
 void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta)
 {
@@ -3905,7 +3911,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 							}
 							else
 							{
-								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size() , isInit);
+								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
 							}
 							break;
 						}
@@ -3921,15 +3927,15 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 				std::string ns;
 				ParseXmlNS(child->GetName(), ns, name);
 				if (name == "StreamRestrictionListType") {
-					ProcessStreamRestrictionList(child, AdID, startMS);
+					ProcessStreamRestrictionList(child, AdID, startMS, isInit, reportBulkMeta);
 					continue;
 				}
 				if (name == "StreamRestrictionList") {
-					ProcessStreamRestrictionList(child, AdID, startMS);
+					ProcessStreamRestrictionList(child, AdID, startMS, isInit, reportBulkMeta);
 					continue;
 				}
 				if (name == "StreamRestriction") {
-					ProcessStreamRestriction(child, AdID, startMS);
+					ProcessStreamRestriction(child, AdID, startMS, isInit, reportBulkMeta);
 					continue;
 				}
 			}
@@ -3945,8 +3951,10 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
  * @param durationMS duration MS
  * @param AssetID Asset Id
  * @param ProviderID Provider Id
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
-void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID,bool isInit, bool reportBulkMeta)
+void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& AssetID, std::string& ProviderID, bool isInit, bool reportBulkMeta)
 {
 	if (node->HasAttribute("schemeIdUri")) {
 		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
@@ -3991,7 +3999,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 							}
 							else
 							{
-								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(),isInit);
+								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
 							}
 							break;
 						}
@@ -4031,8 +4039,10 @@ bool PrivateStreamAbstractionMPD::ProcessEventStream(uint64_t startMS, IPeriod *
  * @param node StreamRestrictionListType node
  * @param AdID Ad Id
  * @param startMS start time MS
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
-void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS)
+void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta)
 {
 	std::vector<Node*> children = node->GetSubNodes();
 	for (size_t i=0; i < children.size(); i++) {
@@ -4041,7 +4051,7 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const
 		std::string ns;
 		ParseXmlNS(child->GetName(), ns, name);
 		if (name == "StreamRestriction") {
-			ProcessStreamRestriction(child, AdID, startMS);
+			ProcessStreamRestriction(child, AdID, startMS, isInit, reportBulkMeta);
 			continue;
 		}
 	}
@@ -4053,8 +4063,10 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionList(Node* node, const
  * @param node StreamRestriction xml node
  * @param AdID Ad ID
  * @param startMS Start time in MS
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
-void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS)
+void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta)
 {
 	std::vector<Node*> children = node->GetSubNodes();
 	for (size_t i=0; i < children.size(); i++) {
@@ -4063,7 +4075,7 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std
 		std::string ns;
 		ParseXmlNS(child->GetName(), ns, name);
 		if (name == "Ext") {
-			ProcessStreamRestrictionExt(child, AdID, startMS);
+			ProcessStreamRestrictionExt(child, AdID, startMS, isInit, reportBulkMeta);
 			continue;
 		}
 	}
@@ -4075,8 +4087,10 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestriction(Node* node, const std
  * @param node Ext child of StreamRestriction xml node
  * @param AdID Ad ID
  * @param startMS start time in ms
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
-void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS)
+void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta)
 {
 	std::vector<Node*> children = node->GetSubNodes();
 	for (size_t i=0; i < children.size(); i++) {
@@ -4085,7 +4099,7 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const 
 		std::string ns;
 		ParseXmlNS(child->GetName(), ns, name);
 		if (name == "TrickModeRestriction") {
-			ProcessTrickModeRestriction(child, AdID, startMS);
+			ProcessTrickModeRestriction(child, AdID, startMS, isInit, reportBulkMeta);
 			continue;
 		}
 	}
@@ -4097,8 +4111,10 @@ void PrivateStreamAbstractionMPD::ProcessStreamRestrictionExt(Node* node, const 
  * @param node TrickModeRestriction xml node
  * @param AdID Ad ID
  * @param startMS start time in ms
+ * @param isInit true if its the first playlist download
+ * @param reportBulkMeta true if bulk metadata is enabled
  */
-void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS)
+void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta)
 {
 	double start = startMS / 1000.0f;
 
@@ -4130,7 +4146,14 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 		{
 			const std::string& tag = aamp->subscribedTags.at(i);
 			if (tag == "#EXT-X-TRICKMODE-RESTRICTION") {
-				aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+				if(reportBulkMeta && isInit)
+				{
+					aamp->SaveTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+				}
+				else
+				{
+					aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+				}
 				break;
 			}
 		}
