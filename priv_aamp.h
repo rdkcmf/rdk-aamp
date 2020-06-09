@@ -1112,7 +1112,7 @@ public:
 	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 * @return void
 	 */
-	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
+	void Tune(const char *url, bool autoPlay,  const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -3051,6 +3051,19 @@ public:
 	 *   @return void
 	 */
 	int GetInitialBufferDuration();
+	/**
+	 *   @brief Set Content Type
+	 *
+	 *   @param[in]  contentType - Content type
+	 *   @param[in]  url - Media URL
+	 *   @return void
+	*/
+	void SetContentType(const char *contentType, const char* url = NULL);
+	/**
+	 *   @brief Get Content Type
+	 *   @return ContentType
+	*/
+	ContentType GetContentType() const;
 
 	/**
 	 * @brief Get license server url for a drm type
@@ -3092,14 +3105,6 @@ private:
 	 */
 	void DeliverAdEvents(bool immediate=false);
 
-	/**
-	 *   @brief Set Content Type
-	 *
-	 *   @param[in]  url - Media URL
-	 *   @param[in]  contentType - Content type
-	 *   @return void
-	 */
-	void SetContentType(const char *url, const char *contentType);
 
     /**
      *   @brief Set Content Type

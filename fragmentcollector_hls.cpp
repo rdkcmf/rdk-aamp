@@ -2608,6 +2608,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
+	
 	if(IsRefresh && !UseProgramDateTimeIfAvailable())
 	{
 		prevSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition); 
@@ -4658,6 +4659,18 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		if (newTune)
 		{
+			if(ContentType_UNKNOWN == aamp->GetContentType())
+			{
+				if(aamp->IsLive())
+				{
+					aamp->SetContentType("LINEAR_TV");
+				}
+				else
+				{
+					aamp->SetContentType("VOD");
+				}	
+			}	
+
 			TunedEventConfig tunedEventConfig =  aamp->IsLive() ?
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)

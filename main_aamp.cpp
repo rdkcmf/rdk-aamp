@@ -5331,7 +5331,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 
-	SetContentType(mainManifestUrl, contentType);
+	if(contentType)
+	{
+		SetContentType(contentType, mainManifestUrl);
+	}
+
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -5663,7 +5667,13 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	}
 }
 
-void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char *cType)
+/**
+ * @brief set a content type
+ * @param[in] cType - content type 
+ * @param[in] mainManifestUrl - main manifest URL
+ * @retval none
+ */
+void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainManifestUrl)
 {
 	mContentType = ContentType_UNKNOWN; //default unknown
 	if(NULL != cType)
@@ -5717,7 +5727,14 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
-
+/**
+ * @brief Get Content Type
+ * @return ContentType
+ */
+ContentType PrivateInstanceAAMP::GetContentType() const
+{
+	return mContentType;
+}
 const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitData(const char *url)
 {
 	std::string urlStr(url);

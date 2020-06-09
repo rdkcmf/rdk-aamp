@@ -3073,6 +3073,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		mIsLiveStream = !(mpd->GetType() == "static");
 		aamp->SetIsLive(mIsLiveStream);
+		if(ContentType_UNKNOWN == aamp->GetContentType())
+		{
+			if(mIsLiveStream)
+				aamp->SetContentType("LINEAR_TV");
+			else
+				aamp->SetContentType("VOD");
+		}
 		map<string, string> mpdAttributes = mpd->GetRawAttributes();
 		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
 		{
