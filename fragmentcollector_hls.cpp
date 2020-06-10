@@ -4690,7 +4690,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				seekWindowEnd -= aamp->mLiveOffset ;
 			}
 			// check if seek beyond live point
-			if (video->playTarget > seekWindowEnd)
+			if (round(video->playTarget) >= round(seekWindowEnd))
 			{
 				if (aamp->IsLive())
 				{
