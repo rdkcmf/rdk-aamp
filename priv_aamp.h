@@ -631,8 +631,6 @@ public:
 	int licenseRetryWaitTime;
 	long iframeBitrate;                     /**< Default bitrate for iframe track selection for non-4K assets*/
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
-	char *prLicenseServerURL;               /**< Playready License server URL*/
-	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	char *ckLicenseServerURL;				/**< ClearKey License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
@@ -689,8 +687,7 @@ public:
 		reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
-		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
-		,curlStallTimeout(0), curlDownloadStartTimeout(0)
+		ckLicenseServerURL(NULL), curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
@@ -3497,6 +3494,14 @@ public:
 	 */
 	long GetMinimumBitrate();
 
+	/**
+	 * @brief Get license server url for a drm type
+	 *
+	 * @param[in] type DRM type
+	 * @return license server url
+	 */
+	std::string GetLicenseServerUrlForDrm(DRMSystems type);
+
 private:
 
 	/**
@@ -3596,6 +3601,7 @@ private:
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 
 	AampCacheHandler *mAampCacheHandler;
+	std::map<DRMSystems, std::string> mLicenseServerUrls;
 };
 
 #endif // PRIVAAMP_H
