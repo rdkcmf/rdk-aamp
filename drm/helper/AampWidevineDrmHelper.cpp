@@ -133,11 +133,7 @@ void AampWidevineDrmHelper::generateLicenseRequest(const AampChallengeInfo& chal
 {
 	licenseRequest.method = AampLicenseRequest::POST;
 
-	if (gpGlobalConfig->wvLicenseServerURL)
-	{
-		licenseRequest.url = gpGlobalConfig->wvLicenseServerURL;
-	}
-	else
+	if (licenseRequest.url.empty())
 	{
 		licenseRequest.url = challengeInfo.url;
 	}

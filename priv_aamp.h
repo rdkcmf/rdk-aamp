@@ -256,7 +256,6 @@ typedef enum
 	eAAMP_BITRATE_CHANGE_MAX = 8
 } BitrateChangeReason;
 
-
 // context-free utility functions
 
 /**
@@ -358,6 +357,13 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @return DRM system name
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
+
+/**
+* @brief Get DRM system from ID
+* @param ID of the DRM system, empty string if not supported
+* @retval drmSystem drm system
+*/
+DRMSystems GetDrmSystem(std::string drmSystemID);
 
 /**
  * @brief Encode URL
@@ -3047,6 +3053,15 @@ public:
 	void individualization(const std::string& payload);
 
 	/* End AampDrmCallbacks implementation */
+
+	/**
+	 * @brief Get license server url for a drm type
+	 *
+	 * @param[in] type DRM type
+	 * @return license server url
+	 */
+	std::string GetLicenseServerUrlForDrm(DRMSystems type);
+
 private:
 
 	/**
@@ -3163,6 +3178,6 @@ private:
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
+	std::map<DRMSystems, std::string> mLicenseServerUrls;
 };
-
 #endif // PRIVAAMP_H

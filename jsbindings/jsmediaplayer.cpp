@@ -826,6 +826,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetInitialBufferDuration((int) valueAsNumber);
 					break;
 				case ePARAM_PLAYBACKBUFFER:
+					//TODO: Support these config params
 					break;
 				case ePARAM_MINBITRATE:
 					privObj->_aamp->SetMinimumBitrate((long) valueAsNumber);
