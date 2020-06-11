@@ -79,18 +79,17 @@ void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challen
 {
 	licenseRequest.method = AampLicenseRequest::POST;
 
-	if (gpGlobalConfig->ckLicenseServerURL)
-	{
-		licenseRequest.url = gpGlobalConfig->ckLicenseServerURL;
-	}
-	else if (!mDrmInfo.keyURI.empty())
-	{
-		licenseRequest.url = aamp_getAbsoluteKeyUri(mDrmInfo.manifestURL, mDrmInfo.keyURI);
-	}
-	else
-	{
-		licenseRequest.url = challengeInfo.url;
-	}
+	if(licenseRequest.url.empty())
+        {
+		if (!mDrmInfo.keyURI.empty())
+		{
+			licenseRequest.url = aamp_getAbsoluteKeyUri(mDrmInfo.manifestURL, mDrmInfo.keyURI);
+		}
+		else
+		{
+			licenseRequest.url = challengeInfo.url;
+		}
+        }
 
 	licenseRequest.payload.assign(reinterpret_cast<const char *>(challengeInfo.data->getData()), challengeInfo.data->getDataLength());
 }
