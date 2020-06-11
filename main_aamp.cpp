@@ -5722,7 +5722,7 @@ void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
 	}
 	else
 	{
-		if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+		if ((value > 0) && (value <= MAX_SEG_INJECT_FAIL_COUNT))
 		{
 			aamp->mSegInjectFailCount = value;
 			AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
@@ -5747,7 +5747,7 @@ void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 	}
 	else
 	{
-		if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+		if ((value > 0) && (value <= MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
 		{
 			aamp->mDrmDecryptFailCount = value;
 			AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
@@ -8290,6 +8290,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPlaylistFetchFailError(0L)
 	, mAudioDecoderStreamSync(true)
 	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mLicenseServerUrls()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8373,6 +8374,14 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
 		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
+	if (gpGlobalConfig->ckLicenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
+	}
+	if (gpGlobalConfig->licenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -9140,7 +9149,6 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  */
 void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
-	char **serverUrl = &(gpGlobalConfig->licenseServerURL);
 	if (type == eDRM_MAX_DRMSystems)
 	{
 		// Local aamp.cfg config trumps JS PP config
@@ -9148,31 +9156,19 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 		{
 			return;
 		}
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(url);
 	}
-	else if (type == eDRM_PlayReady)
+	else if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey)
 	{
-		serverUrl = &(gpGlobalConfig->prLicenseServerURL);
-	}
-	else if (type == eDRM_WideVine)
-	{
-		serverUrl = &(gpGlobalConfig->wvLicenseServerURL);
-	}
-	else if(type == eDRM_ClearKey)
-	{
-		serverUrl = &(gpGlobalConfig->ckLicenseServerURL);
+		mLicenseServerUrls[type] = std::string(url);
 	}
 	else
 	{
-		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type received.", __FUNCTION__);
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
 		return;
 	}
 
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d", __FUNCTION__, url, type);
-	if (*serverUrl != NULL)
-	{
-		free(*serverUrl);
-	}
-	*serverUrl = strdup(url);
 }
 
 
@@ -10887,6 +10883,33 @@ bool PrivateInstanceAAMP::TrackDownloadsAreEnabled(MediaType type)
 void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 {
 	mStreamSink->StopBuffering(forceStop);
+}
+
+/**
+ * @brief Get license server url for a drm type
+ *
+ * @param[in] type DRM type
+ * @return license server url
+ */
+std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
+{
+	std::string url;
+	auto it = mLicenseServerUrls.find(type);
+	if (it != mLicenseServerUrls.end())
+	{
+		url = it->second;
+	}
+	else
+	{
+		// If url is not explicitly specified, check for generic one.
+		// This might be set in cases of VIPER AAMP/JSController bindings
+		it = mLicenseServerUrls.find(eDRM_MAX_DRMSystems);
+		if (it != mLicenseServerUrls.end())
+		{
+			url = it->second;
+		}
+	}
+	return url;
 }
 
 /**
