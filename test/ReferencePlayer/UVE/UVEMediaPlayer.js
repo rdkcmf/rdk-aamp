@@ -246,9 +246,10 @@ class AAMPPlayer {
     /**
      * Performs a seek
      * @param timeSec the time in seconds to seek
+     * @param keepPause to keep the state in pause
      */
-    seek(timeSec) {
-        this.player.seek(timeSec);
+    seek(timeSec, keepPause = false) {
+        this.player.seek(timeSec, keepPause);
     }
 
     /**

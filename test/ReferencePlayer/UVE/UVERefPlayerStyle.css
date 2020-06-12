@@ -32,7 +32,7 @@ body {
 
 #videoURLs {
     margin-left: 26%;
-    width: 30%;
+    width: 22%;
 }
 
 #ccTracks {
@@ -44,6 +44,10 @@ body {
 
 #logState {
     margin-left: 3%;
+}
+
+#seekState {
+    margin-left: 33%;
 }
 
 #seekBar {
@@ -72,7 +76,7 @@ body {
 input[type=text] {
   width: 9%;
   padding-top: 1px;
-  margin-left: 40%;
+  margin-left: 3%;
   box-sizing: border-box;
   border: 2px solid #00448A;
   border-radius: 4px;

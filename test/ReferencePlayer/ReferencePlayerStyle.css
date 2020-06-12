@@ -443,6 +443,18 @@ option {
     margin-left: 1px;
 }
 
+#autoSeekButton {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+}
+
+#seekCheck{
+    padding: 5px;
+    width: 18px;
+    height: 18px;
+}
+
 #logCheck{
     padding: 5px;
     width: 18px;

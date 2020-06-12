@@ -90,7 +90,14 @@ function skipTime(tValue) {
     try {
         var position = playerObj.getCurrentPosition();
         if (!isNaN(position)) {
-            playerObj.seek(position + tValue);
+            if(document.getElementById("seekCheck").checked) {
+                // call old seek API
+                playerObj.seek(position + tValue);
+            } else {
+                // call new seek API with support to seek with pause
+                playerObj.pause();
+                playerObj.seek(position + tValue, true);
+            }
         }
     } catch (err) {
         // errMessage(err) // show exception
@@ -182,7 +189,14 @@ function jumpToPPosition() {
     if(document.getElementById("jumpPosition").value) {
         var position = Number(document.getElementById("jumpPosition").value)/1000;
         if (!isNaN(position)) {
-            playerObj.seek(position);
+            if(document.getElementById("seekCheck").checked) {
+                // call old seek API
+                playerObj.seek(position);
+            } else {
+                // call new seek API with support to seek with pause
+                playerObj.pause();
+                playerObj.seek(position, true);
+            }
         }
         document.getElementById("jumpPosition").value = "";
     }
@@ -245,6 +259,7 @@ var HTML5PlayerControls = function() {
         this.muteButton = document.getElementById("muteVideoButton");
         this.ccButton = document.getElementById("ccButton");
         this.autoVideoLogButton = document.getElementById("autoLogButton");
+        this.autoSeekButton = document.getElementById("autoSeekButton");
         this.jumpButton = document.getElementById("jumpButton");
         this.homeContentButton = document.getElementById('homeButton');
 
@@ -256,7 +271,7 @@ var HTML5PlayerControls = function() {
         this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.ccListVisible = false;
@@ -365,7 +380,7 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.nextCCSelect();
-        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -479,13 +494,16 @@ var HTML5PlayerControls = function() {
                         getVideo(document.getElementById("cacheOnlyCheck").checked);
                     }
                     break;
-            case 12:
-                    jumpToPPosition();
+            case 11:
+                    document.getElementById("seekCheck").checked = !document.getElementById("seekCheck").checked;
                     break;
             case 13:
-                    toggleOverlay();
+                    jumpToPPosition();
                     break;
             case 14:
+                    toggleOverlay();
+                    break;
+            case 15:
                     goToHome();
                     break;
         };
