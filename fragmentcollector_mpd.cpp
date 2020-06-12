@@ -627,6 +627,7 @@ private:
 	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
+	bool IsEmptyPeriod(IPeriod *period);
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -2799,7 +2800,7 @@ double PrivateStreamAbstractionMPD::GetPeriodStartTime(IMPD *mpd, int periodInde
 		ParseISO8601Duration(startTimeStr.c_str(), periodStartMs);
 	}
 	periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
-	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodStart %lld", __FUNCTION__, __LINE__, periodStart);
+	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodStart %f", __FUNCTION__, __LINE__, periodStart);
 	return periodStart;
 }
 
@@ -2840,7 +2841,7 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 		}
 		periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
 	}
-	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %lld", __FUNCTION__, __LINE__, periodEndTime);
+	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %f", __FUNCTION__, __LINE__, periodEndTime);
 	return periodEndTime;
 }
 
@@ -3164,6 +3165,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
+			if(IsEmptyPeriod(period))
+			{
+				// Empty Period . Ignore processing, continue to next.
+				continue;
+			}
 			std::string tempString = period->GetDuration();
 			uint64_t  periodStartMs = 0;
 			uint64_t periodDurationMs = 0;
@@ -3296,7 +3302,21 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			}
 			if (liveAdjust)
 			{
-				mCurrentPeriodIdx = mpd->GetPeriods().size() - 1;
+				// DELIA-43662
+				// After live adjust ( for Live or CDVR) , possibility of picking an empty last period exists.
+				// Though its ignored in Period selection earlier , live adjust will end up picking last added empty period
+				// Instead of picking blindly last period, pick the period the last period which contains some stream data 
+				mCurrentPeriodIdx = mpd->GetPeriods().size();
+				while( mCurrentPeriodIdx>0 )
+				{
+					mCurrentPeriodIdx--;
+					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
+					if( !IsEmptyPeriod(period) )
+					{ // found last non-empty period
+						break;
+					}
+				}
+ 
 				if(aamp->IsLiveAdjustRequired())
 				{
 					if(segmentTagsPresent)
@@ -3686,6 +3706,70 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 
 	return ret;
 }
+
+/**
+ * @brief Check if Period is empty or not 
+ * @param Period
+ * @retval Return true on empty Period 
+ */
+bool PrivateStreamAbstractionMPD::IsEmptyPeriod(IPeriod *period)	
+{
+	bool isEmptyPeriod = true;	
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+	size_t numAdaptationSets = period->GetAdaptationSets().size();
+	for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
+	{
+		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+		IRepresentation *representation = NULL;
+		ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
+		if (segmentTemplate)
+		{
+			isEmptyPeriod = false;
+		}
+		else
+		{
+			if(adaptationSet->GetRepresentation().size() > 0)
+			{
+				//Get first representation in the adapatation set
+				representation = adaptationSet->GetRepresentation().at(0);	
+			}
+			if(representation)
+			{
+				segmentTemplate = representation->GetSegmentTemplate();
+				if(segmentTemplate)
+				{
+					isEmptyPeriod = false;
+				}
+				else
+				{
+					ISegmentList *segmentList = representation->GetSegmentList();
+					if(segmentList)
+					{
+						isEmptyPeriod = false;
+					}
+					else
+					{
+						ISegmentBase *segmentBase = representation->GetSegmentBase();
+						if(segmentBase)
+						{
+							isEmptyPeriod = false;
+						}
+					}
+				}
+			}
+		}
+	
+		if(!isEmptyPeriod)
+		{
+			// Not to loop thru all Adaptations if one found.
+			break;
+		}
+	}
+	
+	return isEmptyPeriod;
+}
+
+
 
 
 /**
