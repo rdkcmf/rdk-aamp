@@ -222,6 +222,7 @@ public:
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
+	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 public:
 	std::string getUnknownValue(const std::string& key)
@@ -361,6 +362,7 @@ public:
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
 		,initFragmentRetryCount(-1)
+		,bEnableSubtec(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

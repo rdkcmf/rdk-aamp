@@ -58,18 +58,19 @@ class WebVTTParser : public SubtitleParser
 
 public:
 	WebVTTParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type);
-	~WebVTTParser();
+	virtual ~WebVTTParser();
 
-	bool init(double startPos, unsigned long long basePTS);
-	bool processData(char *buffer, size_t bufferLen, double position, double duration);
-	bool close();
-	void reset();
-	void setProgressEventOffset(double offset) { mProgressOffset = offset; }
+	virtual bool init(double startPos, unsigned long long basePTS);
+	virtual bool processData(char *buffer, size_t bufferLen, double position, double duration);
+	virtual bool close();
+	virtual void reset();
+	virtual void setProgressEventOffset(double offset) { mProgressOffset = offset; }
 
-	void addCueData(VTTCue *cue);
-	void sendCueData();
+	virtual void addCueData(VTTCue *cue);
+	virtual void sendCueData();
+	virtual void updateTimestamp(unsigned long long positionMs) {}
 
-private:
+protected:
 	unsigned long long mStartPTS;   //start/base PTS for current period
 	unsigned long long mPtsOffset;  //offset between cue local time and MPEG time
 	double mStartPos;               //position of first fragment in playlist

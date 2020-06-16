@@ -60,6 +60,7 @@
 #include "aamp_aes.h"
 #endif
 #include "webvttParser.h"
+#include "SubtecFactory.hpp"
 #include "tsprocessor.h"
 #include "isobmffprocessor.h"
 #include "AampDRMutils.h"
@@ -3410,7 +3411,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 					logprintf("%s:%d fragment extension %s - FORMAT_AUDIO_ES_AAC", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_AUDIO_ES_AAC;
 				}
-				else if ( extension == ".vtt" )
+				else if ( extension == ".vtt" || extension == ".webvtt" )
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_SUBTITLE_WEBVTT", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_SUBTITLE_WEBVTT;
@@ -4422,7 +4423,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
-						ts->mSubtitleParser = new WebVTTParser(aamp, type);
+						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, type);
 					}
 					else
 					{
@@ -5660,10 +5661,24 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
 	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 
-	if (subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
 	{
 		//position within playlist and pts in ms
-		subtitle->mSubtitleParser->init(seekPosition * 1000.0, pts);
+		subtitle->mSubtitleParser->init(seekPosition, pts);
+	}
+}
+
+void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
+{
+	StreamAbstractionAAMP::NotifyPlaybackPaused(pause);
+	
+	AAMPLOG_INFO("%s: pause %d\n", __FUNCTION__, pause);
+	
+	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
+
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	{
+		subtitle->mSubtitleParser->pause(pause);
 	}
 }
 

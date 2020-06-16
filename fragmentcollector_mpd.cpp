@@ -26,6 +26,8 @@
 #include "AampDRMSessionManager.h"
 #include "admanager_mpd.h"
 
+#include "SubtecFactory.hpp"
+
 #include <stdlib.h>
 #include <string.h>
 #include "_base64.h"
@@ -748,7 +750,9 @@ static bool IsCompatibleMimeType(const std::string& mimeType, MediaType mediaTyp
 			break;
 
 		case eMEDIATYPE_SUBTITLE:
-			if (mimeType == "text/vtt")
+			if ((mimeType == "application/ttml+xml") ||
+				(mimeType == "text/vtt") ||
+				(mimeType == "application/mp4"))
 				isCompatible = true;
 			break;
 
@@ -4411,15 +4415,18 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 						std::string lang = lang2;
 						if (lang == aamp->mSubLanguage)
 						{
-							//We support only plain text vtt for now
-							const char* supportedMimeType = "text/vtt";
 							std::string adaptationMimeType = adaptationSet->GetMimeType();
 							if (!adaptationMimeType.empty())
 							{
-								if (adaptationMimeType == supportedMimeType)
+								if (IsCompatibleMimeType(adaptationMimeType, MediaType::eMEDIATYPE_SUBTITLE))
 								{
 									selAdaptationSetIndex = iAdaptationSet;
 									selRepresentationIndex = 0;
+									pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
+									if (pMediaStreamContext->mSubtitleParser) 
+									{
+										pMediaStreamContext->mSubtitleParser->init(0.0, 0);
+									}
 								}
 							}
 							else
@@ -4429,7 +4436,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								{
 									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
 									std::string mimeType = rep->GetMimeType();
-									if (!mimeType.empty() && (mimeType == supportedMimeType))
+									if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, MediaType::eMEDIATYPE_SUBTITLE)))
 									{
 										selAdaptationSetIndex = iAdaptationSet;
 										selRepresentationIndex = representationIndex;
@@ -4439,7 +4446,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 							if (selAdaptationSetIndex != iAdaptationSet)
 							{
 								//Even though language matched, mimeType is missing or not supported right now. Log for now
-								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!", __FUNCTION__, __LINE__, lang.c_str());
+								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!\n", __FUNCTION__, __LINE__, lang.c_str());
 							}
 						}
 					}
@@ -4459,7 +4466,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								if (videoRepresentationIdx != -1)
 								{
 									selAdaptationSetIndex = iAdaptationSet;
-									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
+									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
 								}
 								if(!newTune)
 								{
@@ -4528,7 +4535,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				aamp->previousAudioType = selectedCodecType;
 				mContext->SetESChangeStatus();
 			}
-			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
+			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
 				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
@@ -4537,11 +4544,11 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
-			logprintf("PrivateStreamAbstractionMPD::%s %d > No valid adaptation set found for Media[%s]",
+			logprintf("PrivateStreamAbstractionMPD::%s %d > No valid adaptation set found for Media[%s]\n",
 				__FUNCTION__, __LINE__, mMediaTypeName[i]);
 		}
 
-		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s",
+		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//Store the iframe track status in current period if there is any change

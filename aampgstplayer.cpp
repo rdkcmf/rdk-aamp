@@ -446,6 +446,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 			caps = gst_caps_new_simple ("video/mpeg",
 					"mpegversion", G_TYPE_INT, 2,
 					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
+			break;
 		case FORMAT_INVALID:
 		case FORMAT_NONE:
 		default:
