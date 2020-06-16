@@ -222,6 +222,7 @@ public:
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
+	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 public:
@@ -364,6 +365,7 @@ public:
 		,initFragmentRetryCount(-1)
 		,unknownValues()
 		,useMatchingBaseUrl(eUndefinedState)
+		,bEnableSubtec(false)
 		,nativeCCRendering(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.

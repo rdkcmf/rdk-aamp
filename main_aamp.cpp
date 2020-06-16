@@ -4368,6 +4368,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->nativeCCRendering = (value == 1);
 			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
 		}
+		else if (cfg.compare("enableSubtec") == 0)
+		{
+			gpGlobalConfig->bEnableSubtec = true;
+			logprintf("Subtec subtitles enabled");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -10773,7 +10778,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts)
 void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts)
 {
 		mVideoBasePTS = basepts;
-		logprintf("mVideoBasePTS::%llu\n",mVideoBasePTS);
+		AAMPLOG_INFO("mVideoBasePTS::%llu\n",mVideoBasePTS);
 }
 
 /**
@@ -10800,9 +10805,12 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
-	// Subtitle disabled for DASH
-	return (!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+	return gpGlobalConfig->bEnableSubtec;//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+}
 
+bool PrivateInstanceAAMP::IsRegisteredForSubtitleCueData(void)
+{
+	return (mEventListener && mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
 }
 
 /**
@@ -11518,6 +11526,13 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				//TODO: Effective handling between subtitle and CC tracks
 				// SetPreferredTextTrack will not have any impact on CC rendering if already active
 				SetPreferredTextTrack(track);
+				discardEnteringLiveEvt = true;
+
+				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				TeardownStream(false);
+				TuneHelper(eTUNETYPE_SEEK);
+
+				discardEnteringLiveEvt = false;
 			}
 		}
 	}

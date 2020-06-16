@@ -821,7 +821,7 @@ public:
 	 *   @param[in] pts - pts value
 	 */
 	virtual void NotifyFirstVideoPTS(unsigned long long pts) = 0;
-
+	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic

@@ -170,6 +170,15 @@ endif()
 
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 
+set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
+add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
+target_link_libraries(subtectest "-lpthread")
+install(TARGETS subtectest DESTINATION bin)
+
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebvttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
+set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
+include_directories(subtec)
+
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer")

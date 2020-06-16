@@ -421,6 +421,9 @@ public:
 	// Function to update seek position
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
 	double GetBufferedDuration();
+	
+	void NotifyPlaybackPaused(bool pause) override;
+
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

@@ -77,6 +77,7 @@ public:
 	static constexpr const char *TRAF = "traf";
 	static constexpr const char *TFDT = "tfdt";
 	static constexpr const char *FTYP = "ftyp";
+	static constexpr const char *MDAT = "mdat";
 
 	/**
 	 * @brief Box constructor

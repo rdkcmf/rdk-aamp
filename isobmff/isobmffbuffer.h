@@ -66,7 +66,9 @@ private:
 	 * @return void
 	 */
 	void printBoxesInternal(const std::vector<Box*> *boxes);
-
+	bool parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size);
+	bool getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size);
+	
 public:
 	/**
 	 * @brief IsoBmffBuffer constructor
@@ -147,6 +149,9 @@ public:
 	 * @return true if buffer is an initialization segment. false otherwise
 	 */
 	bool isInitSegment();
+	
+	bool parseMdatBox(uint8_t *buf, size_t &size);
+	bool getMdatBoxSize(size_t &size);
 };
 
 
