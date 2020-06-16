@@ -98,11 +98,7 @@ void AampPlayReadyHelper::generateLicenseRequest(const AampChallengeInfo& challe
 {
 	licenseRequest.method = AampLicenseRequest::POST;
 
-	if (gpGlobalConfig->prLicenseServerURL)
-	{
-		licenseRequest.url = gpGlobalConfig->prLicenseServerURL;
-	}
-	else
+	if (licenseRequest.url.empty())
 	{
 		licenseRequest.url = challengeInfo.url;
 	}

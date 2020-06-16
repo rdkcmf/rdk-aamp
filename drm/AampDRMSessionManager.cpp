@@ -1062,6 +1062,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			}
 
 			AampLicenseRequest licenseRequest;
+			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
+			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
 			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
 
 			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
@@ -1227,11 +1229,6 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 {
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isComcastStream = !contentMetaData.empty();
-
-	if ((gpGlobalConfig->licenseServerURL) && (CLEAR_KEY_SYSTEM_STRING != drmHelper->ocdmSystemId()))
-	{
-		licenseRequest.url = string(gpGlobalConfig->licenseServerURL);
-	}
 
 	if (!contentMetaData.empty())
 	{
