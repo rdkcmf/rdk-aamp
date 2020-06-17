@@ -573,8 +573,17 @@ public:
 	 *
 	 *   @return buffer value 
 	 */                
-        virtual double GetBufferedDuration (void) = 0;
-        /**
+	virtual double GetBufferedDuration (void) = 0;
+
+    /**
+	 *   @brief Check whether the current profile is lowest.
+	 *
+	 *   @param currentProfileIndex - current profile index to be checked.
+	 *   @return true if the given profile index is lowest.
+	 */
+	bool IsLowestProfile(int currentProfileIndex);
+
+    /**
 	 *   @brief Check for ramdown profile.
 	 *
 	 *   @param http_error

@@ -1412,6 +1412,31 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 }
 
 /**
+ *	 @brief Check whether the current profile is lowest.
+ *
+ *	 @param currentProfileIndex - current profile index to be checked.
+ *	 @return true if the given profile index is lowest.
+ */
+bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
+{
+	bool ret = false;
+
+	if (trickplayMode)
+	{
+		if (currentProfileIndex == mAbrManager.getLowestIframeProfile())
+		{
+			ret = true;
+		}
+	}
+	else
+	{
+		ret = mAbrManager.isProfileIndexBitrateLowest(currentProfileIndex);
+	}
+
+	return ret;
+}
+
+/**
  *   @brief Check for ramdown profile.
  *
  *   @param http_error
@@ -1420,6 +1445,11 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 {
 	bool retValue = false;
+
+	if (!aamp->CheckABREnabled())
+	{
+		return retValue;
+	}
 
 	if (!aamp->IsTSBSupported())
 	{
@@ -1434,13 +1464,17 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		//For timeout, rampdown in single steps might not be enough
 		else if (http_error == CURLE_OPERATION_TIMEDOUT)
 		{
-			if(UpdateProfileBasedOnFragmentCache())
+			// If lowest profile reached, then no need to check for ramp up/down for timeout cases, instead skip the failed fragment and jump to next fragment to download.
+			if (!IsLowestProfile(currentProfileIndex))
 			{
-				retValue = true;
-			}
-			else if (RampDownProfile(http_error))
-			{
-				retValue = true;
+				if(UpdateProfileBasedOnFragmentCache())
+				{
+					retValue = true;
+				}
+				else if (RampDownProfile(http_error))
+				{
+					retValue = true;
+				}
 			}
 		}
 	}
