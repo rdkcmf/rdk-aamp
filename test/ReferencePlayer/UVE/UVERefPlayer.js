@@ -19,6 +19,9 @@
 
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
+//To turn on native CC rendering
+var enableNativeCC = true;
+
 //Comcast DRM config for AAMP
 var DrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
@@ -238,14 +241,18 @@ function playbackStateChanged(event) {
                 var closedCaptioningList = [];
                 for(track=0; track<textTrackList.length;track++) {
                     if(textTrackList[track].type === "CLOSED-CAPTIONS") {
-                        closedCaptioningList.push(textTrackList[track].name);
+                        closedCaptioningList.push(textTrackList[track].language);
                     }
                 }
 
                 // Iteratively adding all the options to ccTracks
                 for (var trackNo = 1; trackNo <= closedCaptioningList.length; trackNo++) {
                     var option = document.createElement("option");
-                    option.value = trackNo;
+                    if (enableNativeCC) {
+                        option.value = closedCaptioningList[trackNo-1];
+                    } else {
+                        option.value = trackNo;
+                    }
                     option.text = closedCaptioningList[trackNo-1];
                     ccTracks.add(option);
                 }
@@ -273,6 +280,8 @@ function mediaEndReached() {
 //  loadNextAsset();
     if (toggleVideo() == false) {
         playerObj.stop();
+        // Display playback completed modal
+        showPlaybackEndModal("Playback Ended");
         resetSubtitles(true);
         resetUIOnNewAsset();
     }
@@ -308,11 +317,22 @@ function mediaPlaybackFailed(event) {
     console.log("Media failed event: " + JSON.stringify(event));
 
     playerObj.stop();
-    document.getElementById('errorContent').innerHTML = event.description;
-    document.getElementById('errorModal').style.display = "block";
-
+    // Display playback failed modal with error message
+    showPlaybackEndModal(event.description);
     //Uncomment below line to auto play next asset on playback failure
     //loadNextAsset();
+}
+
+// Function to display the modal on playback complete/failure
+function showPlaybackEndModal(msg) {
+    //Remove Focus
+    document.getElementById(currentObjID).classList.remove("focus");
+    //Disable the buttons and show overlay modal.
+    disableButtons = true;
+    document.getElementById('errorContent').innerHTML = msg;
+    document.getElementById('errorModal').style.display = "block";
+    //Reduce Button Opacity
+    changeButtonOpacity(0.4);
 }
 
 function mediaMetadataParsed(event) {
@@ -561,7 +581,20 @@ function loadUrl(urlObject) {
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
+
+    //Update buffering widget in Channel change.
+    document.getElementById('buffModal').style.display = "none";
+
+    //enable-back buttons
+    disableButtons = false;
+    changeButtonOpacity(1);
+
     let initConfiguration = generateInitConfigObject(urlObject);
+    if(isLive)
+        initConfiguration.offset = 15;
+    if(enableNativeCC === true) {
+        initConfiguration.nativeCCRendering = true;
+    }
     playerObj.initConfig(initConfiguration);
     playerObj.load(urlObject.url);
 }
@@ -583,6 +616,9 @@ function cacheStream(urlObject, isLive) {
     let initConfiguration = generateInitConfigObject(urlObject);
     if(isLive)
         initConfiguration.offset = 15;
+    if(enableNativeCC === true) {
+        initConfiguration.nativeCCRendering = true;
+    }
     bgPlayerObj.initConfig(initConfiguration);
     bgPlayerObj.load(urlObject.url, false);
 }

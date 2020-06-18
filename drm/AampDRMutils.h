@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sstream>
 
 #include "AampDrmMediaFormat.h"
 #include "AampDrmData.h"
@@ -50,26 +51,12 @@
 
 void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
 
-char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
-
-unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
-
-unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
-										const char* startStr, const char* endStr, int *len);
+unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength, const char* startStr, const char* endStr, int *len);
 
 std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength);
 
 std::string aamp_getAbsoluteKeyUri(std::string manifestUrl, std::string keyUri);
 
-char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
-
-unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
-
-unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
-                                            const char* startStr, const char* endStr, int *len);
-
 unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem);
-
-unsigned char * aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength, int *len);
 
 #endif

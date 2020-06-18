@@ -23,6 +23,7 @@
  */
 
 #include "StreamAbstractionAAMP.h"
+#include "AampUtils.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -963,7 +964,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(gpGlobalConfig->abrCacheLength),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0),
-		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE)
+		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
+		mAudioTrackIndex(), mTextTrackIndex()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
@@ -2372,4 +2374,46 @@ double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
 	}
 
 	return GetBufferedDuration();
+}
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+int StreamAbstractionAAMP::GetAudioTrack()
+{
+	int index = -1;
+	if (!mAudioTrackIndex.empty())
+	{
+		for (auto it = mAudioTracks.begin(); it != mAudioTracks.end(); it++)
+		{
+			if (it->index == mAudioTrackIndex)
+			{
+				index = std::distance(mAudioTracks.begin(), it);
+			}
+		}
+	}
+	return index;
+}
+
+/**
+ *   @brief Get current text track
+ *
+ *   @return int - index of current text track
+ */
+int StreamAbstractionAAMP::GetTextTrack()
+{
+	int index = -1;
+	if (!mTextTrackIndex.empty())
+	{
+		for (auto it = mTextTracks.begin(); it != mTextTracks.end(); it++)
+		{
+			if (it->index == mTextTrackIndex)
+			{
+				index = std::distance(mTextTracks.begin(), it);
+			}
+		}
+	}
+	return index;
 }

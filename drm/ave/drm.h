@@ -27,7 +27,6 @@
 
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
-#include "AampDRMutils.h"
 #include <memory>
 
 #define MAX_DRM_CONTEXT 6

@@ -259,38 +259,6 @@ typedef enum
 // context-free utility functions
 
 /**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-bool aamp_StartsWith( const char *inputStr, const char *prefix);
-
-/**
- * @brief extract host string from url.
- * @param url - Input URL
- * @retval - host of input url
- */
-std::string aamp_getHostFromURL(std::string url);
-
-/**
- * @brief Create file URL from the base and file path
- *
- * @param[out] dst - Created URL
- * @param[in] base - Base URL
- * @param[in] uri - File path
- * @return void
- */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
-
-/**
- * @brief Get current time from epoch is milliseconds
- *
- * @return Current time in milliseconds
- */
-long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
-
-/**
  * @brief Log error
  *
  * @param[in] msg - Error message
@@ -1119,9 +1087,11 @@ public:
 	 * @brief The helper function which perform tuning
 	 *
 	 * @param[in] tuneType - Type of tuning. eg: Normal, trick, seek to live, etc
+	 * @param[in] seekWhilePaused - Set true if want to keep in Paused state after
+	 *              seek for tuneType = eTUNETYPE_SEEK or eTUNETYPE_SEEKTOLIVE
 	 * @return void
 	 */
-	void TuneHelper(TuneType tuneType);
+	void TuneHelper(TuneType tuneType, bool seekWhilePaused = false);
 
 	/**
 	 * @brief Terminate the stream
@@ -2730,6 +2700,14 @@ public:
 	 *   @return bool - true if subtitles are enabled
 	 */
 	bool IsSubtitleEnabled(void);
+	
+	/**
+	 *   @brief To check if a JS listener is registered for subtitle cue data
+	 *
+	 *   @return bool - true if JS listener is registered
+	 */
+	bool IsRegisteredForSubtitleCueData(void);
+
 	/**   @brief updates download metrics to VideoStat object,
 	 *
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
@@ -3090,6 +3068,119 @@ public:
 	 */
 	bool SetStateBufferingIfRequired();
 
+	/**
+	 *   @brief Check if First Video Frame Displayed Notification
+	 *          is required.
+	 *
+	 *   @return bool - true if required
+	 */
+	bool IsFirstVideoFrameDisplayedRequired();
+
+	/**
+	 *   @brief Notify First Video Frame was displayed
+	 *
+	 *   @return void
+	 */
+	void NotifyFirstVideoFrameDisplayed();
+
+	/**
+	 *   @brief Set audio track
+	 *
+	 *   @param[in] trackId - index of audio track in available track list
+	 *   @return void
+	 */
+	void SetAudioTrack(int trackId);
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Set text track
+	 *
+	 *   @param[in] trackId - index of text track in available track list
+	 *   @return void
+	 */
+	void SetTextTrack(int trackId);
+
+	/**
+	 *   @brief Get current text track index
+	 *
+	 *   @return int - index of current text track in available track list
+	 */
+	int GetTextTrack();
+
+	/**
+	 *   @brief Set CC visibility on/off
+	 *
+	 *   @param[in] enabled - true for CC on, false otherwise
+	 *   @return void
+	 */
+	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Function to notify available audio tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyAudioTracksChanged();
+
+	/**
+	 *   @brief Function to notify available text tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyTextTracksChanged();
+
+	/**
+	 *   @brief Set preferred audio track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - audio track info object
+	 *   @return void
+	 */
+	void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
+
+	/**
+	 *   @brief Set preferred text track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - text track info object
+	 *   @return void
+	 */
+	void SetPreferredTextTrack(const TextTrackInfo track) { mPreferredTextTrack = track; }
+
+	/**
+	 *   @brief Get preferred audio track
+	 *
+	 *   @return AudioTrackInfo - preferred audio track object
+	 */
+	const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
+
+	/**
+	 *   @brief Get preferred text track
+	 *
+	 *   @return TextTrackInfo - preferred text track object
+	 */
+	const TextTrackInfo &GetPreferredTextTrack() { return mPreferredTextTrack; }
+
+	/**
+	 *   @brief Set style options for text track rendering
+	 *
+	 *   @param[in] options - JSON formatted style options
+	 *   @return void
+	 */
+	void SetTextStyle(const std::string &options);
+
+	/**
+	 *   @brief Get style options for text track rendering
+	 *
+	 *   @return std::string - JSON formatted style options
+	 */
+	std::string GetTextStyle();
 private:
 
 	/**
@@ -3123,11 +3214,11 @@ private:
 	void DeliverAdEvents(bool immediate=false);
 
 
-    /**
-     *   @brief Set Content Type
-     *
-     *   @return string
-     */
+	/**
+	 *   @brief Set Content Type
+	 *
+	 *   @return string
+	 */
 	std::string GetContentTypString();
 
 	/**
@@ -3201,5 +3292,8 @@ private:
 	std::map<DRMSystems, std::string> mLicenseServerUrls;
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
+	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
+	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
+	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 };
 #endif // PRIVAAMP_H
