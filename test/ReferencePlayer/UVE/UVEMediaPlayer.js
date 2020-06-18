@@ -246,9 +246,10 @@ class AAMPPlayer {
     /**
      * Performs a seek
      * @param timeSec the time in seconds to seek
+     * @param keepPause to keep the state in pause
      */
-    seek(timeSec) {
-        this.player.seek(timeSec);
+    seek(timeSec, keepPause = false) {
+        this.player.seek(timeSec, keepPause);
     }
 
     /**
@@ -478,5 +479,26 @@ class AAMPPlayer {
      */
     setAlternateContent(reservationObject, callback) {
 	this.player.setAlternateContent(reservationObject, callback);
+    }
+
+   /**
+     * Get the closed caption style options
+     */
+    getTextStyleOptions() {
+        return this.player.getTextStyleOptions();
+    }
+
+    /**
+     * Set the closed caption style options
+     */
+    setTextStyleOptions(options) {
+        this.player.setTextStyleOptions(options);
+    }
+
+    /**
+     * Set the closed caption status
+     */
+    setClosedCaptionStatus(status) {
+        this.player.setClosedCaptionStatus(status);
     }
 };

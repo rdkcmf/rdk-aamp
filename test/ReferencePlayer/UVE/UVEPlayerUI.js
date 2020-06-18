@@ -20,7 +20,12 @@
 var controlObj = null;
 var bitrateList = [];
 var ccStatus = false;
-const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false }
+var disableButtons = false;
+var currentObjID = "";
+const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false };
+const ccOption1 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"white","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":false};
+const ccOption2 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"yellow","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"yellow","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":true};
+const ccOption3 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"red","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":true};
 
 function playPause() {
     console.log("playPause");
@@ -65,14 +70,22 @@ function mutePlayer() {
 function toggleCC() {
     if (ccStatus === false) {
         // CC ON
-        XREReceiver.onEvent("onClosedCaptions", { enable: true });
-        XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
+        if(enableNativeCC) {
+            playerObj.setClosedCaptionStatus(true);
+        } else {
+            XREReceiver.onEvent("onClosedCaptions", { enable: true });
+            XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
+        }
         ccStatus = true;
         document.getElementById("ccIcon").src = "../icons/closedCaptioning.png";
         document.getElementById('ccContent').innerHTML = "CC Enabled";    
     } else {
         // CC OFF
-        XREReceiver.onEvent("onClosedCaptions", { enable: false });
+        if(enableNativeCC) {
+            playerObj.setClosedCaptionStatus(false);
+        } else {
+            XREReceiver.onEvent("onClosedCaptions", { enable: false });
+        }
         ccStatus = false;
         document.getElementById("ccIcon").src = "../icons/closedCaptioningDisabled.png";
         document.getElementById('ccContent').innerHTML = "CC Disabled";
@@ -90,7 +103,14 @@ function skipTime(tValue) {
     try {
         var position = playerObj.getCurrentPosition();
         if (!isNaN(position)) {
-            playerObj.seek(position + tValue);
+            if(document.getElementById("seekCheck").checked) {
+                // call old seek API
+                playerObj.seek(position + tValue);
+            } else {
+                // call new seek API with support to seek with pause
+                playerObj.pause();
+                playerObj.seek(position + tValue, true);
+            }
         }
     } catch (err) {
         // errMessage(err) // show exception
@@ -173,15 +193,51 @@ function changeCCTrack() {
     if (ccStatus === true) {
         //if CC is enabled
         var trackID =  document.getElementById("ccTracks").value; // get selected cc track
-        XREReceiver.onEvent("onClosedCaptions", { setTrack: trackID });
-	}
+        if(enableNativeCC) {
+            //Find trackIndex of CC track with language
+            let tracks = JSON.parse(playerObj.getAvailableTextTracks());
+            let trackIdx = tracks.findIndex(tr => { return tr.type === "CLOSED-CAPTIONS" && tr.language === trackID; })
+            console.log("Found trackIdx: " + trackIdx);
+            playerObj.setTextTrack(trackIdx);
+        } else {
+            XREReceiver.onEvent("onClosedCaptions", { setTrack: trackID });
+        }
+    }
+}
+
+//function to Change the Closed Captioning Style Options
+function changeCCStyle() {
+    if ((enableNativeCC) && (ccStatus === true)) {
+        //if CC is enabled
+        var styleOption =  document.getElementById("ccStyles").selectedIndex; // get selected cc track
+        switch(styleOption) {
+            case 0:
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOption1));
+                    break;
+            case 1:
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOption2));
+                    break;
+            case 2:
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOption3));
+                    break;
+        }
+        console.log("Current closed caption style is :" + playerObj.getTextStyleOptions());
+    }
+>>>>>>> 8a11a641... DELIA-43721: new Audio & Text Track management APIs
 }
 //function to jump to user entered position
 function jumpToPPosition() {
     if(document.getElementById("jumpPosition").value) {
         var position = Number(document.getElementById("jumpPosition").value)/1000;
         if (!isNaN(position)) {
-            playerObj.seek(position);
+            if(document.getElementById("seekCheck").checked) {
+                // call old seek API
+                playerObj.seek(position);
+            } else {
+                // call new seek API with support to seek with pause
+                playerObj.pause();
+                playerObj.seek(position, true);
+            }
         }
         document.getElementById("jumpPosition").value = "";
     }
@@ -244,6 +300,7 @@ var HTML5PlayerControls = function() {
         this.muteButton = document.getElementById("muteVideoButton");
         this.ccButton = document.getElementById("ccButton");
         this.autoVideoLogButton = document.getElementById("autoLogButton");
+        this.autoSeekButton = document.getElementById("autoSeekButton");
         this.jumpButton = document.getElementById("jumpButton");
         this.homeContentButton = document.getElementById('homeButton');
 
@@ -252,16 +309,18 @@ var HTML5PlayerControls = function() {
         this.cacheOnlyButton = document.getElementById("cacheOnlyButton");
         this.videoFileList = document.getElementById("videoURLs");
         this.ccTracksList = document.getElementById("ccTracks");
+        this.ccStylesList = document.getElementById("ccStyles");
         this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.cacheOnlyButton, this.videoFileList, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton, this.vidtoggleButton ];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.ccStylesList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.ccListVisible = false;
+        this.ccStyleListVisible = false;
         this.selectListIndex = 0;
         this.selectCCListIndex = 0;
-        this.selectBitrateListIndex = 0;
+        this.selectCCStyleListIndex = 0;
         this.prevObj = null;
         this.addFocus();
         this.seekBar.style.backgroundColor = "red";
@@ -349,6 +408,8 @@ var HTML5PlayerControls = function() {
             this.prevVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.prevCCSelect();
+        } else if ((this.components[this.currentPos] == this.ccStylesList) && (this.ccStyleListVisible)) {
+            this.prevCCStyleSelect();
         } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.videoToggleButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
@@ -366,7 +427,9 @@ var HTML5PlayerControls = function() {
             this.nextCCSelect();
 	} else if (this.dropDownBitrateListVisible) {
 	    this.nextBitrateSelect();
-        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton)  || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.ccStylesList) && (this.ccStyleListVisible)) {
+            this.nextCCStyleSelect();
+        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.ccStylesList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -412,6 +475,24 @@ var HTML5PlayerControls = function() {
         this.ccTracksList.options[this.selectCCListIndex].selected = true;
     };
 
+    this.prevCCStyleSelect = function() {
+        if (this.selectCCStyleListIndex > 0) {
+            this.selectCCStyleListIndex--;
+        } else {
+            this.selectCCStyleListIndex = this.ccStylesList.options.length - 1;
+        }
+        this.ccStylesList.options[this.selectCCStyleListIndex].selected = true;
+    };
+
+    this.nextCCStyleSelect = function() {
+        if (this.selectCCStyleListIndex < this.ccStylesList.options.length - 1) {
+            this.selectCCStyleListIndex++;
+        } else {
+            this.selectCCStyleListIndex = 0;
+        }
+        this.ccStylesList.options[this.selectCCStyleListIndex].selected = true;
+    };
+
     this.showDropDown = function() {
         this.dropDownListVisible = true;
         var n = this.videoFileList.options.length;
@@ -434,33 +515,43 @@ var HTML5PlayerControls = function() {
         this.ccTracksList.size = 1;
     };
 
+    this.showCCStyleDropDown = function() {
+        this.ccStyleListVisible = true;
+        var n = this.ccStylesList.options.length;
+        this.ccStylesList.size = n;
+    };
+
+    this.hideCCStyleDropDown = function() {
+        this.ccStyleListVisible = false;
+        this.ccStylesList.size = 1;
+    };
+
     this.ok = function() {
         switch (this.currentPos) {
             case 0:
                     playPause();
                     break;
-            case 1:
+	    case 1:
+'		    toggleVideo();
+		    break;
+            case 2:
                     fastrwd();
                     break;
-            case 2:
+            case 3:
                     skipBackward();
                     break;
-            case 3:
+            case 4:
                     skipForward();
                     break;
-            case 4:
+            case 5:
                     fastfwd();
                     break;
-            case 5:
+            case 6:
                     mutePlayer();
                     break;
-            case 6:
+            case 7:
                     toggleCC();
                     break;
-			case 7:
-                  //Cache Only check box
-                  document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
-                  break;
             case 8:
                     if (this.ccListVisible == false) {
                         this.showCCDropDown();
@@ -470,10 +561,18 @@ var HTML5PlayerControls = function() {
                     }
                     break;
             case 9:
-                  //Cache Only check box
-                  document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
-                  break;
+                    if (this.ccStyleListVisible == false) {
+                        this.showCCStyleDropDown();
+                    } else {
+                        this.hideCCStyleDropDown();
+                        changeCCStyle();
+                    }
+                    break;
             case 10:
+                    //Cache Only check box
+                    document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
+                    break;
+            case 11:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
@@ -482,18 +581,18 @@ var HTML5PlayerControls = function() {
                     }
                     break;
             case 12:
-                    jumpToPPosition();
-                    break;
-            case 13:
-                    toggleOverlay();
+                    document.getElementById("seekCheck").checked = !document.getElementById("seekCheck").checked;
                     break;
             case 14:
+                    jumpToPPosition();
+                    break;
+            case 15:
+                    toggleOverlay();
+                    break;
+            case 16:
                     goToHome();
                     break;
-            case 11:
-                    toggleVideo();
-                    break;
-        };
+            };
     };
 
     this.gotoNext = function() {
@@ -553,7 +652,12 @@ var HTML5PlayerControls = function() {
                         this.keyDown();
                         break;
                 case 13: // Enter
-                        this.ok();
+                        if(disableButtons) {
+                            // If playback error modal is ON, hide it on clicking 'OK'
+                            this.dismissModalDialog();
+                        } else {
+                            this.ok();
+                        }
                         break;
                 case 88: // X
 		        case 34:
@@ -564,7 +668,12 @@ var HTML5PlayerControls = function() {
                         skipForward();
                         break;
                 case 32:
-                        this.ok();
+                        if(disableButtons) {
+                            // If playback error modal is ON, hide it on clicking 'OK'
+                            this.dismissModalDialog();
+                        } else {
+                            this.ok();
+                        }
                         break;
 		        case 179:
                 case 80: // P
@@ -601,7 +710,7 @@ var HTML5PlayerControls = function() {
                 case 56: // Number 8
                 case 57: // Number 9
                          // If keypress is for input to the progress position field
-                         if(this.currentObj === this.jumpPositionInput) {
+                         if((this.currentObj === this.jumpPositionInput) && !disableButtons) {
                              document.getElementById("jumpPosition").value =  document.getElementById("jumpPosition").value + String(e.key);
                          }
                          break;
@@ -609,9 +718,42 @@ var HTML5PlayerControls = function() {
                         break;
             }
         }
+        // Get current Object ID
+        currentObjID = this.currentObj.id;
         return false;
     }
+
+    this.dismissModalDialog = function() {
+        //If clicked OK on overlay modal hide it
+        document.getElementById('errorModal').style.display = "none";
+        this.currentObj = this.videoFileList;
+        // Move focus to the video url list
+        this.currentPos = this.components.indexOf(this.videoFileList);
+        this.addFocus();
+        disableButtons = false;
+    }
 };
+
+// Function to change the opacity of the buttons
+function changeButtonOpacity(opacity) {
+    document.getElementById('jumpPosition').style.opacity = opacity;
+    document.getElementById('jumpButton').style.opacity = opacity;
+    document.getElementById('playOrPauseButton').style.opacity = opacity;
+    document.getElementById('videoToggleButton').style.opacity = opacity;
+    document.getElementById('rewindButton').style.opacity = opacity;
+    document.getElementById('skipBackwardButton').style.opacity = opacity;
+    document.getElementById('skipForwardButton').style.opacity = opacity;
+    document.getElementById('fastForwardButton').style.opacity = opacity;
+    document.getElementById('muteVideoButton').style.opacity = opacity;
+    document.getElementById('ccButton').style.opacity = opacity;
+    document.getElementById('ccTracks').style.opacity = opacity;
+    document.getElementById('ccStyles').style.opacity = opacity;
+    document.getElementById('cacheOnlyButton').style.opacity = opacity;
+    document.getElementById('autoSeekButton').style.opacity = opacity;
+    document.getElementById('autoLogButton').style.opacity = opacity;
+    document.getElementById('metadataButton').style.opacity = opacity;
+    document.getElementById('homeButton').style.opacity = opacity;
+}
 
 function overlayController() {
     var navBar = document.getElementById('controlDiv');
@@ -680,7 +822,6 @@ function resetUIOnNewAsset(){
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
-    document.getElementById('errorModal').style.display = "none";
     document.getElementById("jumpPosition").value = "";
 };
 

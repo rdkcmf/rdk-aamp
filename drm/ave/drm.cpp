@@ -40,6 +40,7 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 
 // TODO: THIS MODULE NEEDS TO BE MADE MULTI-SESSION-FRIENDLY
 #include "drm.h"
+#include "AampUtils.h"
 #ifdef AVE_DRM
 #include "media/IMedia.h" // TBR - remove dependency
 #include <sys/time.h>
@@ -47,7 +48,6 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 #include <stdlib.h> // for malloc
 #include <pthread.h>
 #include <errno.h>
-#include "AampDRMutils.h"
 
 using namespace media;
 

@@ -598,20 +598,44 @@ typedef struct PreCacheUrlData
 typedef std::vector < PreCacheUrlStruct> PreCacheUrlList;
 
 /**
+ *  @brief Language Code Preference types
+ */
+typedef enum
+{
+    ISO639_NO_LANGCODE_PREFERENCE,
+    ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE,
+    ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE,
+    ISO639_PREFER_2_CHAR_LANGCODE
+} LangCodePreference;
+
+/**
  * @brief Structure for audio track information
  *        Holds information about an audio track in playlist
  */
 struct AudioTrackInfo
 {
+	std::string index;
 	std::string language;
 	std::string rendition; //role for DASH, group-id for HLS
 	std::string name;
 	std::string codec;
 	std::string characteristics;
 	int channels;
+	long bandwidth;
 
-	AudioTrackInfo(std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch)
-		:language(lang), rendition(rend), name(trackName), codec(codecStr), characteristics(cha), channels(ch)
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw)
 	{
 	}
 };
@@ -622,15 +646,30 @@ struct AudioTrackInfo
  */
 struct TextTrackInfo
 {
+	std::string index;
 	std::string language;
 	bool isCC;
 	std::string rendition; //role for DASH, group-id for HLS
 	std::string name;
 	std::string instreamId;
 	std::string characteristics;
+	std::string codec;
 
-	TextTrackInfo(std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha)
-		:language(lang), isCC(cc), rendition(rend), name(trackName), instreamId(id), characteristics(cha)
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec()
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(id), characteristics(cha),
+		codec()
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(), characteristics(),
+		codec(codecStr)
 	{
 	}
 };
@@ -965,14 +1004,16 @@ public:
 	 *
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void Seek(double secondsRelativeToTuneTime);
+	void Seek(double secondsRelativeToTuneTime, bool keepPaused = false);
 
 	/**
 	 *   @brief Seek to live point.
 	 *
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void SeekToLive(void);
+	void SeekToLive(bool keepPaused = false);
 
 	/**
 	 *   @brief Set seek position and speed.
@@ -1561,6 +1602,84 @@ public:
 	 *
 	 */
 	void SetInitialBufferDuration(int durationSec);
+
+	/**
+	 *   @brief Enable/disable the native CC rendering feature
+	 *
+	 *   @param[in] enable - true for native CC rendering on
+	 *   @return void
+	 */
+	void SetNativeCCRendering(bool enable);
+
+	/**
+	 *   @brief Set audio track
+	 *
+	 *   @param[in] trackId - index of audio track in available track list
+	 *   @return void
+	 */
+	void SetAudioTrack(int trackId);
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Set text track
+	 *
+	 *   @param[in] trackId - index of text track in available track list
+	 *   @return void
+	 */
+	void SetTextTrack(int trackId);
+
+	/**
+	 *   @brief Get current text track index
+	 *
+	 *   @return int - index of current text track in available track list
+	 */
+	int GetTextTrack();
+
+	/**
+	 *   @brief Set CC visibility on/off
+	 *
+	 *   @param[in] enabled - true for CC on, false otherwise
+	 *   @return void
+	 */
+	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Set style options for text track rendering
+	 *
+	 *   @param[in] options - JSON formatted style options
+	 *   @return void
+	 */
+	void SetTextStyle(const std::string &options);
+
+	/**
+	 *   @brief Get style options for text track rendering
+	 *
+	 *   @return std::string - JSON formatted style options
+	 */
+	std::string GetTextStyle();
+	/**
+	 * @brief Set Language Format
+	 * @param[in] preferredFormat - one of \ref LangCodePreference
+	 * @param[in] useRole - if enabled, the language in format <lang>-<role>
+	 *                      if <role> attribute available in stream
+	 *
+	 * @return void
+	 */
+	void SetLanguageFormat(LangCodePreference preferredFormat, bool useRole = false);
+
+	/**
+	 *   @brief Set the CEA format for force setting
+	 *
+	 *   @param[in] format - 0 for 608, 1 for 708
+	 *   @return void
+	 */
+	void SetPreferredCEAFormat(int format);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

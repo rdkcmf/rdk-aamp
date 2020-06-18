@@ -28,7 +28,7 @@
 #include "AampDrmSystems.h"
 #include "AampLogManager.h"
 
-#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
@@ -222,7 +222,10 @@ public:
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
+	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
+	bool nativeCCRendering;  /*** If native CC rendering to be supported */
+	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 public:
 	std::string getUnknownValue(const std::string& key)
 	{
@@ -363,6 +366,9 @@ public:
 		,initFragmentRetryCount(-1)
 		,useMatchingBaseUrl(eUndefinedState)
 		,unknownValues()
+		,bEnableSubtec(false)
+		,nativeCCRendering(false)
+		,preferredCEA708(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

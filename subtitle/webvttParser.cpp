@@ -259,7 +259,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 			char *nextLine = findWebVTTLineBreak(buffer);
 			//TODO: Parse CUE ID
 
-			if (strstr(buffer, "X-TIMESTAMP-MAP") != NULL && mPtsOffset == 0)
+			if (strstr(buffer, "X-TIMESTAMP-MAP") != NULL)
 			{
 				unsigned long long mpegTime = 0;
 				unsigned long long localTime = 0;

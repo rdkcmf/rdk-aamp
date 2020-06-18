@@ -59,9 +59,10 @@
 #include "aamp_aes.h"
 #endif
 #include "webvttParser.h"
+#include "SubtecFactory.hpp"
 #include "tsprocessor.h"
 #include "isobmffprocessor.h"
-#include "AampDRMutils.h"
+#include "AampUtils.h"
 
 #ifdef AAMP_HLS_DRM
 #include "AampDRMSessionManager.h"
@@ -3345,12 +3346,22 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 	case eTRACK_AUDIO:
 		assert(GetProfileCount() > this->currentProfileIndex);
 		{
-			int i = GetBestAudioTrackByLanguage();
-			if( i>=0 )
+			AudioTrackInfo track = aamp->GetPreferredAudioTrack();
+			int index = -1;
+			if (!track.index.empty())
 			{
-				aamp->UpdateAudioLanguageSelection( GetLanguageCode(i).c_str() );
-				logprintf("GetPlaylistURI : AudioTrack: Audio selected name is %s", GetLanguageCode(i).c_str());
-				playlistURI = this->mediaInfo[i].uri;
+				index = std::stoi(track.index);
+			}
+			else
+			{
+				index = GetBestAudioTrackByLanguage();
+			}
+			if (index >= 0)
+			{
+				aamp->UpdateAudioLanguageSelection( GetLanguageCode(index).c_str() );
+				logprintf("GetPlaylistURI : AudioTrack: Audio selected name is %s", GetLanguageCode(index).c_str());
+				playlistURI = this->mediaInfo[index].uri;
+				mAudioTrackIndex = std::to_string(index);
 				if( format )
 				{
 					*format = FORMAT_NONE;
@@ -3374,39 +3385,48 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
             
 	case eTRACK_SUBTITLE:
 		{
-			HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
+			TextTrackInfo track = aamp->GetPreferredTextTrack();
 			int mediaInfoIndex = -1;
-			const char *group = streamInfo->subtitles;
-			if (group)
+			if (!track.index.empty())
 			{
-				logprintf("StreamAbstractionAAMP_HLS::%s():%d Subtitle Track: group %s, aamp->mSubLanguage %s", __FUNCTION__, __LINE__, group, aamp->mSubLanguage);
-				for (int i = 0; i < mMediaCount; i++)
+				mediaInfoIndex = std::stoi(track.index);
+			}
+			else
+			{
+				HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
+				const char *group = streamInfo->subtitles;
+				if (group)
 				{
-					if (mediaInfo[i].group_id && !strncmp(mediaInfo[i].group_id, group, strlen(group)))
+					logprintf("StreamAbstractionAAMP_HLS::%s():%d Subtitle Track: group %s, aamp->mSubLanguage %s", __FUNCTION__, __LINE__, group, aamp->mSubLanguage);
+					for (int i = 0; i < mMediaCount; i++)
 					{
-						if (aamp->mSubLanguage[0])
+						if (mediaInfo[i].group_id && !strncmp(mediaInfo[i].group_id, group, strlen(group)))
 						{
-							if (strncmp(aamp->mSubLanguage, mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+							if (aamp->mSubLanguage[0])
 							{
-								//Found preferred language subtitle
-								mediaInfoIndex = i;
-								break;
+								if (strncmp(aamp->mSubLanguage, mediaInfo[i].language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+								{
+									//Found preferred language subtitle
+									mediaInfoIndex = i;
+									break;
+								}
 							}
 						}
 					}
 				}
-				if (mediaInfoIndex != -1)
-				{
-					playlistURI = mediaInfo[mediaInfoIndex].uri;
-					aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
-					*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
-					logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s and format %d", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI, *format);
-				}
-				else
-				{
-					logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage);
-					*format = FORMAT_NONE;
-				}
+			}
+			if (mediaInfoIndex != -1)
+			{
+				playlistURI = mediaInfo[mediaInfoIndex].uri;
+				mTextTrackIndex = std::to_string(mediaInfoIndex);
+				aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
+				*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s and format %d", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI, *format);
+			}
+			else
+			{
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage);
+				*format = FORMAT_NONE;
 			}
 		}
 		break;
@@ -3475,7 +3495,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 					logprintf("%s:%d fragment extension %s - FORMAT_AUDIO_ES_AAC", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_AUDIO_ES_AAC;
 				}
-				else if ( extension == ".vtt" )
+				else if ( extension == ".vtt" || extension == ".webvtt" )
 				{
 					logprintf("%s:%d fragment extension %s - FORMAT_SUBTITLE_WEBVTT", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_SUBTITLE_WEBVTT;
@@ -4113,9 +4133,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
 #endif
 #ifdef AAMP_HLS_DRM
-	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
-	sessionMgr->clearFailedKeyIds();
-	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
+		sessionMgr->clearFailedKeyIds();
+		sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
 		AAMPStatusType mainManifestResult = ParseMainManifest();
@@ -4483,7 +4503,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
-						ts->mSubtitleParser = new WebVTTParser(aamp, type);
+						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, type);
 					}
 					else
 					{
@@ -5761,10 +5781,24 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
 	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 
-	if (subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
 	{
 		//position within playlist and pts in ms
-		subtitle->mSubtitleParser->init(seekPosition * 1000.0, pts);
+		subtitle->mSubtitleParser->init(seekPosition, pts);
+	}
+}
+
+void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
+{
+	StreamAbstractionAAMP::NotifyPlaybackPaused(pause);
+	
+	AAMPLOG_INFO("%s: pause %d\n", __FUNCTION__, pause);
+	
+	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
+
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	{
+		subtitle->mSubtitleParser->pause(pause);
 	}
 }
 
@@ -6832,6 +6866,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 			struct MediaInfo *media = &(mediaInfo[i]);
 			if (media->type == eMEDIATYPE_AUDIO)
 			{
+				std::string index = std::to_string(i);
 				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
 				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
 				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
@@ -6854,20 +6889,21 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 						}
 					}
 				}
-				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d lang:%s, group_id:%s, name:%s, codec:%s, characteristics:%s, channels:%d", __FUNCTION__, __LINE__,
-							language.c_str(), group_id.c_str(), name.c_str(), codec.c_str(), characteristics.c_str(), media->channels);
-				mAudioTracks.push_back(AudioTrackInfo(language, group_id, name, codec, characteristics, media->channels));
+				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s() %d Audio Track - lang:%s, group_id:%s, name:%s, codec:%s, characteristics:%s, channels:%d",
+						__FUNCTION__, __LINE__,	language.c_str(), group_id.c_str(), name.c_str(), codec.c_str(), characteristics.c_str(), media->channels);
+				mAudioTracks.push_back(AudioTrackInfo(index, language, group_id, name, codec, characteristics, media->channels));
 			}
 			else if (media->type == eMEDIATYPE_SUBTITLE)
 			{
+				std::string index = std::to_string(i);
 				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
 				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
 				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
 				std::string instreamID = (media->instreamID != NULL) ? std::string(media->instreamID) : std::string();
 				std::string characteristics = (media->characteristics != NULL) ? std::string(media->characteristics) : std::string();
-				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d lang:%s, isCC:%d, group_id:%s, name:%s, instreamID:%s, characteristics:%s", __FUNCTION__, __LINE__,
-							language.c_str(), media->isCC, group_id.c_str(), name.c_str(), instreamID.c_str(), characteristics.c_str());
-				mTextTracks.push_back(TextTrackInfo(language, media->isCC, group_id, name, instreamID, characteristics));
+				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s() %d Text Track - lang:%s, isCC:%d, group_id:%s, name:%s, instreamID:%s, characteristics:%s",
+						__FUNCTION__, __LINE__, language.c_str(), media->isCC, group_id.c_str(), name.c_str(), instreamID.c_str(), characteristics.c_str());
+				mTextTracks.push_back(TextTrackInfo(index, language, media->isCC, group_id, name, instreamID, characteristics));
 			}
 		}
 	}

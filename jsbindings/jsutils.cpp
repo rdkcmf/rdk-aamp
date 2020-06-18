@@ -74,6 +74,8 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
 	{ AAMP_EVENT_ID3_METADATA, "id3Metadata"},
 	{ AAMP_EVENT_DRM_MESSAGE, "drmMessage" },
+	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "audioTrackChanged"},
+	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "textTrackChanged"},
 	{ (AAMPEventType)0, "" }
 };
 
@@ -104,8 +106,8 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_TUNE_PROFILING, "tuneProfiling"},
 	{ AAMP_EVENT_BUFFERING_CHANGED, "bufferingChanged"},
 	{ AAMP_EVENT_DURATION_CHANGED, "durationChanged"},
-	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "currentAudioTrackChanged"},
-	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "currentTextTrackChanged"},
+	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "audioTrackChanged"},
+	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "textTrackChanged"},
 	{ AAMP_EVENT_AD_BREAKS_CHANGED, "contentBreaksChanged"},
 	{ AAMP_EVENT_AD_STARTED, "contentStarted"},
 	{ AAMP_EVENT_AD_COMPLETED, "contentCompleted"},
