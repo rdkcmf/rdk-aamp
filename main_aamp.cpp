@@ -4955,7 +4955,7 @@ int replace(std::string &str, const char *existingSubStringToReplace, int replac
  * @brief Common tune operations used on Tune, Seek, SetRate etc
  * @param tuneType type of tune
  */
-void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
+void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 {
 	bool newTune;
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -4965,6 +4965,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
+	mPauseOnFirstVideoFrameDisp = false;
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -5132,6 +5133,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
 		{
 			mFragmentCachingRequired = true;
+		}
+
+		// Set Pause on First Video frame if seeking and requested
+		if( mSeekOperationInProgress && seekWhilePaused )
+		{
+			mPauseOnFirstVideoFrameDisp = true;
 		}
 
 #ifndef AAMP_STOP_SINK_ON_SEEK
@@ -6531,8 +6538,9 @@ static gboolean  SeekAfterPrepared(gpointer ptr)
  *
  *   @param  secondsRelativeToTuneTime - Seek position for VOD,
  *           relative position from first tune command.
+ *   @param  keepPaused - set true if want to keep paused state after seek
  */
-void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
+void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	bool sentSpeedChangedEv = false;
 	bool isSeekToLive = false;
@@ -6578,6 +6586,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			}
 		}
 
+		bool seekWhilePause = false;
 		if (aamp->pipeline_paused)
 		{
 			// resume downloads and clear paused flag. state change will be done
@@ -6586,6 +6595,13 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			aamp->pipeline_paused = false;
 			aamp->ResumeDownloads();
 			sentSpeedChangedEv = true;
+
+			if(keepPaused
+				&& aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
+			{
+				// Enable seek while paused if not Progressive stream
+				seekWhilePause = true;
+			}
 		}
 
 		if (tuneType == eTUNETYPE_SEEK)
@@ -6600,8 +6616,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
-			aamp->TuneHelper(tuneType);
-			if (sentSpeedChangedEv)
+			aamp->TuneHelper(tuneType, seekWhilePause);
+			if (sentSpeedChangedEv
+					&& (!seekWhilePause) )
 			{
 				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
@@ -6612,10 +6629,12 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 
 /**
  *   @brief Seek to live point.
+ *
+ *   @param[in]  keepPaused - set true if want to keep paused state after seek
  */
-void PlayerInstanceAAMP::SeekToLive()
+void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 {
-	Seek(AAMP_SEEK_TO_LIVE_POSITION);
+	Seek(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
 }
 
 
@@ -8525,6 +8544,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
+	, mPauseOnFirstVideoFrameDisp(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8712,7 +8732,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		sentSync = false;
 	}
 
-	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING)
+	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING || state == eSTATE_PAUSED)
 		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
 		AAMPEvent eventData;
@@ -9577,15 +9597,24 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
-	PrivAAMPState state;
-	GetState(state);
-	if (state == eSTATE_SEEKING
-		&& !SetStateBufferingIfRequired())
+	// If seek while paused is ongoing,
+	// state will be changed in NotifyFirstVideoDisplayed()
+	if (!mPauseOnFirstVideoFrameDisp)
 	{
-		//Playback started after end of seeking
-		SetState(eSTATE_PLAYING);
+		PrivAAMPState state;
+		GetState(state);
+		if (state == eSTATE_SEEKING
+			&& !SetStateBufferingIfRequired())
+		{
+			PrivAAMPState state;
+			GetState(state);
+			if (state == eSTATE_SEEKING)
+			{
+				//Playback started after end of seeking
+				SetState(eSTATE_PLAYING);
+			}
+		}
 	}
-
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
@@ -11075,6 +11104,53 @@ int PrivateInstanceAAMP::GetInitialBufferDuration()
 	return mMinInitialCacheSeconds;
 }
 
+/**
+ *   @brief Check if First Video Frame Displayed Notification
+ *          is required.
+ *
+ *   @return bool - true if required
+ */
+bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
+{
+	return mPauseOnFirstVideoFrameDisp;
+}
+
+/**
+ *   @brief Notify First Video Frame was displayed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
+{
+	if(!mPauseOnFirstVideoFrameDisp)
+	{
+		return;
+	}
+
+	mPauseOnFirstVideoFrameDisp = false;
+
+	PrivAAMPState state;
+	GetState(state);
+	if(state != eSTATE_SEEKING)
+	{
+		return;
+	}
+
+	AAMPLOG_INFO("%s: Pausing Playback on First Frame Displayed", __FUNCTION__);
+	if(mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+	}
+	StopDownloads();
+	if(PausePipeline(true, false))
+	{
+		SetState(eSTATE_PAUSED);
+	}
+	else
+	{
+		AAMPLOG_ERR("%s(): Failed to pause pipeline for first frame displayed!", __FUNCTION__);
+	}
+}
 
 /**
  *   @brief Set eSTATE_BUFFERING if required

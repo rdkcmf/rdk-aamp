@@ -1118,9 +1118,11 @@ public:
 	 * @brief The helper function which perform tuning
 	 *
 	 * @param[in] tuneType - Type of tuning. eg: Normal, trick, seek to live, etc
+	 * @param[in] seekWhilePaused - Set true if want to keep in Paused state after
+	 *              seek for tuneType = eTUNETYPE_SEEK or eTUNETYPE_SEEKTOLIVE
 	 * @return void
 	 */
-	void TuneHelper(TuneType tuneType);
+	void TuneHelper(TuneType tuneType, bool seekWhilePaused = false);
 
 	/**
 	 * @brief Terminate the stream
@@ -3088,6 +3090,21 @@ public:
 	 */
 	bool SetStateBufferingIfRequired();
 
+	/**
+	 *   @brief Check if First Video Frame Displayed Notification
+	 *          is required.
+	 *
+	 *   @return bool - true if required
+	 */
+	bool IsFirstVideoFrameDisplayedRequired();
+
+	/**
+	 *   @brief Notify First Video Frame was displayed
+	 *
+	 *   @return void
+	 */
+	void NotifyFirstVideoFrameDisplayed();
+
 private:
 
 	/**
@@ -3201,5 +3218,6 @@ private:
 	std::map<DRMSystems, std::string> mLicenseServerUrls;
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
+	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
 };
 #endif // PRIVAAMP_H

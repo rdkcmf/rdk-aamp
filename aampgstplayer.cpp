@@ -168,6 +168,8 @@ struct AAMPGstPlayerPriv
 	GstQuery *positionQuery; // pointer that holds a position query object
 	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
 	GstState pipelineState; // current state of pipeline
+	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
+	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
 };
 
 /**
@@ -607,6 +609,23 @@ static gboolean IdleCallback(gpointer user_data)
 }
 
 /**
+ * @brief Idle callback to notify first video frame was displayed
+ * @param[in] user_data pointer to AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
+{
+	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
+	if (_this)
+	{
+		_this->aamp->NotifyFirstVideoFrameDisplayed();
+		_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = false;
+		_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId = 0;
+	}
+	return G_SOURCE_REMOVE;
+}
+
+/**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
  * @param[in] type media type of the frame which is decoded, either audio or video.
  */
@@ -647,6 +666,14 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				logprintf("%s:%d firstProgressCallbackIdleTask already finished, reset id", __FUNCTION__, __LINE__);
 				privateContext->firstProgressCallbackIdleTaskId = 0;
 			}
+		}
+
+		if ( (!privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+				&& (aamp->IsFirstVideoFrameDisplayedRequired()) )
+		{
+			privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
+			privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
+					g_idle_add(IdleCallbackFirstVideoFrameDisplayed, this);
 		}
 	}
 }
@@ -1041,6 +1068,17 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					// gstreamer is configured with --gst-enable-gst-debug
 					// and "gst" is enabled in aamp.cfg
 					// and environment variable GST_DEBUG_DUMP_DOT_DIR is set to a basepath(e.g. /opt).
+				}
+
+				// First Video Frame Displayed callback for westeros-sink is initialized
+				// via OnFirstVideoFrameCallback()->NotifyFirstFrame() which is more accurate
+				if( (!_this->privateContext->using_westerossink)
+						&& (!_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+						&& (_this->aamp->IsFirstVideoFrameDisplayedRequired()) )
+				{
+					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
+					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
+							g_idle_add(IdleCallbackFirstVideoFrameDisplayed, _this);
 				}
 			}
 		}
@@ -2464,6 +2502,13 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		g_source_remove(privateContext->id3MetadataCallbackIdleTaskId);
 		privateContext->id3MetadataCallbackTaskPending = false;
 		privateContext->id3MetadataCallbackIdleTaskId = 0;
+	}
+	if (this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove firstVideoFrameDisplayedCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
+		g_source_remove(privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
+		privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = false;
+		privateContext->firstVideoFrameDisplayedCallbackIdleTaskId = 0;
 	}
 	if (this->privateContext->pipeline)
 	{

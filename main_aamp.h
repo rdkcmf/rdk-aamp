@@ -993,14 +993,16 @@ public:
 	 *
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void Seek(double secondsRelativeToTuneTime);
+	void Seek(double secondsRelativeToTuneTime, bool keepPaused = false);
 
 	/**
 	 *   @brief Seek to live point.
 	 *
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void SeekToLive(void);
+	void SeekToLive(bool keepPaused = false);
 
 	/**
 	 *   @brief Set seek position and speed.

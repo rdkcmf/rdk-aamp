@@ -286,7 +286,7 @@ static void ShowHelp(void)
 	logprintf("+ -\t\t\t// Change profile");
 	logprintf("bps <x>\t\t\t// set bitrate ");
 	logprintf("sap\t\t\t// Use SAP track (if avail)");
-	logprintf("seek <seconds>\t\t// Specify start time within manifest");
+	logprintf("seek <seconds> <keepPaused(1/0)>\t// Specify start time within manifest");
 	logprintf("live\t\t\t// Seek to live point");
 	logprintf("underflow\t\t\t// Simulate underflow");
 	logprintf("retune\t\t\t// schedule retune");
@@ -388,6 +388,12 @@ public:
 	{
 		switch (e.type)
 		{
+		case AAMP_EVENT_STATE_CHANGED:
+			logprintf("AAMP_EVENT_STATE_CHANGED: %d", e.data.stateChanged.state);
+			break;
+		case AAMP_EVENT_SEEKED:
+			logprintf("AAMP_EVENT_SEEKED: new positionMs %f", e.data.seeked.positionMiliseconds);
+			break;
 		case AAMP_EVENT_MEDIA_METADATA:
 			logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
 			for( int i=0; i<e.data.metadata.languageCount; i++ )
@@ -524,6 +530,7 @@ static void ProcessCliCommand(char *cmd)
 	int rate = 0;
 	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	char cacheUrl[200];
+	bool keepPaused = false;
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -594,9 +601,10 @@ static void ProcessCliCommand(char *cmd)
 	{
 		StopCachedChannel();
 	}
-	else if (sscanf(cmd, "seek %lf", &seconds) == 1)
+	else if (sscanf(cmd, "seek %lf %d", &seconds, &keepPaused) >= 1)
 	{
-		mSingleton->Seek(seconds);
+		mSingleton->Seek(seconds, keepPaused);
+		keepPaused = false;
 	}
 	else if (strcmp(cmd, "sf") == 0)
 	{
