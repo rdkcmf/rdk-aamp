@@ -5189,9 +5189,10 @@ double TrackState::GetBufferedDuration()
 void TrackState::RunFetchLoop()
 {
 	bool skipFetchFragment = false;
+        bool abortedDownload = false;
 	for (;;)
 	{
-		while (fragmentURI && aamp->DownloadsAreEnabled())
+		while (!abortedDownload && fragmentURI && aamp->DownloadsAreEnabled())
 		{
 			skipFetchFragment = false;
 			if (mInjectInitFragment)
@@ -5279,10 +5280,18 @@ void TrackState::RunFetchLoop()
 		}
 		// reached end of vod stream
 		//teststreamer_EndOfStreamReached();
-
-		if (eosReached || mReachedEndListTag || !context->aamp->DownloadsAreEnabled())
-		{
+                if(!abortedDownload && context->aamp->IsTSBSupported() && eosReached){
 			AbortWaitForCachedAndFreeFragment(false);
+                        /* Make the aborted variable to true to avoid 
+                         * further fragment fetch loop running and abort sending multiple time */
+                        abortedDownload = true;
+                }
+                else if ((eosReached && !context->aamp->IsTSBSupported()) || mReachedEndListTag || !context->aamp->DownloadsAreEnabled())
+		{
+                        /* Check whether already aborted or not */
+                        if(!abortedDownload){
+			        AbortWaitForCachedAndFreeFragment(false);
+                        }
 			break;
 		}
 		if (lastPlaylistDownloadTimeMS)
