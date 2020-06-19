@@ -2600,14 +2600,18 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 
 		// Extract the PSSH data
 		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-		string psshData = node.at(0)->GetText();
-		data = base64_Decode(psshData.c_str(), &dataLength);
-		if (0 == dataLength)
+		if (!node.empty())
 		{
-			AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
-			if (data)
+			string psshData = node.at(0)->GetText();
+			data = base64_Decode(psshData.c_str(), &dataLength);
+			if (0 == dataLength)
 			{
-				free(data);
+				AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+				if (data)
+				{
+					free(data);
+					data = NULL;
+				}
 			}
 		}
 
@@ -2615,7 +2619,11 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		if (drmInfo.systemUUID == COMCAST_DRM_INFO_ID)
 		{
 			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
-			free(data);
+			if (data)
+			{
+				free(data);
+				data = NULL;
+			}
 			continue;
 		}
 
@@ -2624,7 +2632,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		{
 			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
 		}
-		else
+		else if (data && dataLength)
 		{
 			tmpDrmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
@@ -2642,7 +2650,16 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				}
 			}
 		}
-		free(data);
+		else
+		{
+			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
+		}
+
+		if (data)
+		{
+			free(data);
+			data = NULL;
+		}
 	}
 
 	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
@@ -2683,7 +2700,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 	}
 	else
 	{
-		logprintf("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+		logprintf("%s:%d (%s) Skipping session creation for duplicate helper or in case of invalid init data", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
 	}
 }
 
