@@ -79,8 +79,8 @@ typedef enum {
 }AAMPGetTypes;
 
 /**
- * @enum AAMPGetTypes
- * @brief Define the enum values of get types
+ * @enum AAMPSetTypes
+ * @brief Define the enum values of set types
  */
 typedef enum{
 	eAAMP_SET_RateAndSeek = 1,
@@ -119,6 +119,8 @@ typedef enum{
 	eAAMP_SET_MaximumBitrate,
 	eAAMP_SET_MaximumSegmentInjFailCount,
 	eAAMP_SET_MaximumDrmDecryptFailCount,
+	eAAMP_SET_RegisterForID3MetadataEvents,
+	eAAMP_SET_InitialBufferDuration
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -271,6 +273,7 @@ static void ShowHelp(void)
 	logprintf("islive // Show whether it is live or not");
 	logprintf("underflow // Simulate underflow");
 	logprintf("help // Show this list again");
+	logprintf("reset\t\t\t// delete player instance and create a new one");
 	logprintf("get help // Show help of get command");
 	logprintf("set help // Show help of set command");
 	logprintf("exit\t\t\t// Exit from application");
@@ -344,6 +347,8 @@ void ShowHelpSet(){
 	logprintf("34 - Set Maximum bitrate");
 	logprintf("35 - Set Maximum segment injection fail count");
 	logprintf("36 - Set Maximum DRM Decryption fail count");
+	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
+	logprintf("38 - Set Initial Buffer Duration (int in sec)");
 }
 
 #define LOG_CLI_EVENTS
@@ -392,13 +397,25 @@ public:
 			logprintf("AAMP_EVENT_PLAYLIST_INDEXED");
 			break;
 		case AAMP_EVENT_PROGRESS:
-			//			logprintf("AAMP_EVENT_PROGRESS");
+			//logprintf("AAMP_EVENT_PROGRESS");
+			//logprintf("videoBufferedMilliseconds: %.0f", e.data.progress.videoBufferedMiliseconds);
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED");
 			break;
 		case AAMP_EVENT_BITRATE_CHANGED:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
+			break;
+		case AAMP_EVENT_ID3_METADATA:
+			logprintf("AAMP_EVENT_ID3_METADATA");
+
+			logprintf("ID3 payload, length %d bytes:", e.data.id3Metadata.length);
+			printf("\t");
+			for (int i = 0; i < e.data.id3Metadata.length; i++)
+			{
+				printf("%c", *(e.data.id3Metadata.data+i));
+			}
+			printf("\n");
 			break;
 		default:
 			break;
@@ -692,6 +709,28 @@ static void ProcessCliCommand(char *cmd)
 		std::vector<std::string> headerValue;
 		logprintf("customheader Command is %s " , cmd); 
 		mSingleton->AddCustomHTTPHeader("", headerValue, false);
+	}
+	else if (memcmp(cmd, "reset", 5) == 0 )
+	{
+		logprintf(" Reset mSingleton instance %p ", mSingleton);
+		mSingleton->Stop();
+
+		delete mSingleton;
+		mSingleton = NULL;
+
+		mSingleton = new PlayerInstanceAAMP(
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+				NULL
+				,updateYUVFrame
+#endif
+				);
+
+#ifdef LOG_CLI_EVENTS
+		myEventListener = new myAAMPEventListener();
+		mSingleton->RegisterEvents(myEventListener);
+#endif
+		logprintf(" New mSingleton instance %p ", mSingleton);
+
 	}
 	else if (memcmp(cmd, "set", 3) == 0 )
 	{
@@ -1055,6 +1094,33 @@ static void ProcessCliCommand(char *cmd)
 					break;
                                 }
 
+				case eAAMP_SET_RegisterForID3MetadataEvents:
+                                {
+					bool id3MetadataEventsEnabled;
+					logprintf("Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &id3MetadataEventsEnabled) == 2){
+						if (id3MetadataEventsEnabled)
+						{
+							mSingleton->AddEventListener(AAMP_EVENT_ID3_METADATA, myEventListener);
+						}
+						else
+						{
+							mSingleton->RemoveEventListener(AAMP_EVENT_ID3_METADATA, myEventListener);
+						}
+
+					}
+					break;
+                                }
+				case eAAMP_SET_InitialBufferDuration:
+				{
+					int duration;
+					logprintf("Matched Command eAAMP_SET_InitialBufferDuration - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &duration) == 2)
+					{
+						mSingleton->SetInitialBufferDuration(duration);
+					}
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
@@ -1229,6 +1295,8 @@ int main(int argc, char **argv)
 	myEventListener = new myAAMPEventListener();
 	mSingleton->RegisterEvents(myEventListener);
 #endif
+	//std::string name = "testApp";
+	//mSingleton->SetAppName(name);
 
 #ifdef WIN32
 	FILE *f = fopen(mLogManager.getAampCliCfgPath(), "rb");

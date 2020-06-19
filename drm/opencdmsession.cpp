@@ -182,6 +182,7 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
 	logprintf("generateAampDRMSession :: enter ");
+	pthread_mutex_lock(&decryptMutex);
 #if USE_NEW_OPENCDM
 	m_sessionID = m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);
 	logprintf("generateAampDRMSession :: sessionId : %s ", m_sessionID.c_str());
@@ -196,11 +197,14 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		m_eKeyState = KEY_ERROR_EMPTY_SESSION_ID;
 	}
 #endif
+	pthread_mutex_unlock(&decryptMutex);
 }
 
 AAMPOCDMSession::~AAMPOCDMSession()
 {
 	logprintf("[HHH]OCDMSession destructor called! keySystem %s", m_keySystem.c_str());
+	clearDecryptContext();
+
 	pthread_mutex_destroy(&decryptMutex);
 #if USE_NEW_OPENCDM
 	if(m_pOpencdmDecrypt)
@@ -235,6 +239,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 
 	std::string challenge;
 	int challengeLength = 0;
+	pthread_mutex_lock(&decryptMutex);
 
 #if USE_NEW_OPENCDM
 	unsigned char temporaryUrl[1024] = {'\0'};
@@ -244,6 +249,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 	if (challenge.empty() || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
 		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
+		pthread_mutex_unlock(&decryptMutex);
 		return result;
 	}
 
@@ -271,6 +277,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 	if (!challengeLength || !destinationUrlLength) {
 		m_eKeyState = KEY_ERROR;
 		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
+		pthread_mutex_unlock(&decryptMutex);
 		return result;
 	}
 
@@ -280,6 +287,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 #endif	
 	m_eKeyState = KEY_PENDING;
 
+	pthread_mutex_unlock(&decryptMutex);
 	return result;
 }
 
@@ -291,6 +299,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 #ifdef TRACE_LOG
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif
+	pthread_mutex_lock(&decryptMutex);
 	std::string responseMessage;
 	media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Update(key->getData(), key->getDataLength(), responseMessage);
 	retvalue = (int)keyStatus;
@@ -351,6 +360,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 			AAMPLOG_WARN("processKey: Update() returned keystatus: %d\n", (int) keyStatus);
 		}
 		m_eKeyState = KEY_ERROR;
+		pthread_mutex_unlock(&decryptMutex);
 		return retvalue;
 	}
 
@@ -358,6 +368,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 #if USE_NEW_OPENCDM
 	m_pOpencdmDecrypt = new media::OpenCdm(m_sessionID);
 #endif
+	pthread_mutex_unlock(&decryptMutex);
 	return retvalue;
 }
 
@@ -419,11 +430,13 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 	pthread_mutex_unlock(&decryptMutex);
 #ifdef USE_SAGE_SVP
-	memcpy(&sb_info, payloadData, sizeof(Rpc_Secbuf_Info));
-	if (B_Secbuf_AllocWithToken(sb_info.size, (B_Secbuf_Type)sb_info.type, sb_info.token, (void **)ppOpaqueData)) {
-		logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
-	} else {
-		//logprintf("[HHH] B_Secbuf_AllocWithToken() succeeded.");
+	if( 0 == retvalue )
+	{
+		memcpy(&sb_info, payloadData, sizeof(Rpc_Secbuf_Info));
+		if (B_Secbuf_AllocWithToken(sb_info.size, (B_Secbuf_Type)sb_info.type, sb_info.token, (void **)ppOpaqueData))
+		{
+			logprintf("[HHH] B_Secbuf_AllocWithToken() failed!");
+		}
 	}
 #endif
 	return retvalue;
@@ -438,6 +451,7 @@ KeyState AAMPOCDMSession::getState()
 void AAMPOCDMSession:: clearDecryptContext()
 {
 	logprintf("[HHH] clearDecryptContext.");
+	pthread_mutex_lock(&decryptMutex);
 
 #if USE_NEW_OPENCDM < 1
 	if(m_pOpencdm) m_pOpencdm->ReleaseMem();
@@ -449,5 +463,6 @@ void AAMPOCDMSession:: clearDecryptContext()
 #endif
 	if(m_pOpencdm) m_pOpencdm->Close();
 	m_eKeyState = KEY_INIT;
+	pthread_mutex_unlock(&decryptMutex);
 }
 

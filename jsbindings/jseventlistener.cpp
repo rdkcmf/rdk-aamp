@@ -114,6 +114,10 @@ public:
 		prop = JSStringCreateWithUTF8CString("currentPTS");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.videoPTS), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("videoBufferedMiliseconds");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, ev.data.progress.videoBufferedMiliseconds), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 };
 
@@ -994,6 +998,51 @@ public:
 
 
 /**
+ * @class AAMP_Listener_Id3Metadata
+ * @brief Event listener impl for AAMP_EVENT_ID3_METADATA event.
+ */
+class AAMP_Listener_Id3Metadata: public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_Id3Metadata Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_Id3Metadata(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEvent& e, JSObjectRef jsEventObj)
+	{
+		JSStringRef prop;
+
+		JSValueRef* array = new JSValueRef[e.data.id3Metadata.length];
+		for (int32_t i = 0; i < e.data.id3Metadata.length; i++)
+		{
+			array[i] = JSValueMakeNumber(p_obj->_ctx, *(e.data.id3Metadata.data + i));
+		}
+
+		prop = JSStringCreateWithUTF8CString("data");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, e.data.id3Metadata.length, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		delete [] array;
+
+		prop = JSStringCreateWithUTF8CString("length");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, e.data.id3Metadata.length), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -1038,7 +1087,8 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 	JSObjectRef event = createNewAAMPJSEvent(p_obj->_ctx, aampPlayer_getNameFromEventType(e.type), false, false);
 	if (event)
 	{
-		JSValueProtect(p_obj->_ctx, event);
+		JSGlobalContextRef ctx = p_obj->_ctx;
+		JSValueProtect(ctx, event);
 		SetEventProperties(e, event);
 		//send this event through promise callback if an event listener is not registered
 		if (p_type == AAMP_EVENT_AD_RESOLVED && p_jsCallback == NULL)
@@ -1047,23 +1097,23 @@ void AAMP_JSEventListener::Event(const AAMPEvent& e)
 			JSObjectRef cbObj = p_obj->getCallbackForAdId(adIdStr);
 			if (cbObj != NULL)
 			{
-				aamp_dispatchEventToJS(p_obj->_ctx, cbObj, event);
+				aamp_dispatchEventToJS(ctx, cbObj, event);
 				p_obj->removeCallbackForAdId(adIdStr); //promise callbacks are intended for a single-time use for an ad id
 			}
 			else
 			{
-				ERROR("AAMP_JSEventListener::%s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, p_obj->_ctx, cbObj);
+				ERROR("AAMP_JSEventListener::%s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, ctx, cbObj);
 			}
 		}
 		else if (p_jsCallback != NULL)
 		{
-			aamp_dispatchEventToJS(p_obj->_ctx, p_jsCallback, event);
+			aamp_dispatchEventToJS(ctx, p_jsCallback, event);
 		}
 		else
 		{
 			ERROR("AAMP_JSEventListener::%s() Callback registered is (%p) for event=%d", __FUNCTION__, p_jsCallback, p_type);
 		}
-		JSValueUnprotect(p_obj->_ctx, event);
+		JSValueUnprotect(ctx, event);
 	}
 }
 
@@ -1154,6 +1204,11 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 		case AAMP_EVENT_AD_PLACEMENT_ERROR:
 			pListener = new AAMP_Listener_AdPlacementError(obj, type, jsCallback);
 			break;
+		case AAMP_EVENT_ID3_METADATA:
+			pListener = new AAMP_Listener_Id3Metadata(obj, type, jsCallback);
+			break;
+		// Following events are not having payload and hence falls under default case
+		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE
 		default:
 			pListener = new AAMP_JSEventListener(obj, type, jsCallback);
 			break;

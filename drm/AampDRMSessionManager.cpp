@@ -239,10 +239,9 @@ int AampDRMSessionManager::progress_callback(
 	if(drmSessionManager->getCurlAbort())
 	{
 		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-		returnCode = CURLE_ABORTED_BY_CALLBACK ;
+		returnCode = -1; // Return non-zero for CURLE_ABORTED_BY_CALLBACK
 		//Reset the abort variable
 		drmSessionManager->setCurlAbort(false);
-
 	}
 
 	return returnCode;
@@ -266,9 +265,10 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
         if(callbackData->mDRMSessionManager->getCurlAbort())
         {
                 logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
-                //Reset the abort variable
-                numBytesForBlock = 0;
-                callbackData->mDRMSessionManager->setCurlAbort(false);
+                numBytesForBlock = 0; // Will cause CURLE_WRITE_ERROR
+		//Reset the abort variable
+		callbackData->mDRMSessionManager->setCurlAbort(false);
+
         }
         else if (NULL == data->getData())        
         {
@@ -429,7 +429,7 @@ static void mssleep(int milliseconds)
  *
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
+		string destinationURL, long *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
 {
 
 	*httpCode = -1;
@@ -512,21 +512,25 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		downloadTimeMS = tEndTime - tStartTime;
 		if (res != CURLE_OK)
 		{
-			if (res == CURLE_OPERATION_TIMEDOUT || res == CURLE_COULDNT_CONNECT)
+			// To avoid scary logging
+			if (res != CURLE_ABORTED_BY_CALLBACK && res != CURLE_WRITE_ERROR)
 			{
-				// Retry for curl 28 and curl 7 errors.
-				loopAgain = true;
+	                        if (res == CURLE_OPERATION_TIMEDOUT || res == CURLE_COULDNT_CONNECT)
+	                        {
+	                                // Retry for curl 28 and curl 7 errors.
+	                                loopAgain = true;
 
-				delete keyInfo;
-				delete callbackData;
-				keyInfo = new DrmData();
-				callbackData = new writeCallbackData();
-				callbackData->data = keyInfo;
-				callbackData->mDRMSessionManager = this;
-				curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
+	                                delete keyInfo;
+	                                delete callbackData;
+	                                keyInfo = new DrmData();
+	                                callbackData = new writeCallbackData();
+	                                callbackData->data = keyInfo;
+	                                callbackData->mDRMSessionManager = this;
+	                                curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
+        	                }
+                	        logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
+                        	logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
 			}
-			logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
-			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
 			*httpCode = res;
 		}
 		else
@@ -571,10 +575,22 @@ DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
 		curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD, &dlSize);
 		curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &reqSize);
 
-		AAMPLOG(eLOGLEVEL_WARN, "HttpLicenseRequestEnd: {\"license_url\":\"%.500s\",\"curlTime\":%2.4f,\"times\":{\"total\":%2.4f,\"connect\":%2.4f,\"startTransfer\":%2.4f,\"resolve\":%2.4f,\"appConnect\":%2.4f,\"preTransfer\":%2.4f,\"redirect\":%2.4f,\"dlSz\":%g,\"ulSz\":%ld},\"responseCode\":%ld}",
-				destinationURL.c_str(),
-				totalPerformRequest,
-				totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize, *httpCode);
+		MediaTypeTelemetry mediaType = eMEDIATYPE_TELEMETRY_DRM;
+		std::string appName, timeoutClass;
+		if (!aamp->GetAppName().empty())
+		{
+			// append app name with class data
+			appName = aamp->GetAppName() + ",";
+		}
+		if (CURLE_OPERATION_TIMEDOUT == res || CURLE_PARTIAL_FILE == res || CURLE_COULDNT_CONNECT == res)
+		{
+			// introduce  extra marker for connection status curl 7/18/28,
+			// example 18(0) if connection failure with PARTIAL_FILE code
+			timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+		}
+		AAMPLOG(eLOGLEVEL_WARN, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
+						appName.c_str(), mediaType, streamType, *httpCode, timeoutClass.c_str(), totalPerformRequest, totalTime, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
+						destinationURL.c_str());
 
 		if(!loopAgain)
 			break;
@@ -854,8 +870,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				keyId = NULL;
 				return NULL;
 			}
-
-			drmSessionContexts[sessionSlot].drmSession->clearDecryptContext();
+			AAMPLOG_INFO("%s:%d Deleting drmSesson for slot :%d", __FUNCTION__, __LINE__, sessionSlot);
+			delete drmSessionContexts[sessionSlot].drmSession;
+			drmSessionContexts[sessionSlot].drmSession = AampDrmSessionFactory::GetDrmSession(systemId);
 	}
 
 	if(drmSessionContexts[sessionSlot].drmSession)
@@ -949,6 +966,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			externLicenseServerURL = gpGlobalConfig->licenseServerURL;
 		}
 
+		e->data.dash_drmmetadata.isSecClientError = false;
 
 		if(contentMetaData)
 		{
@@ -1082,6 +1100,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				}
 			}
 
+			e->data.dash_drmmetadata.isSecClientError = true;
+
 			if (gpGlobalConfig->logging.debug)
 			{
 				logprintf("licenseResponse is %s", licenseResponse);
@@ -1108,7 +1128,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode, isComcastStream, licenseProxy, headers, drmType);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, streamType, aamp, isComcastStream, licenseProxy, headers, drmType);
 #endif
 			free(licenseRequest);
 			free(encodedData);
@@ -1125,7 +1145,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			aamp->GetCustomLicenseHeaders(&headers); //headers are freed in getLicense call
 			aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 			char *licenseProxy = aamp->GetLicenseReqProxy();
-			key = getLicense(licenceChallenge, destinationURL, &responseCode , isComcastStream, licenseProxy, headers, drmType);
+			key = getLicense(licenceChallenge, destinationURL, &responseCode, streamType, aamp, isComcastStream, licenseProxy, headers, drmType);
 		}
 
 		if(key != NULL && key->getDataLength() != 0)
@@ -1194,7 +1214,11 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 				e->data.dash_drmmetadata.responseCode = responseCode;
 			}
 		}
-		delete key;
+
+		if (key != NULL)
+		{
+			delete key;
+		}
 	}
 	else
 	{
@@ -1363,15 +1387,19 @@ void *CreateDRMSession(void *arg)
 					contentMetadata, sessionParams->aamp, &e);
 	if(NULL == drmSession)
 	{
-		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", 
-	 __FUNCTION__, __LINE__, systemId);
+		AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s", __FUNCTION__, __LINE__, systemId);
 		AAMPTuneFailure failure = e.data.dash_drmmetadata.failure;
-		bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
-		                        && (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
-					&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
-		                        && (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
-					&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-		sessionParams->aamp->SendDrmErrorEvent(e.data.dash_drmmetadata.failure, e.data.dash_drmmetadata.responseCode, isRetryEnabled);
+		long responseCode = e.data.dash_drmmetadata.responseCode;
+		bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED && (responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
+		if (!selfAbort)
+		{
+			bool isRetryEnabled = (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+						&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
+						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
+						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
+			sessionParams->aamp->SendDrmErrorEvent(&e, isRetryEnabled);
+		}
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)e.data.dash_drmmetadata.failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)e.data.dash_drmmetadata.failure);
 	}

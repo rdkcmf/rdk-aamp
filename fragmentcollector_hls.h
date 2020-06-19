@@ -308,7 +308,7 @@ public:
 	long long nextMediaSequenceNumber; /**< media sequence number following current fragment-of-interest */
 	double playlistPosition; /**< playlist-relative time of most recent fragment-of-interest; -1 if undefined */
 	double playTarget; /**< initially relative seek time (seconds) based on playlist window, but updated as a play_target */
-
+	double playTargetBufferCalc;
 	double targetDurationSeconds; /**< copy of \#EXT-X-TARGETDURATION to manage playlist refresh frequency */
 	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
@@ -439,7 +439,7 @@ public:
 	bool mStartTimestampZero;						/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
 	int mNumberOfTracks;							/**< Number of media tracks.*/
 	/// Function to parse Main manifest 
-	AAMPStatusType ParseMainManifest(char *ptr);
+	AAMPStatusType ParseMainManifest();
 	/// Function to get playlist URI for the track type 
 	const char *GetPlaylistURI(TrackType trackType, StreamOutputFormat* format = NULL);
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED

@@ -89,7 +89,7 @@ typedef enum {
 #define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
-
+#define BUFFERING_TIMEOUT_PRIORITY -70
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -124,6 +124,8 @@ struct AAMPGstPlayerPriv
 	std::atomic<bool> firstProgressCallbackIdleTaskPending; //Set if any first progress callback is pending.
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
 	guint bufferingTimeoutTimerId; //ID of timer handler created for buffering timeout.
+	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
+	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	GstElement *video_dec; //Video decoder used by pipeline.
 	GstElement *audio_dec; //Audio decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
@@ -165,6 +167,19 @@ struct AAMPGstPlayerPriv
 	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
 	GstState pipelineState; // current state of pipeline
 };
+
+/**
+ * @class Id3CallbackData
+ * @brief Holds id3 metadata callback specific variables.
+ */
+class Id3CallbackData
+{
+public:
+	class AAMPGstPlayer* _this; // AAMPGstPlayer instance
+	uint8_t* data; // Pointer to start of id3 metadata
+	int32_t len; // Length of id3 metadata
+};
+
 
 
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
@@ -487,11 +502,12 @@ static void httpsoup_source_setup (GstElement * element, GstElement * source, gp
 static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 {
         AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-		if (_this){
-			_this->aamp->NotifyFirstFrameReceived();
-			_this->privateContext->firstFrameCallbackIdleTaskPending = false;
-			_this->privateContext->firstFrameCallbackIdleTaskId = 0;
-		}
+	if (_this)
+	{
+		_this->aamp->NotifyFirstFrameReceived();
+		_this->privateContext->firstFrameCallbackIdleTaskPending = false;
+		_this->privateContext->firstFrameCallbackIdleTaskId = 0;
+	}
         return G_SOURCE_REMOVE;
 }
 
@@ -504,7 +520,8 @@ static gboolean IdleCallbackOnFirstFrame(gpointer user_data)
 static gboolean IdleCallbackOnEOS(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->privateContext->eosCallbackIdleTaskPending = false;
 		logprintf("%s:%d  eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->eosCallbackIdleTaskId);
 		_this->aamp->NotifyEOSReached();
@@ -513,6 +530,23 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
+/**
+ * @brief Idle callback to notify ID3 metadata event
+ * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
+{
+	Id3CallbackData *id3 = (Id3CallbackData*)user_data;
+
+	id3->_this->aamp->SendId3MetadataEvent(id3->data, id3->len);
+	id3->_this->privateContext->id3MetadataCallbackTaskPending = false;
+	id3->_this->privateContext->id3MetadataCallbackIdleTaskId = 0;
+
+	delete user_data;
+
+	return G_SOURCE_REMOVE;
+}
 
 
 /**
@@ -523,7 +557,8 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->aamp->ReportProgress();
 		traceprintf("%s:%d current %d, stored %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 	}
@@ -539,7 +574,8 @@ static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 static gboolean IdleCallback(gpointer user_data)
 {
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
-	if (_this){
+	if (_this)
+	{
 		_this->aamp->ReportProgress();
 		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
@@ -572,6 +608,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 
 	if (eMEDIATYPE_VIDEO == type)
 	{
+		// DELIA-42262: No additional checks added here, since the NotifyFirstFrame will be invoked only once
+		// in westerossink disabled case until BCOM fixes it. Also aware of NotifyFirstBufferProcessed called
+		// twice in this function, since it updates timestamp for calculating time elapsed, its trivial
+		aamp->NotifyFirstBufferProcessed();
+
 		if (!privateContext->decoderHandleNotified)
 		{
 			privateContext->decoderHandleNotified = true;
@@ -973,6 +1014,10 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
 					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
+
+					/* if aamp->mAudioDecoderStreamSync==false, tell decoder not to look for 2nd/next frame sync, decode if it finds a single frame sync */
+					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
+					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
 				}
 
 				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
@@ -1006,18 +1051,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					G_CALLBACK(AAMPGstPlayer_OnGstBufferUnderflowCb), _this);
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
-			}
-		}
-		break;
-
-	case GST_MESSAGE_ASYNC_DONE:
-		{
-			if (_this->privateContext->buffering_in_progress)
-			{
-				if (buffering_timeout(_this)) { // call immediately and if already buffered enough don't start timer.
-				    if (0 == _this->privateContext->bufferingTimeoutTimerId)
-						_this->privateContext->bufferingTimeoutTimerId = g_timeout_add((guint)DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this);
-				}
 			}
 		}
 		break;
@@ -1230,6 +1263,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
         }
         break;
 #endif
+	case GST_MESSAGE_ASYNC_DONE:
+		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
+		if (_this->privateContext->buffering_in_progress)
+		{
+			g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -1487,17 +1528,28 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		{
 			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 			/* set the playbin state to NULL before detach it */
-			if (stream->sinkbin && (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL)))
+			if (stream->sinkbin)
 			{
-				logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
+				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
+				}
+				if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin)))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline");
+				}
+			}
+			else
+			{
+				logprintf("AAMPGstPlayer::TearDownStream:  sinkbin = NULL, skip remove sinkbin from pipeline");
 			}
 
-			if (stream->sinkbin && (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->sinkbin))))
+			if (stream->using_playersinkbin && stream->source)
 			{
-				logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove sinkbin from pipeline");
-			}
-			if (stream->using_playersinkbin)
-			{
+				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->source), GST_STATE_NULL))
+				{
+					logprintf("AAMPGstPlayer::TearDownStream: Failed to set NULL state for source");
+				}
 				if (!gst_bin_remove(GST_BIN(privateContext->pipeline), GST_ELEMENT(stream->source)))
 				{
 					logprintf("AAMPGstPlayer::TearDownStream:  Unable to remove source from pipeline");
@@ -1556,7 +1608,15 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 			g_object_set(vidsink, "secure-video", TRUE, NULL);
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
-        }
+		}
+		else if (!_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
+		{
+			GstElement* vidsink = gst_element_factory_make("brcmvideosink", NULL);
+#ifdef CONTENT_4K_SUPPORTED
+			g_object_set(vidsink, "secure-video", TRUE, NULL);
+#endif
+			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
+		}
 #else
 		logprintf("AAMPGstPlayer_SetupStream - using playbin2");
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
@@ -1760,6 +1820,59 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 
 /**
+ * @brief Check if segment starts with an ID3 section
+ * @param[in] data pointer to segment buffer
+ * @param[in] length length of segment buffer
+ * @retval true if segment has an ID3 section
+ */
+bool hasId3Header(MediaType mediaType, StreamOutputFormat format, const uint8_t* data, int32_t length)
+{
+	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO) && length >= 3)
+	{
+		/* Check file identifier ("ID3" = ID3v2) and major revision matches (>= ID3v2.2.x). */
+		if (*data++ == 'I' && *data++ == 'D' && *data++ == '3' && *data++ >= 2)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+#define ID3_HEADER_SIZE 10
+
+/**
+ * @brief Get the size of the ID3v2 tag.
+ * @param[in] ptr buffer pointer
+ * @param[in] len0 length of buffer
+ */
+uint32_t getId3TagSize(const uint8_t *data, size_t &len0)
+{
+	uint32_t bufferSize = 0;
+	uint8_t tagSize[4];
+
+	memcpy(tagSize, data+6, 4);
+
+	// bufferSize is encoded as a syncsafe integer - this means that bit 7 is always zeroed
+	// Check for any 1s in bit 7
+	if (tagSize[0] > 0x7f || tagSize[1] > 0x7f || tagSize[2] > 0x7f || tagSize[3] > 0x7f)
+	{
+		AAMPLOG_WARN("%s:%d Bad header format", __FUNCTION__, __LINE__);
+		return 0;
+	}
+
+	bufferSize = tagSize[0] << 21;
+	bufferSize += tagSize[1] << 14;
+	bufferSize += tagSize[2] << 7;
+	bufferSize += tagSize[3];
+	bufferSize += ID3_HEADER_SIZE;
+
+	return bufferSize;
+}
+
+
+
+/**
  * @brief Inject buffer of a stream type to its pipeline
  * @param[in] mediaType stream type
  * @param[in] ptr buffer pointer
@@ -1774,6 +1887,26 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
+
+	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
+		hasId3Header(mediaType, privateContext->stream[eMEDIATYPE_AUDIO].format,
+								static_cast<const uint8_t*>(ptr), len0))
+	{
+		Id3CallbackData* id3Metadata = new Id3CallbackData;
+		id3Metadata->_this = this;
+		id3Metadata->len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
+		if (id3Metadata->len) {
+			id3Metadata->data = (uint8_t*)g_malloc(id3Metadata->len);
+			//TODO: Consider maximum length for ID3 data - spec allows 256MB
+			if (id3Metadata->data) {
+				memcpy(id3Metadata->data, ptr, id3Metadata->len);
+			}
+
+			privateContext->id3MetadataCallbackTaskPending = true;
+			privateContext->id3MetadataCallbackIdleTaskId = g_idle_add(IdleCallbackOnId3Metadata, id3Metadata);
+		}
+	}
+
 	gboolean discontinuity = FALSE;
 	size_t maxBytes;
 	GstFlowReturn ret;
@@ -1863,7 +1996,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	}
 	if (eMEDIATYPE_VIDEO == mediaType)
 	{
-		if (isFirstBuffer)
+		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
+		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
+		if (isFirstBuffer && !privateContext->using_westerossink)
 		{
 			aamp->NotifyFirstBufferProcessed();
 		}
@@ -1946,7 +2081,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
 	if (eMEDIATYPE_VIDEO == mediaType)
 	{
-		if (isFirstBuffer)
+		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
+		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
+		if (isFirstBuffer && !privateContext->using_westerossink)
 		{
 			aamp->NotifyFirstBufferProcessed();
 		}
@@ -2219,6 +2356,13 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		g_source_remove(privateContext->firstFrameCallbackIdleTaskId);
 		privateContext->firstFrameCallbackIdleTaskPending = false;
 		privateContext->firstFrameCallbackIdleTaskId = 0;
+	}
+	if (this->privateContext->id3MetadataCallbackTaskPending)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove id3MetadataCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->id3MetadataCallbackIdleTaskId);
+		g_source_remove(privateContext->id3MetadataCallbackIdleTaskId);
+		privateContext->id3MetadataCallbackTaskPending = false;
+		privateContext->id3MetadataCallbackIdleTaskId = 0;
 	}
 	if (this->privateContext->pipeline)
 	{
@@ -2512,19 +2656,32 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 /**
  * @brief To pause/play pipeline
  * @param[in] Pause flag to pause/play the pipeline
+ * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
  * @retval true if content successfully paused
  */
-bool AAMPGstPlayer::Pause( bool pause )
+bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 {
 	bool retValue = true;
 
 	aamp->SyncBegin();
 
-	logprintf("entering AAMPGstPlayer_Pause");
+	logprintf("entering AAMPGstPlayer_Pause - pause(%d) stop-pre-buffering(%d)", pause, forceStopGstreamerPreBuffering);
 
 	if (privateContext->pipeline != NULL)
 	{
 		GstState nextState = pause ? GST_STATE_PAUSED : GST_STATE_PLAYING;
+
+		if (GST_STATE_PAUSED == nextState && forceStopGstreamerPreBuffering)
+		{
+			/* maybe in a timing case during the playback start,
+			 * gstreamer pre buffering and underflow buffering runs simultaneously and 
+			 * it will end up pausing the pipeline due to buffering_target_state has the value as GST_STATE_PAUSED.
+			 * To avoid this case, stopping the gstreamer pre buffering logic by setting the buffering_in_progress to false
+			 * and the resume play will be handled from StopBuffering once after getting enough buffer/frames.
+			 */
+			privateContext->buffering_in_progress = false;
+		}
+
 		gst_element_set_state(this->privateContext->pipeline, nextState);
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
@@ -3262,7 +3419,10 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 #endif
 		if (stopBuffering)
 		{
-			if( true != aamp->PausePipeline(false) )
+#if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
+			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+#endif
+			if( true != aamp->PausePipeline(false, false) )
 			{
 				AAMPLOG_ERR("%s(): Failed to un-pause pipeline for stop buffering!", __FUNCTION__);
 			}
@@ -3273,9 +3433,13 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	        }
 		else
 		{
+			static int bufferLogCount = 0;
+			if (0 == (bufferLogCount++ % 10) )
+			{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-			AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+				AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
 #endif
+			}
 		}
 	}
 	pthread_mutex_unlock(&mBufferingLock);

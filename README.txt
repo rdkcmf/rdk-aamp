@@ -132,7 +132,7 @@ map-mpd -	remap production linear/vod content to corresponding dash lanes
     map-mpd=3 //Replace all national channels' hostnames with `ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net`
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
-min-vod-cache	Vod duration to be cached before playing in seconds.
+min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
 manifestTimeout=<manifest download time out> Specify manifest download time out in seconds, default is 10 seconds
 playlistTimeout=<playlist download time out> Specify playlist download time out in seconds, default is 10 seconds
@@ -206,7 +206,7 @@ minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
-
+use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

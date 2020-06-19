@@ -46,6 +46,27 @@ typedef enum
 } TrackType;
 
 /**
+ * @brief Structure holding the resolution of stream
+ */
+struct StreamResolution
+{
+	int width;      /**< Width in pixels*/
+	int height;     /**< Height in pixels*/
+	double framerate; /**< Frame Rate */
+};
+
+/**
+ * @brief Structure holding the information of a stream.
+ */
+struct StreamInfo
+{
+	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
+	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
+	StreamResolution resolution;    /**< Resolution of the stream*/
+	BitrateChangeReason reason;	/**< Reason for bitrate change*/
+};
+
+/**
  * @brief Structure of cached fragment data
  *        Holds information about a cached fragment
  */
@@ -59,6 +80,7 @@ struct CachedFragment
 #ifdef AAMP_DEBUG_INJECT
 	std::string uri;   /**< Fragment url */
 #endif
+	StreamInfo cacheFragStreamInfo; /**< Bitrate info of the fragment */
 };
 
 /**
@@ -275,6 +297,13 @@ public:
 	 */
 	bool CheckForFutureDiscontinuity(double &cacheDuration);
 
+	/**
+	* @brief Called if sink buffer is full
+	*
+	* @return void
+	*/
+	void OnSinkBufferFull();
+
 protected:
 
 	/**
@@ -307,7 +336,6 @@ protected:
 	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
-
 
 	static int GetDeferTimeMs(long maxTimeSeconds);
 
@@ -348,7 +376,8 @@ private:
 	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
 	bool bufferMonitorThreadStarted;    /**< Buffer Monitor thread started or not */
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
-	int cacheDurationSeconds;           /**< Total fragment cache duration*/
+	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
+	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
 	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
@@ -359,27 +388,6 @@ private:
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
 
-};
-
-
-/**
- * @brief Structure holding the resolution of stream
- */
-struct StreamResolution
-{
-	int width;      /**< Width in pixels*/
-	int height;     /**< Height in pixels*/
-	double framerate; /**< Frame Rate */
-};
-
-/**
- * @brief Structure holding the information of a stream.
- */
-struct StreamInfo
-{
-	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
-	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
-	StreamResolution resolution;    /**< Resolution of the stream*/
 };
 
 /**
@@ -619,16 +627,17 @@ public:
 	 *   Used internally by injection logic
 	 *
 	 *   @param[in]  profileIndex - profile index of last injected fragment.
+	 *   @param[in]  cacheFragStreamInfo - stream info for the last injected fragment.
 	 *   @return void
 	 */
-	void NotifyBitRateUpdate(int profileIndex);
-
+	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
+	
 	/**
 	 *   @brief Fragment Buffering is required before playing.
 	 *
 	 *   @return true if buffering is required.
 	 */
-	bool IsFragmentBufferingRequired() { return false; }
+	virtual bool IsFragmentBufferingRequired();
 
 	/**
 	 *   @brief Whether we are playing at live point or not.
@@ -879,6 +888,21 @@ public:
 	 */
 	void CheckForMediaTrackInjectionStall(TrackType type);
 
+	/**
+	 *   @brief Get buffered video duration in seconds
+	 *
+	 *   @return duration of currently buffered video in seconds
+	 */
+	double GetBufferedVideoDurationSec();
+
+	/**
+	 *   @brief Function to update stream info of current fetched fragment
+	 *
+	 *   @param[in]  profileIndex - profile index of current fetched fragment
+	 *   @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
+	 */
+	void UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo);
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -922,6 +946,7 @@ private:
 	long mNwConsistencyBypass;          /**< Network consistency bypass**/
 	int mABRHighBufferCounter;	    /**< ABR High buffer counter */
 	int mABRLowBufferCounter;	    /**< ABR Low Buffer counter */
+	int mMaxBufferCountCheck;
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 
@@ -932,6 +957,7 @@ private:
 	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
 	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
 	int mRampDownLimit;		/**< stores ramp down limit value */
+	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;

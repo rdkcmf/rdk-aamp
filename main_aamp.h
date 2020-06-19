@@ -95,6 +95,7 @@ typedef enum
 	AAMP_EVENT_AD_PLACEMENT_ERROR,  /**< Ad playback error */
 	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
 	AAMP_EVENT_REPORT_METRICS_DATA,       /**< AAMP VideoEnd info reporting */
+	AAMP_EVENT_ID3_METADATA,		/**< ID3 metadata from audio stream */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -127,6 +128,8 @@ typedef enum
 	AAMP_TUNE_INIT_FAILED_MANIFEST_DNLD_ERROR,	/**< Tune failure due to manifest download error*/
 	AAMP_TUNE_INIT_FAILED_MANIFEST_CONTENT_ERROR,	/**< Tune failure due to manifest content error*/
 	AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR,	/**< Tune failure due to manifest parse error*/
+	AAMP_TUNE_INIT_FAILED_PLAYLIST_VIDEO_DNLD_ERROR,	/**<Tune failure due to video playlist download error*/
+	AAMP_TUNE_INIT_FAILED_PLAYLIST_AUDIO_DNLD_ERROR,	/**<Tune failure due to audio playlist download error*/
 	AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR, 	/**< Tune failure due to A/V track sync error*/
 	AAMP_TUNE_MANIFEST_REQ_FAILED,          /**< Tune failure caused by manifest fetch failure*/
 	AAMP_TUNE_AUTHORISATION_FAILURE,        /**< Not authorised to view the content*/
@@ -264,6 +267,7 @@ struct AAMPEvent
 			double startMiliseconds;    /**< time shift buffer start position (relative to tune time - starts at zero) */
 			double endMiliseconds;      /**< time shift buffer end position (relative to tune time - starts at zero) */
 			long long videoPTS; 		/**< Video Presentation 90 Khz time-stamp  */
+			double videoBufferedMiliseconds;	/**< current duration of buffered video ready to playback */
 		} progress;
 
 		/**
@@ -293,6 +297,7 @@ struct AAMPEvent
 			int width;                  /**< Video width */
 			int height;                 /**< Video height */
 			double framerate;			/**< FrameRate */
+			double position;        /**< bitrate changed position*/
 		} bitrateChanged;
 
 		/**
@@ -372,6 +377,7 @@ struct AAMPEvent
 			const char *accessStatus;
 			int accessStatus_value;
 			long responseCode;
+			bool isSecClientError;
 		} dash_drmmetadata;
 
 		/**
@@ -438,6 +444,14 @@ struct AAMPEvent
 			uint32_t duration;
 			int errorCode;
 		} adPlacement;
+
+		/** @brief Structure of the id3 metadata event
+		 */
+		struct
+		{
+			uint8_t* data;		/**< Data pointer to ID3 metadata blob */
+			int32_t length;		/**< Length of the ID3 metadata blob */
+		} id3Metadata;
 	} data;
 
 	std::vector<std::string> additionalEventData;
@@ -529,6 +543,15 @@ enum MediaType
 	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
 	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
+};
+
+enum MediaTypeTelemetry
+{
+	eMEDIATYPE_TELEMETRY_AVS,		/**< Type audio, video or subtitle */
+	eMEDIATYPE_TELEMETRY_DRM,		/**< Type DRM license */
+	eMEDIATYPE_TELEMETRY_INIT,		/**< Type audio or video init fragment */
+	eMEDIATYPE_TELEMETRY_MANIFEST,		/**< Type main or sub manifest file */
+	eMEDIATYPE_TELEMETRY_UNKNOWN,		/**< Type unknown*/
 };
 
 /**
@@ -719,10 +742,11 @@ public:
 	/**
 	 *   @brief Enabled or disable playback pause
 	 *
-	 *   @param[in]  pause  Enable/Disable
+	 *   @param[in] pause  Enable/Disable
+	 *   @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
 	 *   @return true if content successfully paused
 	 */
-	virtual bool Pause(bool pause){ return true; }
+	virtual bool Pause(bool pause, bool forceStopGstreamerPreBuffering){ return true; }
 
 	/**
 	 *   @brief Get playback position in milliseconds
@@ -915,9 +939,11 @@ public:
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  autoPlay - Start playback immediately or not
 	 *   @param[in]  contentType - Content type of the asset
+	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 *   @return void
 	 */
-	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL);
+	void Tune(const char *mainManifestUrl, bool autoPlay = true, const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false,const char *traceUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 *   @brief Stop playback and release resources.
@@ -1416,6 +1442,23 @@ public:
 	 *   @return void
 	*/
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *   @brief Set Matching BaseUrl Config Configuration
+	 *
+	 *   @param[in] bValue - true if Matching BaseUrl enabled
+	 *   @return void
+	 */
+	void SetMatchingBaseUrlConfig(bool bValue);
+
+	/**
+	 *   @brief Sends an ID3 metadata event.
+	 *
+	 *   @param[in] data pointer to ID3 metadata
+	 *   @param[in] length length of ID3 metadata
+	 */
+	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
@@ -1505,6 +1548,12 @@ public:
 	 *
 	 */
 	void SetSegmentDecryptFailCount(int value);
+
+	/**
+	 * @brief Set initial buffer duration in seconds
+	 *
+	 */
+	void SetInitialBufferDuration(int durationSec);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # audio generation requires following installs:
-# npm install -g  google-translate-cli
 # pip3 install gtts
 
 WIDTH=(640 842 1280 1920)
@@ -88,18 +87,22 @@ LANG=(en fr de es pl)
 LANG_FULL_NAME=(English French German Spanish Polish)
 NUMBER=(zero one two three four five six seven eight nine ten)
 AUDIO_PATH='audio'
+TRANSLATIONS=(English one two three four five six seven eight nine ten
+    Française une deux trois quatre cinq six sept huit neuve dix
+    Deutsche eins zwei drei vier fünf sechs sieben acht neun zehn
+    Española una dos tres cuatro cinco seis siete ocho nueve diez
+    Polskie jeden dwa trzy cztery pięć sześć siedem osiem dziewięć dziesięć)
 ​
 for (( I=0; I<${#LANG[@]}; I++ ))
 do
     echo
     echo ${LANG[$I]}":"
-    mkdir -p $AUDIO_PATH/${LANG[$I]} 
-​
+    mkdir -p $AUDIO_PATH/${LANG[$I]}
+
     OUT=${AUDIO_PATH}/${LANG[$I]}/${LANG[$I]}
-    translate "${LANG_FULL_NAME[$I]}" -s en -t ${LANG[$I]} > ${OUT}.txt
-    TEXT=$(cat ${OUT}.txt)
+
+    TEXT=${TRANSLATIONS[$((11*I))]}
     echo $TEXT
-    rm ${OUT}.txt
     gtts-cli "$TEXT" --lang ${LANG[$I]} --output ${OUT}.mp3
     # align to 2sec:
     # - add 2sec of silence to the end
@@ -111,12 +114,11 @@ do
 
     # add on the top of index.txt
     echo "file ${LANG[$I]}.wav" > $AUDIO_PATH/${LANG[$I]}/index.txt
-​
+
     for J in {1..10}
     do
         OUT=${AUDIO_PATH}/${LANG[$I]}/${J}
-        translate "${NUMBER[$J]}" -s en -t ${LANG[$I]} > ${OUT}.txt
-        TEXT=$(cat ${OUT}.txt)
+        TEXT=${TRANSLATIONS[$((11*I+J))]}
         echo $TEXT
         gtts-cli "$TEXT" --lang ${LANG[$I]} --output ${OUT}.mp3
         # align each number to 1sec duration filled with silience at the end:
@@ -125,7 +127,7 @@ do
         # - cut to 1 sec
         ffmpeg -hide_banner -y -i ${OUT}_temp.wav -t 1  ${OUT}.wav
         # cleanup
-        rm ${OUT}_temp.wav ${OUT}.txt ${OUT}.mp3 
+        rm ${OUT}_temp.wav ${OUT}.mp3
     done
 
     #prepare index of 15min track

@@ -62,7 +62,7 @@ var defaultInitConfig = {
     /**
      * manifest request timeout (seconds)
      */
-    manifestTimeout: 0.5,
+    //manifestTimeout: 0.5,
     /**
      * manifest request timeout (seconds)
      */
@@ -186,6 +186,13 @@ var defaultInitConfig = {
      * max attempts for init frag curl timeout failures
      */
     //initFragmentRetryCount: 3
+    
+    /**
+     * Enabling use of matching base url, whenever there are multiple base urls are available, 
+     * with this option base url for which host of main tune url if matching is selected, 
+     * if not then first base url is selected ( default behavior ) 
+     */
+    //useMatchingBaseUrl : true
 };
 
 var playerState = playerStatesEnum.idle;
@@ -217,28 +224,31 @@ function playbackStateChanged(event) {
             console.log("Available audio tracks: " + playerObj.getAvailableAudioTracks());
             console.log("Available text tracks: " + playerObj.getAvailableTextTracks());
 
-            // Remove exsisting options in list
-            if(ccTracks.options.length) {
-                for(itemIndex = ccTracks.options.length; itemIndex >= 0; itemIndex--) {
-                    ccTracks.remove(itemIndex);
+            if(playerObj.getAvailableTextTracks() != undefined)
+            {
+                // Remove exsisting options in list
+                if(ccTracks.options.length) {
+                    for(itemIndex = ccTracks.options.length; itemIndex >= 0; itemIndex--) {
+                        ccTracks.remove(itemIndex);
+                    }
                 }
-            }
 
-            var textTrackList = JSON.parse((playerObj.getAvailableTextTracks()));
-            // Parse only the closed captioning tracks
-            var closedCaptioningList = [];
-            for(track=0; track<textTrackList.length;track++) {
-                if(textTrackList[track].type === "CLOSED-CAPTIONS") {
-                    closedCaptioningList.push(textTrackList[track].name);
+                var textTrackList = JSON.parse((playerObj.getAvailableTextTracks()));
+                // Parse only the closed captioning tracks
+                var closedCaptioningList = [];
+                for(track=0; track<textTrackList.length;track++) {
+                    if(textTrackList[track].type === "CLOSED-CAPTIONS") {
+                        closedCaptioningList.push(textTrackList[track].name);
+                    }
                 }
-            }
 
-            // Iteratively adding all the options to ccTracks
-            for (var trackNo = 1; trackNo <= closedCaptioningList.length; trackNo++) {
-                var option = document.createElement("option");
-                option.value = trackNo;
-                option.text = closedCaptioningList[trackNo-1];
-                ccTracks.add(option);
+                // Iteratively adding all the options to ccTracks
+                for (var trackNo = 1; trackNo <= closedCaptioningList.length; trackNo++) {
+                    var option = document.createElement("option");
+                    option.value = trackNo;
+                    option.text = closedCaptioningList[trackNo-1];
+                    ccTracks.add(option);
+                }
             }
 
             break;
@@ -292,6 +302,11 @@ function bitrateChanged(event) {
 
 function mediaPlaybackFailed(event) {
     console.log("Media failed event: " + JSON.stringify(event));
+
+    playerObj.stop();
+    document.getElementById('errorContent').innerHTML = event.description;
+    document.getElementById('errorModal').style.display = "block";
+
     //Uncomment below line to auto play next asset on playback failure
     //loadNextAsset();
 }
@@ -331,7 +346,7 @@ function subscribedTagNotifier(event) {
             placementRequest: {
                 id: "ad1",
                 pts: 0,
-                url: "http://ccr.ip-ads.xcr.comcast.net/omg07/346241094255/nbcuni.comNBCU2019010200010506/HD_VOD_DAI_QAOA5052100H_0102_LVLH06.mpd"
+                url: "http://cdn-ec-pan-02.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/453393990093/5a60d158-b057-4636-92ac-0d2ec324dd87/263/209/CSNR8803918400100001_mezz_LVLH07.mpd"
             }
         };
         // According to scte-35 duration, multiple reservation Objects with different/same ad urls and unique ad IDs can be passed to setAlternateContent.
@@ -367,6 +382,11 @@ function placementEnd(event) {
 function reservationEnd(event) {
     // Event marks the end of a reservation/ad break
     console.log("ReservationEnd event: " + JSON.stringify(event));
+}
+
+function id3Metadata(event) {
+    // Event when ID3 metadata received
+    console.log("id3Metadata event: " + JSON.stringify(event));
 }
 
 function mediaProgressUpdate(event) {
@@ -469,6 +489,7 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("reservationEnd", reservationEnd);
     newPlayer.addEventListener("seeked", playbackSeeked);
     newPlayer.addEventListener("tuneProfiling", tuneProfiling);
+    newPlayer.addEventListener("id3Metadata", id3Metadata);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
     return newPlayer;

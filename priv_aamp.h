@@ -72,7 +72,8 @@ static const char *mMediaFormatName[] =
 #define TRICKPLAY_TSB_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
-#define DEFAULT_MINIMUM_CACHE_VOD_SECONDS  0        /**< Default cache size of VOD playback */
+#define DEFAULT_MINIMUM_INIT_CACHE_SECONDS  0        /**< Default initial cache size of playback */	
+#define MINIMUM_INIT_CACHE_NOT_OVERRIDDEN  -1        /**< Initial cache size not overridden by aamp.cfg */
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
 #define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life */
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
@@ -142,9 +143,12 @@ static const char *mMediaFormatName[] =
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 #define DEFAULT_PRECACHE_WINDOW (10) 	// 10 mins for full precaching
-
 #define DEFAULT_DOWNLOAD_RETRY_COUNT (1)		// max download failure retry attempt count
-
+// These error codes are used internally to identify the cause of error from GetFile
+#define PARTIAL_FILE_CONNECTIVITY_AAMP (130)
+#define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (131)
+#define OPERATION_TIMEOUT_CONNECTIVITY_AAMP (132)
+#define PARTIAL_FILE_START_STALL_TIMEOUT_AAMP (133)
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -257,6 +261,8 @@ enum AAMPStatusType
 	eAAMPSTATUS_OK,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
+	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
+	eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR,
 	eAAMPSTATUS_MANIFEST_PARSE_ERROR,
 	eAAMPSTATUS_MANIFEST_CONTENT_ERROR,
 	eAAMPSTATUS_MANIFEST_INVALID_TYPE,
@@ -287,6 +293,22 @@ enum CurlAbortReason
 	eCURL_ABORT_REASON_STALL_TIMEDOUT,
 	eCURL_ABORT_REASON_START_TIMEDOUT
 };
+
+/**
+ * @brief Different reasons for bitrate change
+ */
+typedef enum
+{
+	eAAMP_BITRATE_CHANGE_BY_ABR = 0,
+	eAAMP_BITRATE_CHANGE_BY_RAMPDOWN = 1,
+	eAAMP_BITRATE_CHANGE_BY_TUNE = 2,
+	eAAMP_BITRATE_CHANGE_BY_SEEK = 3,
+	eAAMP_BITRATE_CHANGE_BY_TRICKPLAY = 4,
+	eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL = 5,
+	eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY = 6,
+	eAAMP_BITRATE_CHANGE_BY_FOG_ABR = 7,
+	eAAMP_BITRATE_CHANGE_MAX = 8
+} BitrateChangeReason;
 
 
 /**
@@ -589,7 +611,7 @@ public:
 	long playlistTimeoutMs;                 /**< Playlist download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	bool useLinearSimulator;				/**< Simulate linear stream from VOD asset*/
-	int minVODCacheSeconds;                 /**< Minimum VOD caching duration in seconds*/
+	int minInitialCacheSeconds;             /**< Minimum cached duration before playing in seconds*/
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
 	int abrCacheLength;                     /**< Adaptive bitrate cache length*/
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
@@ -654,6 +676,7 @@ public:
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
+	TriState useMatchingBaseUrl;
 	int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
@@ -679,7 +702,7 @@ public:
 		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
-		licenseAnonymousRequest(false), minVODCacheSeconds(DEFAULT_MINIMUM_CACHE_VOD_SECONDS), useLinearSimulator(false),
+		licenseAnonymousRequest(false), minInitialCacheSeconds(MINIMUM_INIT_CACHE_NOT_OVERRIDDEN), useLinearSimulator(false),
 		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
 		preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
 		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
@@ -733,6 +756,7 @@ public:
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
+		,useMatchingBaseUrl(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -781,6 +805,13 @@ extern GlobalConfigAAMP *gpGlobalConfig;
 bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
 /**
+ * @brief extract host string from url.
+ * @param url - Input URL
+ * @retval - host of input url
+ */
+std::string aamp_getHostFromURL(std::string url);
+
+/**
  * @brief Create file URL from the base and file path
  *
  * @param[out] dst - Created URL
@@ -804,6 +835,16 @@ long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_T
  * @return void
  */
 void aamp_Error(const char *msg);
+
+/**
+ * @brief Convert custom curl errors to original
+ *
+ * @param[in] http_error - Error code
+ * @return error code
+ */
+long aamp_GetOriginalCurlError(long http_error);
+
+MediaTypeTelemetry aamp_GetMediaTypeForTelemetry(MediaType type);
 
 /**
  * @brief AAMP's custom implementation of memory deallocation
@@ -1214,7 +1255,7 @@ public:
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName)
+	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId)
 	{
 		if(!enabled )
 		{
@@ -1228,11 +1269,11 @@ public:
 		memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
 		if (!appName.empty())
 		{
-			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "APP: %s IP_AAMP_TUNETIME", appName.c_str());
+			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] APP: %s IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId,appName.c_str());
 		}
 		else
 		{
-			strcpy(tuneTimeStrPrefix, "IP_AAMP_TUNETIME");
+			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId);
 		}
 
 		logprintf("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
@@ -1600,9 +1641,11 @@ public:
 	 * @param[in] contentType - Content Type
 	 * @param[in] bFirstAttempt - External initiated tune
 	 * @param[in] bFinalAttempt - Final retry/attempt.
+	 * @param[in] audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 * @return void
 	 */
-	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL);
+	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 * @brief The helper function which perform tuning
@@ -1664,9 +1707,10 @@ public:
 	 * @brief To pause/play the gstreamer pipeline
 	 *
 	 * @param[in] success - true for pause and false for play
+	 * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
 	 * @return true on success
 	 */
-	bool PausePipeline(bool pause);
+	bool PausePipeline(bool pause, bool forceStopGstreamerPreBuffering);
 
 	/**
 	 * @brief Convert media file type to profiler bucket type
@@ -1776,7 +1820,7 @@ public:
 	bool discardEnteringLiveEvt;
 	bool mIsRetuneInProgress;
 	pthread_cond_t mCondDiscontinuity;
-	gint mDiscontinuityTuneOperationId;
+	guint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
@@ -1802,6 +1846,9 @@ public:
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
+	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
+	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
+	                                in gst brcmaudiodecoder, default: True */
 
 	/**
 	 * @brief Curl initialization function
@@ -2019,10 +2066,10 @@ public:
 
 	/**
 	 * @brief Handles DRM errors and sends events to application if required.
-	 * @param[in] tuneFailure Reason of error
-	 * @param[in] error_code Drm error code (http, curl or secclient)
+	 * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
+	 * @param[in] isRetryEnabled drm retry enabled
 	 */
-	void SendDrmErrorEvent(AAMPTuneFailure tuneFailure,long error_code, bool isRetryEnabled = true);
+	void SendDrmErrorEvent(AAMPEvent *event = NULL, bool isRetryEnabled = true);
 
 	/**
 	 * @brief Handles download errors and sends events to application if required.
@@ -2063,22 +2110,23 @@ public:
 	 * @brief Notify speed change
 	 *
 	 * @param[in] rate - New speed
+	 * @param[in] changeState - true if state change to be done, false otherwise (default = true)
 	 * @return void
 	 */
-	void NotifySpeedChanged(int rate);
+	void NotifySpeedChanged(int rate, bool changeState = true);
 
 	/**
 	 * @brief Notify bit rate change
 	 *
 	 * @param[in] bitrate - New bitrate
-	 * @param[in] description - Description
+	 * @param[in] reason - Bitrate change reason
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
  	 * @param[in] framerate - FRAME-RATE from manifest
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate , const char *description ,int width ,int height,double framerate, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false);
 
 	/**
 	 * @brief Notify when end of stream reached
@@ -2641,7 +2689,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsPending(gint id);
+	void SetCallbackAsPending(guint id);
 
 	/**
 	 *   @brief Set callback as event dispatched
@@ -2649,7 +2697,7 @@ public:
 	 *   @param[in] id - Callback id.
 	 *   @return void
 	 */
-	void SetCallbackAsDispatched(gint id);
+	void SetCallbackAsDispatched(guint id);
 
 
 	/**
@@ -3333,6 +3381,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *   @brief Set Matching BaseUrl Config Configuration
+	 *
+	 *   @param[in] bValue - true if Matching BaseUrl enabled
+	 *   @return void
+	 */
+	void SetMatchingBaseUrlConfig(bool bValue);
+
+	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
 	 *
@@ -3396,6 +3452,29 @@ public:
 	 *   @return void
 	 */
 	void SetAppName(std::string name);
+
+	/*
+	*   @brief Get the application name
+	*
+	*   @return string application name
+	*/
+	std::string GetAppName();
+
+	/**
+	 *   @brief Sends an ID3 metadata event.
+	 *
+	 *   @param[in] data pointer to ID3 metadata
+	 *   @param[in] length length of ID3 metadata
+	 */
+	void SendId3MetadataEvent(uint8_t* data, int32_t length);
+
+	/**
+	 * @brief Gets the registration status of a given event
+	 * @param[in] eventType - type of the event to be checked
+	 *
+	 * @retval bool - True if event is registered
+	 */
+	bool GetEventListenerStatus(AAMPEventType eventType);
 
 	/**
 	 * @brief Check if track can inject data into GStreamer.
@@ -3462,6 +3541,22 @@ public:
 	 */
 	long GetMinimumBitrate();
 
+	/* End AampDrmCallbacks implementation */
+
+	/**
+	 *   @brief Set initial buffer duration in seconds
+	 *
+	 *   @return void
+	 */
+	void SetInitialBufferDuration(int durationSec);
+
+	/**
+	 *   @brief Get current initial buffer duration in seconds
+	 *
+	 *   @return void
+	 */
+	int GetInitialBufferDuration();
+
 private:
 
 	/**
@@ -3510,6 +3605,13 @@ private:
      */
 	std::string GetContentTypString();
 
+	/**
+	 *   @brief Notify about sink buffer full
+	 *
+	 *   @return void
+ 	 */
+	void NotifySinkBufferFull(MediaType type);
+
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
 	int m_fd;
@@ -3531,7 +3633,7 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
-	std::map<gint, bool> mPendingAsyncEvents;
+	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
@@ -3561,6 +3663,7 @@ private:
 	AampCacheHandler *mAampCacheHandler;
 	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
+	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 };
 
 #endif // PRIVAAMP_H

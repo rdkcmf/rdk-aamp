@@ -28,6 +28,7 @@
 #include <math.h>
 #include <iterator>
 #include <sys/time.h>
+#include <cmath>
 
 #ifdef USE_MAC_FOR_RANDOM_GEN
 #include <sys/types.h>
@@ -217,6 +218,7 @@ void MediaTrack::UpdateTSAfterFetch()
 	bool notifyCacheCompleted = false;
 	pthread_mutex_lock(&mutex);
 	cachedFragment[fragmentIdxToFetch].profileIndex = GetContext()->profileIdxForBandwidthNotification;
+	GetContext()->UpdateStreamInfoBitrateData(cachedFragment[fragmentIdxToFetch].profileIndex, cachedFragment[fragmentIdxToFetch].cacheFragStreamInfo);
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -225,28 +227,6 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 #endif
 	totalFetchedDuration += cachedFragment[fragmentIdxToFetch].duration;
-
-	if((eTRACK_VIDEO == type) && aamp->IsFragmentBufferingRequired())
-	{
-		if(!notifiedCachingComplete)
-		{
-			cacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
-			if(cacheDurationSeconds >= gpGlobalConfig->minVODCacheSeconds)
-			{
-				logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
-				notifyCacheCompleted = true;
-			}
-			else
-			{
-				logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minVODCacheSeconds %d##", __FUNCTION__, __LINE__, name, cacheDurationSeconds, gpGlobalConfig->minVODCacheSeconds);
-			}
-		}
-	}
-	fragmentIdxToFetch++;
-	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
-	{
-		fragmentIdxToFetch = 0;
-	}
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -258,6 +238,36 @@ void MediaTrack::UpdateTSAfterFetch()
 #endif
 	numberOfFragmentsCached++;
 	assert(numberOfFragmentsCached <= gpGlobalConfig->maxCachedFragmentsPerTrack);
+
+	if( (eTRACK_VIDEO == type)
+			&& aamp->IsFragmentBufferingRequired()
+			&& !notifiedCachingComplete)
+	{
+		currentInitialCacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
+		const int minInitialCacheSeconds = aamp->GetInitialBufferDuration();
+		if(currentInitialCacheDurationSeconds >= minInitialCacheSeconds)
+		{
+			logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minInitialCacheSeconds %d##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+			notifyCacheCompleted = true;
+		}
+		else if (sinkBufferIsFull && numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
+		{
+			logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+			notifyCacheCompleted = true;
+		}
+		else
+		{
+			logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d##",
+					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+		}
+	}
+	fragmentIdxToFetch++;
+	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
+	{
+		fragmentIdxToFetch = 0;
+	}
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
@@ -473,7 +483,6 @@ void MediaTrack::AbortWaitForCachedFragment()
 	GetContext()->AbortWaitForDiscontinuity();
 }
 
-
 /**
  * @brief Inject next cached fragment
  */
@@ -571,7 +580,7 @@ bool MediaTrack::InjectFragment()
 				}
 				if (eTRACK_VIDEO == type)
 				{
-					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex);
+					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
 				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
 				if (!fragmentDiscarded)
@@ -813,8 +822,8 @@ int MediaTrack::GetCurrentBandWidth()
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), bufferMonitorThreadID(0), totalFragmentsDownloaded(0),
-		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), cacheDurationSeconds(0),
-		notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), currentInitialCacheDurationSeconds(0),
+		sinkBufferIsFull(false), notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
@@ -949,9 +958,10 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),
+		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(gpGlobalConfig->abrCacheLength),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
-		mRampDownLimit(-1), mRampDownCount(0)
+		mRampDownLimit(-1), mRampDownCount(0),
+		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE)
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
@@ -969,6 +979,11 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
 	}
 	mRampDownLimit = aamp->mRampDownLimit;
+
+	if (!aamp->IsNewTune())
+	{
+		mBitrateReason = (aamp->rate != AAMP_NORMAL_PLAY_RATE) ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK;
+	}
 }
 
 
@@ -1036,35 +1051,60 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
  *
  *   @param[in]  profileIndex - profile index of last injected fragment.
  */
-void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex)
+void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position)
 {
 	if (profileIndex != aamp->GetPersistedProfileIndex())
 	{
-		StreamInfo* streamInfo = GetStreamInfo(profileIndex);
+		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
 
 		bool lGetBWIndex = false;
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		if(aamp->IsTuneTypeNew &&
-			streamInfo->bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
+		if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
 		{
 			MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f",
-				streamInfo->bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
+			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f", cacheFragStreamInfo.bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
 			aamp->IsTuneTypeNew = false;
 			lGetBWIndex = true;
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 		// Send bitrate notification
-		aamp->NotifyBitRateChangeEvent(streamInfo->bandwidthBitsPerSecond,
-				"BitrateChanged - Network Adaptation", streamInfo->resolution.width,
-				streamInfo->resolution.height, streamInfo->resolution.framerate, lGetBWIndex);
+		aamp->NotifyBitRateChangeEvent(cacheFragStreamInfo.bandwidthBitsPerSecond,
+				cacheFragStreamInfo.reason, cacheFragStreamInfo.resolution.width,
+				cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, position, lGetBWIndex);
 		// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 		aamp->SetPersistedProfileIndex(profileIndex);
 	}
 }
 
+bool StreamAbstractionAAMP::IsFragmentBufferingRequired()
+{
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	return (video
+			&& video->enabled
+			&& aamp->rate == AAMP_NORMAL_PLAY_RATE
+			&& aamp->GetInitialBufferDuration() > 0);
+}
+/**
+ *	 @brief Function to update stream info of current fetched fragment
+ *
+ *	 @param[in]  profileIndex - profile index of current fetched fragment
+ *	 @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
+ */
+void StreamAbstractionAAMP::UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo)
+{
+	StreamInfo* streamInfo = GetStreamInfo(profileIndex);
 
+	if (streamInfo)
+	{
+		cacheFragStreamInfo.bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond;
+		cacheFragStreamInfo.reason = mBitrateReason;
+		cacheFragStreamInfo.resolution.height = streamInfo->resolution.height;
+		cacheFragStreamInfo.resolution.framerate = streamInfo->resolution.framerate;
+		cacheFragStreamInfo.resolution.width = streamInfo->resolution.width;
+		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
+	}
+}
 
 /**
  * @brief Update profile state based on bandwidth of fragments downloaded
@@ -1083,6 +1123,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 		GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
+		mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
 	}
 }
 
@@ -1114,8 +1155,11 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 		else
 		{
 			// Rampdown attempt. check if buffer availability is good before profile change
+			// Also if delta of current profile to new profile is 1 , then ignore the change
+			// if bigger rampdown , then adjust to new profile 
 			// else retain current profile
-			if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
+			double minBufferNeeded = video->fragmentDurationSeconds + aamp->mNetworkTimeoutMs/1000;
+			if(bufferValue > minBufferNeeded && mAbrManager.getRampedDownProfileIndex(currProfileIndex) == newProfileIndex)
 				newProfileIndex = currProfileIndex;
 		}
 	}
@@ -1129,17 +1173,24 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
 		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
-		if(bufferValue > gpGlobalConfig->minABRBufferForRampDown)
+		if(bufferValue > gpGlobalConfig->maxABRBufferForRampUp)
 		{
 			mABRHighBufferCounter++;
 			mABRLowBufferCounter = 0 ;
-			if(mABRHighBufferCounter > gpGlobalConfig->abrCacheLength)
+			if(mABRHighBufferCounter > mMaxBufferCountCheck)
 			{
-				newProfileIndex =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				int nProfileIdx =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				long newBandwidth = GetStreamInfo(nProfileIdx)->bandwidthBitsPerSecond;
+				if(newBandwidth - nwBandwidth < 2000000)
+					newProfileIndex = nProfileIdx;
 				if(newProfileIndex  != currProfileIndex)
 				{
-					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
+					static int loop = 1;
+					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f",__FUNCTION__,
 					currProfileIndex,newProfileIndex,bufferValue);
+					loop = (++loop >4)?1:loop;
+					mMaxBufferCountCheck =  pow(gpGlobalConfig->abrCacheLength ,loop);
+					mBitrateReason = eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL;
 				}
 				// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
 				// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
@@ -1160,6 +1211,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 				{
 					logprintf("%s Attempted rampdown from steady state with low buffer ->currProf:%d newProf:%d bufferValue:%f ",__FUNCTION__,
 					currProfileIndex,newProfileIndex,bufferValue);
+					mBitrateReason = eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY;
 				}
 				mABRLowBufferCounter = 0 ;
 			}
@@ -1237,7 +1289,13 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 	{
 		int tmpIframeProfile = GetIframeTrack();
 		if(tmpIframeProfile != ABRManager::INVALID_PROFILE)
+		{
+			if (currentProfileIndex != tmpIframeProfile)
+			{
+				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_ABR;
+			}
 			desiredProfileIndex = tmpIframeProfile;
+		}
 	}
 	/*In live, fog takes care of ABR, and cache updating is not based only on bandwidth,
 	 * but also depends on fragment availability in CDN*/
@@ -1251,6 +1309,12 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 				currentBandwidth, networkBandwidth, nwConsistencyCnt);
 
 		AAMPLOG_INFO("%s currBW:%ld NwBW=%ld currProf:%d desiredProf:%d",__FUNCTION__,currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex);
+		if (currentProfileIndex != desiredProfileIndex)
+		{
+			// There is a chance that desiredProfileIndex is reset in below GetDesiredProfileOnBuffer call
+			// Since bitrate notification will not be triggered in this case, its fine
+			mBitrateReason = eAAMP_BITRATE_CHANGE_BY_ABR;
+		}
 		// For first time after tune, not to check for buffer availability, go for existing method .
 		// during steady state run check the buffer for ramp up or ramp down
 		if(!mNwConsistencyBypass && aamp->mABRBufferCheckEnabled)
@@ -1258,11 +1322,11 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 			// Checking if frequent profile change happening
 			if(currentProfileIndex != desiredProfileIndex)	
 			{
-				GetDesiredProfileOnBuffer(currentProfileIndex,desiredProfileIndex);
+				GetDesiredProfileOnBuffer(currentProfileIndex, desiredProfileIndex);
 			}
 
 			// Now check for Fixed BitRate for longer time(valley)
-			GetDesiredProfileOnSteadyState(currentProfileIndex,desiredProfileIndex,networkBandwidth);
+			GetDesiredProfileOnSteadyState(currentProfileIndex, desiredProfileIndex, networkBandwidth);
 
 			// After ABR is done , next configure the timeouts for next downloads based on buffer
 			ConfigureTimeoutOnBuffer();
@@ -1335,9 +1399,12 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 		long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 		video->SetCurrentBandWidth(newBW);
 		aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
+		mBitrateReason = eAAMP_BITRATE_CHANGE_BY_RAMPDOWN;
 
 		// Send abr notification to XRE
 		video->ABRProfileChanged();
+		mABRLowBufferCounter = 0 ;
+		mABRHighBufferCounter = 0;
 	}
 
 	return ret;
@@ -1370,14 +1437,17 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 			{
 				retValue = true;
 			}
-		else if (RampDownProfile(http_error))
+			else if (RampDownProfile(http_error))
 			{
 				retValue = true;
 			}
 		}
 	}
+
 	if ((true == retValue) && (mRampDownLimit > 0))
+	{
 		mRampDownCount++;
+	}
 
 	return retValue;
 }
@@ -1539,6 +1609,8 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 		video->SetCurrentBandWidth(newBW);
 		aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
+		mABRLowBufferCounter = 0 ;
+		mABRHighBufferCounter = 0;
 		retVal = true;
 	}
 	return retVal;
@@ -1675,6 +1747,8 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 			long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 			video->SetCurrentBandWidth(newBW);
 			aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
+			mABRLowBufferCounter = 0 ;
+			mABRHighBufferCounter = 0;
 		}
 	}
 }
@@ -1997,6 +2071,37 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 	return ret;
 }
 
+void MediaTrack::OnSinkBufferFull()
+{
+	//check if we should stop initial caching here
+	if(sinkBufferIsFull)
+	{
+		return;
+	}
+
+	bool notifyCacheCompleted = false;
+
+	pthread_mutex_lock(&mutex);
+	sinkBufferIsFull = true;
+	// check if cache buffer is full and caching was needed
+	if( numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack
+			&& (eTRACK_VIDEO == type)
+			&& aamp->IsFragmentBufferingRequired()
+			&& !notifiedCachingComplete)
+	{
+		logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
+							__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, aamp->GetInitialBufferDuration());
+		notifyCacheCompleted = true;
+	}
+	pthread_mutex_unlock(&mutex);
+
+	if(notifyCacheCompleted)
+	{
+		aamp->NotifyFragmentCachingComplete();
+		notifiedCachingComplete = true;
+	}
+}
+
 /**
  *   @brief Function to process discontinuity.
  *
@@ -2132,8 +2237,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 			{
 				double duration = track->GetTotalInjectedDuration();
 				double otherTrackDuration = otherTrack->GetTotalInjectedDuration();
-				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f!",
-								__FUNCTION__, __LINE__, type, duration, otherTrackDuration);
+				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f!",
+								__FUNCTION__, __LINE__, type, duration, otherTrackDuration, track->fragmentDurationSeconds);
 				if (otherTrackDuration >= duration)
 				{
 					//Check for future discontinuity
@@ -2154,9 +2259,9 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					}
 					// If discontinuity is not seen in future fragments or if the unblocked track has finished more than 2 * fragmentDurationSeconds,
 					// unblock this track
-					else if (diff > (2 * track->fragmentDurationSeconds) || (cachedDuration > (2 * track->fragmentDurationSeconds)))
+					else if ((diff + cachedDuration) > (2 * track->fragmentDurationSeconds))
 					{
-						AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+						AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
 						if (aamp->mUseRetuneForUnpairedDiscontinuity && type != eTRACK_AUDIO)
 						{
@@ -2202,4 +2307,20 @@ bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
 		AAMPLOG_WARN("%s:%d Rampdown limit reached, Limit is %d", __FUNCTION__, __LINE__, mRampDownLimit);
 	}
 	return ret;
+}
+
+/**
+ *   @brief Get buffered video duration in seconds
+ *
+ *   @return duration of currently buffered video in seconds
+ */
+double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
+{
+	// do not support trickplay track
+	if(AAMP_NORMAL_PLAY_RATE != aamp->rate)
+	{
+		return -1.0;
+	}
+
+	return GetBufferedDuration();
 }
