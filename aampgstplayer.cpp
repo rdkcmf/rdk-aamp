@@ -997,7 +997,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 				}
 #endif
-#if defined(INTELCE) || (defined(__APPLE__))
+#if defined(INTELCE) || defined(RPI) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
 					_this->privateContext->firstFrameReceived = true;
@@ -1007,7 +1007,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				_this->aamp->NotifyFirstFrameReceived();
 #endif
 
-#if defined(INTELCE) || defined(__APPLE__)
+#if defined(INTELCE) || defined(RPI) || defined(__APPLE__)
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
