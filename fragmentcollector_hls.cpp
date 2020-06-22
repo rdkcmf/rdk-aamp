@@ -171,9 +171,9 @@ static size_t FindLineLength(const char* ptr);
 * @param prefix[in] Sub string to check
 * @return bool true/false
 ***************************************************************************/
-static bool startswith(char **pstring, const char *prefix)
+static bool startswith(const char **pstring, const char *prefix)
 {
-	char *string = *pstring;
+	const char *string = *pstring;
 	for (;;)
 	{
 		char c = *prefix++;
@@ -188,6 +188,34 @@ static bool startswith(char **pstring, const char *prefix)
 		}
 	}
 }
+
+/***************************************************************************
+* @fn startswith
+* @brief Function to check if string is start of main string
+*
+* @param pstring[in] Main string
+* @param prefix[in] Sub string to check
+* @return bool true/false
+***************************************************************************/
+static bool startswith(char **pstring, const char *prefix)
+{
+        char *string = *pstring;
+        for (;;)
+        {
+                char c = *prefix++;
+                if (c == 0)
+                {
+                        *pstring = string;
+                        return true;
+                }
+                if (*string++ != c)
+                {
+                        return false;
+                }
+        }
+}
+
+
 
 /***************************************************************************
 * @fn AttributeNameMatch
@@ -237,34 +265,37 @@ static bool SubStringMatch(const char *srcStart, const char *srcFin, const char 
 }
 
 /***************************************************************************
-* @fn GetAttributeValueString
-* @brief convert quoted string to NUL-terminated C-string; modifies string in place 
-*        
-* @param valuePtr[in] quoted string  
-* @param fin[in] End of string pointer 
-* @return char * pointed to first character of NUL-termianted string
-***************************************************************************/
-static char * GetAttributeValueString(char *valuePtr, char *fin)
+/**
+ * @fn GetAttributeValueString
+ * @brief convert quoted string to NUL-terminated C-string, stripping quotes
+ *
+ * @param valuePtr[in] quoted string, or string starting with NONE - not nul-terminated; note that valuePtr may be modified in place
+ * @param fin[in] pointer to first character past end of string
+ * @return char * read-only NUL-terminated string; will normally point to memory within valuePtr
+ */
+static const char * GetAttributeValueString(char *valuePtr, char *fin)
 {
+	const char *rc = NULL;
 	if (*valuePtr == '\"')
 	{
-		assert(*valuePtr == '\"');
 		valuePtr++; // skip begin-quote
+		rc = valuePtr;
 		fin--;
-		assert(*fin == '\"');
-		size_t len = fin - valuePtr;
-		valuePtr[len] = 0x00; // replace end-quote with NUL-terminator
-	}
-	else if (strcmp(valuePtr, "NONE") == 0)
-	{
-		// patch for http://cilhlsvod.akamaized.net/i/506629/MP4/demo3/abcd123/,cea708test,.mp4.csmil/master.m3u8
-		// and watchable content; these use CLOSED_CAPTION=NONE
+		if( *fin!='\"' )
+		{
+			AAMPLOG_WARN( "quoted-string missing end-quote:%s",valuePtr );
+		}
+		*fin = 0x00; // replace end-quote with NUL-terminator
 	}
 	else
-	{
-		logprintf("WARNING: GetAttributeValueString(%s)", valuePtr );
+	{ // per specification, some attributes (CLOSED-CAPTIONS) may be quoted-string or NONE
+		rc = "NONE";
+		if( memcmp(valuePtr,"NONE",4) !=0 )
+		{
+			AAMPLOG_WARN("GetAttributeValueString input neither quoted string nor NONE");
+		}
 	}
-	return valuePtr;
+	return rc;
 }
 
 /***************************************************************************
@@ -312,8 +343,7 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
 		{
-
-            if(!ts->fragmentEncrypted)
+			if(!ts->fragmentEncrypted)
 			{
 				if (!ts->mIndexingInProgress)
 				{
@@ -336,18 +366,12 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 	}
 	else if (AttributeNameMatch(attrName, "URI"))
 	{
-		char *uri = GetAttributeValueString(valuePtr, fin);
+		const char *uri = GetAttributeValueString(valuePtr, fin);
 		if (ts->mDrmInfo.uri)
 		{
 			free(ts->mDrmInfo.uri);
 		}
 		ts->mDrmInfo.uri = strdup(uri);
-		//		const char *rkEnd;
-		//		const char *rkStart = FindUriAttr(this->mDrmInfo.uri, "EncryptedRK", &rkEnd);
-		//		if (rkStart)
-		//		{ // ParseHexData(mDrmInfo.encryptedRotationKey, 16, rkStart, rkEnd);
-		//			aamp_Error("EncryptedRK unsupported");
-		//		}
 	}
 	else if (AttributeNameMatch(attrName, "IV"))
 	{ // 16 bytes
@@ -586,21 +610,27 @@ static char *mystrpbrk(char *ptr)
 ***************************************************************************/
 static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim, char *fin, void *context), void *context)
 {
+	char *origParseStr = attrName;
 	while (*attrName)
 	{
 		while (*attrName == ' ')
-		{ // strip whitespace
+		{ // strip leading whitespace, if any
 			attrName++;
 		}
 		char *delimEqual = attrName;
-		// break out on CR
 		if(*delimEqual == '\r')
+		{	// break out on CR
 			break;
+		}
 		while (*delimEqual != '=')
-		{ // An AttributeName is an unquoted string containing characters from the set [A..Z] and '-'
+		{ // An AttributeName is an unquoted string containing characters from the set [A..Z], [0..9] and '-'
 			char c = *delimEqual++;
-			(void)c;
-			// assert((c >= 'A' && c <= 'Z') || c == '-'); // breaks when CMSha1Hash used
+			if(c < ' ')
+			{
+				// if 0x00, newline, or other unprintable characters, bail out
+				AAMPLOG_WARN("%s:%d Missing equal delimiter %s", __FUNCTION__, __LINE__,origParseStr);
+				return;
+			}
 		}
 		char *fin = delimEqual;
 		bool inQuote = false;
@@ -608,24 +638,24 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 		{
 			char c = *fin;
 			if (c == 0)
-			{
+			{ // end of input
 				break;
 			}
 			else if (c == '\"')
 			{
 				if (inQuote)
-				{
+				{ 	// trailing quote
 					inQuote = false;
 					fin++;
 					break;
 				}
 				else
-				{
+				{	// leading quote
 					inQuote = true;
 				}
 			}
 			else if (c == ',' && !inQuote)
-			{
+			{	// next attribute/value pair
 				break;
 			}
 			fin++;
@@ -2070,13 +2100,14 @@ void TrackState::FetchFragment()
 							context->mCheckForRampdown = true;
 							// Rampdown attempt success, download same segment from lower profile.
 							mSkipSegmentOnError = false;
+						
+							AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 						}
 						else
 						{
 							AAMPLOG_WARN("%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
 							context->mRampDownCount = 0;
 						}
-						AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 					}
 				}
 				else if (decryption_error)
