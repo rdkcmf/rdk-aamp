@@ -8198,14 +8198,24 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
  * @brief Signal discontinuity of track.
  * Called from StreamAbstractionAAMP to signal discontinuity
  * @param track MediaType of the track
+ * @param setDiscontinuityFlag if true then no need to call mStreamSink->Discontinuity(), set only the discontinuity processing flag.
  * @retval true if discontinuity is handled.
  */
-bool PrivateInstanceAAMP::Discontinuity(MediaType track)
+bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFlag)
 {
 	bool ret;
-	SyncBegin();
-	ret = mStreamSink->Discontinuity(track);
-	SyncEnd();
+
+	if (setDiscontinuityFlag)
+	{
+		ret = true;
+	}
+	else
+	{
+		SyncBegin();
+		ret = mStreamSink->Discontinuity(track);
+		SyncEnd();
+	}
+
 	if (ret)
 	{
 		mProcessingDiscontinuity[track] = true;
