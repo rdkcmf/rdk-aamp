@@ -2025,6 +2025,7 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 {
 	bool ret = true;
 	MediaTrackDiscontinuityState state = eDISCONTIUITY_FREE;
+	bool isMuxedAndAudioDiscoIgnored = false;
 
 	pthread_mutex_lock(&mStateLock);
 	if (type == eTRACK_VIDEO)
@@ -2036,7 +2037,16 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 		if (audio && !audio->enabled)
 		{
 			mTrackState = (MediaTrackDiscontinuityState) (mTrackState | eDISCONTINUIY_IN_BOTH);
-			aamp->Discontinuity(eMEDIATYPE_AUDIO);
+			ret = aamp->Discontinuity(eMEDIATYPE_AUDIO, false);
+
+			/* In muxed stream, if discontinuity-EOS processing for audio track failed, then set the "mProcessingDiscontinuity" flag of audio to true if video track discontinuity succeeded.
+			 * In this case, no need to reset mTrackState by removing audio track, because need to process the video track discontinuity-EOS process since its a muxed stream.
+			 */
+			if (ret == false)
+			{
+				AAMPLOG_WARN("%s:%d muxed track audio discontinuity/EOS processing ignored!", __FUNCTION__, __LINE__);
+				isMuxedAndAudioDiscoIgnored = true;
+			}
 		}
 	}
 	else if (type == eTRACK_AUDIO)
@@ -2090,12 +2100,18 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 		{
 			pthread_mutex_unlock(&mStateLock);
 
-			ret = aamp->Discontinuity((MediaType) type);
+			ret = aamp->Discontinuity((MediaType) type, false);
 			//Discontinuity ignored, so we need to remove state from mTrackState
 			if (ret == false)
 			{
 				mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
-				AAMPLOG_WARN("%s:%d track:%d reset mTrackState to: %d!", __FUNCTION__, __LINE__, type, mTrackState);
+				AAMPLOG_WARN("%s:%d track:%d discontinuity processing ignored! reset mTrackState to: %d!", __FUNCTION__, __LINE__, type, mTrackState);
+			}
+			else if (isMuxedAndAudioDiscoIgnored && type == eTRACK_VIDEO)
+			{
+				// In muxed stream, set the audio track's mProcessingDiscontinuity flag to true to unblock the ProcessPendingDiscontinuity if video track discontinuity-EOS processing succeeded
+				AAMPLOG_WARN("%s:%d set muxed track audio discontinuity flag to true since video discontinuity processing succeeded.", __FUNCTION__, __LINE__);
+				aamp->Discontinuity((MediaType) eTRACK_AUDIO, true);
 			}
 
 			pthread_mutex_lock(&mStateLock);
