@@ -1170,7 +1170,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				{
 					// its not a main manifest, instead its playlist given for playback . Consider not a error
 					// Report it , so that Init flow can be changed accordingly
-					retval = eAAMPSTATUS_MANIFEST_INVALID_TYPE;
+					retval = eAAMPSTATUS_PLAYLIST_PLAYBACK;
 					break;
 				}
 #ifdef AAMP_HLS_DRM				
@@ -2119,7 +2119,7 @@ void TrackState::FetchFragment()
 			{
 				// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
 				// should continue with next fragment,no retry needed .
-				if (eTRACK_VIDEO == type && http_error != 0)
+				if (eTRACK_VIDEO == type && http_error != 0 && aamp->CheckABREnabled())
 				{
 					context->lastSelectedProfileIndex = context->currentProfileIndex;
 					// Check whether player reached rampdown limit, then rampdown
@@ -3366,7 +3366,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 		break;
 
 	case eTRACK_AUDIO:
-		assert(GetProfileCount() > this->currentProfileIndex);
+		if(GetProfileCount() > this->currentProfileIndex)
 		{
 			AudioTrackInfo track = aamp->GetPreferredAudioTrack();
 			int index = -1;
@@ -4164,13 +4164,22 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		// Check if Main manifest is good or not 
 		if(mainManifestResult != eAAMPSTATUS_OK)
 		{
-			if(mainManifestResult == eAAMPSTATUS_MANIFEST_INVALID_TYPE)
-			{
-				// if playlist is provided as Main manifest, return error in this version.
-				// Playlist based playback support to be added in future
-				// TODO :: Handle playlist only playback -> Disable ABR , Re-arrange cached , populate track.  
-				logprintf("%s:%d WARNING !!!. Playlist received instead of Manifest.Playback failed",__FUNCTION__,__LINE__);
-				mainManifestResult = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+			if(mainManifestResult == eAAMPSTATUS_PLAYLIST_PLAYBACK)
+			{ // RDK-28245 - support tune to playlist, without main manifest
+				int profileCount = GetProfileCount();
+				if(profileCount == 0)
+				{
+					struct HlsStreamInfo *streamInfo = &this->streamInfo[profileCount];
+					setupStreamInfo(streamInfo, profileCount);
+					streamInfo->uri = aamp->GetManifestUrl().c_str();
+					aamp->SetVideoBitrate(-1);
+					mainManifestResult = eAAMPSTATUS_OK;
+				}
+				else
+				{
+					AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d Invalid manifest format.", __FUNCTION__, __LINE__);
+					mainManifestResult = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+				}
 			}
 			// check for the error type , if critical error return immediately
 			if(mainManifestResult == eAAMPSTATUS_MANIFEST_CONTENT_ERROR || mainManifestResult == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
@@ -4186,27 +4195,28 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
-		if (!newTune)
+		if(GetProfileCount())
 		{
-			long persistedBandwidth = aamp->GetPersistedBandwidth();
-			//We were tuning to a lesser profile previously, so we use it as starting profile
-			if (persistedBandwidth > 0 && persistedBandwidth < gpGlobalConfig->defaultBitrate)
+			if (!newTune)
 			{
-				mAbrManager.setDefaultInitBitrate(persistedBandwidth);
+				long persistedBandwidth = aamp->GetPersistedBandwidth();
+				//We were tuning to a lesser profile previously, so we use it as starting profile
+				if (persistedBandwidth > 0 && persistedBandwidth < gpGlobalConfig->defaultBitrate)
+				{
+					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
+				}
 			}
+			// Generate audio and text track structures
+			PopulateAudioAndTextTracks();
+
+			currentProfileIndex = GetDesiredProfile(false);
+			lastSelectedProfileIndex = currentProfileIndex;
+			aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond, trickplayMode, this->currentProfileIndex);
+			aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
+			logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+			/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 		}
-
-		// Generate audio and text track structures
-		PopulateAudioAndTextTracks();
-
-		currentProfileIndex = GetDesiredProfile(false);
-		lastSelectedProfileIndex = currentProfileIndex;
-		aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond, trickplayMode, this->currentProfileIndex);
-		aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
-		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
-		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
-
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			const char* trackName = "subs";
@@ -5015,7 +5025,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
 		}
 
-		if (video->enabled)
+		if (video->enabled && GetProfileCount())
 		{
 			BitrateChangeReason bitrateReason = (newTune) ? eAAMP_BITRATE_CHANGE_BY_TUNE : (trickplayMode ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK);
 			aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
@@ -6512,7 +6522,7 @@ void TrackState::FetchInitFragment()
 
 			UpdateTSAfterFetch();
 		}
-		else if (type == eTRACK_VIDEO && !context->CheckForRampDownLimitReached())
+		else if (type == eTRACK_VIDEO && aamp->CheckABREnabled() && !context->CheckForRampDownLimitReached())
 		{
 			// Attempt rampdown for init fragment to get playable profiles.
 			// TODO: Remove profile if init fragment is not available from ABR.
