@@ -1845,8 +1845,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
 	pthread_mutex_init(&mMutexPlaystart, NULL);
-	mABREnabled = gpGlobalConfig->bEnableABR;
-	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mNetworkProxy = NULL;
 	mLicenseProxy = NULL;
 	mCdaiObject = NULL;
@@ -3855,7 +3853,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				logprintf("Download timedout and obtained a partial buffer of size %d for a downloadTime=%d and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
 			}
 
-			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
+			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && CheckABREnabled())
 			{
 				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
 				{
@@ -4771,7 +4769,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
-	
+	mABREnabled = gpGlobalConfig->bEnableABR;
+	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
+		
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
@@ -6887,10 +6887,15 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 					//Is success
 					if (eCountType == COUNT_SUCCESS  && duration > 0)
 					{
-						long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
-						if(maxBitrateSupported == bitrate)
+						if(mpStreamAbstractionAAMP->GetProfileCount())
 						{
-							mTimeAtTopProfile += duration;
+							long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
+							if(maxBitrateSupported == bitrate)
+							{
+								mTimeAtTopProfile += duration;
+	
+							}
+	
 						}
 						if(mTimeAtTopProfile == 0) // we havent achived top profile yet
 						{

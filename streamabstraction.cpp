@@ -561,7 +561,7 @@ bool MediaTrack::InjectFragment()
 #endif
 #endif
 				}
-				if (eTRACK_VIDEO == type)
+				if (eTRACK_VIDEO == type && GetContext()->GetProfileCount())
 				{
 					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
@@ -1005,27 +1005,29 @@ double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
  */
 int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 {
-	int desiredProfileIndex;
-	if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
+	int desiredProfileIndex = 0;
+	if(GetProfileCount())
 	{
-		desiredProfileIndex = GetIframeTrack();
+		if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
+		{
+			desiredProfileIndex = GetIframeTrack();
+		}
+		else
+		{
+			desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
+		}
+		profileIdxForBandwidthNotification = desiredProfileIndex;
+		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+		if(video)
+		{
+			video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
+		}
+		else
+		{
+			AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
+		}
+		AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 	}
-	else
-	{
-		desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
-	}
-	profileIdxForBandwidthNotification = desiredProfileIndex;
-	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	if(video)
-	{
-		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
-	}
-	else
-	{
-		AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
-	}
-	AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
-
 	return desiredProfileIndex;
 }
 
