@@ -726,6 +726,7 @@ static double ISO8601DateTimeToUTCSeconds(const char *ptr)
 static double ParseXStartTimeOffset(const char* ptr)
 {
 	double retOffSet = 0.0;
+	double offset = 0.0;  //CID:119528 - Intialization
 	if(ptr)
 	{
 		size_t len = FindLineLength(ptr);
@@ -1564,9 +1565,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					logprintf("#EXT-X-I-FRAMES-ONLY");
 				}
 				else if (startswith(&ptr, "-X-VERSION:"))
-				{
-					int version = atoi(ptr);
-					(void)version;
+				{	//CID:101256 - set not used
 				}
 				// custom tags follow:
 				else if (startswith(&ptr, "-X-FAXS-CM:"))
@@ -2468,8 +2467,7 @@ void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
 	// Second caller of this function is SetDrmContext,if Key is not acquired then for specific meta index key request is made
 	//logprintf("%s:%d:[%s] mDrmMetaDataIndexCount %d ", __FUNCTION__, __LINE__,name, mDrmMetaDataIndexCount);
 	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	long long currentTime = aamp_GetCurrentTimeMS();
-	bool retStatus = true;
+	bool retStatus = true;  //CID:101604 - currentTime is initialized but not used
 	// Function to initiate key request with DRM
 	// if indexPosn == -1 , its required to check for all the Metadata stored in the list
 	// 		this call will be made after playlist update .
@@ -2522,7 +2520,7 @@ void TrackState::SetDrmContext()
 	// or when new KeyMethod is found , None to AES or between AES with different Method
 	// or between KeyMethond when IV or URL changes (for Vanilla AES)
 
-	bool drmContextUpdated = false;
+	//CID:93939 - Removed the drmContextUpdated variable which is initialized but not used
 	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
 
 	if(drmMetadataIdx)
@@ -2662,9 +2660,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		node.completionTimeSecondsFromStart = 0.0;
 		node.pFragmentInfo = NULL;
 		int drmMetadataIdx = -1;
-		bool deferDrmTagPresent = false;
-		const char* deferDrmVal = NULL;
-		bool endOfTopTags = false;
+		//CID:100252,131 , 93918 - Removed the deferDrmVal,endOfTopTags and deferDrmTagPresent variable whcih is initialized but never used
 		bool mediaSequence = false;
 		const char* programDateTimeIdxOfFragment = NULL;
 		bool discontinuity = false;
@@ -4077,7 +4073,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
     /* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 	TSProcessor* audioQueuedPC = NULL;
-	long http_error;
+	long http_error = 0;   //CID:81873 - Initialization
 
 	memset(&mainManifest, 0, sizeof(mainManifest));
 	if (newTune)
@@ -6019,7 +6015,8 @@ void TrackState::UpdateDrmIV(const char *ptr)
 void TrackState::FetchPlaylist()
 {
 	int playlistDownloadFailCount = 0;
-	long http_error, main_error;
+	long http_error = 0;   //CID:81884 - Initialization
+	long  main_error = 0;
 
 	ProfilerBucketType bucketId = (this->type == eTRACK_SUBTITLE)?PROFILE_BUCKET_PLAYLIST_SUBTITLE:(this->type == eTRACK_AUDIO)?PROFILE_BUCKET_PLAYLIST_AUDIO:PROFILE_BUCKET_PLAYLIST_VIDEO;
 	logprintf("TrackState::%s [%s] start", __FUNCTION__, name);
