@@ -92,7 +92,11 @@ typedef enum {
 	eAAMP_GET_PlaybackRate,
 	eAAMP_GET_VideoBitrates,
 	eAAMP_GET_AudioBitrates,
-	eAAMP_GET_CurrentPreferredLanguages
+	eAAMP_GET_CurrentPreferredLanguages,
+	eAAMP_GET_AvailableAudioTracks,
+	eAAMP_GET_AvailableTextTracks,
+	eAAMP_GET_AudioTrack,
+	eAAMP_GET_TextTrack
 }AAMPGetTypes;
 
 /**
@@ -138,7 +142,11 @@ typedef enum{
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
 	eAAMP_SET_LanguageFormat,
-	eAAMP_SET_InitialBufferDuration
+	eAAMP_SET_InitialBufferDuration,
+	eAAMP_SET_AudioTrack,
+	eAAMP_SET_TextTrack,
+	eAAMP_SET_CCStatus,
+	eAAMP_SET_CCStyle
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -274,27 +282,26 @@ static void ShowHelp(void)
 		}
 		printf("\n");
 	}
-
-	logprintf("List of Commands\n****************");
-	logprintf("<channelNumber>\t\t// Play selected channel from guide");
-	logprintf("<url>\t\t\t// Play arbitrary stream");
-	logprintf("pause play stop status flush // Playback options");
-	logprintf("sf, ff<x> rw<y>\t\t// Trickmodes (x <= 128. y <= 128)");
-	logprintf("cache <url>/<channelNumer>\t// Cache a channel in the background");
-	logprintf("toggle\t\t\t// Toggle the background channel & foreground channel");
-	logprintf("stopb\t\t\t// Stop background channel.");
-	logprintf("+ -\t\t\t// Change profile");
-	logprintf("bps <x>\t\t\t// set bitrate ");
-	logprintf("sap\t\t\t// Use SAP track (if avail)");
-	logprintf("seek <seconds> <keepPaused(1/0)>\t// Specify start time within manifest");
-	logprintf("live\t\t\t// Seek to live point");
-	logprintf("underflow\t\t\t// Simulate underflow");
-	logprintf("retune\t\t\t// schedule retune");
-	logprintf("reset\t\t\t// delete player instance and create a new one");
-	logprintf("help\t\t\t// Show this list again");
-	logprintf("get help // Show help of get command");
-	logprintf("set help // Show help of set command");
-	logprintf("exit\t\t\t// Exit from application");
+	logprintf( "Commands:\n" );
+	logprintf( "<channelNumber>               // Play selected channel from guide");
+	logprintf( "<url>                         // Play arbitrary stream");
+	logprintf( "pause play stop status flush  // Playback options");
+	logprintf( "sf, ff<x> rw<y>               // Trickmodes (x <= 128. y <= 128)");
+	logprintf( "cache <url>/<channel>         // Cache a channel in the background");
+	logprintf( "toggle                        // Toggle the background channel & foreground channel");
+	logprintf( "stopb                         // Stop background channel.");
+	logprintf( "+ -                           // Change profile");
+	logprintf( "bps <x>                       // set bitrate ");
+	logprintf( "sap                           // Use SAP track (if avail)");
+	logprintf( "seek <seconds>                // Specify start time within manifest");
+	logprintf( "live                          // Seek to live point");
+	logprintf( "underflow                     // Simulate underflow" );
+	logprintf( "retune                        // schedule retune" );
+	logprintf( "reset                         // delete player instance and create a new one" );
+	logprintf( "get help                      // Show help of get command" );
+	logprintf( "set help                      // Show help of set command" );
+	logprintf( "exit                          // Exit from application" );
+	logprintf( "help                          // Show this list again" );
 }
 
 /**
@@ -306,18 +313,21 @@ void ShowHelpGet(){
 	logprintf("*   get <command> <arguments> ");
 	logprintf("*   List of Commands, arguemnts expected in ()");
 	logprintf("*******************************************************************");
-	logprintf("1 - Print Current audio language ()");
-	logprintf("2 - Print Current DRM ()");
-	logprintf("3 - Print Current Playback position ()");
-	logprintf("4 - Print Playback Duration ()");
-	logprintf("5 - Print current video bitrate ()");
-	logprintf("6 - Print current Audio bitrate ()");
-	logprintf("7 - Print current Audio voulume ()");
-	logprintf("8 - Print Current Playback rate ()");
-	logprintf("9 - Print Video bitrates supported ()");
+	logprintf(" 1 - Print Current audio language ()");
+	logprintf(" 2 - Print Current DRM ()");
+	logprintf(" 3 - Print Current Playback position ()");
+	logprintf(" 4 - Print Playback Duration ()");
+	logprintf(" 5 - Print current video bitrate ()");
+	logprintf(" 6 - Print current Audio bitrate ()");
+	logprintf(" 7 - Print current Audio voulume ()");
+	logprintf(" 8 - Print Current Playback rate ()");
+	logprintf(" 9 - Print Video bitrates supported ()");
 	logprintf("10 - Print Audio bitrates supported ()");
 	logprintf("11 - Print Current preferred languages ()");
-	
+	logprintf("12 - Get Available Audio Tracks ()");
+	logprintf("13 - Get Available Text Tracks ()");
+	logprintf("14 - Get Audio Track ()");
+	logprintf("15 - Get Text Track ()");
 }
 
 /**
@@ -329,15 +339,15 @@ void ShowHelpSet(){
 	logprintf("*   set <command> <arguments> ");
 	logprintf("*   List of Commands, arguemnts expected in ()");
 	logprintf("*******************************************************************");
-	logprintf("1 - Set Rate and Seek (int rate, double secondsRelativeToTuneTime)");
-	logprintf("2 - Set Video Rectangle (int x,y,w,h)");
-	logprintf("3 - Set Video zoom  ( 1 - full, 0 - normal)");
-	logprintf("4 - Set Video Mute ( 1 - Mute , 0 - Unmute)");
-	logprintf("5 - Set Audio Voulume (int volume)");
-	logprintf("6 - Set Language (string lang)");
-	logprintf("7 - Set Subscribed Tag () - dummy");
-	logprintf("8 - Set License Server URL (String url)");
-	logprintf("9 - Set Anonymouse Request  (0/1)");
+	logprintf(" 1 - Set Rate and Seek (int rate, double secondsRelativeToTuneTime)");
+	logprintf(" 2 - Set Video Rectangle (int x,y,w,h)");
+	logprintf(" 3 - Set Video zoom  ( 1 - full, 0 - normal)");
+	logprintf(" 4 - Set Video Mute ( 1 - Mute , 0 - Unmute)");
+	logprintf(" 5 - Set Audio Voulume (int volume)");
+	logprintf(" 6 - Set Language (string lang)");
+	logprintf(" 7 - Set Subscribed Tag () - dummy");
+	logprintf(" 8 - Set License Server URL (String url)");
+	logprintf(" 9 - Set Anonymouse Request  (0/1)");
 	logprintf("10 - Set VOD Trickplay FPS (int trickPlayFPS)");
 	logprintf("11 - Set Linear Trickplay FPS (int trickPlayFPS)");
 	logprintf("12 - Set Live offset (int offset)");
@@ -350,7 +360,7 @@ void ShowHelpSet(){
 	logprintf("19 - Set Network Timeout (long timeout in ms)");
 	logprintf("20 - Set Manifest Timeout (long timeout in ms)");
 	logprintf("21 - Set Download Buffer Size (int bufferSize)");
-	logprintf("22 - Set Preferred DRM (1 - Wideine, 2 - Playready, 4- Adobe_Access, 5 - Vanila AES, 6 - Clear Key)"); 
+	logprintf("22 - Set Preferred DRM (1 - Widevine, 2 - Playready)"); // 4- Adobe_Access, 5 - Vanila AES, 6 - Clear Key)");
 	logprintf("23 - Set Stereo only playback (1/0)");
 	logprintf("24 - Set Alternate Contents - dummy ()");
 	logprintf("25 - Set Set Network Proxy (string url)");
@@ -368,6 +378,10 @@ void ShowHelpSet(){
 	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
 	logprintf("38 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
 	logprintf("39 - Set Initial Buffer Duration (int in sec)");
+	logprintf("40 - Set AudioTrack (int track index)" );
+	logprintf("41 - Set TextTrack (int track index)" );
+	logprintf("42 - Set CC status (0/1)" );
+	logprintf("43 - Set a predefined CC style option" );
 }
 
 #define LOG_CLI_EVENTS
@@ -447,7 +461,7 @@ public:
 }; // myAAMPEventListener
 
 static class myAAMPEventListener *myEventListener;
-#endif
+#endif // LOG_CLI_EVENTS
 
 /**
  * @brief Parse config entries for aamp-cli, and update gpGlobalConfig params
@@ -471,8 +485,13 @@ static void ProcessCLIConfEntry(char *cfg)
 				{
 					if (isNumber(token))
 						channelInfo.channelNumber = atoi(token);
-					else if (memcmp(token, "http", 4) == 0 || memcmp(token, "https", 5) == 0)
-							channelInfo.uri = token;
+					else if (
+							 memcmp(token, "udp:", 4)==0 ||
+							 memcmp(token, "http:", 5) == 0 ||
+							 memcmp(token, "https:", 6) == 0 )
+					{
+						channelInfo.uri = token;
+					}
 					else
 						channelInfo.name = token;
 					token = strtok(NULL, " ");
@@ -1155,6 +1174,46 @@ static void ProcessCliCommand(char *cmd)
 					}
 					break;
 				}
+				case eAAMP_SET_AudioTrack:
+				{
+					int track;
+					logprintf("Matched Command eAAMP_SET_AudioTrack - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &track) == 2)
+					{
+						mSingleton->SetAudioTrack(track);
+					}
+					break;
+				}
+				case eAAMP_SET_TextTrack:
+				{
+					int track;
+					logprintf("Matched Command eAAMP_SET_TextTrack - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &track) == 2)
+					{
+						mSingleton->SetTextTrack(track);
+					}
+					break;
+				}
+				case eAAMP_SET_CCStatus:
+				{
+					int status;
+					logprintf("Matched Command eAAMP_SET_CCStatus - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &status) == 2)
+					{
+						mSingleton->SetCCStatus(status == 1);
+					}
+					break;
+				}
+				case eAAMP_SET_CCStyle:
+				{
+					logprintf("Matched Command eAAMP_SET_CCStyle - %s ", cmd);
+					if (sscanf(cmd, "set %d", &opt) == 1)
+					{
+						const std::string options("{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}");
+						mSingleton->SetTextStyle(options);
+					}
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
@@ -1181,6 +1240,19 @@ static void ProcessCliCommand(char *cmd)
 		int opt;
 		if (sscanf(cmd, "get %d", &opt) == 1){
 			switch(opt){
+				case eAAMP_GET_AudioTrack:
+					logprintf( "CURRENT AUDIO TRACK: %d", mSingleton->GetAudioTrack() );
+					break;
+				case eAAMP_GET_TextTrack:
+					logprintf( "CURRENT AUDIO TRACK: %d", mSingleton->GetTextTrack() );
+					break;
+				case eAAMP_GET_AvailableAudioTracks:
+					logprintf( "AVAILABLE AUDIO TRACKS: %s", mSingleton->GetAvailableAudioTracks().c_str() );
+					break;
+				case eAAMP_GET_AvailableTextTracks:
+					logprintf( "AVAILABLE TEXT TRACKS: %s", mSingleton->GetAvailableTextTracks().c_str() );
+					break;
+
 				case eAAMP_GET_CurrentAudioLan:
 					logprintf(" CURRRENT AUDIO LANGUAGE = %s ",
 					mSingleton->GetCurrentAudioLanguage());
@@ -1250,6 +1322,7 @@ static void ProcessCliCommand(char *cmd)
 					logprintf(" PREFERRED LANGUAGES = \"%s\" ", prefferedLanguages? prefferedLanguages : "<NULL>");
 					break;
 				}
+
 				default:
 					logprintf("Invalid get command %d\n", opt);
 			}

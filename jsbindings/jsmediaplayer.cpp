@@ -237,6 +237,7 @@ enum ConfigParamType
 	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
 	ePARAM_INITIAL_BUFFER_DURATION,
 	ePARAM_USE_MATCHING_BASEURL,
+	ePARAM_USE_NATIVE_CC,
 	ePARAM_MAX_COUNT
 };
 
@@ -292,6 +293,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
+	{ ePARAM_USE_NATIVE_CC, "nativeCCRendering" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -724,6 +726,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_AVGBWFORABR:
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 			case ePARAM_USE_MATCHING_BASEURL:
+			case ePARAM_USE_NATIVE_CC:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -849,6 +852,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_MATCHING_BASEURL:
 					privObj->_aamp->SetMatchingBaseUrlConfig(valueAsBoolean);
+					break;
+				case ePARAM_USE_NATIVE_CC:
+					privObj->_aamp->SetNativeCCRendering(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;
@@ -1338,9 +1344,8 @@ JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef functi
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	ERROR("%s(): Invoked getAudioTrack", __FUNCTION__);
 	TRACELOG("Exit %s()", __FUNCTION__);
-	return JSValueMakeUndefined(ctx);
+	return JSValueMakeNumber(ctx, privObj->_aamp->GetAudioTrack());
 }
 
 
@@ -1372,7 +1377,16 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 	}
 	else
 	{
-		ERROR("%s(): Invoked setAudioTrack", __FUNCTION__);
+		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
+		if (index >= 0)
+		{
+			privObj->_aamp->SetAudioTrack(index);
+		}
+		else
+		{
+			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Audio track index should be >= 0!");
+		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -1399,9 +1413,8 @@ JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef functio
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	ERROR("%s(): Invoked getTextTrack", __FUNCTION__);
 	TRACELOG("Exit %s()", __FUNCTION__);
-	return JSValueMakeUndefined(ctx);
+	return JSValueMakeNumber(ctx, privObj->_aamp->GetTextTrack());
 }
 
 
@@ -1433,7 +1446,16 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 	}
 	else
 	{
-		ERROR("%s(): Invoked setTextTrack", __FUNCTION__);
+		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
+		if (index >= 0)
+		{
+			privObj->_aamp->SetTextTrack(index);
+		}
+		else
+		{
+			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= 0!");
+		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -2370,6 +2392,120 @@ static JSValueRef AAMPMediaPlayerJS_getVideoRectangle(JSContextRef ctx, JSObject
 }
 
 
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setClosedCaptionStatus()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setClosedCaptionStatus(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setClosedCaptionStatus() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setClosedCaptionStatus() - 1 argument required");
+	}
+	else
+	{
+		bool enabled = JSValueToBoolean(ctx, arguments[0]);
+		privObj->_aamp->SetCCStatus(enabled);
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setTextStyleOptions()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setTextStyleOptions() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextStyleOptions() - 1 argument required");
+	}
+	else
+	{
+		if (JSValueIsString(ctx, arguments[0]))
+		{
+			const char *options = aamp_JSValueToCString(ctx, arguments[0], NULL);
+			privObj->_aamp->SetTextStyle(std::string(options));
+			delete[] options;
+		}
+		else
+		{
+			ERROR("%s(): InvalidArgument - Argument should be a JSON formatted string!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Argument should be a JSON formatted string!");
+		}
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.getTextStyleOptions()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPMediaPlayerJS_getTextStyleOptions(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if(!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextStyleOptions() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	std::string options = privObj->_aamp->GetTextStyle();
+	if (!options.empty())
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return aamp_CStringToJSValue(ctx, options.c_str());
+	}
+	else
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return JSValueMakeUndefined(ctx);
+	}
+}
 
 
 /**
@@ -2418,6 +2554,9 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "getAvailableAudioTracks", AAMPMediaPlayerJS_getAvailableAudioTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getAvailableTextTracks", AAMPMediaPlayerJS_getAvailableTextTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getVideoRectangle", AAMPMediaPlayerJS_getVideoRectangle, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setClosedCaptionStatus", AAMPMediaPlayerJS_setClosedCaptionStatus, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setTextStyleOptions", AAMPMediaPlayerJS_setTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getTextStyleOptions", AAMPMediaPlayerJS_getTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 

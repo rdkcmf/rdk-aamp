@@ -78,6 +78,10 @@ else()
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+if(CMAKE_RDK_CC_ENABLED)
+	pkg_check_modules(DIRECTFB REQUIRED directfb)
+endif()
+
 find_package (Threads REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle metrics isobmff)
@@ -90,8 +94,33 @@ include_directories(${OPENSSL_INCLUDE_DIRS})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES iso639map.cpp base16.cpp fragmentcollector_progressive.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp isobmff/isobmffbox.cpp isobmff/isobmffbuffer.cpp isobmff/isobmffprocessor.cpp
+set(LIBAAMP_SOURCES iso639map.cpp
+                    base16.cpp
+                    fragmentcollector_progressive.cpp
+                    fragmentcollector_hls.cpp
+                    fragmentcollector_mpd.cpp
+                    admanager_mpd.cpp
+                    streamabstraction.cpp
+                    _base64.cpp
+                    drm/ave/drm.cpp
+                    main_aamp.cpp
+                    aampgstplayer.cpp
+                    tsprocessor.cpp
+                    drm/aes/aamp_aes.cpp
+                    aamplogging.cpp
+                    subtitle/webvttParser.cpp
+                    AampCacheHandler.cpp
+                    metrics/HTTPStatistics.cpp
+                    metrics/LicnStatistics.cpp
+                    metrics/FragmentStatistics.cpp
+                    metrics/VideoStat.cpp
+                    metrics/ProfileInfo.cpp
+                    isobmff/isobmffbox.cpp
+                    isobmff/isobmffbuffer.cpp
+                    isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
+                    drm/AampDRMutils.cpp
+                    AampJsonObject.cpp
 )
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
@@ -157,13 +186,11 @@ endif()
 if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
     # Sources common to all forms of OpenCDM and CDM
     message("Using some form of OpenCDM or CDM")
-    set(LIBAAMP_DRM_SOURCES drm/AampDRMutils.cpp
-                            drm/AampDRMSessionManager.cpp
+    set(LIBAAMP_DRM_SOURCES drm/AampDRMSessionManager.cpp
                             drm/AampDrmSession.cpp
                             drm/aampdrmsessionfactory.cpp
                             drm/aampoutputprotection.cpp
                             drm/helper/AampDrmHelperFactory.cpp
-                            AampJsonObject.cpp
     )
     if(CMAKE_USE_THUNDER_OCDM_API_0_2)
         set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_THUNDER_OCDM_API_0_2")
@@ -307,6 +334,16 @@ elseif(CMAKE_CDM_DRM)
     endif()
 endif()
 
+if (CMAKE_RDK_CC_ENABLED)
+	message("CMAKE_RDK_CC_ENABLED set")
+	include_directories(${DIRECTFB_INCLUDE_DIRS})
+	include_directories(${DIRECTFB_INCLUDE_DIRS}/fusion)
+	include_directories(${DIRECTFB_INCLUDE_DIRS}/direct)
+	include_directories(closedcaptions/rdk)
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RDK_CC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/rdk/AampRDKCCManager.cpp)
+	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
+endif()
 
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 

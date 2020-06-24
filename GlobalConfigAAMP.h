@@ -223,6 +223,7 @@ public:
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
+	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 public:
 	std::string getUnknownValue(const std::string& key)
 	{
@@ -363,6 +364,7 @@ public:
 		,initFragmentRetryCount(-1)
 		,unknownValues()
 		,useMatchingBaseUrl(eUndefinedState)
+		,nativeCCRendering(false)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

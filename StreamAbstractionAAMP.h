@@ -857,14 +857,14 @@ public:
 	 *
 	 *   @return std::vector<AudioTrackInfo> list of audio tracks
 	 */
-	virtual std::vector<AudioTrackInfo> GetAvailableAudioTracks() { return mAudioTracks; };
+	std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
 
 	/**
 	 *   @brief Get available text tracks.
 	 *
 	 *   @return std::vector<TextTrackInfo> list of text tracks
 	 */
-	virtual std::vector<TextTrackInfo> GetAvailableTextTracks() { return mTextTracks; };
+	std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
 
 	/**
 	*   @brief Update seek position when player is initialized
@@ -913,6 +913,20 @@ public:
 	 *   @return duration of currently buffered video in seconds
 	 */
 	double GetBufferedVideoDurationSec();
+
+	/**
+	 *   @brief Get current audio track
+	 *
+	 *   @return int - index of current audio track
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Get current text track
+	 *
+	 *   @return int - index of current text track
+	 */
+	int GetTextTrack();
 
 protected:
 	/**
@@ -971,9 +985,11 @@ private:
 	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
-	std::vector<AudioTrackInfo> mAudioTracks;
-	std::vector<TextTrackInfo> mTextTracks;
+	std::vector<AudioTrackInfo> mAudioTracks; /**< Available audio tracks */
+	std::vector<TextTrackInfo> mTextTracks; /**< Available text tracks */
 	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
+	std::string mAudioTrackIndex; /**< Current audio track index in track list */
+	std::string mTextTrackIndex; /**< Current text track index in track list */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

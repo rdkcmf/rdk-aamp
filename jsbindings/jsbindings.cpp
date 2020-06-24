@@ -462,6 +462,30 @@ static bool AAMP_setProperty_reportInterval(JSContextRef context, JSObjectRef th
 }
 
 /**
+ * @brief Callback invoked from JS to set the enableNativeCC property value
+ * @param[in] context JS exception context
+ * @param[in] thisObject JSObject on which to set the property's value
+ * @param[in] propertyName JSString containing the name of the property to set
+ * @param[in] value JSValue to use as the property's value
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval true if the property was set, otherwise false
+ */
+static bool AAMP_setProperty_enableNativeCC(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (pAAMP == NULL)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
+		return false;
+	}
+
+	pAAMP->_aamp->SetNativeCCRendering(JSValueToBoolean(context, value));
+	return true;
+}
+
+/**
  * @brief Array containing the AAMP's statically declared value properties
  */
 static const JSStaticValue AAMP_static_values[] =
@@ -478,6 +502,7 @@ static const JSStaticValue AAMP_static_values[] =
 	{"stallErrorCode", NULL, AAMP_setProperty_stallErrorCode, kJSPropertyAttributeDontDelete },
 	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete },
 	{"reportInterval", NULL, AAMP_setProperty_reportInterval, kJSPropertyAttributeDontDelete },
+	{"enableNativeCC", NULL, AAMP_setProperty_enableNativeCC, kJSPropertyAttributeDontDelete },
 	{NULL, NULL, NULL, 0}
 };
 
@@ -2611,10 +2636,26 @@ static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObje
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value
  */
-static JSValueRef AAMP_getAudioTrackList(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+static JSValueRef AAMP_getAvailableAudioTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
-	return JSValueMakeUndefined(context);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableAudioTracks on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	std::string tracks = pAAMP->_aamp->GetAvailableAudioTracks();
+	if (!tracks.empty())
+	{
+		return aamp_CStringToJSValue(context, tracks.c_str());
+	}
+	else
+	{
+		return JSValueMakeUndefined(context);
+	}
 }
 
 
@@ -2631,7 +2672,14 @@ static JSValueRef AAMP_getAudioTrackList(JSContextRef context, JSObjectRef funct
 static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
-	return JSValueMakeUndefined(context);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAudioTrack on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	return JSValueMakeNumber(context, pAAMP->_aamp->GetAudioTrack());
 }
 
 
@@ -2648,12 +2696,38 @@ static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function,
 static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAudioTrack on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAudioTrack' - 1 argument required");
+	}
+	else
+	{
+		int index = (int) JSValueToNumber(context, arguments[0], NULL);
+		if (index >= 0)
+		{
+		        pAAMP->_aamp->SetAudioTrack(index);
+		}
+		else
+		{
+			ERROR("[AAMP_JS] %s() InvalidArgument: Track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAudioTrack' - argument should be >= 0");
+		}
+	}
 	return JSValueMakeUndefined(context);
 }
 
 
 /**
- * @brief Callback invoked from JS to set CC track
+ * @brief Callback invoked from JS to get list of text tracks
  * @param[in] context JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
@@ -2662,11 +2736,95 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value
  */
-static JSValueRef AAMP_setClosedCaptionTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+static JSValueRef AAMP_getAvailableTextTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableTextTracks on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	std::string tracks = pAAMP->_aamp->GetAvailableTextTracks();
+	if (!tracks.empty())
+	{
+		return aamp_CStringToJSValue(context, tracks.c_str());
+	}
+	else
+	{
+		return JSValueMakeUndefined(context);
+	}
+}
+
+
+/**
+ * @brief Callback invoked from JS to get current text track index
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_getTextTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextTrack on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	return JSValueMakeNumber(context, pAAMP->_aamp->GetTextTrack());
+}
+
+
+/**
+ * @brief Callback invoked from JS to set text track
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setTextTrack on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - 1 argument required");
+	}
+	else
+	{
+		int index = (int) JSValueToNumber(context, arguments[0], NULL);
+		if (index >= 0)
+		{
+		        pAAMP->_aamp->SetTextTrack(index);
+		}
+		else
+		{
+			ERROR("[AAMP_JS] %s() InvalidArgument: Track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - argument should be >= 0");
+		}
+	}
 	return JSValueMakeUndefined(context);
 }
+
 
 /**
  * @brief Callback invoked from JS to set license server URL
@@ -3184,6 +3342,120 @@ static JSValueRef AAMP_setNetworkTimeout(JSContextRef context, JSObjectRef funct
 
 
 /**
+ * @brief Callback invoked from JS to enable/disable CC rendering
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setClosedCaptionStatus(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setClosedCaptionStatus on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setClosedCaptionStatus' - 1 argument required");
+	}
+	else
+	{
+		bool enabled = JSValueToBoolean(context, arguments[0]);
+		pAAMP->_aamp->SetCCStatus(enabled);
+	}
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback invoked from JS to set text style
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setTextStyleOptions(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setTextStyleOptions on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextStyleOptions' - 1 argument required");
+	}
+	else
+	{
+		if (JSValueIsString(context, arguments[0]))
+		{
+			const char *options = aamp_JSValueToCString(context, arguments[0], NULL);
+			pAAMP->_aamp->SetTextStyle(std::string(options));
+			delete[] options;
+
+		}
+		else
+		{
+			ERROR("[AAMP_JS] %s() InvalidArgument: Argument should be JSON formatted string", __FUNCTION__);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextStyleOptions' - argument should be JSON formatted string");
+		}
+	}
+	return JSValueMakeUndefined(context);
+}
+
+
+/**
+ * @brief Callback invoked from JS to get text style
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_getTextStyleOptions(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextStyleOptions on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	std::string options = pAAMP->_aamp->GetTextStyle();
+	if (!options.empty())
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return aamp_CStringToJSValue(context, options.c_str());
+	}
+	else
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return JSValueMakeUndefined(context);
+	}
+}
+
+
+/**
  * @brief Array containing the AAMP's statically declared functions
  */
 static const JSStaticFunction AAMP_staticfunctions[] =
@@ -3204,10 +3476,12 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setSubscribeTags", AAMP_setSubscribeTags, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAds", AAMP_setAds, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "subscribeTimedMetadata", AAMP_setSubscribeTags, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "getAudioTrackList", AAMP_getAudioTrackList, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getAvailableAudioTracks", AAMP_getAvailableAudioTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAudioTrack", AAMP_getAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAudioTrack", AAMP_setAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "setClosedCaptionTrack", AAMP_setClosedCaptionTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getAvailableTextTracks", AAMP_getAvailableTextTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getTextTrack", AAMP_getTextTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setTextTrack", AAMP_setTextTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setVideoMute", AAMP_setVideoMute, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAudioVolume", AAMP_setAudioVolume, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "addCustomHTTPHeader", AAMP_addCustomHTTPHeader, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
@@ -3225,6 +3499,9 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setNetworkTimeout", AAMP_setNetworkTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAlternateContent", AAMP_setAlternateContent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "notifyReservationCompletion", AAMP_notifyReservationCompletion, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setClosedCaptionStatus", AAMP_setClosedCaptionStatus, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setTextStyleOptions", AAMP_setTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getTextStyleOptions", AAMP_getTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 

@@ -55,6 +55,9 @@
 #include <fstream>
 #include <math.h>
 #include "AampCacheHandler.h"
+#ifdef AAMP_RDK_CC_ENABLED
+#include "AampRDKCCManager.h"
+#endif
 #ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
 #endif
@@ -4315,6 +4318,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("initFragmentRetryCount=%d", gpGlobalConfig->initFragmentRetryCount);
 		}
+		else if (ReadConfigNumericHelper(cfg, "enable-native-cc=", value) == 1)
+		{
+			gpGlobalConfig->nativeCCRendering = (value == 1);
+			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4572,12 +4580,21 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	{
 #ifdef AAMP_STOP_SINK_ON_SEEK
 		const bool forceStop = true;
-		AAMPEvent event;
-		event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-		event.data.ccHandle.handle = 0;
-		traceprintf("%s:%d Sending AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
-		SendEventSync(event);
-		logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+#ifdef AAMP_RDK_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampRDKCCManager::GetInstance()->Stop();
+		}
+		else
+#endif
+		{
+			AAMPEvent event;
+			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
+			event.data.ccHandle.handle = 0;
+			traceprintf("%s:%d Sending AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+			SendEventSync(event);
+			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+		}
 #else
 		const bool forceStop = false;
 #endif
@@ -8032,6 +8049,8 @@ void PrivateInstanceAAMP::Stop()
   
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
+	mPreferredAudioTrack = AudioTrackInfo();
+	mPreferredTextTrack = TextTrackInfo();
 	// send signal to any thread waiting for play
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
@@ -8281,10 +8300,19 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #endif
 	if (mStreamSink != NULL)
 	{
-		AAMPEvent event;
-		event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-		event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
-		SendEventSync(event);
+#ifdef AAMP_RDK_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampRDKCCManager::GetInstance()->Start((void *)mStreamSink->getCCDecoderHandle());
+		}
+		else
+#endif
+		{
+			AAMPEvent event;
+			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
+			event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
+			SendEventSync(event);
+		}
 	}
 }
 
@@ -8545,6 +8573,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
+	, mPreferredAudioTrack(), mPreferredTextTrack()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8552,7 +8581,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
-    iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
@@ -10944,8 +10973,14 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 					{
 						cJSON_AddStringToObject(item, "language", iter->language.c_str());
 					}
-					cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
-					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->codec.empty())
+					{
+						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
+					}
+					if (!iter->rendition.empty())
+					{
+						cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					}
 					if (!iter->characteristics.empty())
 					{
 						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
@@ -10953,6 +10988,10 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 					if (iter->channels != 0)
 					{
 						cJSON_AddNumberToObject(item, "channels", iter->channels);
+					}
+					if (iter->bandwidth != -1)
+					{
+						cJSON_AddNumberToObject(item, "bandwidth", iter->bandwidth);
 					}
 				}
 				char *jsonStr = cJSON_Print(root);
@@ -11009,7 +11048,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 					{
 						cJSON_AddStringToObject(item, "language", iter->language.c_str());
 					}
-					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->rendition.empty())
+					{
+						cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					}
 					if (!iter->instreamId.empty())
 					{
 						cJSON_AddStringToObject(item, "instreamId", iter->instreamId.c_str());
@@ -11017,6 +11059,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 					if (!iter->characteristics.empty())
 					{
 						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
+					}
+					if (!iter->codec.empty())
+					{
+						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
 					}
 				}
 				char *jsonStr = cJSON_Print(root);
@@ -11187,10 +11233,6 @@ bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
 }
 
 /**
- * @}
- */
-
-/**
  * @brief Check if track can inject data into GStreamer.
  * Called from MonitorBufferHealth
  *
@@ -11252,6 +11294,273 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 		}
 	}
 	return url;
+}
+
+/**
+ *   @brief Enable/disable the native CC rendering feature
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	gpGlobalConfig->nativeCCRendering = enable;
+#endif
+}
+
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAudioTrack(int trackId)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+
+	aamp->SetAudioTrack(trackId);
+}
+
+/**
+ *   @brief Get current audio track index
+ *
+ *   @return int - index of current audio track in available track list
+ */
+int PlayerInstanceAAMP::GetAudioTrack()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
+
+	return aamp->GetAudioTrack();
+}
+
+/**
+ *   @brief Set text track
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetTextTrack(int trackId)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+
+	aamp->SetTextTrack(trackId);
+}
+
+/**
+ *   @brief Get current text track index
+ *
+ *   @return int - index of current text track in available track list
+ */
+int PlayerInstanceAAMP::GetTextTrack()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
+
+	return aamp->GetTextTrack();
+}
+
+/**
+ *   @brief Set CC visibility on/off
+ *
+ *   @param[in] enabled true for CC on, false otherwise
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetCCStatus(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	aamp->SetCCStatus(enabled);
+}
+
+/**
+ *   @brief Set style options for text track rendering
+ *
+ *   @param[in] options - JSON formatted style options
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetTextStyle(const std::string &options)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	aamp->SetTextStyle(options);
+}
+
+/**
+ *   @brief Get style options for text track rendering
+ *
+ *   @return std::string - JSON formatted style options
+ */
+std::string PlayerInstanceAAMP::GetTextStyle()
+{
+	ERROR_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetTextStyle();
+}
+
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetAudioTrack(int trackId)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<AudioTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		{
+			SetPreferredAudioTrack(tracks[trackId]);
+			// TODO: Confirm if required
+			languageSetByUser = true;
+
+			discardEnteringLiveEvt = true;
+
+			seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+			TeardownStream(false);
+			TuneHelper(eTUNETYPE_SEEK);
+
+			discardEnteringLiveEvt = false;
+		}
+	}
+}
+
+/**
+ *   @brief Get current audio track index
+ *
+ *   @return int - index of current audio track in available track list
+ */
+int PrivateInstanceAAMP::GetAudioTrack()
+{
+	int idx = -1;
+	if (mpStreamAbstractionAAMP)
+	{
+		idx = mpStreamAbstractionAAMP->GetAudioTrack();
+	}
+	return idx;
+}
+
+/**
+ *   @brief Set text track
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTextTrack(int trackId)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		{
+			TextTrackInfo track = tracks[trackId];
+			// Check if CC / Subtitle track
+			if (track.isCC)
+			{
+#ifdef AAMP_RDK_CC_ENABLED
+				AampRDKCCManager::GetInstance()->SetTrack(track.instreamId);
+#endif
+			}
+			else
+			{
+				//TODO: Effective handling between subtitle and CC tracks
+				// SetPreferredTextTrack will not have any impact on CC rendering if already active
+				SetPreferredTextTrack(track);
+			}
+		}
+	}
+}
+
+/**
+ *   @brief Get current text track index
+ *
+ *   @return int - index of current text track in available track list
+ */
+int PrivateInstanceAAMP::GetTextTrack()
+{
+	int idx = -1;
+#ifdef AAMP_RDK_CC_ENABLED
+	if (AampRDKCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
+	{
+		std::string trackId = AampRDKCCManager::GetInstance()->GetTrack();
+		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+		for (auto it = tracks.begin(); it != tracks.end(); it++)
+		{
+			if (it->instreamId == trackId)
+			{
+				idx = std::distance(tracks.begin(), it);
+			}
+		}
+	}
+#endif
+	if (mpStreamAbstractionAAMP && idx == -1)
+	{
+		idx = mpStreamAbstractionAAMP->GetTextTrack();
+	}
+	return idx;
+}
+
+/**
+ *   @brief Set CC visibility on/off
+ *
+ *   @param[in] enabled true for CC on, false otherwise
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetCCStatus(bool enabled)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	AampRDKCCManager::GetInstance()->SetStatus(enabled);
+#endif
+}
+
+/**
+ *   @brief Function to notify available audio tracks changed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyAudioTracksChanged()
+{
+	SendEventAsync(AAMP_EVENT_AUDIO_TRACKS_CHANGED);
+}
+
+/**
+ *   @brief Function to notify available text tracks changed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyTextTracksChanged()
+{
+	SendEventAsync(AAMP_EVENT_TEXT_TRACKS_CHANGED);
+}
+
+/**
+ *   @brief Set style options for text track rendering
+ *
+ *   @param[in] options - JSON formatted style options
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
+{
+	//TODO: This can be later extended to subtitle rendering
+	// Right now, API is not available for subtitle
+#ifdef AAMP_RDK_CC_ENABLED
+	AampRDKCCManager::GetInstance()->SetStyle(options);
+#endif
+}
+
+/**
+ *   @brief Get style options for text track rendering
+ *
+ *   @return std::string - JSON formatted style options
+ */
+std::string PrivateInstanceAAMP::GetTextStyle()
+{
+	//TODO: This can be later extended to subtitle rendering
+	// Right now, API is not available for subtitle
+#ifdef AAMP_RDK_CC_ENABLED
+	return AampRDKCCManager::GetInstance()->GetStyle();
+#else
+	return std::string();
+#endif
 }
 
 /**

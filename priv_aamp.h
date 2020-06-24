@@ -3105,6 +3105,104 @@ public:
 	 */
 	void NotifyFirstVideoFrameDisplayed();
 
+	/**
+	 *   @brief Set audio track
+	 *
+	 *   @param[in] trackId index of audio track in available track list
+	 *   @return void
+	 */
+	void SetAudioTrack(int trackId);
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Set text track
+	 *
+	 *   @param[in] trackId index of text track in available track list
+	 *   @return void
+	 */
+	void SetTextTrack(int trackId);
+
+	/**
+	 *   @brief Get current text track index
+	 *
+	 *   @return int - index of current text track in available track list
+	 */
+	int GetTextTrack();
+
+	/**
+	 *   @brief Set CC visibility on/off
+	 *
+	 *   @param[in] enabled true for CC on, false otherwise
+	 *   @return void
+	 */
+	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Function to notify available audio tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyAudioTracksChanged();
+
+	/**
+	 *   @brief Function to notify available text tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyTextTracksChanged();
+
+	/**
+	 *   @brief Set preferred audio track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - audio track info object
+	 *   @return void
+	 */
+	void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
+
+	/**
+	 *   @brief Set preferred text track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - text track info object
+	 *   @return void
+	 */
+	void SetPreferredTextTrack(const TextTrackInfo track) { mPreferredTextTrack = track; }
+
+	/**
+	 *   @brief Get preferred audio track
+	 *
+	 *   @return AudioTrackInfo - preferred audio track object
+	 */
+	const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
+
+	/**
+	 *   @brief Get preferred text track
+	 *
+	 *   @return TextTrackInfo - preferred text track object
+	 */
+	const TextTrackInfo &GetPreferredTextTrack() { return mPreferredTextTrack; }
+
+	/**
+	 *   @brief Set style options for text track rendering
+	 *
+	 *   @param[in] options - JSON formatted style options
+	 *   @return void
+	 */
+	void SetTextStyle(const std::string &options);
+
+	/**
+	 *   @brief Get style options for text track rendering
+	 *
+	 *   @return std::string - JSON formatted style options
+	 */
+	std::string GetTextStyle();
 private:
 
 	/**
@@ -3138,11 +3236,11 @@ private:
 	void DeliverAdEvents(bool immediate=false);
 
 
-    /**
-     *   @brief Set Content Type
-     *
-     *   @return string
-     */
+	/**
+	 *   @brief Set Content Type
+	 *
+	 *   @return string
+	 */
 	std::string GetContentTypString();
 
 	/**
@@ -3219,5 +3317,7 @@ private:
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
+	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
+	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 };
 #endif // PRIVAAMP_H
