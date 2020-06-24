@@ -2923,7 +2923,7 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
 
 		JSObjectRef callbackObj = JSValueToObject(context, arguments[1], NULL);
 
-		if (callbackObj != NULL && JSObjectIsFunction(context, callbackObj))
+		if (callbackObj != NULL && JSObjectIsFunction(context, callbackObj) && reservationId && adId && adURL)
 		{
 			if (pAAMP->_promiseCallback)
 			{
@@ -2931,9 +2931,9 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
 			}
 			pAAMP->_promiseCallback = callbackObj;
 			JSValueProtect(context, pAAMP->_promiseCallback);
-			std::string adBreakId(reservationId);
-			std::string adIdStr(adId);
-			std::string url(adURL);
+			std::string adBreakId(reservationId);  //CID:89434 - Resolve Forward null
+			std::string adIdStr(adId);  //CID:89725 - Resolve Forward null
+			std::string url(adURL);  //CID:86272 - Resolve Forward null
 			ERROR("[AAMP_JS] Calling pAAMP->_aamp->SetAlternateContents with promiseCallback:%p", callbackObj);
 			pAAMP->_aamp->SetAlternateContents(adBreakId, adIdStr, url);
 		}

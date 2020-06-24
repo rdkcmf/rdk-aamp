@@ -394,7 +394,7 @@ public:
 			free(pUserAgentString);
 		}
 		pUserAgentString =(char*) malloc(iLen);
-		sprintf(pUserAgentString, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);
+		snprintf(pUserAgentString,iLen, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);  //CID:85162 - DC>STRING_BUFFER
 	}
 };
 

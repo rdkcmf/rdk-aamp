@@ -106,8 +106,8 @@ static unsigned char * extractKeyIdFromPssh(const char* psshData, int dataLength
 		fe ed f0 0d ee de ad be ef f0 ba ad f0 0d d0 0d
 		00 00 00 00
 	*/
-	uint32_t header = 32;
-	uint8_t  key_id_count = (uint8_t)psshData[header];
+	uint32_t header = 32;  //CID:10819 : key_id_count variable removed since its declared but not used
+	//uint8_t  key_id_count = (uint8_t)psshData[header]; // unused
 	key_id = (unsigned char*)malloc(16 + 1);
 	memset(key_id, 0, 16 + 1);
 	strncpy(reinterpret_cast<char*>(key_id), psshData + header, 16);

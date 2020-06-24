@@ -2354,12 +2354,12 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 		}
 	
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
-		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
+		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj) && adId && reservationId && adURL)
 		{
-			std::string adIdStr(adId);
-			std::string adBreakId(reservationId);
-			std::string url(adURL);
-	
+			std::string adIdStr(adId);  //CID:115002 - Resolve Forward null
+			std::string adBreakId(reservationId);  //CID:115001 - Resolve Forward null
+			std::string url(adURL);  //CID:115000 - Resolve Forward null
+
 			privObj->saveCallbackForAdId(adIdStr, callbackObj); //save callback for sending status later, if ad can be played or not
 			ERROR("%s() Calling privObj->_aamp->SetAlternateContents with promiseCallback:%p", __FUNCTION__, callbackObj);
 			privObj->_aamp->SetAlternateContents(adBreakId, adIdStr, url);

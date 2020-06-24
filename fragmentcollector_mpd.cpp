@@ -298,11 +298,15 @@ public:
 
 			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 			{
-				actualType = eMEDIATYPE_IFRAME;
-				if(actualType == eMEDIATYPE_INIT_VIDEO)
+				if(actualType == eMEDIATYPE_VIDEO)
+				{
+					actualType = eMEDIATYPE_IFRAME;
+				}
+				else if(actualType == eMEDIATYPE_INIT_VIDEO)
 				{
 					actualType = eMEDIATYPE_INIT_IFRAME;
 				}
+				//CID:101284 - To resolve the deadcode
 			}
 
 			//update videoend info
@@ -1270,7 +1274,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 	bool retval = true;
 	std::string fragmentUrl;
 	GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, media);
-	size_t len = 0;
+	//CID:96900 - Removex the len variable which is initialized but not used
 	float position;
 	if(isInitializationSegment)
 	{
@@ -1423,7 +1427,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 									startTime = nextStartTime;
 								}
 								repeatCount = timeline->GetRepeatCount();
-								nextStartTime = startTime+((repeatCount+1)*duration);
+								nextStartTime = startTime+((uint64_t)((repeatCount+1)*duration));  //CID:98056 - Resolve Overfloew Before Widen
 								if(pMediaStreamContext->lastSegmentTime < nextStartTime)
 								{
 									break;
@@ -1719,8 +1723,12 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 				if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 				{
-					actualType = eMEDIATYPE_IFRAME;
-					if(actualType == eMEDIATYPE_INIT_VIDEO)
+					if(actualType == eMEDIATYPE_VIDEO)
+					{
+						actualType = eMEDIATYPE_IFRAME;
+					}
+					//CID:101284 - To resolve  deadcode
+					else if(actualType == eMEDIATYPE_INIT_VIDEO)
 					{
 						actualType = eMEDIATYPE_INIT_IFRAME;
 					}
@@ -4623,8 +4631,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		int  selAdaptationSetIndex = -1;
 		int selRepresentationIndex = -1;
 		bool isIframeAdaptationAvailable = false;
-		int videoRepresentationIdx;
-		uint32_t selRepBandwidth = 0;
+		int videoRepresentationIdx;   //CID:118900 - selRepBandwidth variable locally declared but not reflected
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -5582,8 +5589,7 @@ bool PrivateStreamAbstractionMPD::CheckForInitalClearPeriod()
 void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 {
 	//Find the first period with contentProtection
-	size_t numPeriods = mpd->GetPeriods().size();
-	int headerCount = 0;
+	size_t numPeriods = mpd->GetPeriods().size();  //CID:96576 - Removed the  headerCount variable which is initialized but not used
 	for(int i = mNumberOfTracks - 1; i >= 0; i--)
 	{
 		bool encryptionFound = false;
@@ -5685,8 +5691,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	bool trickPlay = (AAMP_NORMAL_PLAY_RATE != rate);
 	bool mpdChanged = false;
 	double delta = 0;
-	bool lastLiveFlag = false;
-	bool placeNextAd = false;
+	bool lastLiveFlag = false;  //CID:96059 - Removed the  placeNextAd variable which is initialized but not used
 	int direction = 1;
   
 	if(rate < 0)
@@ -6783,7 +6788,7 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 }
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
 {
-	double adOffset;
+	double adOffset  = 0.0;   //CID:89257 - Intialization
 	return onAdEvent(evt, adOffset);
 }
 

@@ -442,6 +442,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 			caps = gst_caps_new_simple ("video/mpeg",
 					"mpegversion", G_TYPE_INT, 2,
 					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
+			break;  //CID:81305 - Using break statement
 		case FORMAT_INVALID:
 		case FORMAT_NONE:
 		default:
@@ -757,7 +758,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
         AAMPGstPlayer * _this)
 {
 	//TODO - Handle underflow
-	MediaType type;
+	MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
 	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 	logprintf("## %s() : Got Underflow message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
 	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))

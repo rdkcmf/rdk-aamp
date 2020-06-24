@@ -81,7 +81,7 @@ void CHTTPStatistics::IncrementCount(VideoStatCountType type)
 cJSON * CHTTPStatistics::ToJson() const
 {
 
-	bool bDataAdded = false;
+	//CID:100288 - Removed bDataAdded variable which has been initialized but not used
 	cJSON *monitor = cJSON_CreateObject();
 	cJSON * jsonObj =  NULL;
 	if(monitor)
