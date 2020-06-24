@@ -335,7 +335,7 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
 	return -1.0;
 }
 
-bool StreamAbstractionAAMP_PROGRESSIVE::IsFragmentBufferingRequired()
+bool StreamAbstractionAAMP_PROGRESSIVE::IsInitialCachingSupported()
 {
 	return false;
 }
