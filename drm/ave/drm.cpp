@@ -272,6 +272,10 @@ public:
 		{
 			mpAamp->SetCallbackAsPending(callbackID);
 		}
+		else
+		{
+			delete drmerrordata;  //CID:90132 - Resource leak
+		}
 		logprintf("DRMListener::%s:%d[%p]Track[%d] majorError = %d, minorError = %d drmState:%d", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
 

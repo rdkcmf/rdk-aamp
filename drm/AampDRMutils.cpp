@@ -353,7 +353,6 @@ std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int data
 unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 										const char* startStr, const char* endStr, int *len) {
 	int endPos = -1;
-	int startPos = -1;
 	unsigned char* contentMetaData = NULL;
 
 	//Clear the 00  bytes
@@ -368,7 +367,7 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 		}
 	}
 
-	startPos = aamp_FindSubstr(cleanedPssh, cleanedPsshLen, 0, startStr);
+	int startPos = aamp_FindSubstr(cleanedPssh, cleanedPsshLen, 0, startStr);  //CID:108195 - UNUSED_VALUE - Providing a direct declaration
 
 	if(startPos >= 0)
 	{

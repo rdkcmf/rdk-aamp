@@ -93,8 +93,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
         aamp->BlockUntilGstreamerWantsData( NULL/*CB*/, 0.0/*periodMs*/, eMEDIATYPE_VIDEO );
         double fpts = 0.0;
         double fdts = 0.0;
-        double fDuration = 2.0; // HACK!
-        float position = 0.0;
+        double fDuration = 2.0; // HACK!  //CID:113073 - Position variable initialized but not used
         if( nmemb>0 )
         {
            aamp->SendStream( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
@@ -194,8 +193,7 @@ static void * FragmentCollector(void *arg)
 AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
     AAMPStatusType retval = eAAMPSTATUS_OK;
-    aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
-    bool newTune = aamp->IsNewTune();
+    aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());  //CID:110904 - newTune bool variable  initialized not used
     aamp->IsTuneTypeNew = false;
     for (int i = 0; i < AAMP_TRACK_COUNT; i++)
     {

@@ -94,6 +94,8 @@ static const char* STRFGPLAYER = "FOREGROUND";
 
 static int PLAYERID_CNTR = 0;
 
+//Description size
+#define MAX_DESCRIPTION_SIZE 128
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -818,7 +820,7 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 
 	if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 	{
-		char description[128] = {};
+		char description[MAX_DESCRIPTION_SIZE] = {};
 		if (((error_code >= PARTIAL_FILE_CONNECTIVITY_AAMP) && (error_code <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)) || error_code == CURLE_OPERATION_TIMEDOUT)
 		{
 			switch(error_code)
@@ -826,26 +828,26 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 				case PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP:
 						error_code = CURLE_PARTIAL_FILE;
 				case CURLE_OPERATION_TIMEDOUT:
-						sprintf(description, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
 						break;
 				case PARTIAL_FILE_START_STALL_TIMEOUT_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
 						break;
 				case OPERATION_TIMEOUT_CONNECTIVITY_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_OPERATION_TIMEDOUT);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_OPERATION_TIMEDOUT);
 						break;
 				case PARTIAL_FILE_CONNECTIVITY_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
 						break;
 			}
 		}
 		else if(error_code < 100)
 		{
-			sprintf(description, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);  //CID:86441 - DC>STRING_BUFFER
 		}
 		else
 		{
-			sprintf(description, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
 			if (error_code == 404)
 			{
 				actualFailure = AAMP_TUNE_CONTENT_NOT_FOUND;
@@ -891,6 +893,7 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
         e.data.anomalyReport.severity = (int)type;
         AAMPLOG_INFO("Anomaly evt:%d msg:%s",e.data.anomalyReport.severity,msgData);
         SendEventAsync(e);
+	va_end(args);  //CID:82734 - VARAGAS
     }
 }
 
@@ -1051,7 +1054,7 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 	}
 
 	AAMPEventType eventType = e.type;
-	if ((eventType < 0) && (eventType >= AAMP_MAX_NUM_EVENTS))
+	if ((eventType < 0) || (eventType >= AAMP_MAX_NUM_EVENTS))  //CID:81883 - Resolve OVER_RUN
 		return;
 
 	// Build list of registered event listeners.
@@ -2058,7 +2061,7 @@ static int progress_callback(
 		}
 		else if (dlnow == 0 && context->startTimeout > 0)
 		{ // check to handle scenario where <startTimeout> seconds delay occurs without any bytes having been downloaded (stall at start)
-			double timeElapsedInSec = (NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
 			if (timeElapsedInSec >= context->startTimeout)
 			{
 				logprintf("Abort download as no data received for %.2f seconds", timeElapsedInSec);
@@ -2095,8 +2098,8 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 		case CURLINFO_HEADER_IN:
 		logprintf("curl header: %s", data);
 		break;
-	    default:
-		break;
+		default:
+		break;  //CID:94999 - Resolve deadcode
 	}
 	}
 	return 0;
@@ -2809,7 +2812,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 					}
-					effectiveUrl.assign(effectiveUrlPtr);
+
+					if(effectiveUrlPtr)
+					{
+						effectiveUrl.assign(effectiveUrlPtr);    //CID:81493 - Resolve Forward null
+					}
 
 					// check if redirected url is pointing to fog / local ip
 					if(mIsFirstRequestToFOG)
@@ -3677,7 +3684,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		//Removing unnecessary spaces and newlines
 		trim(cfg);
 
-		double seconds = 0;
+		//CID:98018- Remove the seconds variable which is declared but not used
 		double inputTimeout;
 		int value;
 		char * tmpValue = NULL;
@@ -4896,6 +4903,10 @@ static void DeFog(std::string& url)
 bool UrlEncode(std::string inStr, std::string &outStr)
 {
 	char *inSrc = strdup(inStr.c_str());
+	if(!inSrc)
+	{
+		return false;  //CID:81541 - REVERSE_NULL
+	}
 	const char HEX[] = "0123456789ABCDEF";
 	const int SRC_LEN = strlen(inSrc);
 	uint8_t * pSrc = (uint8_t *)inSrc;
@@ -4935,7 +4946,7 @@ bool UrlEncode(std::string inStr, std::string &outStr)
  */
 int replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
 {
-	bool done = false;
+	//CID:99836 - Removing the done variable wich is initialized but not used
 	int rc = 0;
 	std::size_t pos;
 
