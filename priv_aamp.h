@@ -2997,6 +2997,13 @@ public:
 	 */
 	void individualization(const std::string& payload);
 
+	/**
+	*   @brief Get MediaFormatType
+	*   @return MediaFormatType
+	*/
+
+	MediaFormat GetMediaFormatType(const char *url);
+
 	/* End AampDrmCallbacks implementation */
 private:
 
