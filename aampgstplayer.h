@@ -66,6 +66,7 @@ public:
 	bool IsCacheEmpty(MediaType mediaType);
 	bool CheckForPTSChange();
 	void NotifyFragmentCachingComplete();
+	void NotifyFragmentCachingOngoing();
 	void GetVideoSize(int &w, int &h);
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();

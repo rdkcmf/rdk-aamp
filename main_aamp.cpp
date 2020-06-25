@@ -4467,7 +4467,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 					&& minInitCache >= 0)
 			{
 				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
-				m_minInitialCacheSeconds = minInitCache;
+				mMinInitialCacheSeconds = minInitCache;
 			}
 		}
 
@@ -4502,7 +4502,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
-			m_minInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
+			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
 	}
 }
@@ -4964,6 +4964,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
+	mFragmentCachingRequired = false;
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -5122,6 +5123,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 		if (mVideoFormat == FORMAT_ISO_BMFF && mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
+		}
+
+		// Enable fragment initial caching. Retune not supported
+		if(tuneType != eTUNETYPE_RETUNE
+			&& mMinInitialCacheSeconds > 0
+			&& rate == AAMP_NORMAL_PLAY_RATE
+			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
+		{
+			mFragmentCachingRequired = true;
 		}
 
 #ifndef AAMP_STOP_SINK_ON_SEEK
@@ -6165,6 +6175,22 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 		SyncBegin();
 		mStreamSink->EndOfStreamReached(mediaType);
 		SyncEnd();
+
+		// If EOS during Buffering, set Playing and let buffer to dry out
+		// Sink is already unpaused by EndOfStreamReached()
+		pthread_mutex_lock(&mFragmentCachingLock);
+		mFragmentCachingRequired = false;
+		PrivAAMPState state;
+		GetState(state);
+		if(state == eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+			}
+			SetState(eSTATE_PLAYING);
+		}
+		pthread_mutex_unlock(&mFragmentCachingLock);
 	}
 }
 
@@ -6343,9 +6369,13 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
-				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				retValue = aamp->mStreamSink->Pause(false, false);
-				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				// check if unpausing in the middle of fragments caching
+				if(!aamp->SetStateBufferingIfRequired())
+				{
+					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+					retValue = aamp->mStreamSink->Pause(false, false);
+					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
 			}
@@ -6371,7 +6401,10 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		if(retValue)
 		{
-			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate);
+			// Do not update state if fragments caching is ongoing and pipeline not paused,
+			// target state will be updated once caching completed
+			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate,
+					(!aamp->IsFragmentCachingRequired() || aamp->pipeline_paused));
 		}
 	}
 	else
@@ -8163,7 +8196,10 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	SetState(eSTATE_PLAYING);
+	if(!SetStateBufferingIfRequired())
+	{
+		SetState(eSTATE_PLAYING);
+	}
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
@@ -8448,8 +8484,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
 	, mABRBufferCheckEnabled(false), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
-	, mCurrentDrm(), mDrmInitData(), m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
-	, mLicenseServerUrls()
+	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8465,7 +8501,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
-
+	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -8599,6 +8635,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
+	pthread_mutex_destroy(&mFragmentCachingLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -8636,7 +8673,8 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		sentSync = false;
 	}
 
-	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
+	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING)
+		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
@@ -8740,7 +8778,20 @@ bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
  */
 void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 {
+	pthread_mutex_lock(&mFragmentCachingLock);
+	mFragmentCachingRequired = false;
 	mStreamSink->NotifyFragmentCachingComplete();
+	PrivAAMPState state;
+	GetState(state);
+	if (state == eSTATE_BUFFERING)
+	{
+		if(mpStreamAbstractionAAMP)
+		{
+			mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+		}
+		SetState(eSTATE_PLAYING);
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
 }
 
 
@@ -9191,18 +9242,13 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 }
 
 /**
- * @brief Check if fragment Buffering is required before playing.
+ *   @brief Check if fragment caching is required
  *
- * @retval true if buffering is required.
+ *   @return true if required or ongoing, false if not needed
  */
-bool PrivateInstanceAAMP::IsFragmentBufferingRequired()
+bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 {
-	if(mpStreamAbstractionAAMP)
-	{
-		return mpStreamAbstractionAAMP->IsFragmentBufferingRequired();
-	}
-
-	return false;
+	return mFragmentCachingRequired;
 }
 
 
@@ -9494,7 +9540,8 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
 	PrivAAMPState state;
 	GetState(state);
-	if (state == eSTATE_SEEKING)
+	if (state == eSTATE_SEEKING
+		&& !SetStateBufferingIfRequired())
 	{
 		//Playback started after end of seeking
 		SetState(eSTATE_PLAYING);
@@ -10976,7 +11023,7 @@ void PrivateInstanceAAMP::individualization(const std::string& payload)
  */
 void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
-	m_minInitialCacheSeconds = durationSec;
+	mMinInitialCacheSeconds = durationSec;
 }
 
 /**
@@ -10986,9 +11033,43 @@ void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
-	return m_minInitialCacheSeconds;
+	return mMinInitialCacheSeconds;
 }
 
+
+/**
+ *   @brief Set eSTATE_BUFFERING if required
+ *
+ *   @return bool - true if has been set
+ */
+bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
+{
+	bool bufferingSet = false;
+
+	pthread_mutex_lock(&mFragmentCachingLock);
+	if(IsFragmentCachingRequired())
+	{
+		bufferingSet = true;
+		PrivAAMPState state;
+		GetState(state);
+		if(state != eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+			}
+
+			if(mStreamSink)
+			{
+				mStreamSink->NotifyFragmentCachingOngoing();
+			}
+			SetState(eSTATE_BUFFERING);
+		}
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
+
+	return bufferingSet;
+}
 
 /**
  * @}

@@ -2295,35 +2295,25 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			}
 		}
 	}
-	if(aamp->IsFragmentBufferingRequired())
+
+	if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
 		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 		{
-			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PAUSED failed", __FUNCTION__, __LINE__);
+			logprintf("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
 		}
-		privateContext->pendingPlayState = true;
+		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
+		this->privateContext->buffering_in_progress = true;
+		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
+		privateContext->pendingPlayState = false;
 	}
 	else
 	{
-		if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
+		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 		{
-			if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
-			{
-				logprintf("AAMPGstPlayer_Configure GST_STATE_PLAYING failed");
-			}
-			this->privateContext->buffering_target_state = GST_STATE_PLAYING;
-			this->privateContext->buffering_in_progress = true;
-			this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
-			privateContext->pendingPlayState = false;
+			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PLAYING failed", __FUNCTION__, __LINE__);
 		}
-		else
-		{
-			if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
-			{
-				logprintf("AAMPGstPlayer::%s %d > GST_STATE_PLAYING failed", __FUNCTION__, __LINE__);
-			}
-			privateContext->pendingPlayState = false;
-		}
+		privateContext->pendingPlayState = false;
 	}
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
@@ -2796,6 +2786,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		gst_element_set_state(this->privateContext->pipeline, nextState);
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
+		privateContext->pendingPlayState = false;
 	}
 	else
 	{
@@ -3322,6 +3313,17 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 	}
 }
 
+/**
+ * @brief Set pipeline to PAUSED state to wait on NotifyFragmentCachingComplete()
+ */
+void AAMPGstPlayer::NotifyFragmentCachingOngoing()
+{
+	if(!privateContext->paused)
+	{
+		Pause(true, true);
+	}
+	privateContext->pendingPlayState = true;
+}
 
 /**
  * @brief Get video display's width and height
