@@ -2298,13 +2298,13 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 	if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
+		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
+		this->privateContext->buffering_in_progress = true;
+		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
 		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 		{
 			logprintf("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
 		}
-		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
-		this->privateContext->buffering_in_progress = true;
-		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
 		privateContext->pendingPlayState = false;
 	}
 	else
