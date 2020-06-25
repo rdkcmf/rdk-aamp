@@ -2916,14 +2916,32 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		{
 			double newSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition);
 			culledSec = prevSecondsBeforePlayPoint - newSecondsBeforePlayPoint;
-			AAMPLOG_INFO("%s %s Prev:%f Now:%f culled with sequence %f ",__FUNCTION__,name,prevSecondsBeforePlayPoint,newSecondsBeforePlayPoint,culledSec);
+
+			if (culledSec > 0)
+			{
+				// Only positive values
+				mCulledSeconds += culledSec;
+			}
+			else
+			{
+				culledSec = 0;
+			}
+
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:%f AampCulled:%f TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, culledSec, aamp->culledSeconds, mCulledSeconds);
 		}
 		else
 		{
 			culledSec = mProgramDateTime - prevProgramDateTime;
-			AAMPLOG_INFO("%s %s Prev:%f Now:%f  culled with ProgramDateTime %f",__FUNCTION__,name,prevProgramDateTime,mProgramDateTime, culledSec);		
+
+			// Both negative and positive values added
+			mCulledSeconds += culledSec;
+
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:%f AampCulled:%f TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, culledSec, aamp->culledSeconds, mCulledSeconds);		
 		}
 	}	
+
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
@@ -3084,21 +3102,6 @@ void TrackState::RefreshPlaylist(void)
 		// FindTimedMetadata failing to parse playlist
 		if (IsLive())
 		{
-			if(UseProgramDateTimeIfAvailable())
-			{
-				// both negative and positive values added 
-				mCulledSeconds += culled;
-			}
-			else if (culled > 0)
-			{
-				// Only positive values 
-				mCulledSeconds += culled;
-			}
-			else
-			{
-				culled = 0;
-			}
-			AAMPLOG_INFO("%s %s culled :%f AampCulled:%f TrackCulled:%f ",__FUNCTION__,name,culled,aamp->culledSeconds,mCulledSeconds);
 			if(eTRACK_VIDEO == type)
 			{
 				aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
