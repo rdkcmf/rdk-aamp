@@ -3067,6 +3067,13 @@ public:
 	ContentType GetContentType() const;
 
 	/**
+	 *   @brief Get MediaFormatType
+	 *   @return MediaFormatType
+	*/
+
+	MediaFormat GetMediaFormatType(const char *url);
+
+	/**
 	 * @brief Get license server url for a drm type
 	 *
 	 * @param[in] type DRM type

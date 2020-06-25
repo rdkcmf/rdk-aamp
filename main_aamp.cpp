@@ -5328,22 +5328,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
-	mMediaFormat = eMEDIAFORMAT_DASH;
-
-        if(strstr(mainManifestUrl, "m3u8"))
-        { // if m3u8 anywhere in locator, assume HLS
-          // supports HLS locators that end in .m3u8 with/without trailing URI parameters
-          // supports HLS locators passed through FOG
-                mMediaFormat = eMEDIAFORMAT_HLS;
-        }
-        else if(strstr(mainManifestUrl, ".mp4") || strstr(mainManifestUrl, ".mp3"))
-        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
-                mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
-        }
-        else
-        { // for any other locators, assume DASH
-                mMediaFormat = eMEDIAFORMAT_DASH;
-        }
+	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
@@ -5527,6 +5512,60 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		this->mTraceUUID = "unknown";
 	}
+}
+
+
+/**
+ *   @brief Assign the correct mediaFormat by parsing the url
+ *   @param[in]  manifest url
+ */
+MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
+{
+	std::string urlStr(url); // for convenience, convert to std::string
+	if(urlStr.rfind("http://127.0.0.1",0)==0 ) // starts with localhost
+	{ // where local host is used; inspect further to determine if this locator involves FOG
+		size_t fogUrlStart = urlStr.find("recordedUrl=",16); // search forward, skipping 16-char http://127.0.0.1
+		if( fogUrlStart != std::string::npos )
+		{ // definitely FOG - extension is inside recordedUrl URI parameter
+			size_t fogUrlEnd = urlStr.find( "&", fogUrlStart ); // end of recordedUrl
+			if( fogUrlEnd != std::string::npos )
+			{
+				if( urlStr.rfind("m3u8",fogUrlEnd)!=std::string::npos )
+				{
+					return eMEDIAFORMAT_HLS;
+				}
+				if( urlStr.rfind("mpd",fogUrlEnd)!=std::string::npos )
+				{
+					return eMEDIAFORMAT_DASH;
+				}
+				// should never get here, but if we do, just fall through to normal locator scanning
+			}
+		}
+	}
+	
+	// do 'normal' (non-FOG) locator parsing
+	size_t extensionEnd = urlStr.find("?"); // delimited for URI parameters, or end-of-string
+	std::size_t extensionStart = urlStr.rfind(".",extensionEnd); // scan backwards to find final "."
+	if( extensionStart != std::string::npos )
+	{ // found an extension
+		if( extensionEnd == std::string::npos )
+		{
+			extensionEnd = urlStr.length();
+		}
+		extensionStart++; // skip past the "." - no reason to re-compare it
+		int extensionLength = (int)(extensionEnd - extensionStart); // bytes between "." and end of query delimiter/end of string
+		if( extensionLength == 4 && urlStr.compare(extensionStart,extensionLength,"m3u8") == 0 )
+		{
+			return eMEDIAFORMAT_HLS;
+		}
+		else if( extensionLength==3 && urlStr.compare(extensionStart,extensionLength,"mpd") == 0)
+		{
+			return eMEDIAFORMAT_DASH;
+		}
+		// if we get here, must have some other extension like .mp4 or .mp3
+	}
+	return eMEDIAFORMAT_PROGRESSIVE; // default, if no extension
+
 }
 
 /**
