@@ -28,7 +28,7 @@
 #include "AampDrmSystems.h"
 #include "AampLogManager.h"
 
-#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */

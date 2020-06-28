@@ -2978,14 +2978,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
 			{
-				if(mABRBufferCheckEnabled || (!mABRBufferCheckEnabled && buffer->len > gpGlobalConfig->aampAbrThresholdSize))
+				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
 				{
 					pthread_mutex_lock(&mLock);
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
 					// extra coding to avoid picking lower profile
 					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%d fragmentDurationMs:%d",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
-					if(fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && downloadbps < currentProfilebps)
+					if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
 					{
 						downloadbps = currentProfilebps;
 					}
@@ -8540,7 +8540,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	, mPlayermode(PLAYERMODE_JSPLAYER), mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
-	, mABRBufferCheckEnabled(false), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
+	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
