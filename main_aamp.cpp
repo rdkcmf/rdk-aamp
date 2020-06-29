@@ -1534,17 +1534,6 @@ bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 }
 
 /**
- *   @brief Set Westeros sink Configuration
- *   @param[in] bValue - true if westeros sink enabled
- *
- *   @return void
- */
-void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
-{
-	aamp->SetWesterosSinkConfig(bValue);
-}
-
-/**
  *   @brief Set Matching BaseUrl Config Configuration
  *
  *   @param[in] bValue - true if Matching BaseUrl enabled

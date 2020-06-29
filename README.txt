@@ -188,7 +188,7 @@ langcodepref=<X>
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
-useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
+useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
@@ -218,13 +218,14 @@ This can be done for n number of channels.
 
 =================================================================================================================
 
-To enable Westeros
+To disable Westeros
 -------------------
 
-Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
-flag in SetEnv.sh under /opt, then restart the receiver process:
+Westeros is default enabled .
+Developers can enable broadcom encoder via SetEnv as below.
+Export  below flag in SetEnv.sh under /opt, then restart the receiver process:
 
-	export AAMP_ENABLE_WESTEROS_SINK=true
+	export AAMP_ENABLE_WESTEROS_SINK=false
 
 Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
 instead of going through browser rendering.  This allows for smoother video zoom animations
