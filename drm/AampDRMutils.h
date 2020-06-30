@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sstream>
 
 #include "AampDrmMediaFormat.h"
 #include "AampDrmData.h"
