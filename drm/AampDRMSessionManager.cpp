@@ -31,6 +31,7 @@
 #include "AampMutex.h"
 #include "AampDrmHelper.h"
 #include "AampJsonObject.h"
+#include "AampUtils.h"
 
 
 //#define LOG_TRACE 1

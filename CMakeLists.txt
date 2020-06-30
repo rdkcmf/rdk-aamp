@@ -119,7 +119,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
-                    drm/AampDRMutils.cpp
+                    AampUtils.cpp
                     AampJsonObject.cpp
 )
 
@@ -191,6 +191,7 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
                             drm/aampdrmsessionfactory.cpp
                             drm/aampoutputprotection.cpp
                             drm/helper/AampDrmHelperFactory.cpp
+                            drm/AampDRMutils.cpp
     )
     if(CMAKE_USE_THUNDER_OCDM_API_0_2)
         set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_THUNDER_OCDM_API_0_2")
@@ -406,7 +407,7 @@ install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
-  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h 
+  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

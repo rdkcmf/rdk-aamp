@@ -55,6 +55,7 @@
 #include <fstream>
 #include <math.h>
 #include "AampCacheHandler.h"
+#include "AampUtils.h"
 #ifdef AAMP_RDK_CC_ENABLED
 #include "AampRDKCCManager.h"
 #endif
@@ -443,17 +444,6 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 	default:
 		return "";
 	}
-}
-
-/**
- * @brief Get current time stamp
- * @retval current clock time as milliseconds
- */
-long long aamp_GetCurrentTimeMS(void)
-{
-	struct timeval t;
-	gettimeofday(&t, NULL);
-	return (long long)(t.tv_sec*1e3 + t.tv_usec*1e-3);
 }
 
 static guint aamp_GetSourceID()
@@ -3396,120 +3386,6 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
 }
 #endif
 
-/**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-bool aamp_StartsWith( const char *inputStr, const char *prefix )
-{
-	bool rc = true;
-	while( *prefix )
-	{
-		if( *inputStr++ != *prefix++ )
-		{
-			rc = false;
-			break;
-		}
-	}
-	return rc;
-}
-
-/**
- * @brief Resolve URL from base and uri
- * @param[out] dst Destination buffer
- * @param base Base URL
- * @param uri manifest/ fragment uri
- */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
-{
-	if (memcmp(uri, "http://", 7) != 0 && memcmp(uri, "https://", 8) != 0) // explicit endpoint - needed for DAI playlist
-	{
-		dst = base;
-
-		std::size_t pos;
-		if (uri[0] == '/')
-		{	// absolute path; preserve only endpoint http://<endpoint>:<port>/
-			//e.g uri = "/vod/video/00000001.ts"
-			// base = "https://host.com/folder1/manifest.m3u8"
-			// dst = "https://host.com/vod/video/00000001.ts"
-			pos = dst.find("://");
-			if (pos != std::string::npos)
-			{
-				pos = dst.find('/', pos + 3);
-			}
-			pos--; // skip the "/" as uri starts with "/" , this is done to avoid double "//" in URL which sometimes gives HTTP-404
-		}
-		else
-		{	// relative path; include base directory
-			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
-			// uri = "frag-787563519.ts"
-			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
-			pos = std::string::npos;
-			const char *ptr = dst.c_str();
-			std::size_t idx = 0;
-			for(;;)
-			{
-				char c = ptr[idx];
-				if( c=='/' )
-				{ // remember final '/'
-					pos = idx;
-				}
-				else if( c == '?' || c==0 )
-				{ // bail if we find uri param delimiter or reach end of stream
-					break;
-				}
-				idx++;
-			}
-		}
-
-		assert(pos!=std::string::npos);
-		dst.replace(pos+1, std::string::npos, uri);
-
-		if (strchr(uri, '?') == 0)//if uri doesn't already have url parameters, then copy from the parents(if they exist)
-		{
-			pos = base.find('?');
-			if (pos != std::string::npos)
-			{
-				std::string params = base.substr(pos);
-				dst.append(params);
-			}
-		}
-	}
-	else
-		dst = uri; // uri = "http://host.com/video/manifest.m3u8"
-}
-
-/**
- * @brief
- * @param url
- * @retval
- */
-std::string aamp_getHostFromURL(std::string url)
-{
-	std::string host = "comcast.net";
-	std::string protos = "https";
-	std::string proto = "http";
-	std::size_t start_pos = std::string::npos;
-	if (url.compare(0, protos.length(), protos) == 0)
-	{
-		start_pos = protos.length() + 3;
-	}
-	else if (url.compare(0, proto.length(), proto) == 0)
-	{
-		start_pos = proto.length() + 3;
-	}
-
-	if (start_pos != std::string::npos)
-	{
-		std::size_t pos = url.find('/', start_pos);
-		if (pos != std::string::npos)
-		host = url.substr(start_pos, (pos - start_pos));
-	}
-	return host;
-}
-
 
 /**
  * @brief
@@ -4587,13 +4463,8 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	{
 #ifdef AAMP_STOP_SINK_ON_SEEK
 		const bool forceStop = true;
-#ifdef AAMP_RDK_CC_ENABLED
-		if (gpGlobalConfig->nativeCCRendering)
-		{
-			AampRDKCCManager::GetInstance()->Stop();
-		}
-		else
-#endif
+		// Don't send event if nativeCCRendering is ON
+		if (!gpGlobalConfig->nativeCCRendering)
 		{
 			AAMPEvent event;
 			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
@@ -4611,6 +4482,13 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		else
 		{
+#ifdef AAMP_RDK_CC_ENABLED
+			// Stop CC when pipeline is stopped/destroyed
+			if (gpGlobalConfig->nativeCCRendering)
+			{
+				AampRDKCCManager::GetInstance()->Stop();
+			}
+#endif
 			mStreamSink->Stop(!newTune);
 		}
 	}

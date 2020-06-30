@@ -23,6 +23,7 @@
  */
 
 #include "StreamAbstractionAAMP.h"
+#include "AampUtils.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>

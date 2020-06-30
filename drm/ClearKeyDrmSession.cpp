@@ -24,7 +24,7 @@
 
 #include "config.h"
 #include "ClearKeyDrmSession.h"
-#include "AampDRMutils.h"
+#include "AampUtils.h"
 #include "GlobalConfigAAMP.h"
 #include <gst/gst.h>
 #include <sstream>

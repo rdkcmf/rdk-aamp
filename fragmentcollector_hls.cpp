@@ -62,7 +62,7 @@
 #include "webvttParser.h"
 #include "tsprocessor.h"
 #include "isobmffprocessor.h"
-#include "AampDRMutils.h"
+#include "AampUtils.h"
 
 #ifdef AAMP_HLS_DRM
 #include "AampDRMSessionManager.h"

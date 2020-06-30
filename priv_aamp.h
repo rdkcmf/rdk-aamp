@@ -259,38 +259,6 @@ typedef enum
 // context-free utility functions
 
 /**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-bool aamp_StartsWith( const char *inputStr, const char *prefix);
-
-/**
- * @brief extract host string from url.
- * @param url - Input URL
- * @retval - host of input url
- */
-std::string aamp_getHostFromURL(std::string url);
-
-/**
- * @brief Create file URL from the base and file path
- *
- * @param[out] dst - Created URL
- * @param[in] base - Base URL
- * @param[in] uri - File path
- * @return void
- */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
-
-/**
- * @brief Get current time from epoch is milliseconds
- *
- * @return Current time in milliseconds
- */
-long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
-
-/**
  * @brief Log error
  *
  * @param[in] msg - Error message

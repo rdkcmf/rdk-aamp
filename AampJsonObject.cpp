@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "AampJsonObject.h"
-#include "AampDRMutils.h"
+#include "AampUtils.h"
 #include "_base64.h"
 
 AampJsonObject::AampJsonObject() : mParent(NULL), mJsonObj()

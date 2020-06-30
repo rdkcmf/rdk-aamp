@@ -45,6 +45,7 @@
 #include <cctype>
 #include <regex>
 #include "AampCacheHandler.h"
+#include "AampUtils.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
