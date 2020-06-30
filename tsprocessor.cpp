@@ -1215,14 +1215,15 @@ long long TSProcessor::getCurrentTime()
  */
 bool TSProcessor::msleep(long long throttleDiff)
 {
+	// refactoring to optimize and avoid CID:100201 -Resolve Overflow Before Widen
+	#define MICROSECONDS_PER_SECOND 1000000L
 	struct timespec ts;
 	struct timeval tv;
 	bool aborted = false;
 	gettimeofday(&tv, NULL);
-	ts.tv_sec = time(NULL) + throttleDiff / 1000;
-	ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (throttleDiff % 1000));
-	ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-	ts.tv_nsec %= (1000 * 1000 * 1000);
+	long long utc_usec = tv.tv_sec*MICROSECONDS_PER_SECOND + (tv.tv_usec) + throttleDiff*1000;
+	ts.tv_sec = (time_t)(utc_usec/MICROSECONDS_PER_SECOND);
+	ts.tv_nsec = (long)(1000L*(utc_usec%MICROSECONDS_PER_SECOND));
 	pthread_mutex_lock(&m_mutex);
 	pthread_cond_timedwait(&m_throttleCond, &m_mutex, &ts);
 	if (!m_enabled)
@@ -1908,7 +1909,8 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 
 		if (demuxer)
 		{
-			bool ptsError, basePTSUpdated;
+			bool ptsError = false;  //CID:87386 , 86687 - Initialization
+			bool  basePTSUpdated = false;
 			demuxer->processPacket(packetStart, basePTSUpdated, ptsError);
 			if(!m_demuxInitialized)
 			{
@@ -2081,7 +2083,7 @@ void TSProcessor::setBasePTS(double position, long long pts)
  */
 bool TSProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
 {
-	bool insPatPmt;
+	bool insPatPmt = false;  //CID:84507 - Initialization
 	unsigned char * packetStart;
 	int len = size;
 	bool ret = false;
@@ -4103,12 +4105,14 @@ bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
 					unsigned char *timeScaleP;
 					int timeScaleMask;
 
-					unsigned int num_units_in_tick = getBits(p, mask, 32);
-
+					/* unsigned int num_units_in_tick = */
+					(void) getBits(p, mask, 32);
 					timeScaleP = p;
 					timeScaleMask = mask;
-					unsigned int time_scale = getBits(p, mask, 32);
+					/*unsigned int time_scale = */
+					(void) getBits(p, mask, 32);
 
+					//CID:94243,97970 - Removed the num_units_in_tick,time_scale variable which is initialized but not used
 					unsigned int trick_time_scale = m_apparentFrameRate * 2 * 1000;
 					DEBUG("put trick_time_scale=%d at %p mask %X", trick_time_scale, timeScaleP, timeScaleMask);
 					putBits(timeScaleP, timeScaleMask, 32, trick_time_scale);

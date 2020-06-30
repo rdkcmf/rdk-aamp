@@ -1811,7 +1811,7 @@ static bool getEstbMac(char* mac)
 			if(strstr(buf, "ESTB_INTERFACE") != NULL)
 			{
 				const char * nwIfaceNameStart = buf + 15;
-				int ifLen = 0;
+				//CID:99472 - Removed unused variable ifLen
 				for (int i = 0; i < IFNAMSIZ-1; i++ )
 				{
 					if (!isspace(nwIfaceNameStart[i]))
@@ -1886,8 +1886,7 @@ int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
 		else
 		{
 			char* uRandString = &randString[MAC_STRING_LEN];
-			int uRandStringLen = 0;
-			unsigned char temp;
+			unsigned char temp;  //CID:98089 - Removed the uRandStringLen which is local variable declared but not used
 			for (int i = 0; i < URAND_STRING_LEN; i++)
 			{
 				ssize_t bytes = read(randFD, &temp, 1);
