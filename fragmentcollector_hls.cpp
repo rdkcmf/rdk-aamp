@@ -1245,7 +1245,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 *
 * @return string fragment URI pointer
 ***************************************************************************/
-char *TrackState::GetFragmentUriFromIndex()
+char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 {
 	char * uri = NULL;
 	const IndexNode *index = (IndexNode *) this->index.ptr;
@@ -1297,7 +1297,6 @@ char *TrackState::GetFragmentUriFromIndex()
 				logprintf("%s Found node - rate %f completionTimeSecondsFromStart %f playTarget %f",
 						__FUNCTION__, context->rate, node->completionTimeSecondsFromStart, playTarget);
 #endif
-
 				idxNode = node;
 				break;
 			}
@@ -1315,6 +1314,18 @@ char *TrackState::GetFragmentUriFromIndex()
 		{
 			fragmentDurationSeconds -= index[idx - 1].completionTimeSecondsFromStart;
 		}
+
+		if(lastDownloadedIFrameTarget != -1 && idxNode->completionTimeSecondsFromStart == lastDownloadedIFrameTarget)
+		{
+			// found playtarget  and lastdownloaded target on same segment .
+			bSegmentRepeated = true;
+		}
+		else
+		{       // diff segment
+			bSegmentRepeated = false;
+			lastDownloadedIFrameTarget = idxNode->completionTimeSecondsFromStart;
+		}
+	
 		while (fragmentInfo[0] == '#')
 		{
 			if (!memcmp(fragmentInfo, "#EXT-X-BYTERANGE:", 17))
@@ -1827,10 +1838,16 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				playlistPosition, playTarget, fragmentDurationSeconds, fragmentURI );
 #endif
 		assert (fragmentURI);
+		http_error = 0;
+		bool bSegmentRepeated = false;
 		if (context->trickplayMode && ABRManager::INVALID_PROFILE != context->GetIframeTrack())
 		{
-			fragmentURI = GetFragmentUriFromIndex();
+			// Note :: only for IFrames , there is a possibility of same segment getting downloaded again 
+			// Target of next download is not based on segment duration but fixed interval .
+			// If iframe segment duration is 1.001sec , and based on rate if increment is happening at 1sec 
+			// same segment will be downloaded twice .
 			double delta = context->rate / context->mTrickPlayFPS;
+			fragmentURI = GetFragmentUriFromIndex(bSegmentRepeated);
 			if (context->rate < 0)
 			{ // rewind
 				if (!fragmentURI || (playTarget == 0))
@@ -1856,6 +1873,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				}
 				playTarget += delta;
 			}
+			
 			//logprintf("Updated playTarget to %f", playTarget);
 		}
 		else
@@ -1885,7 +1903,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			}
 		}
 
-		if (!mInjectInitFragment && fragmentURI)
+		if (!mInjectInitFragment && fragmentURI && !bSegmentRepeated)
 		{
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
@@ -1951,6 +1969,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_error);
 				}
 				aamp_Free(&cachedFragment->fragment.ptr);
+				lastDownloadedIFrameTarget = -1;
 				return false;
 			}
 			else
@@ -2013,6 +2032,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 							}
 						}
 						aamp_Free(&cachedFragment->fragment.ptr);
+						lastDownloadedIFrameTarget = -1;
 						return false;
 					}
 #ifdef TRACE
@@ -2135,6 +2155,7 @@ void TrackState::FetchFragment()
 				{
 					AAMPLOG_WARN("%s:%d: Error on fetching %s fragment. failedCount:%d", __FUNCTION__, __LINE__, name, segDLFailCount);
 				}
+
 			}
 			else
 			{
@@ -5172,7 +5193,6 @@ void TrackState::RunFetchLoop()
 		while (fragmentURI && aamp->DownloadsAreEnabled())
 		{
 			skipFetchFragment = false;
-
 			if (mInjectInitFragment)
 			{
 				// DELIA-40273: mInjectInitFragment marks if init fragment has to be pushed whereas mInitFragmentInfo
@@ -5415,7 +5435,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name) :
 		MediaTrack(type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
-		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),playTargetBufferCalc(0),
+		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),playTargetBufferCalc(0),lastDownloadedIFrameTarget(-1),
 		streamOutputFormat(FORMAT_NONE), playContext(NULL),
 		playTargetOffset(0),
 		discontinuity(false),

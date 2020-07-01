@@ -260,7 +260,7 @@ public:
 	double GetBufferedDuration();
 private:
 	/// Function to get fragment URI based on Index 
-	char *GetFragmentUriFromIndex();
+	char *GetFragmentUriFromIndex(bool &bSegmentRepeated);
 	/// Function to flush all the downloads done 
 	void FlushIndex();
 	/// Function to Fetch the fragment and inject for playback 
@@ -308,6 +308,7 @@ public:
 	double playlistPosition; /**< playlist-relative time of most recent fragment-of-interest; -1 if undefined */
 	double playTarget; /**< initially relative seek time (seconds) based on playlist window, but updated as a play_target */
 	double playTargetBufferCalc;
+	double lastDownloadedIFrameTarget;	/**< stores last downloaded iframe segment target value for comparison */ 
 	double targetDurationSeconds; /**< copy of \#EXT-X-TARGETDURATION to manage playlist refresh frequency */
 	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
