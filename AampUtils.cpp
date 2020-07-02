@@ -118,24 +118,23 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
  */
 std::string aamp_getHostFromURL(std::string url)
 {
-	std::string host = "comcast.net";
-	std::string protos = "https";
-	std::string proto = "http";
+	std::string host = "";
 	std::size_t start_pos = std::string::npos;
-	if (url.compare(0, protos.length(), protos) == 0)
-	{
-		start_pos = protos.length() + 3;
+	if(url.rfind("http://", 0) == 0)
+	{ // starts with http://
+		start_pos = 7;
 	}
-	else if (url.compare(0, proto.length(), proto) == 0)
-	{
-		start_pos = proto.length() + 3;
+	else if(url.rfind("https://", 0) == 0)
+	{ // starts with https://
+		start_pos = 8;
 	}
-
-	if (start_pos != std::string::npos)
+	if(start_pos != std::string::npos)
 	{
 		std::size_t pos = url.find('/', start_pos);
-		if (pos != std::string::npos)
-		host = url.substr(start_pos, (pos - start_pos));
+		if(pos != std::string::npos)
+		{
+			host = url.substr(start_pos, (pos - start_pos));
+		}
 	}
 	return host;
 }
