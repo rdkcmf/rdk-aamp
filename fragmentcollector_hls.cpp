@@ -1427,6 +1427,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 	const char* programDateTime = NULL;
 
 	traceprintf ("GetNextFragmentUriFromPlaylist : playTarget %f playlistPosition %f fragmentURI %p", playTarget, playlistPosition, fragmentURI);
+
 	if (playTarget < 0)
 	{
 		logprintf("%s - invalid playTarget %f ", __FUNCTION__, playTarget);
@@ -1438,7 +1439,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		//logprintf("[PLAYLIST_POSITION==PLAY_TARGET]");
 		return fragmentURI;
 	}
-	if (playlistPosition != -1)
+	if ((playlistPosition != -1) && (fragmentURI != NULL))
 	{ // already presenting - skip past previous segment
 		//logprintf("[PLAYLIST_POSITION!= -1]");
 		ptr += strlen(fragmentURI) + 1;
