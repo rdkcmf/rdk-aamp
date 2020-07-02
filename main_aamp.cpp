@@ -3016,27 +3016,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
-#ifdef SAVE_DOWNLOADS_TO_DISK
-			const char *fname = remoteUrl;
-			for (;;)
-			{
-				const char *next = strchr(fname, '/');
-				if (next)
-				{
-					next++;
-					fname = next;
-				}
-				else
-				{
-					break;
-				}
-			}
-			char path[1024];
-			snprintf(path,sizeof(path),"C:/Users/pstrof200/Downloads/%s", fname);
-			FILE *f = fopen(path, "wb");
-			fwrite(buffer->ptr, 1, buffer->len, f);
-			fclose(f);
-#endif
 			double expectedContentLength = 0;
 			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
 			{
@@ -3580,9 +3559,9 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		double inputTimeout;
 		int value;
 		char * tmpValue = NULL;
-		if (ReadConfigNumericHelper(cfg, "map-mpd=", gpGlobalConfig->mapMPD) == 1)
+		if(ReadConfigStringHelper(cfg, "map-mpd=", (const char**)&gpGlobalConfig->mapMPD))
 		{
-			logprintf("map-mpd=%d", gpGlobalConfig->mapMPD);
+			logprintf("map-mpd=%s", gpGlobalConfig->mapMPD);
 		}
 		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
 		{
@@ -5340,54 +5319,19 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
-			mMediaFormat = eMEDIAFORMAT_DASH;
-			if (!gpGlobalConfig->fogSupportsDash )
+			std::string hostName = aamp_getHostFromURL(mManifestUrl);
+			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mIsLocalPlayback && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
 			{
-				DeFog(mManifestUrl);
+				replace(mManifestUrl, ".m3u8", ".mpd");
+				mMediaFormat = eMEDIAFORMAT_DASH;
 			}
-
-			bool urlReplaced = false;
-
-			switch(gpGlobalConfig->mapMPD)
-			{
-				case 1: 		//Simply change m3u8 to mpd
-					urlReplaced = true;
-					break;
-				case 2:
-					urlReplaced |= (replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top") ||
-					                replace(mManifestUrl, "linear-nat-pil-red", "coam-tvil-pil")    ||
-					                replace(mManifestUrl, "linear-nat-pil", "coam-tvil-pil"));
-					break;
-				case 3:			//Setting all national channels' FQDN to "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net"
-					if(mManifestUrl.compare("-nat-") == 0)
-					{
-						std::string hostName = aamp_getHostFromURL(mManifestUrl);
-						urlReplaced |= replace(mManifestUrl, hostName.c_str(), "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net");
-					}
-					else
-					{
-						urlReplaced |= replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top");
-					}
-					break;
-				default:
-					//Let fall back
-					break;
-			}
-
-			if(!urlReplaced)
-			{
-				//Fall back channel
-				mManifestUrl = "http://ccr.coam-tvil-pil.xcr.comcast.net/FNCHD_HD_NAT_16756_0_5884597068415311163.mpd";
-			}
-
-			replace(mManifestUrl, ".m3u8", ".mpd");
 		}
 		
-		if (gpGlobalConfig->noFog)
+		if ((mMediaFormat == eMEDIAFORMAT_DASH && !gpGlobalConfig->fogSupportsDash) || gpGlobalConfig->noFog)
 		{
 			DeFog(mManifestUrl);
 		}
-	
+
 		if (gpGlobalConfig->forceEC3)
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
@@ -8246,7 +8190,6 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	}
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
-	pthread_mutex_unlock(&mMutexPlaystart);
 
 	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
@@ -8515,33 +8458,17 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
-#ifdef PLACEMENT_EMULATION
-	,mNumAds2Place(0), sampleAdBreakId("")
-#endif
-	,mCustomLicenseHeaders()
-	, mIsIframeTrackPresent(false)
-	,mManifestTimeoutMs(-1)
-	,mPlaylistTimeoutMs(-1)
-	,mNetworkTimeoutMs(-1)
-	,mParallelFetchPlaylist(false)
-	,mParallelFetchPlaylistRefresh(true)
-	,mBulkTimedMetadata(false)
-	,reportMetadata()
-	,mPlayerId(PLAYERID_CNTR++)
-	,mWesterosSinkEnabled(false)
-	,mEnableRectPropertyEnabled(true)
-	,waitforplaystart()
-	,mMutexPlaystart()
-	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
-	,mUseAvgBandwidthForABR(false)
+	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
+	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
+	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(false), mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
+	,mPlaylistTimeoutMs(-1),mMutexPlaystart()
 #ifdef AAMP_HLS_DRM
-    , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
+    	, fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
 #endif
-	, mbPlayEnabled(true)
-	, mAampCacheHandler(new AampCacheHandler())
-	, mAsyncTuneEnabled(false)
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
@@ -10251,12 +10178,6 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 }
 
 
-#ifdef PLACEMENT_EMULATION
-	static int sampleAdIdx = 0;
-	static const std::string sampleAds[] = {"http://ccr.ip-ads.xcr.comcast.net/omg08/UNI_Packaging_-_Production/316269638415/6563a411-908b-4abd-b3ae-23dc910fd136/563/237/CSNF8700103700100001_mezz_LVLH07.mpd",
-											"http://ccr.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/450921542127/e5c6fac0-74a4-4301-807b-4ecdca384d86/977/301/CSAF8000010270110001_mezz_LVLH07.mpd"
-											};
-#endif
 
 /**
  *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
@@ -10276,20 +10197,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 		std::string url("");
 
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, breakdur);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-#ifdef PLACEMENT_EMULATION
-		mNumAds2Place = (breakdur /1000)/30;
-		if(mNumAds2Place > 0)
-		{
-			sampleAdBreakId = adBreakId;
-			mNumAds2Place--;
-			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
-			std::string url = sampleAds[sampleAdIdx];
-			sampleAdIdx = 1 - sampleAdIdx;
-			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
-		}
-#else
 		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
-#endif
 	}
 }
 
@@ -10326,16 +10234,6 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 	AAMPEvent e;
 	if (mDownloadsEnabled)	//Send it, only if Stop not called
 	{
-#ifdef PLACEMENT_EMULATION
-		if(mNumAds2Place > 0)
-		{
-			mNumAds2Place--;
-			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
-			std::string url = sampleAds[sampleAdIdx];
-			sampleAdIdx = 1 - sampleAdIdx;
-			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
-		}
-#else
 		e.type = AAMP_EVENT_AD_RESOLVED;
 		strncpy(e.data.adResolved.adId, adId.c_str(), AD_ID_LENGTH);
 		e.data.adResolved.adId[AD_ID_LENGTH-1] = '\0';
@@ -10344,7 +10242,6 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 		e.data.adResolved.durationMs = durationMs;
 		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status=%d for adId[%s]", __FUNCTION__, __LINE__, e.data.adResolved.resolveStatus, adId.c_str());
 		SendEventAsync(e);
-#endif
 	}
 }
 
