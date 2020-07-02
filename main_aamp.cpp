@@ -1272,7 +1272,8 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stop(true);
 #endif
 			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
 			mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
