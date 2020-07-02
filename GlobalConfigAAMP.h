@@ -109,7 +109,7 @@ public:
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
 	bool noFog;                 /**< Disable FOG*/
-	int mapMPD;                 /**< Mapping of HLS to MPD: 0=Disable, 1=Rename m3u8 to mpd, 2=COAM mapping, 3='*-nat-*.comcast.net/' to 'ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net/'*/
+	char *mapMPD;               /**< Mapping of HLS to MPD url for matching string */
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 	int harvest;                /**< Save decrypted fragments for debugging*/
@@ -300,7 +300,7 @@ public:
 	/**
 	 * @brief GlobalConfigAAMP Constructor
 	 */
-	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
+	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
 		harvestpath(0),

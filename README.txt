@@ -126,10 +126,7 @@ live-offset    live offset time in seconds, aamp starts live playback this much 
 cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playback this much time before the live point
 disablePlaylistIndexEvent=1    disables generation of playlist indexed event by AAMP on tune/trickplay/seek
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
-map-mpd -	remap production linear/vod content to corresponding dash lanes
-    map-mpd=1 //Just m3u8 to mpd substitution, base URL remains same
-    map-mpd=2 //Old style COAM re-mapping
-    map-mpd=3 //Replace all national channels' hostnames with `ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net`
+map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 min-init-cache	Video duration to be cached before playing in seconds.
