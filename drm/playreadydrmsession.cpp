@@ -21,7 +21,6 @@
  * @file playreadydrmsession.cpp
  * @brief Playready Session management
  */
-
 #include "config.h"
 #include "playreadydrmsession.h"
 #include <gst/gst.h>
@@ -38,6 +37,7 @@
 //#define TRACE_LOG 1
 
 extern DRM_CONST_STRING g_dstrDrmPath;
+DRM_RESULT dr;
 
 // The default location of CDM DRM store.
 // /opt/drm/playready/drmstore.dat
@@ -132,7 +132,7 @@ void PlayReadyDRMSession::initAampDRMSession()
 
 	DRM_RESULT drm_res = DRM_SUCCESS;
 	DRM_ID aampSessionId;
-	DRM_DWORD cchEncSesID = SIZEOF(m_rgchSesID);
+	DRM_DWORD cchEncSesID = SIZEOF(m_rgchSesnID);
 
 	char *envParseInitData = NULL;
 
@@ -180,13 +180,13 @@ void PlayReadyDRMSession::initAampDRMSession()
 			Oem_Random_GetBytes(NULL, (DRM_BYTE *) &aampSessionId,
 					SIZEOF(aampSessionId)));
 
-	ZEROMEM(m_rgchSesID, SIZEOF(m_rgchSesID));
+	ZEROMEM(m_rgchSesnID, SIZEOF(m_rgchSesnID));
 	// Store the generated media session ID in base64 encoded form.
 	ChkDR(
 			DRM_B64_EncodeA((DRM_BYTE *) &aampSessionId, SIZEOF(aampSessionId),
-					m_rgchSesID, &cchEncSesID, 0));
+					m_rgchSesnID, &cchEncSesID, 0));
 
-	logprintf("initAampDRMSession :: Playready initialized with session id : %s",m_rgchSesID);
+	logprintf("initAampDRMSession :: Playready initialized with session id : %s",m_rgchSesnID);
 	// The current state MUST be KEY_INIT otherwise error out.
 	ChkBOOL(m_eKeyState == KEY_INIT, DRM_E_INVALIDARG);
 	return;
