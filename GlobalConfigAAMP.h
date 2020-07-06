@@ -225,6 +225,7 @@ public:
 	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
+	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 public:
 	std::string getUnknownValue(const std::string& key)
 	{
@@ -367,6 +368,7 @@ public:
 		,useMatchingBaseUrl(eUndefinedState)
 		,bEnableSubtec(false)
 		,nativeCCRendering(false)
+		,preferredCEA708(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.

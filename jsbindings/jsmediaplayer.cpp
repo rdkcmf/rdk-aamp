@@ -238,6 +238,8 @@ enum ConfigParamType
 	ePARAM_INITIAL_BUFFER_DURATION,
 	ePARAM_USE_MATCHING_BASEURL,
 	ePARAM_USE_NATIVE_CC,
+	ePARAM_LANG_CODE_PREFERENCE,
+	ePARAM_USE_DESCRIPTIVE_TRACK_NAME,
 	ePARAM_MAX_COUNT
 };
 
@@ -294,6 +296,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_USE_NATIVE_CC, "nativeCCRendering" },
+	{ ePARAM_LANG_CODE_PREFERENCE, "langCodePreference" },
+	{ ePARAM_USE_DESCRIPTIVE_TRACK_NAME, "descriptiveTrackName" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -666,6 +670,8 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		double valueAsNumber = 0;
 		char *valueAsString = NULL;
 		JSValueRef valueAsObject = NULL;
+		int langCodePreference = -1; // value not passed
+		bool useRole = false; //default value in func arg
 		int numConfigParams = sizeof(initialConfigParamNames)/sizeof(initialConfigParamNames[0]);
 
 		JSObjectRef initConfigObj = JSValueToObject(ctx, arguments[0], &_exception);
@@ -702,6 +708,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+			case ePARAM_LANG_CODE_PREFERENCE:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -715,8 +722,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				break;
 			case ePARAM_STEREOONLY:
 			case ePARAM_BULKTIMEDMETADATA:
-				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
-                                break;
 			case ePARAM_ASYNCTUNE:
 			case ePARAM_PARALLELPLAYLISTDL:
 			case ePARAM_PARALLELPLAYLISTREFRESH:
@@ -727,6 +732,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 			case ePARAM_USE_MATCHING_BASEURL:
 			case ePARAM_USE_NATIVE_CC:
+			case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -856,10 +862,21 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_USE_NATIVE_CC:
 					privObj->_aamp->SetNativeCCRendering(valueAsBoolean);
 					break;
+				case ePARAM_LANG_CODE_PREFERENCE:
+					langCodePreference = (int) valueAsNumber;
+					break;
+				case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
+					useRole = valueAsBoolean;
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
 			}
+		}
+
+		if (langCodePreference != -1)
+		{
+			privObj->_aamp->SetLanguageFormat((LangCodePreference) langCodePreference, useRole);
 		}
 	}
 	else

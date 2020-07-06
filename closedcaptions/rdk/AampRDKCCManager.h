@@ -29,9 +29,20 @@
 
 #include <string>
 
+/**
+ * @brief Different CC formats
+ */
+enum CCFormat
+{
+	eCLOSEDCAPTION_FORMAT_608 = 0,
+	eCLOSEDCAPTION_FORMAT_708,
+	eCLOSEDCAPTION_FORMAT_DEFAULT
+};
+
 class AampRDKCCManager
 {
 public:
+
 	/**
 	 * @brief Get the singleton instance
 	 *
@@ -71,9 +82,10 @@ public:
 	 * @brief Set CC track
 	 *
 	 * @param[in] track - CC track to be selected
+	 * @param[in] format - force track to 608/708 or default
 	 * @return int - 0 on success, -1 on failure
 	 */
-	int SetTrack(const std::string &track);
+	int SetTrack(const std::string &track, const CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT);
 
 	/**
 	 * @brief Get current CC track

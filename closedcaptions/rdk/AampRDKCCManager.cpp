@@ -29,12 +29,15 @@
 #include "priv_aamp.h" // Included for AAMPLOG
 //TODO: Fix cyclic dependency btw GlobalConfig and AampLogManager
 
-#include "AampJsonObject.h" //For JSON parsing
-
+#include "AampJsonObject.h" // For JSON parsing
+#include "AampUtils.h" // For aamp_StartsWith
 #include "ccDataReader.h"
 #include "vlCCConstants.h"
 #include "cc_util.h"
 #include "vlGfxScreen.h"
+
+#define CHAR_CODE_1 49
+#define CHAR_CODE_6 54
 
 /**
  * @brief Singleton instance
@@ -408,6 +411,8 @@ int AampRDKCCManager::Start(void *handle)
 	mCCHandle = handle;
 	media_closeCaptionStart((void *)mCCHandle);
 
+	AAMPLOG_WARN("AampRDKCCManager::%s %d Start CC with video dec handle: %p and mEnabled: %d", __FUNCTION__, __LINE__, mCCHandle, mEnabled);
+
 	if (mEnabled)
 	{
 		ret = ccSetCCState(CCStatus_ON, 0);
@@ -439,6 +444,7 @@ int AampRDKCCManager::SetStatus(bool enable)
 {
 	int ret = -1;
 	mEnabled = enable;
+	AAMPLOG_WARN("AampRDKCCManager::%s %d mEnabled: %d", __FUNCTION__, __LINE__, mEnabled);
 	if (mEnabled)
 	{
 		ret = ccSetCCState(CCStatus_ON, 0);
@@ -455,36 +461,77 @@ int AampRDKCCManager::SetStatus(bool enable)
  * @param[in] track - CC track to be selected
  * @return int - 0 on success, -1 on failure
  */
-int AampRDKCCManager::SetTrack(const std::string &track)
+int AampRDKCCManager::SetTrack(const std::string &track, const CCFormat format)
 {
 	int ret = -1;
-	unsigned int trackNum = 1;
+	unsigned int trackNum = 0;
+	CCFormat finalFormat = eCLOSEDCAPTION_FORMAT_DEFAULT;
 	mTrack = track;
 
-	// Check if format is CC1 or 1
-	// Supports track number from 1 -> 6
-	if (!track.empty() && track[0] >= 49 && track[0] <= 54)
+	// Check if track is CCx or SERVICEx or track number
+	// Could be from 1 -> 63
+	if (!track.empty() && track[0] >= CHAR_CODE_1 && track[0] <= CHAR_CODE_6)
 	{
-		trackNum = ((int)track[0] - 48);
+		trackNum = (unsigned int) std::stoul(track);
+		// This is slightly confusing as we don't know if its 608/708
+		// more info might be available in format argument
 	}
-	else if (track.size() >= 3 && track[0] == 'C' && track[1] == 'C')
+	else if (track.size() > 2 && aamp_StartsWith(track.c_str(), "CC"))
 	{
+		// Value between 1 - 8
+		// Set as analog channel
+		finalFormat = eCLOSEDCAPTION_FORMAT_608;
 		trackNum = ((int)track[2] - 48);
 	}
-
-	if (trackNum < 1 || trackNum > 6)
+	else if (track.size() > 7 && aamp_StartsWith(track.c_str(), "SERVICE"))
 	{
-		AAMPLOG_WARN("%s:%d Reset trackNum (%d) -> 1", __FUNCTION__, __LINE__, trackNum);
-		trackNum = 1;
+		// Value between 1 - 63
+		// Set as digital channel
+		finalFormat = eCLOSEDCAPTION_FORMAT_708;
+		trackNum = (unsigned int) std::stoul(track.substr(7));
 	}
 
-	AAMPLOG_WARN("%s:%d Set CC trackNum (%d)", __FUNCTION__, __LINE__, trackNum);
+	// Format argument overrides whatever we infer from track
+	if (format != eCLOSEDCAPTION_FORMAT_DEFAULT && finalFormat != format)
+	{
+		if (format == eCLOSEDCAPTION_FORMAT_608)
+		{
+			//Force to 608
+			finalFormat = eCLOSEDCAPTION_FORMAT_608;
+			if (trackNum > 8)
+			{
+				//Hope this will not happen in realtime
+				trackNum = 0;
+			}
+			AAMPLOG_INFO("AampRDKCCManager::%s %d Force CC track format to 608 and trackNum to %d!", __FUNCTION__, __LINE__, trackNum);
+		}
+		else
+		{
+			//Force to 708
+			finalFormat = eCLOSEDCAPTION_FORMAT_708;
+			AAMPLOG_INFO("AampRDKCCManager::%s %d Force CC track format to 708!", __FUNCTION__, __LINE__);
+		}
+	}
 
-	ret = ccSetDigitalChannel(trackNum);
+	AAMPLOG_WARN("AampRDKCCManager::%s %d Set CC format(%d) trackNum(%d)", __FUNCTION__, __LINE__, finalFormat, trackNum);
+
+	if (finalFormat == eCLOSEDCAPTION_FORMAT_708 && (trackNum > 0 && trackNum <= 63))
+	{
+		ret = ccSetDigitalChannel(trackNum);
+	}
+	else if (finalFormat == eCLOSEDCAPTION_FORMAT_608 && (trackNum > 0 && trackNum <= 8))
+	{
+		int analogChannel = GSW_CC_ANALOG_SERVICE_CC1 + (trackNum - 1);
+		ret = ccSetAnalogChannel(analogChannel);
+	}
+	else
+	{
+		AAMPLOG_ERR("AampRDKCCManager::%s %d Invalid track number or format, ignoring it!", __FUNCTION__, __LINE__);
+	}
 
 	if(0 != ret)
 	{
-		AAMPLOG_ERR("%s:%d setTrack ccSetDigitalChannel failed %d", __FUNCTION__, __LINE__, ret);
+		AAMPLOG_ERR("AampRDKCCManager::%s %d Failed to set trackNum(%d) and format(%d) with ret - %d", __FUNCTION__, __LINE__, trackNum, finalFormat, ret);
 	}
 	return ret;
 }

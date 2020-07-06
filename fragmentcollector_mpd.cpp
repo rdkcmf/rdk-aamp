@@ -5132,8 +5132,8 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								}
 								ParseCCStreamIDAndLang(value, id, lang);
 								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d CC Track - lang:%s, isCC:1, group:%s, id:%s",
-									__FUNCTION__, __LINE__, value.c_str(), schemeId.c_str(), id.c_str());
-								tTracks.push_back(TextTrackInfo(empty, value, true, schemeId, empty, id, empty));
+									__FUNCTION__, __LINE__, lang.c_str(), schemeId.c_str(), id.c_str());
+								tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty));
 							}
 							else
 							{

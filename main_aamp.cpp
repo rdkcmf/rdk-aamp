@@ -54,6 +54,7 @@
 #include <list>
 #include <fstream>
 #include <math.h>
+#include <cctype>
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
 #ifdef AAMP_RDK_CC_ENABLED
@@ -4372,6 +4373,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			gpGlobalConfig->bEnableSubtec = true;
 			logprintf("Subtec subtitles enabled");
+		}
+		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
+		{
+			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;
+			logprintf("CEA 708 is preferred format: %s", (gpGlobalConfig->preferredCEA708 == eTrueState) ? "TRUE" : "FALSE");
 		}
 		else if (cfg.at(0) == '*')
 		{
@@ -11028,8 +11034,10 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
 				{
 					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
-					// Per spec, name and rendition/group-id is required
-					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (!iter->name.empty())
+					{
+						cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					}
 					if (!iter->language.empty())
 					{
 						cJSON_AddStringToObject(item, "language", iter->language.c_str());
@@ -11095,8 +11103,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
 				{
 					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
-					// Per spec, name and rendition/group-id is required
-					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (!iter->name.empty())
+					{
+						cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					}
 					if (iter->isCC)
 					{
 						cJSON_AddStringToObject(item, "type", "CLOSED-CAPTIONS");
@@ -11518,7 +11528,42 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			if (track.isCC)
 			{
 #ifdef AAMP_RDK_CC_ENABLED
-				AampRDKCCManager::GetInstance()->SetTrack(track.instreamId);
+				if (!track.instreamId.empty())
+				{
+					CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT;
+					// AampRDKCCManager expects the CC type, ie 608 or 708
+					// For DASH, there is a possibility that instreamId is just an integer so we infer rendition
+					if (mMediaFormat == eMEDIAFORMAT_DASH && (std::isdigit(static_cast<unsigned char>(track.instreamId[0])) == 0) && !track.rendition.empty())
+					{
+						if (track.rendition.find("608") != std::string::npos)
+						{
+							format = eCLOSEDCAPTION_FORMAT_608;
+						}
+						else if (track.rendition.find("708") != std::string::npos)
+						{
+							format = eCLOSEDCAPTION_FORMAT_708;
+						}
+					}
+
+					// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
+					if (gpGlobalConfig->preferredCEA708 != eUndefinedState)
+					{
+						if (gpGlobalConfig->preferredCEA708 == eTrueState)
+						{
+							format = eCLOSEDCAPTION_FORMAT_708;
+						}
+						else
+						{
+							format = eCLOSEDCAPTION_FORMAT_608;
+						}
+						AAMPLOG_WARN("PrivateInstanceAAMP::%s %d CC format override present, override format to: %d", __FUNCTION__, __LINE__, format);
+					}
+					AampRDKCCManager::GetInstance()->SetTrack(track.instreamId, format);
+				}
+				else
+				{
+					AAMPLOG_ERR("PrivateInstanceAAMP::%s %d Track number/instreamId is empty, skip operation", __FUNCTION__, __LINE__);
+				}
 #endif
 			}
 			else
