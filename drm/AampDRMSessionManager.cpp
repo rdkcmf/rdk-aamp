@@ -114,8 +114,10 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
-		,curlSessionAbort(false)
+		,curlSessionAbort(false), mEnableAccessAtrributes(true)
 {
+	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
+	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
 }
 
 /**
@@ -461,6 +463,30 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	uint32_t refreshDuration = 3;
 	SecClient_ExtendedStatus statusInfo;
 	const char *requestMetadata[1][2];
+	uint8_t numberOfAccessAttributes = 0;
+	const char *accessAttributes[2][2] = {NULL, NULL, NULL, NULL};
+	std::string serviceZone, streamID;
+	if(aampInstance->mIsVSS)
+	{
+		if (mEnableAccessAtrributes)
+		{
+			serviceZone = aampInstance->GetServiceZone();
+			streamID = aampInstance->GetVssVirtualStreamID();
+			if (!serviceZone.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_SERVICE_ZONE_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = serviceZone.c_str();
+				numberOfAccessAttributes++;
+			}
+			if (!streamID.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_VIRTUAL_STREAM_ID_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = streamID.c_str();
+				numberOfAccessAttributes++;
+			}
+		}
+		AAMPLOG_INFO("%s:%d accessAttributes : {\"%s\" : \"%s\", \"%s\" : \"%s\"}", __FUNCTION__, __LINE__, accessAttributes[0][0], accessAttributes[0][1], accessAttributes[1][0], accessAttributes[1][1]);
+	}
 	std::string moneytracestr;
 	requestMetadata[0][0] = "X-MoneyTrace";
 	aampInstance->GetMoneyTraceString(moneytracestr);
@@ -481,7 +507,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	{
 		attemptCount++;
 		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
-							requestMetadata, 0, NULL,
+							requestMetadata, numberOfAccessAttributes,
+							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
 							encodedData,
 							strlen(encodedData),
 							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,

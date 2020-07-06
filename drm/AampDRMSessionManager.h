@@ -150,6 +150,7 @@ private:
 	pthread_mutex_t accessTokenMutex;
 	pthread_mutex_t cachedKeyMutex;
 	bool curlSessionAbort;
+	bool mEnableAccessAtrributes;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
