@@ -5150,18 +5150,27 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	else
+	else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 	{
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
-		if(NULL == mCdaiObject)
+		if (NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 
 	mInitSuccess = true;
-	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	AAMPStatusType retVal;
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
+		retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	}
+	else
+	{
+		retVal = eAAMPSTATUS_GENERIC_ERROR;
+	}
+
 	if (retVal != eAAMPSTATUS_OK)
 	{
 		// Check if the seek position is beyond the duration
@@ -5622,6 +5631,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 }
 
+// Uncomment to test GetMediaFormatType without locator inspection
+#define TRUST_LOCATOR_EXTENSION_IF_PRESENT
 
 /**
  *   @brief Assign the correct mediaFormat by parsing the url
@@ -5629,51 +5640,118 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
  */
 MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 {
+	MediaFormat rc = eMEDIAFORMAT_UNKNOWN;
 	std::string urlStr(url); // for convenience, convert to std::string
-	if(urlStr.rfind("http://127.0.0.1",0)==0 ) // starts with localhost
+
+#ifdef TRUST_LOCATOR_EXTENSION_IF_PRESENT // disable to exersize alternate path
+	if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
 	{ // where local host is used; inspect further to determine if this locator involves FOG
-		size_t fogUrlStart = urlStr.find("recordedUrl=",16); // search forward, skipping 16-char http://127.0.0.1
-		if( fogUrlStart != std::string::npos )
+
+		size_t fogUrlStart = urlStr.find("recordedUrl=", 16); // search forward, skipping 16-char http://127.0.0.1
+
+		if(fogUrlStart != std::string::npos)
 		{ // definitely FOG - extension is inside recordedUrl URI parameter
-			size_t fogUrlEnd = urlStr.find( "&", fogUrlStart ); // end of recordedUrl
-			if( fogUrlEnd != std::string::npos )
+
+			size_t fogUrlEnd = urlStr.find("&", fogUrlStart); // end of recordedUrl
+
+			if(fogUrlEnd != std::string::npos)
 			{
-				if( urlStr.rfind("m3u8",fogUrlEnd)!=std::string::npos )
+				if(urlStr.rfind("m3u8", fogUrlEnd) != std::string::npos)
 				{
-					return eMEDIAFORMAT_HLS;
+					rc = eMEDIAFORMAT_HLS;
 				}
-				if( urlStr.rfind("mpd",fogUrlEnd)!=std::string::npos )
+				else if(urlStr.rfind("mpd", fogUrlEnd)!=std::string::npos)
 				{
-					return eMEDIAFORMAT_DASH;
+					rc = eMEDIAFORMAT_DASH;
 				}
-				// should never get here, but if we do, just fall through to normal locator scanning
+
+				// should never get here with UNKNOWN format, but if we do, just fall through to normal locator scanning
 			}
 		}
 	}
 	
-	// do 'normal' (non-FOG) locator parsing
-	size_t extensionEnd = urlStr.find("?"); // delimited for URI parameters, or end-of-string
-	std::size_t extensionStart = urlStr.rfind(".",extensionEnd); // scan backwards to find final "."
-	if( extensionStart != std::string::npos )
-	{ // found an extension
-		if( extensionEnd == std::string::npos )
-		{
-			extensionEnd = urlStr.length();
-		}
-		extensionStart++; // skip past the "." - no reason to re-compare it
-		int extensionLength = (int)(extensionEnd - extensionStart); // bytes between "." and end of query delimiter/end of string
-		if( extensionLength == 4 && urlStr.compare(extensionStart,extensionLength,"m3u8") == 0 )
-		{
-			return eMEDIAFORMAT_HLS;
-		}
-		else if( extensionLength==3 && urlStr.compare(extensionStart,extensionLength,"mpd") == 0)
-		{
-			return eMEDIAFORMAT_DASH;
-		}
-		// if we get here, must have some other extension like .mp4 or .mp3
-	}
-	return eMEDIAFORMAT_PROGRESSIVE; // default, if no extension
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{ // do 'normal' (non-FOG) locator parsing
 
+		size_t extensionEnd = urlStr.find("?"); // delimited for URI parameters, or end-of-string
+		std::size_t extensionStart = urlStr.rfind(".", extensionEnd); // scan backwards to find final "."
+		int extensionLength;
+
+		if(extensionStart != std::string::npos)
+		{ // found an extension
+			if(extensionEnd == std::string::npos)
+			{
+				extensionEnd = urlStr.length();
+			}
+
+			extensionStart++; // skip past the "." - no reason to re-compare it
+
+			extensionLength = (int)(extensionEnd - extensionStart); // bytes between "." and end of query delimiter/end of string
+
+			if(extensionLength == 4 && urlStr.compare(extensionStart, extensionLength, "m3u8") == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if(extensionLength == 3)
+			{
+				if(urlStr.compare(extensionStart,extensionLength,"mpd") == 0)
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
+				else if(urlStr.compare(extensionStart,extensionLength,"mp3") == 0 || urlStr.compare(extensionStart,extensionLength,"mp4") == 0 )
+				{
+					rc = eMEDIAFORMAT_PROGRESSIVE;
+				}
+			}
+		}
+	}
+#endif // TRUST_LOCATOR_EXTENSION_IF_PRESENT
+
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{
+		// no extension - sniff first few bytes of file to disambiguate
+		struct GrowableBuffer sniffedBytes = {0, 0, 0};
+		std::string effectiveUrl;
+		long http_error;
+		long bitrate;
+		int fogError;
+
+		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
+
+		bool gotManifest = GetFile(
+							url,
+							&sniffedBytes,
+							effectiveUrl,
+							&http_error,
+							"0-100", // download first few bytes only
+							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
+							eCURLINSTANCE_MANIFEST_PLAYLIST,
+							false,
+							eMEDIATYPE_MANIFEST,
+							&bitrate,
+							&fogError,
+							0.0);
+
+		if(gotManifest)
+		{
+			if(sniffedBytes.len >= 7 && memcmp(sniffedBytes.ptr, "#EXTM3U8", 7) == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if((sniffedBytes.len >= 6 && memcmp(sniffedBytes.ptr, "<?xml ", 6) == 0) || // can start with xml
+					 (sniffedBytes.len >= 5 && memcmp(sniffedBytes.ptr, "<MPD ", 5) == 0)) // or directly with mpd
+			{ // note: legal to have whitespace before leading tag
+				rc = eMEDIAFORMAT_DASH;
+			}
+			else
+			{
+				rc = eMEDIAFORMAT_PROGRESSIVE;
+			}
+		}
+		aamp_Free(&sniffedBytes.ptr);
+	}
+
+	return rc;
 }
 
 /**
