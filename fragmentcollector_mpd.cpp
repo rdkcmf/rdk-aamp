@@ -3869,6 +3869,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			}
 			this->mpd = mpd;
 			mIsLiveManifest = !(mpd->GetType() == "static");
+                        aamp->SetIsLive(mIsLiveManifest);
 			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
 				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
@@ -6618,7 +6619,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 								((rate > 0 && mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime >= mLiveEndPosition)
 								||(rate < 0 && mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime <= 0)));
 
-						if((!mIsLiveStream || (rate != AAMP_NORMAL_PLAY_RATE))
+						if((!mIsLiveManifest || (rate != AAMP_NORMAL_PLAY_RATE))
 							&& (eosOutSideAd || eosAdPlayback))
 						{
 							if(vEos)
