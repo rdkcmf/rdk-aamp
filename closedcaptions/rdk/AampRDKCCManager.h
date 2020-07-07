@@ -56,12 +56,12 @@ public:
 	 * @param[in] handle - decoder handle
 	 * @return int - 0 on sucess, -1 on failure
 	 */
-	int Start(void *handle);
+	int Init(void *handle);
 
 	/**
 	 * @brief Release CC resources
 	 */
-	void Stop(void);
+	void Release(void);
 
 	/**
 	 * @brief Enable/disable CC rendering
@@ -110,6 +110,14 @@ public:
 	//TODO: Default values can't be queried
 	const std::string &GetStyle() { return mOptions; }
 
+	/**
+	 * @brief To enable/disable CC when trickplay starts/ends
+	 *
+	 * @param[in] enable - true when trickplay starts, false otherwise
+	 * @return void
+	 */
+	void SetTrickplayStatus(bool enable);
+
 private:
 	/**
 	 * @brief Constructor
@@ -124,6 +132,20 @@ private:
         AampRDKCCManager(const AampRDKCCManager&) = delete;
         AampRDKCCManager& operator=(const AampRDKCCManager&) = delete;
 
+	/**
+	 * @brief To start CC rendering
+	 *
+	 * @return void
+	 */
+	void Start();
+
+	/**
+	 * @brief To stop CC rendering
+	 *
+	 * @return void
+	 */
+	void Stop();
+
 public:
 	static AampRDKCCManager *mInstance; /**< Singleton instance */
 
@@ -132,6 +154,8 @@ private:
 	bool mEnabled; /**< true if CC rendering enabled, false otherwise */
 	std::string mTrack; /**< CC track */
 	std::string mOptions; /**< CC rendering styles */
+	bool mTrickplayStarted; /** If a trickplay is going on or not */
+	bool mRendering; /**< If CC is visible or not */
 };
 
 #endif /* __AAMP_RDK_CC_MANAGER_H__ */

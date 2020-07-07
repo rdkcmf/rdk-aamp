@@ -1645,6 +1645,7 @@ public:
 	/**
 	 *   @brief Enable/disable the native CC rendering feature
 	 *
+	 *   @param[in] enable - true for native CC rendering on
 	 *   @return void
 	 */
 	void SetNativeCCRendering(bool enable);
@@ -1652,7 +1653,7 @@ public:
 	/**
 	 *   @brief Set audio track
 	 *
-	 *   @param[in] trackId index of audio track in available track list
+	 *   @param[in] trackId - index of audio track in available track list
 	 *   @return void
 	 */
 	void SetAudioTrack(int trackId);
@@ -1667,7 +1668,7 @@ public:
 	/**
 	 *   @brief Set text track
 	 *
-	 *   @param[in] trackId index of text track in available track list
+	 *   @param[in] trackId - index of text track in available track list
 	 *   @return void
 	 */
 	void SetTextTrack(int trackId);
@@ -1682,7 +1683,7 @@ public:
 	/**
 	 *   @brief Set CC visibility on/off
 	 *
-	 *   @param[in] enabled true for CC on, false otherwise
+	 *   @param[in] enabled - true for CC on, false otherwise
 	 *   @return void
 	 */
 	void SetCCStatus(bool enabled);
@@ -1701,6 +1702,14 @@ public:
 	 *   @return std::string - JSON formatted style options
 	 */
 	std::string GetTextStyle();
+
+	/**
+	 *   @brief Set the CEA format for force setting
+	 *
+	 *   @param[in] format - 0 for 608, 1 for 708
+	 *   @return void
+	 */
+	void SetPreferredCEAFormat(int format);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

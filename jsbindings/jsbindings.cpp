@@ -486,6 +486,30 @@ static bool AAMP_setProperty_enableNativeCC(JSContextRef context, JSObjectRef th
 }
 
 /**
+ * @brief Callback invoked from JS to set the preferred CEA format property value
+ * @param[in] context JS exception context
+ * @param[in] thisObject JSObject on which to set the property's value
+ * @param[in] propertyName JSString containing the name of the property to set
+ * @param[in] value JSValue to use as the property's value
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval true if the property was set, otherwise false
+ */
+static bool AAMP_setProperty_preferredCEAFormat(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (pAAMP == NULL)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
+		return false;
+	}
+
+	pAAMP->_aamp->SetPreferredCEAFormat((int)JSValueToNumber(context, value, exception));
+	return true;
+}
+
+/**
  * @brief Array containing the AAMP's statically declared value properties
  */
 static const JSStaticValue AAMP_static_values[] =
@@ -503,6 +527,7 @@ static const JSStaticValue AAMP_static_values[] =
 	{"stallTimeout", NULL, AAMP_setProperty_stallTimeout, kJSPropertyAttributeDontDelete },
 	{"reportInterval", NULL, AAMP_setProperty_reportInterval, kJSPropertyAttributeDontDelete },
 	{"enableNativeCC", NULL, AAMP_setProperty_enableNativeCC, kJSPropertyAttributeDontDelete },
+	{"preferredCEAFormat", NULL, AAMP_setProperty_preferredCEAFormat, kJSPropertyAttributeDontDelete },
 	{NULL, NULL, NULL, 0}
 };
 

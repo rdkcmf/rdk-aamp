@@ -91,12 +91,12 @@ static int getColor(gsw_CcAttribType attributeIndex, gsw_CcType ccType, std::str
 		}
 		if(!found)
 		{
-			AAMPLOG_WARN("%s:%d Unsupported color type %s", __FUNCTION__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported color type %s", __FUNCTION__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL!", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL!", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -137,12 +137,12 @@ static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Unsupported opacity type %s", __FUNCTION__, __LINE__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported opacity type %s", __FUNCTION__, __LINE__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -180,12 +180,12 @@ static int getFontSize(std::string input, gsw_CcFontSize *fontSizeOut)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Unsupported font size type %s", __FUNCTION__, __LINE__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported font size type %s", __FUNCTION__, __LINE__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -247,12 +247,12 @@ static int getFontStyle(std::string input, gsw_CcFontStyle *fontStyleOut)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Unsupported font style type %s", __FUNCTION__, __LINE__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported font style type %s", __FUNCTION__, __LINE__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -303,12 +303,12 @@ static int getEdgeType(std::string input, gsw_CcEdgeType *edgeTypeOut)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Unsupported edge type %s", __FUNCTION__, __LINE__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported edge type %s", __FUNCTION__, __LINE__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -341,12 +341,12 @@ static int getTextStyle(std::string input, gsw_CcTextStyle *textStyleOut)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Unsupported text style  %s", __FUNCTION__, __LINE__, inputStr);
+			AAMPLOG_ERR("%s:%d Unsupported text style  %s", __FUNCTION__, __LINE__, inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Input is NULL", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Input is NULL", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	return 0;
@@ -369,7 +369,9 @@ AampRDKCCManager *AampRDKCCManager::GetInstance()
 /**
  * @brief Constructor
  */
-AampRDKCCManager::AampRDKCCManager() : mCCHandle(NULL), mEnabled(false), mTrack(), mOptions()
+AampRDKCCManager::AampRDKCCManager():
+	mCCHandle(NULL), mEnabled(false), mTrack(), mOptions(),
+	mTrickplayStarted(false), mRendering(false)
 {
 
 }
@@ -388,7 +390,7 @@ AampRDKCCManager::~AampRDKCCManager()
  * @param[in] handle - decoder handle
  * @return int - 0 on sucess, -1 on failure
  */
-int AampRDKCCManager::Start(void *handle)
+int AampRDKCCManager::Init(void *handle)
 {
 	int ret = -1;
 	static bool initStatus = false;
@@ -415,11 +417,11 @@ int AampRDKCCManager::Start(void *handle)
 
 	if (mEnabled)
 	{
-		ret = ccSetCCState(CCStatus_ON, 0);
+		Start();
 	}
 	else
 	{
-		ret = ccSetCCState(CCStatus_OFF, 0);
+		Stop();
 	}
 
 	return ret;
@@ -428,9 +430,11 @@ int AampRDKCCManager::Start(void *handle)
 /**
  * @brief Release CC resources
  */
-void AampRDKCCManager::Stop(void)
+void AampRDKCCManager::Release(void)
 {
 	media_closeCaptionStop();
+	mTrickplayStarted = false;
+	mRendering = false;
 }
 
 
@@ -442,17 +446,21 @@ void AampRDKCCManager::Stop(void)
  */
 int AampRDKCCManager::SetStatus(bool enable)
 {
-	int ret = -1;
+	int ret = 0;
 	mEnabled = enable;
-	AAMPLOG_WARN("AampRDKCCManager::%s %d mEnabled: %d", __FUNCTION__, __LINE__, mEnabled);
-	if (mEnabled)
+	AAMPLOG_WARN("AampRDKCCManager::%s %d mEnabled: %d, mTrickplayStarted: %d", __FUNCTION__, __LINE__, mEnabled, mTrickplayStarted);
+	if (!mTrickplayStarted)
 	{
-		ret = ccSetCCState(CCStatus_ON, 0);
+		if (mEnabled)
+		{
+			Start();
+		}
+		else
+		{
+			Stop();
+		}
 	}
-	else
-	{
-		ret = ccSetCCState(CCStatus_OFF, 0);
-	}
+	return ret;
 }
 
 /**
@@ -680,3 +688,54 @@ int AampRDKCCManager::SetStyle(const std::string &options)
 	return ret;
 }
 
+/**
+ * @brief To enable/disable CC when trickplay starts/ends
+ *
+ * @param[in] on - true when trickplay starts, false otherwise
+ * @return void
+ */
+void AampRDKCCManager::SetTrickplayStatus(bool on)
+{
+	AAMPLOG_INFO("AampRDKCCManager::%s %d trickplay status(%d)", __FUNCTION__, __LINE__, on);
+	if (on)
+	{
+		// When trickplay starts, stop CC rendering
+		Stop();
+	}
+	else if (mEnabled)
+	{
+		// When trickplay ends and CC rendering enabled by app
+		Start();
+	}
+	mTrickplayStarted = on;
+}
+
+/**
+ * @brief To start CC rendering
+ *
+ * @return void
+ */
+void AampRDKCCManager::Start()
+{
+	AAMPLOG_TRACE("AampRDKCCManager::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
+	if (!mRendering)
+	{
+		ccSetCCState(CCStatus_ON, 0);
+		mRendering = true;
+	}
+}
+
+/**
+ * @brief To stop CC rendering
+ *
+ * @return void
+ */
+void AampRDKCCManager::Stop()
+{
+	AAMPLOG_TRACE("AampRDKCCManager::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
+	if (mRendering)
+	{
+		ccSetCCState(CCStatus_OFF, 0);
+		mRendering = false;
+	}
+}

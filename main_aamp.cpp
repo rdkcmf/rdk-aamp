@@ -1322,6 +1322,20 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		}
 	}
 
+#ifdef AAMP_RDK_CC_ENABLED
+	if (gpGlobalConfig->nativeCCRendering)
+	{
+		if (rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			AampRDKCCManager::GetInstance()->SetTrickplayStatus(false);
+		}
+		else
+		{
+			AampRDKCCManager::GetInstance()->SetTrickplayStatus(true);
+		}
+	}
+#endif
+
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SPEED_CHANGED])
 	{
 		AsyncEventDescriptor* e = new AsyncEventDescriptor();
@@ -4659,7 +4673,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			// Stop CC when pipeline is stopped/destroyed
 			if (gpGlobalConfig->nativeCCRendering)
 			{
-				AampRDKCCManager::GetInstance()->Stop();
+				AampRDKCCManager::GetInstance()->Release();
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -8376,7 +8390,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #ifdef AAMP_RDK_CC_ENABLED
 		if (gpGlobalConfig->nativeCCRendering)
 		{
-			AampRDKCCManager::GetInstance()->Start((void *)mStreamSink->getCCDecoderHandle());
+			AampRDKCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
 		}
 		else
 #endif
@@ -11474,6 +11488,26 @@ std::string PlayerInstanceAAMP::GetTextStyle()
 	ERROR_STATE_CHECK_VAL(std::string());
 
 	return aamp->GetTextStyle();
+}
+
+/**
+ *   @brief Set the CEA format for force setting
+ *
+ *   @param[in] format - 0 for 608, 1 for 708
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	if (format == eCLOSEDCAPTION_FORMAT_608)
+	{
+		gpGlobalConfig->preferredCEA708 = eFalseState;
+	}
+	else if (format == eCLOSEDCAPTION_FORMAT_708)
+	{
+		gpGlobalConfig->preferredCEA708 = eTrueState;
+	}
+#endif
 }
 
 /**

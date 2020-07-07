@@ -3109,7 +3109,7 @@ public:
 	/**
 	 *   @brief Set audio track
 	 *
-	 *   @param[in] trackId index of audio track in available track list
+	 *   @param[in] trackId - index of audio track in available track list
 	 *   @return void
 	 */
 	void SetAudioTrack(int trackId);
@@ -3124,7 +3124,7 @@ public:
 	/**
 	 *   @brief Set text track
 	 *
-	 *   @param[in] trackId index of text track in available track list
+	 *   @param[in] trackId - index of text track in available track list
 	 *   @return void
 	 */
 	void SetTextTrack(int trackId);
@@ -3139,7 +3139,7 @@ public:
 	/**
 	 *   @brief Set CC visibility on/off
 	 *
-	 *   @param[in] enabled true for CC on, false otherwise
+	 *   @param[in] enabled - true for CC on, false otherwise
 	 *   @return void
 	 */
 	void SetCCStatus(bool enabled);
