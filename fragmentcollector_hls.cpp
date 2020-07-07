@@ -754,7 +754,7 @@ static double ParseXStartTimeOffset(const char* ptr)
 static void * TrackPLDownloader(void *arg)
 {
 	TrackState* ts = (TrackState*)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampAudPL"))
+	if(aamp_pthread_setname(pthread_self(), "aampHLSAudPLDL"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -5388,7 +5388,7 @@ void TrackState::RunFetchLoop()
 static void *FragmentCollector(void *arg)
 {
 	TrackState *track = (TrackState *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampHLSFetch"))
+	if(aamp_pthread_setname(pthread_self(), "aampHLSFetcher"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}

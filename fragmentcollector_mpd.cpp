@@ -4482,7 +4482,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 void * TrackDownloader(void *arg)
 {
 	struct HeaderFetchParams* fetchParms = (struct HeaderFetchParams*)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampFetchInit"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDTrackDL"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -4510,7 +4510,7 @@ void * TrackDownloader(void *arg)
 void * FragmentDownloader(void *arg)
 {
 	struct FragmentDownloadParams* downloadParams = (struct FragmentDownloadParams*) arg;
-	if(aamp_pthread_setname(pthread_self(), "aampFragDown"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDFragDL"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -4555,7 +4555,7 @@ void * FragmentDownloader(void *arg)
 static void * FragmentCollector(void *arg)
 {
 	PrivateStreamAbstractionMPD *context = (PrivateStreamAbstractionMPD *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampMPDFetch"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDFetcher"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}

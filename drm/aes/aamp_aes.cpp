@@ -110,7 +110,7 @@ void AesDec::AcquireKey()
 	bool keyAcquisitionStatus = false;
 	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
 
-	if (aamp_pthread_setname(pthread_self(), "aampAesKey"))
+	if (aamp_pthread_setname(pthread_self(), "aampAesDRM"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed", __FUNCTION__, __LINE__);
 	}
