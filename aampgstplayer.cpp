@@ -882,11 +882,13 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 		}
 		else
 		{
+                        logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
 			_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 		}
 	}
 	else
 	{
+                logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
 		_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 	}
 }
