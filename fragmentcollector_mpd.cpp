@@ -4296,6 +4296,41 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 				}
 			}
 		}
+		else if ((schemeIdUri == "urn:scte:dash:asset-id:upid:2015"))
+		{
+			double start = startMS / 1000.0f;
+			std::ostringstream s;
+			for(auto childNode : node->GetSubNodes())
+			{
+				if(childNode->GetAttributeValue("type") == "URI")
+				{
+					s << "ID=" << "\"" << childNode->GetAttributeValue("value") << "\"";
+				}
+				else if(childNode->GetAttributeValue("type") == "ADI")
+				{
+					s << ",SIGNAL=" << "\"" << childNode->GetAttributeValue("value") << "\"";
+				}
+			}
+			std::string content = s.str();
+			AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-SOURCE-STREAM:%s", start, content.c_str());
+
+			for (int i = 0; i < aamp->subscribedTags.size(); i++)
+			{
+				const std::string& tag = aamp->subscribedTags.at(i);
+				if (tag == "#EXT-X-SOURCE-STREAM") {
+					if(reportBulkMeta && isInit)
+					{
+						aamp->SaveTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+					}
+					else
+					{
+						aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+					}
+					break;
+				}
+			}
+		}
+
 	}
 }
 
