@@ -35,6 +35,9 @@ let subtitleTimer = undefined;
 let displayTimer = undefined;
 let vttCueBuffer = [];
 
+//To turn on native CC rendering
+var enableNativeCC = true;
+
 //Comcast DRM config for AAMP
 var DrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
 
@@ -301,14 +304,18 @@ function playbackStateChanged(event) {
                 var closedCaptioningList = [];
                 for(track=0; track<textTrackList.length;track++) {
                     if(textTrackList[track].type === "CLOSED-CAPTIONS") {
-                        closedCaptioningList.push(textTrackList[track].name);
+                        closedCaptioningList.push(textTrackList[track].language);
                     }
                 }
 
                 // Iteratively adding all the options to ccTracks
                 for (var trackNo = 1; trackNo <= closedCaptioningList.length; trackNo++) {
                     var option = document.createElement("option");
-                    option.value = trackNo;
+                    if (enableNativeCC) {
+                        option.value = closedCaptioningList[trackNo-1];
+                    } else {
+                        option.value = trackNo;
+                    }
                     option.text = closedCaptioningList[trackNo-1];
                     ccTracks.add(option);
                 }
@@ -623,6 +630,9 @@ function loadUrl(urlObject, isLive) {
     let initConfiguration = generateInitConfigObject(urlObject);
     if(isLive)
         initConfiguration.offset = 15;
+    if(enableNativeCC === true) {
+        initConfiguration.nativeCCRendering = true;
+    }
     playerObj.initConfig(initConfiguration);
     playerObj.load(urlObject.url, true);
 }
@@ -644,6 +654,9 @@ function cacheStream(urlObject, isLive) {
     let initConfiguration = generateInitConfigObject(urlObject);
     if(isLive)
         initConfiguration.offset = 15;
+    if(enableNativeCC === true) {
+        initConfiguration.nativeCCRendering = true;
+    }
     bgPlayerObj.initConfig(initConfiguration);
     bgPlayerObj.load(urlObject.url, false);
 }

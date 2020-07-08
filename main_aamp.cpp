@@ -4670,8 +4670,8 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		else
 		{
 #ifdef AAMP_RDK_CC_ENABLED
-			// Stop CC when pipeline is stopped/destroyed
-			if (gpGlobalConfig->nativeCCRendering)
+			// Stop CC when pipeline is stopped/destroyed and if foreground instance
+			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
 			{
 				AampRDKCCManager::GetInstance()->Release();
 			}
@@ -4750,6 +4750,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		delete mInternalStreamSink;
 	}
+#ifdef AAMP_RDK_CC_ENABLED
+	if (gActivePrivAAMPs.empty())
+	{
+		AampRDKCCManager::DestroyInstance();
+	}
+#endif
 #ifdef SUPPORT_JS_EVENTS 
 	if (mJSBinding_DL && gActivePrivAAMPs.empty())
 	{
@@ -5976,6 +5982,13 @@ void PrivateInstanceAAMP::detach()
 		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
 		pipeline_paused = true;
 		mpStreamAbstractionAAMP->StopInjection();
+#ifdef AAMP_RDK_CC_ENABLED
+		// Stop CC when pipeline is stopped
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampRDKCCManager::GetInstance()->Release();
+		}
+#endif
 		mStreamSink->Stop(true);
 		mbPlayEnabled = false;
 	}
@@ -11638,12 +11651,15 @@ int PrivateInstanceAAMP::GetTextTrack()
 	if (AampRDKCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
 	{
 		std::string trackId = AampRDKCCManager::GetInstance()->GetTrack();
-		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
-		for (auto it = tracks.begin(); it != tracks.end(); it++)
+		if (!trackId.empty())
 		{
-			if (it->instreamId == trackId)
+			std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+			for (auto it = tracks.begin(); it != tracks.end(); it++)
 			{
-				idx = std::distance(tracks.begin(), it);
+				if (it->instreamId == trackId)
+				{
+					idx = std::distance(tracks.begin(), it);
+				}
 			}
 		}
 	}

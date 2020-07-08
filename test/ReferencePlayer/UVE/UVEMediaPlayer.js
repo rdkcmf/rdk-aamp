@@ -481,4 +481,24 @@ class AAMPPlayer {
        return this.player.getVideoRectangle();
     }
 
+    /**
+     * Get the closed caption style options
+     */
+    getTextStyleOptions() {
+        return this.player.getTextStyleOptions();
+    }
+
+    /**
+     * Set the closed caption style options
+     */
+    setTextStyleOptions(options) {
+        this.player.setTextStyleOptions(options);
+    }
+
+    /**
+     * Set the closed caption status
+     */
+    setClosedCaptionStatus(status) {
+        this.player.setClosedCaptionStatus(status);
+    }
 };

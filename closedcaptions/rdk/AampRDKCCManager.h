@@ -51,6 +51,13 @@ public:
 	static AampRDKCCManager * GetInstance();
 
 	/**
+	 * @brief Destroy instance
+	 *
+	 * @return void
+	 */
+	static void DestroyInstance();
+
+	/**
 	 * @brief Initialize CC resource.
 	 *
 	 * @param[in] handle - decoder handle

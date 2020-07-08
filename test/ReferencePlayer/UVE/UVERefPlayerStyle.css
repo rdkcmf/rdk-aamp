@@ -27,7 +27,7 @@ body {
 }
 
 #cacheOnly {
-    margin-left: 17%;
+    margin-left: 18%;
 }
 
 #videoURLs {
@@ -37,8 +37,15 @@ body {
 
 #ccTracks {
     position: fixed;
-    margin-left: 5%;
-    width: 9%;
+    margin-left: 2%;
+    width: 7%;
+    margin-top: 2%;
+}
+
+#ccStyles {
+    position: fixed;
+    margin-left: 9.5%;
+    width: 6%;
     margin-top: 2%;
 }
 

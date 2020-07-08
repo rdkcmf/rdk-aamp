@@ -367,6 +367,20 @@ AampRDKCCManager *AampRDKCCManager::GetInstance()
 }
 
 /**
+ * @brief Destroy instance
+ *
+ * @return void
+ */
+void AampRDKCCManager::DestroyInstance()
+{
+	if (mInstance)
+	{
+		delete mInstance;
+		mInstance = NULL;
+	}
+}
+
+/**
  * @brief Constructor
  */
 AampRDKCCManager::AampRDKCCManager():
@@ -432,9 +446,12 @@ int AampRDKCCManager::Init(void *handle)
  */
 void AampRDKCCManager::Release(void)
 {
-	media_closeCaptionStop();
+	Stop();
+	if (mCCHandle)
+	{
+		media_closeCaptionStop();
+	}
 	mTrickplayStarted = false;
-	mRendering = false;
 }
 
 
@@ -720,7 +737,7 @@ void AampRDKCCManager::Start()
 	AAMPLOG_TRACE("AampRDKCCManager::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
 	if (!mRendering)
 	{
-		ccSetCCState(CCStatus_ON, 0);
+		ccSetCCState(CCStatus_ON, 1);
 		mRendering = true;
 	}
 }
@@ -735,7 +752,7 @@ void AampRDKCCManager::Stop()
 	AAMPLOG_TRACE("AampRDKCCManager::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
 	if (mRendering)
 	{
-		ccSetCCState(CCStatus_OFF, 0);
+		ccSetCCState(CCStatus_OFF, 1);
 		mRendering = false;
 	}
 }

@@ -59,6 +59,10 @@
 #endif
 
 #define MAX_BUFFER_LENGTH 4096
+
+#define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
+#define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
+#define CC_OPTION_3 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"large\",\"windowFillColor\":\"blue\",\"fontStyle\":\"default\",\"textForegroundColor\":\"red\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"white\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 static PlayerInstanceAAMP *mSingleton = NULL;
 static PlayerInstanceAAMP *mBackgroundPlayer = NULL;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
@@ -381,7 +385,7 @@ void ShowHelpSet(){
 	logprintf("40 - Set AudioTrack (int track index)" );
 	logprintf("41 - Set TextTrack (int track index)" );
 	logprintf("42 - Set CC status (0/1)" );
-	logprintf("43 - Set a predefined CC style option" );
+	logprintf("43 - Set a predefined CC style option (1/2/3)" );
 }
 
 #define LOG_CLI_EVENTS
@@ -1206,11 +1210,30 @@ static void ProcessCliCommand(char *cmd)
 				}
 				case eAAMP_SET_CCStyle:
 				{
+					int value;
 					logprintf("Matched Command eAAMP_SET_CCStyle - %s ", cmd);
-					if (sscanf(cmd, "set %d", &opt) == 1)
+					if (sscanf(cmd, "set %d %d", &opt, &value) == 2)
 					{
-						const std::string options("{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}");
-						mSingleton->SetTextStyle(options);
+						std::string options;
+						switch (value)
+						{
+							case 1:
+								options = std::string(CC_OPTION_1);
+								break;
+							case 2:
+								options = std::string(CC_OPTION_2);
+								break;
+							case 3:
+								options = std::string(CC_OPTION_3);
+								break;
+							default:
+								logprintf("Invalid option passed. skipping!");
+								break;
+						}
+						if (!options.empty())
+						{
+							mSingleton->SetTextStyle(options);
+						}
 					}
 					break;
 				}
