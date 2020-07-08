@@ -4179,6 +4179,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					streamInfo->uri = aamp->GetManifestUrl().c_str();
 					aamp->SetVideoBitrate(-1);
 					mainManifestResult = eAAMPSTATUS_OK;
+					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Playlist only playback.", __FUNCTION__, __LINE__);
 				}
 				else
 				{
