@@ -255,7 +255,7 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 	DrmData * result = NULL;
 
 	m_eKeyState = KEY_ERROR;
-	if (m_challengeReady.wait(2000) == true) {
+	if (m_challengeReady.wait(KEY_REQUEST_TIMEOUT_MS) == true) {
 		if (m_challenge.empty() != true) {
 			std::string delimiter (":Type:");
 			std::string requestType (m_challenge.substr(0, m_challenge.find(delimiter)));
@@ -279,7 +279,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 
         OpenCDMError status = opencdm_session_update(m_pOpenCDMSession, key->getData(), key->getDataLength());
 	if (status == OpenCDMError::ERROR_NONE) {
-		if (m_keyStatusReady.wait(2000) == true) {
+		if (m_keyStatusReady.wait(KEY_REQUEST_TIMEOUT_MS) == true) {
 			logprintf("Key Status updated");
 		}
 #ifdef USE_THUNDER_OCDM_API_0_2
