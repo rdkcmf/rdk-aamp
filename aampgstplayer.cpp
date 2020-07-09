@@ -198,7 +198,12 @@ static gboolean buffering_timeout (gpointer data);
 /** 
  * @brief check if elemement is instance (BCOM-3563)
  */
-void type_check_instance(char * str, GstElement * elem);
+static void type_check_instance( const char * str, GstElement * elem);
+#define PLUGINS_TO_LOWER_RANK_MAX    2
+const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
+	"aacparse",
+	"ac3parse",
+};
 
 /**
  * @brief AAMPGstPlayer Constructor
@@ -3129,6 +3134,16 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
+#ifndef INTELCE
+	for (int i=0; i<PLUGINS_TO_LOWER_RANK_MAX; i++) {
+		pluginFeature = gst_registry_lookup_feature(registry, plugins_to_lower_rank[i]);
+		if(pluginFeature) {
+			gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY - 1);
+			gst_object_unref(pluginFeature);
+			AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY  - 1\n", __FUNCTION__, __LINE__, plugins_to_lower_rank[i]);
+		}
+	}
+#endif
 #endif
 }
 
@@ -3305,7 +3320,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	pthread_mutex_unlock(&mBufferingLock);
 }
 
-void type_check_instance(char * str, GstElement * elem)
+void type_check_instance(const char * str, GstElement * elem)
 {
 	logprintf("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
 }
