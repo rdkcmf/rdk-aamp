@@ -26,7 +26,7 @@
 
 #include "GlobalConfigAAMP.h"
 
-AampIonMemorySystem::AampIonMemorySystem() {
+AampIonMemorySystem::AampIonMemorySystem() : context_() {
 }
 
 AampIonMemorySystem::~AampIonMemorySystem() {
