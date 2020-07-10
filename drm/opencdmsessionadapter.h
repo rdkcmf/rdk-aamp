@@ -19,14 +19,18 @@ private:
 	bool signalled; //TODO: added to handle the events fired before calling wait, need to recheck
 	pthread_mutex_t lock;
 	pthread_cond_t condition;
+	pthread_condattr_t condAttr;
 public:
-	Event() : signalled(false), lock(PTHREAD_MUTEX_INITIALIZER), condition(PTHREAD_COND_INITIALIZER) {
-		pthread_cond_init(&condition, NULL);
+	Event() : signalled(false), lock(PTHREAD_MUTEX_INITIALIZER), condition(PTHREAD_COND_INITIALIZER), condAttr() {
 		pthread_mutex_init(&lock, NULL);
+		pthread_condattr_init(&condAttr);
+		pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC );
+		pthread_cond_init(&condition, &condAttr);
 	}
 	virtual ~Event() {
 		pthread_cond_destroy(&condition);
 		pthread_mutex_destroy(&lock);
+		pthread_condattr_destroy(&condAttr);
 	}
 
 	inline bool wait(const uint32_t waitTime)
@@ -114,3 +118,4 @@ public:
 };
 
 #endif
+
