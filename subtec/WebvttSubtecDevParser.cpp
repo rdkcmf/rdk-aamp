@@ -134,7 +134,7 @@ void WebVTTSubtecDevParser::reset()
 
 void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_INFO("%s: timestamp: %lldms\n", positionMs);
+	AAMPLOG_INFO("%s: timestamp: %lldms\n", __FUNCTION__, positionMs );
 	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(positionMs));
 	PacketSender::Instance()->SendPackets();
 }
@@ -204,7 +204,7 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 			}
 			else
 			{
-				AAMPLOG_INFO("%s: queue size %d cue start %.3f\n", __FUNCTION__, mVttQueue.size(), cue->mStart);
+				AAMPLOG_INFO("%s: queue size %zu cue start %.3f\n", __FUNCTION__, mVttQueue.size(), cue->mStart);
 			}
 			delete cue;
 		}

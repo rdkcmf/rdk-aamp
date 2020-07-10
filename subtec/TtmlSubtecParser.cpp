@@ -76,10 +76,11 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
 		PacketSender::Instance()->SendPackets();
 		free(mdat);
-		AAMPLOG_INFO("Sent buffer with size %d position %.3f\n", bufferLen, position);
+		AAMPLOG_INFO("Sent buffer with size %zu position %.3f\n", bufferLen, position);
 	}
 	else
 	{
 		AAMPLOG_INFO("%s:%d Init Segment", __FUNCTION__, __LINE__);
 	}
+	return true;
 }

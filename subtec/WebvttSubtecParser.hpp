@@ -33,8 +33,8 @@ public:
 
 	
 	bool init(double startPos, unsigned long long basePTS);
-	bool processData(char* buffer, size_t bufferLen, double position, double duration) { AAMPLOG_INFO("WebvttSubtecParser: processData\n"); }
-	bool close() {}
+	bool processData(char* buffer, size_t bufferLen, double position, double duration) { AAMPLOG_INFO("WebvttSubtecParser: processData\n"); return true; }
+	bool close() { return true; }
 	void reset() {}
 	void setProgressEventOffset(double offset) {}
 	void updateTimestamp(unsigned long long positionMs);
