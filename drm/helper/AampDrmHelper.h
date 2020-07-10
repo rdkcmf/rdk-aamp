@@ -59,11 +59,11 @@ struct AampLicenseRequest
 class AampDrmHelper
 {
 public:
-	const uint32_t TWO_SECONDS;
+	const uint32_t TIMEOUT_SECONDS;
 	const std::string EMPTY_DRM_METADATA;
 	const std::string EMPTY_STRING;
 
-	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TWO_SECONDS(2000U), EMPTY_DRM_METADATA(), EMPTY_STRING() {};
+	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STRING() {};
 
 	/**
 	 * Returns the OCDM system ID of the helper
@@ -121,7 +121,7 @@ public:
 	 * Default is TWO Seconds - 2000
 	 * @return the time to wait in milliseconds
 	 */
-	virtual uint32_t licenseGenerateTimeout() const { return TWO_SECONDS; }
+	virtual uint32_t licenseGenerateTimeout() const { return TIMEOUT_SECONDS; }
 
 	/**
 	 * Get the amount of time in milliseconds to wait before aborting the wait
@@ -129,7 +129,7 @@ public:
 	 * Default is TWO Seconds - 2000
 	 * @return the time to wait in milliseconds
 	 */
-	virtual uint32_t keyProcessTimeout() const { return TWO_SECONDS; }
+	virtual uint32_t keyProcessTimeout() const { return TIMEOUT_SECONDS; }
 
 	/**
 	 * Get the key ID
