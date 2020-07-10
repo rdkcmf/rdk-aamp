@@ -199,7 +199,7 @@ TEST(AampDrmHelperTests, TestCreateVgdrmHelper)
 		CHECK_EQUAL(true, vgdrmHelper->isHdcp22Required());
 		CHECK_EQUAL(4, vgdrmHelper->getDrmCodecType());
 		CHECK_EQUAL(true, vgdrmHelper->isExternalLicense());
-		CHECK_EQUAL(2000U, vgdrmHelper->licenseGenerateTimeout());
+		CHECK_EQUAL(5000U, vgdrmHelper->licenseGenerateTimeout());
 		CHECK_EQUAL(5000U, vgdrmHelper->keyProcessTimeout());
 
 		vgdrmHelper->getKey(keyID);
@@ -385,8 +385,8 @@ TEST(AampDrmHelperTests, TestCreateClearKeyHelper)
 		CHECK_EQUAL(false, clearKeyHelper->isHdcp22Required());
 		CHECK_EQUAL(0, clearKeyHelper->getDrmCodecType());
 		CHECK_EQUAL(false, clearKeyHelper->isExternalLicense());
-		CHECK_EQUAL(2000U, clearKeyHelper->licenseGenerateTimeout());
-		CHECK_EQUAL(2000U, clearKeyHelper->keyProcessTimeout());
+		CHECK_EQUAL(5000U, clearKeyHelper->licenseGenerateTimeout());
+		CHECK_EQUAL(5000U, clearKeyHelper->keyProcessTimeout());
 
 		if (test_data.expectedKeyPayload.size() != 0)
 		{
@@ -589,8 +589,8 @@ TEST(AampDrmHelperTests, TestCreatePlayReadyHelper)
 		CHECK_EQUAL(false, playReadyHelper->isClearDecrypt());
 		CHECK_EQUAL(eDRM_PlayReady, playReadyHelper->getDrmCodecType());
 		CHECK_EQUAL(false, playReadyHelper->isExternalLicense());
-		CHECK_EQUAL(2000U, playReadyHelper->licenseGenerateTimeout());
-		CHECK_EQUAL(2000U, playReadyHelper->keyProcessTimeout());
+		CHECK_EQUAL(5000U, playReadyHelper->licenseGenerateTimeout());
+		CHECK_EQUAL(5000U, playReadyHelper->keyProcessTimeout());
 
 		// HDCP protection for PlayReady should be based on global config
 		CHECK_EQUAL(false, playReadyHelper->isHdcp22Required());
@@ -705,8 +705,8 @@ TEST(AampDrmHelperTests, TestCreateWidevineHelper)
 		CHECK_EQUAL(false, widevineHelper->isHdcp22Required());
 		CHECK_EQUAL(eDRM_WideVine, widevineHelper->getDrmCodecType());
 		CHECK_EQUAL(false, widevineHelper->isExternalLicense());
-		CHECK_EQUAL(2000U, widevineHelper->licenseGenerateTimeout());
-		CHECK_EQUAL(2000U, widevineHelper->keyProcessTimeout());
+		CHECK_EQUAL(5000U, widevineHelper->licenseGenerateTimeout());
+		CHECK_EQUAL(5000U, widevineHelper->keyProcessTimeout());
 	}
 
 }
