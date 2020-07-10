@@ -329,7 +329,7 @@ public:
 		mContext->mCheckForRampdown = false;
 		if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
 		{
-			AAMPLOG_INFO("%s:%d Bitrate changed from %ld to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
+			AAMPLOG_INFO("%s:%d Bitrate changed from %u to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
 			fragmentDescriptor.Bandwidth = bitrate;
 			mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
 			mDownloadedFragment.avail = cachedFragment->fragment.avail;
@@ -1081,12 +1081,12 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 	const char **f = &start;
 	unsigned int len = Read32(f);
     if (len != size) {
-        AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %d expected", len, size);
+        AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %zu expected", len, size);
         return false;
     }
 	unsigned int type = Read32(f);
 	if (type != 'sidx') {
-        AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %d expected",
+        AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %zu expected",
                      (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
         return false;
 
@@ -4925,7 +4925,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 			//TODO: Need to check if a better logic is available
 			std::string index = preferredAudioTrack.index;
 			size_t delim = index.find('-');
-			logprintf("%s: delim - %d, substr: %s", __FUNCTION__, delim, index.substr(0, delim).c_str());
+			logprintf("%s: delim - %zu, substr: %s", __FUNCTION__, delim, index.substr(0, delim).c_str());
 			audioAdaptationSetIndex = atoi(index.substr(0, delim).c_str());
 			desiredRepIdx = std::stoi(index.substr(delim + 1));
 		}
@@ -6246,7 +6246,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
-			AAMPLOG_INFO("MPD has %d periods current period index %d", numPeriods, mCurrentPeriodIdx);
+			AAMPLOG_INFO("MPD has %zu periods current period index %u", numPeriods, mCurrentPeriodIdx);
 			std::vector<IPeriod*> availablePeriods = mpd->GetPeriods();
 			unsigned upperBoundary = numPeriods - 1;
 			unsigned lowerBoundary = 0;
@@ -6349,8 +6349,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						IPeriod *newPeriod = mpd->GetPeriods().at(iPeriod);
 
 						//for VOD and cDVR
-						logprintf("%s:%d Period(%s - %d/%d) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
-							mBasePeriodId.c_str(), mCurrentPeriodIdx,numPeriods, mBasePeriodOffset, mIsLiveStream,aamp->IsInProgressCDVR());
+						logprintf("%s:%d Period(%s - %d/%zu) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
+							mBasePeriodId.c_str(), mCurrentPeriodIdx, numPeriods, mBasePeriodOffset, mIsLiveStream, aamp->IsInProgressCDVR());
 
 						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
 						int adaptationSetCount = adapatationSets.size();
@@ -6875,7 +6875,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			size_t newPeriods = mpd->GetPeriods().size();
 			if(mCurrentPeriodIdx > (newPeriods - 1))
 			{
-				logprintf("MPD Fragment Collector detected reset in Period(New Size:%d)(currentIdx:%d->%d)",
+				logprintf("MPD Fragment Collector detected reset in Period(New Size:%zu)(currentIdx:%d->%zu)",
 					newPeriods,mCurrentPeriodIdx,newPeriods - 1);
 				mCurrentPeriodIdx = newPeriods - 1;
 			}

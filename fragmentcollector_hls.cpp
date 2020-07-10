@@ -279,7 +279,6 @@ static bool SubStringMatch(const char *srcStart, const char *srcFin, const char 
 }
 
 /***************************************************************************
-/**
  * @fn GetAttributeValueString
  * @brief convert quoted string to NUL-terminated C-string, stripping quotes
  *
@@ -1389,7 +1388,7 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 			int keyIndexPosn = idxNode->drmMetadataIdx;
 			if(keyIndexPosn != mLastKeyTagIdx)
 			{
-				logprintf("%s:%d:[%d] KeyTable Size [%d] keyIndexPosn[%d] lastKeyIdx[%d]",__FUNCTION__,__LINE__,type,mKeyHashTable.size(),keyIndexPosn,mLastKeyTagIdx);
+				logprintf("%s:%d:[%d] KeyTable Size [%zu] keyIndexPosn[%d] lastKeyIdx[%d]",__FUNCTION__,__LINE__,type, mKeyHashTable.size(), keyIndexPosn, mLastKeyTagIdx);
 				if(keyIndexPosn < mKeyHashTable.size() && mKeyHashTable[keyIndexPosn].mKeyTagStr.size())
 				{
 					// ParseAttrList function modifies the input string ,hence cannot pass mKeyTagStr
@@ -3524,7 +3523,7 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 				}
 				else
 				{
-					logprintf("%s:%d Not TS or MP4 extension, probably ES. fragment extension %s len %d", __FUNCTION__, __LINE__, extension.c_str(), strlen(extension.c_str()));
+					logprintf("%s:%d Not TS or MP4 extension, probably ES. fragment extension %s len %zu", __FUNCTION__, __LINE__, extension.c_str(), strlen(extension.c_str()));
 				}
 			}
 			else
@@ -3650,7 +3649,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 				// in this case , no offset to add . On discontinuity index position 
 				offsetVideoToAdd = offsetAudioToAdd = 0; 
 				AAMPLOG_WARN ("%s:%d PlayTarget around the discontinuity window,rounding position to discontinuity index", 
-					__FUNCTION__, __LINE__,videoPeriodStartCurrentPeriod,audioPeriodStartCurrentPeriod);				
+							  __FUNCTION__, __LINE__ );//,videoPeriodStartCurrentPeriod,audioPeriodStartCurrentPeriod);				
 				break;
 			}
 			else if(diff < 0 )
@@ -6272,7 +6271,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					if(useDiscontinuityDateTime && discdatetime)
 					{
 						// unfortunately date and time of calling track is passed in position arguement
-						AAMPLOG_INFO("%s Comparing two disc date&time input pdt:%f %s pdt:%f",__FUNCTION__,position,discdatetime);
+						AAMPLOG_INFO("%s Comparing two disc date&time input pdt:%f pdt:%f",__FUNCTION__,position, discdatetime);
 						if(std::round(discdatetime) == std::round(position)) 
 						{
 							foundmatchingdisc = true;

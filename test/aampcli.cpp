@@ -540,7 +540,7 @@ static void ProcessCliCommand(char *cmd)
 	int rate = 0;
 	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	char cacheUrl[200];
-	bool keepPaused = false;
+	int keepPaused = 0;
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -613,8 +613,8 @@ static void ProcessCliCommand(char *cmd)
 	}
 	else if (sscanf(cmd, "seek %lf %d", &seconds, &keepPaused) >= 1)
 	{
-		mSingleton->Seek(seconds, keepPaused);
-		keepPaused = false;
+		mSingleton->Seek(seconds, (keepPaused==1) );
+		keepPaused = 0;
 	}
 	else if (strcmp(cmd, "sf") == 0)
 	{

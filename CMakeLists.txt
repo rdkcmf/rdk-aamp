@@ -157,9 +157,13 @@ endif()
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
-add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
-target_link_libraries(subtectest "-lpthread")
-install(TARGETS subtectest DESTINATION bin)
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+	# avoid compilation failure on OSX
+else()
+	add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
+	target_link_libraries(subtectest "-lpthread")
+	install(TARGETS subtectest DESTINATION bin)
+endif()
 
 set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebvttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
