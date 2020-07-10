@@ -114,8 +114,8 @@ void AesDec::AcquireKey()
 	{
 		logprintf("%s:%d: pthread_setname_np failed", __FUNCTION__, __LINE__);
 	}
-	logprintf("%s:%d: Key acquisition start uri = %s", __FUNCTION__, __LINE__, mDrmInfo.uri);
-	bool fetched = mpAamp->GetFile(mDrmInfo.uri, &mAesKeyBuf, tempEffectiveUrl, &http_error, NULL, mCurlInstance, true, eMEDIATYPE_LICENCE);
+	logprintf("%s:%d: Key acquisition start uri = %s", __FUNCTION__, __LINE__, mDrmInfo.keyURI.c_str());
+	bool fetched = mpAamp->GetFile(mDrmInfo.keyURI, &mAesKeyBuf, tempEffectiveUrl, &http_error, NULL, mCurlInstance, true, eMEDIATYPE_LICENCE);
 	if (fetched)
 	{
 		if (AES_128_KEY_LEN_BYTES == mAesKeyBuf.len)
@@ -210,17 +210,16 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	mpAamp = aamp;
 	mDrmInfo = *drmInfo;
 
-	if (mDrmUrl)
+	if (!mDrmUrl.empty())
 	{
-		if ((eDRM_KEY_ACQUIRED == mDrmState) && (0 == strcmp(mDrmUrl, drmInfo->uri)))
+		if ((eDRM_KEY_ACQUIRED == mDrmState) && (drmInfo->keyURI == mDrmUrl))
 		{
-			logprintf("AesDec::%s:%d same url:%s - not acquiring key",__FUNCTION__, __LINE__, mDrmUrl);
+			logprintf("AesDec::%s:%d same url:%s - not acquiring key",__FUNCTION__, __LINE__, mDrmUrl.c_str());
 			pthread_mutex_unlock(&mMutex);
 			return eDRM_SUCCESS;
 		}
-		free(mDrmUrl);
 	}
-	mDrmUrl = strdup(drmInfo->uri);
+	mDrmUrl = drmInfo->keyURI;
 	mDrmState = eDRM_ACQUIRING_KEY;
 	mPrevDrmState = eDRM_INITIALIZED;
 	if (-1 == mCurlInstance)
@@ -454,10 +453,10 @@ std::shared_ptr<AesDec> AesDec::GetInstance()
  * @retval
  */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
-		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(nullptr),
+		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(""),
 		mCond(), mMutex(), mOpensslCtx(),
 		mDrmInfo(), mAesKeyBuf(), mCurlInstance(-1),
-		licenseAcquisitionThreadId(),
+		licenseAcquisitionThreadId(0),
 		licenseAcquisitionThreadStarted(false)
 {
 	pthread_cond_init(&mCond, NULL);

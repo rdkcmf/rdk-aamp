@@ -69,7 +69,7 @@ private:
 	GrowableBuffer mAesKeyBuf;
 	DRMState mDrmState;
 	DRMState mPrevDrmState;
-	char* mDrmUrl;
+	std::string mDrmUrl;
 	int mCurlInstance;
 	pthread_t licenseAcquisitionThreadId;
 	bool licenseAcquisitionThreadStarted;

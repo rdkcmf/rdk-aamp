@@ -483,9 +483,10 @@ int PlayReadyDRMSession::_ParseInitData(const uint8_t *f_pbInitData,
  * @brief Generate key request from DRM session
  *        Caller function should free the returned memory.
  * @param destinationURL : gets updated with license server url
+ * @param timeout: max timeout untill which to wait for cdm key generation.
  * @retval Pointer to DrmData containing license request, NULL if failure.
  */
-DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
+DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
 
 	DrmData * result = NULL;
@@ -561,10 +562,17 @@ DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL)
 /**
  * @brief Updates the received key to DRM session
  * @param key : License key from license server.
+ * @param timeout: max timeout untill which to wait for cdm key processing.
  * @retval DRM_SUCCESS if no errors encountered
  */
-int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key)
+int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
+	if(!key)
+	{
+		AAMPLOG_ERR("PlayReadyDRMSession:: %s:%d:: Cannot Process Null Key ", __FUNCTION__, __LINE__);
+		return 0; //err
+	}
+
 #ifdef TRACE_LOG
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif

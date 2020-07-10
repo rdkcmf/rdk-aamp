@@ -47,3 +47,15 @@ string AampDrmSession::getKeySystem()
 {
 	return m_keySystem;
 }
+
+int AampDrmSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
+{
+	AAMPLOG_ERR("GST decrypt method not implemented");
+	return -1;
+}
+
+int AampDrmSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV, const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
+{
+	AAMPLOG_ERR("Standard decrypt method not implemented");
+	return -1;
+}

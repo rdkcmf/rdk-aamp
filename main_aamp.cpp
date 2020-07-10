@@ -58,6 +58,7 @@
 #ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
 #endif
+#include "helper/AampDrmHelper.h"
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #ifdef WIN32
@@ -401,15 +402,18 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 		return "Widevine";
 	case eDRM_PlayReady:
 		return "PlayReady";
+	// Deprecated
 	case eDRM_CONSEC_agnostic:
 		return "Consec Agnostic";
-	case eDRM_Adobe_Access:
-		return "Adobe Access";
-	case eDRM_Vanilla_AES:
-		return "Vanilla AES";
+	// Deprecated and removed	
+//	case eDRM_Adobe_Access:
+//		return "Adobe Access";
+//	case eDRM_Vanilla_AES:
+//		return "Vanilla AES";
 	case eDRM_NONE:
 	case eDRM_ClearKey:
 	case eDRM_MAX_DRMSystems:
+	default:
 		return "";
 	}
 }
@@ -546,6 +550,7 @@ void PrivateInstanceAAMP::ReportAdProgress(void)
 		SendEventSync(eventData);
 	}
 }
+
 
 /**
  * @brief Update duration of stream.
@@ -2924,7 +2929,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						// introduce  extra marker for connection status curl 7/18/28,
 						// example 18(0) if connection failure with PARTIAL_FILE code
-						timeoutClass = "\(" + to_string(reqSize > 0) + "\)";
+						timeoutClass = "(" + to_string(reqSize > 0) + ")";
 					}
 					AAMPLOG(reqEndLogLevel, "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
 						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
@@ -4299,6 +4304,14 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
+		else
+		{
+			std::size_t pos = cfg.find_first_of('=');
+			std::string key = cfg.substr(0, pos);
+			std::string value = cfg.substr(pos+1, cfg.size());
+			gpGlobalConfig->unknownValues.insert(std::make_pair(key, value));
+			logprintf("Added unknown key %s with value %s", key.c_str(), value.c_str());
+		}
 	}
 }
 
@@ -4397,15 +4410,33 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
 		if(env_aamp_min_init_cache
-				&& gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
+			&& gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
 			int minInitCache = 0;
 			if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache)
-					&& minInitCache >= 0)
+                                       && minInitCache >= 0)
 			{
 				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
 				m_minInitialCacheSeconds = minInitCache;
 			}
+		}
+
+		const char *env_aamp_force_info = getenv("AAMP_FORCE_INFO");
+		if(env_aamp_force_info)
+		{
+			logprintf("AAMP_FORCE_INFO present: Changing debug levels");
+			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
+			gpGlobalConfig->logging.debug = false;
+			gpGlobalConfig->logging.info = true;
+		}
+
+		const char *env_aamp_force_debug = getenv("AAMP_FORCE_DEBUG");
+		if(env_aamp_force_debug)
+		{
+			logprintf("AAMP_FORCE_DEBUG present: Changing debug levels");
+           	 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
+			gpGlobalConfig->logging.debug = true;
+			gpGlobalConfig->logging.info = false;
 		}
 
 		const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
@@ -5239,7 +5270,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mainManifestUrl = remapUrl;
 	}
 
-	mManifestUrl =  mainManifestUrl;
+	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
 	mMediaFormat = eMEDIAFORMAT_DASH;
 
         if(strstr(mainManifestUrl, "m3u8"))
@@ -5263,7 +5294,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mIscDVR = strstr(mainManifestUrl, "cdvr-");
 	mIsLocalPlayback = (aamp_getHostFromURL(mManifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
-	mCurrentDrm = eDRM_NONE;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 
@@ -5655,6 +5685,51 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
+
+const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitData(const char *url)
+{
+	std::string urlStr(url);
+	std::string drmInitDataStr;
+
+	const size_t queryPos = urlStr.find("?");
+	if (queryPos != std::string::npos)
+	{
+		// URL contains a query string. Strip off & decode the drmInitData (if present)
+		std::stringstream modifiedUrl;
+		modifiedUrl << urlStr.substr(0, queryPos);
+		const std::string parameterDefinition("drmInitData=");
+		std::string       parameter;
+		std::stringstream querySs(urlStr.substr(queryPos + 1, std::string::npos));
+
+		while (std::getline(querySs, parameter, '&'))
+		{
+			if (parameter.rfind(parameterDefinition, 0) == 0)
+			{
+				CURL *curl = curl_easy_init();
+				if (curl != NULL)
+				{
+					std::string initData = parameter.substr(parameterDefinition.length(), std::string::npos).c_str();
+					int unescapedLen;
+					const char* unescapedData = curl_easy_unescape(curl, initData.c_str(), initData.size(), &unescapedLen);
+					if (unescapedData != NULL)
+					{
+						drmInitDataStr = std::string(unescapedData, unescapedLen);
+						curl_free((void*)unescapedData);
+					}
+					curl_easy_cleanup(curl);
+				}
+			}
+			else
+			{
+				modifiedUrl << ((modifiedUrl.tellp() == queryPos) ? "?" : "&") << parameter;
+			}
+		}
+
+		urlStr = modifiedUrl.str();
+	}
+
+	return std::tuple<std::string, std::string>(urlStr, drmInitDataStr);
+}
 
 /**
  *   @brief Check if current stream is muxed
@@ -6607,29 +6682,12 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
-	DRMSystems currentDRM = aamp->GetCurrentDRM();
-	const char *drmName = "";
-	switch(currentDRM)
+	std::shared_ptr<AampDrmHelper> helper = aamp->GetCurrentDRM();
+	if (helper) 
 	{
-		case eDRM_WideVine:
-			drmName = "Widevine";
-			break;
-		case eDRM_CONSEC_agnostic:
-			drmName = "CONSEC_agnostic";
-			break;
-		case eDRM_PlayReady:
-			drmName = "PlayReady";
-			break;
-		case eDRM_Adobe_Access:
-			drmName = "Adobe_Access";
-			break;
-		case eDRM_Vanilla_AES:
-			drmName = "Vanilla_AES";
-			break;
-		default:
-			break;
+		return helper->friendlyName().c_str();
 	}
-	return drmName;
+	return "";
 }
 
 
@@ -6638,7 +6696,7 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
  *
  *   @return current drm
  */
-DRMSystems PrivateInstanceAAMP::GetCurrentDRM(void)
+std::shared_ptr<AampDrmHelper> PrivateInstanceAAMP::GetCurrentDRM(void)
 {
 	return mCurrentDrm;
 }
@@ -7376,6 +7434,17 @@ void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList)
 }
 
 /**
+ *	 @brief Get Preferred DRM.
+ *
+ *	 @return Preferred DRM type
+ */
+DRMSystems PlayerInstanceAAMP::GetPreferredDRM()
+{
+	return aamp->GetPreferredDRM();
+}
+
+
+/**
  *   @brief Get current preferred language list
  *
  *   @return  const char* - current comma-delimited language list or NULL if not set
@@ -7754,9 +7823,10 @@ void PrivateInstanceAAMP::Stop()
 	culledSeconds = 0;
 	durationSeconds = 0;
 	rate = 1;
-	// Set the state to released as all resources are released for the session
+	// Set the state to eSTATE_IDLE
 	// directly setting state variable . Calling SetState will trigger event :(
-	mState = eSTATE_RELEASED;
+	mState = eSTATE_IDLE;
+  
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 	// send signal to any thread waiting for play
@@ -8223,7 +8293,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
-	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mCurrentDrm(eDRM_NONE), mPersistedProfileIndex(0), mAvailableBandwidth(0),
+	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
@@ -8256,29 +8326,18 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
 #endif
-	, mPlayermode(PLAYERMODE_JSPLAYER)
-	, mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL)
-	, mParallelPlaylistFetchLock()
-	, mAppName()
-	, mPreCachePlaylistThreadId(NULL)
-	, mPreCachePlaylistThreadFlag(false)
-	, mPreCacheDnldList()
-	, mPreCacheDnldTimeWindow(0)
-	, mABRBufferCheckEnabled(false)
-	, mNewAdBreakerEnabled(false)
-	, prevPositionMiliseconds(-1)
-	, mProgressReportFromProcessDiscontinuity(false)
-	, mUseRetuneForUnpairedDiscontinuity(true)
-	, mInitFragmentRetryCount(-1)
 	, mbPlayEnabled(true)
 	, mAampCacheHandler(new AampCacheHandler())
+	, mAsyncTuneEnabled(false)
+	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
-	, mAsyncTuneEnabled(false)
-	, mPlaylistFetchFailError(0L)
-	, mAudioDecoderStreamSync(true)
-	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mPlayermode(PLAYERMODE_JSPLAYER), mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
+	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
+	, mABRBufferCheckEnabled(false), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
+	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
+	, mCurrentDrm(), mDrmInitData()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -9382,7 +9441,7 @@ void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
 int PrivateInstanceAAMP::getStreamType()
 {
 
-	int type;
+	int type = 0;
 
 	if(mMediaFormat == eMEDIAFORMAT_DASH)
 	{
@@ -9405,40 +9464,27 @@ int PrivateInstanceAAMP::getStreamType()
 		type = 0;
 	}
 
-	switch(mCurrentDrm)
-	{
-		case eDRM_WideVine:
-		case eDRM_CONSEC_agnostic:
-			type += 1;	// 11 or 21
-			break;
-		case eDRM_PlayReady:
-		case eDRM_Adobe_Access:
-			type += 2;	// 12 or 22
-			break;
-		case eDRM_Vanilla_AES:
-			type += 3;	// 13
-			break;
-		default:
-			break; //Clear
+	if (mCurrentDrm != nullptr) {
+		type += mCurrentDrm->getDrmCodecType();
 	}
 	return type;
 }
 
-#ifdef AAMP_MPD_DRM
+#ifdef USE_SECCLIENT
 /**
- * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string 
- * @param[out] customHeader - Generated moneytrace is stored  
+ * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
+ * @param[out] customHeader - Generated moneytrace is stored
  *
  * @retval None
 */
-void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
+void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 {
 	char moneytracebuf[512];
 	memset(moneytracebuf, 0, sizeof(moneytracebuf));
 
 	if (mCustomHeaders.size() > 0)
 	{
-		for (std::unordered_map<std::string, std::vector<std::string>>::iterator it = mCustomHeaders.begin();
+		for (std::unordered_map<std::string, std::vector<std::string>>::const_iterator it = mCustomHeaders.begin();
 			it != mCustomHeaders.end(); it++)
 		{
 			if (it->first.compare("X-MoneyTrace:") == 0)
@@ -9479,7 +9525,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader)
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]",customHeader.c_str());
 }
-#endif /* AAMP_MPD_DRM */
+#endif /* USE_SECCLIENT */
 
 /**
  * @brief Send tuned event if configured to sent after decryption
@@ -9953,6 +9999,17 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 }
 
 /**
+ *	 @brief Get Preferred DRM.
+ *
+ *	 @return Preferred DRM type
+ */
+DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
+{
+	return gpGlobalConfig->preferredDrm;
+}
+
+
+/**
  *   @brief Set Stereo Only Playback.
  */
 void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
@@ -10168,33 +10225,14 @@ std::string PrivateInstanceAAMP::getStreamTypeString()
 {
 	std::string type = mMediaFormatName[mMediaFormat];
 
-
-	if(mInitSuccess) //Incomplete Init won't be set the DRM
+	if(mCurrentDrm != nullptr) //Incomplete Init won't be set the DRM
 	{
-		switch(mCurrentDrm)
-		{
-			case eDRM_WideVine:
-				type += "/WV";
-				break;
-			case eDRM_CONSEC_agnostic:
-				type += "/Consec";
-				break;
-			case eDRM_PlayReady:
-				type += "/PR";
-				break;
-			case eDRM_Adobe_Access:
-				type += "/Access";
-				break;
-			case eDRM_Vanilla_AES:
-				type += "/VanillaAES";
-				break;
-			default:
-				type += "/Clear";
-				break;
-		}
+		type += "/";
+		type += mCurrentDrm->friendlyName();
 	}
-	else {
-		type += "/Unknown";
+	else
+	{
+		type += "/Clear";
 	}
 	return type;
 }
@@ -10466,27 +10504,11 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 /**
  *   @brief To get any custom license HTTP headers that was set by application
  *
- *   @param[out] headers - curl header structure
+ *   @param[out] headers - map of headers
  */
-void PrivateInstanceAAMP::GetCustomLicenseHeaders(struct curl_slist **headers)
+void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string, std::vector<std::string>>& customHeaders)
 {
-	struct curl_slist *httpHeaders = *headers;
-	if (mCustomLicenseHeaders.size() > 0)
-	{
-		std::string customHeader;
-		for (auto it = mCustomLicenseHeaders.begin(); it != mCustomLicenseHeaders.end(); it++)
-		{
-			customHeader.clear();
-			customHeader.insert(0, it->first);
-			customHeader.push_back(' ');
-			// For scenarios with multiple header values, its most likely a custom defined.
-			// Below code will have to extended to support the same (eg: money trace headers)
-			customHeader.append(it->second.at(0));
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s():%d Inserting custom header to license request - %s", __FUNCTION__, __LINE__, customHeader.c_str());
-			httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
-		}
-		*headers = httpHeaders;
-	}
+	customHeaders.insert(mCustomLicenseHeaders.begin(), mCustomLicenseHeaders.end());
 }
 
 /**
@@ -10807,6 +10829,24 @@ void PrivateInstanceAAMP::SetAppName(std::string name)
 std::string PrivateInstanceAAMP::GetAppName()
 {
 	return mAppName;
+}
+
+void PrivateInstanceAAMP::individualization(const std::string& payload)
+{
+	AAMPEvent event;
+
+	event.type = AAMP_EVENT_DRM_MESSAGE;
+
+	if (!payload.empty() && (payload.size() < DRM_MESSAGE_BUFF_LEN))
+	{
+		strcpy(event.data.drmMessage.data, payload.c_str());
+	}
+	else
+	{
+		event.data.drmMessage.data[0] = 0;
+	}
+
+	SendEventAsync(event);
 }
 
 /**

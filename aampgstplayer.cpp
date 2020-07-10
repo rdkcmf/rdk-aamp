@@ -543,7 +543,7 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
 	id3->_this->privateContext->id3MetadataCallbackTaskPending = false;
 	id3->_this->privateContext->id3MetadataCallbackIdleTaskId = 0;
 
-	delete user_data;
+	delete id3;
 
 	return G_SOURCE_REMOVE;
 }
@@ -1243,12 +1243,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		gst_message_parse_context_type(msg, &contextType);
 		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
 		{
-			logprintf("Setting %s as preferred drm",GetDrmSystemName((DRMSystems)gpGlobalConfig->preferredDrm));
+			logprintf("Setting %s as preferred drm",GetDrmSystemName(_this->aamp->GetPreferredDRM()));
 			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
 			GstStructure* contextStructure = gst_context_writable_structure(context);
-			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID((DRMSystems)gpGlobalConfig->preferredDrm),  NULL);
+			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID(_this->aamp->GetPreferredDRM()),  NULL);
 			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
-			_this->aamp->setCurrentDrm((DRMSystems)gpGlobalConfig->preferredDrm);
+/* TODO: Fix this once preferred DRM is correct 			
+			_this->aamp->setCurrentDrm(_this->aamp->GetPreferredDRM());
+ */
 		}
 
 		break;
@@ -1730,7 +1732,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
 #if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
-		if ((privateContext->rate == AAMP_NORMAL_PLAY_RATE))
+		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
 			logprintf("%s: Set override event's basePTS [ %" G_GUINT64_FORMAT "]", __FUNCTION__, basePTS);
@@ -1933,7 +1935,6 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			logprintf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
 			gst_object_unref(clock);
 		}
-		logprintf("");
 	}
 #endif
 

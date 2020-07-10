@@ -1654,6 +1654,38 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_DrmMessage
+ * @brief Event listener impl for (AAMP_EVENT_DRM_MESSAGE) AAMP event
+ */
+class AAMP_JSListener_DrmMessage : public AAMP_JSListener
+{
+public:
+
+	/**
+	* @brief AAMP_JSListener_DrmMessage Constructor
+	* @param[in] aamp instance of AAMP_JS
+	* @param[in] type event type
+	* @param[in] jsCallback callback to be registered as listener
+	*/
+	AAMP_JSListener_DrmMessage(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	* @brief Set JS event properties
+	* @param[in] e AAMP event object
+	* @param[in] context JS execution context
+	* @param[out] eventObj JS event object
+	*/
+	void setEventProperties(const AAMPEvent& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		JSStringRef prop;
+		prop = JSStringCreateWithUTF8CString("data");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, e.data.drmMessage.data), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
 
 
 /**
@@ -1810,6 +1842,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_ID3_METADATA)
 	{
 		pListener = new AAMP_JSListener_Id3Metadata(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_DRM_MESSAGE)
+	{
+		pListener = new AAMP_JSListener_DrmMessage(aamp, type, jsCallback);
 	}
 	else
 	{

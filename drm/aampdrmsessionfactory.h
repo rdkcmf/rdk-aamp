@@ -26,7 +26,8 @@
 #define AampDrmSessionFactory_h
 
 #include "AampDrmSession.h"
-
+#include "AampDrmHelper.h"
+#include "AampDrmCallbacks.h"
 /**
  * @class AampDrmSessionFactory
  * @brief Factory class to create DRM sessions based on
@@ -35,7 +36,6 @@
 class AampDrmSessionFactory
 {
 public:
-
-	static AampDrmSession* GetDrmSession(const char* systemId);
+	static AampDrmSession* GetDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks);
 };
 #endif

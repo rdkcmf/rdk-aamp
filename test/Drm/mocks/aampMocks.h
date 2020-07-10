@@ -1,0 +1,1 @@
+void MockAampReset(void);

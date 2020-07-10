@@ -45,6 +45,9 @@
 #include <stddef.h>
 #include "vttCue.h"
 
+#include "AampDrmSystems.h"
+#include "AampMediaType.h"
+
 /*! \mainpage
  *
  * \section intro_sec Introduction
@@ -96,6 +99,7 @@ typedef enum
 	AAMP_EVENT_AD_PLACEMENT_PROGRESS, /**< Ad playback progress */
 	AAMP_EVENT_REPORT_METRICS_DATA,       /**< AAMP VideoEnd info reporting */
 	AAMP_EVENT_ID3_METADATA,		/**< ID3 metadata from audio stream */
+	AAMP_EVENT_DRM_MESSAGE,         /**< Message from the DRM system */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -220,6 +224,8 @@ typedef enum
 #define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define METRIC_UUID_BUFF_LEN  256
+#define DRM_MESSAGE_BUFF_LEN  512
+
 
 
 typedef enum E_MetricsDataType
@@ -452,6 +458,10 @@ struct AAMPEvent
 			uint8_t* data;		/**< Data pointer to ID3 metadata blob */
 			int32_t length;		/**< Length of the ID3 metadata blob */
 		} id3Metadata;
+		struct
+		{
+			char data[DRM_MESSAGE_BUFF_LEN];
+		} drmMessage;
 	} data;
 
 	std::vector<std::string> additionalEventData;
@@ -523,36 +533,19 @@ public:
 	virtual ~AAMPEventListener(){};
 };
 
-/**
- * @brief Media types
- */
-enum MediaType
-{
-	eMEDIATYPE_VIDEO,               /**< Type video */
-	eMEDIATYPE_AUDIO,               /**< Type audio */
-	eMEDIATYPE_SUBTITLE,            /**< Type subtitle */
-	eMEDIATYPE_MANIFEST,            /**< Type manifest */
-	eMEDIATYPE_LICENCE,             /**< Type license */
-	eMEDIATYPE_IFRAME,              /**< Type iframe */
-	eMEDIATYPE_INIT_VIDEO,          /**< Type video init fragment */
-	eMEDIATYPE_INIT_AUDIO,          /**< Type audio init fragment */
-	eMEDIATYPE_INIT_SUBTITLE,          /**< Type audio init fragment */
-	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
-	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
-	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
-	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
-	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
-	eMEDIATYPE_DEFAULT              /**< Type unknown */
-};
 
+/**
+ * @brief Media types for telemetry
+ */
 enum MediaTypeTelemetry
 {
-	eMEDIATYPE_TELEMETRY_AVS,		/**< Type audio, video or subtitle */
-	eMEDIATYPE_TELEMETRY_DRM,		/**< Type DRM license */
-	eMEDIATYPE_TELEMETRY_INIT,		/**< Type audio or video init fragment */
-	eMEDIATYPE_TELEMETRY_MANIFEST,		/**< Type main or sub manifest file */
-	eMEDIATYPE_TELEMETRY_UNKNOWN,		/**< Type unknown*/
+	eMEDIATYPE_TELEMETRY_AVS,               /**< Type audio, video or subtitle */
+	eMEDIATYPE_TELEMETRY_DRM,               /**< Type DRM license */
+	eMEDIATYPE_TELEMETRY_INIT,              /**< Type audio or video init fragment */
+	eMEDIATYPE_TELEMETRY_MANIFEST,          /**< Type main or sub manifest file */
+	eMEDIATYPE_TELEMETRY_UNKNOWN,           /**< Type unknown*/
 };
+
 
 /**
  * @brief Media output format
@@ -582,20 +575,6 @@ enum VideoZoomMode
 	VIDEO_ZOOM_NONE     /**< Video Zoom Disabled */
 };
 
-/**
- * @brief DRM system types
- */
-enum DRMSystems
-{
-	eDRM_NONE,              /**< No DRM */
-	eDRM_WideVine,          /**< Widevine */
-	eDRM_PlayReady,         /**< Playready */
-	eDRM_CONSEC_agnostic,   /**< CONSEC Agnostic DRM */
-	eDRM_Adobe_Access,      /**< Adobe Access */
-	eDRM_Vanilla_AES,       /**< Vanilla AES */
-	eDRM_ClearKey,          /**< Clear key */
-	eDRM_MAX_DRMSystems     /**< Drm system count */
-};
 
 using AdObject = std::pair<std::string, std::string>;
 
@@ -1140,6 +1119,14 @@ public:
 	 *   @return void
 	 */
 	void SetPreferredDRM(DRMSystems drmType);
+
+
+	/**
+	 *   @brief Get Preferred DRM.
+	 *
+	 *   @return Preferred DRM type
+	 */
+	DRMSystems GetPreferredDRM();
 
 	/**
 	 *   @brief Set Stereo Only Playback.
