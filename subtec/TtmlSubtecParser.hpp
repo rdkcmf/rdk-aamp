@@ -35,7 +35,7 @@ public:
 	
 	bool init(double startPos, unsigned long long basePTS);
 	bool processData(char* buffer, size_t bufferLen, double position, double duration);
-	bool close() {}
+	bool close() { return true; }
 	void reset() {}
 	void setProgressEventOffset(double offset) {}
 	void updateTimestamp(unsigned long long positionMs);

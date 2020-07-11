@@ -94,7 +94,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 
 bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
 {
-	getBoxSizeInternal(&boxes, Box::MDAT, size);
+	return getBoxSizeInternal(&boxes, Box::MDAT, size);
 }
 
 bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size)
