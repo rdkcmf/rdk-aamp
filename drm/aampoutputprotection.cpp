@@ -70,7 +70,6 @@ AampOutputProtection::AampOutputProtection()
 
 #ifdef IARM_MGR
     // Register IARM callbacks
-    logprintf("%s : registering DSMGR events...", __FUNCTION__);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG, HDMIEventHandler);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS, HDMIEventHandler);
     IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE, ResolutionHandler);
@@ -86,7 +85,6 @@ AampOutputProtection::~AampOutputProtection()
 
 #ifdef IARM_MGR
     // Remove IARM callbacks
-    logprintf("%s : unregistering DSMGR events...", __FUNCTION__);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG, HDMIEventHandler);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS, HDMIEventHandler);
     IARM_Bus_RemoveEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE, ResolutionHandler);
@@ -460,7 +458,6 @@ AampOutputProtection * AampOutputProtection::GetAampOutputProcectionInstance()
 {
     DEBUG_FUNC;
     if(s_pAampOP == NULL) {
-        logprintf("%s --> s_pAampOP = %p", __FUNCTION__, s_pAampOP);
         s_pAampOP = new AampOutputProtection();
     }
     s_pAampOP->AddRef();

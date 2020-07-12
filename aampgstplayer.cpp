@@ -469,7 +469,6 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
  */
 static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, AAMPGstPlayer * _this )
 {
-	logprintf("AAMPGstPlayer: found_source");
 	MediaType mediaType;
 	media_stream *stream;
 	GstCaps * caps;
@@ -1606,7 +1605,6 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	stream->flush = false;
 	if ((stream->format != FORMAT_INVALID) && (stream->format != FORMAT_NONE))
 	{
-		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d ", (int)mediaType);
 		if (privateContext->pipeline)
 		{
 			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
@@ -1664,7 +1662,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		privateContext->audio_dec = NULL;
 		privateContext->audio_sink = NULL;
 	}
-	logprintf("AAMPGstPlayer::TearDownStream:  exit mediaType = %d", mediaType);
+	logprintf("AAMPGstPlayer::TearDownStream: exit mediaType = %d", mediaType);
 }
 
 

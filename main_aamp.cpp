@@ -1580,8 +1580,6 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 {
 	//TODO protect mEventListener
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	if(e->event.type != AAMP_EVENT_PROGRESS)
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, e->event.type);
 	//Get current idle handler's id
 	guint callbackID = aamp_GetSourceID();
 	if (callbackID != 0)
@@ -3161,7 +3159,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
 					// extra coding to avoid picking lower profile
-					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%d fragmentDurationMs:%d",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
+
 					if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
 					{
 						downloadbps = currentProfilebps;
@@ -4132,7 +4130,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
 			logprintf("report-progress-interval=%d", gpGlobalConfig->reportProgressInterval);
 		}
-		else if (ReadConfigStringHelper(cfg, "http-proxy=", &gpGlobalConfig->httpProxy))
+		else if (ReadConfigStringHelper(cfg, "http-proxy=", (const char**)&gpGlobalConfig->httpProxy))
 		{
 			logprintf("http-proxy=%s", gpGlobalConfig->httpProxy);
 		}
@@ -4401,6 +4399,51 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 }
 
 /**
+ * @brief GlobalConfigAAMP Destructor
+ */
+GlobalConfigAAMP::~GlobalConfigAAMP()
+{
+	// free memory allocated in global Config
+#ifdef AAMP_HARVEST_SUPPORT_ENABLED
+	if(harvestpath)
+	{
+		free(harvestpath);
+		harvestpath = NULL;
+	}
+#endif
+
+	if(licenseServerURL)
+	{
+		free(licenseServerURL);
+		licenseServerURL = NULL;
+	}
+
+	if(httpProxy)
+	{
+		free(httpProxy);
+		httpProxy = NULL;
+	}
+
+	if(ckLicenseServerURL)
+	{
+		free(ckLicenseServerURL);
+		ckLicenseServerURL = NULL;
+	}
+
+	if(uriParameter)
+	{
+		free(uriParameter);
+		uriParameter = NULL;
+	}
+
+	if(mapMPD)
+	{
+		free(mapMPD);
+		mapMPD = NULL;
+	}
+}
+
+/**
  * @brief Load AAMP configuration file
  */
 void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
@@ -4631,7 +4674,6 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			AAMPEvent event;
 			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
 			event.data.ccHandle.handle = 0;
-			traceprintf("%s:%d Sending AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
 			SendEventSync(event);
 			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
 		}
@@ -4734,6 +4776,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		dlclose(mJSBinding_DL);
 	}
 #endif
+	if (gActivePrivAAMPs.empty() && gpGlobalConfig)
+	{
+		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalConfig);
+		delete gpGlobalConfig;
+		gpGlobalConfig = NULL;
+	}
 }
 
 
@@ -4854,7 +4902,6 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
 		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
-			logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
 			return;
 		}
 
@@ -5302,7 +5349,6 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
-	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
@@ -5439,7 +5485,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			mLiveOffset	=	AAMP_LIVE_OFFSET;
 		}
 	}
-	AAMPLOG_WARN("[%s] mLiveOffset: %f", __FUNCTION__,mLiveOffset);
 
 	if(bFirstAttempt)
 	{
@@ -5875,7 +5920,6 @@ void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainMani
 			mContentType = ContentType_OTT; //ott
 		}
 	}
-	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
 /**
@@ -6785,14 +6829,12 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	{
 		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set prior to tune start", language);
 	}
 	// check if language is supported in manifest languagelist
 	else if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
 	{
 		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set", language);
 		if (aamp->mpStreamAbstractionAAMP)
 		{
 			logprintf("aamp_SetLanguage(%s) retuning", language);
@@ -6820,7 +6862,6 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 {
 	ERROR_STATE_CHECK_VOID();
 
-	logprintf("aamp_SetSubscribedTags()");
 	aamp->subscribedTags = subscribedTags;
 
 	for (int i=0; i < aamp->subscribedTags.size(); i++) {
@@ -7872,7 +7913,7 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 			ret = pthread_cond_timedwait(&mDownloadsDisabled, &mLock, &ts);
 			if (0 == ret)
 			{
-				logprintf("sleep interrupted!");
+				//logprintf("sleep interrupted!");
 			}
 #ifndef WIN32
 			else if (ETIMEDOUT != ret)
@@ -8067,7 +8108,6 @@ void PrivateInstanceAAMP::Stop()
 	}
 	if (timedMetadata.size() > 0)
 	{
-		logprintf("PrivateInstanceAAMP::%s() - timedMetadata.size - %d", __FUNCTION__, timedMetadata.size());
 		timedMetadata.clear();
 	}
 
@@ -9082,8 +9122,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 {
 	if(gpGlobalConfig->mEnableVideoEndEvent)
 	{
-		AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f keyChan:%d encry:%d",
-			mediaType, bitrate , curlOrHTTPCode,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration,keyChanged,isEncrypted );
 
 		// ignore for write and aborted errors
 		// these are generated after trick play options,
@@ -9574,15 +9612,15 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 {
 	if(liveoffset > 0 )
-        {
+    {
 		mLiveOffset = liveoffset;
 		mNewLiveOffsetflag = true;
 		logprintf("PrivateInstanceAAMP::%s(), liveoffset %d", __FUNCTION__, liveoffset);
-        }
+    }
 	else
-        {
+    {
 		logprintf("PrivateInstanceAAMP::%s(), liveoffset beyond limits %d", __FUNCTION__, liveoffset);
-        }  
+    }
 }
 
 
@@ -9929,7 +9967,6 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	}
 	event.data.metadata.supportedSpeedCount = supportedSpeedCount;
 
-	logprintf("aamp: sending metadata event and duration update %f", ((double)durationMs)/1000);
 	SendEventAsync(event);
 	//TODO: Send the list of available audio tracks and text tracks if listeners are registered.
 }
@@ -10025,7 +10062,6 @@ void PrivateInstanceAAMP::ConfigureNetworkTimeout()
 		// if App has not set the value , then set default value 
 		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
 	}
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld ms", __FUNCTION__, __LINE__, mNetworkTimeoutMs);
 }
 
 /**
@@ -10049,7 +10085,7 @@ void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
  */
 void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
 {
-        if (timeout > 0)
+	if (timeout > 0)
 	{
 		mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
@@ -10070,7 +10106,6 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 	{
 		mManifestTimeoutMs = mNetworkTimeoutMs;
 	}
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 }
 
 /**
@@ -10087,7 +10122,6 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
         {
                 mPlaylistTimeoutMs = mNetworkTimeoutMs;
         }
-        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
 }
 
 
@@ -10108,9 +10142,6 @@ void PrivateInstanceAAMP::ConfigureParallelFetch()
 	{
 		mParallelFetchPlaylistRefresh = (bool)gpGlobalConfig->parallelPlaylistRefresh ;
 	}
-
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download Init [%d] Refresh [%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist,mParallelFetchPlaylistRefresh);
-
 }
 
 /**
@@ -10123,7 +10154,6 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
         {
                 mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
         }
-        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
 }
 
 /**
@@ -10136,7 +10166,6 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
     {
             mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
     }
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For Unpaired Discontinuity [%d]", __FUNCTION__, __LINE__, mUseRetuneForUnpairedDiscontinuity);
 }
 
 /**
@@ -10160,7 +10189,6 @@ void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
 	if(gpGlobalConfig->mPreCacheTimeWindow > 0)
 	{
 		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
-		AAMPLOG_WARN("%s Playlist PreCaching configured from config  time %d Mins",__FUNCTION__,mPreCacheDnldTimeWindow);
 	}
 }
 
@@ -10179,7 +10207,6 @@ void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
 	{
 		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
 	}
-	AAMPLOG_WARN("%s Init frag timeout retry count configured %d", __FUNCTION__, mInitFragmentRetryCount);
 }
 
 /**
@@ -10210,8 +10237,6 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
     {
         AAMPLOG_WARN("Disabling Westeros Sink");
     }
-
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Westeros Sink state [%d] Video scaling rect property state [%s]", __FUNCTION__, __LINE__, mWesterosSinkEnabled, ((mEnableRectPropertyEnabled)?"True":"False"));
 }
 
 /**
@@ -10226,14 +10251,12 @@ void PrivateInstanceAAMP::ConfigurePlayerModeSettings()
 	{
 		case PLAYERMODE_MEDIAPLAYER:
 		{
-			AAMPLOG_WARN("%s:%d Player Mode :: Media Player",__FUNCTION__,__LINE__);
 			SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
 		}
 			break; /* PLAYERMODE_MEDIAPLAYER */
 
 		case PLAYERMODE_JSPLAYER:
 		{
-			AAMPLOG_WARN("%s:%d Player Mode :: JS Player",__FUNCTION__,__LINE__);
 			SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
 		}
 			break; /* PLAYERMODE_JSPLAYER */

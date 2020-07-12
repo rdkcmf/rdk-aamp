@@ -157,31 +157,31 @@ AAMPOCDMSession::AAMPOCDMSession(const string& keySystem) :
 		decryptMutex(),
 		m_sessionID()
 {
-	logprintf("AAMPOCDMSession :: enter ");
+
 	pthread_mutex_init(&decryptMutex,NULL);
 
 	initAampDRMSession();
 
 	// Get output protection pointer
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
-	logprintf("AAMPOCDMSession :: exit ");
+
 }
 
 void AAMPOCDMSession::initAampDRMSession()
 {
-	logprintf("initAampDRMSession :: enter ");
+
 	if (m_pOpencdm == NULL) {
 		m_pOpencdm = new media::OpenCdm();
 	}
 
 	m_pOpencdm->SelectKeySystem(m_keySystem);
-	logprintf("initAampDRMSession :: exit ");
+
 }
 
 void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	logprintf("generateAampDRMSession :: enter ");
+
 	pthread_mutex_lock(&decryptMutex);
 #if USE_NEW_OPENCDM
 	m_sessionID = m_pOpencdm->CreateSession("video/mp4", const_cast<unsigned char*>(f_pbInitData), f_cbInitData, media::OpenCdm::Temporary);

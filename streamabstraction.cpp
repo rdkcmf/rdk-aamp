@@ -292,7 +292,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount
 				&& !aamp->IsFragmentCachingRequired() )
 		{
-		AAMPLOG_INFO("%s Total downloaded segments : %d State : %d Waiting for PLAYING state",name,totalFragmentsDownloaded,state);
+
 		timeoutMs = 500;
 		struct timespec tspec;
 		struct timeval tv;

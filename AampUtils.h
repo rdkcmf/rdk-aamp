@@ -68,5 +68,11 @@ char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
 unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
 
 void aamp_DecodeUrlParameter( std::string &uriParam );
+/**
+ * @brief Parse date time from ISO8601 string and return value in seconds
+ * @param ptr ISO8601 string
+ * @retval durationMs duration in milliseconds
+ */
+double ISO8601DateTimeToUTCSeconds(const char *ptr);
 
 #endif  /* __AAMP_UTILS_H__ */

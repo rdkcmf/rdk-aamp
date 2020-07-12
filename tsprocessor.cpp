@@ -70,10 +70,10 @@ void print_nop(const char *format, ...){}
 #define ERROR print_nop
 #define FATAL print_nop
 #else
-#define NOTICE logprintf("PC: %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define WARNING logprintf("PC: WARNING %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define ERROR logprintf("PC: ERROR %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define FATAL logprintf("PC: FATAL %s:%d:", __FUNCTION__, __LINE__ ); logprintf
+
+#define NOTICE(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
+#define WARNING(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
+#define ERROR(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
 #endif
 
 
@@ -1395,7 +1395,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	// For the moment, insist on buffers being TS packet aligned
 	if (!((packet[0] == 0x47) && ((size%m_packetSize) == 0)))
 	{
-		FATAL("Error: data buffer not TS packet aligned");
+		ERROR("Error: data buffer not TS packet aligned");
 		logprintf("packet=%p size=%d m_packetSize=%d", packet, size, m_packetSize);
 		dumpPacket(packet, m_packetSize);
 		assert(false);

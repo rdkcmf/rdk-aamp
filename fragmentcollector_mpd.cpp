@@ -2501,32 +2501,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 }
 
 /**
- * @brief Parse date time from ISO8601 string and return value in seconds
- * @param ptr ISO8601 string
- * @retval durationMs duration in milliseconds
- */
-static time_t ISO8601DateTimeToUTCSeconds(const char *ptr)
-{
-	time_t timeSeconds = 0;
-	if(ptr)
-	{
-		time_t offsetFromUTC = 0;
-		std::tm timeObj = { 0 };
-
-		//Find out offset from utc by convering epoch
-		std::tm baseTimeObj = { 0 };
-		strptime("1970-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ", &baseTimeObj);
-		offsetFromUTC = mktime(&baseTimeObj);
-
-		//Convert input string to time
-		strptime(ptr, "%Y-%m-%dT%H:%M:%SZ", &timeObj);
-		timeSeconds = mktime(&timeObj) - offsetFromUTC;
-	}
-	return timeSeconds;
-}
-
-
-/**
  * @brief Parse duration from ISO8601 string
  * @param ptr ISO8601 string
  * @param[out] durationMs duration in milliseconds
@@ -3237,7 +3211,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 			numTracks--;
 		}
 		double offsetFromStart = seekPosition;
@@ -3437,7 +3410,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					else
 					{
 						seekPeriods = false;
-						logprintf("currentPeriodIdx %d/%d", iPeriod, (int)numPeriods);
 					}
 				}
 				else if(periodStartSeconds <= offsetFromStart)
@@ -3853,7 +3825,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		MPD* mpd = nullptr;
 		vector<std::string> locationUrl;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
-		AAMPLOG_INFO("%s:%d Created MPD[%p]", __FUNCTION__, __LINE__, mpd);
 		if (eAAMPSTATUS_OK == ret)
 		{
 			/* DELIA-42794: All manifest requests after the first should
@@ -4904,7 +4875,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	mNumberOfTracks = 0;
 	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 	{
-		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 		numTracks--;
 	}
 	IPeriod *period = mCurrentPeriod;
@@ -5041,7 +5011,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								if (videoRepresentationIdx != -1)
 								{
 									selAdaptationSetIndex = iAdaptationSet;
-									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]\n",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
 								}
 								if(!newTune)
 								{
