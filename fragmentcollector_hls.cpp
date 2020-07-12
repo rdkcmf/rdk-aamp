@@ -73,18 +73,6 @@
 
 //#define TRACE // compile-time optional noisy debug output
 
-#define CHAR_CR 0x0d // '\r'
-#define CHAR_LF 0x0a // '\n'
-#define BOOLSTR(boolValue) (boolValue?"true":"false")
-#define PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS (0.1f)
-#define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
-#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) //!< 500mSec
-#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
-#define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
-#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
-#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
-
 static const int DEFAULT_STREAM_WIDTH = 720;
 static const int DEFAULT_STREAM_HEIGHT = 576;
 static const double DEFAULT_STREAM_FRAMERATE = 25.0;
@@ -682,38 +670,6 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 	}
 }
 
-/**
- * @brief Parse date time from ISO8601 string and return value in seconds
- * @param ptr ISO8601 string
- * @retval durationMs duration in milliseconds
- */
-static double ISO8601DateTimeToUTCSeconds(const char *ptr)
-{
-	double timeSeconds = 0;
-	if(ptr)
-	{
-		time_t offsetFromUTC = 0;
-		std::tm timeObj = { 0 };
-		char *msString;
-		double msvalue = 0.0;;
-
-		//Find out offset from utc by convering epoch
-		std::tm baseTimeObj = { 0 };
-		strptime("1970-01-01T00:00:00.", "%Y-%m-%dT%H:%M:%S.", &baseTimeObj);
-		offsetFromUTC = mktime(&baseTimeObj);
-
-		//Convert input string to time
-		msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
-
-		if(msString)
-		{
-			msvalue = (double)(atoi(msString)/1000.0);
-		}
-
-		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
-	}
-	return timeSeconds;
-}
 
 /***************************************************************************
 * @fn ParseXStartTimeOffset
@@ -778,9 +734,6 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
 				if (!aamp->aesCtrAttrDataList.at(i).isProcessed){
 					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
-					//Mark as trace after testing
-					AAMPLOG_INFO("%s:%d: Processing License data from manifest : %s ",  __FUNCTION__, __LINE__
-					, aamp->aesCtrAttrDataList.at(i).attrName.c_str());
 					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
 					if (NULL != drmData){
 /* This needs effort from Comcast as to what they want to do viz-a-viz preferred DRM, */						
@@ -2109,7 +2062,7 @@ void TrackState::FetchFragment()
 	{
 		return;
 	}
-	AAMPLOG_INFO("%s:%d: %s", __FUNCTION__, __LINE__, name);
+	//AAMPLOG_INFO("%s:%d: %s", __FUNCTION__, __LINE__, name);
 	//DELIA-33346 -- always set the rampdown flag to false .
 	context->mCheckForRampdown = false;
         bool bKeyChanged = false;
@@ -2146,7 +2099,7 @@ void TrackState::FetchFragment()
 						}
 						else
 						{
-							AAMPLOG_WARN("%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
+							AAMPLOG_WARN("%s:%d %s Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__,name);
 							context->mRampDownCount = 0;
 						}
 						AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
@@ -2154,7 +2107,7 @@ void TrackState::FetchFragment()
 				}
 				else if (decryption_error)
 				{
-					AAMPLOG_WARN("%s:%d: Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__, segDLFailCount);
+					AAMPLOG_WARN("%s:%d %s Error while decrypting fragments. failedCount:%d", __FUNCTION__, __LINE__,name, segDLFailCount);
 				}
 				else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
 				{
@@ -2650,7 +2603,6 @@ static size_t FindLineLength(const char* ptr)
 void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 {
 	double totalDuration = 0.0;
-	traceprintf("%s:%d Enter ", __FUNCTION__, __LINE__);
 	pthread_mutex_lock(&mPlaylistMutex);
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
@@ -2793,7 +2745,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					programDateTimeIdxOfFragment = ptr;					
 					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
-					AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
+					//AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
 					{
@@ -2835,9 +2787,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
 									*aesCtrAttrData) == aamp->aesCtrAttrDataList.end()) {
 								// attrName not in aesCtrAttrDataList, add it
-								//comment/mark as trace after testing
-								AAMPLOG_INFO("%s:%d Adding License data from manifest to the queue %s",
-								__FUNCTION__, __LINE__, keyinfo.mKeyTagStr.c_str());
 								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
 							}
 							/** No more use **/
@@ -2909,16 +2858,8 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					// mark it as VOD
 					if (IsLive())
 					{
-						if (mPlaylistType == ePLAYLISTTYPE_UNDEFINED)
-						{
-							logprintf("aamp: Found EXT-X-ENDLIST without EXT-X-PLAYLIST-TYPE");
-						}
-						else
-						{
-							logprintf("aamp: Found EXT-X-ENDLIST with ePLAYLISTTYPE_EVENT");
-						}
 						//required to avoid live adjust kicking in
-						logprintf("aamp: Changing playlist type to ePLAYLISTTYPE_VOD as ENDLIST tag present");
+						logprintf("aamp: Changing playlist type from[%d] to ePLAYLISTTYPE_VOD as ENDLIST tag present.",mPlaylistType);
 						mPlaylistType = ePLAYLISTTYPE_VOD;
 					}
 				}
@@ -3510,20 +3451,16 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 			{
 				std::string extension = line.substr(extenstionStart);
 				// parsed extension of first advertised fragment, now compare
-				traceprintf("%s:%d extension %s", __FUNCTION__, __LINE__, extension.c_str());
 				if ( extension == ".ts" )
 				{
-					logprintf("%s:%d fragment extension %s - FORMAT_MPEGTS", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_MPEGTS;
 				}
 				else if ( extension == ".aac" )
 				{
-					logprintf("%s:%d fragment extension %s - FORMAT_AUDIO_ES_AAC", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_AUDIO_ES_AAC;
 				}
 				else if ( extension == ".vtt" || extension == ".webvtt" )
 				{
-					logprintf("%s:%d fragment extension %s - FORMAT_SUBTITLE_WEBVTT", __FUNCTION__, __LINE__, extension.c_str());
 					format = FORMAT_SUBTITLE_WEBVTT;
 				}
 				else
@@ -4219,7 +4156,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond, trickplayMode, this->currentProfileIndex);
 			aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
 			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-			logprintf("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+			AAMPLOG_INFO("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 			/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 		}
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
@@ -4304,7 +4241,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(audio->mPlaylistUrl, &audio->playlist, audio->mEffectiveUrl))
 			{
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d audio playlist retrieved from cache", __FUNCTION__, __LINE__);
 			}
 			if(!audio->playlist.len)
 			{
@@ -4330,7 +4267,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(video->mPlaylistUrl, &video->playlist, video->mEffectiveUrl))
 			{
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d video playlist retrieved from cache", __FUNCTION__, __LINE__);
 			}
 			if(!video->playlist.len)
 			{
@@ -4341,7 +4278,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(subtitle->mPlaylistUrl, &subtitle->playlist, subtitle->mEffectiveUrl))
 			{
-				logprintf("StreamAbstractionAAMP_HLS::%s:%d subtitle playlist retrieved from cache", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d subtitle playlist retrieved from cache", __FUNCTION__, __LINE__);
 			}
 			if (!subtitle->playlist.len)
 			{
@@ -4526,7 +4463,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					bool subtitleDisabled = false;
 					if (this->rate != AAMP_NORMAL_PLAY_RATE)
 					{
-						logprintf("Disable subtitle format - trick play");
 						subtitleDisabled = true;
 					}
 					else if (format != FORMAT_SUBTITLE_WEBVTT)
@@ -6592,7 +6528,6 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 {
 	bool ret = false;
 	std::istringstream initFragmentUrlStream;
-	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
 
 	// If the first init fragment is of a clear fragment, we push an encrypted fragment's
 	// init data first to let qtdemux know we will need decryptor plugins
@@ -6847,7 +6782,6 @@ void TrackState::RestoreDrmState()
 void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 {
 	double totalDuration = 0.0;
-	traceprintf("%s:%d Enter", __FUNCTION__, __LINE__);
 	if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
 	{
 		pthread_mutex_lock(&mPlaylistMutex);
@@ -6870,7 +6804,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 							ptr++; // skip the ":"
 							int nb = (int)FindLineLength(ptr);
 							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
-							AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
+							//AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
 							//logprintf("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
 							if(reportBulkMeta)
 							{
@@ -6900,7 +6834,6 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 {
-	AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Enter!", __FUNCTION__, __LINE__);
 	int profileCount = GetProfileCount();
 	if (mMediaCount > 0 && profileCount > 0)
 	{
@@ -6954,7 +6887,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 	{
 		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, profileCount);
 	}
-	AAMPLOG_TRACE("StreamAbstractionAAMP_HLS::%s() %d Exit!", __FUNCTION__, __LINE__);
+
 }
 
 /***************************************************************************

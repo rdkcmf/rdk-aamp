@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <string.h>
 #include <assert.h>
-
+#include <ctime>
 /**
  * @brief Get current time stamp
  *
@@ -227,4 +227,38 @@ unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLe
 	unsigned char * decodedStr = base64_Decode(b64Src, len);
 	free(b64Src);
 	return decodedStr;
+}
+
+
+/**
+ * @brief Parse date time from ISO8601 string and return value in seconds
+ * @param ptr ISO8601 string
+ * @retval durationMs duration in milliseconds
+ */
+double ISO8601DateTimeToUTCSeconds(const char *ptr)
+{
+	double timeSeconds = 0;
+	if(ptr)
+	{
+		time_t offsetFromUTC = 0;
+		std::tm timeObj = { 0 };
+		char *msString;
+		double msvalue = 0.0;;
+
+		//Find out offset from utc by convering epoch
+		std::tm baseTimeObj = { 0 };
+		strptime("1970-01-01T00:00:00.", "%Y-%m-%dT%H:%M:%S.", &baseTimeObj);
+		offsetFromUTC = mktime(&baseTimeObj);
+
+		//Convert input string to time
+		msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
+
+		if(msString)
+		{
+			msvalue = (double)(atoi(msString)/1000.0);
+		}
+
+		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
+	}
+	return timeSeconds;
 }

@@ -1410,8 +1410,6 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
  */
 void *CreateDRMSession(void *arg)
 {
-	AAMPLOG_INFO("%s:%d Entered arg - 0x%08x", 
-	 __FUNCTION__, __LINE__, arg );
 
 	if(aamp_pthread_setname(pthread_self(), "aampfMP4DRM"))
 	{
