@@ -19,6 +19,33 @@
 
 var playbackSpeeds = [-64, -32, -16, -4, 1, 4, 16, 32, 64];
 
+adMetadata = {
+    name: "#EXT-X-CUE",
+    type: "0",
+    durationName: "DURATION",
+    timeName: "time"
+}
+
+class VTTCue {
+    constructor(start, duration, text, line = 0, align = "", position = 0, size = 0) {
+        this.start = start;       //: number,
+        this.duration = duration; //: number,
+        this.text = text;         //: string,
+        this.line = line;         //: number,
+        this.align = align;       //: string,
+        this.size = size;         //: number,
+        this.position = position  //: number
+	}
+};
+
+let subtitleTimer = undefined;
+let displayTimer = undefined;
+let vttCueBuffer = [];
+let metadataList = [];
+let metadataPosition = [];
+let metadataDuration = [];
+let previousAdPosition = -2;
+
 //To turn on native CC rendering
 var enableNativeCC = true;
 
@@ -345,7 +372,28 @@ function adResolvedCallback(event) {
 
 function subscribedTagNotifier(event) {
     const metadata = event.timedMetadata;
-    console.log("Subscribed tag notifier event: " + JSON.stringify(metadata));
+    console.log("Subscribed tag notifier event: " + JSON.stringify(event));
+
+    // If there is an Ad tag present
+    if (!metadata.name.localeCompare(adMetadata.name) && (metadata.content.includes(adMetadata.type))) {
+        var metaString = metadata.name + " type:"  + adMetadata.type + " time:" + metadata[String(adMetadata.timeName)];
+        if(metadata.duration) {
+            metaString = metaString + " duration:" + metadata.duration;
+            metadataDuration.push(Number(metadata.duration));
+        } else {
+            // use pattern matching to parse duration from content string
+            var durationPattern = String(adMetadata.durationName) + "[:|=][0-9]*.[0-9]*";
+            var durationExp = new RegExp(durationPattern);
+            var durationString = String(metadata.content.match(durationExp));
+            metaString = metaString + " duration:" + durationString.slice(adMetadata.durationName.length+1);
+            metadataDuration.push(Number(durationString.slice(adMetadata.durationName.length+1)))
+        }
+
+        console.log("timedMetadata metaString: " + metaString);
+        metadataList.push(metaString);
+        metadataPosition.push(metadata[String(adMetadata.timeName)]);
+    }
+
     /* Sample format
         "timedMetadata": {
         "time":62062,
@@ -434,12 +482,64 @@ function mediaProgressUpdate(event) {
 
     document.getElementById("totalDuration").innerHTML = convertSStoHr(duration / 1000.0);
     document.getElementById("currentDuration").innerHTML = convertSStoHr(position / 1000.0);
-    console.log("Media progress update event: value=" + value);
+    document.getElementById("positionInSeconds").innerHTML = Math.ceil(position) + "ms";
+    //console.log("Media progress update event: position=" + position);
     // Update the slider value
     if(isFinite(value)) {
         seekBar.value = value;
         seekBar.style.width = value+"%";
         seekBar.style.backgroundColor = "red";
+    }
+
+    if(metadataList.length){
+        document.getElementById("metadataContent").innerHTML = "";
+        // Check if there is any Ad tag present near the current postion
+        var adPosition = checkAdInRange(position);
+
+
+        if((adPosition != -1) && (adPosition != previousAdPosition)) {
+            console.log("Media Metadata match found. Passed position = " + position + " with Ad at " + metadataPosition[adPosition]);
+            document.getElementById("adContent").innerHTML = "Metadata Passed: " + metadataList[adPosition];
+            document.getElementById('adModal').style.display = "block";
+            // Update previousAdPosition value
+            previousAdPosition = adPosition;
+            setTimeout(function()
+            {
+                document.getElementById('adModal').style.display = "none";
+            },
+            metadataDuration[adPosition]*1000);
+        }
+
+        var count = 0;
+        // Show the upcoming 5 Ad notifications
+        for (iterPos = checkNextAd(position); iterPos < metadataList.length; iterPos++, count++) {
+            if(count == 5) break;
+            var listItem = document.createElement("LI");
+            var textItem = document.createTextNode(metadataList[iterPos]);
+            listItem.appendChild(textItem);
+            document.getElementById("metadataContent").appendChild(listItem);
+        }
+    }
+}
+
+function checkAdInRange(position) {
+    var iterPos = 0;
+    for (; iterPos < metadataPosition.length; iterPos++) {
+        // If the current position has reached a Ad start position,
+        if((position >= metadataPosition[iterPos]) && (position <= metadataPosition[iterPos] + 2000)) {
+            return iterPos;
+        }
+    }
+    return -1;
+}
+
+function checkNextAd(position) {
+    var iterPos = 0;
+    for (; iterPos < metadataPosition.length; iterPos++) {
+        // If there is an upcoming ad return that position,
+        if(position < metadataPosition[iterPos]) {
+            return iterPos;
+        }
     }
 }
 
@@ -558,10 +658,15 @@ function resetPlayer() {
     playerState = playerStatesEnum.idle;
 
     //Subscribe to interested tags from playlist
-    //let tags = ["#EXT-X-SCTE35","#EXT-X-MARKER"];
+    //let tags = ["#EXT-X-SCTE35","#EXT-X-MARKER", "#EXT-X-CUE"];
     //playerObj.setSubscribedTags(tags);
 
     mutedStatus = false;
+
+    metadataList = [];
+    metadataPosition = [];
+    metadataDuration = [];
+    previousAdPosition = -2;
 }
 
 function generateInitConfigObject (urlObject) {

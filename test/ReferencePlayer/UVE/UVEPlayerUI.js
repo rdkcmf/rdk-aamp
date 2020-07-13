@@ -23,6 +23,8 @@ var ccStatus = false;
 var disableButtons = false;
 var currentObjID = "";
 const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false };
+const defaultCCOptions1 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "big", windowFillColor: "black", fontStyle: "default", textForegroundColor: "black", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "white", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
+const defaultCCOptions2 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "blue", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "red", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
 const ccOption1 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"white","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":false};
 const ccOption2 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"yellow","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"yellow","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":true};
 const ccOption3 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"red","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":true};
@@ -207,9 +209,9 @@ function changeCCTrack() {
 
 //function to Change the Closed Captioning Style Options
 function changeCCStyle() {
+    var styleOption =  document.getElementById("ccStyles").selectedIndex; // get selected cc track
     if ((enableNativeCC) && (ccStatus === true)) {
         //if CC is enabled
-        var styleOption =  document.getElementById("ccStyles").selectedIndex; // get selected cc track
         switch(styleOption) {
             case 0:
                     playerObj.setTextStyleOptions(JSON.stringify(ccOption1));
@@ -222,8 +224,19 @@ function changeCCStyle() {
                     break;
         }
         console.log("Current closed caption style is :" + playerObj.getTextStyleOptions());
+    } else if((!enableNativeCC) && (ccStatus === true)) {
+        switch(styleOption) {
+            case 0:
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions1});
+                    break;
+            case 1:
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions2});
+                    break;
+            case 2:
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
+                    break;
+        }
     }
->>>>>>> 8a11a641... DELIA-43721: new Audio & Text Track management APIs
 }
 //function to jump to user entered position
 function jumpToPPosition() {
@@ -254,6 +267,21 @@ function toggleOverlay() {
     } else {
         overlay.style.display = "none";
         urlMod.style.display = "none";
+    }
+}
+
+
+//function to toggle Metadata widget
+function toggleTimedMetadata() {
+    var metadataMod = document.getElementById('metadataModal');
+    var positionMod = document.getElementById('positionModal');
+    document.getElementById("metadataCheck").checked = !document.getElementById("metadataCheck").checked;
+    if(document.getElementById("metadataCheck").checked) {
+        metadataMod.style.display = "block";
+        positionMod.style.display = "block";
+    } else {
+        metadataMod.style.display = "none";
+        positionMod.style.display = "none";
     }
 }
 
@@ -291,7 +319,7 @@ var HTML5PlayerControls = function() {
         this.video = document.getElementById("video");
 
         // Buttons
-        this.vidtoggleButton = document.getElementById("videoToggleButton");
+        this.videoToggleButton = document.getElementById("videoToggleButton");
         this.playButton = document.getElementById("playOrPauseButton");
         this.rwdButton = document.getElementById("rewindButton");
         this.skipBwdButton = document.getElementById("skipBackwardButton");
@@ -302,6 +330,7 @@ var HTML5PlayerControls = function() {
         this.autoVideoLogButton = document.getElementById("autoLogButton");
         this.autoSeekButton = document.getElementById("autoSeekButton");
         this.jumpButton = document.getElementById("jumpButton");
+        this.metadataLogButton = document.getElementById("metadataButton");
         this.homeContentButton = document.getElementById('homeButton');
 
         // Sliders
@@ -313,7 +342,7 @@ var HTML5PlayerControls = function() {
         this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.ccStylesList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.homeContentButton];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.ccStylesList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.metadataLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
         this.ccListVisible = false;
@@ -425,11 +454,9 @@ var HTML5PlayerControls = function() {
             this.nextVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.nextCCSelect();
-	} else if (this.dropDownBitrateListVisible) {
-	    this.nextBitrateSelect();
         } else if ((this.components[this.currentPos] == this.ccStylesList) && (this.ccStyleListVisible)) {
             this.nextCCStyleSelect();
-        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.ccStylesList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.ccStylesList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.metadataLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -532,7 +559,7 @@ var HTML5PlayerControls = function() {
                     playPause();
                     break;
 	    case 1:
-'		    toggleVideo();
+		    toggleVideo();
 		    break;
             case 2:
                     fastrwd();
@@ -590,6 +617,9 @@ var HTML5PlayerControls = function() {
                     toggleOverlay();
                     break;
             case 16:
+                    toggleTimedMetadata();
+                    break;
+            case 17:
                     goToHome();
                     break;
             };
@@ -818,11 +848,13 @@ function resetUIOnNewAsset(){
     controlObj.reset();
     document.getElementById("muteIcon").src = "../icons/unMute.png";
     document.getElementById("currentDuration").innerHTML = "00:00:00";
+    document.getElementById("positionInSeconds").innerHTML = "0s";
     document.getElementById("totalDuration").innerHTML = "00:00:00";
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
     document.getElementById("jumpPosition").value = "";
+    document.getElementById("metadataContent").innerHTML = "";
 };
 
 function initPlayerControls() {

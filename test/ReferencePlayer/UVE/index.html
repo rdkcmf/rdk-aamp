@@ -41,8 +41,8 @@
         <div id="controlDiv">
           <!-- Video Controls -->
           <div id="videoControlsDiv">
-              <button class="button" id="videoToggleButton"><img id="flipIcon" src="../icons/flip.png"></button>
               <button class="button" id="playOrPauseButton"><img id="playOrPauseIcon" src="../icons/play.png"></button>
+              <button class="button" id="videoToggleButton"><img id="flipIcon" src="../icons/flip.png"></button>
               <button class="button" id="rewindButton"><img class="flipImg" src="../icons/fastForward.png"></button>
               <button class="button" id="skipBackwardButton"><img class="flipImg" src="../icons/skipForward.png"></button>
               <nobr id="currentDuration">00:00:00</nobr>
@@ -68,9 +68,9 @@
               <select id="videoURLs">
               </select>
               <p id="playerType">UVE PLAYER</p>
-              <span id="cacheOnly" class="cacheOnly"></span>Cache: </span>
+              <span id="cacheOnly" class="cacheOnly">Cache: </span>
               <label id="cacheOnlyButton">
-                  <input type="checkbox" id="cacheOnlyCheck">
+                  <input type="checkbox" id="cacheOnlyCheck" class="check-box-custom">
               </label>
               <span id="seekState">Autoplay Seek: </span>
               <label id="autoSeekButton">
@@ -80,7 +80,11 @@
               <button class="button" id="jumpButton">JUMP</button>
               <span id="logState">Diagnostics: </span>
               <label id="autoLogButton">
-                  <input type="checkbox" id="logCheck">
+                  <input type="checkbox" id="logCheck" class="check-box-custom">
+              </label>
+              <span id="metadataState">Metadata: </span>
+              <label id="metadataButton">
+                  <input type="checkbox" id="metadataCheck" class="check-box-custom">
               </label>
               <label>
                   <button class="round-button" id="homeButton"><img id="homeIcon" src="../icons/home.png"></button>
@@ -100,6 +104,11 @@
     <!-- The URL Modal -->
     <div id="urlModal" class="urlModal">
         <p id="contentURL" ></p>
+    </div>
+
+    <!-- The Metadata Modal -->
+    <div id="metadataModal" class="metadataModal">
+        <ul id="metadataContent" ></ul>
     </div>
 
     <!-- The CC Modal -->
