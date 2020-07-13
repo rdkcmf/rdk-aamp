@@ -68,9 +68,9 @@
               <select id="videoURLs">
               </select>
               <p id="playerType">UVE PLAYER</p>
-              <span id="cacheOnly" class="cacheOnly"></span>Cache: </span>
+              <span id="cacheOnly" class="cacheOnly">Cache: </span>
               <label id="cacheOnlyButton">
-                  <input type="checkbox" id="cacheOnlyCheck">
+                  <input type="checkbox" id="cacheOnlyCheck" class="check-box-custom">
               </label>
               <span id="seekState">Autoplay Seek: </span>
               <label id="autoSeekButton">
@@ -80,7 +80,11 @@
               <button class="button" id="jumpButton">JUMP</button>
               <span id="logState">Diagnostics: </span>
               <label id="autoLogButton">
-                  <input type="checkbox" id="logCheck">
+                  <input type="checkbox" id="logCheck" class="check-box-custom">
+              </label>
+              <span id="metadataState">Metadata: </span>
+              <label id="metadataButton">
+                  <input type="checkbox" id="metadataCheck" class="check-box-custom">
               </label>
               <label>
                   <button class="round-button" id="homeButton"><img id="homeIcon" src="../icons/home.png"></button>
@@ -100,6 +104,11 @@
     <!-- The URL Modal -->
     <div id="urlModal" class="urlModal">
         <p id="contentURL" ></p>
+    </div>
+
+    <!-- The Metadata Modal -->
+    <div id="metadataModal" class="metadataModal">
+        <ul id="metadataContent" ></ul>
     </div>
 
     <!-- The CC Modal -->
@@ -123,11 +132,21 @@
       <p id="buffContent">Buffering...</p>
     </div>
 
+        <!-- Ad Notifier Modal -->
+    <div id="adModal" class="adModal">
+      <p id="adContent"></p>
+    </div>
+
     <!-- The Subtitle Modal -->
     <div id="subtitleModal" class="subtitleModal">
         <p id="subtitleContent" >
             <mark id="subtitleText"></mark>
         </p>
+    </div>
+
+    <!-- The Position Reporting Modal -->
+    <div id="positionModal" class="positionModal">
+        <p id="positionInSeconds" ></p>
     </div>
 </body>
 

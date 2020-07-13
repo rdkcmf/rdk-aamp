@@ -27,12 +27,12 @@ body {
 }
 
 #cacheOnly {
-    margin-left: 18%;
+    margin-left: 17%;
 }
 
 #videoURLs {
-    margin-left: 26%;
-    width: 22%;
+    margin-left: 24%;
+    width: 15%;
 }
 
 #ccTracks {
@@ -50,11 +50,11 @@ body {
 }
 
 #logState {
-    margin-left: 3%;
+    margin-left: 2%;
 }
 
 #seekState {
-    margin-left: 33%;
+    margin-left: 20%;
 }
 
 #seekBar {
