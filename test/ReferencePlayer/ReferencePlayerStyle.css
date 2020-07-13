@@ -62,7 +62,7 @@ body{
     text-align: justify;
     text-justify: inter-word;
     font-family: Verdana, Geneva, sans-serif;
-    adding: 20px;
+    padding: 20px;
     box-shadow:0 1px 5px rgba(0, 0, 0, 0.3), 0 0 37px rgba(0, 0, 0, 0.1) inset;
     -webkit-box-shadow:0 1px 5px rgba(0, 0, 0, 0.3), 0 0 37px rgba(0, 0, 0, 0.1) inset;
 }
@@ -171,10 +171,6 @@ h3 {
     border-radius: 3px 3px 0px 0px / 6px 6px 0px 0px;
 }
 
-#cacheOnly {
-    margin-left: 8%;
-}
-
 #videoContainer #videoControlsDiv {
     opacity: .9;
 }
@@ -195,21 +191,14 @@ img {
 }
 
 #videoURLs {
-    margin-left: 25%;
-    width: 30%;
     position: fixed;
     font-family: Arial, Helvetica, sans-serif;
     margin-top: 2%;
 }
 
 #videoToggleButton {
-    margin-left: 8%;
+    height: 30px;
 }
-
-#playOrPauseButton {
-    margin-left: 8%;
-}
-
 
 #rewindButton {
     height: 30px;
@@ -304,6 +293,25 @@ img {
     font: 13px arial, sans-serif;
 }
 
+.metadataModal {
+    display: none; 
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    position: absolute;
+    background-color: rgba(0,0,0,0.5);
+    border: 1.2px solid #2B364F;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+    -webkit-animation-name: flydown;
+    -webkit-animation-duration: 0.21s;
+    animation-name: flydown;
+    animation-duration: 0.21s;
+    width: 43%;
+    top: 36%;
+    left: 1%;
+    font: 13px arial, sans-serif;
+    padding: 3px;
+}
+
 #contentURL {
     text-align: center;
 }
@@ -326,6 +334,24 @@ img {
     font: 20px arial, sans-serif;
 }
 
+.adModal {
+    display: none; 
+    position: absolute;
+    background-color: rgba(0,0,0,0.5);
+    border: 1.2px solid lightgrey;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+    -webkit-animation-name: flydown;
+    -webkit-animation-duration: 0.10s;
+    animation-name: flydown;
+    animation-duration: 0.10s;
+    width: 20%;
+    top: 50%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    font: 20px arial, sans-serif;
+}
+
 #ccContent {
     text-align: center;
     color: white;
@@ -335,6 +361,12 @@ img {
     text-align: center;
     color: white;
     font: 20px  Arial, Helvetica, sans-serif;
+}
+
+#adContent {
+    text-align: center;
+    color: white;
+    font: 18px  Arial, Helvetica, sans-serif;
 }
 
 .errorModal {
@@ -354,6 +386,50 @@ img {
     right: 0;
     margin: 0 auto;
     font: 20px arial, sans-serif;
+}
+
+#positionInSeconds {
+    text-align: center;
+    color: white;
+}
+
+.positionModal {
+    display: none; 
+    position: absolute;
+    background-color: rgba(0,0,0,0.5);
+    border: 1.2px solid lightgrey;
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+    -webkit-animation-name: flydown;
+    -webkit-animation-duration: 0.10s;
+    animation-name: flydown;
+    animation-duration: 0.10s;
+    width: 11%;
+    bottom: 10%;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    font: 20px arial, sans-serif;
+}
+
+.subtitleModal {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    line-height: 17px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 30px;
+}
+
+#subtitleContent {
+    text-align: center;
+    -webkit-text-stroke: 0.3px black;
+}
+
+#subtitleText {
+    background-color: black;
+    color: white;
 }
 
 @-webkit-keyframes flydown {
@@ -426,10 +502,6 @@ option {
     font-size: 15px;
 }
 
-#logState {
-    margin-left: 57%;
-}
-
 #autoLogButton {
     position: absolute;
     width: 25px;
@@ -455,6 +527,10 @@ option {
     height: 18px;
 }
 
+#metadataState {
+    margin-left: 3%;
+}
+
 #cacheOnlyButton {
     position: absolute;
     width: 25px;
@@ -462,7 +538,14 @@ option {
     margin-left: 1px;
 }
 
-#cacheOnlyCheck{
+#metadataButton {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    margin-left: 1px;
+}
+
+.check-box-custom {
     padding: 5px;
     width: 18px;
     height: 18px;
