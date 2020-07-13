@@ -6001,7 +6001,6 @@ void TrackState::FetchPlaylist()
 	long  main_error = 0;
 
 	ProfilerBucketType bucketId = (this->type == eTRACK_SUBTITLE)?PROFILE_BUCKET_PLAYLIST_SUBTITLE:(this->type == eTRACK_AUDIO)?PROFILE_BUCKET_PLAYLIST_AUDIO:PROFILE_BUCKET_PLAYLIST_VIDEO;
-	logprintf("TrackState::%s [%s] start", __FUNCTION__, name);
 	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 	MediaType mType = (this->type == eTRACK_SUBTITLE) ? eMEDIATYPE_PLAYLIST_SUBTITLE : (this->type == eTRACK_AUDIO) ? eMEDIATYPE_PLAYLIST_AUDIO : eMEDIATYPE_PLAYLIST_VIDEO;
 	AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(mType , true);
@@ -6023,7 +6022,6 @@ void TrackState::FetchPlaylist()
 		aamp->InterruptableMsSleep(500);
 		playlistDownloadFailCount += 1;
 	} while(aamp->DownloadsAreEnabled() && (MAX_MANIFEST_DOWNLOAD_RETRY >  playlistDownloadFailCount) && (404 == http_error));
-	logprintf("TrackState::%s [%s] end", __FUNCTION__, name);
 	aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 	if (!playlist.len)
 	{

@@ -31,15 +31,14 @@
 #include <condition_variable>
 #include <atomic>
 
-#include "SubtecPacket.hpp"
-
-#define PACKET_DEBUG 1
-
-#ifdef PACKET_DEBUG
+#ifdef SUBTEC_PACKET_DEBUG
 #define logprintf printf
 #else
-#define logprintf(FORMAT, ...)
+#include "priv_aamp.h"
 #endif
+
+#include "SubtecPacket.hpp"
+
 
 const constexpr char *SOCKET_PATH = "/run/subttx/pes_data_main";
 
