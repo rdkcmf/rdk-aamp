@@ -159,9 +159,6 @@ static int getKeyId(string attrName, string &keyId){
 	/* Remove 0x from begining */
 	keyId = keyId.substr(2);
 
-	/* Remove/make it to trace after Debugging */
-	AAMPLOG_TRACE("%s:%d Key Id Received is %s",
-	__FUNCTION__, __LINE__, keyId.c_str());
 	return status;
 }
 
@@ -182,9 +179,6 @@ static int getPsshData(string attrName, string &psshData){
 	/* Split string based on , and get the PSSH Data */
 	psshData = psshData.substr(psshData.find(',')+1);
 
-	/* Remove/make it to trace after Debugging */
-	AAMPLOG_TRACE("%s:%d PSSH Data Received is %s", 
-	__FUNCTION__, __LINE__, psshData.c_str());
 	return status;
 }
 
@@ -207,9 +201,6 @@ static uint8_t getPsshDataVersion(string attrName){
 		psshDataVer = (uint8_t)std::atoi(psshDataVerStr.c_str());
 	}
 
-	/* Remove/make it to trace after Debugging */
-	AAMPLOG_INFO("%s:%d PSSH Data Version Received is %d", 
-	__FUNCTION__, __LINE__, psshDataVer);
 	return psshDataVer;
 }
 
@@ -276,9 +267,6 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 			__FUNCTION__, __LINE__);
 			break;
 		}
-
-		AAMPLOG_INFO("%s:%d HSL DRM Type received as %s",
-		__FUNCTION__, __LINE__,  drmHelper->friendlyName().c_str());
 
 		status  = getPsshData(attrName, psshDataStr);
 		if (DRM_API_SUCCESS != status){

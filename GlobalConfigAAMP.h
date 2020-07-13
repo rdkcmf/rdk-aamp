@@ -170,7 +170,7 @@ public:
 	bool linearTrickplayFPSLocalOverride;   /**< Enabled LIVE Trickplay FPS local overriding*/
 	int stallErrorCode;                     /**< Stall error code*/
 	int stallTimeoutInMS;                   /**< Stall timeout in milliseconds*/
-	const char* httpProxy;                  /**< HTTP proxy address*/
+	char* httpProxy;                  /**< HTTP proxy address*/
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
 	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
@@ -382,7 +382,7 @@ public:
 	/**
 	 * @brief GlobalConfigAAMP Destructor
 	 */
-	~GlobalConfigAAMP(){}
+	~GlobalConfigAAMP();
 
 	GlobalConfigAAMP(const GlobalConfigAAMP&) = delete;
 
