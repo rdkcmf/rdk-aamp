@@ -149,6 +149,7 @@ private:
 	SessionMgrState sessionMgrState;
 	pthread_mutex_t accessTokenMutex;
 	pthread_mutex_t cachedKeyMutex;
+	pthread_mutex_t mDrmSessionLock;
 	bool curlSessionAbort;
 	bool mEnableAccessAtrributes;
 

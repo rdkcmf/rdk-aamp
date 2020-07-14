@@ -115,9 +115,11 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 		,curlSessionAbort(false), mEnableAccessAtrributes(true)
+		,mDrmSessionLock()
 {
 	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
 	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
+	pthread_mutex_init(&mDrmSessionLock, NULL);
 }
 
 /**
@@ -127,6 +129,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
 {
 	clearAccessToken();
 	clearSessionData();
+	pthread_mutex_destroy(&mDrmSessionLock);
 }
 
 /**
@@ -810,6 +813,9 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		logprintf("%s:%d Failed to create DRM Session invalid parameters ", __FUNCTION__, __LINE__);
 		return nullptr;
 	}
+
+	// Mutex lock to handle createDrmSession multi-thread calls to avoid timing issues observed in AXi6 as part of DELIA-43939 during Playready-4.0 testing.
+	AampMutexHold drmSessionLock(mDrmSessionLock);
 
 	int cdmError = -1;
 	KeyState code = KEY_ERROR;
