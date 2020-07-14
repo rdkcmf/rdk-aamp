@@ -737,50 +737,31 @@ static int ReadConfigStringHelper(std::string buf, const char *prefixPtr, const 
 template<typename T>
 static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value)
 {
-	int ret=0;
-	std::size_t pos = buf.find(prefixPtr);
-	if (pos != std::string::npos)
+	int ret = 0;
+
+	try
 	{
-		pos += strlen(prefixPtr);
-		std::string valStr = buf.substr(pos);
-		if (std::is_same<T, int>::value)
-			value = std::stoi(valStr);
-		else if (std::is_same<T, long>::value)
-			value = std::stol(valStr);
-		else if (std::is_same<T, float>::value)
-			value = std::stof(valStr);
-		else
-			value = std::stod(valStr);
-		ret = 1;
+		std::size_t pos = buf.find(prefixPtr);
+		if (pos != std::string::npos)
+		{
+			pos += strlen(prefixPtr);
+			std::string valStr = buf.substr(pos);
+			if (std::is_same<T, int>::value)
+				value = std::stoi(valStr);
+			else if (std::is_same<T, long>::value)
+				value = std::stol(valStr);
+			else if (std::is_same<T, float>::value)
+				value = std::stof(valStr);
+			else
+				value = std::stod(valStr);
+			ret = 1;
+		}
+	}
+	catch(exception& e)
+	{
+		// NOP
 	}
 
-	return ret;
-}
-
-/**
-* @brief helper function to extract numeric value from given buf after removing prefix
-* @param buf String buffer to scan
-* @param prefixPtr - prefix string to match in bufPtr
-* @param value1 - receives numeric value after extraction
-* @param value2 - receives numeric value after extraction
-* @param value3 - receives numeric value after extraction
-* @param value4 - receives numeric value after extraction
-* @retval 0 if prefix not present or error
-* @retval 1 if string converted to numeric value
-*/
-template<typename T>
-static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T& value2, T& value3, T& value4)
-{
-	int ret = false;
-	std::size_t pos = buf.find(prefixPtr);
-	if (pos != std::string::npos)
-	{
-		pos += strlen(prefixPtr);
-		std::string valStr = buf.substr(pos);
-		std::stringstream ss(valStr);
-		ss >> value1 >> value2 >> value3 >> value4;
-		ret = true;
-	}
 	return ret;
 }
 
