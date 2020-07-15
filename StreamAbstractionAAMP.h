@@ -25,6 +25,7 @@
 #ifndef STREAMABSTRACTIONAAMP_H
 #define STREAMABSTRACTIONAAMP_H
 
+#include "AampMemoryUtils.h"
 #include "priv_aamp.h"
 #include <map>
 #include <iterator>

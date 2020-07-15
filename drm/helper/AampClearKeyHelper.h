@@ -80,9 +80,6 @@ public:
 
 public:
 	AampClearKeyHelperFactory() : AampDrmHelperFactory(CLEARKEY_WEIGHTING) {};
-
-private:
-	const std::string CLEARKEY_UUID{"1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"};
 };
 
 #endif //_AAMP_CLEARKEY_HELPER_H

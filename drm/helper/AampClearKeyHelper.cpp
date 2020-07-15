@@ -21,6 +21,7 @@
 #include "AampJsonObject.h"
 
 #include "GlobalConfigAAMP.h"
+#include "AampConstants.h"
 
 static AampClearKeyHelperFactory clearkey_helper_factory;
 
