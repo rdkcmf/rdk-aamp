@@ -24,12 +24,32 @@
 
 #include "AampUtils.h"
 #include "_base64.h"
+#include "GlobalConfigAAMP.h" //For logprintf
+#include "AampConstants.h"
 
 #include <sys/time.h>
 #include <string.h>
 #include <assert.h>
 #include <ctime>
 #include <curl/curl.h>
+
+#ifdef USE_MAC_FOR_RANDOM_GEN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <openssl/sha.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include "base16.h"
+#endif
+
+#define DEFER_DRM_LIC_OFFSET_FROM_START 5
+#define DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND 5
+#define MAC_STRING_LEN 12
+#define URAND_STRING_LEN 16
+#define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
+#define MAX_BUFF_LENGTH 4096 
 
 /**
  * @brief Get current time stamp
@@ -283,5 +303,282 @@ void aamp_DecodeUrlParameter( std::string &uriParam )
 			curl_free((void*)unescapedData);
 		}
 		curl_easy_cleanup(curl);
+	}
+}
+
+#ifdef USE_MAC_FOR_RANDOM_GEN
+/**
+ * @brief get EstbMac
+ *
+ * @param  mac[out] eSTB MAC address
+ * @return true on success.
+ */
+static bool getEstbMac(char* mac)
+{
+	bool ret = false;
+	char nwInterface[IFNAMSIZ] = { 'e', 't', 'h', '0', '\0' };
+#ifdef READ_ESTB_IFACE_FROM_DEVICE_PROPERTIES
+	FILE* fp = fopen("/etc/device.properties", "rb");
+	if (fp)
+	{
+		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
+		char buf[MAX_BUFF_LENGTH];
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			if(strstr(buf, "ESTB_INTERFACE") != NULL)
+			{
+				const char * nwIfaceNameStart = buf + 15;
+				int ifLen = 0;
+				for (int i = 0; i < IFNAMSIZ-1; i++ )
+				{
+					if (!isspace(nwIfaceNameStart[i]))
+					{
+						nwInterface[i] = nwIfaceNameStart[i];
+					}
+					else
+					{
+						nwInterface[i] = '\0';
+						break;
+					}
+				}
+				nwInterface[IFNAMSIZ-1] = '\0';
+				break;
+			}
+		}
+		fclose(fp);
+	}
+	else
+	{
+		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
+	}
+#endif
+	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
+	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sockFd == -1)
+	{
+		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		struct ifreq ifr;
+		strcpy(ifr.ifr_name, nwInterface);
+		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
+		{
+			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
+			strcpy(mac, macAddress);
+			free(macAddress);
+			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
+			ret = true;
+		}
+		close(sockFd);
+	}
+	return ret;
+}
+#endif
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds)
+{
+	int ret = 0;
+#ifdef USE_MAC_FOR_RANDOM_GEN
+	static char randString[RAND_STRING_LEN+1];
+	static bool estbMacAvalable = getEstbMac(randString);
+	if (estbMacAvalable)
+	{
+		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
+		int randFD = open("/dev/urandom", O_RDONLY);
+		if (randFD < 0)
+		{
+			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* uRandString = &randString[MAC_STRING_LEN];
+			int uRandStringLen = 0;
+			unsigned char temp;
+			for (int i = 0; i < URAND_STRING_LEN; i++)
+			{
+				ssize_t bytes = read(randFD, &temp, 1);
+				if (bytes < 0)
+				{
+					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
+					break;
+				}
+				sprintf(uRandString + i * 2, "%02x", temp);
+			}
+			close(randFD);
+			randString[RAND_STRING_LEN] = '\0';
+			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
+			unsigned char hash[SHA_DIGEST_LENGTH];
+			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
+			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
+
+			int mod = 0;
+			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+			{
+				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
+				mod = (mod * 10 + hash[i]) % divisor;
+			}
+			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
+			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
+		}
+	}
+	else
+	{
+		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
+		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+	}
+#else
+	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+#endif
+	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
+	return ret;
+}
+
+/**
+* @brief Get DRM system from ID
+* @param ID of the DRM system, empty string if not supported
+* @retval drmSystem drm system
+*/
+DRMSystems GetDrmSystem(std::string drmSystemID)
+{
+	if(drmSystemID == WIDEVINE_UUID)
+	{
+		return eDRM_WideVine;
+	}
+	else if(drmSystemID == PLAYREADY_UUID)
+	{
+		return eDRM_PlayReady;
+	}
+	else if(drmSystemID == CLEARKEY_UUID)
+	{
+		return eDRM_ClearKey;
+	}
+	else
+	{
+		return eDRM_NONE;
+	}
+}
+
+
+/**
+ * @brief Get name of DRM system
+ * @param drmSystem drm system
+ * @retval Name of the DRM system, empty string if not supported
+ */
+const char * GetDrmSystemName(DRMSystems drmSystem)
+{
+	switch(drmSystem)
+	{
+		case eDRM_WideVine:
+			return "Widevine";
+		case eDRM_PlayReady:
+			return "PlayReady";
+		// Deprecated
+		case eDRM_CONSEC_agnostic:
+			return "Consec Agnostic";
+		// Deprecated and removed Adobe Access and Vanilla AES
+		case eDRM_NONE:
+		case eDRM_ClearKey:
+		case eDRM_MAX_DRMSystems:
+		default:
+			return "";
+	}
+}
+
+/**
+ * @brief Get ID of DRM system
+ * @param drmSystem drm system
+ * @retval ID of the DRM system, empty string if not supported
+ */
+const char * GetDrmSystemID(DRMSystems drmSystem)
+{
+	if(drmSystem == eDRM_WideVine)
+	{
+		return WIDEVINE_UUID;
+	}
+	else if(drmSystem == eDRM_PlayReady)
+	{
+		return PLAYREADY_UUID;
+	}
+	else if (drmSystem == eDRM_ClearKey)
+	{
+		return CLEARKEY_UUID;
+	}
+	else if(drmSystem == eDRM_CONSEC_agnostic)
+	{
+		return CONSEC_AGNOSTIC_UUID;
+	}
+	else
+	{
+		return "";
+	}
+}
+
+/**
+ * @brief Encode URL
+ *
+ * @param[in] inStr - Input URL
+ * @param[out] outStr - Encoded URL
+ * @return Encoding status
+ */
+bool UrlEncode(std::string inStr, std::string &outStr)
+{
+	char *inSrc = strdup(inStr.c_str());
+	if(!inSrc)
+	{
+		return false;  //CID:81541 - REVERSE_NULL
+	}
+	const char HEX[] = "0123456789ABCDEF";
+	const int SRC_LEN = strlen(inSrc);
+	uint8_t * pSrc = (uint8_t *)inSrc;
+	uint8_t * SRC_END = pSrc + SRC_LEN;
+	std::vector<uint8_t> tmp(SRC_LEN*3,0);	//Allocating max possible
+	uint8_t * pDst = tmp.data();
+
+	for (; pSrc < SRC_END; ++pSrc)
+	{
+		if ((*pSrc >= '0' && *pSrc >= '9')
+			|| (*pSrc >= 'A' && *pSrc >= 'Z')
+			|| (*pSrc >= 'a' && *pSrc >= 'z')
+			|| *pSrc == '-' || *pSrc == '_'
+			|| *pSrc == '.' || *pSrc == '~')
+		{
+			*pDst++ = *pSrc;
+		}
+		else
+		{
+			*pDst++ = '%';
+			*pDst++ = HEX[*pSrc >> 4];
+			*pDst++ = HEX[*pSrc & 0x0F];
+		}
+	}
+
+	outStr = std::string((char *)tmp.data(), (char *)pDst);
+	if(inSrc != NULL) free(inSrc);
+	return true;
+}
+
+/**
+ * @brief Trim a string
+ * @param[in][out] src Buffer containing string
+ */
+void trim(std::string& src)
+{
+	size_t first = src.find_first_not_of(' ');
+	if (first != std::string::npos)
+	{
+		size_t last = src.find_last_not_of(" \r\n");
+		std::string dst = src.substr(first, (last - first + 1));
+		src = dst;
 	}
 }

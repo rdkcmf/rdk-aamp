@@ -25,32 +25,30 @@
 #ifndef PRIVAAMP_H
 #define PRIVAAMP_H
 
+#include "AampMemoryUtils.h"
+#include "AampProfiler.h"
+#include "AampDrmHelper.h"
+#include "AampDrmMediaFormat.h"
+#include "AampDrmCallbacks.h"
+#include "GlobalConfigAAMP.h"
+#include "main_aamp.h"
+#include "VideoStat.h"
+
 #include <pthread.h>
 #include <signal.h>
 #include <semaphore.h>
-#include "main_aamp.h"
 #include <curl/curl.h>
 #include <string.h> // for memset
-#include <glib.h>
 #include <vector>
 #include <unordered_map>
-#include <chrono>
 #include <map>
 #include <set>
 #include <list>
 #include <sstream>
 #include <mutex>
 #include <queue>
-#include <VideoStat.h>
-#include <limits>
 #include <algorithm>
-#include <thread>
-
-#include "AampDrmHelper.h"
-#include "AampDrmMediaFormat.h"
-#include "AampDrmCallbacks.h"
-#include "AampLogManager.h"
-#include "GlobalConfigAAMP.h"
+#include <glib.h>
 
 static const char *mMediaFormatName[] =
 {
@@ -66,7 +64,6 @@ static const char *mMediaFormatName[] =
 #define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
-#define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 #define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
@@ -76,8 +73,6 @@ static const char *mMediaFormatName[] =
 #define EAS_CURL_TIMEOUT 3L             /**< Curl timeout for EAS manifest downloads */
 #define EAS_CURL_CONNECTTIMEOUT 2L      /**< Curl timeout for EAS connection */
 #define DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS (6*1000)   /**< Interval between playlist refreshes */
-#define NOW_SYSTEM_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()     /**< Getting current system clock in milliseconds */
-#define NOW_STEADY_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()     /**< Getting current steady clock in milliseconds */
 
 #define AAMP_SEEK_TO_LIVE_POSITION (-1)
 
@@ -120,16 +115,9 @@ static const char *mMediaFormatName[] =
 #define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (131)
 #define OPERATION_TIMEOUT_CONNECTIVITY_AAMP (132)
 #define PARTIAL_FILE_START_STALL_TIMEOUT_AAMP (133)
-/**
- * @brief Structure of GrowableBuffer
- */
-struct GrowableBuffer
-{
-	char *ptr;      /**< Pointer to buffer's memory location */
-	size_t len;     /**< Buffer size */
-	size_t avail;   /**< Available buffer size */
-};
 
+#define STRBGPLAYER "BACKGROUND"
+#define STRFGPLAYER "FOREGROUND"
 
 /**
  * @brief Structure of X-Start HLS Tag
@@ -139,6 +127,11 @@ struct HLSXStart
 	double offset;      /**< Time offset from XStart */
 	bool precise;     	/**< Precise input */
 };
+
+/**
+ * @addtogroup AAMP_COMMON_TYPES
+ * @{
+ */
 
 /**
  * @brief Enumeration for Curl Instances
@@ -183,28 +176,8 @@ enum TuneType
 };
 
 /**
- * @brief Asset's content types
- */
-enum ContentType
-{
-	ContentType_UNKNOWN,        /**< 0 - Unknown type */
-	ContentType_CDVR,           /**< 1 - CDVR */
-	ContentType_VOD,            /**< 2 - VOD */
-	ContentType_LINEAR,         /**< 3 - Linear */
-	ContentType_IVOD,           /**< 4 - IVOD */
-	ContentType_EAS,            /**< 5 - EAS */
-	ContentType_CAMERA,         /**< 6 - Camera */
-	ContentType_DVR,            /**< 7 - DVR */
-	ContentType_MDVR,           /**< 8 - MDVR */
-	ContentType_IPDVR,          /**< 8 - IPDVR */
-	ContentType_PPV,            /**< 10 - PPV */
-	ContentType_OTT,            /**< 11 - OTT */
-	ContentType_MAX             /**< 12 - Type Count*/
-};
-
-/**
  * @brief AAMP Function return values
-*/
+ */
 enum AAMPStatusType
 {
 	eAAMPSTATUS_OK,
@@ -260,158 +233,6 @@ typedef enum
 	eAAMP_BITRATE_CHANGE_MAX = 8
 } BitrateChangeReason;
 
-// context-free utility functions
-
-/**
- * @brief Get time to defer DRM acquisition
- *
- * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
- * @return Time in MS to defer DRM acquisition
- */
-int aamp_GetDeferTimeMs(long maxTimeSeconds);
-
-/**
- * @brief Log error
- *
- * @param[in] msg - Error message
- * @return void
- */
-void aamp_Error(const char *msg);
-
-/**
- * @brief Convert custom curl errors to original
- *
- * @param[in] http_error - Error code
- * @return error code
- */
-long aamp_GetOriginalCurlError(long http_error);
-
-MediaTypeTelemetry aamp_GetMediaTypeForTelemetry(MediaType type);
-
-/**
- * @brief AAMP's custom implementation of memory deallocation
- *
- * @param[in] pptr - Buffer to be deallocated
- * @return void
- */
-void aamp_Free(char **pptr);
-
-/**
- * @brief Append bytes to the GrowableBuffer
- *
- * @param[in,out] buffer - GrowableBuffer to be appended
- * @param[in] ptr - Array of bytes to be appended
- * @param[in] len - Number of bytes
- * @return void
- */
-void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
-
-/**
- * @brief
- * @param[in] buffer
- * @return void
- */
-void aamp_AppendNulTerminator(struct GrowableBuffer *buffer);
-
-/**
- * @brief Memory allocation method for GrowableBuffer
- *
- * @param[out] buffer - Allocated GrowableBuffer
- * @param[in] len - Allocation size
- * @return void
- */
-void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
-
-/**
- * @brief Get DRM system ID
- *
- * @param[in] drmSystem - DRM system type
- * @return DRM system ID
- */
-const char * GetDrmSystemID(DRMSystems drmSystem);
-
-/**
- * @brief Get DRM system name
- *
- * @param[in] drmSystem - DRM system type
- * @return DRM system name
- */
-const char * GetDrmSystemName(DRMSystems drmSystem);
-
-/**
-* @brief Get DRM system from ID
-* @param ID of the DRM system, empty string if not supported
-* @retval drmSystem drm system
-*/
-DRMSystems GetDrmSystem(std::string drmSystemID);
-
-/**
- * @brief Encode URL
- * @param[in] inSrc - Input URL
- * @param[out] outStr - Encoded URL
- * @return Encoding status
- *
- */
-
-bool UrlEncode(std::string inStr, std::string &outStr);
-
-/**
- * @}
- */
-
-/**
- * @addtogroup AAMP_COMMON_TYPES
- * @{
- */
-/**
- * @brief Bucket types of AAMP profiler
- */
-typedef enum
-{
-	PROFILE_BUCKET_MANIFEST,            /**< Manifest download bucket*/
-
-	PROFILE_BUCKET_PLAYLIST_VIDEO,      /**< Video playlist download bucket*/
-	PROFILE_BUCKET_PLAYLIST_AUDIO,      /**< Audio playlist download bucket*/
-	PROFILE_BUCKET_PLAYLIST_SUBTITLE,   /**< Subtitle playlist download bucket*/
-
-	PROFILE_BUCKET_INIT_VIDEO,          /**< Video init fragment download bucket*/
-	PROFILE_BUCKET_INIT_AUDIO,          /**< Audio init fragment download bucket*/
-	PROFILE_BUCKET_INIT_SUBTITLE,       /**< Subtitle fragment download bucket*/
-
-	PROFILE_BUCKET_FRAGMENT_VIDEO,      /**< Video fragment download bucket*/
-	PROFILE_BUCKET_FRAGMENT_AUDIO,      /**< Audio fragment download bucket*/
-	PROFILE_BUCKET_FRAGMENT_SUBTITLE,   /**< Subtitle fragment download bucket*/
-
-	PROFILE_BUCKET_DECRYPT_VIDEO,       /**< Video decryption bucket*/
-	PROFILE_BUCKET_DECRYPT_AUDIO,       /**< Audio decryption bucket*/
-	PROFILE_BUCKET_DECRYPT_SUBTITLE,    /**< Audio decryption bucket*/
-
-	PROFILE_BUCKET_LA_TOTAL,            /**< License acquisition total bucket*/
-	PROFILE_BUCKET_LA_PREPROC,          /**< License acquisition pre-processing bucket*/
-	PROFILE_BUCKET_LA_NETWORK,          /**< License acquisition network operation bucket*/
-	PROFILE_BUCKET_LA_POSTPROC,         /**< License acquisition post-processing bucket*/
-
-	PROFILE_BUCKET_FIRST_BUFFER,        /**< First buffer to gstreamer bucket*/
-	PROFILE_BUCKET_FIRST_FRAME,         /**< First frame displaye bucket*/
-	PROFILE_BUCKET_TYPE_COUNT           /**< Bucket count*/
-} ProfilerBucketType;
-
-/**
- * @brief Bucket types of classic profiler
- */
-typedef enum
- {
-	TuneTimeBaseTime,           /**< Tune time base*/
-	TuneTimeBeginLoad,          /**< Player load time*/
-	TuneTimePrepareToPlay,      /**< Manifest ready time*/
-	TuneTimePlay,               /**< Profiles ready time*/
-	TuneTimeDrmReady,           /**< DRM ready time*/
-	TuneTimeStartStream,        /**< First buffer insert time*/
-	TuneTimeStreaming,          /**< First frame display time*/
-	TuneTimeBackToXre,          /**< Tune status back to XRE time*/
-	TuneTimeMax                 /**< Max bucket type*/
- }ClassicProfilerBucketType;
-
 /**
  * @enum AudioType
  *
@@ -427,517 +248,22 @@ enum AudioType
 };
 
 /**
- * @brief Class for AAMP event Profiling
+ * @struct AsyncEventDescriptor
+ * @brief Used in asynchronous event notification logic
  */
-class ProfileEventAAMP
+struct AsyncEventDescriptor
 {
-private:
-	// TODO: include settop type (to distinguish settop performance)
-	// TODO: include flag to indicate whether FOG used (to isolate FOG overhead)
-
-    /**
-     * @brief Class corresponding to tune time events.
-     */
-    class TuneEvent
-	{
-	public:
-		ProfilerBucketType id;      /**< Event identifier */
-		unsigned int start;         /**< Event start time */
-		unsigned int duration;      /**< Event duration */
-		int result;                 /**< Event result */
-
-		/**
-		 * @brief TuneEvent Constructor
-		 * @param[in] i - Event id
-		 * @param[in] s - Event start time
-		 * @param[in] d - Event duration
-		 * @param[in] r - Event result
-		 */
-		TuneEvent(ProfilerBucketType i, unsigned int s,
-				unsigned int d, int r):id(i),start(s),duration(d),result(r)
-		{}
-	};
-
-	/**
-	 * @brief Data structure corresponding to profiler bucket
-	 */
-	struct ProfilerBucket
-	{
-		unsigned int tStart;    /**< Relative start time of operation, based on tuneStartMonotonicBase */
-		unsigned int tFinish;   /**< Relative end time of operation, based on tuneStartMonotonicBase */
-		int errorCount;         /**< non-zero if errors/retries occured during this operation */
-		bool complete;          /**< true if this step already accounted for, and further profiling should be ignored */
-	} buckets[PROFILE_BUCKET_TYPE_COUNT];
-
-	/**
-	 * @brief Calculating effecting duration of overlapping buckets, id1 & id2
-	 */
-#define bucketsOverlap(id1,id2) \
-		buckets[id1].complete && buckets[id2].complete && \
-		(buckets[id1].tStart <= buckets[id2].tFinish) && (buckets[id2].tStart <= buckets[id1].tFinish)
-
-	/**
-	 * @brief Calculating total duration a bucket id
-	 */
-#define bucketDuration(id) \
-		(buckets[id].complete?(buckets[id].tFinish - buckets[id].tStart):0)
-
-	long long tuneStartMonotonicBase;       /**< Base time from Monotonic clock for interval calculation */
-
-	long long tuneStartBaseUTCMS;           /**< common UTC base for start of tune */
-	long long xreTimeBuckets[TuneTimeMax];  /**< Start time of each buckets for classic metrics conversion */
-	long bandwidthBitsPerSecondVideo;       /**< Video bandwidth in bps */
-	long bandwidthBitsPerSecondAudio;       /**< Audio bandwidth in bps */
-	int drmErrorCode;                       /**< DRM error code */
-	bool enabled;                           /**< Profiler started or not */
-	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
-	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
-
-	ProfilerBucketType mTuneFailBucketType;  /* ProfilerBucketType in case of error */
-	int mTuneFailErrorCode;			/* tune Fail Error Code */
-
-	/**
-	 * @brief Calculating effective time of two overlapping buckets.
-	 *
-	 * @param[in] id1 - Bucket type 1
-	 * @param[in] id2 - Bucket type 2
-	 * @return void
-	 */
-	inline unsigned int effectiveBucketTime(ProfilerBucketType id1, ProfilerBucketType id2)
-	{
-#if 0
-		if(bucketsOverlap(id1, id2))
-			return MAX(buckets[id1].tFinish, buckets[id2].tFinish) - fmin(buckets[id1].tStart, buckets[id2].tStart);
-#endif
-		return bucketDuration(id1) + bucketDuration(id2);
-	}
-public:
-
-	/**
-	 * @brief ProfileEventAAMP Constructor
-	 */
-	ProfileEventAAMP() : tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
-        bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(), tuneEventListMtx(),
-	mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0)
+	AsyncEventDescriptor() : event(), aamp(NULL)
 	{
 	}
 
-	/**
-	 * @brief ProfileEventAAMP Destructor
-	 */
-	~ProfileEventAAMP(){}
+	AAMPEvent event;
+	PrivateInstanceAAMP* aamp;
 
-	/**
-	 * @brief Setting video bandwidth in bps
-	 *
-	 * @param[in] bw - Bandwidth in bps
-	 * @return void
-	 */
-	void SetBandwidthBitsPerSecondVideo(long bw)
-	{
-		bandwidthBitsPerSecondVideo = bw;
-	}
+	AsyncEventDescriptor(const AsyncEventDescriptor &other) = delete;
 
-	/**
-	 * @brief Setting audio bandwidth in bps
-	 *
-	 * @param[in] bw - Bandwidth in bps
-	 * @return void
-	 */
-	void SetBandwidthBitsPerSecondAudio(long bw)
-	{
-		bandwidthBitsPerSecondAudio = bw;
-	}
-
-	/**
-	 * @brief Setting DRM error code
-	 *
-	 * @param[in] errCode - Error code
-	 * @return void
-	 */
-	void SetDrmErrorCode(int errCode)
-	{
-		drmErrorCode = errCode;
-	}
-
-	/**
-	 * @brief Record a new tune time event.
-	 *
-	 * @param[in] pbt - Profiler bucket type
-	 * @param[in] start - Start time
-	 * @param[in] dur - Duration
-	 * @param[in] res - Event result
-	 * @return void
-	 */
-	void addtuneEvent(ProfilerBucketType pbt, unsigned int start,
-					  unsigned int dur, int res)
-	{
-		if(pbt >= PROFILE_BUCKET_TYPE_COUNT)
-		{
-			logprintf("WARN: bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
-			return;
-		}
-
-		// DELIA-41285: don't exclude any pre-tune download activity
-		if( !buckets[PROFILE_BUCKET_FIRST_FRAME].complete )
-		//if(!(buckets[pbt].complete))
-		{
-			std::lock_guard<std::mutex> lock(tuneEventListMtx);
-			tuneEventList.emplace_back(pbt,(start - tuneStartMonotonicBase),dur,res);
-		}
-	}
-
-	/**
-	 * @brief Get tune time events in JSON format
-	 *
-	 * @param[out] outSS - Output JSON string
-	 * @param[in] streamType - Stream type
-	 * @param[in] url - Tune URL
-	 * @param[in] success - Tune success/failure
-	 * @return void
-	 */
-	void getTuneEventsJSON(std::stringstream &outSS, const std::string &streamType, const char *url, bool success)
-	{
-		bool siblingEvent = false;
-		unsigned int tEndTime = NOW_STEADY_TS_MS;
-		size_t end = 0;
-
-		std::string temlUrl = url;
-		end = temlUrl.find("?");
-
-		if (end != std::string::npos)
-		{
-			temlUrl = temlUrl.substr(0, end);
-		}
-
-		outSS << "{\"s\":" << tuneStartBaseUTCMS
-				//TODO: It should be the duration relative to XRE start time.
-				<< ",\"td\":" << (tEndTime - tuneStartMonotonicBase)
-				<< ",\"st\":\"" << streamType << "\",\"u\":\"" << temlUrl
-				<< "\",\"tf\":{" << "\"i\":" << mTuneFailBucketType << ",\"er\":" << mTuneFailErrorCode << "}"
-				<< ",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
-
-		std::lock_guard<std::mutex> lock(tuneEventListMtx);
-		for(auto &te:tuneEventList)
-		{
-			if(siblingEvent)
-			{
-				outSS<<",";
-			}
-			outSS << "{\"i\":" << te.id << ",\"b\":"
-					<< te.start << ",\"d\":" << te.duration << ",\"o\":"
-					<< te.result << "}";
-
-			siblingEvent = true;
-		}
-		outSS<<"]}";
-
-		tuneEventList.clear();
-		mTuneFailErrorCode = 0;
-		mTuneFailBucketType = PROFILE_BUCKET_MANIFEST;
-	}
-
-	/**
-	 * @brief Profiler method to perform tune begin related operations.
-	 *
-	 * @return void
-	 */
-	void TuneBegin(void)
-	{ // start tune
-		memset(buckets, 0, sizeof(buckets));
-		tuneStartBaseUTCMS = NOW_SYSTEM_TS_MS;
-		tuneStartMonotonicBase = NOW_STEADY_TS_MS;
-		bandwidthBitsPerSecondVideo = 0;
-		bandwidthBitsPerSecondAudio = 0;
-		drmErrorCode = 0;
-		enabled = true;
-		mTuneFailBucketType = PROFILE_BUCKET_MANIFEST;
-		mTuneFailErrorCode = 0;
-		tuneEventList.clear();
-	}
-
-	/**
-	 * @brief Logging performance metrics after successful tune completion. Metrics starts with IP_AAMP_TUNETIME
-	 *
-	 * <h4>Format of IP_AAMP_TUNETIME:</h4>
-	 * version,	// version for this protocol, initially zero<br>
-	 * build,		// incremented when there are significant player changes/optimizations<br>
-	 * tunestartUtcMs,	// when tune logically started from AAMP perspective<br>
-	 * <br>
-	 * ManifestDownloadStartTime,  // offset in milliseconds from tunestart when main manifest begins download<br>
-	 * ManifestDownloadTotalTime,  // time (ms) taken for main manifest download, relative to ManifestDownloadStartTime<br>
-	 * ManifestDownloadFailCount,  // if >0 ManifestDownloadTotalTime spans multiple download attempts<br>
-	 * <br>
-	 * PlaylistDownloadStartTime,  // offset in milliseconds from tunestart when playlist subManifest begins download<br>
-	 * PlaylistDownloadTotalTime,  // time (ms) taken for playlist subManifest download, relative to PlaylistDownloadStartTime<br>
-	 * PlaylistDownloadFailCount,  // if >0 otherwise PlaylistDownloadTotalTime spans multiple download attempts<br>
-	 * <br>
-	 * InitFragmentDownloadStartTime, // offset in milliseconds from tunestart when init fragment begins download<br>
-	 * InitFragmentDownloadTotalTime, // time (ms) taken for fragment download, relative to InitFragmentDownloadStartTime<br>
-	 * InitFragmentDownloadFailCount, // if >0 InitFragmentDownloadTotalTime spans multiple download attempts<br>
-	 * <br>
-	 * Fragment1DownloadStartTime, // offset in milliseconds from tunestart when fragment begins download<br>
-	 * Fragment1DownloadTotalTime, // time (ms) taken for fragment download, relative to Fragment1DownloadStartTime<br>
-	 * Fragment1DownloadFailCount, // if >0 Fragment1DownloadTotalTime spans multiple download attempts<br>
-	 * Fragment1Bandwidth,	    	// intrinsic bitrate of downloaded fragment<br>
-	 * <br>
-	 * drmLicenseRequestStart,	    // offset in milliseconds from tunestart<br>
-	 * drmLicenseRequestTotalTime, // time (ms) for license acquisition relative to drmLicenseRequestStart<br>
-	 * drmFailErrorCode,           // nonzero if drm license acquisition failed during tuning<br>
-	 * <br>
-	 * LAPreProcDuration,	    	// License acquisition pre-processing duration in ms<br>
-	 * LANetworkDuration, 			// License acquisition network duration in ms<br>
-	 * LAPostProcDuration,         // License acquisition post-processing duration in ms<br>
-	 * <br>
-	 * VideoDecryptDuration,		// Video fragment decrypt duration in ms<br>
-	 * AudioDecryptDuration,		// Audio fragment decrypt duration in ms<br>
-	 * <br>
-	 * gstStart,	// offset in ms from tunestart when pipeline creation/setup begins<br>
-	 * gstFirstFrame,  // offset in ms from tunestart when first frame of video is decoded/presented<br>
-	 * <br>
-	 * contentType, 	//Playback Mode. Values: CDVR, VOD, LINEAR, IVOD, EAS, CAMERA, DVR, MDVR, IPDVR, PPV<br>
-	 * streamType, 	//Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
-	 * firstTune		//First tune after reboot/crash<br>
-	 * @param[in] success - Tune status
-	 * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
-	 * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
-	 * @param[in] firstTune - Is it a first tune after reboot/crash.
-	 * @return void
-	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId)
-	{
-		if(!enabled )
-		{
-			return;
-		}
-		enabled = false;
-		unsigned int licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_NETWORK);
-		if(licenseAcqNWTime == 0) licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_TOTAL); //A HACK for HLS
-
-		char tuneTimeStrPrefix[64];
-		memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
-		if (!appName.empty())
-		{
-			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] APP: %s IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId,appName.c_str());
-		}
-		else
-		{
-			snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId);
-		}
-
-		logprintf("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
-			"%d,%d,%d," 	// main manifest (start,total,err)
-			"%d,%d,%d," 	// video playlist (start,total,err)
-			"%d,%d,%d," 	// audio playlist (start,total,err)
-
-			"%d,%d,%d," 	// video init-segment (start,total,err)
-			"%d,%d,%d," 	// audio init-segment (start,total,err)
-
-			"%d,%d,%d,%ld," 	// video fragment (start,total,err, bitrate)
-			"%d,%d,%d,%ld," 	// audio fragment (start,total,err, bitrate)
-
-			"%d,%d,%d," 	// licenseAcqStart, licenseAcqTotal, drmFailErrorCode
-			"%d,%d,%d," 	// LAPreProcDuration, LANetworkDuration, LAPostProcDuration
-
-			"%d,%d," 		// VideoDecryptDuration, AudioDecryptDuration
-			"%d,%d," 		// gstPlayStartTime, gstFirstFrameTime
-			"%d,%d,%d", 		// contentType, streamType, firstTune
-			// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
-
-			tuneTimeStrPrefix,
-			4, // version for this protocol, initially zero
-			0, // build - incremented when there are significant player changes/optimizations
-			tuneStartBaseUTCMS, // when tune logically started from AAMP perspective
-
-			buckets[PROFILE_BUCKET_MANIFEST].tStart, bucketDuration(PROFILE_BUCKET_MANIFEST), buckets[PROFILE_BUCKET_MANIFEST].errorCount,
-			buckets[PROFILE_BUCKET_PLAYLIST_VIDEO].tStart, bucketDuration(PROFILE_BUCKET_PLAYLIST_VIDEO), buckets[PROFILE_BUCKET_PLAYLIST_VIDEO].errorCount,
-			buckets[PROFILE_BUCKET_PLAYLIST_AUDIO].tStart, bucketDuration(PROFILE_BUCKET_PLAYLIST_AUDIO), buckets[PROFILE_BUCKET_PLAYLIST_AUDIO].errorCount,
-
-			buckets[PROFILE_BUCKET_INIT_VIDEO].tStart, bucketDuration(PROFILE_BUCKET_INIT_VIDEO), buckets[PROFILE_BUCKET_INIT_VIDEO].errorCount,
-			buckets[PROFILE_BUCKET_INIT_AUDIO].tStart, bucketDuration(PROFILE_BUCKET_INIT_AUDIO), buckets[PROFILE_BUCKET_INIT_AUDIO].errorCount,
-
-			buckets[PROFILE_BUCKET_FRAGMENT_VIDEO].tStart, bucketDuration(PROFILE_BUCKET_FRAGMENT_VIDEO), buckets[PROFILE_BUCKET_FRAGMENT_VIDEO].errorCount,bandwidthBitsPerSecondVideo,
-			buckets[PROFILE_BUCKET_FRAGMENT_AUDIO].tStart, bucketDuration(PROFILE_BUCKET_FRAGMENT_AUDIO), buckets[PROFILE_BUCKET_FRAGMENT_AUDIO].errorCount,bandwidthBitsPerSecondAudio,
-
-			buckets[PROFILE_BUCKET_LA_TOTAL].tStart, bucketDuration(PROFILE_BUCKET_LA_TOTAL), drmErrorCode,
-			bucketDuration(PROFILE_BUCKET_LA_PREPROC), licenseAcqNWTime, bucketDuration(PROFILE_BUCKET_LA_POSTPROC),
-			bucketDuration(PROFILE_BUCKET_DECRYPT_VIDEO),bucketDuration(PROFILE_BUCKET_DECRYPT_AUDIO),
-
-			buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
-			buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
-			contentType, streamType, firstTune
-			);
-		fflush(stdout);
-	}
-
-	/**
-	 * @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data
-	 *
-	 * @param[in] success - Tune status
-	 * @param[in] tuneRetries - Number of tune attempts
-	 * @param[in] playerLoadTime - Time at which the first tune request reached the AAMP player
-	 * @param[in] streamType - Type of stream. eg: HLS, DASH, etc
-	 * @param[in] isLive  - Live channel or not
-	 * @param[in] durationinSec - Asset duration in seconds
-	 * @param[out] TuneTimeInfoStr - Formatted output string
-	 * @return void
-	 */
-	void GetClassicTuneTimeInfo(bool success, int tuneRetries, int firstTuneType, long long playerLoadTime, int streamType, bool isLive,unsigned int durationinSec, char *TuneTimeInfoStr)
-	{
-						// Prepare String for Classic TuneTime data
-						// Note: Certain buckets won't be available; will take the tFinish of the previous bucket as the start & finish those buckets.
-						xreTimeBuckets[TuneTimeBeginLoad]               =       tuneStartMonotonicBase ;
-						xreTimeBuckets[TuneTimePrepareToPlay]           =       tuneStartMonotonicBase + buckets[PROFILE_BUCKET_MANIFEST].tFinish;
-						xreTimeBuckets[TuneTimePlay]                    =       tuneStartMonotonicBase + MAX(buckets[PROFILE_BUCKET_MANIFEST].tFinish, MAX(buckets[PROFILE_BUCKET_PLAYLIST_VIDEO].tFinish, buckets[PROFILE_BUCKET_PLAYLIST_AUDIO].tFinish));
-						xreTimeBuckets[TuneTimeDrmReady]                =       MAX(xreTimeBuckets[TuneTimePlay], (tuneStartMonotonicBase +  buckets[PROFILE_BUCKET_LA_TOTAL].tFinish));
-						long long fragmentReadyTime                     =       tuneStartMonotonicBase + MAX(buckets[PROFILE_BUCKET_FRAGMENT_VIDEO].tFinish, buckets[PROFILE_BUCKET_FRAGMENT_AUDIO].tFinish);
-						xreTimeBuckets[TuneTimeStartStream]             =       MAX(xreTimeBuckets[TuneTimeDrmReady],fragmentReadyTime);
-						xreTimeBuckets[TuneTimeStreaming]               =       tuneStartMonotonicBase + buckets[PROFILE_BUCKET_FIRST_FRAME].tStart;
-
-						unsigned int failRetryBucketTime                =       tuneStartMonotonicBase - playerLoadTime;
-						unsigned int prepareToPlayBucketTime            =       (unsigned int)(xreTimeBuckets[TuneTimePrepareToPlay] - xreTimeBuckets[TuneTimeBeginLoad]);
-						unsigned int playBucketTime                     =       (unsigned int)(xreTimeBuckets[TuneTimePlay]- xreTimeBuckets[TuneTimePrepareToPlay]);
-						unsigned int drmReadyBucketTime                 =       (unsigned int)(xreTimeBuckets[TuneTimeDrmReady] - xreTimeBuckets[TuneTimePlay]) ;
-						unsigned int fragmentBucketTime                 =       (unsigned int)(fragmentReadyTime - xreTimeBuckets[TuneTimePlay]) ;
-						unsigned int decoderStreamingBucketTime         =       xreTimeBuckets[TuneTimeStreaming] - xreTimeBuckets[TuneTimeStartStream];
-						/*Note: 'Drm Ready' to 'decrypt start' gap is not covered in any of the buckets.*/
-
-						unsigned int manifestTotal      =       bucketDuration(PROFILE_BUCKET_MANIFEST);
-						unsigned int profilesTotal      =       effectiveBucketTime(PROFILE_BUCKET_PLAYLIST_VIDEO, PROFILE_BUCKET_PLAYLIST_AUDIO);
-						unsigned int initFragmentTotal  =       effectiveBucketTime(PROFILE_BUCKET_INIT_VIDEO, PROFILE_BUCKET_INIT_AUDIO);
-						unsigned int fragmentTotal      =       effectiveBucketTime(PROFILE_BUCKET_FRAGMENT_VIDEO, PROFILE_BUCKET_FRAGMENT_AUDIO);
-						unsigned int licenseTotal       =       bucketDuration(PROFILE_BUCKET_LA_TOTAL);
-						unsigned int licenseNWTime      =       bucketDuration(PROFILE_BUCKET_LA_NETWORK);
-						if(licenseNWTime == 0) licenseNWTime = licenseTotal;  //A HACK for HLS
-
-						// Total Network Time
-						unsigned int networkTime = manifestTotal + profilesTotal + initFragmentTotal + fragmentTotal + licenseNWTime;
-
-						snprintf(TuneTimeInfoStr,AAMP_MAX_PIPE_DATA_SIZE,"%d,%lld,%d,%d," //totalNetworkTime, playerLoadTime , failRetryBucketTime, prepareToPlayBucketTime,
-								"%d,%d,%d,"                                             //playBucketTime ,drmReadyBucketTime , decoderStreamingBucketTime
-								"%d,%d,%d,%d,"                                          // manifestTotal,profilesTotal,fragmentTotal,effectiveFragmentDLTime
-								"%d,%d,%d,%d,"                                          // licenseTotal,success,durationinMilliSec,isLive
-								"%lld,%lld,%lld,"                                       // TuneTimeBeginLoad,TuneTimePrepareToPlay,TuneTimePlay,
-								"%lld,%lld,%lld,"                                       //TuneTimeDrmReady,TuneTimeStartStream,TuneTimeStreaming
-								"%d,%d,%d,%ld",                                             //streamType, tuneRetries, TuneType, TuneCompleteTime(UTC MSec)
-								networkTime,playerLoadTime, failRetryBucketTime, prepareToPlayBucketTime,playBucketTime,drmReadyBucketTime,decoderStreamingBucketTime,
-								manifestTotal,profilesTotal,(initFragmentTotal + fragmentTotal),fragmentBucketTime, licenseTotal,success,durationinSec*1000,isLive,
-								xreTimeBuckets[TuneTimeBeginLoad],xreTimeBuckets[TuneTimePrepareToPlay],xreTimeBuckets[TuneTimePlay] ,xreTimeBuckets[TuneTimeDrmReady],
-								xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries,firstTuneType,(long)NOW_SYSTEM_TS_MS
-								);
-#ifndef CREATE_PIPE_SESSION_TO_XRE
-						logprintf("AAMP=>XRE: %s",TuneTimeInfoStr);
-#endif
-	}
-
-
-	/**
-	 * @brief Marking the beginning of a bucket
-	 *
-	 * @param[in] type - Bucket type
-	 * @return void
-	 */
-	void ProfileBegin(ProfilerBucketType type )
-	{
-		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete && (0==bucket->tStart))	//No other Begin should record before the End
-		{
-			bucket->tStart = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
-			bucket->tFinish = bucket->tStart;
-		}
-	}
-
-	/**
-	 * @brief Marking error while executing a bucket
-	 *
-	 * @param[in] type - Bucket type
-	 * @param[in] result - Error code
-	 * @return void
-	 */
-	void ProfileError(ProfilerBucketType type, int result = -1)
-	{
-		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete && !(0==bucket->tStart))
-		{
-			SetTuneFailCode(result, type);
-			bucket->errorCount++;
-			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
-												 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
-			{
-				long long start = bucket->tStart + tuneStartMonotonicBase;
-				addtuneEvent(type, start, (unsigned int)(NOW_STEADY_TS_MS - start), result);
-			}
-		}
-	}
-
-
-	/**
-	 * @brief Marking the end of a bucket
-	 *
-	 * @param[in] type - Bucket type
-	 * @return void
-	 */
-	void ProfileEnd( ProfilerBucketType type )
-	{
-		struct ProfilerBucket *bucket = &buckets[type];
-		if (!bucket->complete && !(0==bucket->tStart))
-		{
-			bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
-			if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
-												 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
-			{
-				long long start = bucket->tStart + tuneStartMonotonicBase;
-				addtuneEvent(type, start, (unsigned int)(bucket->tFinish - bucket->tStart), 200);
-			}
-			/*
-			static const char *bucketName[PROFILE_BUCKET_TYPE_COUNT] =
-			{
-			"manifest",
-			"playlist",
-			"fragment",
-			"key",
-			"decrypt"
-			"first-frame"
-			};
-
-			logprintf("aamp %7d (+%6d): %s",
-			bucket->tStart,
-			bucket->tFinish - bucket->tStart,
-			bucketName[type]);
-			*/
-			bucket->complete = true;
-		}
-	}
-
-	/**
-	 * @brief Method to mark the end of a bucket, for which beginning is not marked
-	 *
-	 * @param[in] type - Bucket type
-	 * @return void
-	 */
-	void ProfilePerformed(ProfilerBucketType type)
-	{
-		ProfileBegin(type);
-		buckets[type].complete = true;
-	}
-
-
-	/**
-	 * @brief Method to set Failure code and Bucket Type used for microevents
-	 *
-	 * @param[in] type - tune Fail Code
-	 * @param[in] type - Bucket type
-	 * @return void
-	 */
-	void SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType)
-	{
-		if(!mTuneFailErrorCode){
-			AAMPLOG_INFO("%s:%d Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", __FUNCTION__, __LINE__, failBucketType, tuneFailCode);
-			mTuneFailErrorCode = tuneFailCode;
-			mTuneFailBucketType = failBucketType;
-		}
-	}
-
+	AsyncEventDescriptor& operator=(const AsyncEventDescriptor& other) = delete;
+	virtual ~AsyncEventDescriptor() {}
 };
 
 /**
@@ -1009,25 +335,29 @@ class AampCacheHandler;
 
 #ifdef AAMP_HLS_DRM
 /**
-*	\Class attrNameData
-* 	\brief	local calss to hold DRM information
-*/
-class attrNameData{
-	public:
-		std::string attrName;
-		bool isProcessed;
-		attrNameData():attrName(""),isProcessed(false) {
-		}
+ *	\Class attrNameData
+ * 	\brief	local calss to hold DRM information
+ */
+class attrNameData
+{
+public:
+	std::string attrName;
+	bool isProcessed;
+	attrNameData() : attrName(""),isProcessed(false)
+	{
+	}
 		
-		attrNameData(std::string argument):attrName(argument),isProcessed(false){
-		}
+	attrNameData(std::string argument) : attrName(argument), isProcessed(false)
+	{
+	}
 
-		bool operator==(const attrNameData& rhs) const { return (this->attrName == rhs.attrName);}
+	bool operator==(const attrNameData& rhs) const { return (this->attrName == rhs.attrName); }
 };
+
+#endif
 /**
  * @}
  */
-#endif
 
 class AampDRMSessionManager;
 
@@ -1774,9 +1104,9 @@ public:
 	void SaveTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);
 
 	/**
-		 * @brief Report bulk timedMetadata
-		 *
-		 * @return void
+	 * @brief Report bulk timedMetadata
+	 *
+	 * @return void
 	 */
 	void ReportBulkTimedMetadata();
 
@@ -1790,7 +1120,6 @@ public:
 	void InterruptableMsSleep(int timeInMs);
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
-
 	/**
 	 * @brief Collect decrypted fragments
 	 *
@@ -1799,7 +1128,6 @@ public:
 	 */
 	bool HarvestFragments(bool modifyCount = true);
 #endif
-
 
 	/**
 	 * @brief Get download disable status
@@ -1941,7 +1269,6 @@ public:
 	 */
 	void SyncEnd(void);
 
-
 	/**
 	 * @brief Get seek position
 	 *
@@ -1966,7 +1293,6 @@ public:
 	 * @return Available bandwidth in bps
 	 */
 	long GetCurrentlyAvailableBandwidth(void);
-
 
 	/**
 	 * @brief Abort ongoing downloads and returns error on future downloads
@@ -2736,7 +2062,7 @@ public:
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
 	 *   @param[in]  bitrate - bitrate ( bits per sec )
 	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
-     *   @param[in]  strUrl :  URL in case of faulures
+	 *   @param[in]  strUrl :  URL in case of faulures
 	 *   @return void
 	 */
 	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl);
@@ -2746,7 +2072,7 @@ public:
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
 	 *   @param[in]  bitrate - bitrate ( bits per sec )
 	 *   @param[in]  width - Frame width
-     *   @param[in]  Height - Frame Height
+	 *   @param[in]  Height - Frame Height
 	 *   @return void
 	 */
 	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height);
@@ -3203,6 +2529,13 @@ public:
 	 *   @return std::string - JSON formatted style options
 	 */
 	std::string GetTextStyle();
+
+	/**
+	 *   @brief Check if any active PrivateInstanceAAMP available
+	 *
+	 *   @return bool true if available
+	 */
+	static bool IsActiveInstancePresent();
 private:
 
 	/**

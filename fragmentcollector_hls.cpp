@@ -358,12 +358,12 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES"))
 		{
 			ts->mDrmMethod = eDRM_KEY_METHOD_SAMPLE_AES;
-			aamp_Error("SAMPLE-AES unsupported");
+			AAMPLOG_ERR("SAMPLE-AES unsupported");
 		}
 		else
 		{
 			ts->mDrmMethod = eDRM_KEY_METHOD_UNKNOWN;
-			aamp_Error("unsupported METHOD");
+			AAMPLOG_ERR("unsupported METHOD");
 		}
 	}
 	else if (AttributeNameMatch(attrName, "KEYFORMAT"))
@@ -770,6 +770,31 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	streamInfo->resolution.framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", framerate);
 	streamInfo->codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs", codecs).c_str();
 }
+
+/**
+ * @brief Convert custom curl errors to original
+ *
+ * @param[in] http_error - Error code
+ * @return error code
+ */
+static long getOriginalCurlError(long http_error)
+{
+	long ret = http_error;
+	if (http_error >= PARTIAL_FILE_CONNECTIVITY_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
+	{
+			if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
+			{
+				ret = CURLE_OPERATION_TIMEDOUT;
+			}
+			else
+			{
+				ret = CURLE_PARTIAL_FILE;
+			}
+	}
+	// return original error code
+	return ret;
+}
+
 /***************************************************************************
 * @fn ParseMainManifest
 * @brief Function to parse main manifest
@@ -1508,7 +1533,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					}
 					else
 					{
-						aamp_Error("unknown ALLOW-CACHE setting");
+						AAMPLOG_ERR("unknown ALLOW-CACHE setting");
 					}
 				}
 				else if (startswith(&ptr, "-X-PLAYLIST-TYPE:"))
@@ -2706,7 +2731,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					}
 					else
 					{
-						aamp_Error("unknown PLAYLIST-TYPE");
+						AAMPLOG_ERR("unknown PLAYLIST-TYPE");
 					}
 				}
 				else if(startswith(&ptr,"-X-FAXS-CM:"))
@@ -6010,7 +6035,7 @@ void TrackState::FetchPlaylist()
 	{
 		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
-		main_error = aamp_GetOriginalCurlError(http_error);
+		main_error = getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									main_error,mEffectiveUrl);
 		if(playlist.len)
@@ -6479,7 +6504,7 @@ void TrackState::FetchInitFragment()
 		{
 			// Attempt rampdown for init fragment to get playable profiles.
 			// TODO: Remove profile if init fragment is not available from ABR.
-			long http_error = aamp_GetOriginalCurlError(http_code);
+			long http_error = getOriginalCurlError(http_code);
 
 			mFirstEncInitFragmentInfo = NULL; // need to reset the previous profile's first encrypted init fragment in case of init fragment rampdown.
 			AAMPLOG_WARN("%s:%d: Reset mFirstEncInitFragmentInfo since rampdown for another profile", __FUNCTION__, __LINE__);
@@ -6504,7 +6529,7 @@ void TrackState::FetchInitFragment()
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{
-			long http_error = aamp_GetOriginalCurlError(http_code);
+			long http_error = getOriginalCurlError(http_code);
 			AAMPLOG_ERR("TrackState::%s:%d Init fragment fetch failed", __FUNCTION__, __LINE__);
 			aamp->profiler.ProfileError(bucketType, http_error);
 			aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
@@ -6619,7 +6644,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false,  actualType);
 
-			long main_error = aamp_GetOriginalCurlError(http_code);
+			long main_error = getOriginalCurlError(http_code);
 			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl);
 
 			if (!fetched)

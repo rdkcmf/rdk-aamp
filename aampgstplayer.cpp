@@ -1215,27 +1215,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		break;
 #endif
 
-#ifdef USE_GST1
-	case GST_MESSAGE_NEED_CONTEXT:
-
-		/*
-		 * Code to avoid logs flooding with NEED-CONTEXT message for DRM systems
-		 */
-		/*
-		const gchar* contextType;
-		gst_message_parse_context_type(msg, &contextType);
-		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
-		{
-			logprintf("Setting Playready context");
-			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
-			GstStructure* contextStructure = gst_context_writable_structure(context);
-			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, "9a04f079-9840-4286-ab92-e65be0885f95", NULL);
-			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
-		}
-		*/
-		break;
-#endif
-
 	case GST_MESSAGE_STREAM_STATUS:
 	case GST_MESSAGE_ELEMENT: // can be used to collect pts, dts, pid
 	case GST_MESSAGE_DURATION:

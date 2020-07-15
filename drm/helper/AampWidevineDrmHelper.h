@@ -83,9 +83,6 @@ class AampWidevineDrmHelperFactory : public AampDrmHelperFactory
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 
 	bool isDRM(const struct DrmInfo& drmInfo) const;
-
-private:
-	const std::string WIDEVINE_UUID{"edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"};
 };
 
 

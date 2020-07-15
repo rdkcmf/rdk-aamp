@@ -23,6 +23,7 @@
  */
 
 #include "admanager_mpd.h"
+#include "AampUtils.h"
 #include "fragmentcollector_mpd.h"
 #include <inttypes.h>
 

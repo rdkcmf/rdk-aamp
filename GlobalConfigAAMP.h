@@ -17,13 +17,16 @@
  * limitations under the License.
 */
 
+/**
+ * @file GlobalConfigAAMP.h
+ * @brief Advanced Adaptive Media Player (AAMP) GlobalConfigAAMP header
+ */
+
 #ifndef GLOBALCONFIGAAMP_H
 #define GLOBALCONFIGAAMP_H
 
 #include <string>
-#include <algorithm>
 #include <map>
-#include <cstring>
 
 #include "AampDrmSystems.h"
 #include "AampLogManager.h"
@@ -227,157 +230,58 @@ public:
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 public:
-	std::string getUnknownValue(const std::string& key)
-	{
-		static const std::string empty;
-		return std::string {getUnknownValue(key, empty)};
-	}
-	const std::string& getUnknownValue(const std::string& key, const std::string& defaultValue)
-	{
-		auto iter = unknownValues.find(key);
-		if (iter != unknownValues.end())
-		{
-			return iter->second;
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
-	int getUnknownValue(const std::string& key, int defaultValue)
-	{
-		auto iter = unknownValues.find(key);
-		if (iter != unknownValues.end())
-		{
-			return atoi(iter->second.c_str());
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
-	bool getUnknownValue(const std::string& key, bool defaultValue)
-	{
-		auto iter = unknownValues.find(key);
-		if (iter != unknownValues.end())
-		{
-			bool ret = (iter->second.compare("true") == 0 || iter->second.compare("1") == 0 || iter->second.compare("on") == 0);
-			return ret;
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
-	double getUnknownValue(const std::string& key, double defaultValue)
-	{
-		auto iter = unknownValues.find(key);
-		if (iter != unknownValues.end())
-		{
-			return atof(iter->second.c_str());
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
+
+	/**
+	 * @brief Find the value of key that start with <key>
+	 * @param key the value to look for
+	 * @return value of key
+	 */
+	std::string getUnknownValue(const std::string& key);
+
+	/**
+	 * @brief Find the value of key that start with <key>
+	 * @param key the value to look for
+	 * @param defaultValue value to be returned in case key not found
+	 * @return value of key
+	 */
+	const std::string& getUnknownValue(const std::string& key, const std::string& defaultValue);
+
+	/**
+	 * @brief Find the value of key that start with <key>
+	 * @param key the value to look for
+	 * @param defaultValue value to be returned in case key not found
+	 * @return value of key
+	 */
+	int getUnknownValue(const std::string& key, int defaultValue);
+
+	/**
+	 * @brief Find the value of key that start with <key>
+	 * @param key the value to look for
+	 * @param defaultValue value to be returned in case key not found
+	 * @return value of key
+	 */
+	bool getUnknownValue(const std::string& key, bool defaultValue);
+
+	/**
+	 * @brief Find the value of key that start with <key>
+	 * @param key the value to look for
+	 * @param defaultValue value to be returned in case key not found
+	 * @return value of key
+	 */
+	double getUnknownValue(const std::string& key, double defaultValue);
+
 	/**
 	 * Finds all the unknown keys that start with <key>
 	 * @param key the value to look for
 	 * @param values [out] all the found keys that start with <key>
 	 * @return the count of values found
 	 */
-	int getMatchingUnknownKeys(const std::string& key, std::vector<std::string>& values)
-	{
-		values.clear();
-		std::for_each(unknownValues.begin(), unknownValues.end(), [key, &values](std::pair<std::string, std::string> p) {
-			if (p.first.find(key) == 0) {
-				values.push_back(p.first);
-			}
-		});
-		return values.size();
-	}
+	int getMatchingUnknownKeys(const std::string& key, std::vector<std::string>& values);
+
 	/**
 	 * @brief GlobalConfigAAMP Constructor
 	 */
-	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		harvest(0),
-		harvestpath(0),
-#endif
-		gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(0),
-		gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
-		playlistsParallelFetch(eUndefinedState), prefetchIframePlaylist(false),
-		disableEC3(0), disableATMOS(0),abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER),abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
-		liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
-		disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
-		licenseAnonymousRequest(false), minInitialCacheSeconds(MINIMUM_INIT_CACHE_NOT_OVERRIDDEN), useLinearSimulator(false),
-		bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
-		preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
-		vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false),
-		linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),linearTrickplayFPSLocalOverride(false),
-		stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT), httpProxy(0),
-		reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
-		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
-		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
-		ckLicenseServerURL(NULL)
-		,curlStallTimeout(0), curlDownloadStartTimeout(0)
-		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
-		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
-		dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS),
-		tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
-		isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging()
-		, disableSslVerifyPeer(true)
-		,mSubtitleLanguage()
-		, enableClientDai(false), playAdFromCDN(false)
-		,mEnableVideoEndEvent(true)
-		,discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT)
-		,bReportVideoPTS(false)
-		,mEnableRectPropertyCfg(eUndefinedState)
-		,decoderUnavailableStrict(false)
-		,aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)
-                ,langCodePreference(0)
-		,bDescriptiveAudioTrack(false)
-		,useAppSrcForProgressivePlayback(false)
-		,reportBufferEvent(true)
-		,manifestTimeoutMs(-1)
-		,fragmp4LicensePrefetch(true)
-		,enableBulkTimedMetaReport(eUndefinedState)
-		,playlistTimeoutMs(-1)
-		,mAsyncTuneConfig(eUndefinedState)
-		,mWesterosSinkConfig(eUndefinedState)
-		,aampRemovePersistent(0)
-		,preplaybuffercount(DEFAULT_PREBUFFER_COUNT)
-		,mUseAverageBWForABR(eUndefinedState)
-		,mPreCacheTimeWindow(0)
-		,parallelPlaylistRefresh(eUndefinedState)
-		,abrBufferCheckEnabled(eUndefinedState)
-		,useNewDiscontinuity(eUndefinedState)
-#ifdef INTELCE
-		,bPositionQueryEnabled(false)
-#else
-		,bPositionQueryEnabled(true)
-#endif
-		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
-		,uriParameter(NULL)
-		,customHeaderStr{""}
-		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
-		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
-		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
-		,initFragmentRetryCount(-1)
-		,unknownValues()
-		,useMatchingBaseUrl(eUndefinedState)
-		,bEnableSubtec(false)
-		,nativeCCRendering(false)
-		,preferredCEA708(eUndefinedState)
-	{
-		//XRE sends onStreamPlaying while receiving onTuned event.
-		//onVideoInfo depends on the metrics received from pipe.
-        // considering round trip delay to remove overlay
-        // onStreamPlaying is sent optimistically in advance
-		aamp_SetBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
-		mSubtitleLanguage = std::string("en");
-	}
+	GlobalConfigAAMP();
 
 	/**
 	 * @brief GlobalConfigAAMP Destructor
@@ -389,25 +293,14 @@ public:
 	GlobalConfigAAMP& operator=(const GlobalConfigAAMP&) = delete;
 
 	/**
-	@brief Sets user agent string
-	*
-	* @return none
-	*/
-	void aamp_SetBaseUserAgentString(const char * newUserAgent)
-	{
-		int iLen = strlen(newUserAgent) + strlen(AAMP_USERAGENT_SUFFIX) + 2;
-		if(pUserAgentString)
-		{
-			free(pUserAgentString);
-		}
-		pUserAgentString =(char*) malloc(iLen);
-		snprintf(pUserAgentString,iLen, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);  //CID:85162 - DC>STRING_BUFFER
-	}
+	 * @brief Sets user agent string
+	 *
+	 * @return none
+	 */
+	void setBaseUserAgentString(const char * newUserAgent);
 };
 
 extern GlobalConfigAAMP *gpGlobalConfig;
-
-
 
 #endif /* GLOBALCONFIGAAMP_H */
 
