@@ -25,6 +25,7 @@
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
 #include "admanager_mpd.h"
+#include "AampConstants.h"
 
 #include "SubtecFactory.hpp"
 
@@ -57,18 +58,12 @@
  * @{
  */
 #define SEGMENT_COUNT_FOR_ABR_CHECK 5
-#define PLAYREADY_SYSTEM_ID "9a04f079-9840-4286-ab92-e65be0885f95"
-#define WIDEVINE_SYSTEM_ID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
-#define CLEARKEY_SYSTEM_ID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 #define DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS 3000
 #define TIMELINE_START_RESET_DIFF 4000000000
 #define MAX_DELAY_BETWEEN_MPD_UPDATE_MS (6000)
 #define MIN_DELAY_BETWEEN_MPD_UPDATE_MS (500) // 500mSec
 #define MIN_TSB_BUFFER_DEPTH 6 //6 seconds from 4.3.3.2.2 in https://dashif.org/docs/DASH-IF-IOP-v4.2-clean.htm
 #define VSS_DASH_EARLY_AVAILABLE_PERIOD_PREFIX "vss-"
-
-//Comcast DRM Agnostic CENC for Content Metadata
-#define COMCAST_DRM_INFO_ID "afbcb50e-bf74-3d13-be8f-13930c783962"
 
 /**
  * Macros for extended audio codec check as per ETSI-TS-103-420-V1.2.1
@@ -750,7 +745,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mPresentationOffsetDelay(0)
 	,mAvailabilityStartTime(0)
 	,mUpdateStreamInfo(false)
-	,mDrmPrefs({{CLEARKEY_SYSTEM_ID, 1}, {WIDEVINE_SYSTEM_ID, 2}, {PLAYREADY_SYSTEM_ID, 3}})// Default values, may get changed due to config file
+	,mDrmPrefs({{CLEARKEY_UUID, 1}, {WIDEVINE_UUID, 2}, {PLAYREADY_UUID, 3}})// Default values, may get changed due to config file
 	,mLastDrmHelper()
 	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mIsVssStream(false), mCommonKeyDuration(0)
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
@@ -792,14 +787,14 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 		case eDRM_WideVine:
 		{
 			AAMPLOG_INFO("DRM Selected: WideVine");
-			mDrmPrefs[WIDEVINE_SYSTEM_ID] = highestPref+1;
+			mDrmPrefs[WIDEVINE_UUID] = highestPref+1;
 		}
 			break;
 
 		case eDRM_ClearKey:
 		{
 			AAMPLOG_INFO("DRM Selected: ClearKey");
-			mDrmPrefs[CLEARKEY_SYSTEM_ID] = highestPref+1;
+			mDrmPrefs[CLEARKEY_UUID] = highestPref+1;
 		}
 			break;
 
@@ -807,7 +802,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 		default:
 		{
 			AAMPLOG_INFO("DRM Selected: PlayReady");
-			mDrmPrefs[PLAYREADY_SYSTEM_ID] = highestPref+1;
+			mDrmPrefs[PLAYREADY_UUID] = highestPref+1;
 		}
 			break;
 	}
@@ -2643,7 +2638,7 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 		}
 
 		// Comcast use a special PSSH to signal data to append to the widevine challenge request
-		if (drmInfo.systemUUID == COMCAST_DRM_INFO_ID)
+		if (drmInfo.systemUUID == CONSEC_AGNOSTIC_UUID)
 		{
 			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
 			if (data)

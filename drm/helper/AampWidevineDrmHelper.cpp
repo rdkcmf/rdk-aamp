@@ -23,6 +23,7 @@
 #include "AampWidevineDrmHelper.h"
 #include "AampDRMutils.h"
 #include "GlobalConfigAAMP.h"
+#include "AampConstants.h"
 
 static AampWidevineDrmHelperFactory widevine_helper_factory;
 

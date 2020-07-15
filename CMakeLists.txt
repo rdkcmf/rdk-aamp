@@ -84,20 +84,26 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     base16.cpp
                     ota_shim.cpp
                     hdmiin_shim.cpp
+                    _base64.cpp
+                    AampMemoryUtils.cpp
+                    AampCacheHandler.cpp
+                    AampUtils.cpp
+                    AampJsonObject.cpp
+                    AampProfiler.cpp
+                    GlobalConfigAAMP.cpp
                     fragmentcollector_progressive.cpp
                     fragmentcollector_hls.cpp
                     fragmentcollector_mpd.cpp
                     admanager_mpd.cpp
                     streamabstraction.cpp
-                    _base64.cpp
                     drm/ave/drm.cpp
+                    priv_aamp.cpp
                     main_aamp.cpp
                     aampgstplayer.cpp
                     tsprocessor.cpp
                     drm/aes/aamp_aes.cpp
                     aamplogging.cpp
                     subtitle/webvttParser.cpp
-                    AampCacheHandler.cpp
                     metrics/HTTPStatistics.cpp
                     metrics/LicnStatistics.cpp
                     metrics/FragmentStatistics.cpp
@@ -107,8 +113,6 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
-                    AampUtils.cpp
-                    AampJsonObject.cpp
 )
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
@@ -412,6 +416,7 @@ install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
   metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
