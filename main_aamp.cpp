@@ -3991,7 +3991,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 
 	if (mIsDash)
 	{ // mpd
-#if  defined (DISABLE_DASH) || defined (INTELCE)
+#if  defined (DISABLE_DASH) 
         logprintf("Error: Dash playback not available\n");
         mInitSuccess = false;
         SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
