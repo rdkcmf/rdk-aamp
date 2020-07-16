@@ -20,6 +20,8 @@
 var controlObj = null;
 var bitrateList = [];
 var ccStatus = false;
+var disableButtons = false;
+var currentObjID = "";
 const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false };
 const defaultCCOptions1 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "big", windowFillColor: "black", fontStyle: "default", textForegroundColor: "black", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "white", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
 const defaultCCOptions2 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "blue", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "red", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
@@ -595,9 +597,9 @@ var HTML5PlayerControls = function() {
                     }
                     break;
             case 10:
-                  //Cache Only check box
-                  document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
-                  break;
+                    //Cache Only check box
+                    document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
+                    break;
             case 11:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
@@ -621,7 +623,7 @@ var HTML5PlayerControls = function() {
             case 17:
                     goToHome();
                     break;
-        };
+            };
     };
 
     this.gotoNext = function() {
@@ -681,7 +683,12 @@ var HTML5PlayerControls = function() {
                         this.keyDown();
                         break;
                 case 13: // Enter
-                        this.ok();
+                        if(disableButtons) {
+                            // If playback error modal is ON, hide it on clicking 'OK'
+                            this.dismissModalDialog();
+                        } else {
+                            this.ok();
+                        }
                         break;
                 case 88: // X
 		        case 34:
@@ -692,7 +699,12 @@ var HTML5PlayerControls = function() {
                         skipForward();
                         break;
                 case 32:
-                        this.ok();
+                        if(disableButtons) {
+                            // If playback error modal is ON, hide it on clicking 'OK'
+                            this.dismissModalDialog();
+                        } else {
+                            this.ok();
+                        }
                         break;
 		        case 179:
                 case 80: // P
@@ -729,7 +741,7 @@ var HTML5PlayerControls = function() {
                 case 56: // Number 8
                 case 57: // Number 9
                          // If keypress is for input to the progress position field
-                         if(this.currentObj === this.jumpPositionInput) {
+                         if((this.currentObj === this.jumpPositionInput) && !disableButtons) {
                              document.getElementById("jumpPosition").value =  document.getElementById("jumpPosition").value + String(e.key);
                          }
                          break;
@@ -737,9 +749,42 @@ var HTML5PlayerControls = function() {
                         break;
             }
         }
+        // Get current Object ID
+        currentObjID = this.currentObj.id;
         return false;
     }
+
+    this.dismissModalDialog = function() {
+        //If clicked OK on overlay modal hide it
+        document.getElementById('errorModal').style.display = "none";
+        this.currentObj = this.videoFileList;
+        // Move focus to the video url list
+        this.currentPos = this.components.indexOf(this.videoFileList);
+        this.addFocus();
+        disableButtons = false;
+    }
 };
+
+// Function to change the opacity of the buttons
+function changeButtonOpacity(opacity) {
+    document.getElementById('jumpPosition').style.opacity = opacity;
+    document.getElementById('jumpButton').style.opacity = opacity;
+    document.getElementById('playOrPauseButton').style.opacity = opacity;
+    document.getElementById('videoToggleButton').style.opacity = opacity;
+    document.getElementById('rewindButton').style.opacity = opacity;
+    document.getElementById('skipBackwardButton').style.opacity = opacity;
+    document.getElementById('skipForwardButton').style.opacity = opacity;
+    document.getElementById('fastForwardButton').style.opacity = opacity;
+    document.getElementById('muteVideoButton').style.opacity = opacity;
+    document.getElementById('ccButton').style.opacity = opacity;
+    document.getElementById('ccTracks').style.opacity = opacity;
+    document.getElementById('ccStyles').style.opacity = opacity;
+    document.getElementById('cacheOnlyButton').style.opacity = opacity;
+    document.getElementById('autoSeekButton').style.opacity = opacity;
+    document.getElementById('autoLogButton').style.opacity = opacity;
+    document.getElementById('metadataButton').style.opacity = opacity;
+    document.getElementById('homeButton').style.opacity = opacity;
+}
 
 function overlayController() {
     var navBar = document.getElementById('controlDiv');
@@ -809,7 +854,6 @@ function resetUIOnNewAsset(){
     document.getElementById('ffSpeed').innerHTML = "";
     document.getElementById('ffModal').style.display = "none";
     document.getElementById('ffSpeed').style.display = "none";
-    document.getElementById('errorModal').style.display = "none";
     document.getElementById("jumpPosition").value = "";
     document.getElementById("metadataContent").innerHTML = "";
 };
