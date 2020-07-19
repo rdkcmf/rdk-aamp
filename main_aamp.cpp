@@ -4952,41 +4952,18 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
  */
 static void DeFog(std::string& url)
 {
-	char *dst = NULL, *head = NULL;
-	head = dst = strdup(url.c_str());
-	const char *src = strstr(dst, "&recordedUrl=");
-	if (src)
+	const char *prefix = "&recordedUrl=";
+	size_t startPos = url.find(prefix);
+	if( startPos != std::string::npos )
 	{
-		src += 13;
-		for (;;)
+		startPos += STRLEN_LITERAL(prefix);
+		size_t len = url.find( '&',startPos );
+		if( len != std::string::npos )
 		{
-			char c = *src++;
-			if (c == '%')
-			{
-				size_t len;
-				unsigned char *tmp = base16_Decode(src, 2, &len);
-				if (tmp)
-				{
-					*dst++ = tmp[0];
-					free(tmp);
-				}
-				src += 2;
-			}
-			else if (c == 0 || c == '&')
-			{
-				*dst++ = 0x00;
-				break;
-			}
-			else
-			{
-				*dst++ = c;
-			}
+			len -= startPos;
 		}
-	}
-	if(head != NULL)
-	{
-		url = head;
-		free(head);
+		url = url.substr(startPos,len);
+		aamp_DecodeUrlParameter(url);
 	}
 }
 
@@ -5788,31 +5765,21 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 {
 	if(mIsVSS && !url.empty())
 	{
-		std::string vssURL;
-        size_t vssURLPos;
 		if(mTSBEnabled)
-		{
+		{ // extract original locator from FOG recordedUrl URI parameter
 			DeFog(url);
-		}	
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s url:%s ", __FUNCTION__,url.c_str());
-		vssURL = url;
-
-		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
+		}
+		size_t vssStart = url.find(VSS_MARKER);
+		if( vssStart != std::string::npos )
 		{
-			vssURLPos = vssURLPos + VSS_MARKER_LEN;
-			// go till start of service zone. 
-			vssURL = vssURL.substr(vssURLPos);
-
-			size_t  nextQueryParameterPos = vssURL.find('&');
-			if(nextQueryParameterPos != std::string::npos)
+			vssStart += VSS_MARKER_LEN; // skip "?sz="
+			size_t vssLen = url.find('&',vssStart);
+			if( vssLen != std::string::npos )
 			{
-				// remove anything after & . i.e get string from 0 till nextQueryParameterPos
-				mServiceZone = vssURL.substr(0, nextQueryParameterPos);
+				vssLen -= vssStart;
 			}
-			else
-			{
-				mServiceZone = vssURL;
-			}
+			mServiceZone = url.substr(vssStart, vssLen );
+			aamp_DecodeUrlParameter(mServiceZone); // DELIA-44703
 		}
 		else
 		{
@@ -5983,36 +5950,22 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 		std::stringstream modifiedUrl;
 		modifiedUrl << urlStr.substr(0, queryPos);
 		const std::string parameterDefinition("drmInitData=");
-		std::string       parameter;
+		std::string parameter;
 		std::stringstream querySs(urlStr.substr(queryPos + 1, std::string::npos));
-
 		while (std::getline(querySs, parameter, '&'))
-		{
+		{ // with each URI parameter
 			if (parameter.rfind(parameterDefinition, 0) == 0)
-			{
-				CURL *curl = curl_easy_init();
-				if (curl != NULL)
-				{
-					std::string initData = parameter.substr(parameterDefinition.length(), std::string::npos).c_str();
-					int unescapedLen;
-					const char* unescapedData = curl_easy_unescape(curl, initData.c_str(), initData.size(), &unescapedLen);
-					if (unescapedData != NULL)
-					{
-						drmInitDataStr = std::string(unescapedData, unescapedLen);
-						curl_free((void*)unescapedData);
-					}
-					curl_easy_cleanup(curl);
-				}
+			{ // found drmInitData URI parameter
+				drmInitDataStr = parameter.substr(parameterDefinition.length());
+				aamp_DecodeUrlParameter( drmInitDataStr );
 			}
 			else
-			{
+			{ // filter out drmInitData; reintroduce all other URI parameters
 				modifiedUrl << ((modifiedUrl.tellp() == queryPos) ? "?" : "&") << parameter;
 			}
 		}
-
 		urlStr = modifiedUrl.str();
 	}
-
 	return std::tuple<std::string, std::string>(urlStr, drmInitDataStr);
 }
 

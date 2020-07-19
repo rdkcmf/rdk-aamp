@@ -74,5 +74,6 @@ unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLe
  */
 double ISO8601DateTimeToUTCSeconds(const char *ptr);
 
+void aamp_DecodeUrlParameter( std::string &uriParam );
 
 #endif  /* __AAMP_UTILS_H__ */

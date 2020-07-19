@@ -29,6 +29,8 @@
 #include <string.h>
 #include <assert.h>
 #include <ctime>
+#include <curl/curl.h>
+
 /**
  * @brief Get current time stamp
  *
@@ -261,4 +263,25 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
 	}
 	return timeSeconds;
+}
+
+/**
+ * @brief unescape uri-encoded uri parameter
+ * @param uriParam string to un-escape
+ */
+void aamp_DecodeUrlParameter( std::string &uriParam )
+{
+	std::string rc;
+	CURL *curl = curl_easy_init();
+	if (curl != NULL)
+	{
+		int unescapedLen;
+		const char* unescapedData = curl_easy_unescape(curl, uriParam.c_str(), uriParam.size(), &unescapedLen);
+		if (unescapedData != NULL)
+		{
+			uriParam = std::string(unescapedData, unescapedLen);
+			curl_free((void*)unescapedData);
+		}
+		curl_easy_cleanup(curl);
+	}
 }
