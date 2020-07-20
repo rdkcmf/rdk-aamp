@@ -284,6 +284,8 @@ class TSProcessor : public MediaProcessor
       bool m_checkContinuity;
       int videoComponentCount, audioComponentCount;
       RecordingComponent videoComponents[MAX_PIDS], audioComponents[MAX_PIDS];
+      bool m_dsmccComponentFound; //!< True if DSMCC found
+      RecordingComponent m_dsmccComponent; //!< Digital storage media command and control (DSM-CC) Component
 
       long long m_actualStartPTS;
 
@@ -301,6 +303,7 @@ class TSProcessor : public MediaProcessor
       StreamOperation m_streamOperation;
       Demuxer* m_vidDemuxer;
       Demuxer* m_audDemuxer;
+      Demuxer* m_dsmccDemuxer;
       bool m_demux;
       TSProcessor* m_peerTSProcessor;
       int m_packetStartAfterFirstPTS;
