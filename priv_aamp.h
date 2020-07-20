@@ -221,8 +221,9 @@ enum HttpHeaderType
 {
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
-	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
+	eHTTPHEADERTYPE_FOG_REASON, /**< FOG-X-Reason Header */
 	eHTTPHEADERTYPE_EFF_LOCATION, /**< Effective URL location returned */
+	eHTTPHEADERTYPE_FOG_ERROR,  /**< FOG-X-Error Header */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -828,6 +829,8 @@ public:
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
+	std::string mFogErrorString;	/**< To keep the copy of fog error status*/
+
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	bool mAutoResumeTaskPending;
@@ -1780,6 +1783,13 @@ public:
 	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
 
 	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	bool IsFirstFrameReceived(void);
+
+	/**
 	 *   @brief Check sink cache empty
 	 *
 	 *   @param[in] mediaType - Audio/Video
@@ -2039,9 +2049,10 @@ public:
 	/**
 	 *   @brief Send stalled error
 	 *
+	 *   @param[in] isStalledBeforePlay - true if the playback stalled before the pipeline state changed to play.
 	 *   @return void
 	 */
-	void SendStalledErrorEvent();
+	void SendStalledErrorEvent(bool isStalledBeforePlay = false);
 
 	/**
 	 *   @brief Is discontinuity pending to process
