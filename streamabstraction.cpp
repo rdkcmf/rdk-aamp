@@ -130,6 +130,12 @@ void MediaTrack::MonitorBufferHealth()
 
 			pthread_mutex_unlock(&mutex);
 
+			if (aamp->IsLive() && !aamp->pipeline_paused && !aamp->IsFirstFrameReceived())
+			{
+				// Added logic to identify the playback stall which is observed even before the pipeline moving to PLAYING state (or) receiving the first frame.
+				GetContext()->CheckForPlaybackStall(false);
+			}
+
 			// We use another lock inside CheckForMediaTrackInjectionStall for synchronization
 			GetContext()->CheckForMediaTrackInjectionStall(type);
 

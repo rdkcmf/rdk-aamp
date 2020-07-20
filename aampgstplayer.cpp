@@ -638,6 +638,20 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 }
 
 /**
+ * @brief Check if first frame received or not
+ * @retval true if the first frame received
+ */
+bool AAMPGstPlayer::IsFirstFrameReceived(void)
+{
+	if (privateContext)
+	{
+		return privateContext->firstFrameReceived;
+	}
+
+	return false;
+}
+
+/**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
  * @param[in] type media type of the frame which is decoded, either audio or video.
  */
@@ -3364,55 +3378,63 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
 	bool ret = true;
-#ifdef USE_GST1
-	media_stream *stream = &privateContext->stream[mediaType];
-	if (stream->source)
+	GstState current, pending;
+
+	gst_element_get_state(privateContext->pipeline, &current, &pending, 0 * GST_MSECOND);
+
+	if (current != GST_STATE_READY && pending != GST_STATE_PAUSED)
 	{
-		guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
-		if(0 != cacheLevel)
+#ifdef USE_GST1
+		media_stream *stream = &privateContext->stream[mediaType];
+		if (stream->source)
 		{
-			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT, __FUNCTION__, __LINE__, cacheLevel);
-			ret = false;
-		}
-		else
-		{
-			// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
-			// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
-			traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
-			if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
-					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
+			guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
+			if(0 != cacheLevel)
 			{
-				logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
-					__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
-					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
+				traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT, __FUNCTION__, __LINE__, cacheLevel);
+				ret = false;
 			}
-#ifndef INTELCE
 			else
 			{
-				bool ptsChanged = CheckForPTSChange();
-				if(!ptsChanged)
+				// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
+				// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
+				traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
+				if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
+						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
 				{
-					long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
-					if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
+					logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
+						__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
+						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
+				}
+#ifndef INTELCE
+				else
+				{
+					bool ptsChanged = CheckForPTSChange();
+					if(!ptsChanged)
 					{
-						//Timeout hasn't expired. Need to wait for PTS min update interval to expire
-						ret = false;
+						long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
+						if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
+						{
+							//Timeout hasn't expired. Need to wait for PTS min update interval to expire
+							ret = false;
+						}
+						else
+						{
+							logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)",
+									__FUNCTION__, __LINE__, deltaMS, ret);
+						}
 					}
 					else
 					{
-						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)",
-								__FUNCTION__, __LINE__, deltaMS, ret);
+						ret = false;
 					}
 				}
-				else
-				{
-					ret = false;
-				}
+#endif
 			}
-#endif
 		}
-	}
 #endif
+	}
+
 	return ret;
 }
 

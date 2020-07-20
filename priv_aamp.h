@@ -1427,6 +1427,13 @@ public:
 	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
 
 	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	bool IsFirstFrameReceived(void);
+
+	/**
 	 *   @brief Check sink cache empty
 	 *
 	 *   @param[in] mediaType - Audio/Video

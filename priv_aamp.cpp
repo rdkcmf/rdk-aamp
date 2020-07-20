@@ -6664,6 +6664,15 @@ gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask d
 }
 
 /**
+ * @brief Check if first frame received or not
+ * @retval true if the first frame received
+ */
+bool PrivateInstanceAAMP::IsFirstFrameReceived(void)
+{
+	return mStreamSink->IsFirstFrameReceived();
+}
+
+/**
  * @brief Check if sink cache is empty
  * @param mediaType type of track
  * @retval true if sink cache is empty

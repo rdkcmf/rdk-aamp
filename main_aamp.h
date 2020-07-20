@@ -862,6 +862,13 @@ public:
 	virtual bool CheckForPTSChange() {return true;};
 
 	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	virtual bool IsFirstFrameReceived() {return true;};
+
+	/**
 	 *   @brief Check whether cach is empty
 	 *
 	 *   @param[in]  mediaType - Media Type
