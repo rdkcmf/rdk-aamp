@@ -6253,10 +6253,6 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 	bool ignoreMetaAdd = false;
 	for (i = timedMetadata.begin(); i != timedMetadata.end(); i++)
 	{
-		if (i->_timeMS < timeMilliseconds)
-		{
-			continue;
-		}
 
 		// Add a boundary check of 1 sec for rounding correction
 		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ) &&
@@ -6268,8 +6264,15 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 			break;
 		}
 
-		if (i->_timeMS > timeMilliseconds)
+		if (i->_timeMS < timeMilliseconds)
 		{
+			// move to next entry
+			continue;
+		}
+		else
+		{
+			// New entry in between saved entries.
+			// i->_timeMS >= timeMilliseconds && no similar entry in table
 			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 			bFireEvent = true;
 			ignoreMetaAdd = true;
