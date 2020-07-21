@@ -115,6 +115,8 @@ static const char *mMediaFormatName[] =
 #define PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP (131)
 #define OPERATION_TIMEOUT_CONNECTIVITY_AAMP (132)
 #define PARTIAL_FILE_START_STALL_TIMEOUT_AAMP (133)
+#define AAMP_MINIMUM_AUDIO_LEVEL (0) /**< minimum value for audio level supported */
+#define AAMP_MAXIMUM_AUDIO_LEVEL (100) /**< maximum value for audio level supported */
 
 #define STRBGPLAYER "BACKGROUND"
 #define STRFGPLAYER "FOREGROUND"

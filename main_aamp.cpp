@@ -851,14 +851,20 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->audio_volume = volume;
-	if (aamp->mpStreamAbstractionAAMP)
+	if (volume < AAMP_MINIMUM_AUDIO_LEVEL || volume > AAMP_MAXIMUM_AUDIO_LEVEL)
 	{
-		aamp->SetAudioVolume(volume);
-	}
-	else
-	{
-		AAMPLOG_WARN("%s:%d Player is in state eSTATE_IDLE, value has been cached", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("%s:%d Audio level (%d) is outside the range supported.. discarding it..",
+		__FUNCTION__, __LINE__, volume);
+	}else{
+		aamp->audio_volume = volume;
+		if (aamp->mpStreamAbstractionAAMP)
+		{
+			aamp->SetAudioVolume(volume);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Player is in state eSTATE_IDLE, value has been cached", __FUNCTION__, __LINE__);
+		}
 	}
 }
 
