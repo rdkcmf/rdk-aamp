@@ -2972,9 +2972,10 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
  */
 void AAMPGstPlayer::SetAudioVolume(int volume)
 {
-	privateContext->audioVolume = volume / 100.0;
 
+	privateContext->audioVolume = volume / 100.0;
 	setVolumeOrMuteUnMute();
+
 }
 
 
