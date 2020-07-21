@@ -362,6 +362,8 @@ function mediaEndReached() {
 //  loadNextAsset();
     if (toggleVideo() == false) {
         playerObj.stop();
+        // Display playback completed modal
+        showPlaybackEndModal("Playback Ended");
         resetSubtitles(true);
         resetUIOnNewAsset();
     }
@@ -403,11 +405,22 @@ function mediaPlaybackFailed(event) {
     console.log("Media failed event: " + JSON.stringify(event));
 
     playerObj.stop();
-    document.getElementById('errorContent').innerHTML = event.description;
-    document.getElementById('errorModal').style.display = "block";
-
+    // Display playback failed modal with error message
+    showPlaybackEndModal(event.description);
     //Uncomment below line to auto play next asset on playback failure
     //loadNextAsset();
+}
+
+// Function to display the modal on playback complete/failure
+function showPlaybackEndModal(msg) {
+    //Remove Focus
+    document.getElementById(currentObjID).classList.remove("focus");
+    //Disable the buttons and show overlay modal.
+    disableButtons = true;
+    document.getElementById('errorContent').innerHTML = msg;
+    document.getElementById('errorModal').style.display = "block";
+    //Reduce Button Opacity
+    changeButtonOpacity(0.4);
 }
 
 function mediaMetadataParsed(event) {
@@ -718,6 +731,10 @@ function loadUrl(urlObject, isLive) {
 
     //Update buffering widget in Channel change.
     document.getElementById('buffModal').style.display = "none";
+
+    //enable-back buttons
+    disableButtons = false;
+    changeButtonOpacity(1);
 
     let initConfiguration = generateInitConfigObject(urlObject);
     if(isLive)
