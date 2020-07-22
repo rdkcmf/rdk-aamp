@@ -174,6 +174,9 @@ struct AAMPGstPlayerPriv
 	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
+#if defined(REALTEKCE)
+	bool firstTuneWithWesterosSinkOff; // DELIA-33640: track if first tune was done for Realtekce build
+#endif
 };
 
 /**
@@ -1050,7 +1053,14 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
 #if defined(REALTEKCE)
-				_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+				// DELIA-33640: For Realtekce build and westeros-sink disabled
+				// prevent calling NotifyFirstFrame after first tune, ie when upausing
+				// pipeline during flush
+				if(_this->privateContext->firstTuneWithWesterosSinkOff)
+				{
+					_this->privateContext->firstTuneWithWesterosSinkOff = false;
+					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+				}
 #endif
 #if defined(INTELCE) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
@@ -2297,6 +2307,9 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	if (!aamp->mWesterosSinkEnabled)
 	{
 		privateContext->using_westerossink = false;
+#if defined(REALTEKCE)
+		privateContext->firstTuneWithWesterosSinkOff = true;
+#endif
 	}
 	else
 	{
