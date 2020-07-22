@@ -698,10 +698,10 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	m_throttleMaxDiffSegments(DEFAULT_THROTTLE_MAX_DIFF_SEGMENTS_MS),
 	m_throttleDelayIgnoredMs(DEFAULT_THROTTLE_DELAY_IGNORED_MS), m_throttleDelayForDiscontinuityMs(DEFAULT_THROTTLE_DELAY_FOR_DISCONTINUITY_MS),
 	m_throttleCond(), m_basePTSCond(), m_mutex(), m_enabled(true), m_processing(false), m_framesProcessedInSegment(0),
-	m_lastPTSOfSegment(-1), m_streamOperation(streamOperation), m_vidDemuxer(NULL), m_audDemuxer(NULL),
+	m_lastPTSOfSegment(-1), m_streamOperation(streamOperation), m_vidDemuxer(NULL), m_audDemuxer(NULL), m_dsmccDemuxer(NULL),
 	m_demux(false), m_peerTSProcessor(peerTSProcessor), m_packetStartAfterFirstPTS(-1), m_queuedSegment(NULL),
 	m_queuedSegmentPos(0), m_queuedSegmentDuration(0), m_queuedSegmentLen(0), m_queuedSegmentDiscontinuous(false), m_startPosition(-1.0),
-	m_track(track), m_last_frame_time(0), m_demuxInitialized(false), m_basePTSFromPeer(-1)
+	m_track(track), m_last_frame_time(0), m_demuxInitialized(false), m_basePTSFromPeer(-1), m_dsmccComponentFound(false), m_dsmccComponent()
 {
 	INFO("constructor - %p", this);
 
@@ -716,6 +716,8 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	if ((m_streamOperation == eStreamOp_DEMUX_ALL) || (m_streamOperation == eStreamOp_DEMUX_VIDEO))
 	{
 		m_vidDemuxer = new Demuxer(aamp,eMEDIATYPE_VIDEO);
+		//demux DSM CC stream only together with video stream
+		m_dsmccDemuxer = new Demuxer(aamp,eMEDIATYPE_DSM_CC);
 		m_demux = true;
 	}
 
@@ -783,6 +785,10 @@ TSProcessor::~TSProcessor()
 	if (m_audDemuxer)
 	{
 		delete m_audDemuxer;
+	}
+	if (m_dsmccDemuxer)
+	{
+		delete m_dsmccDemuxer;
 	}
 
 	if (m_queuedSegment)
@@ -917,6 +923,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 	memset(work, 0, sizeof(work));
 
 	videoComponentCount = audioComponentCount = 0;
+	m_dsmccComponentFound = false;
 
 	// Program loop starts after program info descriptor and continues
 	// to the CRC at the end of the section
@@ -1009,6 +1016,15 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 			}
 			break;
 
+		case 0x15: // ISO/IEC13818-6 DSM CC deferred association tag with ID3 metadata
+			if(!m_dsmccComponentFound)
+			{
+				m_dsmccComponent.pid = pid;
+				m_dsmccComponent.elemStreamType = streamType;
+				m_dsmccComponentFound = true;
+			}
+			break;
+
 		default:
 			DEBUG("RecordContext: pmt contains unused stream type 0x%x", streamType);
 			break;
@@ -1027,6 +1043,12 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		NOTICE( "[%p] found %d audio pids in program %d with pcr pid %d audio pid %d",
 			this, audioComponentCount, m_program, pcrPid, audioComponents[0].pid);
 	}
+	if (m_dsmccComponentFound)
+	{
+		NOTICE( "[%p] found dsmcc pid in program %d with pcr pid %d dsmcc pid %d",
+			this, m_program, pcrPid, m_dsmccComponent.pid);
+	}
+
 
 	if (videoComponentCount == 0)
 	{
@@ -1819,7 +1841,7 @@ void TSProcessor::setupThrottle(int segmentDurationMsSigned)
  */
 bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, double duration, bool discontinuous, TrackToDemux trackToDemux)
 {
-	int videoPid = -1, audioPid = -1;
+	int videoPid = -1, audioPid = -1, dsmccPid = -1;
 	unsigned long long firstPcr = 0;
 	bool isTrickMode = !( 1.0 == m_playRate);
 	bool notifyPeerBasePTS = false;
@@ -1831,6 +1853,10 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 		{
 			videoPid = videoComponents[0].pid;
 		}
+		if(m_dsmccComponentFound)
+		{
+			dsmccPid = m_dsmccComponent.pid;
+		}
 		if (discontinuous || !m_demuxInitialized )
 		{
 			if (discontinuous && (1.0 == m_playRate))
@@ -1839,6 +1865,8 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 			}
 			m_vidDemuxer->flush();
 			m_vidDemuxer->init(position, duration, isTrickMode, true);
+			m_dsmccDemuxer->flush();
+			m_dsmccDemuxer->init(position, duration, isTrickMode, true);
 		}
 	}
 	if (m_audDemuxer && ((trackToDemux == ePC_Track_Both) || (trackToDemux == ePC_Track_Audio)))
@@ -1871,6 +1899,8 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 	{
 		Demuxer* demuxer = NULL;
 		int pid = (packetStart[1] & 0x1f) << 8 | packetStart[2];
+		bool dsmccDemuxerUsed = false;
+
 		if (m_vidDemuxer && (pid == videoPid))
 		{
 			demuxer = m_vidDemuxer;
@@ -1879,6 +1909,12 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 		{
 			demuxer = m_audDemuxer;
 		}
+		else if(m_dsmccDemuxer && (pid == dsmccPid))
+		{
+			demuxer = m_dsmccDemuxer;
+			dsmccDemuxerUsed = true;
+		}
+
 		if ((discontinuous || !m_demuxInitialized ) && !firstPcr && (pid == m_pcrPid))
 		{
 			int adaptation_fieldlen = 0;
@@ -1901,6 +1937,10 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 					{
 						m_audDemuxer->setBasePTS(firstPcr, false);
 					}
+					if (m_dsmccDemuxer)
+					{
+						m_dsmccDemuxer->setBasePTS(firstPcr, false);
+					}
 					notifyPeerBasePTS = true;
 					m_demuxInitialized = true;
 				}
@@ -1912,7 +1952,8 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 			bool ptsError = false;  //CID:87386 , 86687 - Initialization
 			bool  basePTSUpdated = false;
 			demuxer->processPacket(packetStart, basePTSUpdated, ptsError);
-			if(!m_demuxInitialized)
+			// Process PTS updates and errors only for audio and video demuxers
+			if(!m_demuxInitialized && !dsmccDemuxerUsed)
 			{
 				WARNING("PCR not available before ES packet, updating firstPCR");
 				m_demuxInitialized = true;
@@ -1920,25 +1961,31 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 				firstPcr = demuxer->getBasePTS();
 			}
 
-			if( basePTSUpdated && notifyPeerBasePTS)
+			if( basePTSUpdated && notifyPeerBasePTS && !dsmccDemuxerUsed)
 			{
-				if (m_audDemuxer && (m_audDemuxer!= demuxer) && (eStreamOp_DEMUX_AUDIO != m_streamOperation))
+				if (m_audDemuxer && (m_audDemuxer != demuxer) && (eStreamOp_DEMUX_AUDIO != m_streamOperation))
 				{
 					INFO("Using first video pts as base pts");
 					m_audDemuxer->setBasePTS(demuxer->getBasePTS(), true);
 				}
-				else if (m_vidDemuxer && (m_vidDemuxer!= demuxer) && (eStreamOp_DEMUX_VIDEO != m_streamOperation))
+				else if (m_vidDemuxer && (m_vidDemuxer != demuxer) && (eStreamOp_DEMUX_VIDEO != m_streamOperation))
 				{
 					WARNING("Using first audio pts as base pts");
 					m_vidDemuxer->setBasePTS(demuxer->getBasePTS(), true);
 				}
+
+				if (m_dsmccDemuxer)
+				{
+					m_dsmccDemuxer->setBasePTS(demuxer->getBasePTS(), true);
+				}
+
 				if(m_peerTSProcessor)
 				{
 					m_peerTSProcessor->setBasePTS( position, demuxer->getBasePTS());
 				}
 				notifyPeerBasePTS = false;
 			}
-			if (ptsError)
+			if (ptsError && !dsmccDemuxerUsed)
 			{
 				WARNING("PTS error, discarding segment");
 				ret = false;
@@ -2000,6 +2047,12 @@ void TSProcessor::flush()
 	{
 		logprintf("TSProcessor[%p]%s:%d - flush audio demux %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
 		m_audDemuxer->flush();
+	}
+
+	if (m_dsmccDemuxer)
+	{
+		logprintf("TSProcessor[%p]%s:%d - flush dsmcc demux %p", this, __FUNCTION__, __LINE__, m_dsmccDemuxer);
+		m_dsmccDemuxer->flush();
 	}
 	pthread_mutex_unlock(&m_mutex);
 }

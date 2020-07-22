@@ -172,6 +172,8 @@ struct AAMPGstPlayerPriv
 	GstState pipelineState; // current state of pipeline
 	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
 	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
+	int32_t lastId3DataLen; // last sent ID3 data length
+	uint8_t *lastId3Data; // ptr with last sent ID3 data
 };
 
 /**
@@ -1984,7 +1986,8 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
  */
 bool hasId3Header(MediaType mediaType, StreamOutputFormat format, const uint8_t* data, int32_t length)
 {
-	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO) && length >= 3)
+	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO || mediaType == eMEDIATYPE_DSM_CC)
+		&& length >= 3)
 	{
 		/* Check file identifier ("ID3" = ID3v2) and major revision matches (>= ID3v2.2.x). */
 		if (*data++ == 'I' && *data++ == 'D' && *data++ == '3' && *data++ >= 2)
@@ -2052,16 +2055,35 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		Id3CallbackData* id3Metadata = new Id3CallbackData;
 		id3Metadata->_this = this;
 		id3Metadata->len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
-		if (id3Metadata->len) {
+		if (id3Metadata->len
+				&& (id3Metadata->len != privateContext->lastId3DataLen
+						|| !privateContext->lastId3Data
+						|| (memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
+		{
+			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
+			FlushLastId3Data();
 			id3Metadata->data = (uint8_t*)g_malloc(id3Metadata->len);
+			privateContext->lastId3Data = (uint8_t*)g_malloc(id3Metadata->len);
 			//TODO: Consider maximum length for ID3 data - spec allows 256MB
-			if (id3Metadata->data) {
+			if (id3Metadata->data)
+			{
 				memcpy(id3Metadata->data, ptr, id3Metadata->len);
+			}
+			if (privateContext->lastId3Data)
+			{
+				privateContext->lastId3DataLen = id3Metadata->len;
+				memcpy(privateContext->lastId3Data, ptr, id3Metadata->len);
 			}
 
 			privateContext->id3MetadataCallbackTaskPending = true;
 			privateContext->id3MetadataCallbackIdleTaskId = g_idle_add(IdleCallbackOnId3Metadata, id3Metadata);
 		}
+	}
+
+	//Drop eMEDIATYPE_DSM_CC packages, since no stream to handle it
+	if(mediaType == eMEDIATYPE_DSM_CC)
+	{
+		return;
 	}
 
 	gboolean discontinuity = FALSE;
@@ -2435,6 +2457,15 @@ void AAMPGstPlayer::DisconnectCallbacks()
 	}
 }
 
+void AAMPGstPlayer::FlushLastId3Data()
+{
+	if(privateContext->lastId3Data)
+	{
+		privateContext->lastId3DataLen = 0;
+		g_free(privateContext->lastId3Data);
+		privateContext->lastId3Data = NULL;
+	}
+}
 
 /**
  * @brief Stop playback and any idle handlers active at the time
@@ -2550,6 +2581,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	privateContext->segmentStart = 0;
 	privateContext->paused = false;
 	privateContext->pipelineState = GST_STATE_NULL;
+	FlushLastId3Data();
 	logprintf("exiting AAMPGstPlayer_Stop");
 }
 

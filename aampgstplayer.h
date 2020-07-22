@@ -102,6 +102,7 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
+	void FlushLastId3Data();
 
 	pthread_mutex_t mBufferingLock;
 };
