@@ -1488,6 +1488,7 @@ void *CreateDRMSession(void *arg)
 			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 		}
 	}
+	return NULL;
 }
 
 
