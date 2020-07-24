@@ -259,16 +259,6 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 			logprintf("destination url is %s", destinationURL.c_str());
 			m_eKeyState = KEY_PENDING;
 		}
-		else {
-			AAMPLOG_WARN("%s:%d: Empty keyRequest", __FUNCTION__, __LINE__);
-
-			AAMPLOG_WARN("%s:%d: Challenge empty recovery :: Stop OpenCDM Plugin", __FUNCTION__, __LINE__);
-			system("curl  'http://127.0.0.1:9998/jsonrpc' -d '{\"jsonrpc\": \"2.0\",\"id\": 4,\"method\": \"Controller.1.deactivate\", \"params\": { \"callsign\": \"OCDM\" }}' ; echo");
-			sleep(2);
-			AAMPLOG_WARN("%s:%d: Challenge empty recovery :: Restart OpenCDM Plugin after 2 sec of delay", __FUNCTION__, __LINE__);
-			system("curl  'http://127.0.0.1:9998/jsonrpc' -d '{\"jsonrpc\": \"2.0\",\"id\": 4,\"method\": \"Controller.1.activate\", \"params\": { \"callsign\": \"OCDM\" }}' ; echo");
-			sleep(1);
-		}
 	}
 	return result;
 }
