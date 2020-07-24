@@ -246,9 +246,22 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL)
 	uint16_t  destinationUrlLength = sizeof(temporaryUrl);
 
 	m_pOpencdm->GetKeyMessage(challenge, temporaryUrl, destinationUrlLength);
-	if (challenge.empty() || !destinationUrlLength) {
-		m_eKeyState = KEY_ERROR;
+
+	if (challenge.empty() || !destinationUrlLength)
+	{
 		logprintf("aampGenerateKeyRequest :: challenge or URL is empty. ");
+
+		if (challenge.empty())
+		{
+			AAMPLOG_WARN("Challenge empty recovery :: Stop OpenCDM Plugin");
+			system("curl  'http://127.0.0.1:9998/jsonrpc' -d '{\"jsonrpc\": \"2.0\",\"id\": 4,\"method\": \"Controller.1.deactivate\", \"params\": { \"callsign\": \"OCDM\" }}' ; echo");
+			sleep(2);
+			AAMPLOG_WARN("Challenge empty recovery :: Restart OpenCDM Plugin after 2 sec of delay");
+			system("curl  'http://127.0.0.1:9998/jsonrpc' -d '{\"jsonrpc\": \"2.0\",\"id\": 4,\"method\": \"Controller.1.activate\", \"params\": { \"callsign\": \"OCDM\" }}' ; echo");
+			sleep(1);
+		}
+
+		m_eKeyState = KEY_ERROR;
 		pthread_mutex_unlock(&decryptMutex);
 		return result;
 	}
