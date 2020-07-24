@@ -8388,7 +8388,10 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	if(!SetStateBufferingIfRequired())
+	// If seek while paused is ongoing,
+	// state will be changed in NotifyFirstVideoDisplayed()
+	if(!mPauseOnFirstVideoFrameDisp
+			&& !SetStateBufferingIfRequired())
 	{
 		SetState(eSTATE_PLAYING);
 	}
