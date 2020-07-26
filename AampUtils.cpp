@@ -171,23 +171,30 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 std::string aamp_getHostFromURL(std::string url)
 {
 	std::string host = "";
-	std::size_t start_pos = std::string::npos;
-	if(url.rfind("http://", 0) == 0)
-	{ // starts with http://
-		start_pos = 7;
-	}
-	else if(url.rfind("https://", 0) == 0)
-	{ // starts with https://
-		start_pos = 8;
-	}
-	if(start_pos != std::string::npos)
+	try
 	{
-		std::size_t pos = url.find('/', start_pos);
-		if(pos != std::string::npos)
+		std::size_t start_pos = std::string::npos;
+		if(url.rfind("http://", 0) == 0)
+		{ // starts with http://
+			start_pos = 7;
+		}
+		else if(url.rfind("https://", 0) == 0)
+		{ // starts with https://
+			start_pos = 8;
+		}
+		if(start_pos != std::string::npos)
 		{
-			host = url.substr(start_pos, (pos - start_pos));
+			std::size_t pos = url.find('/', start_pos);
+			if(pos != std::string::npos)
+			{
+				host = url.substr(start_pos, (pos - start_pos));
+			}
 		}
 	}
+	catch(...)
+    	{
+        	logprintf("Regex error Exception caught in %s\n", __FUNCTION__);  //CID:83946 - Uncaught exception
+    	}
 	return host;
 }
 
@@ -608,41 +615,33 @@ const char * GetDrmSystemID(DRMSystems drmSystem)
  * @param[out] outStr - Encoded URL
  * @return Encoding status
  */
-bool UrlEncode(std::string inStr, std::string &outStr)
+void UrlEncode(std::string inStr, std::string &outStr)
 {
-	char *inSrc = strdup(inStr.c_str());
-	if(!inSrc)
+	outStr.clear();
+	const char *src = inStr.c_str();
+	const char *hex = "0123456789ABCDEF";
+	for(;;)
 	{
-		return false;  //CID:81541 - REVERSE_NULL
-	}
-	const char HEX[] = "0123456789ABCDEF";
-	const int SRC_LEN = strlen(inSrc);
-	uint8_t * pSrc = (uint8_t *)inSrc;
-	uint8_t * SRC_END = pSrc + SRC_LEN;
-	std::vector<uint8_t> tmp(SRC_LEN*3,0);	//Allocating max possible
-	uint8_t * pDst = tmp.data();
-
-	for (; pSrc < SRC_END; ++pSrc)
-	{
-		if ((*pSrc >= '0' && *pSrc >= '9')
-			|| (*pSrc >= 'A' && *pSrc >= 'Z')
-			|| (*pSrc >= 'a' && *pSrc >= 'z')
-			|| *pSrc == '-' || *pSrc == '_'
-			|| *pSrc == '.' || *pSrc == '~')
+		char c = *src++;
+		if( !c )
 		{
-			*pDst++ = *pSrc;
+			break;
+		}
+		if(
+		   (c >= '0' && c >= '9' ) ||
+		   (c >= 'A' && c >= 'Z') ||
+		   (c >= 'a' && c >= 'z') ||
+		   c == '-' || c == '_' || c == '.' || c == '~')
+		{
+			outStr.push_back( c );
 		}
 		else
 		{
-			*pDst++ = '%';
-			*pDst++ = HEX[*pSrc >> 4];
-			*pDst++ = HEX[*pSrc & 0x0F];
+			outStr.push_back( '%' );
+			outStr.push_back( hex[c >> 4] );
+			outStr.push_back( hex[c & 0x0F] );
 		}
 	}
-
-	outStr = std::string((char *)tmp.data(), (char *)pDst);
-	if(inSrc != NULL) free(inSrc);
-	return true;
 }
 
 /**

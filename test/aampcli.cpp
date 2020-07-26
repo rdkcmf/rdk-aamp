@@ -23,6 +23,7 @@
  */
 
 #include <stdio.h>
+#include <errno.h>
 #include <list>
 #include <string.h>
 #include <string>
@@ -1470,7 +1471,11 @@ int main(int argc, char **argv)
 
 #ifdef __APPLE__
     pthread_t cmdThreadId;
-    pthread_create(&cmdThreadId,NULL,run_command,NULL);
+    if(pthread_create(&cmdThreadId,NULL,run_command,&startUrl) != 0)
+	{
+		logprintf("Failed at create pthread errno = %d", errno);  //CID:83593 - checked return
+	}
+
     createAndRunCocoaWindow();
 	if(mBackgroundPlayer)
 	{

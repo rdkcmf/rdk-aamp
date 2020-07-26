@@ -244,18 +244,25 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
-	memset(privateContext, 0, sizeof(*privateContext));
-	privateContext->audioVolume = 1.0;
-	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
-	privateContext->pipelineState = GST_STATE_NULL;
-	this->aamp = aamp;
+	if(privateContext)
+	{
+		memset(privateContext, 0, sizeof(*privateContext));
+		privateContext->audioVolume = 1.0;
+		privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
+		privateContext->pipelineState = GST_STATE_NULL;
+		this->aamp = aamp;
 
-	pthread_mutex_init(&mBufferingLock, NULL);
-	pthread_mutex_init(&mProtectionLock, NULL);
+		pthread_mutex_init(&mBufferingLock, NULL);
+		pthread_mutex_init(&mProtectionLock, NULL);
 
-	CreatePipeline();
-	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+		CreatePipeline();
+		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
+		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  privateContext  is null", __FUNCTION__, __LINE__);  //CID:85372 - Null Returns
+	}
 }
 
 
@@ -1764,6 +1771,10 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		g_signal_connect(stream->sinkbin, "event-callback", G_CALLBACK(AAMPGstPlayer_PlayersinkbinCB), _this);
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->sinkbin);
 		gst_element_link(stream->source, stream->sinkbin);
+		if(!gst_element_link(stream->source, stream->sinkbin))
+		{
+			AAMPLOG_WARN("%s:%d: gst_element_link  is error", __FUNCTION__, __LINE__);  //CID:90331- checked return
+		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
 
 		logprintf("AAMPGstPlayer_SetupStream:  Created playersinkbin. Setting rectangle");
@@ -2056,39 +2067,47 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			len = maxBytes;
 		}
 		GstBuffer *buffer = gst_buffer_new_and_alloc((guint)len);
-		if (discontinuity )
+		if(buffer != NULL)
 		{
-			GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DISCONT);
-			discontinuity = FALSE;
-		}
-#ifdef USE_GST1
-		GstMapInfo map;
-		gst_buffer_map(buffer, &map, GST_MAP_WRITE);
-		memcpy(map.data, ptr, len);
-		gst_buffer_unmap(buffer, &map);
-		GST_BUFFER_PTS(buffer) = pts;
-		GST_BUFFER_DTS(buffer) = dts;
+			if (discontinuity )
+			{
+				GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DISCONT);
+				discontinuity = FALSE;
+			}
+	#ifdef USE_GST1
+			GstMapInfo map;
+			gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+			memcpy(map.data, ptr, len);
+			gst_buffer_unmap(buffer, &map);
+			GST_BUFFER_PTS(buffer) = pts;
+			GST_BUFFER_DTS(buffer) = dts;
 		//GST_BUFFER_DURATION(buffer) = duration;
-#else
-		memcpy(GST_BUFFER_DATA(buffer), ptr, len);
-		GST_BUFFER_TIMESTAMP(buffer) = pts;
-		GST_BUFFER_DURATION(buffer) = duration;
-#endif
-		ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
-		if (ret != GST_FLOW_OK)
-		{
-			logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
-			assert(false);
+	#else
+			memcpy(GST_BUFFER_DATA(buffer), ptr, len);
+			GST_BUFFER_TIMESTAMP(buffer) = pts;
+			GST_BUFFER_DURATION(buffer) = duration;
+	#endif
+		
+			ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
+			if (ret != GST_FLOW_OK)
+			{
+				logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
+				assert(false);
+			}
+			else if (privateContext->stream[mediaType].bufferUnderrun)
+			{
+				privateContext->stream[mediaType].bufferUnderrun = false;
+			}
+			ptr = len + (unsigned char *)ptr;
+			len0 -= len;
+			if (len0 == 0)
+			{
+				break;
+			}
 		}
-		else if (privateContext->stream[mediaType].bufferUnderrun)
+		else
 		{
-			privateContext->stream[mediaType].bufferUnderrun = false;
-		}
-		ptr = len + (unsigned char *)ptr;
-		len0 -= len;
-		if (len0 == 0)
-		{
-			break;
+			AAMPLOG_WARN("%s:%d :  buffer is null", __FUNCTION__, __LINE__);  //CID:86190 - Null Returns
 		}
 	}
 	if (eMEDIATYPE_VIDEO == mediaType)

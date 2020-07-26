@@ -89,7 +89,7 @@ static const char *mMediaFormatName[] =
 // VSS Service Zone identifier in url
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
-#define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_MARKER_FOG			"%3Fsz%3D" // URI-encoded ?sz=
 #define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"

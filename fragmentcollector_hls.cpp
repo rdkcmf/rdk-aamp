@@ -3050,17 +3050,26 @@ void TrackState::ABRProfileChanged()
 {
 	// If not live, reset play position since sequence number doesn't ensure the fragments
 	// from multiple streams are in sync
-	traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
-	aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
-	pthread_mutex_lock(&mutex);
-	//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
-	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
-	//Video profile change will definitely require new init headers
-	mInjectInitFragment = true;
-	refreshPlaylist = true;
-	/*For some VOD assets, different video profiles have different DRM meta-data.*/
-	mForceProcessDrmMetadata = true;
+	const char* pcontext = context->GetPlaylistURI(type);
+	if(pcontext != NULL)
+	{
+		traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext);
+		pthread_mutex_lock(&mutex);
+		//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
+		//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
+		//Video profile change will definitely require new init headers
+		mInjectInitFragment = true;
+		refreshPlaylist = true;
+		/*For some VOD assets, different video profiles have different DRM meta-data.*/
+		mForceProcessDrmMetadata = true;
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  GetPlaylistURI  is null", __FUNCTION__, __LINE__);  //CID:83060 - Null Returns
+	}
 	pthread_mutex_unlock(&mutex);
+
 }
 /***************************************************************************
 * @fn RefreshPlaylist
@@ -3120,7 +3129,7 @@ void TrackState::RefreshPlaylist(void)
 		double downloadTime;
 		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
-		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);
+		(void) aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);  //CID:89271 - checked return
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
 		if(!aamp->mParallelFetchPlaylistRefresh)
@@ -4079,7 +4088,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		double downloadTime;
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
-		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
+		(void) aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);  //CID:82578 - checked return
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), downloadTime);
@@ -5076,7 +5085,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else
 				{
 					logprintf("StreamAbstractionAAMP_HLS::%s:%d : Error Download iframe playlist. http_error %ld",
-					        __FUNCTION__, __LINE__, http_error);
+					       __FUNCTION__, __LINE__, http_error);
 				}
 			}
 		}
@@ -5975,8 +5984,15 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			printf("\n");
 		}
 		mCMSha1Hash = (char*)malloc(DRM_SHA1_HASH_LEN);
-		memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
-		drmDataChanged = true;
+		if(!mCMSha1Hash)
+		{
+			AAMPLOG_WARN("%s:%d :  mCMSha1Hash  is null", __FUNCTION__, __LINE__);  //CID:84607 - Null Returns
+		}
+		else
+		{
+			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
+			drmDataChanged = true;
+		}
 	}
 	if(drmDataChanged)
 	{
@@ -6086,7 +6102,7 @@ void TrackState::FetchPlaylist()
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
-		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
+		(void) aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		main_error = getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),

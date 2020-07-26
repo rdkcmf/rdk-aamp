@@ -127,7 +127,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @param[out] outStr - Encoded URL
  * @return Encoding status
  */
-bool UrlEncode(std::string inStr, std::string &outStr);
+void UrlEncode(std::string inStr, std::string &outStr);
 
 /**
  * @brief Trim a string
