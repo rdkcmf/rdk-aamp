@@ -56,7 +56,10 @@ DrmData::DrmData() : data(NULL), dataLength(0)
 DrmData::DrmData(unsigned char *data, int dataLength) : data(NULL), dataLength(dataLength)
 {
 	this->data =(unsigned char*) malloc(dataLength);
-	memcpy(this->data,data,dataLength);
+	if(this->data != NULL)
+	{
+		memcpy(this->data,data,dataLength);  //CID:82413 - Null Returns
+	}
 }
 
 /**

@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <errno.h>
 #include <list>
 #include <string.h>
 #include <string>
@@ -1763,7 +1764,10 @@ int main(int argc, char **argv)
 	}
 
 	pthread_t cmdThreadId;
-	pthread_create(&cmdThreadId,NULL,run_command,&startUrl);
+	if(pthread_create(&cmdThreadId,NULL,run_command,&startUrl) != 0)
+	{
+		logprintf("Failed at create pthread errno = %d", errno);  //CID:83593 - checked return
+	}
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	// Render frames in graphics plane using opengl
 	glutInit(&argc, argv);

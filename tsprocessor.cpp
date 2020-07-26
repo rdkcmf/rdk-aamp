@@ -1247,11 +1247,24 @@ bool TSProcessor::msleep(long long throttleDiff)
 	ts.tv_sec = (time_t)(utc_usec/MICROSECONDS_PER_SECOND);
 	ts.tv_nsec = (long)(1000L*(utc_usec%MICROSECONDS_PER_SECOND));
 	pthread_mutex_lock(&m_mutex);
-	pthread_cond_timedwait(&m_throttleCond, &m_mutex, &ts);
-	if (!m_enabled)
+
+	if( m_enabled)
+	{
+		int ret =  pthread_cond_timedwait(&m_throttleCond, &m_mutex, &ts);
+		if(0 == ret)
+		{
+			//logprintf("sleep interrupted!");  //CID:88893 - checked return
+		}
+		else if (ETIMEDOUT != ret)
+		{
+			logprintf("sleep - condition wait failed %s", strerror(ret));
+		}
+	}
+	else
 	{
 		aborted = true;
 	}
+
 	pthread_mutex_unlock(&m_mutex);
 	return aborted;
 }
@@ -1433,17 +1446,15 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 		{
 			if ((pid != 0x1FFF) && (packet[3] & 0x10))
 			{
-				continuity = (packet[3] & 0x0F);
-				if (m_continuityCounters[pid] >= 0)
+				continuity = (packet[3] & 0x0F);			
+				int expected = m_continuityCounters[pid]; 
+				expected = ((expected + 1) & 0xF); //CID:94829 - No effect
+				if (expected != continuity)
 				{
-					int expected = m_continuityCounters[pid];
-					expected = ((expected + 1) & 0xF);
-					if (expected != continuity)
-					{
-						WARNING("input SPTS discontinuity on pid %X (%d instead of %d) offset %llx",
-							pid, continuity, expected, (long long)(packetCount*m_packetSize));
-					}
+					WARNING("input SPTS discontinuity on pid %X (%d instead of %d) offset %llx",
+						pid, continuity, expected, (long long)(packetCount*m_packetSize));
 				}
+				
 				m_continuityCounters[pid] = continuity;
 			}
 		}
@@ -1924,7 +1935,8 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 				if (0 != adaptation_fieldlen && (packetStart[5] & 0x10))
 				{
 					firstPcr = (unsigned long long) packetStart[6] << 25 | (unsigned long long) packetStart[7] << 17
-						| (unsigned long long) packetStart[8] << 9 | packetStart[9] << 1 | (packetStart[10] & 80) >> 7;
+						| (unsigned long long) packetStart[8] << 9 | packetStart[9] << 1 | (packetStart[10] & (0x80)) >> 7;
+  //CID:98793 - Uncaught expression results
 					if (m_playRate == 1.0)
 					{
 						NOTICE("firstPcr %llu", firstPcr);
@@ -2085,7 +2097,10 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 			{
 				m_audDemuxer->setBasePTS(basepts, true);
 			}
-			demuxAndSend(m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos, m_queuedSegmentDuration, m_queuedSegmentDiscontinuous );
+			if(!demuxAndSend(m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos, m_queuedSegmentDuration, m_queuedSegmentDiscontinuous ))
+			{
+				AAMPLOG_WARN("%s:%d: demuxAndSend", __FUNCTION__, __LINE__);  //CID:90622- checked return
+			}
 		}
 		else
 		{

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <errno.h>
 #include <string.h>
 #include <vector>
 #include <sys/utsname.h>
@@ -204,7 +205,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 			std::string delimiter (":Type:");
 			std::string requestType (m_challenge.substr(0, m_challenge.find(delimiter)));
 			if ( (requestType.size() != 0) && (requestType.size() !=  m_challenge.size()) ) {
-				m_challenge.erase(0, m_challenge.find(delimiter) + delimiter.length());
+				(void) m_challenge.erase(0, m_challenge.find(delimiter) + delimiter.length());
 			}
 
 			result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(m_challenge.c_str())), m_challenge.length());
@@ -302,8 +303,10 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			// wait for 5sec for all the logs to be flushed
 			sleep(5);
 			// Now kill self
-			pid_t pid = getpid();
-			syscall(__NR_tgkill, pid, pid, SIGKILL);
+			if(kill(getpid(), SIGKILL) < 0)
+			{
+				AAMPLOG_WARN("Kill Failed = %d", errno);  //CID:88415 - checked return
+			}
 		}
 		else {
 #ifdef USE_THUNDER_OCDM_API_0_2
