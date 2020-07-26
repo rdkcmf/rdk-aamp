@@ -3696,8 +3696,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					// curl sometimes exceeds the wait time by few milliseconds.Added buffer of 10msec
 					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
 									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
-									(buffer->len >= 0) &&
-									((downloadTimeMS-10) <= curlDownloadTimeoutMS));
+									((downloadTimeMS-10) <= curlDownloadTimeoutMS));  //CID:100647 - No effect
 					// set flag if download aborted with start/stall timeout.
 					abortReason = progressCtx.abortReason;
 

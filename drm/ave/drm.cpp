@@ -490,7 +490,6 @@ DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmI
 DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	DrmReturn err = eDRM_ERROR;
-
 	pthread_mutex_lock(&mutex);
 	if (mDrmState == eDRM_ACQUIRING_KEY )
 	{
@@ -524,14 +523,21 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 			encryptedData.len = (uint32_t)encryptedDataLen;
 
 			mpAamp->LogDrmDecryptBegin(bucketType);
-			if( 0 == m_pDrmAdapter->Decrypt(true, encryptedData, decryptedData))
+			try
 			{
-				err = eDRM_SUCCESS;
-			}
-			mpAamp->LogDrmDecryptEnd(bucketType);
+				if( 0 == m_pDrmAdapter->Decrypt(true, encryptedData, decryptedData))
+				{
+					err = eDRM_SUCCESS;
+				}
+				mpAamp->LogDrmDecryptEnd(bucketType);
 
-			memcpy(encryptedDataPtr, decryptedData.buf, encryptedDataLen);
-			free(decryptedData.buf);
+				memcpy(encryptedDataPtr, decryptedData.buf, encryptedDataLen);
+				free(decryptedData.buf);
+			}
+			catch(...)
+			{
+				logprintf("Stack  Exception caught in %s\n", __FUNCTION__);  //CID:86974 - Uncaught exception
+			}
 		}
 	}
 	else if (eDRM_KEY_FLUSH == mDrmState)
@@ -556,7 +562,14 @@ void AveDrm::Release()
 	if (m_pDrmAdapter)
 	{
 		// close all drm sessions
-		m_pDrmAdapter->AbortOperations();
+		try
+		{
+			m_pDrmAdapter->AbortOperations();
+		}
+		catch(...)
+		{
+			logprintf("Stack Exception caught in %s\n", __FUNCTION__);  //CID:81674 - Uncaught exception
+		}
 	}
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
@@ -620,8 +633,15 @@ AveDrm::~AveDrm()
 	}
 	if(m_pDrmAdapter)
 	{
-		delete m_pDrmAdapter;
-		m_pDrmAdapter = NULL;
+		try
+		{
+			delete m_pDrmAdapter;
+			m_pDrmAdapter = NULL;
+		}
+		catch(...)
+		{
+			logprintf("Stack Exception caught in %s\n", __FUNCTION__);  //CID:82348- Uncaught exception
+		}
 	}
 	if(mMetaData.metadataPtr)
 	{

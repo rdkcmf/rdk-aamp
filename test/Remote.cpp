@@ -23,6 +23,7 @@
 #include "irMgr.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
 
 #include <linux/input.h>
@@ -31,6 +32,12 @@
 #include "comcastIrKeyCodes.h"
 
 #define IR_REMOTE_APP_INIT_STR "IrRemoteApp"
+
+
+#define IOCTL_CALL(fd, keybit, keyvalue)  \
+	if (ioctl (fd, keybit, keyvalue) < 0) {\
+		printf("Failed at %d  = %d",keyvalue , errno);   \
+	}
 
 int gPipefd[2];
 int uinp_fd;
@@ -110,53 +117,50 @@ void RegisterDevice()
     //ioctl(uinp_fd, UI_DEV_CREATE)
     /****** Setup the uinput keyboard device section: **********/
 
-    ioctl(uinp_fd, UI_SET_EVBIT, EV_KEY);
-    ioctl(uinp_fd, UI_SET_EVBIT, EV_SYN);
+    IOCTL_CALL(uinp_fd, UI_SET_EVBIT, EV_KEY);
+    IOCTL_CALL(uinp_fd, UI_SET_EVBIT, EV_SYN);
     //ioctl(uinp_fd, UI_SET_EVBIT, EV_REP);
 
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_H);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_R);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_P);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_U);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_D);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_S);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_F);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_X);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_Z);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_UP);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_DOWN);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_LEFT);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_RIGHT);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_SPACE);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_ESC);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_H);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_R);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_P);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_U);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_D);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_S);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_F);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_X);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_Z);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_UP);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_DOWN);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_LEFT);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_RIGHT);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_SPACE);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_ESC);
 
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_0);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_1);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_2);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_3);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_4);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_5);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_6);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_7);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_8);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_9);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_0);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_1);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_2);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_3);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_4);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_5);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_6);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_7);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_8);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_9);
  
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_VOLUMEUP);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_VOLUMEDOWN);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_MUTE);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_VOLUMEUP);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_VOLUMEDOWN);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_MUTE);
   
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_F2);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_F3);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_F5);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_F2);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_F3);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_F5);
 
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_ENTER);
-    ioctl(uinp_fd, UI_SET_KEYBIT, KEY_BACKSPACE);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_ENTER);
+    IOCTL_CALL(uinp_fd, UI_SET_KEYBIT, KEY_BACKSPACE);
 
-    if (ioctl(uinp_fd, UI_DEV_CREATE, NULL) < 0)
-    {
-         printf("Unable to create UINPUT device.\n");
-         return;
-    }
+    IOCTL_CALL(uinp_fd, UI_DEV_CREATE, NULL);
+
     sleep(2);
 }
 
