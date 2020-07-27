@@ -6459,6 +6459,7 @@ void TrackState::FetchInitFragment()
 			discontinuity = false; //reset discontinuity which has been set for init fragment now
 			mSkipAbr = true; //Skip ABR, since last fragment cached is init fragment.
 			mCheckForInitialFragEnc = false; //Push encrypted header is a one-time operation
+			mFirstEncInitFragmentInfo = NULL; //reset init fragemnt, since ecnypted header already pushed
 
 			UpdateTSAfterFetch();
 		}
