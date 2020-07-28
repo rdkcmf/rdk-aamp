@@ -44,6 +44,7 @@
 #include <string.h>
 #include <stddef.h>
 #include "vttCue.h"
+#include <functional>
 
 #include "AampDrmSystems.h"
 #include "AampMediaType.h"

@@ -467,7 +467,6 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 #else
 	EVP_CIPHER_CTX_init(&mOpensslCtx);
 #endif
-	memset( &mDrmInfo, 0 , sizeof(DrmInfo));
 }
 
 
