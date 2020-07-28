@@ -210,6 +210,16 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
  */
 static gboolean buffering_timeout (gpointer data);
 
+/** 
+ * @brief check if elemement is instance (BCOM-3563)
+ */
+static void type_check_instance( const char * str, GstElement * elem);
+#define PLUGINS_TO_LOWER_RANK_MAX    2
+const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
+	"aacparse",
+	"ac3parse",
+};
+
 /**
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
@@ -1010,6 +1020,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
 					GstElement * audio_dec = (GstElement *) msg->src;
+
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
 					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
@@ -1156,12 +1167,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
+					type_check_instance("bus_sync_handle: video_dec ", _this->privateContext->video_dec);
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
 				}
 				else
 				{
 					_this->privateContext->audio_dec = (GstElement *) msg->src;
+					type_check_instance("bus_sync_handle: audio_dec ", _this->privateContext->audio_dec);
 					g_signal_connect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
@@ -1391,7 +1404,7 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 		g_object_get(privateContext->video_dec, "decode-handle", &dec_handle, NULL);
 #endif
 	}
-	logprintf("video decoder handle received %p", dec_handle);
+	logprintf("video decoder handle received %p for video_dec %p", dec_handle, privateContext->video_dec);
 	return (unsigned long)dec_handle;
 }
 
@@ -2281,10 +2294,12 @@ void AAMPGstPlayer::DisconnectCallbacks()
 {
 	if(privateContext->video_dec)
 	{
+		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: video_dec ", privateContext->video_dec);
 		g_signal_handlers_disconnect_by_data(privateContext->video_dec, this);
 	}
 	if(privateContext->audio_dec)
 	{
+		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: audio_dec ", privateContext->audio_dec);
 		g_signal_handlers_disconnect_by_data(privateContext->audio_dec, this);
 	}
 }
@@ -2960,11 +2975,11 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		bool bPauseNeeded = false;
-
-		gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
-
-		if (current != GST_STATE_PLAYING && current != GST_STATE_PAUSED)
+		GstStateChangeReturn ret;
+		ret = gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+		if ((current != GST_STATE_PLAYING && current != GST_STATE_PAUSED) || ret == GST_STATE_CHANGE_FAILURE)
 		{
+			logprintf("AAMPGstPlayer::%s:%d Pipeline state %s, ret %u", __FUNCTION__, __LINE__, gst_element_state_get_name(current), ret);
 			if (shouldTearDown)
 			{
 				logprintf("AAMPGstPlayer::%s:%d Pipeline is not in playing/paused state, hence resetting it", __FUNCTION__, __LINE__);
@@ -2974,7 +2989,23 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		else
 		{
-			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
+			/* BCOM-3563, pipeline may enter paused state even when audio decoder is not ready, check again */
+			if (privateContext->audio_dec)
+			{
+				GstState aud_current, aud_pending;
+				ret = gst_element_get_state(privateContext->audio_dec, &aud_current, &aud_pending, 0);
+				if ((aud_current != GST_STATE_PLAYING && aud_current != GST_STATE_PAUSED) || ret == GST_STATE_CHANGE_FAILURE)
+				{
+					if (shouldTearDown)
+					{
+						logprintf("AAMPGstPlayer::%s:%d Pipeline is in playing/paused state, but audio_dec is in %s state, resetting it ret %u\n",
+							 __FUNCTION__, __LINE__, gst_element_state_get_name(aud_current), ret);
+						Stop(true);
+						return;
+					}
+				}
+			}
+			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f ret %d\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position, ret);
 
 			if ((aamp->getStreamType() < 20) && (current == GST_STATE_PAUSED))
 			{
@@ -2996,11 +3027,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				}
 			}
 		}
-
+		/* Disabling the flush flag as part of DELIA-42607 to avoid */
+		/* flush call again (which may cause freeze sometimes)      */
+		/* from AAMPGstPlayer_SendPendingEvents() API.              */
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		{
 			privateContext->stream[i].resetPosition = true;
-			privateContext->stream[i].flush = true;
+			privateContext->stream[i].flush = false;
 			privateContext->stream[i].eosReached = false;
 		}
 
@@ -3270,6 +3303,16 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
+#ifndef INTELCE
+	for (int i=0; i<PLUGINS_TO_LOWER_RANK_MAX; i++) {
+		pluginFeature = gst_registry_lookup_feature(registry, plugins_to_lower_rank[i]);
+		if(pluginFeature) {
+			gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY - 1);
+			gst_object_unref(pluginFeature);
+			AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY  - 1\n", __FUNCTION__, __LINE__, plugins_to_lower_rank[i]);
+		}
+	}
+#endif
 #endif
 }
 
@@ -3381,11 +3424,6 @@ void AAMPGstPlayer::SeekStreamSink(double position, double rate)
 	// pipeline. This has to be avoided.
 	Flush(position, rate, false);
 
-	// Flushing seek will flush buffers in pipeline
-	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
-	{
-		privateContext->stream[i].flush = false;
-	}
 }
 
 /**
@@ -3446,6 +3484,10 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	pthread_mutex_unlock(&mBufferingLock);
 }
 
+void type_check_instance(const char * str, GstElement * elem)
+{
+	logprintf("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
+}
 /**
  * @}
  */
