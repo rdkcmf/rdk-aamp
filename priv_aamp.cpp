@@ -3120,6 +3120,9 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 {
 	int instanceEnd = startIdx + instanceCount;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
+        CURLSH *shobject = curl_share_init();
+        curl_share_setopt(shobject, CURLSHOPT_SHARE,CURL_LOCK_DATA_DNS);
+        
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (!curl[i])
@@ -3143,6 +3146,10 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
+
+                        long dns_cache_timeout = 5*60;
+			curl_easy_setopt(curl[i], CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout);
+                        curl_easy_setopt(curl[i], CURLOPT_SHARE, shobject);
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
