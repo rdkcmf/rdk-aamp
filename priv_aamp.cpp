@@ -1792,6 +1792,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
+	,mCurlShared(NULL)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
@@ -1823,6 +1824,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
+	mCurlShared = curl_share_init();
+	curl_share_setopt(mCurlShared, CURLSHOPT_SHARE,CURL_LOCK_DATA_DNS);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -1974,6 +1977,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 		mAampCacheHandler = NULL;
 	}
 #endif
+        curl_share_cleanup(mCurlShared);
 }
 
 /**
@@ -3108,8 +3112,6 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 {
 	int instanceEnd = startIdx + instanceCount;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
-        CURLSH *shobject = curl_share_init();
-        curl_share_setopt(shobject, CURLSHOPT_SHARE,CURL_LOCK_DATA_DNS);
         
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
@@ -3137,7 +3139,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
                         long dns_cache_timeout = 5*60;
 			curl_easy_setopt(curl[i], CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout);
-                        curl_easy_setopt(curl[i], CURLOPT_SHARE, shobject);
+                        curl_easy_setopt(curl[i], CURLOPT_SHARE, mCurlShared);
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
