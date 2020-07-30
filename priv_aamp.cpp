@@ -8511,17 +8511,10 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
-	return gpGlobalConfig->bEnableSubtec;//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
-}
-
-/**
- *   @brief To check if subtitles cue events are listened for
- *
- *   @return bool - true if event listeners are registered
- */
-bool PrivateInstanceAAMP::IsRegisteredForSubtitleCueData(void)
-{
-	return (mEventListener && mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
+	// Assumption being that enableSubtec and event listener will not be registered at the same time
+	// in which case subtec gets priority over event listener
+	return (gpGlobalConfig->bEnableSubtec || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+	//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
 }
 
 /**
