@@ -32,6 +32,11 @@
 #include <errno.h>
 
 
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define OPEN_SSL_CONTEXT mOpensslCtx
+#else
+#define OPEN_SSL_CONTEXT &mOpensslCtx
+#endif
 #define AES_128_KEY_LEN_BYTES 16
 
 static pthread_mutex_t instanceLock = PTHREAD_MUTEX_INITIALIZER;
@@ -305,13 +310,13 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 			int decLen = encryptedDataLen;
 			memset(decryptedDataBuf, 0, encryptedDataLen);
 			mpAamp->LogDrmDecryptBegin(bucketType);
-			if(!EVP_DecryptInit_ex(&mOpensslCtx, EVP_aes_128_cbc(), NULL, (unsigned char*)mAesKeyBuf.ptr, mDrmInfo.iv))
+			if(!EVP_DecryptInit_ex(OPEN_SSL_CONTEXT, EVP_aes_128_cbc(), NULL, (unsigned char*)mAesKeyBuf.ptr, mDrmInfo.iv))
 			{
 				logprintf( "AesDec::%s:%d: EVP_DecryptInit_ex failed mDrmState = %d",  __FUNCTION__, __LINE__, (int)mDrmState);
 			}
 			else
 			{
-				if (!EVP_DecryptUpdate(&mOpensslCtx, decryptedDataBuf, &decLen, (const unsigned char*) encryptedDataPtr,
+				if (!EVP_DecryptUpdate(OPEN_SSL_CONTEXT, decryptedDataBuf, &decLen, (const unsigned char*) encryptedDataPtr,
 				        encryptedDataLen))
 				{
 					logprintf("AesDec::%s:%d: EVP_DecryptUpdate failed mDrmState = %d", __FUNCTION__, __LINE__, (int) mDrmState);
@@ -321,7 +326,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 					decryptedDataLen = decLen;
 					decLen = 0;
 					AAMPLOG_INFO("AesDec::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", __FUNCTION__, __LINE__, (int) decryptedDataLen, (int)encryptedDataLen);
-					if (!EVP_DecryptFinal_ex(&mOpensslCtx, decryptedDataBuf + decryptedDataLen, &decLen))
+					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, decryptedDataBuf + decryptedDataLen, &decLen))
 					{
 						logprintf("AesDec::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d", __FUNCTION__, __LINE__,
 						        (int) mDrmState);
@@ -449,7 +454,11 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 {
 	pthread_cond_init(&mCond, NULL);
 	pthread_mutex_init(&mMutex, NULL);
-	EVP_CIPHER_CTX_init(&mOpensslCtx);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	OPEN_SSL_CONTEXT = EVP_CIPHER_CTX_new();
+#else
+	EVP_CIPHER_CTX_init(OPEN_SSL_CONTEXT);
+#endif
 }
 
 
@@ -462,5 +471,9 @@ AesDec::~AesDec()
 	Release();
 	pthread_mutex_destroy(&mMutex);
 	pthread_cond_destroy(&mCond);
-	EVP_CIPHER_CTX_cleanup(&mOpensslCtx);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	EVP_CIPHER_CTX_free(OPEN_SSL_CONTEXT);
+#else
+	EVP_CIPHER_CTX_cleanup(OPEN_SSL_CONTEXT);
+#endif
 }
