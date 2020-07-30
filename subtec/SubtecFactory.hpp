@@ -22,7 +22,7 @@
 #include "WebvttSubtecDevParser.hpp"
 #include "WebvttSubtecParser.hpp"
 #include "TtmlSubtecParser.hpp"
-#include "subtitleParser.h"
+#include "subtitleParser.h" //required for gpGlobalConfig also
 
 class SubtecFactory
 {
@@ -51,10 +51,11 @@ public:
         switch (mimeType)
         {
             case eSUB_TYPE_WEBVTT:
-                if (aamp->IsRegisteredForSubtitleCueData())
-                    return new WebVTTParser(aamp, mimeType);
-                else
+                // subtec gets priority over event listener
+                if (gpGlobalConfig->bEnableSubtec)
                     return new WebVTTSubtecDevParser(aamp, mimeType);                    
+                else
+                    return new WebVTTParser(aamp, mimeType);
             case eSUB_TYPE_TTML:
                 return new TtmlSubtecParser(aamp, mimeType);
             default:

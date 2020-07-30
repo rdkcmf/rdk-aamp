@@ -117,7 +117,7 @@ static long long convertHHMMSSToTime(char *str)
 
 	if (argCount == 1)
 	{
-		logprintf("%s:%d Unsupported value received!", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("%s:%d Unsupported value received!", __FUNCTION__, __LINE__);
 	}
 	//HH:MM:SS.MS
 	else
@@ -201,7 +201,7 @@ bool WebVTTParser::init(double startPos, unsigned long long basePTS)
 		mVttQueueIdleTaskId = g_timeout_add(VTT_QUEUE_TIMER_INTERVAL, SendVttCueToExt, this);
 	}
 
-	logprintf("WebVTTParser::%s %d startPos:%.3f and mStartPTS:%lld", __FUNCTION__, __LINE__, startPos, mStartPTS);
+	AAMPLOG_WARN("WebVTTParser::%s %d startPos:%.3f and mStartPTS:%lld", __FUNCTION__, __LINE__, startPos, mStartPTS);
 	//We are ready to receive data, unblock in PrivateInstanceAAMP
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	return ret;
@@ -222,13 +222,13 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 {
 	bool ret = false;
 
-	traceprintf("WebVTTParser::%s %d Enter with position:%.3f and duration:%.3f ", __FUNCTION__, __LINE__, position, duration);
+	AAMPLOG_TRACE("WebVTTParser::%s %d Enter with position:%.3f and duration:%.3f ", __FUNCTION__, __LINE__, position, duration);
 
 	if (mReset)
 	{
 		mStartPos = (position * 1000) - mProgressOffset;
 		mReset = false;
-		logprintf("WebVTTParser::%s %d Received first buffer after reset with mStartPos:%.3f", __FUNCTION__, __LINE__, mStartPos);
+		AAMPLOG_WARN("WebVTTParser::%s %d Received first buffer after reset with mStartPos:%.3f", __FUNCTION__, __LINE__, mStartPos);
 	}
 
 	//Check for VTT signature at the start of buffer
@@ -278,7 +278,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 					token = strtok(NULL, "=,");
 				}
 				mPtsOffset = (mpegTime / 90) - localTime; //in milliseconds
-				logprintf("Parsed local time:%lld and PTS:%lld and cuePTSOffset:%lld", localTime, mpegTime, mPtsOffset);
+				AAMPLOG_INFO("Parsed local time:%lld and PTS:%lld and cuePTSOffset:%lld", localTime, mpegTime, mPtsOffset);
 			}
 			else if (strstr(buffer, " --> ") != NULL)
 			{
@@ -297,7 +297,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 				char *token = strtok(buffer, " -->\t");
 				while (token != NULL)
 				{
-					traceprintf("Inside tokenizer, token:%s", token);
+					AAMPLOG_TRACE("Inside tokenizer, token:%s", token);
 					if (std::isdigit( static_cast<unsigned char>(token[0]) ) != 0)
 					{
 						if (start == -1)
@@ -368,7 +368,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 
 				while(nextLine && (*nextLine != CHAR_LINE_FEED && *nextLine != CHAR_CARRIAGE_RETURN && *nextLine != '\0'))
 				{
-					traceprintf("Found nextLine:%s", nextLine);
+					AAMPLOG_TRACE("Found nextLine:%s", nextLine);
 					if (nextLine[-1] == '\0')
 					{
 						nextLine[-1] = '\n';
@@ -391,7 +391,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 		}
 	}
 	mCurrentPos = (position + duration) * 1000.0;
-	traceprintf("%s:%d ################# Exit sub PTS:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
+	AAMPLOG_TRACE("%s:%d ################# Exit sub PTS:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
 	return ret;
 }
 
@@ -407,7 +407,7 @@ bool WebVTTParser::close()
 	bool ret = true;
 	if (mVttQueueIdleTaskId != 0)
 	{
-                logprintf("WebVTTParser::%s %d Remove mVttQueueIdleTaskId %d", __FUNCTION__, __LINE__, mVttQueueIdleTaskId);
+                AAMPLOG_INFO("WebVTTParser::%s %d Remove mVttQueueIdleTaskId %d", __FUNCTION__, __LINE__, mVttQueueIdleTaskId);
                 g_source_remove(mVttQueueIdleTaskId);
                 mVttQueueIdleTaskId = 0;
 	}
@@ -442,7 +442,7 @@ void WebVTTParser::reset()
 {
 	//Called on discontinuity, blocks further VTT processing
 	//Blocked until we get new basePTS
-	logprintf("WebVTTParser::%s %d Reset subtitle parser at position:%.3f\n", __FUNCTION__, __LINE__, mCurrentPos);
+	AAMPLOG_WARN("WebVTTParser::%s %d Reset subtitle parser at position:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
 	//Avoid calling stop injection if the first buffer is discontinuous
 	if (!mReset)
 	{
@@ -496,7 +496,7 @@ void WebVTTParser::sendCueData()
 			}
 			else
 			{
-				logprintf("Discarding cue with start:%.3f and text:%s", cue->mStart/1000.0, cue->mText.c_str());
+				AAMPLOG_WARN("Discarding cue with start:%.3f and text:%s", cue->mStart/1000.0, cue->mText.c_str());
 			}
 			delete cue;
 		}
