@@ -2060,13 +2060,6 @@ public:
 	 */
 	bool IsSubtitleEnabled(void);
 	
-	/**
-	 *   @brief To check if a JS listener is registered for subtitle cue data
-	 *
-	 *   @return bool - true if JS listener is registered
-	 */
-	bool IsRegisteredForSubtitleCueData(void);
-
 	/**   @brief updates download metrics to VideoStat object,
 	 *
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
