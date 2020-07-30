@@ -8446,7 +8446,7 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
-	return gpGlobalConfig->bEnableSubtec;//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+	return (gpGlobalConfig->bEnableSubtec || IsRegisteredForSubtitleCueData());//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
 }
 
 /**
@@ -8456,7 +8456,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
  */
 bool PrivateInstanceAAMP::IsRegisteredForSubtitleCueData(void)
 {
-	return (mEventListener && mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
+	return (mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
 }
 
 /**
