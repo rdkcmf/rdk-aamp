@@ -1037,7 +1037,7 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
  */
 void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position)
 {
-	if (profileIndex != aamp->GetPersistedProfileIndex())
+	if (profileIndex != aamp->GetPersistedProfileIndex() && cacheFragStreamInfo.bandwidthBitsPerSecond != 0)
 	{
 		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
 
