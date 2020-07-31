@@ -49,12 +49,16 @@ endif()
 
 # Mac OS X
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -g -x objective-c++ -Wno-inconsistent-missing-override")
-    set(OS_LD_FLAGS "${OS_LD_FLAGS} -framework Cocoa")
+    execute_process (
+        COMMAND bash -c "xcrun --show-sdk-path" OUTPUT_VARIABLE osxSdkPath OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -g -x objective-c++ -Wno-inconsistent-missing-override -F${osxSdkPath}/System/Library/Frameworks")
+    set(OS_LD_FLAGS "${OS_LD_FLAGS} -F${osxSdkPath}/System/Library/Frameworks -framework Cocoa")
     string(STRIP ${OS_LD_FLAGS} OS_LD_FLAGS)
     set(AAMP_CLI_LD_FLAGS "${AAMP_CLI_LD_FLAGS} -lgstvideo-1.0")
     string(STRIP ${AAMP_CLI_LD_FLAGS} AAMP_CLI_LD_FLAGS)
     set(AAMP_OS_SOURCES cocoa_window.mm)
+    link_directories(${OPENSSL_LIBRARY_DIRS})
 else()
     set(LIB_SHARED SHARED)
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
@@ -70,7 +74,9 @@ include_directories(${LIBDASH_INCLUDE_DIRS})
 include_directories(${LibXml2_INCLUDE_DIRS})
 include_directories(${OPENSSL_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES base16.cpp fragmentcollector_progressive.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp isobmff/isobmffbox.cpp isobmff/isobmffbuffer.cpp isobmff/isobmffprocessor.cpp)
+
+set(LIBAAMP_SOURCES base16.cpp ota_shim.cpp hdmiin_shim.cpp  fragmentcollector_progressive.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp isobmff/isobmffbox.cpp isobmff/isobmffbuffer.cpp isobmff/isobmffprocessor.cpp)
+
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")

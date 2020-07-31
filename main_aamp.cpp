@@ -73,6 +73,10 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 
+
+
+
+
 /**
  * @brief
  * @param paramName
@@ -4077,6 +4081,11 @@ int replace(std::string &str, const char *existingSubStringToReplace, int replac
 	rc = replace(str, existingSubStringToReplace, replacementString.c_str());
 	return rc;
 }
+
+#include "hdmiin_shim.h"
+#include "ota_shim.h"
+
+
 /**
  * @brief Common tune operations used on Tune, Seek, SetRate etc
  * @param tuneType type of tune
@@ -4170,6 +4179,22 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			enableThrottle = false;
 		}
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
+		if(NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+	else if (mMediaFormat == eMEDIAFORMAT_HDMI)
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HDMIIN (this, playlistSeekPos, rate);
+		if(NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+	else if (mMediaFormat == eMEDIAFORMAT_OTA)
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
 		if(NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
@@ -4391,6 +4416,16 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
         { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
                 mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
         }
+        else if(strstr(mainManifestUrl, "live:"))
+        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
+                     mMediaFormat = eMEDIAFORMAT_OTA;
+                     logprintf("PrivateInstanceAAMP::%s:%d eMEDIAFORMAT_OTA ", __FUNCTION__, __LINE__);
+        }
+        else if(strstr(mainManifestUrl, "hdmiin:"))
+        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
+                     mMediaFormat = eMEDIAFORMAT_HDMI;
+                     logprintf("PrivateInstanceAAMP::%s:%d eMEDIAFORMAT_HDMI ", __FUNCTION__, __LINE__);
+        }
         else
         { // for any other locators, assume DASH
                 mMediaFormat = eMEDIAFORMAT_DASH;
@@ -4532,7 +4567,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentT
 	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
 	if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 	{
-		logprintf("aamp_tune: attempt: %d format: %s URL: %s\n", mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+		logprintf("aamp_tune: p2 attempt: %d format: %s URL: %s\n", mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 	}
 	else
 	{

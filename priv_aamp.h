@@ -45,7 +45,7 @@
 
 static const char *mMediaFormatName[] =
 {
-    "HLS","DASH","PROGRESSIVE","HLS_MP4"
+    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI"
 };
 
 #ifdef __APPLE__
@@ -275,7 +275,9 @@ typedef enum
 	eMEDIAFORMAT_HLS,
 	eMEDIAFORMAT_DASH,
 	eMEDIAFORMAT_PROGRESSIVE,
-	eMEDIAFORMAT_HLS_MP4
+	eMEDIAFORMAT_HLS_MP4,
+    eMEDIAFORMAT_OTA,
+    eMEDIAFORMAT_HDMI
 } MediaFormat;
 
 /*================================== AAMP Log Manager =========================================*/
@@ -3265,5 +3267,8 @@ private:
 	double mPlaybackDuration; // Stores Total of duration of VideoDownloaded, it is not accurate playback duration but best way to find playback duration.
 	std::unordered_map<std::string, std::vector<std::string>> mCustomLicenseHeaders;
 };
+
+
+
 
 #endif // PRIVAAMP_H

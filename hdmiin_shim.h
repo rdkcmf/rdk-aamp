@@ -18,12 +18,12 @@
 */
 
 /**
- * @file fragmentcollector_progressive.h
- * @brief Streamer for progressive mp3/mp4 playback
+ * @file hdmiin_shim.h
+ * @brief shim for dispatching UVE HDMI input playback
  */
 
-#ifndef FRAGMENTCOLLECTOR_PROGRESSIVE_H_
-#define FRAGMENTCOLLECTOR_PROGRESSIVE_H_
+#ifndef HDMIIN_SHIM_H_
+#define HDMIIN_SHIM_H_
 
 #include "StreamAbstractionAAMP.h"
 #include <string>
@@ -31,16 +31,16 @@
 using namespace std;
 
 /**
- * @class StreamAbstractionAAMP_PROGRESSIVE
- * @brief Streamer for progressive mp3/mp4 playback
+ * @class StreamAbstractionAAMP_HDMIIN
+ * @brief Fragment collector for MPEG DASH
  */
-class StreamAbstractionAAMP_PROGRESSIVE : public StreamAbstractionAAMP
+class StreamAbstractionAAMP_HDMIIN : public StreamAbstractionAAMP
 {
 public:
-    StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
-    ~StreamAbstractionAAMP_PROGRESSIVE();
-    StreamAbstractionAAMP_PROGRESSIVE(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
-    StreamAbstractionAAMP_PROGRESSIVE& operator=(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
+    StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    ~StreamAbstractionAAMP_HDMIIN();
+    StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
@@ -49,28 +49,24 @@ public:
     double GetStreamPosition() override;
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
+    double GetBufferedDuration();
+    bool IsInitialCachingSupported();
     int GetBWIndex(long bitrate) override;
     std::vector<long> GetVideoBitrates(void) override;
     std::vector<long> GetAudioBitrates(void) override;
     long GetMaxBitrate(void) override;
     void StopInjection(void) override;
     void StartInjection(void) override;
-    void NotifyFirstVideoPTS(unsigned long long pts) { };
-
-    void NotifyBasePTS(unsigned long long pts) { };
-    void FetcherLoop();
+    void SeekPosUpdate(double) { };
+	void NotifyFirstVideoPTS(unsigned long long pts) { };
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 private:
-    void StreamFile( const char *uri, long *http_error );
-    bool fragmentCollectorThreadStarted;
-    pthread_t fragmentCollectorThreadID;
+	int hdmiInputPort;
 };
 
-#endif //FRAGMENTCOLLECTOR_PROGRESSIVE_H_
+#endif // HDMIIN_SHIM_H_
 /**
  * @}
  */
  
-
-
