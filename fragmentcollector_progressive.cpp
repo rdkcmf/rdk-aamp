@@ -19,7 +19,7 @@
 
 /**
  * @file fragmentcollector_progressive.cpp
- * @brief Fragment collector implementation for progressive mp3/mp4 playback
+ * @brief Streamer for progressive mp3/mp4 playback
  */
 
 #include "fragmentcollector_progressive.h"
@@ -169,7 +169,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
 
 /**
  * @brief Fragment collector thread
- * @param arg Pointer to PrivateStreamAbstractionMPD object
+ * @param arg Pointer to StreamAbstractionAAMP_PROGRESSIVE object
  * @retval NULL
  */
 static void * FragmentCollector(void *arg)
@@ -220,7 +220,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
  */
 
 /**
- * @brief StreamAbstractionAAMP_MPD Constructor
+ * @brief StreamAbstractionAAMP_PROGRESSIVE Constructor
  * @param aamp pointer to PrivateInstanceAAMP object associated with player
  * @param seek_pos Seek position
  * @param rate playback rate

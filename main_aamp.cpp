@@ -29,6 +29,8 @@
 #endif
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
+#include "hdmiin_shim.h"
+#include "ota_shim.h"
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
@@ -5156,6 +5158,23 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
+	else if (mMediaFormat == eMEDIAFORMAT_HDMI)
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HDMIIN(this, playlistSeekPos, rate);
+		if (NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+	else if (mMediaFormat == eMEDIAFORMAT_OTA)
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
+		if (NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+	
 
 	mInitSuccess = true;
 	AAMPStatusType retVal;
@@ -5603,7 +5622,15 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	std::string urlStr(url); // for convenience, convert to std::string
 
 #ifdef TRUST_LOCATOR_EXTENSION_IF_PRESENT // disable to exersize alternate path
-	if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
+    if( urlStr.rfind("hdmiin:",0)==0 )
+	{
+			rc = eMEDIAFORMAT_HDMI;
+	}
+	else if( urlStr.rfind("live:",0)==0 )
+	{
+			rc = eMEDIAFORMAT_OTA;
+	}
+	else if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
 	{ // where local host is used; inspect further to determine if this locator involves FOG
 
 		size_t fogUrlStart = urlStr.find("recordedUrl=", 16); // search forward, skipping 16-char http://127.0.0.1
@@ -7860,7 +7887,10 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	mStreamSink->SetVideoRectangle(x, y, w, h);
+	if (mMediaFormat == eMEDIAFORMAT_OTA && mpStreamAbstractionAAMP)
+ 		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
+  	else
+		mStreamSink->SetVideoRectangle(x, y, w, h);
 }
 
 

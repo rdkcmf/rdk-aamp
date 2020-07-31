@@ -75,4 +75,12 @@ void aamp_DecodeUrlParameter( std::string &uriParam );
  */
 double ISO8601DateTimeToUTCSeconds(const char *ptr);
 
+/**
+ * @brief aamp_PostJsonRPC posts JSONRPC data
+ * @param[in] id string containing player id
+ * @param[in] method string containing JSON method
+ * @param[in] params string containing params:value pair list
+ */
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params );
+
 #endif  /* __AAMP_UTILS_H__ */

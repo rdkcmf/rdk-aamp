@@ -23,6 +23,7 @@
  */
 
 #include "AampUtils.h"
+#include "GlobalConfigAAMP.h" //For logprintf
 #include "_base64.h"
 
 #include <sys/time.h>
@@ -283,4 +284,50 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
 	}
 	return timeSeconds;
+}
+
+static size_t MyRpcWriteFunction( void *buffer, size_t size, size_t nmemb, void *context )
+{
+	std::string *response = (std::string *)context;
+	size_t numBytes = size*nmemb;
+	*response += std::string((const char *)buffer,numBytes);
+	return numBytes;
+}
+
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params )
+{
+	bool rc = false;
+	std::string response;
+	CURL *curlhandle= curl_easy_init();
+	if( curlhandle )
+	{
+		curl_easy_setopt( curlhandle, CURLOPT_URL, "http://127.0.0.1:9998/jsonrpc" ); // local thunder
+		
+		struct curl_slist *headers = NULL;
+		headers = curl_slist_append( headers, "Content-Type: application/json" );
+		curl_easy_setopt(curlhandle, CURLOPT_HTTPHEADER, headers);    // set HEADER with content type
+		
+		std::string data = "{\"jsonrpc\":\"2.0\",\"id\":"+id+",\"method\":\""+method+"\",\"params\":"+params+"}";
+		logprintf( "%s:%d JSONRPC data: %s\n", __FUNCTION__, __LINE__, data.c_str() );
+		curl_easy_setopt(curlhandle, CURLOPT_POSTFIELDS, data.c_str() );    // set post data
+		
+		curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, MyRpcWriteFunction);    // update callback function
+		curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, &response);  // and data
+		
+		CURLcode res = curl_easy_perform(curlhandle);
+		if( res == CURLE_OK )
+		{
+			long http_code = -1;
+			curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &http_code);
+			logprintf( "%s:%d HTTP %ld \n", __FUNCTION__, __LINE__, http_code);
+			rc = true;
+		}
+		else
+		{
+			logprintf( "%s:%d failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
+		}
+		curl_slist_free_all( headers );
+		curl_easy_cleanup(curlhandle);
+	}
+        return response;
 }
