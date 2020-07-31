@@ -126,4 +126,12 @@ bool UrlEncode(std::string inStr, std::string &outStr);
  */
 void trim(std::string& src);
 
+/**
+ * @brief aamp_PostJsonRPC posts JSONRPC data
+ * @param[in] id string containing player id
+ * @param[in] method string containing JSON method
+ * @param[in] params string containing params:value pair list
+ */
+bool aamp_PostJsonRPC( std::string id, std::string method, std::string params );
+
 #endif  /* __AAMP_UTILS_H__ */
