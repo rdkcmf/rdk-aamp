@@ -948,7 +948,23 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		bool isComcastStream = false;
 
-		std::string externLicenseServerURL = aamp->GetLicenseServerUrlForDrm(drmType);
+		char *externLicenseServerURL = NULL;
+		if (gpGlobalConfig->prLicenseServerURL && drmType == eDRM_PlayReady)
+		{
+			externLicenseServerURL = gpGlobalConfig->prLicenseServerURL;
+		}
+		else if (gpGlobalConfig->wvLicenseServerURL && drmType == eDRM_WideVine)
+		{
+			externLicenseServerURL = gpGlobalConfig->wvLicenseServerURL;
+		}
+		else if (gpGlobalConfig->ckLicenseServerURL && drmType == eDRM_ClearKey)
+		{
+			externLicenseServerURL = gpGlobalConfig->ckLicenseServerURL;
+		}
+		else if (gpGlobalConfig->licenseServerURL)
+		{
+			externLicenseServerURL = gpGlobalConfig->licenseServerURL;
+		}
 
 		e->data.dash_drmmetadata.isSecClientError = false;
 
@@ -1008,12 +1024,12 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			licenceChallenge = new DrmData(reinterpret_cast<unsigned char*>(comChallenge.ptr),comChallenge.len);
 			aamp_Free(&comChallenge.ptr);
 
-			if (!externLicenseServerURL.empty())
+			if (externLicenseServerURL)
 			{
 #ifdef USE_SECCLIENT
-				destinationURL = getFormattedLicenseServerURL(externLicenseServerURL);
+				destinationURL = getFormattedLicenseServerURL(string(externLicenseServerURL));
 #else
-				destinationURL = externLicenseServerURL;
+				destinationURL = string(externLicenseServerURL);
 #endif
 			}
 			else
@@ -1120,9 +1136,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 		else 
 		{
-			if (!externLicenseServerURL.empty())
+			if (externLicenseServerURL)
 			{
-				destinationURL = externLicenseServerURL;
+				destinationURL = string(externLicenseServerURL);
 			}
 			logprintf("%s:%d License request ready for %s stream", __FUNCTION__, __LINE__, sessionTypeName[streamType]);
 			struct curl_slist *headers = NULL;
