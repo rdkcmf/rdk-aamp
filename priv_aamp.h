@@ -2550,10 +2550,9 @@ public:
 	 *   Called from StreamAbstractionAAMP to signal discontinuity
 	 *
 	 *   @param[in] track - Media type
-	 *   @param[in] setDiscontinuityFlag if true then no need to call mStreamSink->Discontinuity(), set only the discontinuity processing flag.
 	 *   @return true if discontinuity is handled.
 	 */
-	bool Discontinuity(MediaType track, bool setDiscontinuityFlag = false);
+	bool Discontinuity(MediaType);
 
 	/**
 	 *   @brief Set video zoom mode
