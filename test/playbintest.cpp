@@ -128,7 +128,7 @@ static void stop(int idx = 0)
 
 static void changeChannel(const char* uri, int idx= 0)
 {
-	GstStateChangeReturn ret;
+	//CID:100649 - Remoed the local variable which has been initialized but not used
 	stop(idx);
 	g_object_set(playbin[idx], "uri", uri, NULL);
 	setPause(false);

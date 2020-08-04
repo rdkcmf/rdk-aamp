@@ -45,12 +45,8 @@ struct DecryptStats
 #define SEC_SIZE size_t
 void LogPerformanceExt(const char *strFunc, uint64_t msStart, uint64_t msEnd, SEC_SIZE nDataSize)
 {
-	bool bThreshold = false;
 	uint64_t delta = msEnd - msStart;
-	uint32_t nRateMin = 1000;	// Bytes/ms
-	uint32_t nRestart = 5;
-	uint32_t nDataMin = 1000;
-	uint32_t nTimeMin = 5; // Can not be < 1 to protect against divide by 0 error
+	//CID: 107327,26,25,24,23 - Removed the unused initialized variables : bThreshold,nDataMin,nRestart,nRateMin,nTimeMin
 
 #ifdef LOG_DECRYPT_STATS
 	{

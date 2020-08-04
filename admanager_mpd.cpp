@@ -717,6 +717,10 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 		{
 			//Clearing the previous thread
 			int rc = pthread_join(mAdObjThreadID, NULL);
+			if(rc != 0)  //CID:101068 - Resolving the local variable rc initialized but not used
+			{
+				logprintf("%s:%d pthread_join(mAdObjThreadID) failed , errno = %d, %s , Rejecting promise.", __FUNCTION__,__LINE__,errno,strerror(errno));
+			}
 			mAdObjThreadID = 0;
 		}
 		if(isAdBreakObjectExist(periodId))
