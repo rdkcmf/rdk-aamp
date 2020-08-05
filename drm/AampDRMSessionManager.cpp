@@ -1359,7 +1359,7 @@ void *CreateDRMSession(void *arg)
 	AAMPLOG_INFO("%s:%d Entered arg - 0x%08x", 
 	 __FUNCTION__, __LINE__, arg );
 
-	if(aamp_pthread_setname(pthread_self(), "aampDRM"))
+	if(aamp_pthread_setname(pthread_self(), "aampfMP4DRM"))
 	{
 		AAMPLOG_ERR("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}

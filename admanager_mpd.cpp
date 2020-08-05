@@ -31,7 +31,7 @@
 static void *AdFulfillThreadEntry(void *arg)
 {
     PrivateCDAIObjectMPD *_this = (PrivateCDAIObjectMPD *)arg;
-    if(aamp_pthread_setname(pthread_self(), "AdFulfillThread"))
+    if(aamp_pthread_setname(pthread_self(), "aampADFulfill"))
     {
         logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
     }

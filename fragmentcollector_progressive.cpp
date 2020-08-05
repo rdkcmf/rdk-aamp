@@ -174,7 +174,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
  */
 static void * FragmentCollector(void *arg)
 {
-    if(aamp_pthread_setname(pthread_self(), "aampProgressiveFetch"))
+    if(aamp_pthread_setname(pthread_self(), "aampPSFetcher"))
     {
         logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
     }
