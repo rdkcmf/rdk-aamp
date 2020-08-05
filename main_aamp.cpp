@@ -6211,6 +6211,36 @@ double PrivateInstanceAAMP::GetSeekBase(void)
 	return seek_pos_seconds;
 }
 
+/**
+ *   @brief Check given rate is valid.
+ *
+ *   @param[in] rate - Rate of playback.
+ *   @retval return true if the given rate is valid.
+ */
+bool PlayerInstanceAAMP::IsValidRate(int rate)
+{
+	bool retValue = false;
+
+	switch(rate)
+	{
+		case AAMP_RATE_REW_1X:
+		case AAMP_RATE_REW_2X:
+		case AAMP_RATE_REW_3X:
+		case AAMP_RATE_REW_4X:
+		case AAMP_RATE_PAUSE:
+		case AAMP_NORMAL_PLAY_RATE:
+		case AAMP_RATE_FWD_1X:
+		case AAMP_RATE_FWD_2X:
+		case AAMP_RATE_FWD_3X:
+		case AAMP_RATE_FWD_4X:
+		{
+			retValue = true;
+			break;
+		}
+	}
+
+	return retValue;
+}
 
 /**
  *   @brief Set playback rate.
@@ -6223,6 +6253,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
 
 	ERROR_STATE_CHECK_VOID();
+
+	if (!IsValidRate(rate))
+	{
+		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		return;
+	}
 
 	if (aamp->mpStreamAbstractionAAMP)
 	{
@@ -6263,14 +6299,14 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			// instead use last reported posn vs the time player get play command
 		// a. During trickplay , last XRE reported position is stored in aamp->mReportProgressPosn
 					/// and last reported time is stored in aamp->mReportProgressTime
-		// b. Calculate the time delta  from last reported time
+		// b. Calculate the time delta	from last reported time
 		// c. Using this diff , calculate the best/nearest match position (works out 70-80%)
 		// d. If time delta is < 100ms ,still last video fragment rendering is not removed ,but position updated very recently
-			// So switch last displayed position - NewPosn -= Posn - ((aamp->rate/4)*1000) 
-		// e. If time delta is > 950ms , possibility of next frame to come by the time play event is processed . 
+			// So switch last displayed position - NewPosn -= Posn - ((aamp->rate/4)*1000)
+		// e. If time delta is > 950ms , possibility of next frame to come by the time play event is processed.
 			//So go to next fragment which might get displayed
 		// f. If none of above ,maintain the last displayed position .
-		// 
+		//
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 
 		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
@@ -6281,7 +6317,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		if (!((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			double newSeekPosInSec = -1;
-			// when switching from trick to play mode only 
+			// when switching from trick to play mode only
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
 				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
@@ -6291,12 +6327,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				}
 				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
 				{
-					// Get the last shown frame itself 
+					// Get the last shown frame itself
 					newSeekPosInSec = aamp->mReportProgressPosn/1000;
 				}
 				else
 				{
-					// Go little back to last shown frame 
+					// Go little back to last shown frame
 					newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
 				}
 
@@ -6312,7 +6348,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			else
 			{
 				// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
-				// Show the last position 
+				// Show the last position
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
 			}
 
