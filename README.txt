@@ -131,6 +131,7 @@ uriParameter=<uriParameterString> uri parameter data to be appended on download-
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
+disableMidFragmentSeek=1       Disables the Mid-Fragment seek functionality in aamp.
 
 langcodepref=<X>
 	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
