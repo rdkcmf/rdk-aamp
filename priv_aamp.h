@@ -651,6 +651,7 @@ public:
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
 	std::string mSessionToken; /**< Field to set session token for player */
+	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 
 	/**
 	 * @brief Curl initialization function
