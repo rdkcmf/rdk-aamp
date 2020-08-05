@@ -2611,15 +2611,19 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
 		if (!node.empty())
 		{
-			string psshData = node.at(0)->GetText();
-			data = base64_Decode(psshData.c_str(), &dataLength);
-			if (0 == dataLength)
+			std::string tagName = node.at(0)->GetName();
+			if (tagName.find("pssh") != std::string::npos)
 			{
-				AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
-				if (data)
+				string psshData = node.at(0)->GetText();
+				data = base64_Decode(psshData.c_str(), &dataLength);
+				if (0 == dataLength)
 				{
-					free(data);
-					data = NULL;
+					AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+					if (data)
+					{
+						free(data);
+						data = NULL;
+					}
 				}
 			}
 		}
