@@ -180,6 +180,7 @@ harvestpath=<X> Specify the path where fragments has to be harvested,check folde
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
 enable-tune-profiling=1 Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging
 gst-position-query-enable=<X>	if X is 1, then GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms
+disableMidFragmentSeek=1       Disables the Mid-Fragment seek functionality in aamp.
 
 langcodepref=<X>
 	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)

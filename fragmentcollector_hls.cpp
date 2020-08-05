@@ -78,7 +78,6 @@ static const int DEFAULT_STREAM_HEIGHT = 576;
 static const double DEFAULT_STREAM_FRAMERATE = 25.0;
 static const std::string DEFAULT_STREAM_CODECS = "avc1.66.30,mp4a.40.5";
 
-
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
@@ -4911,7 +4910,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			//Set live adusted position to seekPosition
 			SeekPosUpdate(video->playTarget);
-			
 		}
 		/*Adjust for discontinuity*/
 		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
@@ -5028,9 +5026,43 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 			//Set live adusted position to seekPosition
-			SeekPosUpdate(video->playTarget);
+			if(gpGlobalConfig->midFragmentSeekEnabled)
+			{
+				midSeekPtsOffset = seekPosition - video->playTarget;
+				if(midSeekPtsOffset > video->fragmentDurationSeconds/2)
+				{
+					if(aamp->GetInitialBufferDuration() == 0)
+					{
+						PrivAAMPState state;
+						aamp->GetState(state);
+						if(state == eSTATE_SEEKING)
+						{
+							// To prevent underflow when seeked to end of fragment.
+							// Added +1 to ensure next fragment is fetched.
+							aamp->SetInitialBufferDuration((int)video->fragmentDurationSeconds + 1);
+							aamp->midFragmentSeekCache = true;
+						}
+					}
+				}
+				else if(aamp->midFragmentSeekCache)
+				{
+					// Resetting fragment cache when seeked to first half of the fragment duration.
+					aamp->SetInitialBufferDuration(0);
+					aamp->midFragmentSeekCache = false;
+				}
+
+				if(midSeekPtsOffset > 0.0)
+				{
+					midSeekPtsOffset += 0.5 ;  // Adding 0.5 to neutralize PTS-500ms in BasePTS calculation.
+				}
+				SeekPosUpdate(seekPosition);
+			}
+			else
+			{
+				SeekPosUpdate(video->playTarget);
+			}
 			
-			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
+			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
 		if (video->enabled && GetProfileCount())
@@ -5169,10 +5201,13 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 ***************************************************************************/
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
-	double pts;
+	double pts = 0.0;
 	if( mStartTimestampZero)
 	{
-		pts = 0;
+		if(gpGlobalConfig->midFragmentSeekEnabled)
+		{
+			pts = midSeekPtsOffset;
+		}
 	}
 	else
 	{
@@ -5425,7 +5460,7 @@ static void *FragmentCollector(void *arg)
 ***************************************************************************/
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
-	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
+	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
 	,mUseAvgBandwidthForABR(false)
 {

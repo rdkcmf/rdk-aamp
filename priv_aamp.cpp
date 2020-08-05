@@ -1460,6 +1460,11 @@ static void ProcessConfigEntry(std::string cfg)
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
+		else if (ReadConfigNumericHelper(cfg, "disableMidFragmentSeek=", value) == 1)
+		{
+			gpGlobalConfig->midFragmentSeekEnabled = (!value==1);
+			logprintf("%s Mid-Fragment Seek",gpGlobalConfig->midFragmentSeekEnabled?"Enabled":"Disabled");
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1808,7 +1813,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
-	, mPreferredAudioTrack(), mPreferredTextTrack()
+	, mPreferredAudioTrack(), mPreferredTextTrack(), midFragmentSeekCache(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8547,7 +8552,15 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		mStreamSink->SeekStreamSink(position, rate);
+		if(gpGlobalConfig->midFragmentSeekEnabled)
+		{
+			//RDK-26957 Sending seekposition value to position value.
+			mStreamSink->SeekStreamSink(seek_pos_seconds, rate);
+		}
+		else
+		{
+			mStreamSink->SeekStreamSink(position, rate);
+		}
 	}
 #endif
 }

@@ -441,6 +441,7 @@ public:
 	MediaInfo mediaInfo[MAX_PROFILE];				/**< Array to store multiple media within stream */
 
 	double seekPosition;							/**< Seek position for playback */
+	double midSeekPtsOffset;							/**< PTS offset for Mid Fragment seek  */
 	int mTrickPlayFPS;								/**< Trick play frames per stream */
 	bool enableThrottle;							/**< Flag indicating throttle enable/disable */
 	bool firstFragmentDecrypted;					/**< Flag indicating if first fragment is decrypted for stream */

@@ -2139,6 +2139,32 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, firstPTS);
 								mFirstPTS = firstPTS;
 								mVideoPosRemainder = skipTime;
+								if(gpGlobalConfig->midFragmentSeekEnabled)
+								{
+									mFirstPTS += mVideoPosRemainder;
+									if(mVideoPosRemainder > fragmentDuration/2)
+									{
+										if(aamp->GetInitialBufferDuration() == 0)
+										{
+											PrivAAMPState state;
+											aamp->GetState(state);
+											if(state == eSTATE_SEEKING)
+											{
+												// To prevent underflow when seeked to end of fragment.
+												// Added +1 to ensure next fragment is fetched.
+												aamp->SetInitialBufferDuration((int)fragmentDuration + 1);
+												aamp->midFragmentSeekCache = true;
+											}
+										}
+									}
+									else if(aamp->midFragmentSeekCache)
+									{
+										// Resetting fragment cache when seeked to first half of the fragment duration.
+										aamp->SetInitialBufferDuration(0);
+										aamp->midFragmentSeekCache = false;
+									}
+
+								}
 								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f  mVideoPosRemainder %f", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, mVideoPosRemainder);
 							}
 						}
@@ -3628,7 +3654,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				aamp->NotifyOnEnteringLive();
 			}
 			SeekInPeriod( offsetFromStart);
-			seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
+			if(!gpGlobalConfig->midFragmentSeekEnabled)
+			{
+				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
+			}
 			if(0 != mCurrentPeriodIdx)
 			{
 				seekPosition += currentPeriodStart;
