@@ -94,7 +94,6 @@ static const char *mMediaFormatName[] =
 
 //Upper and lower limit for dash drm sessions
 
-//#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
 
@@ -3269,10 +3268,6 @@ private:
 	std::string mServiceZone; // part of url
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
-#ifdef PLACEMENT_EMULATION
-	int mNumAds2Place;
-	std::string sampleAdBreakId;
-#endif
 	CVideoStat * mVideoEnd;
 	std::string  mTraceUUID; // Trace ID unique to tune
 	double mTimeToTopProfile;

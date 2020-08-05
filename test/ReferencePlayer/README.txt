@@ -11,7 +11,7 @@ A. Overview:
     2. UVE Reference Player - Unified Video Engine (UVE) is a set of JavaScript binding APIs which allows its user to interact with
        AAMP player. The bindings are made available in JavaScript with the help of injectedbundle once DOM elements are loaded by webkit.
        The specification document for UVE is available at
-       https://etwiki.sys.comcast.net/pages/viewpage.action?spaceKey=VIDEOARCH&title=Unified+Video+Engine+API+v0.5
+       current repo AAMP-UVE-API.pdf (./../../AAMP-UVE-API.pdf)
 
 B. Target audience:
 
