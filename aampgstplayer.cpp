@@ -165,6 +165,7 @@ struct AAMPGstPlayerPriv
 	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
 	gint64 segmentStart; // segment start value; required when qtdemux is enabled and restamping is disabled
 	GstQuery *positionQuery; // pointer that holds a position query object
+        GstQuery *durationQuery; // pointer that holds a duration query object
 	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
 	GstState pipelineState; // current state of pipeline
 	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
@@ -2664,6 +2665,51 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	//privateContext->total_duration = 0;
 	logprintf("exiting AAMPGstPlayer_FlushEvent");
 	aamp->SyncEnd();
+}
+
+/**
+ * @brief Get playback duration in MS
+ * @retval playback duration in MS
+ */
+long AAMPGstPlayer::GetDurationMilliseconds(void)
+{
+	long rc = 0;
+	if( privateContext->pipeline )
+	{
+		if( privateContext->pipelineState == GST_STATE_PLAYING || // playing
+		    (privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused) ) // paused by user
+		{
+			privateContext->durationQuery = gst_query_new_duration(GST_FORMAT_TIME);
+			if( privateContext->durationQuery )
+			{
+				gboolean res = gst_element_query(privateContext->pipeline,privateContext->durationQuery);
+				if( res )
+				{
+					gint64 duration;
+					gst_query_parse_duration(privateContext->durationQuery, NULL, &duration);
+					rc = GST_TIME_AS_MSECONDS(duration);
+				}
+				else
+				{
+					AAMPLOG_WARN("%s(): Duration query failed", __FUNCTION__);
+				}
+				gst_query_unref(privateContext->durationQuery);
+			}
+			else
+			{
+				AAMPLOG_WARN("%s(): Duration query is NULL", __FUNCTION__);
+			}
+		}
+		else
+		{
+			AAMPLOG_WARN("%s(): Pipeline is in %s state", __FUNCTION__, gst_element_state_get_name(privateContext->pipelineState) );
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s(): Pipeline is null", __FUNCTION__ );
+	}
+	return rc;
 }
 
 /**
