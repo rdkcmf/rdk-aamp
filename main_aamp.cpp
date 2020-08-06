@@ -8235,6 +8235,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	}
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
+	pthread_mutex_unlock(&mMutexPlaystart);
 
 	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
