@@ -2126,7 +2126,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 								pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
 							}
 						}
-						continue;
+						continue;  /* continue to next fragment */
 					}
 					if (abs(skipTime) < fragmentDuration)
 					{ // last iteration
@@ -2212,7 +2212,8 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					}					
 				}
 			}
-		}while(skipTime != 0);
+			if( skipTime==0 ) AAMPLOG_WARN( "XIONE-941" );
+		}while(true); // was while(skipTime != 0);
 
 		AAMPLOG_INFO("%s:%d Exit :Type[%d] timeLineIndex %d fragmentRepeatCount %d fragmentDescriptor.Number %" PRIu64 " fragmentTime %f FTime:%f", __FUNCTION__, __LINE__,pMediaStreamContext->type,
 				pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount, pMediaStreamContext->fragmentDescriptor.Number, pMediaStreamContext->fragmentTime,pMediaStreamContext->fragmentDescriptor.Time);
