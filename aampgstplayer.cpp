@@ -1261,7 +1261,13 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			GstStructure* contextStructure = gst_context_writable_structure(context);
 			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID((DRMSystems)gpGlobalConfig->preferredDrm),  NULL);
 			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
+
+/* This call is not needed from here, because it overrides the original drm type of the playback if the preferred drm PSSH data not available in the stream.
+ * Because of this override, wrong drm type getting reported via tune metric. Example: DELIA-45169
+ */
+#if 0
 			_this->aamp->setCurrentDrm((DRMSystems)gpGlobalConfig->preferredDrm);
+#endif /* 0 */
 		}
 
 		break;
