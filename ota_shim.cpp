@@ -31,6 +31,12 @@
 #include <signal.h>
 #include <assert.h>
 
+/* Default Video Rectangle coordinates */
+#define DEFAULT_XPOS 0
+#define DEFAULT_YPOS 0
+#define DEFAULT_WIDTH 1280
+#define DEFAULT_HEIGHT 720
+
 /**
  *   @brief  Initialize a newly created object.
  *   @note   To be implemented by sub classes
@@ -58,7 +64,14 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *
  * @brief StreamAbstractionAAMP_OTA Destructor
  */
 StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
-{ // STUB
+{
+        /*
+        Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.release", "params":{ "id":"MainPlayer", "tag" : "MyApp"} }
+        Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
+        */
+        std::string id = "3";
+        std:: string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.release", "{\"id\":\"MainPlayer\",\"tag\" : \"MyApp\"}");
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 }
 
 /**
@@ -67,6 +80,7 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 void StreamAbstractionAAMP_OTA::Start(void)
 {
 	std::string id = "3";
+        std::string response;
 	const char *display = getenv("WAYLAND_DISPLAY");
 	std::string waylandDisplay;
 	if( display )
@@ -83,38 +97,74 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	Request : {"jsonrpc": "2.0","id": 4,"method": "Controller.1.activate", "params": { "callsign": "org.rdk.MediaPlayer" }}
 	Response : {"jsonrpc": "2.0","id": 4,"result": null}
 	*/
-	aamp_PostJsonRPC(id, "Controller.1.activate", "{\"callsign\":\"org.rdk.MediaPlayer\"}" );
+	response = aamp_PostJsonRPC(id, "Controller.1.activate", "{\"callsign\":\"org.rdk.MediaPlayer\"}" );
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method":"org.rdk.MediaPlayer.1.create", "params":{ "id" : "MainPlayer", "tag" : "MyApp"} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
 	*/
-	aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.create", "{\"id\":\"MainPlayer\",\"tag\":\"MyApp\"}");
+	response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.create", "{\"id\":\"MainPlayer\",\"tag\":\"MyApp\"}");
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        response.clear();
 	// inform (MediaRite) player instance on which wayland display it should draw the video. This MUST be set before load/play is called.
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method":"org.rdk.MediaPlayer.1.setWaylandDisplay", "params":{"id" : "MainPlayer","display" : "westeros-123"} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true} }
 	*/
-	aamp_PostJsonRPC( id, "org.rdk.MediaPlayer.1.setWaylandDisplay", "{\"id\":\"MainPlayer\",\"display\":\"" + waylandDisplay + "\"}" );
+	response = aamp_PostJsonRPC( id, "org.rdk.MediaPlayer.1.setWaylandDisplay", "{\"id\":\"MainPlayer\",\"display\":\"" + waylandDisplay + "\"}" );
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.load", "params":{ "id":"MainPlayer", "url":"live://...", "autoplay": true} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
 	*/
-	aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.load","{\"id\":\"MainPlayer\",\"url\":\""+url+"\",\"autoplay\":true}" );
+	response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.load","{\"id\":\"MainPlayer\",\"url\":\""+url+"\",\"autoplay\":true}" );
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.play", "params":{ "id":"MainPlayer"} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
 	*/
   
-	// below harmless, but not needed, given use of autoplay above
-	aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.play", "{\"id\":\"MainPlayer\"}");
+	// below play request harmless, but not needed, given use of autoplay above
+	// response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.play", "{\"id\":\"MainPlayer\"}");
+        // logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+
+	// Set Video Rectangle to default values (0,0,1280,720)
+        SetVideoRectangle(DEFAULT_XPOS, DEFAULT_YPOS, DEFAULT_WIDTH, DEFAULT_HEIGHT);
 }
 
 /**
 *   @brief  Stops streaming.
 */
 void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
-{ // STUB
- }
+{
+        /*
+        Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.stop", "params":{ "id":"MainPlayer"} }
+        Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
+        */
+        std::string id = "3";
+        std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.stop", "{\"id\":\"MainPlayer\"}");
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+}
+
+/**
+ * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h)
+ *
+ * @param[in] x,y - position coordinates of video rectangle
+ * @param[in] wxh - width & height of video rectangle
+ */
+void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
+{
+        /*
+        Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.setVideoRectangle", "params":{ "id":"MainPlayer", "x":0, "y":0, "w":1280, "h":720} }
+        Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
+        */
+        std::string id = "3";
+        std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.setVideoRectangle", "{\"id\":\"MainPlayer\", \"x\":" + to_string(x) + ", \"y\":" + to_string(y) + ", \"w\":" + to_string(w) + ", \"h\":" + std::to_string(h) + "}");
+        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+}
 
 /**
  * @brief Stub implementation

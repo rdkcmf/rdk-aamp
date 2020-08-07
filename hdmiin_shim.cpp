@@ -66,7 +66,8 @@ StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstance
 
 {
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d constructor  activating org.rdk.HdmiInput ",__FUNCTION__,__LINE__);
-	aamp_PostJsonRPC("3", "Controller.1.activate", "{\"callsign\":\"org.rdk.HdmiInput\"}" );
+	std::string response = aamp_PostJsonRPC("3", "Controller.1.activate", "{\"callsign\":\"org.rdk.HdmiInput\"}" );
+	logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 }
 		   
 /**
@@ -90,7 +91,8 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 		AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d port is %d ",__FUNCTION__,__LINE__, hdmiInputPort);
 
 		std::string params = "{\"portId\":" + std::to_string(hdmiInputPort) + "}";
-		bool success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.startHdmiInput", params );
+		std::string success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.startHdmiInput", params );
+		logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, success.c_str());
 		/*
 		Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.startHdmiInput", "params":{"portId":0}}
 		Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
@@ -106,7 +108,8 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
 	if( hdmiInputPort>=0 )
 	{
-		bool success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.stopHdmiInput", "null" );
+		std::string  success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.stopHdmiInput", "null" );
+		logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, success.c_str());
 		hdmiInputPort = -1;
 	/*
 	 Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.stopHdmiInput"}

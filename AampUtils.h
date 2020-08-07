@@ -132,6 +132,6 @@ void trim(std::string& src);
  * @param[in] method string containing JSON method
  * @param[in] params string containing params:value pair list
  */
-bool aamp_PostJsonRPC( std::string id, std::string method, std::string params );
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params );
 
 #endif  /* __AAMP_UTILS_H__ */

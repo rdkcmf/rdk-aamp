@@ -591,9 +591,10 @@ static size_t MyRpcWriteFunction( void *buffer, size_t size, size_t nmemb, void 
 	return numBytes;
 }
 
-bool aamp_PostJsonRPC( std::string id, std::string method, std::string params )
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params )
 {
 	bool rc = false;
+	std::string response;
 	CURL *curlhandle= curl_easy_init();
 	if( curlhandle )
 	{
@@ -607,16 +608,15 @@ bool aamp_PostJsonRPC( std::string id, std::string method, std::string params )
 		logprintf( "%s:%d JSONRPC data: %s\n", __FUNCTION__, __LINE__, data.c_str() );
 		curl_easy_setopt(curlhandle, CURLOPT_POSTFIELDS, data.c_str() );    // set post data
 		
-		std::string result;
 		curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, MyRpcWriteFunction);    // update callback function
-		curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, &result);  // and data
+		curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, &response);  // and data
 		
 		CURLcode res = curl_easy_perform(curlhandle);
 		if( res == CURLE_OK )
 		{
 			long http_code = -1;
 			curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &http_code);
-			logprintf( "%s:%d HTTP %ld len:%d Response: %s\n", __FUNCTION__, __LINE__, http_code, result.c_str() );
+			logprintf( "%s:%d HTTP %ld \n", __FUNCTION__, __LINE__, http_code);
 			rc = true;
 		}
 		else
@@ -626,5 +626,5 @@ bool aamp_PostJsonRPC( std::string id, std::string method, std::string params )
 		curl_slist_free_all( headers );
 		curl_easy_cleanup(curlhandle);
 	}
-	return rc;
+        return response;
 }

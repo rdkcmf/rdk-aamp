@@ -929,6 +929,14 @@ public:
 	 */
 	int GetTextTrack();
 
+	/**
+	 * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h) for OTA streams only
+	 *
+	 * @param[in] x,y - position coordinates of video rectangle
+	 * @param[in] wxh - width & height of video rectangle
+	 */
+	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

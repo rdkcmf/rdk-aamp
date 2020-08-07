@@ -5831,7 +5831,10 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	mStreamSink->SetVideoRectangle(x, y, w, h);
+	if (mMediaFormat == eMEDIAFORMAT_OTA && mpStreamAbstractionAAMP)
+		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
+	else
+		mStreamSink->SetVideoRectangle(x, y, w, h);
 }
 
 /**

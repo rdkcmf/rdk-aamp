@@ -32,7 +32,7 @@ using namespace std;
 
 /**
  * @class StreamAbstractionAAMP_OTA
- * @brief Fragment collector for MPEG DASH
+ * @brief Fragment collector for OTA
  */
 class StreamAbstractionAAMP_OTA : public StreamAbstractionAAMP
 {
@@ -59,6 +59,7 @@ public:
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
     void NotifyFirstVideoPTS(unsigned long long pts) { };
+    void SetVideoRectangle(int x, int y, int w, int h) override;
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 };
