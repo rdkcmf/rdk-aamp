@@ -216,7 +216,8 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
-	ERROR_STATE_CHECK_VOID();
+	PrivAAMPState state;
+	aamp->GetState(state);
 
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
 		//Calling tune without closing previous tune
