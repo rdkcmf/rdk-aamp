@@ -2393,10 +2393,9 @@ public:
 	 *   @brief Set Content Type
 	 *
 	 *   @param[in]  contentType - Content type
-	 *   @param[in]  url - Media URL
 	 *   @return void
 	*/
-	void SetContentType(const char *contentType, const char* url = NULL);
+	void SetContentType(const char *contentType);
 	/**
 	 *   @brief Get Content Type
 	 *   @return ContentType
