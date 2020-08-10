@@ -285,6 +285,7 @@ public:
 		CachedFragment* cachedFragment = GetFetchBuffer(true);
 		long http_code = 0;
 		long bitrate = 0;
+		double downloadTime = 0;
 		MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
 
 		if(!initSegment && mDownloadedFragment.ptr)
@@ -301,7 +302,7 @@ public:
 			int iFogError = -1;
 			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &bitrate, &iFogError, fragmentDurationSeconds );
+						range, actualType, &http_code, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
 
 			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 			{
@@ -319,7 +320,7 @@ public:
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( actualType,
 									bitrate? bitrate : fragmentDescriptor.Bandwidth,
-									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration);
+									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
 		}
 
 		mContext->mCheckForRampdown = false;
@@ -1761,9 +1762,10 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
 				std::string effectiveUrl;
 				long http_code;
+				double downloadTime;
 				int iFogError = -1;
 				int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code,actualType,&iFogError);
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, curlInstance, range.c_str(),&http_code, &downloadTime, actualType,&iFogError);
 
 				if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 				{
@@ -1781,7 +1783,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				//update videoend info
 				aamp->UpdateVideoEndMetrics( actualType,
 										pMediaStreamContext->fragmentDescriptor.Bandwidth,
-										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time);
+										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time, downloadTime);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 
@@ -3800,14 +3802,15 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	if (!retrievedPlaylistFromCache)
 	{
 		long http_error = 0;
+		double downloadTime;
 		memset(&manifest, 0, sizeof(manifest));
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs,eCURLINSTANCE_VIDEO);
-		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
+		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,eCURLINSTANCE_VIDEO);
 
 		//update videoend info
-		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl);
+		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl,downloadTime);
 
 		if (gotManifest)
 		{

@@ -3093,48 +3093,6 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 	}
 }
 
-/**
- *   @brief Converts lang index to Audio Track type
- *
- *   @param[in] int - Audio Lang Index
- *   @return VideoStatTrackType
- */
-VideoStatTrackType PrivateInstanceAAMP::ConvertAudioIndexToVideoStatTrackType(int Index)
-{
-	VideoStatTrackType type = VideoStatTrackType::STAT_UNKNOWN;
-	switch(Index)
-	{
-		case 0 :
-		{
-			type = VideoStatTrackType::STAT_AUDIO_1;
-		}
-		break;
-		case 1 :
-		{
-			type = VideoStatTrackType::STAT_AUDIO_2;
-		}
-		break;
-		case 2:
-		{
-			type = VideoStatTrackType::STAT_AUDIO_3;
-		}
-		break;
-		case 3 :
-		{
-			type = VideoStatTrackType::STAT_AUDIO_4;
-		}
-		break;
-		case 4 :
-		{
-			type = VideoStatTrackType::STAT_AUDIO_5;
-		}
-		break;
-
-		default:
-			break;
-	}
-	return type;
-}
 
 /**
  * @brief Store language list of stream
@@ -3155,7 +3113,7 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &lang
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
 		if( this->mVideoEnd )
 		{
-			mVideoEnd->Setlanguage(ConvertAudioIndexToVideoStatTrackType(cnt), langlist[cnt].c_str());
+			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, langlist[cnt], cnt+1);
 		}
 	}
 }
@@ -3423,13 +3381,14 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @retval true if success
  */
 bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl, 
-				long * http_error, const char *range, unsigned int curlInstance, 
+				long * http_error, double *downloadTime, const char *range, unsigned int curlInstance, 
 				bool resetBuffer, MediaType fileType, long *bitrate, int * fogError,
 				double fragmentDurationSeconds)
 {
 	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
 	MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(fileType);
 	long http_code = -1;
+	double fileDownloadTime = 0;
 	bool ret = false;
 	int downloadAttempt = 0;
 	int maxDownloadAttempt = 1;
@@ -3767,6 +3726,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME , &total);
 				curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
 				connectTime = connect;
+				fileDownloadTime = total;
 				if(res != CURLE_OK || http_code == 0 || http_code >= 400 || total > 2.0 /*seconds*/)
 				{
 					reqEndLogLevel = eLOGLEVEL_WARN;
@@ -3970,6 +3930,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	if (http_error)
 	{
 		*http_error = http_code;
+		*downloadTime = fileDownloadTime;
 	}
 	if (httpHeaders != NULL)
 	{
@@ -4050,6 +4011,161 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 	return ret;
 }
+
+/**
+ * @brief Download VideoEnd Session statistics from fog
+ *
+ * @param[out] buffer - Pointer to the output buffer
+ * @return bool status
+ */
+bool PrivateInstanceAAMP::GetOnVideoEndSessionStatData(GrowableBuffer *buffer)
+{
+	std::string remoteUrl = "127.0.0.1:9080/sessionstat";
+	std::string sessionID;
+	GrowableBuffer data;
+	long http_error = -1;
+	bool ret = false;
+
+	// Get current recording ID
+	if(ProcessCustomGetCurlRequest(remoteUrl, &data, &http_error))
+	{
+		/* Parse recording ID from session statistics JSON format
+		 *
+		 * example : {"current-recording-ID":true,
+		 * "previous-recording-ID":false}
+		 *
+		 */
+		cJSON *monitor_json = cJSON_Parse(data.ptr);
+		if (monitor_json == NULL)
+		{
+			const char *error_ptr = cJSON_GetErrorPtr();
+			if (error_ptr != NULL)
+			{
+				AAMPLOG_ERR("%s:%d Invalid Json format: %s\n", __FUNCTION__, __LINE__, error_ptr);
+			}
+		}
+		else
+		{
+			cJSON *recordingID = monitor_json->child;
+			// iterate on childs
+			while(recordingID)
+			{
+				// Get value and check whether it is good
+				cJSON *status = cJSON_GetObjectItemCaseSensitive(monitor_json, recordingID->string);
+				if(cJSON_IsFalse(status) == 0)
+				{
+					// Store session ID and break the iteration
+					sessionID = recordingID->string;
+					break;
+				}
+				recordingID = recordingID->next;
+			}
+		}
+
+		if(!sessionID.empty())
+		{
+			/* Request session statistics for current recording ID
+			 *
+			 * example request: 127.0.0.1:9080/sessionstat/<recordingID>
+			 *
+			 */
+			remoteUrl.append("/");
+			remoteUrl.append(sessionID);
+			if(ProcessCustomGetCurlRequest(remoteUrl, buffer, &http_error))
+			{
+				// succesfully requested
+				AAMPLOG_INFO("%s:%d curl request %s success", __FUNCTION__, __LINE__, remoteUrl.c_str());
+				ret = true;
+			}
+			else
+			{
+				// Failure in request
+				AAMPLOG_ERR("%s:%d curl request %s failed[%d]", __FUNCTION__, __LINE__, remoteUrl.c_str(), http_error);
+				ret = false;
+			}
+		}
+
+		if(monitor_json)
+		{
+			cJSON_Delete(monitor_json);
+		}
+	}
+	if(data.ptr)
+	{
+		aamp_Free(&data.ptr);
+	}
+	return ret;
+}
+
+
+/**
+ * @brief Perform custom get curl request
+ *
+ * @param[in] remoteUrl - File URL
+ * @param[out] buffer - Pointer to the output buffer
+ * @param[out] http_error - HTTP error code
+ * @return bool status
+ */
+bool PrivateInstanceAAMP::ProcessCustomGetCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error)
+{
+	bool ret = false;
+	CurlCallbackContext context;
+	context.aamp = this;
+	context.buffer = buffer;
+	memset(buffer, 0x00, sizeof(*buffer));
+	CurlProgressCbContext progressCtx;
+	progressCtx.aamp = this;
+	progressCtx.downloadStartTime = NOW_STEADY_TS_MS;
+	progressCtx.downloadUpdatedTime = -1;
+	progressCtx.downloadSize = -1;
+	progressCtx.abortReason = eCURL_ABORT_REASON_NONE;
+	CURLcode res;
+	long httpCode = -1;
+
+	CURL *curl = curl_easy_init();;
+	if(curl)
+	{
+		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progressCtx);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
+		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
+
+		res = curl_easy_perform(curl);
+		if (res == CURLE_OK)
+		{
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+			if (httpCode == 200)
+			{
+				ret = true;
+			}
+			else
+			{
+				AAMPLOG_ERR("%s:%d Error[%d] while requesting session statistics", __FUNCTION__, __LINE__, httpCode);
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("%s::%d Failed to perform curl request, result:%d", __FUNCTION__, __LINE__, res);
+		}
+
+		if(httpCode > 0)
+		{
+			*http_error = httpCode;
+		}
+
+		curl_easy_cleanup(curl);
+	}
+	return ret;
+}
+
 
 /**
  * @brief Load AAMP configuration file
@@ -5050,6 +5166,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 							&sniffedBytes,
 							effectiveUrl,
 							&http_error,
+							NULL,
 							"0-100", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
 							eCURLINSTANCE_MANIFEST_PLAYLIST,
@@ -5451,11 +5568,11 @@ long PrivateInstanceAAMP::GetMinimumBitrate()
  * @param fileType media type of the file
  * @retval buffer containing file, free using aamp_Free
  */
-char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code, MediaType fileType,int * fogError)
+char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code, double *downloadTime, MediaType fileType,int * fogError)
 {
 	profiler.ProfileBegin(bucketType);
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
-	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, range, curlInstance, true, fileType,NULL,fogError))
+	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, true, fileType,NULL,fogError))
 	{
 		profiler.ProfileError(bucketType, *http_code);
 	}
@@ -5479,11 +5596,11 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
  * @retval true on success, false on failure
  */
 bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
-					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, long *bitrate,int * fogError, double fragmentDurationSeconds)
+					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
+	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType, *http_code);
@@ -6657,7 +6774,26 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		mPlaybackDuration = 0;
 		mCurrentLanguageIndex = 0;
 
-		strVideoEndJson = mVideoEnd->ToJsonString();
+		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
+		if(mTSBEnabled)
+		{
+			GrowableBuffer data;
+			GetOnVideoEndSessionStatData(&data);
+			if(data.ptr)
+			{
+				AAMPLOG_INFO("TsbSessionEnd:%s", data.ptr);
+				strVideoEndJson = mVideoEnd->ToJsonString(data.ptr);
+			}
+
+			if(data.ptr)
+			{
+				aamp_Free(&data.ptr);
+			}
+		}
+		else
+		{
+			strVideoEndJson = mVideoEnd->ToJsonString();
+		}
 
 		delete mVideoEnd;
 	}
@@ -6717,9 +6853,9 @@ void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, l
  *   @param[in]  strUrl :  URL in case of faulures
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration)
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime)
 {
-    UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,duration,false,false);
+    UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,duration,curlDownloadTime, false,false);
 }
 
 /**
@@ -6751,10 +6887,11 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
  *   @param[in]  strUrl :  URL in case of faulures
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, bool keyChanged, bool isEncrypted)
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted)
 {
 	if(gpGlobalConfig->mEnableVideoEndEvent)
 	{
+		int audioIndex = 1;
 		// ignore for write and aborted errors
 		// these are generated after trick play options,
 		if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
@@ -6769,36 +6906,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 			COUNT_LIC_ENC_TO_CLR,
 			COUNT_LIC_CLR_TO_ENC,
 			COUNT_STALL,
-			COUNT_4XX,
-			COUNT_5XX,
-			COUNT_CURL, // all other curl errors except timeout
-			COUNT_CURL_TIMEOUT,
-			COUNT_SUCCESS*/
-
-			if (curlOrHTTPCode < 100)
-			{
-				if( curlOrHTTPCode == CURLE_OPERATION_TIMEDOUT)
-				{
-					eCountType = COUNT_CURL_TIMEOUT;
-				}
-				else
-				{
-					eCountType = COUNT_CURL;
-				}
-			}
-			else if (curlOrHTTPCode == 200 || curlOrHTTPCode == 206)
-			{
-				//success
-				eCountType = COUNT_SUCCESS;
-			}
-			else if (curlOrHTTPCode >= 500 )
-			{
-				eCountType = COUNT_5XX;
-			}
-			else // everything else is 4XX
-			{
-				eCountType = COUNT_4XX;
-			}
+		*/
 
 			switch(mediaType)
 			{
@@ -6819,7 +6927,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 				case eMEDIATYPE_PLAYLIST_AUDIO:
 				{
 					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+					trackType = VideoStatTrackType::STAT_AUDIO;
+					audioIndex += mCurrentLanguageIndex;
 				}
 					break;
 
@@ -6838,7 +6947,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 
 					// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
 					//Is success
-					if (eCountType == COUNT_SUCCESS  && duration > 0)
+					if (((curlOrHTTPCode == 200) || (curlOrHTTPCode == 206))  && duration > 0)
 					{
 						if(mpStreamAbstractionAAMP->GetProfileCount())
 						{
@@ -6861,7 +6970,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 				case eMEDIATYPE_AUDIO:
 				{
 					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+					trackType = VideoStatTrackType::STAT_AUDIO;
+					audioIndex += mCurrentLanguageIndex;
 				}
 					break;
 				case eMEDIATYPE_IFRAME:
@@ -6888,7 +6998,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 				case eMEDIATYPE_INIT_AUDIO:
 				{
 					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-					trackType = ConvertAudioIndexToVideoStatTrackType(mCurrentLanguageIndex);
+					trackType = VideoStatTrackType::STAT_AUDIO;
+					audioIndex += mCurrentLanguageIndex;
 				}
 					break;
 				default:
@@ -6898,14 +7009,13 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 
 			// Required for protecting mVideoStat object
 			if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
-					&& trackType != VideoStatTrackType::STAT_UNKNOWN
-					&& eCountType != VideoStatCountType::COUNT_UNKNOWN )
+					&& trackType != VideoStatTrackType::STAT_UNKNOWN)
 			{
 				pthread_mutex_lock(&mLock);
 				if(mVideoEnd)
 				{
-					mVideoEnd->Increment_Data(dataType,trackType,eCountType,bitrate);
-					if(eCountType != COUNT_SUCCESS && strUrl.c_str())
+					mVideoEnd->Increment_Data(dataType,trackType,bitrate,curlDownloadTime,curlOrHTTPCode,false,audioIndex);
+					if((curlOrHTTPCode != 200) && (curlOrHTTPCode != 206) && strUrl.c_str())
 					{
 						//set failure url
 						mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
@@ -6920,8 +7030,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 			}
 			else
 			{
-				AAMPLOG_INFO("PrivateInstanceAAMP::%s - Could Not update VideoEnd Event dataType:%d trackType:%d eCountType:%d", __FUNCTION__,
-						dataType,trackType,eCountType);
+				AAMPLOG_INFO("PrivateInstanceAAMP::%s - Could Not update VideoEnd Event dataType:%d trackType:%d response:%d", __FUNCTION__,
+						dataType,trackType,curlOrHTTPCode);
 			}
 		}
 	}
@@ -6974,9 +7084,9 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
  *   @param[in]  strUrl :  URL in case of faulures
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl)
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime)
 {
-	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,false,false);
+	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,curlDownloadTime, false, false);
 }
 
 /**
@@ -8466,7 +8576,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 						std::string playlistEffectiveUrl;
 						GrowableBuffer playlistStore;
 						long http_error;
-						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
 						{
 							// If successful download , then insert into Cache 
 							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl, false, newelem.type);

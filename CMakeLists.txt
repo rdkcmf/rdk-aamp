@@ -88,7 +88,7 @@ endif()
 
 find_package (Threads REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle metrics isobmff)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle isobmff)
 include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${CURL_INCLUDE_DIRS})
 include_directories(${GSTREAMERBASE_INCLUDE_DIRS})
@@ -125,11 +125,6 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     drm/aes/aamp_aes.cpp
                     aamplogging.cpp
                     subtitle/webvttParser.cpp
-                    metrics/HTTPStatistics.cpp
-                    metrics/LicnStatistics.cpp
-                    metrics/FragmentStatistics.cpp
-                    metrics/VideoStat.cpp
-                    metrics/ProfileInfo.cpp
                     isobmff/isobmffbox.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
@@ -159,7 +154,7 @@ if(CMAKE_USE_RDK_PLUGINS)
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYERSINKBIN -DREAD_ESTB_IFACE_FROM_DEVICE_PROPERTIES -DCREATE_PIPE_SESSION_TO_XRE")
 endif()
 
-set(LIBAAMP_DEPENDS ${OS_LD_FLAGS} ${GSTREAMERBASE_LIBRARIES} ${GSTREAMER_LIBRARIES} ${CURL_LIBRARIES} ${LIBDASH_LIBRARIES} ${LibXml2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${AAMP_CLI_LD_FLAGS} -ldl -labr -luuid ${SEC_CLIENT_LIB} -lcjson)
+set(LIBAAMP_DEPENDS ${OS_LD_FLAGS} ${GSTREAMERBASE_LIBRARIES} ${GSTREAMER_LIBRARIES} ${CURL_LIBRARIES} ${LIBDASH_LIBRARIES} ${LibXml2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${AAMP_CLI_LD_FLAGS} -ldl -labr -lmetrics -luuid ${SEC_CLIENT_LIB} -lcjson)
 set(PLAYBINTEST_DEPENDS ${OS_LD_FLAGS} ${CMAKE_THREAD_LIBS_INIT} ${GSTREAMER_LIBRARIES})
 
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
@@ -435,8 +430,7 @@ install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_H
 install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
-  drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
-  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
+  drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
 
