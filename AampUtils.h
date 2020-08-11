@@ -27,6 +27,8 @@
 #define __AAMP_UTILS_H__
 
 #include "AampDrmSystems.h"
+#include "main_aamp.h"
+#include "iso639map.h"
 
 #include <string>
 #include <sstream>
@@ -132,5 +134,12 @@ bool UrlEncode(std::string inStr, std::string &outStr);
  * @param[in][out] src Buffer containing string
  */
 void trim(std::string& src);
+
+/**
+ * @brief To get the preferred iso639mapped language code
+ * @param[in] lang
+ * @retval[out] preferred iso639 mapped language.
+ */
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
 
 #endif  /* __AAMP_UTILS_H__ */

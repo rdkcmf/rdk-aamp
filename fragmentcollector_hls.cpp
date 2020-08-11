@@ -4019,22 +4019,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 	return retval;
 }
 
-std::string StreamAbstractionAAMP_HLS::GetLanguageCode( int iMedia )
+std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 {
 	std::string lang = this->mediaInfo[iMedia].language;
+	lang = Getiso639map_NormalizeLanguageCode(lang);
 
-	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
+	if (gpGlobalConfig->bDescriptiveAudioTrack)
 	{
-		char lang2[MAX_LANGUAGE_TAG_LENGTH];
-		strcpy( lang2, lang.c_str() );
-		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
-		lang = lang2;
-	}
-
-	if( gpGlobalConfig->bDescriptiveAudioTrack )
-	{
-
-		if( this->mediaInfo[iMedia].name )
+		if (this->mediaInfo[iMedia].name)
 		{ // include NAME (role) as part of advertised language
 			lang += "-" + std::string(this->mediaInfo[iMedia].name);
 		}
@@ -6904,7 +6896,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 			if (media->type == eMEDIATYPE_AUDIO)
 			{
 				std::string index = std::to_string(i);
-				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
+				std::string language = (media->language != NULL) ? GetLanguageCode(i) : std::string();
 				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
 				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
 				std::string characteristics = (media->characteristics != NULL) ? std::string(media->characteristics) : std::string();
@@ -6933,7 +6925,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 			else if (media->type == eMEDIATYPE_SUBTITLE)
 			{
 				std::string index = std::to_string(i);
-				std::string language = (media->language != NULL) ? std::string(media->language) : std::string();
+				std::string language = (media->language != NULL) ? GetLanguageCode(i) : std::string();
 				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
 				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
 				std::string instreamID = (media->instreamID != NULL) ? std::string(media->instreamID) : std::string();

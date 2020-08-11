@@ -359,17 +359,18 @@ void ShowHelpSet(){
 	logprintf("30 - Set Parallel Playlist download (0/1)");
 	logprintf("31 - Set Preferred languages (string \"lang1, lang2, ...\")");
 	logprintf("32 - Set Ramp Down limit");
-	logprintf("33 - Set Minimum bitrate");
-	logprintf("34 - Set Maximum bitrate");
-	logprintf("35 - Set Maximum segment injection fail count");
-	logprintf("36 - Set Maximum DRM Decryption fail count");
-	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
-	logprintf("38 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
-	logprintf("39 - Set Initial Buffer Duration (int in sec)");
-	logprintf("40 - Set AudioTrack (int track index)" );
-	logprintf("41 - Set TextTrack (int track index)" );
-	logprintf("42 - Set CC status (0/1)" );
-	logprintf("43 - Set a predefined CC style option (1/2/3)" );
+	logprintf("33 - Set Init Ramp Down limit");
+	logprintf("34 - Set Minimum bitrate");
+	logprintf("35 - Set Maximum bitrate");
+	logprintf("36 - Set Maximum segment injection fail count");
+	logprintf("37 - Set Maximum DRM Decryption fail count");
+	logprintf("38 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
+	logprintf("39 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
+	logprintf("40 - Set Initial Buffer Duration (int in sec)");
+	logprintf("41 - Set AudioTrack (int track index)" );
+	logprintf("42 - Set TextTrack (int track index)" );
+	logprintf("43 - Set CC status (0/1)" );
+	logprintf("44 - Set a predefined CC style option (1/2/3)" );
 }
 
 #define LOG_CLI_EVENTS
