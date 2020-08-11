@@ -108,6 +108,8 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     AampJsonObject.cpp
                     AampProfiler.cpp
                     GlobalConfigAAMP.cpp
+                    ota_shim.cpp
+                    hdmiin_shim.cpp
                     fragmentcollector_progressive.cpp
                     fragmentcollector_hls.cpp
                     fragmentcollector_mpd.cpp

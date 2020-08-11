@@ -31,6 +31,8 @@
 #include "admanager_mpd.h"
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
+#include "hdmiin_shim.h"
+#include "ota_shim.h"
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
@@ -4587,8 +4589,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		logprintf("%s:%d Updated seek_pos_seconds %f ",__FUNCTION__,__LINE__, seek_pos_seconds);
 	}
 	
-	if (mMediaFormat == eMEDIAFORMAT_DASH)
+        switch( mMediaFormat )
 	{
+        case eMEDIAFORMAT_DASH:
 		#if defined (INTELCE)
 		logprintf("Error: Dash playback not available\n");
 		mInitSuccess = false;
@@ -4596,38 +4599,37 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		return;
 		#else
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
-		if(NULL == mCdaiObject)
-		{
-			mCdaiObject = new CDAIObjectMPD(this);
-		}
 		#endif
-	}
-	else if (mMediaFormat == eMEDIAFORMAT_HLS || mMediaFormat == eMEDIAFORMAT_HLS_MP4)
-	{ // m3u8
-        	bool enableThrottle = true;
-		if (!gpGlobalConfig->gThrottle)
-        	{
-			enableThrottle = false;
-		}
-		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, enableThrottle);
-		if(NULL == mCdaiObject)
-		{
-			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
-		}
-	}
-	else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
-	{
+		break;
+
+	case eMEDIAFORMAT_HLS:
+	case eMEDIAFORMAT_HLS_MP4:
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, gpGlobalConfig->gThrottle );
+		break;
+
+	case eMEDIAFORMAT_PROGRESSIVE:
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
-		if (NULL == mCdaiObject)
-		{
-			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
-		}
+		break;
+	case eMEDIAFORMAT_HDMI:
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HDMIIN(this, playlistSeekPos, rate);
+		break;
+ 
+	case eMEDIAFORMAT_OTA:
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
+		break;
+
+	default:
+		break;
 	}
 
 	mInitSuccess = true;
 	AAMPStatusType retVal;
 	if (mpStreamAbstractionAAMP)
 	{
+		if (NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+		}
 		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 		retVal = mpStreamAbstractionAAMP->Init(tuneType);
 	}
@@ -5034,7 +5036,15 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	std::string urlStr(url); // for convenience, convert to std::string
 
 #ifdef TRUST_LOCATOR_EXTENSION_IF_PRESENT // disable to exersize alternate path
-	if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
+        if( urlStr.rfind("hdmiin:",0)==0 )
+        {
+                rc = eMEDIAFORMAT_HDMI;
+        }
+        else if( urlStr.rfind("live:",0)==0 )
+        {
+                rc = eMEDIAFORMAT_OTA;
+        }
+        else if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
 	{ // where local host is used; inspect further to determine if this locator involves FOG
 
 		size_t fogUrlStart = urlStr.find("recordedUrl=", 16); // search forward, skipping 16-char http://127.0.0.1

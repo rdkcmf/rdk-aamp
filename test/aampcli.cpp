@@ -493,7 +493,9 @@ static void ProcessCLIConfEntry(char *cfg)
 					else if (
 							 memcmp(token, "udp:", 4)==0 ||
 							 memcmp(token, "http:", 5) == 0 ||
-							 memcmp(token, "https:", 6) == 0 )
+							 memcmp(token, "https:", 6) == 0 ||
+							 memcmp(token, "hdmiin:", 7) == 0 ||
+							 memcmp(token, "live:", 5) == 0)
 					{
 						channelInfo.uri = token;
 					}
