@@ -628,3 +628,15 @@ void trim(std::string& src)
 		src = dst;
 	}
 }
+
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang )
+{
+        if (GetLangCodePreference() != ISO639_NO_LANGCODE_PREFERENCE)
+        {
+                char lang2[MAX_LANGUAGE_TAG_LENGTH];
+                strcpy(lang2, lang.c_str());
+                iso639map_NormalizeLanguageCode(lang2, GetLangCodePreference());
+                lang = lang2;
+        }
+	return lang;
+}
