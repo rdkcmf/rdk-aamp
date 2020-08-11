@@ -4585,19 +4585,12 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
  * @param adaptationSet Pointer to adaptation set
  * @retval language of adaptation set
  */
-std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet )
+std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet(IAdaptationSet *adaptationSet)
 {
 	std::string lang = adaptationSet->GetLang();
+	lang = Getiso639map_NormalizeLanguageCode(lang);
 
-	if( (GetLangCodePreference()!=ISO639_NO_LANGCODE_PREFERENCE ))
-	{
-		char lang2[MAX_LANGUAGE_TAG_LENGTH];
-		strcpy( lang2, lang.c_str() );
-		iso639map_NormalizeLanguageCode( lang2, GetLangCodePreference() );
-		lang = lang2;
-	}
- 
-	if( gpGlobalConfig->bDescriptiveAudioTrack && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
+	if (gpGlobalConfig->bDescriptiveAudioTrack && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
 	{
 		std::vector<IDescriptor *> role = adaptationSet->GetRole();
 		for (unsigned iRole = 0; iRole < role.size(); iRole++)
@@ -5147,6 +5140,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 									delim = value.find(';');
 								}
 								ParseCCStreamIDAndLang(value, id, lang);
+								lang = Getiso639map_NormalizeLanguageCode(lang);
 								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d CC Track - lang:%s, isCC:1, group:%s, id:%s",
 									__FUNCTION__, __LINE__, lang.c_str(), schemeId.c_str(), id.c_str());
 								tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty));
