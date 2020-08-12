@@ -4641,9 +4641,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		return;
 		#else
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_MPD(this, playlistSeekPos, rate);
-		if(NULL == mCdaiObject)
+		if (NULL == mCdaiObject)
 		{
-			mCdaiObject = new CDAIObjectMPD(this);
+			mCdaiObject = new CDAIObjectMPD(this); // special version for DASH
 		}
 		#endif
 	}
