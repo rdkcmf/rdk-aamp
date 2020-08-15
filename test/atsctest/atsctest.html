@@ -1,0 +1,532 @@
+<html>
+	<head>
+		<style>
+input[type=button]:focus {
+	background-color: #4CAF50;
+	border: none;
+	color: white;
+}
+		
+#myprogressBar {
+ width: 1%;
+ height: 35px;
+ background-color: #4CAF50;
+ text-align: center;
+ line-height: 32px;
+ color: black;
+}
+	
+</style>
+		
+<script src="thunderJS.js"></script>
+<script>
+	function log(text)
+	{
+		console.log(text);
+		document.getElementById("console").value += text+"\n";
+	}
+	function clearConsole()
+	{
+		document.getElementById("console").value = "";
+	}
+	
+	function clog(text)
+	{
+		clearConsole();
+		console.log(text);
+		document.getElementById("console").value += text+"\n";
+	}
+	function setGuideText(text)
+	{
+	document.getElementById("guideText").value = text;
+	}
+	
+	function setCurrentPlayingChText(text)
+	{
+	document.getElementById("currChSelLabel").innerHTML = text;
+	}
+	
+	function setPlayButtonText(text)
+	{
+		document.getElementById("btn_play").value = 'Play : ' + text;
+	}
+	function setChaCountLabel(text)
+	{
+	document.getElementById("chcountLabel").innerHTML = text;
+	}
+	
+	function clearChannelMapList() {
+	 var chMapElement = document.getElementById("chMap");
+			
+  // when length is 0, the evaluation will return false.
+  while (chMapElement.options.length) {
+    // continue to remove the first option until no options remain.
+    chMapElement.remove(0);
+  }
+}
+	var tc;
+	var listener;
+	var listenerOnPlayerStatus;
+	var currChaIndex;
+	var totalChannels;
+	var aampPlayer;
+	var isPlaying;
+	var serviceTable;
+	var fromPC = false; 
+	
+	function Connect()
+	{
+		
+		const configSTB = {
+			host: '127.0.0.1', // ipAddr of device running Thunder
+				
+			port: 9998,
+			default:1 // versioning
+		};
+		
+		const configFromPC = {
+			host: '10.0.0.219', // ipAddr of device running Thunder
+				
+			port: 9998,
+			default:1 // versioning
+		};
+		
+		var config;
+		if(fromPC)
+		{
+			config = configFromPC; ;
+		}
+		else
+		{
+			config = configSTB;
+		}
+
+		log( "Thunder Configuration: " + JSON.stringify(config) );
+		
+		tc = ThunderJS(config);
+	}
+	function Activate( callsign )
+	{
+		tc.call( "Controller","activate", {"callsign":callsign} ).then( result => {
+			log( callsign + " activated" );
+		}).catch(err => {
+			log( callsign + " activation error" );
+		});
+	}
+	function startScan()
+	{
+		tc.call("org.rdk.MediaServices","startScan", { "type": "ATSC", "onlyFree": true} ).then(result => {
+		isPlaying = false;
+		clearChannelMapList();
+			log('startScan Success'+ JSON.stringify(result))
+		}).catch(err => {
+			log('startScan Error' + err );
+		});
+	}
+	
+		function abortScan()
+	{
+		tc.call("org.rdk.MediaServices","abortScan", {} ).then(result => {
+		getAllServices();
+			log('abortScan Success'+ JSON.stringify(result));
+						
+		}).catch(err => {
+			log('abortScan Error' + err );
+		});
+	}
+	
+			function registerOnPlayerStatus ()
+	{
+		listenerOnPlayerStatus = tc.on('org.rdk.MediaPlayer','onPlayerStatus', (notification) => {
+			//var data = 'sts:' + notification.playerStatus + ' p:' + notification.position  + ' l:' + notification.length + ' loc:' + notification.locator + ' loff:' +  notification.liveOffset + ' spd:' + notification.speed ;
+			//clog(data);
+			if(isPlaying)
+			{
+				clog('Received onPlayerStatus Event ' + JSON.stringify(notification))
+				}
+		
+		});
+	}
+	
+	
+		function registerOnScanProgress()
+	{
+		listener = tc.on("org.rdk.MediaServices",'onScanProgress', (notification) => {
+				var value = notification.progress * 100;
+			
+			setProgressBarValue(value)
+			var data = 'State:' + notification.state + ' sInfo:' + notification.displaySignalInfo + ' strength:' + notification.signalStrength + ' nTv:' + notification.numTvServices + ' nRadio:' +  notification.numRadioServices + ' nData:' + notification.numDataService ;
+			clog(data);
+			if('COMPLETE' == notification.state)
+			//if('TUNING' == notification.state)
+			{
+			// clog("tuning-- " + data);
+				getAllServices();
+			}
+			
+			//	log('Received onScanProgress Event ' + JSON.stringify(notification))
+		
+		});
+	}
+	
+			function registerOnScanAction ()
+	{
+		listener = tc.on("org.rdk.MediaServices",'onScanAction ', (notification) => {
+				
+				log('Received onScanAction Event ' + JSON.stringify(notification))
+		
+		});
+	}
+	
+		function getService()
+	{
+		tc.call("org.rdk.MediaServices","getService",{"servicePk":1, "attributes": [ "pk","name","signalStrength" ]}).then(result => {
+			clog('getService Success '+ JSON.stringify(result))
+			//log('success:' + result.success)
+			//var value = result.signalStrength * 100
+			//var value = 0.27 * 100
+			//setProgressBarValue(value);
+		}).catch(err => {
+			log('getService Error '+ err)
+		});
+	}
+	
+	function getAllServices()
+	{
+		tc.call("org.rdk.MediaServices","getServices",{}).then(result => {
+			//log('getService Success '+ JSON.stringify(result))
+			serviceTable = result; //store for future use
+			 var chMapElement = document.getElementById("chMap");
+			totalChannels = 0;
+		
+		    for (var i in result.table) {
+      var strData = result.table[i].displayChannel + '::' + result.table[i].shortName + ':' +':'+ result.table[i].signalStrength + ':' + result.table[i].signalQuality + ':' + result.table[i].locator ;
+			
+					 var opt = document.createElement('option');
+    opt.text = strData;
+    opt.value = result.table[i].locator;
+		chMapElement.add(opt,null);
+		totalChannels = totalChannels +1;
+			  log('channel:' + strData);
+    }
+		log('total channels found:' + totalChannels);
+		setChaCountLabel(' : '+ totalChannels );
+		}).catch(err => {
+			log('getService Error '+ err)
+		});
+	}
+		function getHiddenServices()
+	{
+		tc.call("org.rdk.MediaServices","getServices",{"listId":"clist:1","attributes": [ "pk","name","channel" ],"aliases": [ "pk","n" ],"filter": {"hidden":"HIDDEN", "categories": ["TV","RADIO","DATA"]}}).then(result => {
+			log('getService Success '+ JSON.stringify(result))
+			
+		
+		
+		
+		}).catch(err => {
+			log('getService Error '+ err)
+		});
+	}
+	
+//	Request : {"jsonrpc":"2.0", "id":3, "method":"org.rdk.MediaGuide.1.startScan", "params":{ "servicePk": [123] }
+//Response: {"jsonrpc":"2.0", "id":3, "result": { "success": true } }
+	function startGuideScan()
+	{
+		tc.call("org.rdk.MediaGuide","startScan", { "type": "ATSC", "onlyFree": true} ).then(result => {
+		isPlaying = false;
+		clearChannelMapList();
+			log('startScan Success'+ JSON.stringify(result))
+		}).catch(err => {
+			log('startScan Error' + err );
+		});
+	}
+	
+		function abortGuideScan()
+	{
+		tc.call("org.rdk.MediaGuide","abortScan", {} ).then(result => {
+			log('abortScan Success'+ JSON.stringify(result));
+		}).catch(err => {
+			log('abortScan Error' + err );
+		});
+	}
+	
+	function getAllGuideEvents()
+	{
+		tc.call("org.rdk.MediaGuide","getEvents",{}).then(result => {
+			
+		var guideEventsStr = JSON.stringify(result);
+		setGuideText(guideEventsStr);
+		}).catch(err => {
+			log('getService Error '+ err)
+		});
+	}
+	
+	function onChSelected() {}
+	
+ function fullscreen(enable) {
+  var videoWindowElement = document.getElementById("vidWindow");
+  if(enable)
+  {
+  //"height:40%; width:40%; position:absolute; bottom:100; left:400">
+	videoWindowElement.style['height'] = "100%";
+	videoWindowElement.style['width'] = "100%";
+	videoWindowElement.style['bottom'] = "0";
+	videoWindowElement.style['left'] = "0";
+	//tc.call("org.rdk.MediaPlayer","setVideoRectangle",  { "id":"MainPlayer","x":0,"y":0,"w":1280,"h":720 }
+  }
+  else
+  {
+	videoWindowElement.style['height'] = "40%";
+	videoWindowElement.style['width'] = "40%";
+		videoWindowElement.style['bottom'] = "50";
+	videoWindowElement.style['left'] = "500";
+	
+	//tc.call("org.rdk.MediaPlayer","setVideoRectangle",  { "id":"MainPlayer","x":0,"y":0,"w":1280,"h":720 }
+  }
+	
+ }
+ function halfscreen() {}
+ function update() {
+ var element = document.getElementById("myprogressBar");
+ var width = 1;
+ var identity = setInterval(scene, 10);
+ function scene() {
+  if (width >= 100) {
+   clearInterval(identity);
+  } else {
+   width++;
+   element.style.width = width + '%';
+   element.innerHTML = width * 1 + '%';
+  }
+ }
+}
+ function setProgressBarValue(value) {
+ var element = document.getElementById("myprogressBar");
+ element.style.width = value + '%';
+   element.innerHTML = value * 1 + '%';
+}
+	window.onload = function()
+	{
+	totalChannels = 0;
+			currChaIndex = 0;
+			isPlaying = false;
+		try
+		{
+			if( AAMPMediaPlayer )
+			{
+				fromPC = false;
+			}
+		}
+		catch( e )
+		{
+			fromPC = true;
+		}
+			
+		CollectButtons();
+		Connect();
+		Activate('org.rdk.MediaServices');
+		Activate('org.rdk.MediaPlayer');
+		Activate('org.rdk.MediaGuide');
+		registerOnScanProgress();
+		registerOnScanAction();
+		registerOnPlayerStatus();
+		getAllServices();
+		setPlayButtonText(currChaIndex);
+		
+	}
+var focusIndex;
+var navElements;
+var bFullScreen = false;
+function CollectButtons()
+{
+	navElements = document.getElementsByTagName("input");
+	focusIndex = 0;
+	navElements[focusIndex].focus();
+}
+//ch down 34
+// ch up 33
+// vol down - 174, up - 175
+//playpause - 179
+//red - 69
+//green - 8
+// yellow - 77
+// 0 - 48, 1 - 49 , 2 - 50 , 8 - 56 9 - 57
+// red big record - 118
+// search 114
+// info 120
+//? 113
+//volume - 173
+window.onkeydown = function(elt)
+{
+	var keyCode = elt.keyCode || elt.which;
+	//setGuideText('keyCode:' + keyCode);
+	switch( keyCode )
+	{
+	
+		case 118: // big red record button 
+		{
+			if(bFullScreen)
+			{
+				bFullScreen = false;
+			}
+			else
+			{
+				bFullScreen = true;
+			}
+			fullscreen(bFullScreen);
+		}
+		break;
+		case 37: // left
+		case 38: // up
+		if( focusIndex>0 )
+		{
+			navElements[focusIndex].blur();
+			focusIndex--;
+			navElements[focusIndex].focus();
+		}
+		break;
+		case 39: // right
+		case 40: // down
+		if( focusIndex<navElements.length-1 )
+		{
+			navElements[focusIndex].blur();
+			focusIndex++;
+			navElements[focusIndex].focus();
+		}
+		break;
+		
+		//down - 174, up - 175
+		
+		
+		//case 33: // ch up
+		case 175: // volume up
+		channelUp(true);
+		break;
+		
+		//case 34: // ch down
+		case 174: // volume down
+		channelDown(true);
+		break;
+		
+		
+		case 13: // return
+		case 32: // space
+		break;
+	}
+}
+function playerLoad(url) {
+	tc.call("org.rdk.MediaPlayer","create",{"id":"main"});
+	tc.call("org.rdk.MediaPlayer","load",{"id":"main","url":url});
+}
+function playChannel(play)
+{
+  //clog('T:'+totalChannels+ ' cur:'+currChaIndex);
+	if( totalChannels > 0 )
+	{
+		if( currChaIndex >= 0 && currChaIndex < totalChannels )
+		{
+			var e = document.getElementById("chMap");
+			var strLocator = e.options[currChaIndex].value;
+			var strData = e.options[currChaIndex].text;
+			e.selectedIndex = currChaIndex;
+			setCurrentPlayingChText(strData);
+			setPlayButtonText(currChaIndex);
+			//log('data:'+strData);
+			if(play)
+			{
+			//setGuideText(strData);
+				if(fromPC)
+				{
+					playerLoad(strLocator);
+				}
+				else //from pc 
+				{
+					aampPlayer = new AAMPMediaPlayer();
+					aampPlayer.load(strLocator);
+				}
+				isPlaying = true;
+			}
+		}
+	}
+}
+function toggleVistoggleVis(divId) {
+	var div=document.getElementById(divId);
+	setGuideText('toggleVistoggleVis');
+	if (div.style.display === "none") {
+		div.style.display = "block";
+			setGuideText('display_none:' + div.style.display);
+	} else {
+		div.style.display = "none";
+		setGuideText('display:' + div.style.display);
+	}
+}
+function channelUp(play)
+{
+	currChaIndex++;
+	
+	if ( currChaIndex >= totalChannels )
+	{
+		currChaIndex = 0;
+	}
+	
+
+		playChannel(play);
+
+	
+}
+function channelDown(play)
+{
+	currChaIndex--;
+	if(currChaIndex < 0 )
+	{
+		currChaIndex = 0;
+	}
+
+		playChannel(play);
+
+}
+</script>
+</head>
+<body bgcolor = "#FFFFCC" text = "#000000" topmargin="100" leftmargin="100">
+	<body>
+		<div id="videoContainer">
+			<video id="vidWindow" style="height:40%; width:40%; position:absolute; bottom:50; left:500">
+				<source src="dummy.mp4"> <!-- hole punching -->
+			</video>
+		</div>
+	<input type="button" value="PrevCh" onclick="channelDown(false);"</input>
+	<input id = "btn_play" type="button" value="Play" onclick="playChannel(true);"</input>
+	<input type="button" value="NextCh" onclick="channelUp(false);"</input>
+	<b>Help: Use Vol up/down for channel up/down. Use Record red key to toggle fullscreen video</b>
+	<br/>
+
+	
+		<input type="button" value="startScan" onclick="startScan();"</input>
+		<input type="button" value="abortScan" onclick="abortScan();"</input>
+	 <!-- 	<input type="button" value="fullscreen" onclick="fullscreen();"</input> -->
+		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"</input>
+		<b>Help: Use RefreshChannelMap when channel list is not populated autmatically</b>
+		<div id="myprogressBar">1%</div>
+	<textarea rows="5" cols="120" id="console" style="border:solid 1px orange;"></textarea>
+	<br/>
+	<b>Guide Data</b>
+	<br/>
+	<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>
+	<input type="button" value="abortGuideScan" onclick="startGuideScan();"</input> -->
+	<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"</input>
+	<br/>
+	<textarea rows="5" cols="120" id="guideText" style="border:solid 1px orange;"></textarea>
+	<br/>
+	<b>Total Channels</b>
+		<label id = "chcountLabel"> : </label>
+		
+		<br/>
+	
+<b>Current Channel:</b> <label id = "currChSelLabel">  </label>
+			<br/>
+		<b>------------------------------------ </b>
+		
+		<br/>
+		<select id = "chMap" Size="20">
+	</body>
+</html>
