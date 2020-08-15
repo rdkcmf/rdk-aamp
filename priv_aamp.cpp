@@ -4878,7 +4878,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
 	mTSBEnabled	=	false;
-	mIscDVR = strstr(mainManifestUrl, "cdvr-");
 	mIsLocalPlayback = (aamp_getHostFromURL(mManifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
@@ -4886,7 +4885,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	if(contentType)
 	{
-		SetContentType(contentType, mainManifestUrl);
+		SetContentType(contentType);
+		if (ContentType_CDVR == mContentType)
+		{
+			mIscDVR = true;
+		}
 	}
 
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
@@ -5307,7 +5310,7 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
  * @param[in] mainManifestUrl - main manifest URL
  * @retval none
  */
-void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainManifestUrl)
+void PrivateInstanceAAMP::SetContentType(const char *cType)
 {
 	mContentType = ContentType_UNKNOWN; //default unknown
 	if(NULL != cType)
@@ -5333,7 +5336,7 @@ void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainMani
 		{
 			mContentType = ContentType_EAS; //eas
 		}
-		else if(strstr(mainManifestUrl,"xfinityhome"))
+		else if(playbackMode == "xfinityhome")
 		{
 			mContentType = ContentType_CAMERA; //camera
 		}
