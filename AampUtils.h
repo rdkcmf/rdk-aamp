@@ -134,7 +134,7 @@ void trim(std::string& src);
  * @param[in] method string containing JSON method
  * @param[in] params string containing params:value pair list
  */
-bool aamp_PostJsonRPC( std::string id, std::string method, std::string params );
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params );
 
 /**
  * @brief To get the preferred iso639mapped language code
