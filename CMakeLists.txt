@@ -423,7 +423,7 @@ install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
   metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
-  AampMemoryUtils.h AampProfiler.h AampConstants.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

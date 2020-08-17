@@ -52,7 +52,7 @@
 
 static const char *mMediaFormatName[] =
 {
-    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI"
+    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI","UNKNOWN"
 };
 
 #ifdef __APPLE__
