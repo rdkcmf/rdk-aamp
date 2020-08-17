@@ -64,6 +64,38 @@ long long aamp_GetCurrentTimeMS(void)
 }
 
 /**
+ * @brief parse leading protcocol from uri if present
+ * @param[in] uri manifest/ fragment uri
+ * @retval return pointer just past protocol (i.e. http://) if present (or) return NULL uri doesn't start with protcol
+ */
+static const char * ParseUriProtocol(const char *uri)
+{
+	for(;;)
+	{
+		char c = *uri++;
+		if( c==':' )
+		{
+			if( uri[0]=='/' && uri[1]=='/' )
+			{
+				return uri+2;
+			}
+			break;
+		}
+		else if( (c>='a' && c<='z') || (c>='A' && c<='Z') || // inline isalphs
+			(c>='0' && c<='9') || // inline isdigit
+			c=='.' || c=='-' || c=='+' ) // other valid (if unlikely) characters for protocol
+		{ // legal characters for uri protocol - continue
+			continue;
+		}
+		else
+		{
+			break;
+		}
+	}
+	return NULL;
+}
+
+/**
  * @brief Resolve URL from base and uri
  *
  * @param[out] dst Destination buffer
@@ -73,61 +105,60 @@ long long aamp_GetCurrentTimeMS(void)
  */
 void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 {
-	if (memcmp(uri, "http://", 7) != 0 && memcmp(uri, "https://", 8) != 0) // explicit endpoint - needed for DAI playlist
+	if( ParseUriProtocol(uri) )
 	{
-		dst = base;
-
-		std::size_t pos;
-		if (uri[0] == '/')
-		{	// absolute path; preserve only endpoint http://<endpoint>:<port>/
-			//e.g uri = "/vod/video/00000001.ts"
-			// base = "https://host.com/folder1/manifest.m3u8"
-			// dst = "https://host.com/vod/video/00000001.ts"
-			pos = dst.find("://");
-			if (pos != std::string::npos)
+		dst = uri;
+	}
+	else
+	{
+		const char *baseStart = base.c_str();
+		const char *basePtr = ParseUriProtocol(baseStart);
+		const char *baseEnd;
+		for(;;)
+		{
+			char c = *basePtr;
+			if( c==0 || c=='/' || c=='?' )
 			{
-				pos = dst.find('/', pos + 3);
+				baseEnd = basePtr;
+				break;
 			}
-			pos--; // skip the "/" as uri starts with "/" , this is done to avoid double "//" in URL which sometimes gives HTTP-404
+			basePtr++;
 		}
-		else
-		{	// relative path; include base directory
-			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
-			// uri = "frag-787563519.ts"
-			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
-			pos = std::string::npos;
-			const char *ptr = dst.c_str();
-			std::size_t idx = 0;
+
+		if( uri[0]!='/' )
+		{
 			for(;;)
 			{
-				char c = ptr[idx];
+				char c = *basePtr;
 				if( c=='/' )
-				{ // remember final '/'
-					pos = idx;
+				{
+					baseEnd = basePtr;
 				}
-				else if( c == '?' || c==0 )
-				{ // bail if we find uri param delimiter or reach end of stream
+				else if( c=='?' || c==0 )
+				{
 					break;
 				}
-				idx++;
+				basePtr++;
 			}
 		}
 
-		assert(pos != std::string::npos);
-		dst.replace(pos+1, std::string::npos, uri);
-
-		if (strchr(uri, '?') == 0)//if uri doesn't already have url parameters, then copy from the parents(if they exist)
+		dst = base.substr(0,baseEnd-baseStart);
+		if( uri[0]!='/' )
 		{
-			pos = base.find('?');
-			if (pos != std::string::npos)
+			dst += "/";
+		}
+		dst += uri;
+
+		if (strchr(uri,'?') == 0)
+		{ // uri doesn't have url parameters; copy from parents if present
+			const char *baseParams = strchr(basePtr,'?');
+			if( baseParams )
 			{
-				std::string params = base.substr(pos);
+				std::string params = base.substr(baseParams-baseStart);
 				dst.append(params);
 			}
 		}
 	}
-	else
-		dst = uri; // uri = "http://host.com/video/manifest.m3u8"
 }
 
 /**
