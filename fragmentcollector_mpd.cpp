@@ -590,7 +590,7 @@ private:
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void FetchAndInjectInitialization(bool discontinuity = false);
-	void StreamSelection(bool newTune = false);
+	void StreamSelection(bool newTune = false, bool forceSpeedsChangedEvent = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
 	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
@@ -3014,6 +3014,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
  */
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
+	bool forceSpeedsChangedEvent = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
@@ -3399,7 +3400,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		onAdEvent(AdEvent::INIT, offsetFromStart);
 
 		UpdateLanguageList();
-		StreamSelection(true);
+
+		if (eTUNETYPE_SEEK == tuneType)
+		{
+			forceSpeedsChangedEvent = true; // Send speed change event if seek done from non-iframe period to iframe available period to inform XRE to allow trick operations.
+		}
+
+		StreamSelection(true, forceSpeedsChangedEvent);
 
 		if(mAudioType == eAUDIO_UNSUPPORTED)
 		{
@@ -3703,52 +3710,64 @@ bool PrivateStreamAbstractionMPD::IsEmptyPeriod(IPeriod *period)
 	for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
 		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-		IRepresentation *representation = NULL;
-		ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
-		if (segmentTemplate)
+
+		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
-			isEmptyPeriod = false;
+			if (IsIframeTrack(adaptationSet))
+			{
+				isEmptyPeriod = false;
+				break;
+			}
 		}
 		else
 		{
-			if(adaptationSet->GetRepresentation().size() > 0)
+			IRepresentation *representation = NULL;
+			ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
+			if (segmentTemplate)
 			{
-				//Get first representation in the adapatation set
-				representation = adaptationSet->GetRepresentation().at(0);	
+				isEmptyPeriod = false;
 			}
-			if(representation)
+			else
 			{
-				segmentTemplate = representation->GetSegmentTemplate();
-				if(segmentTemplate)
+				if(adaptationSet->GetRepresentation().size() > 0)
 				{
-					isEmptyPeriod = false;
+					//Get first representation in the adapatation set
+					representation = adaptationSet->GetRepresentation().at(0);
 				}
-				else
+				if(representation)
 				{
-					ISegmentList *segmentList = representation->GetSegmentList();
-					if(segmentList)
+					segmentTemplate = representation->GetSegmentTemplate();
+					if(segmentTemplate)
 					{
 						isEmptyPeriod = false;
 					}
 					else
 					{
-						ISegmentBase *segmentBase = representation->GetSegmentBase();
-						if(segmentBase)
+						ISegmentList *segmentList = representation->GetSegmentList();
+						if(segmentList)
 						{
 							isEmptyPeriod = false;
+						}
+						else
+						{
+							ISegmentBase *segmentBase = representation->GetSegmentBase();
+							if(segmentBase)
+							{
+								isEmptyPeriod = false;
+							}
 						}
 					}
 				}
 			}
-		}
-	
-		if(!isEmptyPeriod)
-		{
-			// Not to loop thru all Adaptations if one found.
-			break;
+
+			if(!isEmptyPeriod)
+			{
+				// Not to loop thru all Adaptations if one found.
+				break;
+			}
 		}
 	}
-	
+
 	return isEmptyPeriod;
 }
 
@@ -4369,7 +4388,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
  * @brief Does stream selection
  * @param newTune true if this is a new tune
  */
-void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
+void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeedsChangedEvent)
 {
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 
@@ -4603,7 +4622,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		{
 			aamp->mIsIframeTrackPresent = isIframeAdaptationAvailable;
 			//Iframe tracks changed mid-stream, sent a playbackspeed changed event
-			if (!newTune)
+			if (!newTune || forceSpeedsChangedEvent)
 			{
 				aamp->SendSupportedSpeedsChangedEvent(aamp->mIsIframeTrackPresent);
 			}
