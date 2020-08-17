@@ -333,25 +333,3 @@ static std::string aamp_getBaseUri(std::string uri, bool originOnly)
 	return uri;
 }
 
-/**
- * @brief Get the absolute URI for the key based on the manifest URL
- *
- * @param manifestUrl URL of manifest
- * @param keyUri URI of key. If already absolute, it will be returned as-is
- *
- * @return absolute key URI
- */
-std::string aamp_getAbsoluteKeyUri(std::string manifestUrl, std::string keyUri)
-{
-	// Check if the URI is relative, based on the lack of a protocol at the start (e.g. http://).
-	// If it is, then we need to make it absolute based on the manifest URL
-	if (!std::regex_search(keyUri, std::regex(PROTOCOL_REGEX)))
-	{
-		std::stringstream uriSs;
-		bool isAbsolute = !keyUri.empty() && keyUri.front() == '/';
-		uriSs << aamp_getBaseUri(manifestUrl, isAbsolute) << (isAbsolute ? "" : "/") << keyUri;
-		return uriSs.str();
-	}
-
-	return keyUri;
-}

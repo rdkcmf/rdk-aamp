@@ -36,6 +36,7 @@
 #include "AampDrmData.h"
 #include "AampDrmInfo.h"
 #include "AampDrmSystems.h"
+#include "AampUtils.h"
 
 /**
  * @brief Macros to track the value of API success or failure
@@ -54,8 +55,6 @@ void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
 unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength, const char* startStr, const char* endStr, int *len);
 
 std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength);
-
-std::string aamp_getAbsoluteKeyUri(std::string manifestUrl, std::string keyUri);
 
 unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem);
 

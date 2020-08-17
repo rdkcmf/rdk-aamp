@@ -38,6 +38,7 @@ set(MOCK_SOURCES mocks/aampMocks.cpp
 
 set(AAMP_SOURCES ${AAMP_ROOT}/_base64.cpp
                  ${AAMP_ROOT}/AampJsonObject.cpp
+                 ${AAMP_ROOT}/AampUtils.cpp
                  ${AAMP_ROOT}/drm/AampDRMutils.cpp
                  ${AAMP_ROOT}/drm/aampoutputprotection.cpp
                  ${AAMP_ROOT}/drm/aampdrmsessionfactory.cpp
