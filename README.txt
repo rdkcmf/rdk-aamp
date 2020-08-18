@@ -129,6 +129,7 @@ enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events 
 map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
+map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
 min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
 manifestTimeout=<manifest download time out> Specify manifest download time out in seconds, default is 10 seconds
