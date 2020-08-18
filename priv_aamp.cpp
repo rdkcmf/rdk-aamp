@@ -785,6 +785,10 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("map-mpd=%s", gpGlobalConfig->mapMPD);
 		}
+		else if(ReadConfigStringHelper(cfg, "map-m3u8=", (const char**)&gpGlobalConfig->mapM3U8))
+		{
+			logprintf("map-m3u8=%s", gpGlobalConfig->mapM3U8);
+		}
 		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
 		{
 			gpGlobalConfig->fragmp4LicensePrefetch = (value != 0);
@@ -5003,6 +5007,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			{
 				replace(mManifestUrl, ".m3u8", ".mpd");
 				mMediaFormat = eMEDIAFORMAT_DASH;
+			}
+		}
+		else if (gpGlobalConfig->mapM3U8 && mMediaFormat == eMEDIAFORMAT_DASH)
+		{
+			std::string hostName = aamp_getHostFromURL(mManifestUrl);
+			if((hostName.find(gpGlobalConfig->mapM3U8) != std::string::npos) || (mIsLocalPlayback && mManifestUrl.find(gpGlobalConfig->mapM3U8) != std::string::npos))
+			{
+				replace(mManifestUrl, ".mpd" , ".m3u8");
+				mMediaFormat = eMEDIAFORMAT_HLS;
 			}
 		}
 		
