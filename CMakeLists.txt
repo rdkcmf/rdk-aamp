@@ -190,7 +190,7 @@ else()
 	install(TARGETS subtectest DESTINATION bin)
 endif()
 
-set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebvttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
 include_directories(subtec)
 
