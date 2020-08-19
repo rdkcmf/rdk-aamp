@@ -21,7 +21,7 @@
 
 #include "subtitleParser.h"
 #include "PacketSender.hpp"
-
+#include "WebVttPacket.hpp"
 
 class WebVTTSubtecParser : public SubtitleParser
 {
@@ -33,9 +33,11 @@ public:
 
 	
 	bool init(double startPos, unsigned long long basePTS);
-	bool processData(char* buffer, size_t bufferLen, double position, double duration) { AAMPLOG_INFO("WebvttSubtecParser: processData\n"); return true; }
+	bool processData(char* buffer, size_t bufferLen, double position, double duration);
 	bool close() { return true; }
 	void reset() {}
 	void setProgressEventOffset(double offset) {}
 	void updateTimestamp(unsigned long long positionMs);
+protected:
+	std::unique_ptr<WebVttChannel> m_channel;
 };
