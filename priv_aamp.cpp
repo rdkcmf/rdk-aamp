@@ -1766,7 +1766,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
-	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
+	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
@@ -2868,7 +2868,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 {
 	bool success = true; // TODO
 	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId);
+	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered);
 
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
 	if(!IsTSBSupported())
@@ -2916,6 +2916,14 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 void PrivateInstanceAAMP::LogFirstFrame(void)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_FRAME);
+}
+
+/**
+ * @brief Notifies profiler that player state from background to foreground i.e prebuffred
+ */
+void PrivateInstanceAAMP::LogPlayerPreBuffered(void)
+{
+       profiler.ProfilePerformed(PROFILE_BUCKET_PLAYER_PRE_BUFFERED);
 }
 
 /**
@@ -4804,6 +4812,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	mbPlayEnabled = autoPlay;
+	mPlayerPreBuffered = !autoPlay ;
 
 	ResumeDownloads();
 
@@ -5411,6 +5420,7 @@ void PrivateInstanceAAMP::detach()
 #endif
 		mStreamSink->Stop(true);
 		mbPlayEnabled = false;
+		mPlayerPreBuffered  = false;
 	}
 }
 
