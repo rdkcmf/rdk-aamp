@@ -1286,6 +1286,15 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 	}
 	if (idxNode)
 	{
+		// For Fragmented MP4 check if initFragment injection is required
+		if ( idxNode->initFragmentPtr
+				&& ( (!mInitFragmentInfo) || strcmp(mInitFragmentInfo, idxNode->initFragmentPtr) != 0))
+		{
+			AAMPLOG_TRACE( "%s init fragment injection required (%s)\n", __FUNCTION__, idxNode->initFragmentPtr );
+			mInitFragmentInfo = idxNode->initFragmentPtr;
+			mInjectInitFragment = true;
+		}
+
 		currentIdx = idx;
 		byteRangeOffset = 0;
 		byteRangeLength = 0;
@@ -2633,6 +2642,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
+	const char *initFragmentPtr = NULL;
 	
 	if(IsRefresh && !UseProgramDateTimeIfAvailable())
 	{
@@ -2698,6 +2708,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					totalDuration += atof(ptr);
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
+					node.initFragmentPtr = initFragmentPtr;
 					aamp_AppendBytes(&index, &node, sizeof(node));
 				}
 				else if(startswith(&ptr,"-X-MEDIA-SEQUENCE:"))
@@ -2845,6 +2856,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				}
 				else if(startswith(&ptr,"-X-MAP:"))
 				{
+					initFragmentPtr = ptr;
 					if (mCheckForInitialFragEnc)
 					{
 						AAMPLOG_TRACE("%s:%d fragmentEncrypted-%d drmMethod-%d and ptr - %s", __FUNCTION__, __LINE__, fragmentEncrypted, mDrmMethod, ptr);
