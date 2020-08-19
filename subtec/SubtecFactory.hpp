@@ -20,7 +20,7 @@
 #include <string>
 
 #include "WebvttSubtecDevParser.hpp"
-#include "WebvttSubtecParser.hpp"
+#include "WebVttSubtecParser.hpp"
 #include "TtmlSubtecParser.hpp"
 #include "subtitleParser.h" //required for gpGlobalConfig also
 
@@ -54,7 +54,10 @@ public:
                 // If JavaScript cue listeners have been registered use WebVTTParser,
                 // otherwise use subtec
                 if (!aamp->WebVTTCueListenersRegistered())
-                    return new WebVTTSubtecDevParser(aamp, mimeType);                    
+                    if (gpGlobalConfig->bWebVttNative)
+                        return new WebVTTSubtecParser(aamp, mimeType);
+                    else
+                        return new WebVTTSubtecDevParser(aamp, mimeType);
                 else
                     return new WebVTTParser(aamp, mimeType);
             case eSUB_TYPE_TTML:

@@ -18,7 +18,7 @@
 */
 
 #include <PacketSender.hpp>
-#include <TtmlPacket.hpp>
+#include <WebVttPacket.hpp>
 #include <sys/epoll.h>
 #include <thread>
 #include <unistd.h>
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
         sleep(2);        
     }
     
-    TtmlChannel *channel = new TtmlChannel();
+    WebVttChannel *channel = new WebVttChannel();
     std::vector<uint8_t> data = {'a', 'b', 'c'};
     PacketSender *sender = PacketSender::Instance();
 
