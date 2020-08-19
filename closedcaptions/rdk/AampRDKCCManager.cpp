@@ -447,9 +447,10 @@ int AampRDKCCManager::Init(void *handle)
 void AampRDKCCManager::Release(void)
 {
 	Stop();
-	if (mCCHandle)
+	if (mCCHandle != NULL)
 	{
 		media_closeCaptionStop();
+		mCCHandle = NULL;
 	}
 	mTrickplayStarted = false;
 }
@@ -465,9 +466,13 @@ int AampRDKCCManager::SetStatus(bool enable)
 {
 	int ret = 0;
 	mEnabled = enable;
-	AAMPLOG_WARN("AampRDKCCManager::%s %d mEnabled: %d, mTrickplayStarted: %d", __FUNCTION__, __LINE__, mEnabled, mTrickplayStarted);
-	if (!mTrickplayStarted)
+	AAMPLOG_WARN("AampRDKCCManager::%s %d mEnabled: %d, mTrickplayStarted: %d, mCCHandle: %s",
+				__FUNCTION__, __LINE__, mEnabled, mTrickplayStarted, (mCCHandle != NULL) ? "set" : "not set");
+	if (!mTrickplayStarted && mCCHandle != NULL)
 	{
+		// Setting CC rendering to true before media_closeCaptionStart is not honoured
+		// by CC module. CC rendering status is saved in mEnabled and Start/Stop is
+		// called when the required operations are completed
 		if (mEnabled)
 		{
 			Start();
