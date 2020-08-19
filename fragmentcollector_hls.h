@@ -122,6 +122,7 @@ struct IndexNode
 	double completionTimeSecondsFromStart;	/**< Time of index from start */
 	const char *pFragmentInfo;				/**< Fragment Information pointer */
 	int drmMetadataIdx;						/**< DRM Index for Fragment */
+	const char *initFragmentPtr;			/**< Fragmented MP4 specific pointer to associated (preceding) initialization fragment */
 };
 
 /**
