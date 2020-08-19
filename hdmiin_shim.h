@@ -28,6 +28,10 @@
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+#include <core/core.h>
+#include "ThunderAccess.h"
+#endif
 using namespace std;
 
 /**
@@ -62,6 +66,9 @@ public:
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 private:
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    ThunderAccessAAMP thunderAccessObj;
+#endif
 	int hdmiInputPort;
 };
 
