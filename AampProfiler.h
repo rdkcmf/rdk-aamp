@@ -64,7 +64,8 @@ typedef enum
 	PROFILE_BUCKET_LA_POSTPROC,         /**< License acquisition post-processing bucket*/
 
 	PROFILE_BUCKET_FIRST_BUFFER,        /**< First buffer to gstreamer bucket*/
-	PROFILE_BUCKET_FIRST_FRAME,         /**< First frame displaye bucket*/
+	PROFILE_BUCKET_FIRST_FRAME,         /**< First frame displayed bucket*/
+	PROFILE_BUCKET_PLAYER_PRE_BUFFERED,  /**< Prebuffer bucket ( BG to FG )*/
 	PROFILE_BUCKET_TYPE_COUNT           /**< Bucket count*/
 } ProfilerBucketType;
 
@@ -310,13 +311,15 @@ public:
 	 * contentType, 	//Playback Mode. Values: CDVR, VOD, LINEAR, IVOD, EAS, CAMERA, DVR, MDVR, IPDVR, PPV<br>
 	 * streamType, 	//Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
 	 * firstTune		//First tune after reboot/crash<br>
+ 	 * Prebuffered		//If the Player was in preBuffer(BG) mode)<br>
+	 * PreBufferedTime		//Player spend Time in BG<br>
 	 * @param[in] success - Tune status
 	 * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
 	 * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId);
+	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered);
 
 	/**
 	 * @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data

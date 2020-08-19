@@ -614,6 +614,7 @@ public:
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
 	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
+	bool mPlayerPreBuffered;     // Player changed from BG to FG
 	int mPlayerId;
 	TunedEventConfig  mTuneEventConfigVod;
 	TunedEventConfig mTuneEventConfigLive;
@@ -1203,6 +1204,13 @@ public:
 	 *   @return void
 	 */
 	void LogFirstFrame(void);
+
+	/**
+	 *   @brief Profile Player changed from background to foreground i.e prebuffred
+	 *
+	 *   @return void
+	 */
+       void LogPlayerPreBuffered(void);
 
 	/**
 	 *   @brief Drm license acquisition end profiling
