@@ -37,6 +37,18 @@ pkg_check_modules(LIBDASH REQUIRED libdash)
 pkg_check_modules(OPENSSL REQUIRED openssl)
 pkg_check_modules(LIBCJSON REQUIRED libcjson)
 
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+    message("CMAKE_WPEFRAMEWORK_REQUIRED set")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
+find_package(WPEFramework REQUIRED)
+if (WPEFRAMEWORK_FOUND)
+    message("WPEFRAMEWORK_FOUND = ${WPEFRAMEWORK_FOUND}")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR} PRIVATE ${WPEFRAMEWORK_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "WPEFrameworkProtocols not found")
+endif()
+endif()
+
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
 	message("CMAKE_QT5WEBKIT_JSBINDINGS set, require Qt5WebKit")
 	pkg_check_modules(Qt5WebKit REQUIRED Qt5WebKit)
@@ -130,6 +142,9 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
 )
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp)
+endif()
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")
@@ -415,6 +430,10 @@ endif()
 message("LIB_AAMP_DEPENDS is ${LIBAAMP_DEPENDS}")
 
 target_link_libraries(aamp ${LIBAAMP_DEPENDS})
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CPP_THUNDER_PLUGIN_ACCESS")
+target_link_libraries(aamp ${WPEFRAMEWORK_LIBRARIES})
+endif()
 target_link_libraries(aamp-cli aamp ${AAMP_CLI_LD_FLAGS})
 
 set_target_properties(aamp PROPERTIES COMPILE_FLAGS "${LIBAAMP_DEFINES} ${OS_CXX_FLAGS}")

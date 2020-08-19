@@ -31,11 +31,77 @@
 #include <signal.h>
 #include <assert.h>
 
-/* Default Video Rectangle coordinates */
-#define DEFAULT_XPOS 0
-#define DEFAULT_YPOS 0
-#define DEFAULT_WIDTH 1280
-#define DEFAULT_HEIGHT 720
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+
+#include <core/core.h>
+#include <websocket/websocket.h>
+
+using namespace std;
+using namespace WPEFramework;
+#endif
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+
+/*Need to be changed to org.rdk.MediaPlayer*/
+//#define MEDIAPLAYER_CALLSIGN "org.rdk.MediaServicesMoc"
+#define MEDIAPLAYER_CALLSIGN "org.rdk.MediaPlayer.1"
+#define APP_ID "MainPlayer"
+
+void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
+    std::string message;
+    JsonObject playerData;
+    parameters.ToString(message);
+    PrivAAMPState state;
+    std::string currState;
+
+    /*To Do : Confirm that player name is same as APP_ID. The plugin documentation use "MainPlayer" as player name*/
+    playerData = parameters[APP_ID].Object();
+    AAMPLOG_TRACE( "[OTA_SHIM]%s Received event : message : %s ", __FUNCTION__, message.c_str());
+    /*Detailed Event Data*/
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : locator : %s ", __FUNCTION__, playerData["locator"].String().c_str());
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : playerStatus : %s ", __FUNCTION__, playerData["playerStatus"].String().c_str());
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : length : %s ", __FUNCTION__, playerData["length"].String().c_str());
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : position : %s ", __FUNCTION__, playerData["position"].String().c_str());
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : liveOffset : %s ", __FUNCTION__, playerData["liveOffset"].String().c_str());
+    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : speed: %s ", __FUNCTION__, playerData["speed"].String().c_str());
+
+    currState = playerData["playerStatus"].String();
+    if(0 != prevState.compare(currState))
+    {
+        AAMPLOG_INFO( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+        prevState.clear();
+        prevState = currState;
+        if(0 == prevState.compare("IDLE"))
+        {
+            state = eSTATE_IDLE;
+        }else if(0 == prevState.compare("ERROR"))
+        {
+            aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC tune error");
+            state = eSTATE_ERROR;
+        }else if(0 == prevState.compare("PROCESSING"))
+        {
+            state = eSTATE_PREPARING;
+        }else if(0 == prevState.compare("PLAYING"))
+        {
+            if(!tuned){
+                aamp->SendTunedEvent();
+                tuned = true;
+            }
+            state = eSTATE_PLAYING;
+        }else if(0 == prevState.compare("DONE"))
+        {
+            if(tuned){
+                tuned = false;
+            }
+            state = eSTATE_IDLE;
+        }else
+        {
+            AAMPLOG_INFO( "[OTA_SHIM]%s Unsupported state change!", __FUNCTION__);
+        }
+        aamp->SetState(state);
+    }
+}
+#endif
 
 /**
  *   @brief  Initialize a newly created object.
@@ -46,7 +112,21 @@
  */
 AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 {
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+    logprintf( "[OTA_SHIM]Inside %s CURL ACCESS", __FUNCTION__ );
     AAMPStatusType retval = eAAMPSTATUS_OK;
+#else
+    AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
+    prevState = "IDLE";
+    tuned = false;
+
+    thunderAccessObj.ActivatePlugin(MEDIAPLAYER_CALLSIGN);
+    std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
+
+    thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
+
+    AAMPStatusType retval = eAAMPSTATUS_OK;
+#endif
     return retval;
 }
 
@@ -65,6 +145,7 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *
  */
 StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 {
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
         /*
         Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.release", "params":{ "id":"MainPlayer", "tag" : "MyApp"} }
         Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
@@ -72,6 +153,16 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
         std::string id = "3";
         std:: string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.release", "{\"id\":\"MainPlayer\",\"tag\" : \"MyApp\"}");
         logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+#else
+        JsonObject param;
+        JsonObject result;
+	param["id"] = APP_ID;
+	param["tag"] = "MyApp";
+        thunderAccessObj.InvokeJSONRPC("release", param, result);
+
+	thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+	AAMPLOG_INFO("[OTA_SHIM]StreamAbstractionAAMP_OTA Destructor called !! ");
+#endif
 }
 
 /**
@@ -93,6 +184,8 @@ void StreamAbstractionAAMP_OTA::Start(void)
 		logprintf( "WAYLAND_DISPLAY: NULL!\n" );
 	}
 	std::string url = aamp->GetManifestUrl();
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+        logprintf( "[OTA_SHIM]Inside %s CURL ACCESS\n", __FUNCTION__ );
 	/*
 	Request : {"jsonrpc": "2.0","id": 4,"method": "Controller.1.activate", "params": { "callsign": "org.rdk.MediaPlayer" }}
 	Response : {"jsonrpc": "2.0","id": 4,"result": null}
@@ -131,8 +224,31 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	// response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.play", "{\"id\":\"MainPlayer\"}");
         // logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 
-	// Set Video Rectangle to default values (0,0,1280,720)
-        SetVideoRectangle(DEFAULT_XPOS, DEFAULT_YPOS, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+#else
+	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
+	JsonObject result;
+
+	JsonObject createParam;
+	createParam["id"] = APP_ID;
+	createParam["tag"] = "MyApp";
+        thunderAccessObj.InvokeJSONRPC("create", createParam, result);
+
+	JsonObject displayParam;
+	displayParam["id"] = APP_ID;
+	displayParam["display"] = waylandDisplay;
+        thunderAccessObj.InvokeJSONRPC("setWaylandDisplay", displayParam, result);
+
+	JsonObject loadParam;
+	loadParam["id"] = APP_ID;
+	loadParam["url"] = url;
+	loadParam["autoplay"] = true;
+	thunderAccessObj.InvokeJSONRPC("load", loadParam, result);
+
+	// below play request harmless, but not needed, given use of autoplay above
+	//JsonObject playParam;
+	//playParam["id"] = APP_ID;
+        //thunderAccessObj.InvokeJSONRPC("play", playParam, result);
+#endif
 }
 
 /**
@@ -140,6 +256,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
 */
 void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 {
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
         /*
         Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.stop", "params":{ "id":"MainPlayer"} }
         Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
@@ -147,6 +264,12 @@ void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
         std::string id = "3";
         std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.stop", "{\"id\":\"MainPlayer\"}");
         logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+#else
+        JsonObject param;
+        JsonObject result;
+        param["id"] = APP_ID;
+        thunderAccessObj.InvokeJSONRPC("stop", param, result);
+#endif
 }
 
 /**
@@ -157,6 +280,7 @@ void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
  */
 void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
 {
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
         /*
         Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.setVideoRectangle", "params":{ "id":"MainPlayer", "x":0, "y":0, "w":1280, "h":720} }
         Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
@@ -164,6 +288,16 @@ void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
         std::string id = "3";
         std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.setVideoRectangle", "{\"id\":\"MainPlayer\", \"x\":" + to_string(x) + ", \"y\":" + to_string(y) + ", \"w\":" + to_string(w) + ", \"h\":" + std::to_string(h) + "}");
         logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+#else
+        JsonObject param;
+        JsonObject result;
+        param["id"] = APP_ID;
+        param["x"] = x;
+        param["y"] = y;
+        param["w"] = w;
+        param["h"] = h;
+        thunderAccessObj.InvokeJSONRPC("setVideoRectangle", param, result);
+#endif
 }
 
 /**
