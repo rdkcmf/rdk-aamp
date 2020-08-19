@@ -178,13 +178,15 @@ void ProfileEventAAMP::TuneBegin(void)
  * contentType, 	//Playback Mode. Values: CDVR, VOD, LINEAR, IVOD, EAS, CAMERA, DVR, MDVR, IPDVR, PPV<br>
  * streamType, 	//Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
  * firstTune		//First tune after reboot/crash<br>
+ * Prebuffered		//If the Player was in preBuffer(BG) mode)<br>
+ * PreBufferedTime		//Player spend Time in BG<br>
  * @param[in] success - Tune status
  * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
  * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
  * @param[in] firstTune - Is it a first tune after reboot/crash.
  * @return void
  */
-void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId)
+void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered)
 {
 	if(!enabled )
 	{
@@ -221,7 +223,8 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 
 		"%d,%d," 		// VideoDecryptDuration, AudioDecryptDuration
 		"%d,%d," 		// gstPlayStartTime, gstFirstFrameTime
-		"%d,%d,%d", 		// contentType, streamType, firstTune
+		"%d,%d,%d," 		// contentType, streamType, firstTune
+                "%d,%d",                // If Player was in prebufferd mode, time spent in prebufferd(BG) mode
 		// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 		tuneTimeStrPrefix,
@@ -244,8 +247,9 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		bucketDuration(PROFILE_BUCKET_DECRYPT_VIDEO),bucketDuration(PROFILE_BUCKET_DECRYPT_AUDIO),
 
 		buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
-		buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
-		contentType, streamType, firstTune
+		playerPreBuffered ? buckets[PROFILE_BUCKET_FIRST_FRAME].tStart - buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
+		contentType, streamType, firstTune,
+		playerPreBuffered,playerPreBuffered ? buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : 0
 		);
 }
 
