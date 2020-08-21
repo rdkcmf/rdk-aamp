@@ -428,7 +428,7 @@ public:
 				logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
 				for (int i = 0; i < langCount; i++)
 				{
-					logprintf("language: %s\n", languages[i]);
+					logprintf("language: %s\n", languages[i].c_str());
 				}
 				break;
 			}
