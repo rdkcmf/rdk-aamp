@@ -2774,6 +2774,90 @@ void ClearAAMPPlayerInstances(void)
 }
 
 
+#ifdef PLATCO
+// temporary patch to avoid JavaScript exception in webapps referencing XREReceiverObject in builds that don't support it
+
+/**
+ * @brief API invoked from JS when executing XREReceiver.oneven() method)
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("%s arg count - %d", __FUNCTION__, argumentCount);
+	return JSValueMakeUndefined(ctx);
+}
+
+static const JSStaticFunction XREReceiver_JS_static_functions[] = 
+{
+	{ "onEvent", XREReceiverJS_onevent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ NULL, NULL, 0 }
+};
+
+/**
+ * @brief API invoked when AAMPMediaPlayer is used along with 'new'
+ * @param[in] ctx JS execution context
+ * @param[in] constructor JSObject that is the constructor being called
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSObject that is the constructor's return value
+ */
+JSObjectRef XREReceiver_JS_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+        TRACELOG("Enter %s()", __FUNCTION__);
+	*exception = aamp_GetException(ctx, AAMPJS_GENERIC_ERROR, "Cannot create an object of XREReceiver");
+        TRACELOG("Exit %s()", __FUNCTION__);
+	return NULL;
+}
+
+static void XREReceiver_JS_finalize(JSObjectRef thisObject)
+{
+       TRACELOG("%s(): object=%p", __FUNCTION__, thisObject);
+}
+
+static JSClassDefinition XREReceiver_JS_class_def {
+	0, // version
+	kJSClassAttributeNone, // attributes: JSClassAttributes
+	"__XREReceiver_class", // className: *const c_char
+	NULL, // parentClass: JSClassRef
+	NULL, // staticValues: *const JSStaticValue
+	XREReceiver_JS_static_functions, // staticFunctions: *const JSStaticFunction
+	NULL, // initialize: JSObjectInitializeCallback
+	XREReceiver_JS_finalize, // finalize: JSObjectFinalizeCallback
+	NULL, // hasProperty: JSObjectHasPropertyCallback
+	NULL, // getProperty: JSObjectGetPropertyCallback
+	NULL, // setProperty: JSObjectSetPropertyCallback
+	NULL, // deleteProperty: JSObjectDeletePropertyCallback
+	NULL, // getPropertyNames: JSObjectGetPropertyNamesCallback
+	NULL, // callAsFunction: JSObjectCallAsFunctionCallback
+	XREReceiver_JS_class_constructor, // callAsConstructor: JSObjectCallAsConstructorCallback,
+	NULL, // hasInstance: JSObjectHasInstanceCallback
+	NULL  // convertToType: JSObjectConvertToTypeCallback
+};
+
+void LoadXREReceiverStub(void* context)
+{
+	TRACELOG("Enter %s(), context = %p", __FUNCTION__, context);
+	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
+
+	JSClassRef myClass = JSClassCreate(&XREReceiver_JS_class_def);
+	JSObjectRef classObj = JSObjectMake(jsContext, myClass, NULL);
+	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);
+
+	JSStringRef str = JSStringCreateWithUTF8CString("XREReceiver");
+	JSObjectSetProperty(jsContext, globalObj, str, classObj, kJSPropertyAttributeReadOnly, NULL);
+
+	TRACELOG("Exit %s()", __FUNCTION__);
+}
+#endif // PLATCO
+
+
 /**
  * @brief Loads AAMPMediaPlayer JS constructor into JS context
  * @param[in] context JS execution context
@@ -2795,9 +2879,13 @@ void AAMPPlayer_LoadJS(void* context)
 
 	JSClassRelease(mediaPlayerClass);
 	JSStringRelease(str);
+	
+#ifdef PLATCO
+	LoadXREReceiverStub(context);
+#endif
+	
 	TRACELOG("Exit %s()", __FUNCTION__);
 }
-
 
 /**
  * @brief Removes the AAMPMediaPlayer constructor from JS context
