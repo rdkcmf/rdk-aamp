@@ -1813,7 +1813,7 @@ char *TrackState::FindMediaForSequenceNumber()
 * @param decryption_error[out] decryption error
 * @return bool true on success else false
 ***************************************************************************/
-bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError, double &downloadTime)
+bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError)
 {
 #ifdef TRACE
 		logprintf("FetchFragmentHelper Enter: pos %f start %f frag-duration %f fragmentURI %s",
@@ -1915,7 +1915,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			std::string tempEffectiveUrl;
 			traceprintf("%s:%d Calling Getfile . buffer %p avail %d", __FUNCTION__, __LINE__, &cachedFragment->fragment, (int)cachedFragment->fragment.avail);
 			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment,
-			 tempEffectiveUrl, &http_error, &downloadTime, range, type, false, (MediaType)(type), NULL, NULL, fragmentDurationSeconds);
+			 tempEffectiveUrl, &http_error, range, type, false, (MediaType)(type), NULL, NULL, fragmentDurationSeconds);
 			//Workaround for 404 of subtitle fragments
 			//TODO: This needs to be handled at server side and this workaround has to be removed
 			if (!fetched && http_error == 404 && type == eTRACK_SUBTITLE)
@@ -2073,7 +2073,6 @@ void TrackState::FetchFragment()
 {
 	int timeoutMs = -1;
 	long http_error = 0;
-	double downloadTime = 0;
 	bool decryption_error = false;
 	if (IsLive())
 	{
@@ -2095,7 +2094,7 @@ void TrackState::FetchFragment()
 	int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
 	if (aamp->DownloadsAreEnabled() && !abort)
 	{
-		if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode, downloadTime))
+		if (false == FetchFragmentHelper(http_error, decryption_error,bKeyChanged,&iFogErrorCode))
 		{
 			if (fragmentURI )
 			{
@@ -2153,7 +2152,7 @@ void TrackState::FetchFragment()
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 									lbwd,
-									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,downloadTime, bKeyChanged,fragmentEncrypted);
+									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,bKeyChanged,fragmentEncrypted);
 
 			return;
 		}
@@ -2204,7 +2203,7 @@ void TrackState::FetchFragment()
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 									lbwd,
-									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,downloadTime,bKeyChanged,fragmentEncrypted);
+									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,bKeyChanged,fragmentEncrypted);
 		}
 		else
 		{
@@ -3121,10 +3120,9 @@ void TrackState::RefreshPlaylist(void)
 			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
 		}
 
-		double downloadTime;
 		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
-		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);
+		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, actualType);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
 		if(!aamp->mParallelFetchPlaylistRefresh)
@@ -3134,7 +3132,7 @@ void TrackState::RefreshPlaylist(void)
 
 		aamp->UpdateVideoEndMetrics( actualType,
 								(this->GetCurrentBandWidth()),
-								http_error,mEffectiveUrl, downloadTime);
+								http_error,mEffectiveUrl);
 
 	}
 	if (playlist.len)
@@ -4081,12 +4079,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		traceprintf("StreamAbstractionAAMP_HLS::%s:%d downloading manifest", __FUNCTION__, __LINE__);
 		// take the original url before its gets changed in GetFile
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
-		double downloadTime;
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
-		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
+		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), downloadTime);
+		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl());
 		if (this->mainManifest.len)
 		{
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -5093,10 +5090,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
 				if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
-					double downloadTime;
-					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error, &downloadTime, NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);
+					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error,NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);
 					//update videoend info
-					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime);
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -6104,7 +6100,6 @@ void TrackState::FetchPlaylist()
 {
 	int playlistDownloadFailCount = 0;
 	long http_error = 0;   //CID:81884 - Initialization
-	double downloadTime;
 	long  main_error = 0;
 
 	ProfilerBucketType bucketId = (this->type == eTRACK_SUBTITLE)?PROFILE_BUCKET_PLAYLIST_SUBTITLE:(this->type == eTRACK_AUDIO)?PROFILE_BUCKET_PLAYLIST_AUDIO:PROFILE_BUCKET_PLAYLIST_VIDEO;
@@ -6115,11 +6110,11 @@ void TrackState::FetchPlaylist()
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
-		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
+		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		main_error = getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
-									main_error,mEffectiveUrl, downloadTime);
+									main_error,mEffectiveUrl);
 		if(playlist.len)
 		{
 			aamp->profiler.ProfileEnd(bucketId);
@@ -6724,12 +6719,11 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			{
 				actualType = eMEDIATYPE_INIT_AUDIO ;
 			}
-			double downloadTime;
-			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, &downloadTime, range,
+			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, range,
 			        type, false,  actualType);
 
 			long main_error = getOriginalCurlError(http_code);
-			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
+			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl);
 
 			if (!fetched)
 			{

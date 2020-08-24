@@ -32,7 +32,7 @@
 #include "AampDrmCallbacks.h"
 #include "GlobalConfigAAMP.h"
 #include "main_aamp.h"
-#include "IPVideoStat.h"
+#include "VideoStat.h"
 
 #include <pthread.h>
 #include <signal.h>
@@ -728,25 +728,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, double *downloadTime = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0);
-
-	/**
-	 * @brief Download VideoEnd Session statistics from fog
-	 *
-	 * @param[out] buffer - Pointer to the output buffer
-	 * @return bool status
-	 */
-	bool GetOnVideoEndSessionStatData(struct GrowableBuffer *buffer);
-
-	/**
-	 * @brief Perform custom get curl request
-	 *
-	 * @param[in] remoteUrl - File URL
-	 * @param[out] buffer - Pointer to the output buffer
-	 * @param[out] http_error - HTTP error code
-	 * @return bool status
-	 */
-	bool ProcessCustomGetCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error);
+	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @brief get Media Type in string
@@ -768,7 +750,7 @@ public:
 	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL, double *downloadTime = NULL, MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
+	char *LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance = 0, const char *range = NULL,long * http_code = NULL,MediaType fileType = eMEDIATYPE_MANIFEST,int * fogError = NULL);
 
 	/**
 	 * @brief Download fragment
@@ -783,7 +765,7 @@ public:
 	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
+	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -2101,7 +2083,7 @@ public:
 	 *   @param[in]  strUrl :  URL in case of faulures
 	 *   @return void
 	 */
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl);
 
 	/**   @brief updates download metrics to VideoStat object
 	 *
@@ -2132,7 +2114,7 @@ public:
 	*   @param[in] isEncrypted : if fragment is encrypted then it is set to true
 	*   @return void
 	*/
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration,double curlDownloadTime, bool keyChanged, bool isEncrypted);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, bool keyChanged, bool isEncrypted);
     
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -2143,7 +2125,7 @@ public:
 	*   @param[in]  strUrl :  URL in case of faulures
 	*   @return void
 	*/
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration);
 
 
 	/**
@@ -2154,6 +2136,13 @@ public:
 	 */
 	void UpdateVideoEndMetrics(AAMPAbrInfo & info);
 
+	/**
+	 *   @brief Converts lang index to Audio Track type
+	 *
+	 *   @param[in] int - Audio Lang Index
+	 *   @return VideoStatTrackType
+	 */
+	VideoStatTrackType ConvertAudioIndexToVideoStatTrackType(int Index);
 
 	/**
 	 *   @brief To check if current asset is DASH or not

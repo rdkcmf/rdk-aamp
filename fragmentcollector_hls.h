@@ -271,7 +271,7 @@ private:
 	/// Function to Fetch the fragment and inject for playback 
 	void FetchFragment();
 	/// Helper function fetch the fragments 
-	bool FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError, double &downloadTime);
+	bool FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError);
 	/// Function to redownload playlist after refresh interval .
 	void RefreshPlaylist(void);
 	/// Function to get Context pointer

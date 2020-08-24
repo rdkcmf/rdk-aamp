@@ -113,7 +113,6 @@ void AesDec::AcquireKey()
 	std::string tempEffectiveUrl;
 	std::string keyURI;
 	long http_error = 0;  //CID:88814 - Initialization
-	double downloadTime = 0.0;
 	bool keyAcquisitionStatus = false;
 	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
 
@@ -123,7 +122,7 @@ void AesDec::AcquireKey()
 	}
 	aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str());
 	logprintf("%s:%d: Key acquisition start uri = %s", __FUNCTION__, __LINE__, keyURI.c_str());
-	bool fetched = mpAamp->GetFile(mDrmInfo.keyURI, &mAesKeyBuf, tempEffectiveUrl, &http_error, &downloadTime, NULL, mCurlInstance, true, eMEDIATYPE_LICENCE);
+	bool fetched = mpAamp->GetFile(keyURI, &mAesKeyBuf, tempEffectiveUrl, &http_error, NULL, mCurlInstance, true, eMEDIATYPE_LICENCE);
 	if (fetched)
 	{
 		if (AES_128_KEY_LEN_BYTES == mAesKeyBuf.len)
