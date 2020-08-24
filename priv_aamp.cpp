@@ -2011,19 +2011,18 @@ void PrivateInstanceAAMP::ReportProgress(void)
 		}
 		else
 		{
-		    start = culledSeconds*1000.0;
-		    end = start + duration;
-		}
-
-		if (position > end)
-		{ // clamp end
-			//logprintf("aamp clamp end");
-			position = end;
-		}
-		else if (position < start)
-		{ // clamp start
-			//logprintf("aamp clamp start");
-			position = start;
+			start = culledSeconds*1000.0;
+			end = start + duration;
+			if (position > end)
+			{ // clamp end
+				//logprintf("aamp clamp end");
+				position = end;
+			}
+			else if (position < start)
+			{ // clamp start
+				//logprintf("aamp clamp start");
+				position = start;
+			}
 		}
 
 		if(gpGlobalConfig->bReportVideoPTS)
