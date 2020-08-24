@@ -7432,7 +7432,19 @@ long StreamAbstractionAAMP_MPD::GetMaxBitrate()
  */
 std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 {
-	return mPriv->GetAudioBitrates();
+	std::vector<long> audioBitrate;
+	int trackSize = mAudioTracks.size();
+	if(trackSize)
+	{
+		audioBitrate.reserve(trackSize);
+		std::vector<AudioTrackInfo>::iterator itr;
+
+		for(itr = mAudioTracks.begin(); itr != mAudioTracks.end(); itr++)
+		{
+			audioBitrate.push_back(itr->bandwidth);
+		}
+	}
+	return audioBitrate;
 }
 
 
