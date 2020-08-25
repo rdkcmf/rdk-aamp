@@ -1473,12 +1473,18 @@ void *CreateDRMSession(void *arg)
 		{
 			AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s",  __FUNCTION__, __LINE__, systemId);
 			AAMPTuneFailure failure = e->getFailure();
-			bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
-						&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
-						&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
-						&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
-						&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
-			sessionParams->aamp->SendDrmErrorEvent(e, isRetryEnabled);
+			long responseCode = e->getResponseCode();
+			bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED &&
+						(responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
+			if (!selfAbort)
+			{
+				bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
+							&& (failure != AAMP_TUNE_LICENCE_REQUEST_FAILED)
+							&& (failure != AAMP_TUNE_LICENCE_TIMEOUT)
+							&& (failure != AAMP_TUNE_DEVICE_NOT_PROVISIONED)
+							&& (failure != AAMP_TUNE_HDCP_COMPLIANCE_ERROR);
+				sessionParams->aamp->SendDrmErrorEvent(e, isRetryEnabled);
+			}
 			sessionParams->aamp->profiler.SetDrmErrorCode((int) failure);
 			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int) failure);
 		}
