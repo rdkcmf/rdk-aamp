@@ -737,9 +737,9 @@ public:
 	 * @brief Download VideoEnd Session statistics from fog
 	 *
 	 * @param[out] buffer - Pointer to the output buffer
-	 * @return bool status
+	 * @returrn string tsbSessionEnd data from fog
 	 */
-	bool GetOnVideoEndSessionStatData(struct GrowableBuffer *buffer);
+	char* GetOnVideoEndSessionStatData();
 
 	/**
 	 * @brief Perform custom get curl request

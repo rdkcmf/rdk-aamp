@@ -4022,15 +4022,15 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
  * @brief Download VideoEnd Session statistics from fog
  *
  * @param[out] buffer - Pointer to the output buffer
- * @return bool status
+ * @return pointer to tsbSessionEnd data from fog
  */
-bool PrivateInstanceAAMP::GetOnVideoEndSessionStatData(GrowableBuffer *buffer)
+char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 {
 	std::string remoteUrl = "127.0.0.1:9080/sessionstat";
 	std::string sessionID;
 	GrowableBuffer data;
 	long http_error = -1;
-	bool ret = false;
+	char* ret = NULL;
 
 	// Get current recording ID
 	if(ProcessCustomGetCurlRequest(remoteUrl, &data, &http_error))
@@ -4077,17 +4077,36 @@ bool PrivateInstanceAAMP::GetOnVideoEndSessionStatData(GrowableBuffer *buffer)
 			 */
 			remoteUrl.append("/");
 			remoteUrl.append(sessionID);
-			if(ProcessCustomGetCurlRequest(remoteUrl, buffer, &http_error))
+			GrowableBuffer finalData;
+			if(ProcessCustomGetCurlRequest(remoteUrl, &finalData, &http_error))
 			{
 				// succesfully requested
 				AAMPLOG_INFO("%s:%d curl request %s success", __FUNCTION__, __LINE__, remoteUrl.c_str());
-				ret = true;
+				cJSON *root = cJSON_Parse(finalData.ptr);
+				if (root == NULL)
+				{
+					const char *error_ptr = cJSON_GetErrorPtr();
+					if (error_ptr != NULL)
+					{
+						AAMPLOG_ERR("%s:%d Invalid Json format: %s\n", __FUNCTION__, __LINE__, error_ptr);
+					}
+				}
+				else
+				{
+					ret = cJSON_PrintUnformatted(root);
+					cJSON_Delete(root);
+				}
+
 			}
 			else
 			{
 				// Failure in request
 				AAMPLOG_ERR("%s:%d curl request %s failed[%d]", __FUNCTION__, __LINE__, remoteUrl.c_str(), http_error);
-				ret = false;
+			}
+
+			if(finalData.ptr)
+			{
+				aamp_Free(&finalData.ptr);
 			}
 		}
 
@@ -6784,17 +6803,12 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
 		if(mTSBEnabled)
 		{
-			GrowableBuffer data;
-			GetOnVideoEndSessionStatData(&data);
-			if(data.ptr)
+			char* data = GetOnVideoEndSessionStatData();
+			if(data)
 			{
-				AAMPLOG_INFO("TsbSessionEnd:%s", data.ptr);
-				strVideoEndJson = mVideoEnd->ToJsonString(data.ptr);
-			}
-
-			if(data.ptr)
-			{
-				aamp_Free(&data.ptr);
+				AAMPLOG_INFO("TsbSessionEnd:%s", data);
+				strVideoEndJson = mVideoEnd->ToJsonString(data);
+				aamp_Free(&data);
 			}
 		}
 		else
