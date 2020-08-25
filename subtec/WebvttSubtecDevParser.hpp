@@ -39,6 +39,7 @@ public:
 	void setProgressEventOffset(double offset) override {}
 	void updateTimestamp(unsigned long long positionMs) override;
 	void pause(bool pause) override;
+	void mute(bool mute) override;
 protected:
 	std::unique_ptr<TtmlChannel> m_channel;
 private:

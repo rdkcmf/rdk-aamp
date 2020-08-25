@@ -4981,6 +4981,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 									if (pMediaStreamContext->mSubtitleParser) 
 									{
 										pMediaStreamContext->mSubtitleParser->init(0.0, 0);
+										pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
 									}
 								}
 							}
