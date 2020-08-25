@@ -1788,7 +1788,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
-	, mPreferredAudioTrack(), mPreferredTextTrack()
+	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -4488,6 +4488,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
+	mFirstVideoFrameDisplayedEnabled = false;
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -4677,12 +4678,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			&& rate == AAMP_NORMAL_PLAY_RATE
 			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
 		{
+			mFirstVideoFrameDisplayedEnabled = true;
 			mFragmentCachingRequired = true;
 		}
 
 		// Set Pause on First Video frame if seeking and requested
 		if( mSeekOperationInProgress && seekWhilePaused )
 		{
+			mFirstVideoFrameDisplayedEnabled = true;
 			mPauseOnFirstVideoFrameDisp = true;
 		}
 
@@ -6309,9 +6312,8 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	// If seek while paused is ongoing,
-	// state will be changed in NotifyFirstVideoDisplayed()
-	if(!mPauseOnFirstVideoFrameDisp && !SetStateBufferingIfRequired())
+	// If mFirstVideoFrameDisplayedEnabled, state will be changed in NotifyFirstVideoDisplayed()
+	if(!mFirstVideoFrameDisplayedEnabled)
 	{
 		SetState(eSTATE_PLAYING);
 	}
@@ -7028,7 +7030,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 {
-	return mFragmentCachingRequired;
+	//Prevent enabling Fragment Caching during Seek While Pause
+	return (!mPauseOnFirstVideoFrameDisp && mFragmentCachingRequired);
 }
 
 /**
@@ -7305,23 +7308,13 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
-	// If seek while paused is ongoing,
-	// state will be changed in NotifyFirstVideoDisplayed()
-	if (!mPauseOnFirstVideoFrameDisp)
+	// If mFirstVideoFrameDisplayedEnabled, state will be changed in NotifyFirstVideoDisplayed()
+	PrivAAMPState state;
+	GetState(state);
+	if (!mFirstVideoFrameDisplayedEnabled
+			&& state == eSTATE_SEEKING)
 	{
-		PrivAAMPState state;
-		GetState(state);
-		if (state == eSTATE_SEEKING
-			&& !SetStateBufferingIfRequired())
-		{
-			PrivAAMPState state;
-			GetState(state);
-			if (state == eSTATE_SEEKING)
-			{
-				//Playback started after end of seeking
-				SetState(eSTATE_PLAYING);
-			}
-		}
+		SetState(eSTATE_PLAYING);
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
@@ -8756,7 +8749,7 @@ int PrivateInstanceAAMP::GetInitialBufferDuration()
  */
 bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
 {
-	return mPauseOnFirstVideoFrameDisp;
+	return mFirstVideoFrameDisplayedEnabled;
 }
 
 /**
@@ -8766,33 +8759,44 @@ bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
  */
 void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 {
-	if(!mPauseOnFirstVideoFrameDisp)
+	if(!mFirstVideoFrameDisplayedEnabled)
 	{
 		return;
 	}
 
-	mPauseOnFirstVideoFrameDisp = false;
+	mFirstVideoFrameDisplayedEnabled = false;
 
-	PrivAAMPState state;
-	GetState(state);
-	if(state != eSTATE_SEEKING)
+	// Seek While Paused - pause on first Video frame displayed
+	if(mPauseOnFirstVideoFrameDisp)
 	{
-		return;
-	}
+		mPauseOnFirstVideoFrameDisp = false;
+		PrivAAMPState state;
+		GetState(state);
+		if(state != eSTATE_SEEKING)
+		{
+			return;
+		}
 
-	AAMPLOG_INFO("%s: Pausing Playback on First Frame Displayed", __FUNCTION__);
-	if(mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+		AAMPLOG_INFO("%s: Pausing Playback on First Frame Displayed", __FUNCTION__);
+		if(mpStreamAbstractionAAMP)
+		{
+			mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+		}
+		StopDownloads();
+		if(PausePipeline(true, false))
+		{
+			SetState(eSTATE_PAUSED);
+		}
+		else
+		{
+			AAMPLOG_ERR("%s(): Failed to pause pipeline for first frame displayed!", __FUNCTION__);
+		}
 	}
-	StopDownloads();
-	if(PausePipeline(true, false))
+	// Otherwise check for setting BUFFERING state
+	else if(!SetStateBufferingIfRequired())
 	{
-		SetState(eSTATE_PAUSED);
-	}
-	else
-	{
-		AAMPLOG_ERR("%s(): Failed to pause pipeline for first frame displayed!", __FUNCTION__);
+		// If Buffering state was not needed, set PLAYING state
+		SetState(eSTATE_PLAYING);
 	}
 }
 
