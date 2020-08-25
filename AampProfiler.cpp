@@ -224,7 +224,7 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		"%d,%d," 		// VideoDecryptDuration, AudioDecryptDuration
 		"%d,%d," 		// gstPlayStartTime, gstFirstFrameTime
 		"%d,%d,%d," 		// contentType, streamType, firstTune
-                "%d:%d",                // If Player was in prebufferd mode, time spent in prebufferd(BG) mode
+                "%d,%d",                // If Player was in prebufferd mode, time spent in prebufferd(BG) mode
 		// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 		tuneTimeStrPrefix,
