@@ -586,6 +586,7 @@ public:
 	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
 	VideoZoomMode zoom_mode;
 	bool video_muted;
+	bool subtitles_muted;
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
@@ -2097,6 +2098,13 @@ public:
 	 */
 	bool IsSubtitleEnabled(void);
 	
+	/**
+	 *   @brief To check if JavaScript cue listeners are registered
+	 *
+	 *   @return bool - true if listeners are registered
+	 */
+	bool WebVTTCueListenersRegistered(void);
+
 	/**   @brief updates download metrics to VideoStat object,
 	 *
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )

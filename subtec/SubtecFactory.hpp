@@ -51,8 +51,9 @@ public:
         switch (mimeType)
         {
             case eSUB_TYPE_WEBVTT:
-                // subtec gets priority over event listener
-                if (gpGlobalConfig->bEnableSubtec)
+                // If JavaScript cue listeners have been registered use WebVTTParser,
+                // otherwise use subtec
+                if (!aamp->WebVTTCueListenersRegistered())
                     return new WebVTTSubtecDevParser(aamp, mimeType);                    
                 else
                     return new WebVTTParser(aamp, mimeType);

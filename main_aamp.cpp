@@ -1482,13 +1482,13 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 	
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
-		aamp->UpdateSubtitleLanguageSelection(language);
 		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set prior to tune start", __FUNCTION__, __LINE__, language);
 	}
 	else
 	{
-		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d discard \"%s\" language set, since in the middle of playback", __FUNCTION__, __LINE__, language);
+		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set - will take effect on next tune", __FUNCTION__, __LINE__, language);
 	}
+	aamp->UpdateSubtitleLanguageSelection(language);
 }
 
 /**

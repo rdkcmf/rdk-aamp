@@ -1366,10 +1366,10 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->nativeCCRendering = (value == 1);
 			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
 		}
-		else if (cfg.compare("enableSubtec") == 0)
+		else if (cfg.compare("disableSubtec") == 0)
 		{
-			gpGlobalConfig->bEnableSubtec = true;
-			logprintf("Subtec subtitles enabled");
+			gpGlobalConfig->bEnableSubtec = false;
+			logprintf("Subtec subtitles disabled");
 		}
 		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
 		{
@@ -1755,7 +1755,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
+	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
@@ -8503,6 +8503,16 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 }
 
 /**
+ *   @brief To check if JavaScript cue listeners are registered
+ *
+ *   @return bool - true if listeners are registered
+ */
+bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
+{
+	return (mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+}
+
+/**
  *   @brief To get any custom license HTTP headers that was set by application
  *
  *   @param[out] headers - map of headers
@@ -9099,6 +9109,8 @@ int PrivateInstanceAAMP::GetAudioTrack()
 	return idx;
 }
 
+#define MUTE_SUBTITLES_TRACKID (-1)
+
 /**
  *   @brief Set text track
  *
@@ -9109,6 +9121,13 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 {
 	if (mpStreamAbstractionAAMP)
 	{
+		// Passing in -1 as the track ID mutes subs
+		if (MUTE_SUBTITLES_TRACKID == trackId)
+		{
+			SetCCStatus(false);
+			return;
+		}
+
 		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
 		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
 		{
@@ -9157,6 +9176,9 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			}
 			else
 			{
+				//Unmute subtitles
+				SetCCStatus(true);
+				
 				//TODO: Effective handling between subtitle and CC tracks
 				// SetPreferredTextTrack will not have any impact on CC rendering if already active
 				SetPreferredTextTrack(track);
@@ -9215,6 +9237,12 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 #ifdef AAMP_RDK_CC_ENABLED
 	AampRDKCCManager::GetInstance()->SetStatus(enabled);
 #endif
+
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->MuteSubtitles(!enabled);
+	}
+	subtitles_muted = !enabled;
 }
 
 /**
