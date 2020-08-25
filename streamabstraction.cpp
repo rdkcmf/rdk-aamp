@@ -1870,6 +1870,15 @@ void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup()
 	}
 }
 
+void StreamAbstractionAAMP::MuteSubtitles(bool mute)
+{
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		subtitle->mSubtitleParser->mute(mute);
+	}
+}
+
 
 /**
  *   @brief Checks if streamer reached end of stream

@@ -5832,6 +5832,7 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
 	{
 		//position within playlist and pts in ms
 		subtitle->mSubtitleParser->init(seekPosition, pts);
+		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
 
