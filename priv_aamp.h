@@ -2680,5 +2680,6 @@ private:
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
 	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
+	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
 };
 #endif // PRIVAAMP_H
