@@ -23,6 +23,7 @@
  */
 
 #include "StreamAbstractionAAMP.h"
+#include "AampUtils.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -30,27 +31,7 @@
 #include <sys/time.h>
 #include <cmath>
 
-#ifdef USE_MAC_FOR_RANDOM_GEN
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <openssl/sha.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include "base16.h"
-#endif
-
-
-
-#define AAMP_STALL_CHECK_TOLERANCE 2
 #define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
-#define DEFER_DRM_LIC_OFFSET_FROM_START 5
-#define DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND 5
-#define MAC_STRING_LEN 12
-#define URAND_STRING_LEN 16
-#define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
-#define MAX_BUFF_LENGTH 4096 
 
 using namespace std;
 
@@ -238,28 +219,30 @@ void MediaTrack::UpdateTSAfterFetch()
 #endif
 	numberOfFragmentsCached++;
 	assert(numberOfFragmentsCached <= gpGlobalConfig->maxCachedFragmentsPerTrack);
+	currentInitialCacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
 
 	if( (eTRACK_VIDEO == type)
-			&& aamp->IsFragmentBufferingRequired()
-			&& !notifiedCachingComplete)
+			&& aamp->IsFragmentCachingRequired()
+			&& !cachingCompleted)
 	{
-		currentInitialCacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
 		const int minInitialCacheSeconds = aamp->GetInitialBufferDuration();
 		if(currentInitialCacheDurationSeconds >= minInitialCacheSeconds)
 		{
 			logprintf("## %s:%d [%s] Caching Complete cacheDuration %d minInitialCacheSeconds %d##",
 					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
 			notifyCacheCompleted = true;
+			cachingCompleted = true;
 		}
 		else if (sinkBufferIsFull && numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
 		{
 			logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
 					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
 			notifyCacheCompleted = true;
+			cachingCompleted = true;
 		}
 		else
 		{
-			logprintf("## %s:%d [%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d##",
+			AAMPLOG_INFO("## %s:%d [%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d##",
 					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
 		}
 	}
@@ -281,7 +264,6 @@ void MediaTrack::UpdateTSAfterFetch()
 	if(notifyCacheCompleted)
 	{
 		aamp->NotifyFragmentCachingComplete();
-		notifiedCachingComplete = true;
 	}
 }
 
@@ -307,9 +289,10 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 		// Wait for 100ms
 		pthread_mutex_lock(&aamp->mMutexPlaystart);
 		aamp->GetState(state);
-		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount)
+		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount
+				&& !aamp->IsFragmentCachingRequired() )
 		{
-		AAMPLOG_INFO("%s Total downloaded segments : %d State : %d Waiting for PLAYING state",name,totalFragmentsDownloaded,state);
+
 		timeoutMs = 500;
 		struct timespec tspec;
 		struct timeval tv;
@@ -823,7 +806,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
 		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), bufferMonitorThreadID(0), totalFragmentsDownloaded(0),
 		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), currentInitialCacheDurationSeconds(0),
-		sinkBufferIsFull(false), notifiedCachingComplete(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		sinkBufferIsFull(false), cachingCompleted(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
@@ -961,7 +944,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(gpGlobalConfig->abrCacheLength),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0),
-		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE)
+		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
+		mAudioTrackIndex(), mTextTrackIndex()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
@@ -1077,13 +1061,10 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 	}
 }
 
-bool StreamAbstractionAAMP::IsFragmentBufferingRequired()
+bool StreamAbstractionAAMP::IsInitialCachingSupported()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	return (video
-			&& video->enabled
-			&& aamp->rate == AAMP_NORMAL_PLAY_RATE
-			&& aamp->GetInitialBufferDuration() > 0);
+	return (video && video->enabled);
 }
 /**
  *	 @brief Function to update stream info of current fetched fragment
@@ -1411,6 +1392,31 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 }
 
 /**
+ *	 @brief Check whether the current profile is lowest.
+ *
+ *	 @param currentProfileIndex - current profile index to be checked.
+ *	 @return true if the given profile index is lowest.
+ */
+bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
+{
+	bool ret = false;
+
+	if (trickplayMode)
+	{
+		if (currentProfileIndex == mAbrManager.getLowestIframeProfile())
+		{
+			ret = true;
+		}
+	}
+	else
+	{
+		ret = mAbrManager.isProfileIndexBitrateLowest(currentProfileIndex);
+	}
+
+	return ret;
+}
+
+/**
  *   @brief Check for ramdown profile.
  *
  *   @param http_error
@@ -1419,6 +1425,11 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 {
 	bool retValue = false;
+
+	if (!aamp->CheckABREnabled())
+	{
+		return retValue;
+	}
 
 	if (!aamp->IsTSBSupported())
 	{
@@ -1433,13 +1444,17 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		//For timeout, rampdown in single steps might not be enough
 		else if (http_error == CURLE_OPERATION_TIMEDOUT)
 		{
-			if(UpdateProfileBasedOnFragmentCache())
+			// If lowest profile reached, then no need to check for ramp up/down for timeout cases, instead skip the failed fragment and jump to next fragment to download.
+			if (!IsLowestProfile(currentProfileIndex))
 			{
-				retValue = true;
-			}
-			else if (RampDownProfile(http_error))
-			{
-				retValue = true;
+				if(UpdateProfileBasedOnFragmentCache())
+				{
+					retValue = true;
+				}
+				else if (RampDownProfile(http_error))
+				{
+					retValue = true;
+				}
 			}
 		}
 	}
@@ -1753,144 +1768,6 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 	}
 }
 
-#ifdef USE_MAC_FOR_RANDOM_GEN
-
-/**
- * @brief get EstbMac
- *
- * @param  mac[out] eSTB MAC address
- * @return true on success.
- */
-static bool getEstbMac(char* mac)
-{
-	bool ret = false;
-	char nwInterface[IFNAMSIZ] = { 'e', 't', 'h', '0', '\0' };
-#ifdef READ_ESTB_IFACE_FROM_DEVICE_PROPERTIES
-	FILE* fp = fopen("/etc/device.properties", "rb");
-	if (fp)
-	{
-		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
-		char buf[MAX_BUFF_LENGTH];
-		while (fgets(buf, sizeof(buf), fp))
-		{
-			if(strstr(buf, "ESTB_INTERFACE") != NULL)
-			{
-				const char * nwIfaceNameStart = buf + 15;
-				int ifLen = 0;
-				for (int i = 0; i < IFNAMSIZ-1; i++ )
-				{
-					if (!isspace(nwIfaceNameStart[i]))
-					{
-						nwInterface[i] = nwIfaceNameStart[i];
-					}
-					else
-					{
-						nwInterface[i] = '\0';
-						break;
-					}
-				}
-				nwInterface[IFNAMSIZ-1] = '\0';
-				break;
-			}
-		}
-		fclose(fp);
-	}
-	else
-	{
-		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
-	}
-#endif
-	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
-	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockFd == -1)
-	{
-		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
-	}
-	else
-	{
-		struct ifreq ifr;
-		strcpy(ifr.ifr_name, nwInterface);
-		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
-		{
-			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
-		}
-		else
-		{
-			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
-			strcpy(mac, macAddress);
-			free(macAddress);
-			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
-			ret = true;
-		}
-		close(sockFd);
-	}
-	return ret;
-}
-#endif
-
-/**
- * @brief Get time to defer DRM acquisition
- *
- * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
- * @return Time in MS to defer DRM acquisition
- */
-int MediaTrack::GetDeferTimeMs(long maxTimeSeconds)
-{
-	int ret = 0;
-#ifdef USE_MAC_FOR_RANDOM_GEN
-	static char randString[RAND_STRING_LEN+1];
-	static bool estbMacAvalable = getEstbMac(randString);
-	if (estbMacAvalable)
-	{
-		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
-		int randFD = open("/dev/urandom", O_RDONLY);
-		if (randFD < 0)
-		{
-			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
-		}
-		else
-		{
-			char* uRandString = &randString[MAC_STRING_LEN];
-			int uRandStringLen = 0;
-			unsigned char temp;
-			for (int i = 0; i < URAND_STRING_LEN; i++)
-			{
-				ssize_t bytes = read(randFD, &temp, 1);
-				if (bytes < 0)
-				{
-					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
-					break;
-				}
-				sprintf(uRandString + i * 2, "%02x", temp);
-			}
-			close(randFD);
-			randString[RAND_STRING_LEN] = '\0';
-			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
-			unsigned char hash[SHA_DIGEST_LENGTH];
-			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
-			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
-
-			int mod = 0;
-			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
-			{
-				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
-				mod = (mod * 10 + hash[i]) % divisor;
-			}
-			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
-			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
-		}
-	}
-	else
-	{
-		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
-		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
-	}
-#else
-	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
-#endif
-	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
-	return ret;
-}
 
 /**
  *   @brief Check if current stream is muxed
@@ -2086,19 +1963,19 @@ void MediaTrack::OnSinkBufferFull()
 	// check if cache buffer is full and caching was needed
 	if( numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack
 			&& (eTRACK_VIDEO == type)
-			&& aamp->IsFragmentBufferingRequired()
-			&& !notifiedCachingComplete)
+			&& aamp->IsFragmentCachingRequired()
+			&& !cachingCompleted)
 	{
 		logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
 							__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, aamp->GetInitialBufferDuration());
 		notifyCacheCompleted = true;
+		cachingCompleted = true;
 	}
 	pthread_mutex_unlock(&mutex);
 
 	if(notifyCacheCompleted)
 	{
 		aamp->NotifyFragmentCachingComplete();
-		notifiedCachingComplete = true;
 	}
 }
 
@@ -2339,4 +2216,46 @@ double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
 	}
 
 	return GetBufferedDuration();
+}
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+int StreamAbstractionAAMP::GetAudioTrack()
+{
+	int index = -1;
+	if (!mAudioTrackIndex.empty())
+	{
+		for (auto it = mAudioTracks.begin(); it != mAudioTracks.end(); it++)
+		{
+			if (it->index == mAudioTrackIndex)
+			{
+				index = std::distance(mAudioTracks.begin(), it);
+			}
+		}
+	}
+	return index;
+}
+
+/**
+ *   @brief Get current text track
+ *
+ *   @return int - index of current text track
+ */
+int StreamAbstractionAAMP::GetTextTrack()
+{
+	int index = -1;
+	if (!mTextTrackIndex.empty())
+	{
+		for (auto it = mTextTracks.begin(); it != mTextTracks.end(); it++)
+		{
+			if (it->index == mTextTrackIndex)
+			{
+				index = std::distance(mTextTracks.begin(), it);
+			}
+		}
+	}
+	return index;
 }

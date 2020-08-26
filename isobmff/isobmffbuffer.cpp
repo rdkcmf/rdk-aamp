@@ -68,6 +68,48 @@ bool IsoBmffBuffer::parseBuffer()
 	return !!(boxes.size());
 }
 
+bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
+{
+	return parseBoxInternal(&boxes, Box::MDAT, buf, size);
+}
+
+#define BOX_HEADER_SIZE 8
+
+bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size)
+{
+	for (size_t i = 0; i < boxes->size(); i++)
+	{
+		Box *box = boxes->at(i);
+		AAMPLOG_WARN("%s: Offset[%u] Type[%s] Size[%u]\n", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
+		if (IS_TYPE(box->getType(), name))
+		{
+			size_t offset = box->getOffset() + BOX_HEADER_SIZE;
+			size = box->getSize() - BOX_HEADER_SIZE;
+			memcpy(buf, buffer + offset, size);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
+{
+	return getBoxSizeInternal(&boxes, Box::MDAT, size);
+}
+
+bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size)
+{
+	for (size_t i = 0; i < boxes->size(); i++)
+	{
+		Box *box = boxes->at(i);
+		if (IS_TYPE(box->getType(), name))
+		{
+			size = box->getSize();
+			return true;
+		}
+	}
+	return false;
+}
 
 /**
  * @brief Restamp PTS in a buffer
@@ -246,6 +288,8 @@ void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 		}
 	}
 }
+
+
 
 /**
  * @brief Print ISOBMFF boxes

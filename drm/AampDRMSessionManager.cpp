@@ -31,6 +31,7 @@
 #include "AampMutex.h"
 #include "AampDrmHelper.h"
 #include "AampJsonObject.h"
+#include "AampUtils.h"
 
 
 //#define LOG_TRACE 1
@@ -113,8 +114,12 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
-		,curlSessionAbort(false)
+		,curlSessionAbort(false), mEnableAccessAtrributes(true)
+		,mDrmSessionLock()
 {
+	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
+	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
+	pthread_mutex_init(&mDrmSessionLock, NULL);
 }
 
 /**
@@ -124,6 +129,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
 {
 	clearAccessToken();
 	clearSessionData();
+	pthread_mutex_destroy(&mDrmSessionLock);
 }
 
 /**
@@ -417,6 +423,31 @@ static void mssleep(int milliseconds)
 }
 
 
+/**
+ *  @brief		Get DRM license key from DRM server.
+ *  @param[in]	keyIdArray - key Id extracted from pssh data
+ *  @return		bool - true if key is not cached/cached with no failure,
+ * 				false if keyId is already marked as failed.
+ */
+bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
+{
+	bool ret = true;
+	pthread_mutex_lock(&cachedKeyMutex);
+	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	{
+		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
+		{
+			AAMPLOG_INFO("%s:%d Session created/inprogress at slot %d",__FUNCTION__, __LINE__, sessionSlot);
+			ret = cachedKeyIDs[sessionSlot].isFailedKeyId;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&cachedKeyMutex);
+
+	return ret;
+}
+
+
 #ifdef USE_SECCLIENT
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
@@ -435,6 +466,30 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	uint32_t refreshDuration = 3;
 	SecClient_ExtendedStatus statusInfo;
 	const char *requestMetadata[1][2];
+	uint8_t numberOfAccessAttributes = 0;
+	const char *accessAttributes[2][2] = {NULL, NULL, NULL, NULL};
+	std::string serviceZone, streamID;
+	if(aampInstance->mIsVSS)
+	{
+		if (mEnableAccessAtrributes)
+		{
+			serviceZone = aampInstance->GetServiceZone();
+			streamID = aampInstance->GetVssVirtualStreamID();
+			if (!serviceZone.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_SERVICE_ZONE_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = serviceZone.c_str();
+				numberOfAccessAttributes++;
+			}
+			if (!streamID.empty())
+			{
+				accessAttributes[numberOfAccessAttributes][0] = VSS_VIRTUAL_STREAM_ID_KEY_STR;
+				accessAttributes[numberOfAccessAttributes][1] = streamID.c_str();
+				numberOfAccessAttributes++;
+			}
+		}
+		AAMPLOG_INFO("%s:%d accessAttributes : {\"%s\" : \"%s\", \"%s\" : \"%s\"}", __FUNCTION__, __LINE__, accessAttributes[0][0], accessAttributes[0][1], accessAttributes[1][0], accessAttributes[1][1]);
+	}
 	std::string moneytracestr;
 	requestMetadata[0][0] = "X-MoneyTrace";
 	aampInstance->GetMoneyTraceString(moneytracestr);
@@ -455,7 +510,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	{
 		attemptCount++;
 		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
-							requestMetadata, 0, NULL,
+							requestMetadata, numberOfAccessAttributes,
+							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
 							encodedData,
 							strlen(encodedData),
 							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
@@ -758,6 +814,9 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
+	// Mutex lock to handle createDrmSession multi-thread calls to avoid timing issues observed in AXi6 as part of DELIA-43939 during Playready-4.0 testing.
+	AampMutexHold drmSessionLock(mDrmSessionLock);
+
 	int cdmError = -1;
 	KeyState code = KEY_ERROR;
 
@@ -934,6 +993,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			else
 			{
 				AAMPLOG_WARN("%s:%d existing DRM session for %s has error state %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), existingState);
+				cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 				return KEY_ERROR;
 			}
 		}
@@ -1060,6 +1120,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			}
 
 			AampLicenseRequest licenseRequest;
+			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
+			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
 			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
 
 			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
@@ -1227,26 +1289,28 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isComcastStream = !contentMetaData.empty();
 
-	if ((gpGlobalConfig->licenseServerURL) && (CLEAR_KEY_SYSTEM_STRING != drmHelper->ocdmSystemId()))
-	{
-		licenseRequest.url = string(gpGlobalConfig->licenseServerURL);
-	}
-
 	if (!contentMetaData.empty())
 	{
 		string externLicenseServerURL;
 
-		if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
+		if (gpGlobalConfig->licenseServerLocalOverride)
 		{
-			externLicenseServerURL = string(COMCAST_ROGERS_DRM_LICENCE_SERVER_URL);
+			externLicenseServerURL = licenseRequest.url;
 		}
-		else if (string::npos != licenseRequest.url.find("qa.ccp.xcal.tv"))
+		else
 		{
-			externLicenseServerURL = string(COMCAST_QA_DRM_LICENCE_SERVER_URL);
-		}
-		else if (string::npos != licenseRequest.url.find("ccp.xcal.tv"))
-		{
-			externLicenseServerURL = string(COMCAST_DRM_LICENCE_SERVER_URL);
+			if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
+			{
+				externLicenseServerURL = string(COMCAST_ROGERS_DRM_LICENCE_SERVER_URL);
+			}
+			else if (string::npos != licenseRequest.url.find("qa.ccp.xcal.tv"))
+			{
+				externLicenseServerURL = string(COMCAST_QA_DRM_LICENCE_SERVER_URL);
+			}
+			else if (string::npos != licenseRequest.url.find("ccp.xcal.tv"))
+			{
+				externLicenseServerURL = string(COMCAST_DRM_LICENCE_SERVER_URL);
+			}
 		}
 
 		if (!externLicenseServerURL.empty())
@@ -1358,10 +1422,8 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
  */
 void *CreateDRMSession(void *arg)
 {
-	AAMPLOG_INFO("%s:%d Entered arg - 0x%08x", 
-	 __FUNCTION__, __LINE__, arg );
 
-	if(aamp_pthread_setname(pthread_self(), "aampDRM"))
+	if(aamp_pthread_setname(pthread_self(), "aampfMP4DRM"))
 	{
 		AAMPLOG_ERR("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}

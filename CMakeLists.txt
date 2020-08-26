@@ -66,6 +66,10 @@ else()
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+if(CMAKE_RDK_CC_ENABLED)
+	pkg_check_modules(DIRECTFB REQUIRED directfb)
+endif()
+
 find_package (Threads REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle metrics isobmff)
@@ -76,8 +80,33 @@ include_directories(${LIBDASH_INCLUDE_DIRS})
 include_directories(${LibXml2_INCLUDE_DIRS})
 include_directories(${OPENSSL_INCLUDE_DIRS})
 
-set(LIBAAMP_SOURCES iso639map.cpp base16.cpp fragmentcollector_progressive.cpp fragmentcollector_hls.cpp fragmentcollector_mpd.cpp admanager_mpd.cpp streamabstraction.cpp _base64.cpp drm/ave/drm.cpp main_aamp.cpp aampgstplayer.cpp tsprocessor.cpp drm/aes/aamp_aes.cpp aamplogging.cpp subtitle/webvttParser.cpp AampCacheHandler.cpp metrics/HTTPStatistics.cpp metrics/LicnStatistics.cpp metrics/FragmentStatistics.cpp metrics/VideoStat.cpp metrics/ProfileInfo.cpp isobmff/isobmffbox.cpp isobmff/isobmffbuffer.cpp isobmff/isobmffprocessor.cpp
+set(LIBAAMP_SOURCES iso639map.cpp
+                    base16.cpp
+                    fragmentcollector_progressive.cpp
+                    fragmentcollector_hls.cpp
+                    fragmentcollector_mpd.cpp
+                    admanager_mpd.cpp
+                    streamabstraction.cpp
+                    _base64.cpp
+                    drm/ave/drm.cpp
+                    main_aamp.cpp
+                    aampgstplayer.cpp
+                    tsprocessor.cpp
+                    drm/aes/aamp_aes.cpp
+                    aamplogging.cpp
+                    subtitle/webvttParser.cpp
+                    AampCacheHandler.cpp
+                    metrics/HTTPStatistics.cpp
+                    metrics/LicnStatistics.cpp
+                    metrics/FragmentStatistics.cpp
+                    metrics/VideoStat.cpp
+                    metrics/ProfileInfo.cpp
+                    isobmff/isobmffbox.cpp
+                    isobmff/isobmffbuffer.cpp
+                    isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
+                    AampUtils.cpp
+                    AampJsonObject.cpp
 )
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
@@ -127,6 +156,22 @@ endif()
 
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 
+set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+	# avoid compilation failure on OSX
+else()
+	set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
+	add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
+	set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
+	target_link_libraries(subtectest "-lpthread")
+	install(TARGETS subtectest DESTINATION bin)
+endif()
+
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebvttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
+set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
+include_directories(subtec)
+
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer")
@@ -143,13 +188,12 @@ endif()
 if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
     # Sources common to all forms of OpenCDM and CDM
     message("Using some form of OpenCDM or CDM")
-    set(LIBAAMP_DRM_SOURCES drm/AampDRMutils.cpp
-                            drm/AampDRMSessionManager.cpp
+    set(LIBAAMP_DRM_SOURCES drm/AampDRMSessionManager.cpp
                             drm/AampDrmSession.cpp
                             drm/aampdrmsessionfactory.cpp
                             drm/aampoutputprotection.cpp
                             drm/helper/AampDrmHelperFactory.cpp
-                            AampJsonObject.cpp
+                            drm/AampDRMutils.cpp
     )
     if(CMAKE_USE_THUNDER_OCDM_API_0_2)
         set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_THUNDER_OCDM_API_0_2")
@@ -293,6 +337,17 @@ elseif(CMAKE_CDM_DRM)
     endif()
 endif()
 
+if (CMAKE_RDK_CC_ENABLED)
+	message("CMAKE_RDK_CC_ENABLED set")
+	include_directories(${DIRECTFB_INCLUDE_DIRS})
+	include_directories(${DIRECTFB_INCLUDE_DIRS}/fusion)
+	include_directories(${DIRECTFB_INCLUDE_DIRS}/direct)
+	include_directories(closedcaptions/rdk)
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RDK_CC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/rdk/AampRDKCCManager.cpp)
+	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
+endif()
+
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 
 set(LIBAAMP_SOURCES "${LIBAAMP_SOURCES}" "${LIBAAMP_DRM_SOURCES}")
@@ -306,6 +361,11 @@ if(CMAKE_SOC_PLATFORM_INTEL)
 	message("CMAKE_SOC_PLATFORM_INTEL set")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lismd_core -lismd_vidpproc -lismd_vidsink_direct -lismd_vidrend -lismd_viddec  -lismd_core -lsysloghelper -lgdl")
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DINTELCE=1 -DAAMP_STOP_SINK_ON_SEEK=1 -DUSE_SYSLOG_HELPER_PRINT=1")
+endif()
+
+if(CMAKE_SOC_PLATFORM_REALTEK)
+        message("CMAKE_SOC_PLATFORM_REALTEK set")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DREALTEKCE=1")
 endif()
 
 if(CMAKE_SYSTEMD_JOURNAL)
@@ -349,7 +409,7 @@ install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
-  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h 
+  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

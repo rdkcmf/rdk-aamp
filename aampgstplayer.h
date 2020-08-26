@@ -53,6 +53,7 @@ public:
 	void Flush(double position, int rate, bool shouldTearDown);
 	bool Pause(bool pause, bool forceStopGstreamerPreBuffering);
 	long GetPositionMilliseconds(void);
+        long GetDurationMilliseconds(void);
 	unsigned long getCCDecoderHandle(void);
 	virtual long long GetVideoPTS(void);
 	void SetVideoRectangle(int x, int y, int w, int h);
@@ -64,6 +65,7 @@ public:
 	bool IsCacheEmpty(MediaType mediaType);
 	bool CheckForPTSChange();
 	void NotifyFragmentCachingComplete();
+	void NotifyFragmentCachingOngoing();
 	void GetVideoSize(int &w, int &h);
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
@@ -94,6 +96,7 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
+	void FlushLastId3Data();
 
 	pthread_mutex_t mBufferingLock;
 };

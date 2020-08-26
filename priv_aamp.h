@@ -44,6 +44,7 @@
 #include <VideoStat.h>
 #include <limits>
 #include <algorithm>
+#include <thread>
 
 #include "AampDrmHelper.h"
 #include "AampDrmMediaFormat.h"
@@ -91,10 +92,12 @@ static const char *mMediaFormatName[] =
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
+#define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
+#define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
 //Upper and lower limit for dash drm sessions
 
-//#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
 
@@ -256,40 +259,15 @@ typedef enum
 	eAAMP_BITRATE_CHANGE_MAX = 8
 } BitrateChangeReason;
 
-
 // context-free utility functions
 
 /**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-bool aamp_StartsWith( const char *inputStr, const char *prefix);
-
-/**
- * @brief extract host string from url.
- * @param url - Input URL
- * @retval - host of input url
- */
-std::string aamp_getHostFromURL(std::string url);
-
-/**
- * @brief Create file URL from the base and file path
+ * @brief Get time to defer DRM acquisition
  *
- * @param[out] dst - Created URL
- * @param[in] base - Base URL
- * @param[in] uri - File path
- * @return void
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
  */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
-
-/**
- * @brief Get current time from epoch is milliseconds
- *
- * @return Current time in milliseconds
- */
-long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
  * @brief Log error
@@ -358,6 +336,13 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @return DRM system name
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
+
+/**
+* @brief Get DRM system from ID
+* @param ID of the DRM system, empty string if not supported
+* @retval drmSystem drm system
+*/
+DRMSystems GetDrmSystem(std::string drmSystemID);
 
 /**
  * @brief Encode URL
@@ -1107,15 +1092,17 @@ public:
 	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
 	 * @return void
 	 */
-	void Tune(const char *url, bool autoPlay,  const char *contentType, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
+	void Tune(const char *url, bool autoPlay,  const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
 	 * @brief The helper function which perform tuning
 	 *
 	 * @param[in] tuneType - Type of tuning. eg: Normal, trick, seek to live, etc
+	 * @param[in] seekWhilePaused - Set true if want to keep in Paused state after
+	 *              seek for tuneType = eTUNETYPE_SEEK or eTUNETYPE_SEEKTOLIVE
 	 * @return void
 	 */
-	void TuneHelper(TuneType tuneType);
+	void TuneHelper(TuneType tuneType, bool seekWhilePaused = false);
 
 	/**
 	 * @brief Terminate the stream
@@ -2141,11 +2128,11 @@ public:
 	bool SendVideoEndEvent();
 
 	/**
-	 *   @brief Check if fragment buffering needed
+	 *   @brief Check if fragment caching is required
 	 *
-	 *   @return true: needed, false: not needed
+	 *   @return true if required or ongoing, false if not needed
 	 */
-	bool IsFragmentBufferingRequired();
+	bool IsFragmentCachingRequired();
 
 	/**
 	 *   @brief Get player video size
@@ -2654,10 +2641,22 @@ public:
 	void SignalTrickModeDiscontinuity();
 
 	/**
-	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @brief  pass service zone, extracted from locator &sz URI parameter
 	 *   @return std::string
 	 */
-	std::string & getServiceZone() { return mServiceZone; }
+	std::string GetServiceZone() const{ return mServiceZone; }
+
+	/**
+	 *   @brief  pass virtual stream ID
+	 *   @return std::string
+	 */
+	std::string GetVssVirtualStreamID() const{ return mVssVirtualStreamId; }
+
+	/**
+	 *   @brief  set virtual stream ID, extracted from manifest
+	 */
+	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
 	 *
@@ -2724,6 +2723,14 @@ public:
 	 *   @return bool - true if subtitles are enabled
 	 */
 	bool IsSubtitleEnabled(void);
+	
+	/**
+	 *   @brief To check if a JS listener is registered for subtitle cue data
+	 *
+	 *   @return bool - true if JS listener is registered
+	 */
+	bool IsRegisteredForSubtitleCueData(void);
+
 	/**   @brief updates download metrics to VideoStat object,
 	 *
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
@@ -3047,6 +3054,156 @@ public:
 	void individualization(const std::string& payload);
 
 	/* End AampDrmCallbacks implementation */
+
+	/**
+	 *   @brief Set Content Type
+	 *
+	 *   @param[in]  contentType - Content type
+	 *   @param[in]  url - Media URL
+	 *   @return void
+	*/
+	void SetContentType(const char *contentType, const char* url = NULL);
+	/**
+	 *   @brief Get Content Type
+	 *   @return ContentType
+	*/
+	ContentType GetContentType() const;
+
+	/**
+	 *   @brief Get MediaFormatType
+	 *   @return MediaFormatType
+	*/
+
+	MediaFormat GetMediaFormatType(const char *url);
+
+	/**
+	 * @brief Get license server url for a drm type
+	 *
+	 * @param[in] type DRM type
+	 * @return license server url
+	 */
+	std::string GetLicenseServerUrlForDrm(DRMSystems type);
+
+	/**
+	 *   @brief Set eSTATE_BUFFERING if required
+	 *
+	 *   @return bool - true if has been set
+	 */
+	bool SetStateBufferingIfRequired();
+
+	/**
+	 *   @brief Check if First Video Frame Displayed Notification
+	 *          is required.
+	 *
+	 *   @return bool - true if required
+	 */
+	bool IsFirstVideoFrameDisplayedRequired();
+
+	/**
+	 *   @brief Notify First Video Frame was displayed
+	 *
+	 *   @return void
+	 */
+	void NotifyFirstVideoFrameDisplayed();
+
+	/**
+	 *   @brief Set audio track
+	 *
+	 *   @param[in] trackId - index of audio track in available track list
+	 *   @return void
+	 */
+	void SetAudioTrack(int trackId);
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Set text track
+	 *
+	 *   @param[in] trackId - index of text track in available track list
+	 *   @return void
+	 */
+	void SetTextTrack(int trackId);
+
+	/**
+	 *   @brief Get current text track index
+	 *
+	 *   @return int - index of current text track in available track list
+	 */
+	int GetTextTrack();
+
+	/**
+	 *   @brief Set CC visibility on/off
+	 *
+	 *   @param[in] enabled - true for CC on, false otherwise
+	 *   @return void
+	 */
+	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Function to notify available audio tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyAudioTracksChanged();
+
+	/**
+	 *   @brief Function to notify available text tracks changed
+	 *
+	 *   @return void
+	 */
+	void NotifyTextTracksChanged();
+
+	/**
+	 *   @brief Set preferred audio track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - audio track info object
+	 *   @return void
+	 */
+	void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
+
+	/**
+	 *   @brief Set preferred text track
+	 *   Required to persist across trickplay or other operations
+	 *
+	 *   @param[in] track - text track info object
+	 *   @return void
+	 */
+	void SetPreferredTextTrack(const TextTrackInfo track) { mPreferredTextTrack = track; }
+
+	/**
+	 *   @brief Get preferred audio track
+	 *
+	 *   @return AudioTrackInfo - preferred audio track object
+	 */
+	const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
+
+	/**
+	 *   @brief Get preferred text track
+	 *
+	 *   @return TextTrackInfo - preferred text track object
+	 */
+	const TextTrackInfo &GetPreferredTextTrack() { return mPreferredTextTrack; }
+
+	/**
+	 *   @brief Set style options for text track rendering
+	 *
+	 *   @param[in] options - JSON formatted style options
+	 *   @return void
+	 */
+	void SetTextStyle(const std::string &options);
+
+	/**
+	 *   @brief Get style options for text track rendering
+	 *
+	 *   @return std::string - JSON formatted style options
+	 */
+	std::string GetTextStyle();
 private:
 
 	/**
@@ -3079,20 +3236,12 @@ private:
 	 */
 	void DeliverAdEvents(bool immediate=false);
 
+
 	/**
 	 *   @brief Set Content Type
 	 *
-	 *   @param[in]  url - Media URL
-	 *   @param[in]  contentType - Content type
-	 *   @return void
+	 *   @return string
 	 */
-	void SetContentType(const char *url, const char *contentType);
-
-    /**
-     *   @brief Set Content Type
-     *
-     *   @return string
-     */
 	std::string GetContentTypString();
 
 	/**
@@ -3141,12 +3290,9 @@ private:
 	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
+	std::string  mVssVirtualStreamId; // part of manifest file
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
-#ifdef PLACEMENT_EMULATION
-	int mNumAds2Place;
-	std::string sampleAdBreakId;
-#endif
 	CVideoStat * mVideoEnd;
 	std::string  mTraceUUID; // Trace ID unique to tune
 	double mTimeToTopProfile;
@@ -3161,8 +3307,13 @@ private:
 	AampCacheHandler *mAampCacheHandler;
 	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
-	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
+	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
+	std::map<DRMSystems, std::string> mLicenseServerUrls;
+	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
+	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
+	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
+	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
+	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 };
-
 #endif // PRIVAAMP_H

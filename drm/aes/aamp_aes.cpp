@@ -106,11 +106,11 @@ void AesDec::SignalKeyAcquired()
 void AesDec::AcquireKey()
 {
 	std::string tempEffectiveUrl;
-	long http_error;
+	long http_error = 0;  //CID:88814 - Initialization
 	bool keyAcquisitionStatus = false;
 	AAMPTuneFailure failureReason = AAMP_TUNE_UNTRACKED_DRM_ERROR;
 
-	if (aamp_pthread_setname(pthread_self(), "aampAesKey"))
+	if (aamp_pthread_setname(pthread_self(), "aampAesDRM"))
 	{
 		logprintf("%s:%d: pthread_setname_np failed", __FUNCTION__, __LINE__);
 	}

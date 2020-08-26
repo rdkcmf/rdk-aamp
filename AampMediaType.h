@@ -39,6 +39,7 @@ enum MediaType
 	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
 	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
 	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
+	eMEDIATYPE_DSM_CC,              /**< Type digital storage media command and control (DSM-CC) */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 

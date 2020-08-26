@@ -54,13 +54,30 @@
 #include <list>
 #include <fstream>
 #include <math.h>
+#include <cctype>
 #include "AampCacheHandler.h"
+#include "AampUtils.h"
+#ifdef AAMP_RDK_CC_ENABLED
+#include "AampRDKCCManager.h"
+#endif
 #ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
 #endif
 #include "helper/AampDrmHelper.h"
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
+
+#ifdef USE_MAC_FOR_RANDOM_GEN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <openssl/sha.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include "base16.h"
+#endif
+
 #ifdef WIN32
 #include "conio.h"
 #else
@@ -89,8 +106,20 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 static const char* STRBGPLAYER = "BACKGROUND";
 static const char* STRFGPLAYER = "FOREGROUND";
 
+
+#define AAMP_STALL_CHECK_TOLERANCE 2
+#define DEFER_DRM_LIC_OFFSET_FROM_START 5
+#define DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND 5
+#define MAC_STRING_LEN 12
+#define URAND_STRING_LEN 16
+#define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
+#define MAX_BUFF_LENGTH 4096 
+
+
 static int PLAYERID_CNTR = 0;
 
+//Description size
+#define MAX_DESCRIPTION_SIZE 128
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -346,6 +375,9 @@ GlobalConfigAAMP *gpGlobalConfig;
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+#define PLAYREADY_UUID "9a04f079-9840-4286-ab92-e65be0885f95"
+#define WIDEVINE_UUID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+#define CLEARKEY_UUID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 
 /**
  * New state for treating a VOD asset as a "virtual linear" stream
@@ -379,13 +411,33 @@ static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
 const char * GetDrmSystemID(DRMSystems drmSystem)
 {
 	if(drmSystem == eDRM_WideVine)
-		return "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed";
+		return WIDEVINE_UUID;
 	else if(drmSystem == eDRM_PlayReady)
-		return "9a04f079-9840-4286-ab92-e65be0885f95";
+		return PLAYREADY_UUID;
+	else if (drmSystem == eDRM_ClearKey)
+		return CLEARKEY_UUID;
 	else if(drmSystem == eDRM_CONSEC_agnostic)
 		return "afbcb50e-bf74-3d13-be8f-13930c783962";
 	else
 		return "";
+}
+
+
+/**
+* @brief Get DRM system from ID
+* @param ID of the DRM system, empty string if not supported
+* @retval drmSystem drm system
+*/
+DRMSystems GetDrmSystem(std::string drmSystemID)
+{
+	if(drmSystemID == WIDEVINE_UUID)
+		return eDRM_WideVine;
+	else if(drmSystemID == PLAYREADY_UUID)
+		return eDRM_PlayReady;
+	else if(drmSystemID == CLEARKEY_UUID)
+		return eDRM_ClearKey;
+	else
+		return eDRM_NONE;
 }
 
 
@@ -418,17 +470,6 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 	}
 }
 
-/**
- * @brief Get current time stamp
- * @retval current clock time as milliseconds
- */
-long long aamp_GetCurrentTimeMS(void)
-{
-	struct timeval t;
-	gettimeofday(&t, NULL);
-	return (long long)(t.tv_sec*1e3 + t.tv_usec*1e-3);
-}
-
 static guint aamp_GetSourceID()
 {
 	guint callbackId = 0;
@@ -440,6 +481,144 @@ static guint aamp_GetSourceID()
 	return callbackId;
 }
 
+#ifdef USE_MAC_FOR_RANDOM_GEN
+/**
+ * @brief get EstbMac
+ *
+ * @param  mac[out] eSTB MAC address
+ * @return true on success.
+ */
+static bool getEstbMac(char* mac)
+{
+	bool ret = false;
+	char nwInterface[IFNAMSIZ] = { 'e', 't', 'h', '0', '\0' };
+#ifdef READ_ESTB_IFACE_FROM_DEVICE_PROPERTIES
+	FILE* fp = fopen("/etc/device.properties", "rb");
+	if (fp)
+	{
+		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
+		char buf[MAX_BUFF_LENGTH];
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			if(strstr(buf, "ESTB_INTERFACE") != NULL)
+			{
+				const char * nwIfaceNameStart = buf + 15;
+				int ifLen = 0;
+				for (int i = 0; i < IFNAMSIZ-1; i++ )
+				{
+					if (!isspace(nwIfaceNameStart[i]))
+					{
+						nwInterface[i] = nwIfaceNameStart[i];
+					}
+					else
+					{
+						nwInterface[i] = '\0';
+						break;
+					}
+				}
+				nwInterface[IFNAMSIZ-1] = '\0';
+				break;
+			}
+		}
+		fclose(fp);
+	}
+	else
+	{
+		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
+	}
+#endif
+	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
+	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sockFd == -1)
+	{
+		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		struct ifreq ifr;
+		strcpy(ifr.ifr_name, nwInterface);
+		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
+		{
+			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
+			strcpy(mac, macAddress);
+			free(macAddress);
+			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
+			ret = true;
+		}
+		close(sockFd);
+	}
+	return ret;
+}
+#endif
+
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds)
+{
+	int ret = 0;
+#ifdef USE_MAC_FOR_RANDOM_GEN
+	static char randString[RAND_STRING_LEN+1];
+	static bool estbMacAvalable = getEstbMac(randString);
+	if (estbMacAvalable)
+	{
+		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
+		int randFD = open("/dev/urandom", O_RDONLY);
+		if (randFD < 0)
+		{
+			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* uRandString = &randString[MAC_STRING_LEN];
+			int uRandStringLen = 0;
+			unsigned char temp;
+			for (int i = 0; i < URAND_STRING_LEN; i++)
+			{
+				ssize_t bytes = read(randFD, &temp, 1);
+				if (bytes < 0)
+				{
+					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
+					break;
+				}
+				sprintf(uRandString + i * 2, "%02x", temp);
+			}
+			close(randFD);
+			randString[RAND_STRING_LEN] = '\0';
+			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
+			unsigned char hash[SHA_DIGEST_LENGTH];
+			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
+			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
+
+			int mod = 0;
+			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+			{
+				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
+				mod = (mod * 10 + hash[i]) % divisor;
+			}
+			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
+			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
+		}
+	}
+	else
+	{
+		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
+		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+	}
+#else
+	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+#endif
+	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
+	return ret;
+}
 
 /**
  * @brief Report progress event to listeners
@@ -793,7 +972,7 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 
 	if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 	{
-		char description[128] = {};
+		char description[MAX_DESCRIPTION_SIZE] = {};
 		if (((error_code >= PARTIAL_FILE_CONNECTIVITY_AAMP) && (error_code <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)) || error_code == CURLE_OPERATION_TIMEDOUT)
 		{
 			switch(error_code)
@@ -801,26 +980,26 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,lon
 				case PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP:
 						error_code = CURLE_PARTIAL_FILE;
 				case CURLE_OPERATION_TIMEDOUT:
-						sprintf(description, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
 						break;
 				case PARTIAL_FILE_START_STALL_TIMEOUT_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
 						break;
 				case OPERATION_TIMEOUT_CONNECTIVITY_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_OPERATION_TIMEDOUT);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_OPERATION_TIMEDOUT);
 						break;
 				case PARTIAL_FILE_CONNECTIVITY_AAMP:
-						sprintf(description, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Connectivity failure", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
 						break;
 			}
 		}
 		else if(error_code < 100)
 		{
-			sprintf(description, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);  //CID:86441 - DC>STRING_BUFFER
 		}
 		else
 		{
-			sprintf(description, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
 			if (error_code == 404)
 			{
 				actualFailure = AAMP_TUNE_CONTENT_NOT_FOUND;
@@ -866,6 +1045,7 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
         e.data.anomalyReport.severity = (int)type;
         AAMPLOG_INFO("Anomaly evt:%d msg:%s",e.data.anomalyReport.severity,msgData);
         SendEventAsync(e);
+	va_end(args);  //CID:82734 - VARAGAS
     }
 }
 
@@ -965,6 +1145,12 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		{
 			logprintf("%s PLAYER[%d] Sending error %s",(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, e.data.mediaError.description);
 		}
+
+		if (rate != AAMP_NORMAL_PLAY_RATE)
+		{
+			NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE, false); // During trick play if the playback failed, send speed change event to XRE to reset its current speed rate.
+		}
+
 		SendEventAsync(e);
 	}
 	else
@@ -1020,7 +1206,7 @@ void PrivateInstanceAAMP::SendEventSync(const AAMPEvent &e)
 	}
 
 	AAMPEventType eventType = e.type;
-	if ((eventType < 0) && (eventType >= AAMP_MAX_NUM_EVENTS))
+	if ((eventType < 0) || (eventType >= AAMP_MAX_NUM_EVENTS))  //CID:81883 - Resolve OVER_RUN
 		return;
 
 	// Build list of registered event listeners.
@@ -1135,6 +1321,20 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 			SetState(eSTATE_PLAYING);
 		}
 	}
+
+#ifdef AAMP_RDK_CC_ENABLED
+	if (gpGlobalConfig->nativeCCRendering)
+	{
+		if (rate == AAMP_NORMAL_PLAY_RATE)
+		{
+			AampRDKCCManager::GetInstance()->SetTrickplayStatus(false);
+		}
+		else
+		{
+			AampRDKCCManager::GetInstance()->SetTrickplayStatus(true);
+		}
+	}
+#endif
 
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SPEED_CHANGED])
 	{
@@ -1380,8 +1580,6 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 {
 	//TODO protect mEventListener
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	if(e->event.type != AAMP_EVENT_PROGRESS)
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, e->event.type);
 	//Get current idle handler's id
 	guint callbackID = aamp_GetSourceID();
 	if (callbackID != 0)
@@ -2028,7 +2226,7 @@ static int progress_callback(
 		}
 		else if (dlnow == 0 && context->startTimeout > 0)
 		{ // check to handle scenario where <startTimeout> seconds delay occurs without any bytes having been downloaded (stall at start)
-			double timeElapsedInSec = (NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
 			if (timeElapsedInSec >= context->startTimeout)
 			{
 				logprintf("Abort download as no data received for %.2f seconds", timeElapsedInSec);
@@ -2065,8 +2263,8 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 		case CURLINFO_HEADER_IN:
 		logprintf("curl header: %s", data);
 		break;
-	    default:
-		break;
+		default:
+		break;  //CID:94999 - Resolve deadcode
 	}
 	}
 	return 0;
@@ -2648,12 +2846,15 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
 				simType == eMEDIATYPE_PLAYLIST_IFRAME)
-			{				
+			{		
+				// For Manifest file : Set starttimeout to 0 ( no wait for first byte). Playlist/Manifest with DAI
+				// contents take more time , hence to avoid frequent timeout, its set as 0		
 				progressCtx.startTimeout = 0;
 			}
 			else
 			{
-				progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
+				// for Video/Audio segments , set the start timeout as configured by Application
+				progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
 			}
 			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
                   
@@ -2779,7 +2980,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 					}
-					effectiveUrl.assign(effectiveUrlPtr);
+
+					if(effectiveUrlPtr)
+					{
+						effectiveUrl.assign(effectiveUrlPtr);    //CID:81493 - Resolve Forward null
+					}
 
 					// check if redirected url is pointing to fog / local ip
 					if(mIsFirstRequestToFOG)
@@ -2951,14 +3156,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && gpGlobalConfig->bEnableABR)
 			{
-				if(mABRBufferCheckEnabled || (!mABRBufferCheckEnabled && buffer->len > gpGlobalConfig->aampAbrThresholdSize))
+				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
 				{
 					pthread_mutex_lock(&mLock);
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
 					// extra coding to avoid picking lower profile
-					AAMPLOG_INFO("%s downloadbps:%ld currentProfilebps:%ld downloadTimeMS:%d fragmentDurationMs:%d",__FUNCTION__,downloadbps,currentProfilebps,downloadTimeMS,fragmentDurationMs);
-					if(fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && downloadbps < currentProfilebps)
+
+					if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
 					{
 						downloadbps = currentProfilebps;
 					}
@@ -2973,27 +3178,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
-#ifdef SAVE_DOWNLOADS_TO_DISK
-			const char *fname = remoteUrl;
-			for (;;)
-			{
-				const char *next = strchr(fname, '/');
-				if (next)
-				{
-					next++;
-					fname = next;
-				}
-				else
-				{
-					break;
-				}
-			}
-			char path[1024];
-			snprintf(path,sizeof(path),"C:/Users/pstrof200/Downloads/%s", fname);
-			FILE *f = fopen(path, "wb");
-			fwrite(buffer->ptr, 1, buffer->len, f);
-			fclose(f);
-#endif
 			double expectedContentLength = 0;
 			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
 			{
@@ -3359,120 +3543,6 @@ static void ParseISO8601(struct DateTime *datetime, const char *ptr)
 }
 #endif
 
-/**
- * @brief comparing strings
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
-bool aamp_StartsWith( const char *inputStr, const char *prefix )
-{
-	bool rc = true;
-	while( *prefix )
-	{
-		if( *inputStr++ != *prefix++ )
-		{
-			rc = false;
-			break;
-		}
-	}
-	return rc;
-}
-
-/**
- * @brief Resolve URL from base and uri
- * @param[out] dst Destination buffer
- * @param base Base URL
- * @param uri manifest/ fragment uri
- */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
-{
-	if (memcmp(uri, "http://", 7) != 0 && memcmp(uri, "https://", 8) != 0) // explicit endpoint - needed for DAI playlist
-	{
-		dst = base;
-
-		std::size_t pos;
-		if (uri[0] == '/')
-		{	// absolute path; preserve only endpoint http://<endpoint>:<port>/
-			//e.g uri = "/vod/video/00000001.ts"
-			// base = "https://host.com/folder1/manifest.m3u8"
-			// dst = "https://host.com/vod/video/00000001.ts"
-			pos = dst.find("://");
-			if (pos != std::string::npos)
-			{
-				pos = dst.find('/', pos + 3);
-			}
-			pos--; // skip the "/" as uri starts with "/" , this is done to avoid double "//" in URL which sometimes gives HTTP-404
-		}
-		else
-		{	// relative path; include base directory
-			// e.g base = "http://127.0.0.1:9080/manifests/video1/manifest.m3u8"
-			// uri = "frag-787563519.ts"
-			// dst = http://127.0.0.1:9080/manifests/video1/frag-787563519.ts
-			pos = std::string::npos;
-			const char *ptr = dst.c_str();
-			std::size_t idx = 0;
-			for(;;)
-			{
-				char c = ptr[idx];
-				if( c=='/' )
-				{ // remember final '/'
-					pos = idx;
-				}
-				else if( c == '?' || c==0 )
-				{ // bail if we find uri param delimiter or reach end of stream
-					break;
-				}
-				idx++;
-			}
-		}
-
-		assert(pos!=std::string::npos);
-		dst.replace(pos+1, std::string::npos, uri);
-
-		if (strchr(uri, '?') == 0)//if uri doesn't already have url parameters, then copy from the parents(if they exist)
-		{
-			pos = base.find('?');
-			if (pos != std::string::npos)
-			{
-				std::string params = base.substr(pos);
-				dst.append(params);
-			}
-		}
-	}
-	else
-		dst = uri; // uri = "http://host.com/video/manifest.m3u8"
-}
-
-/**
- * @brief
- * @param url
- * @retval
- */
-std::string aamp_getHostFromURL(std::string url)
-{
-	std::string host = "comcast.net";
-	std::string protos = "https";
-	std::string proto = "http";
-	std::size_t start_pos = std::string::npos;
-	if (url.compare(0, protos.length(), protos) == 0)
-	{
-		start_pos = protos.length() + 3;
-	}
-	else if (url.compare(0, proto.length(), proto) == 0)
-	{
-		start_pos = proto.length() + 3;
-	}
-
-	if (start_pos != std::string::npos)
-	{
-		std::size_t pos = url.find('/', start_pos);
-		if (pos != std::string::npos)
-		host = url.substr(start_pos, (pos - start_pos));
-	}
-	return host;
-}
-
 
 /**
  * @brief
@@ -3647,13 +3717,13 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		//Removing unnecessary spaces and newlines
 		trim(cfg);
 
-		double seconds = 0;
+		//CID:98018- Remove the seconds variable which is declared but not used
 		double inputTimeout;
 		int value;
 		char * tmpValue = NULL;
-		if (ReadConfigNumericHelper(cfg, "map-mpd=", gpGlobalConfig->mapMPD) == 1)
+		if(ReadConfigStringHelper(cfg, "map-mpd=", (const char**)&gpGlobalConfig->mapMPD))
 		{
-			logprintf("map-mpd=%d", gpGlobalConfig->mapMPD);
+			logprintf("map-mpd=%s", gpGlobalConfig->mapMPD);
 		}
 		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
 		{
@@ -4063,7 +4133,7 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
 			logprintf("report-progress-interval=%d", gpGlobalConfig->reportProgressInterval);
 		}
-		else if (ReadConfigStringHelper(cfg, "http-proxy=", &gpGlobalConfig->httpProxy))
+		else if (ReadConfigStringHelper(cfg, "http-proxy=", (const char**)&gpGlobalConfig->httpProxy))
 		{
 			logprintf("http-proxy=%s", gpGlobalConfig->httpProxy);
 		}
@@ -4284,6 +4354,21 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 		{
 			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
 		}
+		else if (ReadConfigNumericHelper(cfg, "enable-native-cc=", value) == 1)
+		{
+			gpGlobalConfig->nativeCCRendering = (value == 1);
+			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
+		}
+		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
+		{
+			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;
+			logprintf("CEA 708 is preferred format: %s", (gpGlobalConfig->preferredCEA708 == eTrueState) ? "TRUE" : "FALSE");
+		}
+		else if (cfg.compare("enableSubtec") == 0)
+		{
+			gpGlobalConfig->bEnableSubtec = true;
+			logprintf("Subtec subtitles enabled");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -4313,6 +4398,51 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->unknownValues.insert(std::make_pair(key, value));
 			logprintf("Added unknown key %s with value %s", key.c_str(), value.c_str());
 		}
+	}
+}
+
+/**
+ * @brief GlobalConfigAAMP Destructor
+ */
+GlobalConfigAAMP::~GlobalConfigAAMP()
+{
+	// free memory allocated in global Config
+#ifdef AAMP_HARVEST_SUPPORT_ENABLED
+	if(harvestpath)
+	{
+		free(harvestpath);
+		harvestpath = NULL;
+	}
+#endif
+
+	if(licenseServerURL)
+	{
+		free(licenseServerURL);
+		licenseServerURL = NULL;
+	}
+
+	if(httpProxy)
+	{
+		free(httpProxy);
+		httpProxy = NULL;
+	}
+
+	if(ckLicenseServerURL)
+	{
+		free(ckLicenseServerURL);
+		ckLicenseServerURL = NULL;
+	}
+
+	if(uriParameter)
+	{
+		free(uriParameter);
+		uriParameter = NULL;
+	}
+
+	if(mapMPD)
+	{
+		free(mapMPD);
+		mapMPD = NULL;
 	}
 }
 
@@ -4418,7 +4548,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
                                        && minInitCache >= 0)
 			{
 				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
-				m_minInitialCacheSeconds = minInitCache;
+				mMinInitialCacheSeconds = minInitCache;
 			}
 		}
 
@@ -4471,7 +4601,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
-			m_minInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
+			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
 	}
 }
@@ -4541,12 +4671,15 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	{
 #ifdef AAMP_STOP_SINK_ON_SEEK
 		const bool forceStop = true;
-		AAMPEvent event;
-		event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-		event.data.ccHandle.handle = 0;
-		traceprintf("%s:%d Sending AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
-		SendEventSync(event);
-		logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+		// Don't send event if nativeCCRendering is ON
+		if (!gpGlobalConfig->nativeCCRendering)
+		{
+			AAMPEvent event;
+			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
+			event.data.ccHandle.handle = 0;
+			SendEventSync(event);
+			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle",__FUNCTION__, __LINE__);
+		}
 #else
 		const bool forceStop = false;
 #endif
@@ -4556,6 +4689,13 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		else
 		{
+#ifdef AAMP_RDK_CC_ENABLED
+			// Stop CC when pipeline is stopped/destroyed and if foreground instance
+			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
+			{
+				AampRDKCCManager::GetInstance()->Release();
+			}
+#endif
 			mStreamSink->Stop(!newTune);
 		}
 	}
@@ -4626,6 +4766,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		delete mInternalStreamSink;
 	}
+#ifdef AAMP_RDK_CC_ENABLED
+	if (gActivePrivAAMPs.empty())
+	{
+		AampRDKCCManager::DestroyInstance();
+	}
+#endif
 #ifdef SUPPORT_JS_EVENTS 
 	if (mJSBinding_DL && gActivePrivAAMPs.empty())
 	{
@@ -4633,6 +4779,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		dlclose(mJSBinding_DL);
 	}
 #endif
+	if (gActivePrivAAMPs.empty() && gpGlobalConfig)
+	{
+		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalConfig);
+		delete gpGlobalConfig;
+		gpGlobalConfig = NULL;
+	}
 }
 
 
@@ -4753,7 +4905,6 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
 		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
-			logprintf("PLAYER[%d] aamp_stop ignored since already at eSTATE_IDLE", aamp->mPlayerId);
 			return;
 		}
 
@@ -4796,41 +4947,18 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
  */
 static void DeFog(std::string& url)
 {
-	char *dst = NULL, *head = NULL;
-	head = dst = strdup(url.c_str());
-	const char *src = strstr(dst, "&recordedUrl=");
-	if (src)
+	std::string prefix("&recordedUrl=");
+	size_t startPos = url.find(prefix);
+	if( startPos != std::string::npos )
 	{
-		src += 13;
-		for (;;)
+		startPos += prefix.size();
+		size_t len = url.find( '&',startPos );
+		if( len != std::string::npos )
 		{
-			char c = *src++;
-			if (c == '%')
-			{
-				size_t len;
-				unsigned char *tmp = base16_Decode(src, 2, &len);
-				if (tmp)
-				{
-					*dst++ = tmp[0];
-					free(tmp);
-				}
-				src += 2;
-			}
-			else if (c == 0 || c == '&')
-			{
-				*dst++ = 0x00;
-				break;
-			}
-			else
-			{
-				*dst++ = c;
-			}
+			len -= startPos;
 		}
-	}
-	if(head != NULL)
-	{
-		url = head;
-		free(head);
+		url = url.substr(startPos,len);
+		aamp_DecodeUrlParameter(url);
 	}
 }
 
@@ -4844,6 +4972,10 @@ static void DeFog(std::string& url)
 bool UrlEncode(std::string inStr, std::string &outStr)
 {
 	char *inSrc = strdup(inStr.c_str());
+	if(!inSrc)
+	{
+		return false;  //CID:81541 - REVERSE_NULL
+	}
 	const char HEX[] = "0123456789ABCDEF";
 	const int SRC_LEN = strlen(inSrc);
 	uint8_t * pSrc = (uint8_t *)inSrc;
@@ -4883,7 +5015,7 @@ bool UrlEncode(std::string inStr, std::string &outStr)
  */
 int replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
 {
-	bool done = false;
+	//CID:99836 - Removing the done variable wich is initialized but not used
 	int rc = 0;
 	std::size_t pos;
 
@@ -4920,7 +5052,7 @@ int replace(std::string &str, const char *existingSubStringToReplace, int replac
  * @brief Common tune operations used on Tune, Seek, SetRate etc
  * @param tuneType type of tune
  */
-void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
+void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 {
 	bool newTune;
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -4929,6 +5061,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
+	mFragmentCachingRequired = false;
+	mPauseOnFirstVideoFrameDisp = false;
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -5014,18 +5148,27 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	else
+	else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 	{
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_PROGRESSIVE(this, playlistSeekPos, rate);
-		if(NULL == mCdaiObject)
+		if (NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
-	mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
 
 	mInitSuccess = true;
-	AAMPStatusType retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	AAMPStatusType retVal;
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->SetCDAIObject(mCdaiObject);
+		retVal = mpStreamAbstractionAAMP->Init(tuneType);
+	}
+	else
+	{
+		retVal = eAAMPSTATUS_GENERIC_ERROR;
+	}
+
 	if (retVal != eAAMPSTATUS_OK)
 	{
 		// Check if the seek position is beyond the duration
@@ -5089,6 +5232,21 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 			mMediaFormat = eMEDIAFORMAT_HLS_MP4;
 		}
 
+		// Enable fragment initial caching. Retune not supported
+		if(tuneType != eTUNETYPE_RETUNE
+			&& mMinInitialCacheSeconds > 0
+			&& rate == AAMP_NORMAL_PLAY_RATE
+			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
+		{
+			mFragmentCachingRequired = true;
+		}
+
+		// Set Pause on First Video frame if seeking and requested
+		if( mSeekOperationInProgress && seekWhilePaused )
+		{
+			mPauseOnFirstVideoFrameDisp = true;
+		}
+
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		if (mMediaFormat == eMEDIAFORMAT_HLS)
 		{
@@ -5150,6 +5308,19 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	}
 }
 
+/**
+ *   @brief Tune to a URL.
+ *   This extra Tune function is included for backwards compatibility
+ *   @param[in]  url - HTTP/HTTPS url to be played.
+ *   @param[in]  contentType - Content type of the asset
+ *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+ *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+ *   @return void
+ */
+void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
+{
+	Tune(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
+}
 
 /**
  * @brief Tune to a URL.
@@ -5161,14 +5332,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	ERROR_STATE_CHECK_VOID();
+
 	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
 		//Calling tune without closing previous tune
 		Stop(false);
 	}
-	if (state == eSTATE_RELEASED)
-	{
-		aamp->SetState(eSTATE_IDLE); //To send the IDLE status event for first channel tune after bootup
-	}
+
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
@@ -5183,7 +5352,6 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
-	AAMPLOG_TRACE("original URL: %s", mainManifestUrl);
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
@@ -5272,22 +5440,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
-	mMediaFormat = eMEDIAFORMAT_DASH;
-
-        if(strstr(mainManifestUrl, "m3u8"))
-        { // if m3u8 anywhere in locator, assume HLS
-          // supports HLS locators that end in .m3u8 with/without trailing URI parameters
-          // supports HLS locators passed through FOG
-                mMediaFormat = eMEDIAFORMAT_HLS;
-        }
-        else if(strstr(mainManifestUrl, ".mp4") || strstr(mainManifestUrl, ".mp3"))
-        { // preogressive content never uses FOG, so above pattern can be more strict (requires preceding ".")
-                mMediaFormat = eMEDIAFORMAT_PROGRESSIVE;
-        }
-        else
-        { // for any other locators, assume DASH
-                mMediaFormat = eMEDIAFORMAT_DASH;
-        }
+	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
@@ -5298,7 +5451,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 
-	SetContentType(mainManifestUrl, contentType);
+	if(contentType)
+	{
+		SetContentType(contentType, mainManifestUrl);
+	}
+
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -5331,7 +5488,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			mLiveOffset	=	AAMP_LIVE_OFFSET;
 		}
 	}
-	AAMPLOG_WARN("[%s] mLiveOffset: %f", __FUNCTION__,mLiveOffset);
 
 	if(bFirstAttempt)
 	{
@@ -5349,54 +5505,19 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
-			mMediaFormat = eMEDIAFORMAT_DASH;
-			if (!gpGlobalConfig->fogSupportsDash )
+			std::string hostName = aamp_getHostFromURL(mManifestUrl);
+			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mIsLocalPlayback && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
 			{
-				DeFog(mManifestUrl);
+				replace(mManifestUrl, ".m3u8", ".mpd");
+				mMediaFormat = eMEDIAFORMAT_DASH;
 			}
-
-			bool urlReplaced = false;
-
-			switch(gpGlobalConfig->mapMPD)
-			{
-				case 1: 		//Simply change m3u8 to mpd
-					urlReplaced = true;
-					break;
-				case 2:
-					urlReplaced |= (replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top") ||
-					                replace(mManifestUrl, "linear-nat-pil-red", "coam-tvil-pil")    ||
-					                replace(mManifestUrl, "linear-nat-pil", "coam-tvil-pil"));
-					break;
-				case 3:			//Setting all national channels' FQDN to "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net"
-					if(mManifestUrl.compare("-nat-") == 0)
-					{
-						std::string hostName = aamp_getHostFromURL(mManifestUrl);
-						urlReplaced |= replace(mManifestUrl, hostName.c_str(), "ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net");
-					}
-					else
-					{
-						urlReplaced |= replace(mManifestUrl, "col-jitp2.xcr", "col-jitp2-samsung.top");
-					}
-					break;
-				default:
-					//Let fall back
-					break;
-			}
-
-			if(!urlReplaced)
-			{
-				//Fall back channel
-				mManifestUrl = "http://ccr.coam-tvil-pil.xcr.comcast.net/FNCHD_HD_NAT_16756_0_5884597068415311163.mpd";
-			}
-
-			replace(mManifestUrl, ".m3u8", ".mpd");
 		}
 		
-		if (gpGlobalConfig->noFog)
+		if ((mMediaFormat == eMEDIAFORMAT_DASH && !gpGlobalConfig->fogSupportsDash) || gpGlobalConfig->noFog)
 		{
 			DeFog(mManifestUrl);
 		}
-	
+
 		if (gpGlobalConfig->forceEC3)
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
@@ -5469,6 +5590,129 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 }
 
+// Uncomment to test GetMediaFormatType without locator inspection
+#define TRUST_LOCATOR_EXTENSION_IF_PRESENT
+
+/**
+ *   @brief Assign the correct mediaFormat by parsing the url
+ *   @param[in]  manifest url
+ */
+MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
+{
+	MediaFormat rc = eMEDIAFORMAT_UNKNOWN;
+	std::string urlStr(url); // for convenience, convert to std::string
+
+#ifdef TRUST_LOCATOR_EXTENSION_IF_PRESENT // disable to exersize alternate path
+	if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
+	{ // where local host is used; inspect further to determine if this locator involves FOG
+
+		size_t fogUrlStart = urlStr.find("recordedUrl=", 16); // search forward, skipping 16-char http://127.0.0.1
+
+		if(fogUrlStart != std::string::npos)
+		{ // definitely FOG - extension is inside recordedUrl URI parameter
+
+			size_t fogUrlEnd = urlStr.find("&", fogUrlStart); // end of recordedUrl
+
+			if(fogUrlEnd != std::string::npos)
+			{
+				if(urlStr.rfind("m3u8", fogUrlEnd) != std::string::npos)
+				{
+					rc = eMEDIAFORMAT_HLS;
+				}
+				else if(urlStr.rfind("mpd", fogUrlEnd)!=std::string::npos)
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
+
+				// should never get here with UNKNOWN format, but if we do, just fall through to normal locator scanning
+			}
+		}
+	}
+	
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{ // do 'normal' (non-FOG) locator parsing
+
+		size_t extensionEnd = urlStr.find("?"); // delimited for URI parameters, or end-of-string
+		std::size_t extensionStart = urlStr.rfind(".", extensionEnd); // scan backwards to find final "."
+		int extensionLength;
+
+		if(extensionStart != std::string::npos)
+		{ // found an extension
+			if(extensionEnd == std::string::npos)
+			{
+				extensionEnd = urlStr.length();
+			}
+
+			extensionStart++; // skip past the "." - no reason to re-compare it
+
+			extensionLength = (int)(extensionEnd - extensionStart); // bytes between "." and end of query delimiter/end of string
+
+			if(extensionLength == 4 && urlStr.compare(extensionStart, extensionLength, "m3u8") == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if(extensionLength == 3)
+			{
+				if(urlStr.compare(extensionStart,extensionLength,"mpd") == 0)
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
+				else if(urlStr.compare(extensionStart,extensionLength,"mp3") == 0 || urlStr.compare(extensionStart,extensionLength,"mp4") == 0 )
+				{
+					rc = eMEDIAFORMAT_PROGRESSIVE;
+				}
+			}
+		}
+	}
+#endif // TRUST_LOCATOR_EXTENSION_IF_PRESENT
+
+	if(rc == eMEDIAFORMAT_UNKNOWN)
+	{
+		// no extension - sniff first few bytes of file to disambiguate
+		struct GrowableBuffer sniffedBytes = {0, 0, 0};
+		std::string effectiveUrl;
+		long http_error;
+		long bitrate;
+		int fogError;
+
+		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
+
+		bool gotManifest = GetFile(
+							url,
+							&sniffedBytes,
+							effectiveUrl,
+							&http_error,
+							"0-100", // download first few bytes only
+							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
+							eCURLINSTANCE_MANIFEST_PLAYLIST,
+							false,
+							eMEDIATYPE_MANIFEST,
+							&bitrate,
+							&fogError,
+							0.0);
+
+		if(gotManifest)
+		{
+			if(sniffedBytes.len >= 7 && memcmp(sniffedBytes.ptr, "#EXTM3U8", 7) == 0)
+			{
+				rc = eMEDIAFORMAT_HLS;
+			}
+			else if((sniffedBytes.len >= 6 && memcmp(sniffedBytes.ptr, "<?xml ", 6) == 0) || // can start with xml
+					 (sniffedBytes.len >= 5 && memcmp(sniffedBytes.ptr, "<MPD ", 5) == 0)) // or directly with mpd
+			{ // note: legal to have whitespace before leading tag
+				rc = eMEDIAFORMAT_DASH;
+			}
+			else
+			{
+				rc = eMEDIAFORMAT_PROGRESSIVE;
+			}
+		}
+		aamp_Free(&sniffedBytes.ptr);
+	}
+
+	return rc;
+}
+
 /**
  *   @brief Check if AAMP is in stalled state after it pushed EOS to
  *   notify discontinuity
@@ -5514,31 +5758,21 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 {
 	if(mIsVSS && !url.empty())
 	{
-		std::string vssURL;
-        size_t vssURLPos;
 		if(mTSBEnabled)
-		{
+		{ // extract original locator from FOG recordedUrl URI parameter
 			DeFog(url);
-		}	
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s url:%s ", __FUNCTION__,url.c_str());
-		vssURL = url;
-
-		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
+		}
+		size_t vssStart = url.find(VSS_MARKER);
+		if( vssStart != std::string::npos )
 		{
-			vssURLPos = vssURLPos + VSS_MARKER_LEN;
-			// go till start of service zone. 
-			vssURL = vssURL.substr(vssURLPos);
-
-			size_t  nextQueryParameterPos = vssURL.find('&');
-			if(nextQueryParameterPos != std::string::npos)
+			vssStart += VSS_MARKER_LEN; // skip "?sz="
+			size_t vssLen = url.find('&',vssStart);
+			if( vssLen != std::string::npos )
 			{
-				// remove anything after & . i.e get string from 0 till nextQueryParameterPos
-				mServiceZone = vssURL.substr(0, nextQueryParameterPos);
+				vssLen -= vssStart;
 			}
-			else
-			{
-				mServiceZone = vssURL;
-			}
+			mServiceZone = url.substr(vssStart, vssLen );
+			aamp_DecodeUrlParameter(mServiceZone); // DELIA-44703
 		}
 		else
 		{
@@ -5632,7 +5866,13 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	}
 }
 
-void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char *cType)
+/**
+ * @brief set a content type
+ * @param[in] cType - content type 
+ * @param[in] mainManifestUrl - main manifest URL
+ * @retval none
+ */
+void PrivateInstanceAAMP::SetContentType(const char *cType, const char *mainManifestUrl)
 {
 	mContentType = ContentType_UNKNOWN; //default unknown
 	if(NULL != cType)
@@ -5683,10 +5923,16 @@ void PrivateInstanceAAMP::SetContentType(const char *mainManifestUrl, const char
 			mContentType = ContentType_OTT; //ott
 		}
 	}
-	logprintf("Detected ContentType %d (%s)",mContentType,cType?cType:"UNKNOWN");
 }
 
-
+/**
+ * @brief Get Content Type
+ * @return ContentType
+ */
+ContentType PrivateInstanceAAMP::GetContentType() const
+{
+	return mContentType;
+}
 const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitData(const char *url)
 {
 	std::string urlStr(url);
@@ -5699,36 +5945,22 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 		std::stringstream modifiedUrl;
 		modifiedUrl << urlStr.substr(0, queryPos);
 		const std::string parameterDefinition("drmInitData=");
-		std::string       parameter;
+		std::string parameter;
 		std::stringstream querySs(urlStr.substr(queryPos + 1, std::string::npos));
-
 		while (std::getline(querySs, parameter, '&'))
-		{
+		{ // with each URI parameter
 			if (parameter.rfind(parameterDefinition, 0) == 0)
-			{
-				CURL *curl = curl_easy_init();
-				if (curl != NULL)
-				{
-					std::string initData = parameter.substr(parameterDefinition.length(), std::string::npos).c_str();
-					int unescapedLen;
-					const char* unescapedData = curl_easy_unescape(curl, initData.c_str(), initData.size(), &unescapedLen);
-					if (unescapedData != NULL)
-					{
-						drmInitDataStr = std::string(unescapedData, unescapedLen);
-						curl_free((void*)unescapedData);
-					}
-					curl_easy_cleanup(curl);
-				}
+			{ // found drmInitData URI parameter
+				drmInitDataStr = parameter.substr(parameterDefinition.length());
+				aamp_DecodeUrlParameter( drmInitDataStr );
 			}
 			else
-			{
+			{ // filter out drmInitData; reintroduce all other URI parameters
 				modifiedUrl << ((modifiedUrl.tellp() == queryPos) ? "?" : "&") << parameter;
 			}
 		}
-
 		urlStr = modifiedUrl.str();
 	}
-
 	return std::tuple<std::string, std::string>(urlStr, drmInitDataStr);
 }
 
@@ -5764,6 +5996,13 @@ void PrivateInstanceAAMP::detach()
 		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
 		pipeline_paused = true;
 		mpStreamAbstractionAAMP->StopInjection();
+#ifdef AAMP_RDK_CC_ENABLED
+		// Stop CC when pipeline is stopped
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampRDKCCManager::GetInstance()->Release();
+		}
+#endif
 		mStreamSink->Stop(true);
 		mbPlayEnabled = false;
 	}
@@ -5797,7 +6036,7 @@ void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
 	}
 	else
 	{
-		if ((value > 0) && (value < MAX_SEG_INJECT_FAIL_COUNT))
+		if ((value > 0) && (value <= MAX_SEG_INJECT_FAIL_COUNT))
 		{
 			aamp->mSegInjectFailCount = value;
 			AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
@@ -5822,7 +6061,7 @@ void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 	}
 	else
 	{
-		if ((value > 0) && (value < MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
+		if ((value > 0) && (value <= MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
 		{
 			aamp->mDrmDecryptFailCount = value;
 			AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
@@ -5855,6 +6094,22 @@ void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 {
 	aamp->SetRampDownLimit(limit);
+}
+
+
+/**
+ * @brief Set Language Format
+ * @param[in] preferredFormat - one of \ref LangCodePreference
+ * @param[in] useRole - if enabled, the language in format <lang>-<role>
+ *                      if <role> attribute available in stream
+ *
+ * @return void
+ */
+void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, bool useRole)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+	gpGlobalConfig->langCodePreference = preferredFormat;
+	gpGlobalConfig->bDescriptiveAudioTrack = useRole;
 }
 
 /**
@@ -6088,6 +6343,22 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 		SyncBegin();
 		mStreamSink->EndOfStreamReached(mediaType);
 		SyncEnd();
+
+		// If EOS during Buffering, set Playing and let buffer to dry out
+		// Sink is already unpaused by EndOfStreamReached()
+		pthread_mutex_lock(&mFragmentCachingLock);
+		mFragmentCachingRequired = false;
+		PrivAAMPState state;
+		GetState(state);
+		if(state == eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+			}
+			SetState(eSTATE_PLAYING);
+		}
+		pthread_mutex_unlock(&mFragmentCachingLock);
 	}
 }
 
@@ -6101,6 +6372,36 @@ double PrivateInstanceAAMP::GetSeekBase(void)
 	return seek_pos_seconds;
 }
 
+/**
+ *   @brief Check given rate is valid.
+ *
+ *   @param[in] rate - Rate of playback.
+ *   @retval return true if the given rate is valid.
+ */
+bool PlayerInstanceAAMP::IsValidRate(int rate)
+{
+	bool retValue = false;
+
+	switch(rate)
+	{
+		case AAMP_RATE_REW_1X:
+		case AAMP_RATE_REW_2X:
+		case AAMP_RATE_REW_3X:
+		case AAMP_RATE_REW_4X:
+		case AAMP_RATE_PAUSE:
+		case AAMP_NORMAL_PLAY_RATE:
+		case AAMP_RATE_FWD_1X:
+		case AAMP_RATE_FWD_2X:
+		case AAMP_RATE_FWD_3X:
+		case AAMP_RATE_FWD_4X:
+		{
+			retValue = true;
+			break;
+		}
+	}
+
+	return retValue;
+}
 
 /**
  *   @brief Set playback rate.
@@ -6114,11 +6415,18 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 	ERROR_STATE_CHECK_VOID();
 
+	if (!IsValidRate(rate))
+	{
+		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		return;
+	}
+
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
 		{
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
 		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
@@ -6153,14 +6461,14 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			// instead use last reported posn vs the time player get play command
 		// a. During trickplay , last XRE reported position is stored in aamp->mReportProgressPosn
 					/// and last reported time is stored in aamp->mReportProgressTime
-		// b. Calculate the time delta  from last reported time
+		// b. Calculate the time delta	from last reported time
 		// c. Using this diff , calculate the best/nearest match position (works out 70-80%)
 		// d. If time delta is < 100ms ,still last video fragment rendering is not removed ,but position updated very recently
-			// So switch last displayed position - NewPosn -= Posn - ((aamp->rate/4)*1000) 
-		// e. If time delta is > 950ms , possibility of next frame to come by the time play event is processed . 
+			// So switch last displayed position - NewPosn -= Posn - ((aamp->rate/4)*1000)
+		// e. If time delta is > 950ms , possibility of next frame to come by the time play event is processed.
 			//So go to next fragment which might get displayed
 		// f. If none of above ,maintain the last displayed position .
-		// 
+		//
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 
 		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
@@ -6171,7 +6479,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		if (!((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
 			double newSeekPosInSec = -1;
-			// when switching from trick to play mode only 
+			// when switching from trick to play mode only
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
 				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
@@ -6181,12 +6489,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				}
 				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
 				{
-					// Get the last shown frame itself 
+					// Get the last shown frame itself
 					newSeekPosInSec = aamp->mReportProgressPosn/1000;
 				}
 				else
 				{
-					// Go little back to last shown frame 
+					// Go little back to last shown frame
 					newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
 				}
 
@@ -6202,7 +6510,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			else
 			{
 				// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
-				// Show the last position 
+				// Show the last position
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
 			}
 
@@ -6229,10 +6537,14 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{ // no change in desired play rate
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
-				AAMPLOG_INFO("Resuming Playback at Position '%lld'.\n", aamp->GetPositionMilliseconds());
-				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
-				retValue = aamp->mStreamSink->Pause(false, false);
-				aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				// check if unpausing in the middle of fragments caching
+				if(!aamp->SetStateBufferingIfRequired())
+				{
+					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+					retValue = aamp->mStreamSink->Pause(false, false);
+					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
 			}
@@ -6258,7 +6570,10 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 
 		if(retValue)
 		{
-			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate);
+			// Do not update state if fragments caching is ongoing and pipeline not paused,
+			// target state will be updated once caching completed
+			aamp->NotifySpeedChanged(aamp->pipeline_paused ? 0 : aamp->rate,
+					(!aamp->IsFragmentCachingRequired() || aamp->pipeline_paused));
 		}
 	}
 	else
@@ -6346,8 +6661,9 @@ static gboolean  SeekAfterPrepared(gpointer ptr)
  *
  *   @param  secondsRelativeToTuneTime - Seek position for VOD,
  *           relative position from first tune command.
+ *   @param  keepPaused - set true if want to keep paused state after seek
  */
-void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
+void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	bool sentSpeedChangedEv = false;
 	bool isSeekToLive = false;
@@ -6393,6 +6709,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			}
 		}
 
+		bool seekWhilePause = false;
 		if (aamp->pipeline_paused)
 		{
 			// resume downloads and clear paused flag. state change will be done
@@ -6401,6 +6718,13 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 			aamp->pipeline_paused = false;
 			aamp->ResumeDownloads();
 			sentSpeedChangedEv = true;
+
+			if(keepPaused
+				&& aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
+			{
+				// Enable seek while paused if not Progressive stream
+				seekWhilePause = true;
+			}
 		}
 
 		if (tuneType == eTUNETYPE_SEEK)
@@ -6415,8 +6739,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
-			aamp->TuneHelper(tuneType);
-			if (sentSpeedChangedEv)
+			aamp->TuneHelper(tuneType, seekWhilePause);
+			if (sentSpeedChangedEv
+					&& (!seekWhilePause) )
 			{
 				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
@@ -6427,10 +6752,12 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime)
 
 /**
  *   @brief Seek to live point.
+ *
+ *   @param[in]  keepPaused - set true if want to keep paused state after seek
  */
-void PlayerInstanceAAMP::SeekToLive()
+void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 {
-	Seek(AAMP_SEEK_TO_LIVE_POSITION);
+	Seek(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
 }
 
 
@@ -6542,14 +6869,12 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	{
 		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set prior to tune start", language);
 	}
 	// check if language is supported in manifest languagelist
 	else if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
 	{
 		aamp->languageSetByUser = true;
 		aamp->UpdateAudioLanguageSelection(language);
-		logprintf("aamp_SetLanguage(%s) Language set", language);
 		if (aamp->mpStreamAbstractionAAMP)
 		{
 			logprintf("aamp_SetLanguage(%s) retuning", language);
@@ -6577,7 +6902,6 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 {
 	ERROR_STATE_CHECK_VOID();
 
-	logprintf("aamp_SetSubscribedTags()");
 	aamp->subscribedTags = subscribedTags;
 
 	for (int i=0; i < aamp->subscribedTags.size(); i++) {
@@ -7629,7 +7953,7 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 			ret = pthread_cond_timedwait(&mDownloadsDisabled, &mLock, &ts);
 			if (0 == ret)
 			{
-				logprintf("sleep interrupted!");
+				//logprintf("sleep interrupted!");
 			}
 #ifndef WIN32
 			else if (ETIMEDOUT != ret)
@@ -7649,7 +7973,16 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
  */
 long long PrivateInstanceAAMP::GetDurationMs()
 {
-	return (long long)(durationSeconds*1000.0);
+	if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+	{
+	 	long long ms = mStreamSink->GetDurationMilliseconds();
+	 	durationSeconds = ms/1000.0;
+	 	return ms;
+	}
+	else
+	{
+		return (long long)(durationSeconds*1000.0);
+	}
 }
 
 
@@ -7815,7 +8148,6 @@ void PrivateInstanceAAMP::Stop()
 	}
 	if (timedMetadata.size() > 0)
 	{
-		logprintf("PrivateInstanceAAMP::%s() - timedMetadata.size - %d", __FUNCTION__, timedMetadata.size());
 		timedMetadata.clear();
 	}
 
@@ -7830,6 +8162,8 @@ void PrivateInstanceAAMP::Stop()
   
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
+	mPreferredAudioTrack = AudioTrackInfo();
+	mPreferredTextTrack = TextTrackInfo();
 	// send signal to any thread waiting for play
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
@@ -8050,7 +8384,13 @@ bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	SetState(eSTATE_PLAYING);
+	// If seek while paused is ongoing,
+	// state will be changed in NotifyFirstVideoDisplayed()
+	if(!mPauseOnFirstVideoFrameDisp
+			&& !SetStateBufferingIfRequired())
+	{
+		SetState(eSTATE_PLAYING);
+	}
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
@@ -8074,10 +8414,19 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #endif
 	if (mStreamSink != NULL)
 	{
-		AAMPEvent event;
-		event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
-		event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
-		SendEventSync(event);
+#ifdef AAMP_RDK_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampRDKCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
+		}
+		else
+#endif
+		{
+			AAMPEvent event;
+			event.type = AAMP_EVENT_CC_HANDLE_RECEIVED;
+			event.data.ccHandle.handle = mStreamSink->getCCDecoderHandle();
+			SendEventSync(event);
+		}
 	}
 }
 
@@ -8307,48 +8656,34 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
-	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(),
+	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0), noExplicitUserLanguageSelection(true), languageSetByUser(false), preferredLanguagesString(), preferredLanguagesList(),
 	mVideoEnd(NULL),mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
-#ifdef PLACEMENT_EMULATION
-	,mNumAds2Place(0), sampleAdBreakId("")
-#endif
-	,mCustomLicenseHeaders()
-	, mIsIframeTrackPresent(false)
-	,mManifestTimeoutMs(-1)
-	,mPlaylistTimeoutMs(-1)
-	,mNetworkTimeoutMs(-1)
-	,mParallelFetchPlaylist(false)
-	,mParallelFetchPlaylistRefresh(true)
-	,mBulkTimedMetadata(false)
-	,reportMetadata()
-	,mPlayerId(PLAYERID_CNTR++)
-	,mWesterosSinkEnabled(false)
-	,mEnableRectPropertyEnabled(true)
-	,waitforplaystart()
-	,mMutexPlaystart()
-	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
-	,mUseAvgBandwidthForABR(false)
+	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
+	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
+	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(false), mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
+	,mPlaylistTimeoutMs(-1),mMutexPlaystart()
 #ifdef AAMP_HLS_DRM
-    , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
+    	, fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
 #endif
-	, mbPlayEnabled(true)
-	, mAampCacheHandler(new AampCacheHandler())
-	, mAsyncTuneEnabled(false)
-	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
 	, mPlayermode(PLAYERMODE_JSPLAYER), mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
-	, mABRBufferCheckEnabled(false), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
+	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
-	, mCurrentDrm(), mDrmInitData()
+	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
+	, mPauseOnFirstVideoFrameDisp(false)
+	, mPreferredAudioTrack(), mPreferredTextTrack()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8356,7 +8691,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
-    iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
@@ -8364,7 +8699,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
-
+	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -8432,6 +8767,14 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
 	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
 		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
+	if (gpGlobalConfig->ckLicenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
+	}
+	if (gpGlobalConfig->licenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -8490,6 +8833,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
+	pthread_mutex_destroy(&mFragmentCachingLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -8527,7 +8871,8 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 		sentSync = false;
 	}
 
-	if (state == eSTATE_PLAYING && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
+	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING || state == eSTATE_PAUSED)
+		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
 	{
 		AAMPEvent eventData;
 		eventData.type = AAMP_EVENT_SEEKED;
@@ -8631,7 +8976,20 @@ bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
  */
 void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 {
+	pthread_mutex_lock(&mFragmentCachingLock);
+	mFragmentCachingRequired = false;
 	mStreamSink->NotifyFragmentCachingComplete();
+	PrivAAMPState state;
+	GetState(state);
+	if (state == eSTATE_BUFFERING)
+	{
+		if(mpStreamAbstractionAAMP)
+		{
+			mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
+		}
+		SetState(eSTATE_PLAYING);
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
 }
 
 
@@ -8805,8 +9163,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 {
 	if(gpGlobalConfig->mEnableVideoEndEvent)
 	{
-		AAMPLOG_INFO("UpdateVideoEnd:T:%d  br:%ld err:%d dur:%f taTop:%f ttTop:%f tot:%f keyChan:%d encry:%d",
-			mediaType, bitrate , curlOrHTTPCode,(float)duration,(float)mTimeAtTopProfile , (float) mTimeToTopProfile, (float) mPlaybackDuration,keyChanged,isEncrypted );
 
 		// ignore for write and aborted errors
 		// these are generated after trick play options,
@@ -9082,18 +9438,13 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 }
 
 /**
- * @brief Check if fragment Buffering is required before playing.
+ *   @brief Check if fragment caching is required
  *
- * @retval true if buffering is required.
+ *   @return true if required or ongoing, false if not needed
  */
-bool PrivateInstanceAAMP::IsFragmentBufferingRequired()
+bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 {
-	if(mpStreamAbstractionAAMP)
-	{
-		return mpStreamAbstractionAAMP->IsFragmentBufferingRequired();
-	}
-
-	return false;
+	return mFragmentCachingRequired;
 }
 
 
@@ -9199,7 +9550,6 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  */
 void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
-	char **serverUrl = &(gpGlobalConfig->licenseServerURL);
 	if (type == eDRM_MAX_DRMSystems)
 	{
 		// Local aamp.cfg config trumps JS PP config
@@ -9207,31 +9557,19 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 		{
 			return;
 		}
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(url);
 	}
-	else if (type == eDRM_PlayReady)
+	else if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey)
 	{
-		serverUrl = &(gpGlobalConfig->prLicenseServerURL);
-	}
-	else if (type == eDRM_WideVine)
-	{
-		serverUrl = &(gpGlobalConfig->wvLicenseServerURL);
-	}
-	else if(type == eDRM_ClearKey)
-	{
-		serverUrl = &(gpGlobalConfig->ckLicenseServerURL);
+		mLicenseServerUrls[type] = std::string(url);
 	}
 	else
 	{
-		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type received.", __FUNCTION__);
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
 		return;
 	}
 
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d", __FUNCTION__, url, type);
-	if (*serverUrl != NULL)
-	{
-		free(*serverUrl);
-	}
-	*serverUrl = strdup(url);
 }
 
 
@@ -9315,15 +9653,15 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 {
 	if(liveoffset > 0 )
-        {
+    {
 		mLiveOffset = liveoffset;
 		mNewLiveOffsetflag = true;
 		logprintf("PrivateInstanceAAMP::%s(), liveoffset %d", __FUNCTION__, liveoffset);
-        }
+    }
 	else
-        {
+    {
 		logprintf("PrivateInstanceAAMP::%s(), liveoffset beyond limits %d", __FUNCTION__, liveoffset);
-        }  
+    }
 }
 
 
@@ -9396,14 +9734,24 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
-	PrivAAMPState state;
-	GetState(state);
-	if (state == eSTATE_SEEKING)
+	// If seek while paused is ongoing,
+	// state will be changed in NotifyFirstVideoDisplayed()
+	if (!mPauseOnFirstVideoFrameDisp)
 	{
-		//Playback started after end of seeking
-		SetState(eSTATE_PLAYING);
+		PrivAAMPState state;
+		GetState(state);
+		if (state == eSTATE_SEEKING
+			&& !SetStateBufferingIfRequired())
+		{
+			PrivAAMPState state;
+			GetState(state);
+			if (state == eSTATE_SEEKING)
+			{
+				//Playback started after end of seeking
+				SetState(eSTATE_PLAYING);
+			}
+		}
 	}
-
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
@@ -9660,7 +10008,6 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	}
 	event.data.metadata.supportedSpeedCount = supportedSpeedCount;
 
-	logprintf("aamp: sending metadata event and duration update %f", ((double)durationMs)/1000);
 	SendEventAsync(event);
 	//TODO: Send the list of available audio tracks and text tracks if listeners are registered.
 }
@@ -9756,7 +10103,6 @@ void PrivateInstanceAAMP::ConfigureNetworkTimeout()
 		// if App has not set the value , then set default value 
 		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
 	}
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld ms", __FUNCTION__, __LINE__, mNetworkTimeoutMs);
 }
 
 /**
@@ -9780,7 +10126,7 @@ void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
  */
 void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
 {
-        if (timeout > 0)
+	if (timeout > 0)
 	{
 		mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
@@ -9801,7 +10147,6 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 	{
 		mManifestTimeoutMs = mNetworkTimeoutMs;
 	}
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 }
 
 /**
@@ -9818,7 +10163,6 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
         {
                 mPlaylistTimeoutMs = mNetworkTimeoutMs;
         }
-        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
 }
 
 
@@ -9839,9 +10183,6 @@ void PrivateInstanceAAMP::ConfigureParallelFetch()
 	{
 		mParallelFetchPlaylistRefresh = (bool)gpGlobalConfig->parallelPlaylistRefresh ;
 	}
-
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Parallel playlist download Init [%d] Refresh [%d]", __FUNCTION__, __LINE__, mParallelFetchPlaylist,mParallelFetchPlaylistRefresh);
-
 }
 
 /**
@@ -9854,7 +10195,6 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
         {
                 mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
         }
-        AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Bulk TimedMetadata [%d]", __FUNCTION__, __LINE__, mBulkTimedMetadata);
 }
 
 /**
@@ -9867,7 +10207,6 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
     {
             mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
     }
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For Unpaired Discontinuity [%d]", __FUNCTION__, __LINE__, mUseRetuneForUnpairedDiscontinuity);
 }
 
 /**
@@ -9891,7 +10230,6 @@ void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
 	if(gpGlobalConfig->mPreCacheTimeWindow > 0)
 	{
 		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
-		AAMPLOG_WARN("%s Playlist PreCaching configured from config  time %d Mins",__FUNCTION__,mPreCacheDnldTimeWindow);
 	}
 }
 
@@ -9910,7 +10248,6 @@ void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
 	{
 		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
 	}
-	AAMPLOG_WARN("%s Init frag timeout retry count configured %d", __FUNCTION__, mInitFragmentRetryCount);
 }
 
 /**
@@ -9941,8 +10278,6 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
     {
         AAMPLOG_WARN("Disabling Westeros Sink");
     }
-
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Westeros Sink state [%d] Video scaling rect property state [%s]", __FUNCTION__, __LINE__, mWesterosSinkEnabled, ((mEnableRectPropertyEnabled)?"True":"False"));
 }
 
 /**
@@ -9957,14 +10292,12 @@ void PrivateInstanceAAMP::ConfigurePlayerModeSettings()
 	{
 		case PLAYERMODE_MEDIAPLAYER:
 		{
-			AAMPLOG_WARN("%s:%d Player Mode :: Media Player",__FUNCTION__,__LINE__);
 			SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
 		}
 			break; /* PLAYERMODE_MEDIAPLAYER */
 
 		case PLAYERMODE_JSPLAYER:
 		{
-			AAMPLOG_WARN("%s:%d Player Mode :: JS Player",__FUNCTION__,__LINE__);
 			SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
 		}
 			break; /* PLAYERMODE_JSPLAYER */
@@ -10032,12 +10365,6 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 }
 
 
-#ifdef PLACEMENT_EMULATION
-	static int sampleAdIdx = 0;
-	static const std::string sampleAds[] = {"http://ccr.ip-ads.xcr.comcast.net/omg08/UNI_Packaging_-_Production/316269638415/6563a411-908b-4abd-b3ae-23dc910fd136/563/237/CSNF8700103700100001_mezz_LVLH07.mpd",
-											"http://ccr.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/450921542127/e5c6fac0-74a4-4301-807b-4ecdca384d86/977/301/CSAF8000010270110001_mezz_LVLH07.mpd"
-											};
-#endif
 
 /**
  *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
@@ -10057,20 +10384,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 		std::string url("");
 
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, breakdur);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-#ifdef PLACEMENT_EMULATION
-		mNumAds2Place = (breakdur /1000)/30;
-		if(mNumAds2Place > 0)
-		{
-			sampleAdBreakId = adBreakId;
-			mNumAds2Place--;
-			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
-			std::string url = sampleAds[sampleAdIdx];
-			sampleAdIdx = 1 - sampleAdIdx;
-			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
-		}
-#else
 		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
-#endif
 	}
 }
 
@@ -10107,16 +10421,6 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 	AAMPEvent e;
 	if (mDownloadsEnabled)	//Send it, only if Stop not called
 	{
-#ifdef PLACEMENT_EMULATION
-		if(mNumAds2Place > 0)
-		{
-			mNumAds2Place--;
-			std::string adId = sampleAdBreakId+"-"+std::to_string(mNumAds2Place);
-			std::string url = sampleAds[sampleAdIdx];
-			sampleAdIdx = 1 - sampleAdIdx;
-			mCdaiObject->SetAlternateContents(sampleAdBreakId, adId, url);
-		}
-#else
 		e.type = AAMP_EVENT_AD_RESOLVED;
 		strncpy(e.data.adResolved.adId, adId.c_str(), AD_ID_LENGTH);
 		e.data.adResolved.adId[AD_ID_LENGTH-1] = '\0';
@@ -10125,7 +10429,6 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 		e.data.adResolved.durationMs = durationMs;
 		AAMPLOG_WARN("PrivateInstanceAAMP::%s():%d, [CDAI] Sent resolved status=%d for adId[%s]", __FUNCTION__, __LINE__, e.data.adResolved.resolveStatus, adId.c_str());
 		SendEventAsync(e);
-#endif
 	}
 }
 
@@ -10480,7 +10783,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts)
 void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts)
 {
 		mVideoBasePTS = basepts;
-		logprintf("mVideoBasePTS::%llu\n",mVideoBasePTS);
+		AAMPLOG_INFO("mVideoBasePTS::%llu\n",mVideoBasePTS);
 }
 
 /**
@@ -10507,9 +10810,12 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
-	// Subtitle disabled for DASH
-	return (!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+	return gpGlobalConfig->bEnableSubtec;//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+}
 
+bool PrivateInstanceAAMP::IsRegisteredForSubtitleCueData(void)
+{
+	return (mEventListener && mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]);
 }
 
 /**
@@ -10714,14 +11020,22 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
 				{
 					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
-					// Per spec, name and rendition/group-id is required
-					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (!iter->name.empty())
+					{
+						cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					}
 					if (!iter->language.empty())
 					{
 						cJSON_AddStringToObject(item, "language", iter->language.c_str());
 					}
-					cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
-					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->codec.empty())
+					{
+						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
+					}
+					if (!iter->rendition.empty())
+					{
+						cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					}
 					if (!iter->characteristics.empty())
 					{
 						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
@@ -10729,6 +11043,10 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 					if (iter->channels != 0)
 					{
 						cJSON_AddNumberToObject(item, "channels", iter->channels);
+					}
+					if (iter->bandwidth != -1)
+					{
+						cJSON_AddNumberToObject(item, "bandwidth", iter->bandwidth);
 					}
 				}
 				char *jsonStr = cJSON_Print(root);
@@ -10771,8 +11089,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 				for (auto iter = trackInfo.begin(); iter != trackInfo.end(); iter++)
 				{
 					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
-					// Per spec, name and rendition/group-id is required
-					cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					if (!iter->name.empty())
+					{
+						cJSON_AddStringToObject(item, "name", iter->name.c_str());
+					}
 					if (iter->isCC)
 					{
 						cJSON_AddStringToObject(item, "type", "CLOSED-CAPTIONS");
@@ -10785,7 +11105,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 					{
 						cJSON_AddStringToObject(item, "language", iter->language.c_str());
 					}
-					cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					if (!iter->rendition.empty())
+					{
+						cJSON_AddStringToObject(item, "rendition", iter->rendition.c_str());
+					}
 					if (!iter->instreamId.empty())
 					{
 						cJSON_AddStringToObject(item, "instreamId", iter->instreamId.c_str());
@@ -10793,6 +11116,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 					if (!iter->characteristics.empty())
 					{
 						cJSON_AddStringToObject(item, "characteristics", iter->characteristics.c_str());
+					}
+					if (!iter->codec.empty())
+					{
+						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
 					}
 				}
 				char *jsonStr = cJSON_Print(root);
@@ -10879,7 +11206,7 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
  */
 void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
-	m_minInitialCacheSeconds = durationSec;
+	mMinInitialCacheSeconds = durationSec;
 }
 
 /**
@@ -10889,7 +11216,89 @@ void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
-	return m_minInitialCacheSeconds;
+	return mMinInitialCacheSeconds;
+}
+
+/**
+ *   @brief Check if First Video Frame Displayed Notification
+ *          is required.
+ *
+ *   @return bool - true if required
+ */
+bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
+{
+	return mPauseOnFirstVideoFrameDisp;
+}
+
+/**
+ *   @brief Notify First Video Frame was displayed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
+{
+	if(!mPauseOnFirstVideoFrameDisp)
+	{
+		return;
+	}
+
+	mPauseOnFirstVideoFrameDisp = false;
+
+	PrivAAMPState state;
+	GetState(state);
+	if(state != eSTATE_SEEKING)
+	{
+		return;
+	}
+
+	AAMPLOG_INFO("%s: Pausing Playback on First Frame Displayed", __FUNCTION__);
+	if(mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+	}
+	StopDownloads();
+	if(PausePipeline(true, false))
+	{
+		SetState(eSTATE_PAUSED);
+	}
+	else
+	{
+		AAMPLOG_ERR("%s(): Failed to pause pipeline for first frame displayed!", __FUNCTION__);
+	}
+}
+
+/**
+ *   @brief Set eSTATE_BUFFERING if required
+ *
+ *   @return bool - true if has been set
+ */
+bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
+{
+	bool bufferingSet = false;
+
+	pthread_mutex_lock(&mFragmentCachingLock);
+	if(IsFragmentCachingRequired())
+	{
+		bufferingSet = true;
+		PrivAAMPState state;
+		GetState(state);
+		if(state != eSTATE_BUFFERING)
+		{
+			if(mpStreamAbstractionAAMP)
+			{
+				mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+			}
+
+			if(mStreamSink)
+			{
+				mStreamSink->NotifyFragmentCachingOngoing();
+			}
+			SetState(eSTATE_BUFFERING);
+		}
+	}
+	pthread_mutex_unlock(&mFragmentCachingLock);
+
+	return bufferingSet;
 }
 
 /**
@@ -10930,6 +11339,364 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 }
 
 /**
+ * @brief Get license server url for a drm type
+ *
+ * @param[in] type DRM type
+ * @return license server url
+ */
+std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
+{
+	std::string url;
+	auto it = mLicenseServerUrls.find(type);
+	if (it != mLicenseServerUrls.end())
+	{
+		url = it->second;
+	}
+	else
+	{
+		// If url is not explicitly specified, check for generic one.
+		// This might be set in cases of VIPER AAMP/JSController bindings
+		it = mLicenseServerUrls.find(eDRM_MAX_DRMSystems);
+		if (it != mLicenseServerUrls.end())
+		{
+			url = it->second;
+		}
+	}
+	return url;
+}
+
+/**
+ *   @brief Enable/disable the native CC rendering feature
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	gpGlobalConfig->nativeCCRendering = enable;
+#endif
+}
+
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAudioTrack(int trackId)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+
+	aamp->SetAudioTrack(trackId);
+}
+
+/**
+ *   @brief Get current audio track index
+ *
+ *   @return int - index of current audio track in available track list
+ */
+int PlayerInstanceAAMP::GetAudioTrack()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
+
+	return aamp->GetAudioTrack();
+}
+
+/**
+ *   @brief Set text track
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetTextTrack(int trackId)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+
+	aamp->SetTextTrack(trackId);
+}
+
+/**
+ *   @brief Get current text track index
+ *
+ *   @return int - index of current text track in available track list
+ */
+int PlayerInstanceAAMP::GetTextTrack()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
+
+	return aamp->GetTextTrack();
+}
+
+/**
+ *   @brief Set CC visibility on/off
+ *
+ *   @param[in] enabled true for CC on, false otherwise
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetCCStatus(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	aamp->SetCCStatus(enabled);
+}
+
+/**
+ *   @brief Set style options for text track rendering
+ *
+ *   @param[in] options - JSON formatted style options
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetTextStyle(const std::string &options)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	aamp->SetTextStyle(options);
+}
+
+/**
+ *   @brief Get style options for text track rendering
+ *
+ *   @return std::string - JSON formatted style options
+ */
+std::string PlayerInstanceAAMP::GetTextStyle()
+{
+	ERROR_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetTextStyle();
+}
+
+/**
+ *   @brief Set the CEA format for force setting
+ *
+ *   @param[in] format - 0 for 608, 1 for 708
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	if (format == eCLOSEDCAPTION_FORMAT_608)
+	{
+		gpGlobalConfig->preferredCEA708 = eFalseState;
+	}
+	else if (format == eCLOSEDCAPTION_FORMAT_708)
+	{
+		gpGlobalConfig->preferredCEA708 = eTrueState;
+	}
+#endif
+}
+
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetAudioTrack(int trackId)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<AudioTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		{
+			SetPreferredAudioTrack(tracks[trackId]);
+			// TODO: Confirm if required
+			languageSetByUser = true;
+
+			discardEnteringLiveEvt = true;
+
+			seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+			TeardownStream(false);
+			TuneHelper(eTUNETYPE_SEEK);
+
+			discardEnteringLiveEvt = false;
+		}
+	}
+}
+
+/**
+ *   @brief Get current audio track index
+ *
+ *   @return int - index of current audio track in available track list
+ */
+int PrivateInstanceAAMP::GetAudioTrack()
+{
+	int idx = -1;
+	if (mpStreamAbstractionAAMP)
+	{
+		idx = mpStreamAbstractionAAMP->GetAudioTrack();
+	}
+	return idx;
+}
+
+/**
+ *   @brief Set text track
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTextTrack(int trackId)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		{
+			TextTrackInfo track = tracks[trackId];
+			// Check if CC / Subtitle track
+			if (track.isCC)
+			{
+#ifdef AAMP_RDK_CC_ENABLED
+				if (!track.instreamId.empty())
+				{
+					CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT;
+					// AampRDKCCManager expects the CC type, ie 608 or 708
+					// For DASH, there is a possibility that instreamId is just an integer so we infer rendition
+					if (mMediaFormat == eMEDIAFORMAT_DASH && (std::isdigit(static_cast<unsigned char>(track.instreamId[0])) == 0) && !track.rendition.empty())
+					{
+						if (track.rendition.find("608") != std::string::npos)
+						{
+							format = eCLOSEDCAPTION_FORMAT_608;
+						}
+						else if (track.rendition.find("708") != std::string::npos)
+						{
+							format = eCLOSEDCAPTION_FORMAT_708;
+						}
+					}
+
+					// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
+					if (gpGlobalConfig->preferredCEA708 != eUndefinedState)
+					{
+						if (gpGlobalConfig->preferredCEA708 == eTrueState)
+						{
+							format = eCLOSEDCAPTION_FORMAT_708;
+						}
+						else
+						{
+							format = eCLOSEDCAPTION_FORMAT_608;
+						}
+						AAMPLOG_WARN("PrivateInstanceAAMP::%s %d CC format override present, override format to: %d", __FUNCTION__, __LINE__, format);
+					}
+					AampRDKCCManager::GetInstance()->SetTrack(track.instreamId, format);
+				}
+				else
+				{
+					AAMPLOG_ERR("PrivateInstanceAAMP::%s %d Track number/instreamId is empty, skip operation", __FUNCTION__, __LINE__);
+				}
+#endif
+			}
+			else
+			{
+				//TODO: Effective handling between subtitle and CC tracks
+				// SetPreferredTextTrack will not have any impact on CC rendering if already active
+				SetPreferredTextTrack(track);
+				discardEnteringLiveEvt = true;
+
+				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				TeardownStream(false);
+				TuneHelper(eTUNETYPE_SEEK);
+
+				discardEnteringLiveEvt = false;
+			}
+		}
+	}
+}
+
+/**
+ *   @brief Get current text track index
+ *
+ *   @return int - index of current text track in available track list
+ */
+int PrivateInstanceAAMP::GetTextTrack()
+{
+	int idx = -1;
+#ifdef AAMP_RDK_CC_ENABLED
+	if (AampRDKCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
+	{
+		std::string trackId = AampRDKCCManager::GetInstance()->GetTrack();
+		if (!trackId.empty())
+		{
+			std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+			for (auto it = tracks.begin(); it != tracks.end(); it++)
+			{
+				if (it->instreamId == trackId)
+				{
+					idx = std::distance(tracks.begin(), it);
+				}
+			}
+		}
+	}
+#endif
+	if (mpStreamAbstractionAAMP && idx == -1)
+	{
+		idx = mpStreamAbstractionAAMP->GetTextTrack();
+	}
+	return idx;
+}
+
+/**
+ *   @brief Set CC visibility on/off
+ *
+ *   @param[in] enabled true for CC on, false otherwise
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetCCStatus(bool enabled)
+{
+#ifdef AAMP_RDK_CC_ENABLED
+	AampRDKCCManager::GetInstance()->SetStatus(enabled);
+#endif
+}
+
+/**
+ *   @brief Function to notify available audio tracks changed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyAudioTracksChanged()
+{
+	SendEventAsync(AAMP_EVENT_AUDIO_TRACKS_CHANGED);
+}
+
+/**
+ *   @brief Function to notify available text tracks changed
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::NotifyTextTracksChanged()
+{
+	SendEventAsync(AAMP_EVENT_TEXT_TRACKS_CHANGED);
+}
+
+/**
+ *   @brief Set style options for text track rendering
+ *
+ *   @param[in] options - JSON formatted style options
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
+{
+	//TODO: This can be later extended to subtitle rendering
+	// Right now, API is not available for subtitle
+#ifdef AAMP_RDK_CC_ENABLED
+	AampRDKCCManager::GetInstance()->SetStyle(options);
+#endif
+}
+
+/**
+ *   @brief Get style options for text track rendering
+ *
+ *   @return std::string - JSON formatted style options
+ */
+std::string PrivateInstanceAAMP::GetTextStyle()
+{
+	//TODO: This can be later extended to subtitle rendering
+	// Right now, API is not available for subtitle
+#ifdef AAMP_RDK_CC_ENABLED
+	return AampRDKCCManager::GetInstance()->GetStyle();
+#else
+	return std::string();
+#endif
+}
+
+/**
  * @}
  */
-

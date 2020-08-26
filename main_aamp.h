@@ -222,12 +222,24 @@ typedef enum
 #define AD_ID_LENGTH 32
 #define MAX_BITRATE_COUNT 10
 #define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
-#define AAMP_NORMAL_PLAY_RATE 1 /** < Normal Play Rate */
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define METRIC_UUID_BUFF_LEN  256
 #define DRM_MESSAGE_BUFF_LEN  512
 
+// Player supported play/trick-play rates.
+#define AAMP_RATE_REW_1X		-4
+#define AAMP_RATE_REW_2X		-16
+#define AAMP_RATE_REW_3X		-32
+#define AAMP_RATE_REW_4X		-64
+#define AAMP_RATE_PAUSE			0
+#define AAMP_NORMAL_PLAY_RATE 	1
+#define AAMP_RATE_FWD_1X		4
+#define AAMP_RATE_FWD_2X		16
+#define AAMP_RATE_FWD_3X		32
+#define AAMP_RATE_FWD_4X		64
 
+#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
+#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
 typedef enum E_MetricsDataType
 {
@@ -599,20 +611,44 @@ typedef struct PreCacheUrlData
 typedef std::vector < PreCacheUrlStruct> PreCacheUrlList;
 
 /**
+ *  @brief Language Code Preference types
+ */
+typedef enum
+{
+    ISO639_NO_LANGCODE_PREFERENCE,
+    ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE,
+    ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE,
+    ISO639_PREFER_2_CHAR_LANGCODE
+} LangCodePreference;
+
+/**
  * @brief Structure for audio track information
  *        Holds information about an audio track in playlist
  */
 struct AudioTrackInfo
 {
+	std::string index;
 	std::string language;
 	std::string rendition; //role for DASH, group-id for HLS
 	std::string name;
 	std::string codec;
 	std::string characteristics;
 	int channels;
+	long bandwidth;
 
-	AudioTrackInfo(std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch)
-		:language(lang), rendition(rend), name(trackName), codec(codecStr), characteristics(cha), channels(ch)
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw)
 	{
 	}
 };
@@ -623,15 +659,30 @@ struct AudioTrackInfo
  */
 struct TextTrackInfo
 {
+	std::string index;
 	std::string language;
 	bool isCC;
 	std::string rendition; //role for DASH, group-id for HLS
 	std::string name;
 	std::string instreamId;
 	std::string characteristics;
+	std::string codec;
 
-	TextTrackInfo(std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha)
-		:language(lang), isCC(cc), rendition(rend), name(trackName), instreamId(id), characteristics(cha)
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec()
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(id), characteristics(cha),
+		codec()
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(), characteristics(),
+		codec(codecStr)
 	{
 	}
 };
@@ -729,6 +780,13 @@ public:
 	virtual bool Pause(bool pause, bool forceStopGstreamerPreBuffering){ return true; }
 
 	/**
+          *   @brief Get playback duration in milliseconds
+          *
+          *   @return duration in ms.
+          */
+        virtual long GetDurationMilliseconds(void){ return 0; };
+
+	/**
 	 *   @brief Get playback position in milliseconds
 	 *
 	 *   @return Position in ms.
@@ -818,6 +876,13 @@ public:
 	 *   @return void
 	 */
 	virtual void NotifyFragmentCachingComplete(){};
+
+	/**
+	 *   @brief API to notify that fragment caching is ongoing
+	 *
+	 *   @return void
+	 */
+	virtual void NotifyFragmentCachingOngoing(){};
 
 	/**
 	 *   @brief Get the video dimensions
@@ -915,6 +980,19 @@ public:
 
 	/**
 	 *   @brief Tune to a URL.
+	 *      DEPRECATED!  This is included for backwards compatibility with current Sky AS integration
+	 *      audioDecoderStreamSync is a broadcom-specific hack (for original xi6 POC build) - this doesn't belong in Tune API.
+	 *
+	 *   @param[in]  url - HTTP/HTTPS url to be played.
+	 *   @param[in]  contentType - Content type of the asset
+	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+	 *   @return void
+	 */
+	void Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync);
+
+	/**
+	 *   @brief Tune to a URL.
 	 *
 	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  autoPlay - Start playback immediately or not
@@ -933,6 +1011,13 @@ public:
 	void Stop(bool sendStateChangeEvent = true);
 
 	/**
+	 *	 @brief Check given rate is valid.
+	 *
+	 *	 @param[in]  rate - Rate of playback.
+	 *	 @retval return true if the given rate is valid.
+	 */
+	bool IsValidRate(int rate);
+	/**
 	 *   @brief Set playback rate.
 	 *
 	 *   @param[in]  rate - Rate of playback.
@@ -946,14 +1031,16 @@ public:
 	 *
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
 	 *           relative position from first tune command.
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void Seek(double secondsRelativeToTuneTime);
+	void Seek(double secondsRelativeToTuneTime, bool keepPaused = false);
 
 	/**
 	 *   @brief Seek to live point.
 	 *
+	 *   @param[in]  keepPaused - set true if want to keep paused state after seek
 	 */
-	void SeekToLive(void);
+	void SeekToLive(bool keepPaused = false);
 
 	/**
 	 *   @brief Set seek position and speed.
@@ -1542,6 +1629,84 @@ public:
 	 *
 	 */
 	void SetInitialBufferDuration(int durationSec);
+
+	/**
+	 *   @brief Enable/disable the native CC rendering feature
+	 *
+	 *   @param[in] enable - true for native CC rendering on
+	 *   @return void
+	 */
+	void SetNativeCCRendering(bool enable);
+
+	/**
+	 *   @brief Set audio track
+	 *
+	 *   @param[in] trackId - index of audio track in available track list
+	 *   @return void
+	 */
+	void SetAudioTrack(int trackId);
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Set text track
+	 *
+	 *   @param[in] trackId - index of text track in available track list
+	 *   @return void
+	 */
+	void SetTextTrack(int trackId);
+
+	/**
+	 *   @brief Get current text track index
+	 *
+	 *   @return int - index of current text track in available track list
+	 */
+	int GetTextTrack();
+
+	/**
+	 *   @brief Set CC visibility on/off
+	 *
+	 *   @param[in] enabled - true for CC on, false otherwise
+	 *   @return void
+	 */
+	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Set style options for text track rendering
+	 *
+	 *   @param[in] options - JSON formatted style options
+	 *   @return void
+	 */
+	void SetTextStyle(const std::string &options);
+
+	/**
+	 *   @brief Get style options for text track rendering
+	 *
+	 *   @return std::string - JSON formatted style options
+	 */
+	std::string GetTextStyle();
+	/**
+	 * @brief Set Language Format
+	 * @param[in] preferredFormat - one of \ref LangCodePreference
+	 * @param[in] useRole - if enabled, the language in format <lang>-<role>
+	 *                      if <role> attribute available in stream
+	 *
+	 * @return void
+	 */
+	void SetLanguageFormat(LangCodePreference preferredFormat, bool useRole = false);
+
+	/**
+	 *   @brief Set the CEA format for force setting
+	 *
+	 *   @param[in] format - 0 for 608, 1 for 708
+	 *   @return void
+	 */
+	void SetPreferredCEAFormat(int format);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

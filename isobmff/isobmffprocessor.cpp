@@ -149,7 +149,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			if (buffer.getTimeScale(tScale))
 			{
 				timeScale = tScale;
-				AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+				AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
 			}
 
 			cacheInitSegment(segment, size);
@@ -194,7 +194,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 						if (buffer.getTimeScale(tScale))
 						{
 							timeScale = tScale;
-							AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+							AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
 						}
 						if (timeScale == 0)
 						{

@@ -38,6 +38,7 @@ typedef enum
 {
 	eSUB_TYPE_WEBVTT,
 	eSUB_TYPE_MP4,
+	eSUB_TYPE_TTML,
 	eSUB_TYPE_UNKNOWN
 } SubtitleMimeType;
 
@@ -72,6 +73,8 @@ public:
 	virtual bool close() = 0;
 	virtual void reset() = 0;
 	virtual void setProgressEventOffset(double offset) = 0;
+	virtual void updateTimestamp(unsigned long long positionMs) = 0;
+	virtual void pause(bool pause) {}
 
 protected:
 

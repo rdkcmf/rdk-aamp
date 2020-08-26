@@ -57,6 +57,11 @@
 #define AAMP_AUDIO_FORMAT_MAP_LEN 7
 #define AAMP_VIDEO_FORMAT_MAP_LEN 3
 
+#define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
+#define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
+#define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
+#define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
 
 
 /**
@@ -260,7 +265,7 @@ public:
 	double GetBufferedDuration();
 private:
 	/// Function to get fragment URI based on Index 
-	char *GetFragmentUriFromIndex();
+	char *GetFragmentUriFromIndex(bool &bSegmentRepeated);
 	/// Function to flush all the downloads done 
 	void FlushIndex();
 	/// Function to Fetch the fragment and inject for playback 
@@ -308,6 +313,7 @@ public:
 	double playlistPosition; /**< playlist-relative time of most recent fragment-of-interest; -1 if undefined */
 	double playTarget; /**< initially relative seek time (seconds) based on playlist window, but updated as a play_target */
 	double playTargetBufferCalc;
+	double lastDownloadedIFrameTarget;	/**< stores last downloaded iframe segment target value for comparison */ 
 	double targetDurationSeconds; /**< copy of \#EXT-X-TARGETDURATION to manage playlist refresh frequency */
 	int mDeferredDrmKeyMaxTime;	 /**< copy of \#EXT-X-X1-LIN DRM refresh randomization Max time interval */
 	StreamOutputFormat streamOutputFormat; /**< type of data encoded in each fragment */
@@ -420,6 +426,9 @@ public:
 	/// Function to get the language code
 	std::string GetLanguageCode( int iMedia );
 	int GetBestAudioTrackByLanguage( void );
+	
+	void NotifyPlaybackPaused(bool pause) override;
+
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

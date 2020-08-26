@@ -24,6 +24,7 @@
 
 
 #include "aampgstplayer.h"
+#include "AampUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
 #include <string.h>
@@ -164,8 +165,16 @@ struct AAMPGstPlayerPriv
 	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
 	gint64 segmentStart; // segment start value; required when qtdemux is enabled and restamping is disabled
 	GstQuery *positionQuery; // pointer that holds a position query object
+        GstQuery *durationQuery; // pointer that holds a duration query object
 	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
 	GstState pipelineState; // current state of pipeline
+	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
+	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
+#if defined(REALTEKCE)
+	bool firstTuneWithWesterosSinkOff; // DELIA-33640: track if first tune was done for Realtekce build
+#endif
+	int32_t lastId3DataLen; // last sent ID3 data length
+	uint8_t *lastId3Data; // ptr with last sent ID3 data
 };
 
 /**
@@ -442,6 +451,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 			caps = gst_caps_new_simple ("video/mpeg",
 					"mpegversion", G_TYPE_INT, 2,
 					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
+			break;  //CID:81305 - Using break statement
 		case FORMAT_INVALID:
 		case FORMAT_NONE:
 		default:
@@ -461,7 +471,6 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
  */
 static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, AAMPGstPlayer * _this )
 {
-	logprintf("AAMPGstPlayer: found_source");
 	MediaType mediaType;
 	media_stream *stream;
 	GstCaps * caps;
@@ -603,6 +612,23 @@ static gboolean IdleCallback(gpointer user_data)
 }
 
 /**
+ * @brief Idle callback to notify first video frame was displayed
+ * @param[in] user_data pointer to AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
+{
+	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
+	if (_this)
+	{
+		_this->aamp->NotifyFirstVideoFrameDisplayed();
+		_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = false;
+		_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId = 0;
+	}
+	return G_SOURCE_REMOVE;
+}
+
+/**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
  * @param[in] type media type of the frame which is decoded, either audio or video.
  */
@@ -643,6 +669,14 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				logprintf("%s:%d firstProgressCallbackIdleTask already finished, reset id", __FUNCTION__, __LINE__);
 				privateContext->firstProgressCallbackIdleTaskId = 0;
 			}
+		}
+
+		if ( (!privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+				&& (aamp->IsFirstVideoFrameDisplayedRequired()) )
+		{
+			privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
+			privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
+					g_idle_add(IdleCallbackFirstVideoFrameDisplayed, this);
 		}
 	}
 }
@@ -685,8 +719,10 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
-			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+	return _this->privateContext->using_westerossink?
+		aamp_StartsWith(name, "westerossink"):
+		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
+		aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
 }
 
 /**
@@ -755,7 +791,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
         AAMPGstPlayer * _this)
 {
 	//TODO - Handle underflow
-	MediaType type;
+	MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
 	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 	logprintf("## %s() : Got Underflow message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
 	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
@@ -860,16 +896,14 @@ static gboolean buffering_timeout (gpointer data)
 			_this->privateContext->bufferingTimeoutTimerId = 0;
 		}
 		return _this->privateContext->buffering_in_progress;
-		
 	}
 	else
 	{
 		logprintf("%s:%d in buffering_timeout got invalid or NULL handle ! _this =  %p   _this->privateContext = %p ", __FUNCTION__, __LINE__,
 		_this, (_this? _this->privateContext: NULL) );
-		_this->privateContext->bufferingTimeoutTimerId = 0;
 		return false;
 	}
-	
+
 }
 
 /**
@@ -953,6 +987,16 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
+#if defined(REALTEKCE)
+				// DELIA-33640: For Realtekce build and westeros-sink disabled
+				// prevent calling NotifyFirstFrame after first tune, ie when upausing
+				// pipeline during flush
+				if(_this->privateContext->firstTuneWithWesterosSinkOff)
+				{
+					_this->privateContext->firstTuneWithWesterosSinkOff = false;
+					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+				}
+#endif
 #if defined(INTELCE) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
@@ -980,6 +1024,17 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					// gstreamer is configured with --gst-enable-gst-debug
 					// and "gst" is enabled in aamp.cfg
 					// and environment variable GST_DEBUG_DUMP_DOT_DIR is set to a basepath(e.g. /opt).
+				}
+
+				// First Video Frame Displayed callback for westeros-sink is initialized
+				// via OnFirstVideoFrameCallback()->NotifyFirstFrame() which is more accurate
+				if( (!_this->privateContext->using_westerossink)
+						&& (!_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+						&& (_this->aamp->IsFirstVideoFrameDisplayedRequired()) )
+				{
+					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
+					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
+							g_idle_add(IdleCallbackFirstVideoFrameDisplayed, _this);
 				}
 			}
 		}
@@ -1282,7 +1337,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
 		if (_this->privateContext->buffering_in_progress)
 		{
-			g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
+			_this->privateContext->bufferingTimeoutTimerId = g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
 		}
 		break;
 
@@ -1417,23 +1472,37 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize, MediaType type)
 {
 #ifdef AAMP_MPD_DRM
-  	GstBuffer *pssi;
+	/* There is a possibility that only single protection event is queued for multiple type since they are encrypted using same id.
+	 * Don't worry if you see only one protection event queued here.
+	 */
 
-	// There is a possibility that only single protection event is queued for multiple type
-	// since they are encrypted using same id. Don'tt worry if you see only one protection event queued here
-	logprintf("queueing protection event for type:%d keysystem: %s initdata size: %d", type, protSystemId, initDataSize);
-
-	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
-	if (this->aamp->IsDashAsset())
+	if (privateContext->protectionEvent[type] != NULL)
 	{
-		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
-	}
-	else
-	{
-		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+		AAMPLOG_WARN("%s:%d Previously cached protection event is present for type(%d), clearing!", __FUNCTION__, __LINE__, type);
+		gst_event_unref(privateContext->protectionEvent[type]);
+		privateContext->protectionEvent[type] = NULL;
 	}
 
-	gst_buffer_unref (pssi);
+	AAMPLOG_WARN("%s:%d Queueing protection event for type(%d) keysystem(%s) initData(%p) initDataSize(%d)", __FUNCTION__, __LINE__, type, protSystemId, initData, initDataSize);
+
+	/* Giving invalid initData into ProtectionEvent causing "GStreamer-CRITICAL" assertion error. So if the initData is valid then its good to call the ProtectionEvent further. */
+	if (initData && initDataSize)
+	{
+		GstBuffer *pssi;
+
+		pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
+
+		if (this->aamp->IsDashAsset())
+		{
+			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
+		}
+		else
+		{
+			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
+		}
+
+		gst_buffer_unref (pssi);
+	}
 #endif
 }
 
@@ -1538,7 +1607,6 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	stream->flush = false;
 	if ((stream->format != FORMAT_INVALID) && (stream->format != FORMAT_NONE))
 	{
-		logprintf("AAMPGstPlayer::TearDownStream: mediaType %d ", (int)mediaType);
 		if (privateContext->pipeline)
 		{
 			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
@@ -1596,7 +1664,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		privateContext->audio_dec = NULL;
 		privateContext->audio_sink = NULL;
 	}
-	logprintf("AAMPGstPlayer::TearDownStream:  exit mediaType = %d", mediaType);
+	logprintf("AAMPGstPlayer::TearDownStream: exit mediaType = %d", mediaType);
 }
 
 
@@ -1842,7 +1910,8 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
  */
 bool hasId3Header(MediaType mediaType, StreamOutputFormat format, const uint8_t* data, int32_t length)
 {
-	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO) && length >= 3)
+	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO || mediaType == eMEDIATYPE_DSM_CC)
+		&& length >= 3)
 	{
 		/* Check file identifier ("ID3" = ID3v2) and major revision matches (>= ID3v2.2.x). */
 		if (*data++ == 'I' && *data++ == 'D' && *data++ == '3' && *data++ >= 2)
@@ -1910,16 +1979,35 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		Id3CallbackData* id3Metadata = new Id3CallbackData;
 		id3Metadata->_this = this;
 		id3Metadata->len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
-		if (id3Metadata->len) {
+		if (id3Metadata->len
+				&& (id3Metadata->len != privateContext->lastId3DataLen
+						|| !privateContext->lastId3Data
+						|| (memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
+		{
+			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
+			FlushLastId3Data();
 			id3Metadata->data = (uint8_t*)g_malloc(id3Metadata->len);
+			privateContext->lastId3Data = (uint8_t*)g_malloc(id3Metadata->len);
 			//TODO: Consider maximum length for ID3 data - spec allows 256MB
-			if (id3Metadata->data) {
+			if (id3Metadata->data)
+			{
 				memcpy(id3Metadata->data, ptr, id3Metadata->len);
+			}
+			if (privateContext->lastId3Data)
+			{
+				privateContext->lastId3DataLen = id3Metadata->len;
+				memcpy(privateContext->lastId3Data, ptr, id3Metadata->len);
 			}
 
 			privateContext->id3MetadataCallbackTaskPending = true;
 			privateContext->id3MetadataCallbackIdleTaskId = g_idle_add(IdleCallbackOnId3Metadata, id3Metadata);
 		}
+	}
+
+	//Drop eMEDIATYPE_DSM_CC packages, since no stream to handle it
+	if(mediaType == eMEDIATYPE_DSM_CC)
+	{
+		return;
 	}
 
 	gboolean discontinuity = FALSE;
@@ -2134,6 +2222,9 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	if (!aamp->mWesterosSinkEnabled)
 	{
 		privateContext->using_westerossink = false;
+#if defined(REALTEKCE)
+		privateContext->firstTuneWithWesterosSinkOff = true;
+#endif
 	}
 	else
 	{
@@ -2200,35 +2291,25 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			}
 		}
 	}
-	if(aamp->IsFragmentBufferingRequired())
+
+	if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
+		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
+		this->privateContext->buffering_in_progress = true;
+		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
 		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 		{
-			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PAUSED failed", __FUNCTION__, __LINE__);
+			logprintf("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
 		}
-		privateContext->pendingPlayState = true;
+		privateContext->pendingPlayState = false;
 	}
 	else
 	{
-		if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
+		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 		{
-			if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
-			{
-				logprintf("AAMPGstPlayer_Configure GST_STATE_PLAYING failed");
-			}
-			this->privateContext->buffering_target_state = GST_STATE_PLAYING;
-			this->privateContext->buffering_in_progress = true;
-			this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
-			privateContext->pendingPlayState = false;
+			logprintf("AAMPGstPlayer::%s %d > GST_STATE_PLAYING failed", __FUNCTION__, __LINE__);
 		}
-		else
-		{
-			if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
-			{
-				logprintf("AAMPGstPlayer::%s %d > GST_STATE_PLAYING failed", __FUNCTION__, __LINE__);
-			}
-			privateContext->pendingPlayState = false;
-		}
+		privateContext->pendingPlayState = false;
 	}
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
@@ -2304,6 +2385,15 @@ void AAMPGstPlayer::DisconnectCallbacks()
 	}
 }
 
+void AAMPGstPlayer::FlushLastId3Data()
+{
+	if(privateContext->lastId3Data)
+	{
+		privateContext->lastId3DataLen = 0;
+		g_free(privateContext->lastId3Data);
+		privateContext->lastId3Data = NULL;
+	}
+}
 
 /**
  * @brief Stop playback and any idle handlers active at the time
@@ -2380,6 +2470,13 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		privateContext->id3MetadataCallbackTaskPending = false;
 		privateContext->id3MetadataCallbackIdleTaskId = 0;
 	}
+	if (this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
+	{
+		logprintf("AAMPGstPlayer::%s %d > Remove firstVideoFrameDisplayedCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
+		g_source_remove(privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
+		privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = false;
+		privateContext->firstVideoFrameDisplayedCallbackIdleTaskId = 0;
+	}
 	if (this->privateContext->pipeline)
 	{
 		GstState current;
@@ -2412,6 +2509,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	privateContext->segmentStart = 0;
 	privateContext->paused = false;
 	privateContext->pipelineState = GST_STATE_NULL;
+	FlushLastId3Data();
 	logprintf("exiting AAMPGstPlayer_Stop");
 }
 
@@ -2600,6 +2698,51 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 }
 
 /**
+ * @brief Get playback duration in MS
+ * @retval playback duration in MS
+ */
+long AAMPGstPlayer::GetDurationMilliseconds(void)
+{
+	long rc = 0;
+	if( privateContext->pipeline )
+	{
+		if( privateContext->pipelineState == GST_STATE_PLAYING || // playing
+		    (privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused) ) // paused by user
+		{
+			privateContext->durationQuery = gst_query_new_duration(GST_FORMAT_TIME);
+			if( privateContext->durationQuery )
+			{
+				gboolean res = gst_element_query(privateContext->pipeline,privateContext->durationQuery);
+				if( res )
+				{
+					gint64 duration;
+					gst_query_parse_duration(privateContext->durationQuery, NULL, &duration);
+					rc = GST_TIME_AS_MSECONDS(duration);
+				}
+				else
+				{
+					AAMPLOG_WARN("%s(): Duration query failed", __FUNCTION__);
+				}
+				gst_query_unref(privateContext->durationQuery);
+			}
+			else
+			{
+				AAMPLOG_WARN("%s(): Duration query is NULL", __FUNCTION__);
+			}
+		}
+		else
+		{
+			AAMPLOG_WARN("%s(): Pipeline is in %s state", __FUNCTION__, gst_element_state_get_name(privateContext->pipelineState) );
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s(): Pipeline is null", __FUNCTION__ );
+	}
+	return rc;
+}
+
+/**
  * @brief Get playback position in MS
  * @retval playback position in MS
  */
@@ -2701,6 +2844,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		gst_element_set_state(this->privateContext->pipeline, nextState);
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
+		privateContext->pendingPlayState = false;
 	}
 	else
 	{
@@ -3227,6 +3371,17 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 	}
 }
 
+/**
+ * @brief Set pipeline to PAUSED state to wait on NotifyFragmentCachingComplete()
+ */
+void AAMPGstPlayer::NotifyFragmentCachingOngoing()
+{
+	if(!privateContext->paused)
+	{
+		Pause(true, true);
+	}
+	privateContext->pendingPlayState = true;
+}
 
 /**
  * @brief Get video display's width and height

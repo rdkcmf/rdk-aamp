@@ -40,6 +40,7 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 
 // TODO: THIS MODULE NEEDS TO BE MADE MULTI-SESSION-FRIENDLY
 #include "drm.h"
+#include "AampUtils.h"
 #ifdef AVE_DRM
 #include "media/IMedia.h" // TBR - remove dependency
 #include <sys/time.h>
@@ -47,7 +48,6 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 #include <stdlib.h> // for malloc
 #include <pthread.h>
 #include <errno.h>
-#include "AampDRMutils.h"
 
 using namespace media;
 
@@ -271,6 +271,10 @@ public:
 		if(callbackID > 0)
 		{
 			mpAamp->SetCallbackAsPending(callbackID);
+		}
+		else
+		{
+			delete drmerrordata;  //CID:90132 - Resource leak
 		}
 		logprintf("DRMListener::%s:%d[%p]Track[%d] majorError = %d, minorError = %d drmState:%d", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
@@ -584,7 +588,6 @@ void AveDrm::CancelKeyWait()
 	}
 	
 	pthread_mutex_unlock(&aveDrmIndividualizationMutex);
-	logprintf("Exit AveDrm::CancelKeyWait");
 }
 
 
@@ -1113,7 +1116,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
                 }
                 else
                 {
-                        logprintf("%s:%d:[%d] sHlsDrmContext[%d].mDrmContexSet is false", __FUNCTION__, __LINE__,trackType, i);
+                        AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContext[%d].mDrmContexSet is false", __FUNCTION__, __LINE__,trackType, i);
                 }
         }
 	}
@@ -1124,25 +1127,25 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 		{
 			aveDrm = sAveDrmManager[0]->mDrm;
 			sAveDrmManager[0]->mHasBeenUsed = true;
-			logprintf("%s:%d:[%d] Returned only available Drm Instance ", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_INFO("%s:%d:[%d] Returned only available Drm Instance ", __FUNCTION__, __LINE__,trackType);
 		}
 		else
 		{
-			logprintf("%s:%d:[%d] sHlsDrmContextmDrmContexSet is false", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContextmDrmContexSet is false", __FUNCTION__, __LINE__,trackType);
 		}
 	}
 	// case b.2
 	else if(sAveDrmManager.size() > 1)
 	{
-		logprintf("%s:%d:[%d] Multi Meta[%d]available  without hash.Matching trackTypee ", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
+		AAMPLOG_INFO("%s:%d:[%d] Multi Meta[%d]available  without hash.Matching trackTypee ", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
 		for (int i = 0; i < sAveDrmManager.size(); i++)
 		{
-			logprintf("%s:%d:[%d] Idx[%d] ContextSet[%d] mTractType[%d]",__FUNCTION__, __LINE__,trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
+			AAMPLOG_INFO("%s:%d:[%d] Idx[%d] ContextSet[%d] mTractType[%d]",__FUNCTION__, __LINE__,trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
 			if (sAveDrmManager[i]->mDrmContexSet && (sAveDrmManager[i]->mTrackType & (1<<trackType)))
 			{
 				aveDrm = sAveDrmManager[i]->mDrm;
 				sAveDrmManager[i]->mHasBeenUsed = true;
-				logprintf("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
+				AAMPLOG_INFO("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
 				break;
 			}
 		}
@@ -1300,7 +1303,6 @@ long AveDrmManager::setSessionToken()
 
 	first = first + messageID + second + nounce + third;
 
-	logprintf("%s:%d Token message %s", __FUNCTION__, __LINE__,first.c_str());
 	std::string last ("\",\"client:mediaUsage\":\"stream\"}");
 	std::string CustomToken;
 

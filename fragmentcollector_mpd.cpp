@@ -26,6 +26,8 @@
 #include "AampDRMSessionManager.h"
 #include "admanager_mpd.h"
 
+#include "SubtecFactory.hpp"
+
 #include <stdlib.h>
 #include <string.h>
 #include "_base64.h"
@@ -44,6 +46,7 @@
 #include <cctype>
 #include <regex>
 #include "AampCacheHandler.h"
+#include "AampUtils.h"
 //#define DEBUG_TIMELINE
 //#define AAMP_HARVEST_SUPPORT_ENABLED
 //#define AAMP_DISABLE_INJECT
@@ -62,6 +65,7 @@
 #define MAX_DELAY_BETWEEN_MPD_UPDATE_MS (6000)
 #define MIN_DELAY_BETWEEN_MPD_UPDATE_MS (500) // 500mSec
 #define MIN_TSB_BUFFER_DEPTH 6 //6 seconds from 4.3.3.2.2 in https://dashif.org/docs/DASH-IF-IOP-v4.2-clean.htm
+#define VSS_DASH_EARLY_AVAILABLE_PERIOD_PREFIX "vss-"
 
 //Comcast DRM Agnostic CENC for Content Metadata
 #define COMCAST_DRM_INFO_ID "afbcb50e-bf74-3d13-be8f-13930c783962"
@@ -71,6 +75,7 @@
  */
 #define SUPPLEMENTAL_PROPERTY_TAG "SupplementalProperty"
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
+#define SCHEME_ID_URI_VSS_STREAM "urn:comcast:x1:lin:ck"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
 /**
  * @struct FragmentDescriptor
@@ -178,6 +183,12 @@ static const char *mMediaTypeName[] = { "video", "audio", "text" };
 static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media);
 static void WriteFile(std::string fileName, const char* data, int len);
 #endif // AAMP_HARVEST_SUPPORT_ENABLED
+
+
+/**
+ * @brief Check if the given period is empty
+ */
+static bool IsEmptyPeriod(IPeriod *period);
 
 
 /**
@@ -298,11 +309,15 @@ public:
 
 			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 			{
-				actualType = eMEDIATYPE_IFRAME;
-				if(actualType == eMEDIATYPE_INIT_VIDEO)
+				if(actualType == eMEDIATYPE_VIDEO)
+				{
+					actualType = eMEDIATYPE_IFRAME;
+				}
+				else if(actualType == eMEDIATYPE_INIT_VIDEO)
 				{
 					actualType = eMEDIATYPE_INIT_IFRAME;
 				}
+				//CID:101284 - To resolve the deadcode
 			}
 
 			//update videoend info
@@ -314,7 +329,7 @@ public:
 		mContext->mCheckForRampdown = false;
 		if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
 		{
-			AAMPLOG_INFO("%s:%d Bitrate changed from %ld to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
+			AAMPLOG_INFO("%s:%d Bitrate changed from %u to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
 			fragmentDescriptor.Bandwidth = bitrate;
 			mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
 			mDownloadedFragment.avail = cachedFragment->fragment.avail;
@@ -554,6 +569,15 @@ struct FragmentDownloadParams
 	long long lastPlaylistUpdateMS;
 };
 
+struct EarlyAvailablePeriodInfo
+{
+	EarlyAvailablePeriodInfo() : periodId(), isLicenseProcessed(false), isLicenseFailed(false), helper(nullptr){}
+	std::string periodId;
+	std::shared_ptr<AampDrmHelper> helper;
+	bool isLicenseProcessed;
+	bool isLicenseFailed;
+};
+
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
 
 /**
@@ -603,6 +627,10 @@ public:
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	long GetMaxTSBBandwidth() { return mMaxTSBBandwidth; }
 	bool IsTSBUsed() { return mIsFogTSB; }
+#ifdef AAMP_MPD_DRM
+	void ProcessEAPLicenseRequest();
+	void StartDeferredDRMRequestThread(MediaType mediaType);
+#endif
 private:
 	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
@@ -614,13 +642,18 @@ private:
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void FetchAndInjectInitialization(bool discontinuity = false);
-	void StreamSelection(bool newTune = false);
+	void StreamSelection(bool newTune = false, bool forceSpeedsChangedEvent = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
+	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
 	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
 	double SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
-	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType);
+	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper = nullptr);
+#ifdef AAMP_MPD_DRM
+	void ProcessVssContentProtection(std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType);
+	std::shared_ptr<AampDrmHelper> CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType);
+#endif
 	void SeekInPeriod( double seekPositionSeconds);
 	double GetCulledSeconds();
 	void UpdateLanguageList();
@@ -630,6 +663,9 @@ private:
 	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	bool IsEmptyPeriod(IPeriod *period);
 	int GetDrmPrefs(const std::string& uuid);
+	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
+	bool CheckForVssTags();
+	std::string GetVssVirtualStreamID();
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -637,6 +673,10 @@ private:
 	float rate;
 	pthread_t fragmentCollectorThreadID;
 	pthread_t createDRMSessionThreadID;
+	std::thread *deferredDRMRequestThread;
+	bool deferredDRMRequestThreadStarted;
+	bool mAbortDeferredLicenseLoop;
+	bool mIsVssStream;
 	bool drmSessionThreadStarted;
 	dash::mpd::IMPD *mpd;
 	MediaStreamContext *mMediaStreamContext[AAMP_TRACK_COUNT];
@@ -663,7 +703,7 @@ private:
 	AudioType mAudioType;
 	bool mPushEncInitFragment;
 	int mPrevAdaptationSetCount;
-	std::unordered_map<long, int> mBitrateIndexMap;
+	std::vector<long> mBitrateIndexVector;
 	bool mIsFogTSB;
 	vector<PeriodInfo> mMPDPeriodsInfo;
 	IPeriod *mCurrentPeriod;
@@ -671,6 +711,10 @@ private:
 	double mBasePeriodOffset;
 	PrivateCDAIObjectMPD *mCdaiObject;
 	std::shared_ptr<AampDrmHelper> mLastDrmHelper;
+	std::vector<std::string> mEarlyAvailablePeriodIds;
+	std::map<std::string, EarlyAvailablePeriodInfo> mEarlyAvailableKeyIDMap;
+	std::queue<std::string> mPendingKeyIDs;
+	int mCommonKeyDuration;
 
 	// DASH does not use abr manager to store the supported bandwidth values,
 	// hence storing max TSB bandwith in this variable which will be used for VideoEnd Metric data via
@@ -698,7 +742,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
 	mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
-	mPrevAdaptationSetCount(0), mBitrateIndexMap(), mIsFogTSB(false), mMPDPeriodsInfo(),
+	mPrevAdaptationSetCount(0), mBitrateIndexVector(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
 	,mMaxTSBBandwidth(0), mTSBDepth(0)
@@ -708,6 +752,8 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mUpdateStreamInfo(false)
 	,mDrmPrefs({{CLEARKEY_SYSTEM_ID, 1}, {WIDEVINE_SYSTEM_ID, 2}, {PLAYREADY_SYSTEM_ID, 3}})// Default values, may get changed due to config file
 	,mLastDrmHelper()
+	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mIsVssStream(false), mCommonKeyDuration(0)
+	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -797,7 +843,9 @@ static bool IsCompatibleMimeType(const std::string& mimeType, MediaType mediaTyp
 			break;
 
 		case eMEDIATYPE_SUBTITLE:
-			if (mimeType == "text/vtt")
+			if ((mimeType == "application/ttml+xml") ||
+				(mimeType == "text/vtt") ||
+				(mimeType == "application/mp4"))
 				isCompatible = true;
 			break;
 
@@ -855,7 +903,7 @@ static bool IsAtmosAudio(const IMPDElement *nodePtr)
  */
 static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedCodecType, uint32_t &selectedRepBandwidth)
 {
-    const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
 	int selectedRepIdx = -1;
 	// check for codec defined in Adaptation Set
 	const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
@@ -1033,12 +1081,12 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 	const char **f = &start;
 	unsigned int len = Read32(f);
     if (len != size) {
-        AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %d expected", len, size);
+        AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %zu expected", len, size);
         return false;
     }
 	unsigned int type = Read32(f);
 	if (type != 'sidx') {
-        AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %d expected",
+        AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %zu expected",
                      (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
         return false;
 
@@ -1270,7 +1318,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 	bool retval = true;
 	std::string fragmentUrl;
 	GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, media);
-	size_t len = 0;
+	//CID:96900 - Removex the len variable which is initialized but not used
 	float position;
 	if(isInitializationSegment)
 	{
@@ -1423,7 +1471,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 									startTime = nextStartTime;
 								}
 								repeatCount = timeline->GetRepeatCount();
-								nextStartTime = startTime+((repeatCount+1)*duration);
+								nextStartTime = startTime+((uint64_t)((repeatCount+1)*duration));  //CID:98056 - Resolve Overfloew Before Widen
 								if(pMediaStreamContext->lastSegmentTime < nextStartTime)
 								{
 									break;
@@ -1499,7 +1547,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
 					{
 						pMediaStreamContext->profileChanged = true;
-						mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
+						mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 						FetchAndInjectInitialization();
 						return false;
 					}
@@ -1526,7 +1574,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					if (!retval && ((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr))
 					{
 						pMediaStreamContext->profileChanged = true;
-						mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
+						mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 						FetchAndInjectInitialization();
 						return false;
 					}
@@ -1719,8 +1767,12 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 
 				if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
 				{
-					actualType = eMEDIATYPE_IFRAME;
-					if(actualType == eMEDIATYPE_INIT_VIDEO)
+					if(actualType == eMEDIATYPE_VIDEO)
+					{
+						actualType = eMEDIATYPE_IFRAME;
+					}
+					//CID:101284 - To resolve  deadcode
+					else if(actualType == eMEDIATYPE_INIT_VIDEO)
 					{
 						actualType = eMEDIATYPE_INIT_IFRAME;
 					}
@@ -1816,19 +1868,19 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							*/
 							if(eMEDIATYPE_VIDEO == pMediaStreamContext->mediaType)
 							{
-								long long bitrate = 0;
+								uint32_t bitrate = 0;
 								std::map<string,string> rawAttributes =  segmentURL->GetRawAttributes();
 								if(rawAttributes.find("bitrate") == rawAttributes.end()){
 									bitrate = pMediaStreamContext->fragmentDescriptor.Bandwidth;
 								}else{
 									string bitrateStr = rawAttributes["bitrate"];
-									bitrate = stoll(bitrateStr);
+									bitrate = stoi(bitrateStr);
 								}
 								if(pMediaStreamContext->fragmentDescriptor.Bandwidth != bitrate || pMediaStreamContext->profileChanged)
 								{
 									pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
 									pMediaStreamContext->profileChanged = true;
-									mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[bitrate];
+									mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(bitrate);
 									FetchAndInjectInitialization();
 									return false; //Since we need to check WaitForFreeFragmentCache
 								}
@@ -2449,32 +2501,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 }
 
 /**
- * @brief Parse date time from ISO8601 string and return value in seconds
- * @param ptr ISO8601 string
- * @retval durationMs duration in milliseconds
- */
-static time_t ISO8601DateTimeToUTCSeconds(const char *ptr)
-{
-	time_t timeSeconds = 0;
-	if(ptr)
-	{
-		time_t offsetFromUTC = 0;
-		std::tm timeObj = { 0 };
-
-		//Find out offset from utc by convering epoch
-		std::tm baseTimeObj = { 0 };
-		strptime("1970-01-01T00:00:00Z", "%Y-%m-%dT%H:%M:%SZ", &baseTimeObj);
-		offsetFromUTC = mktime(&baseTimeObj);
-
-		//Convert input string to time
-		strptime(ptr, "%Y-%m-%dT%H:%M:%SZ", &timeObj);
-		timeSeconds = mktime(&timeObj) - offsetFromUTC;
-	}
-	return timeSeconds;
-}
-
-
-/**
  * @brief Parse duration from ISO8601 string
  * @param ptr ISO8601 string
  * @param[out] durationMs duration in milliseconds
@@ -2558,22 +2584,24 @@ int PrivateStreamAbstractionMPD::GetDrmPrefs(const std::string& uuid)
 	return 0; // Unknown DRM
 }
 
+
 /**
- * @brief Process content protection of adaptation
+ * @brief Create DRM helper from ContentProtection
  * @param adaptationSet Adaptation set object
  * @param mediaType type of track
+ * @retval shared_ptr of AampDrmHelper
  */
-void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet, MediaType mediaType)
+std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType)
 {
 	const vector<IDescriptor*> contentProt = adaptationSet->GetContentProtection();
 	unsigned char* data = NULL;
 	size_t dataLength = 0;
 	std::shared_ptr<AampDrmHelper> tmpDrmHelper;
-	std::shared_ptr<AampDrmHelper> drmHelper;
+	std::shared_ptr<AampDrmHelper> drmHelper = nullptr;
 	DrmInfo drmInfo;
 	std::string contentMetadata;
 
-	AAMPLOG_TRACE("%s:%d [HHH]contentProt.size=%d", __FUNCTION__, __LINE__, contentProt.size());
+	AAMPLOG_TRACE("%s:%d [HHH] contentProt.size= %d", __FUNCTION__, __LINE__, contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
 	{
 		// extract the UUID
@@ -2595,14 +2623,22 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 
 		// Extract the PSSH data
 		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-		string psshData = node.at(0)->GetText();
-		data = base64_Decode(psshData.c_str(), &dataLength);
-		if (0 == dataLength)
+		if (!node.empty())
 		{
-			AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
-			if (data)
+			std::string tagName = node.at(0)->GetName();
+			if (tagName.find("pssh") != std::string::npos)
 			{
-				free(data);
+				string psshData = node.at(0)->GetText();
+				data = base64_Decode(psshData.c_str(), &dataLength);
+				if (0 == dataLength)
+				{
+					AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+					if (data)
+					{
+						free(data);
+						data = NULL;
+					}
+				}
 			}
 		}
 
@@ -2610,7 +2646,11 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		if (drmInfo.systemUUID == COMCAST_DRM_INFO_ID)
 		{
 			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
-			free(data);
+			if (data)
+			{
+				free(data);
+				data = NULL;
+			}
 			continue;
 		}
 
@@ -2619,7 +2659,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		{
 			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
 		}
-		else
+		else if (data && dataLength)
 		{
 			tmpDrmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
@@ -2637,12 +2677,34 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 				}
 			}
 		}
-		free(data);
-	}
+		else
+		{
+			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
+		}
 
-	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
+		if (data)
+		{
+			free(data);
+			data = NULL;
+		}
+	}
+	if(drmHelper)
 	{
 		drmHelper->setDrmMetaData(contentMetadata);
+	}
+
+	return drmHelper;
+}
+
+/**
+ * @brief Process content protection of vss EAP
+ * @param drmHelper created
+ * @param mediaType type of track
+ */
+void PrivateStreamAbstractionMPD::ProcessVssContentProtection(std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType)
+{
+	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
+	{
 		mContext->hasDrm = true;
 		aamp->licenceFromManifest = true;
 		DrmSessionParams* sessionParams = new DrmSessionParams;
@@ -2656,7 +2718,62 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 			if (rc != 0)
 			{
-				logprintf("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
+				AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
+			}
+			drmSessionThreadStarted = false;
+		}
+		/*
+		*
+		* Memory allocated for data via base64_Decode() and memory for sessionParams
+		* is released in CreateDRMSession.
+		*/
+		if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
+		{
+			AAMPLOG_INFO("%s:%d Thread created",__FUNCTION__, __LINE__);
+			drmSessionThreadStarted = true;
+			mLastDrmHelper = drmHelper;
+			aamp->setCurrentDrm(drmHelper);
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+	}
+}
+
+
+/**
+ * @brief Process content protection of adaptation
+ * @param adaptationSet Adaptation set object
+ * @param mediaType type of track
+ */
+void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet, MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper)
+{
+	if(nullptr == drmHelper)
+	{
+		drmHelper = CreateDrmHelper(adaptationSet, mediaType);
+	}
+
+	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
+	{
+		mContext->hasDrm = true;
+		aamp->licenceFromManifest = true;
+		DrmSessionParams* sessionParams = new DrmSessionParams;
+		sessionParams->aamp = aamp;
+		sessionParams->drmHelper = drmHelper;
+		sessionParams->stream_type = mediaType;
+
+		if(drmSessionThreadStarted) //In the case of license rotation
+		{
+			void *value_ptr = NULL;
+			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
+			if (rc != 0)
+			{
+				AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
 			}
 			drmSessionThreadStarted = false;
 		}
@@ -2673,12 +2790,12 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
 		}
 		else
 		{
-			logprintf("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
+			AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
 		}
 	}
 	else
 	{
-		logprintf("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
 	}
 }
 
@@ -2689,7 +2806,7 @@ void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adap
  * @param adaptationSet
  * @param mediaType
  */
-void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType)
+void PrivateStreamAbstractionMPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper)
 {
 	logprintf("MPD DRM not enabled");
 }
@@ -2780,6 +2897,44 @@ uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumb
 		}
 	}
 	return durationMs;
+}
+
+/**
+ * @brief Parse CC streamID and language from value
+ *
+ * @param[in] input - input value
+ * @param[out] id - stream ID value
+ * @param[out] lang - language value
+ * @return void
+ */
+void ParseCCStreamIDAndLang(std::string input, std::string &id, std::string &lang)
+{
+	// Expected formats : 	eng;deu
+	// 			CC1=eng;CC2=deu
+	//			1=lang:eng;2=lang:deu
+	//			1=lang:eng;2=lang:eng,war:1,er:1
+        size_t delim = input.find('=');
+        if (delim != std::string::npos)
+        {
+                id = input.substr(0, delim);
+                lang = input.substr(delim + 1);
+
+		//Parse for additional fields
+                delim = lang.find(':');
+                if (delim != std::string::npos)
+                {
+                        size_t count = lang.find(',');
+                        if (count != std::string::npos)
+                        {
+                                count = (count - delim - 1);
+                        }
+                        lang = lang.substr(delim + 1, count);
+                }
+        }
+        else
+        {
+                lang = input;
+        }
 }
 
 /**
@@ -3020,6 +3175,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
  */
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
+	bool forceSpeedsChangedEvent = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
@@ -3032,6 +3188,15 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
   #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();
+
+	if(newTune)
+	{
+	//Clear previously stored vss early period ids
+		mEarlyAvailablePeriodIds.clear();
+		mEarlyAvailableKeyIDMap.clear();
+		while(!mPendingKeyIDs.empty())
+			mPendingKeyIDs.pop();
+	}
 
 	aamp->IsTuneTypeNew = false;
 
@@ -3051,7 +3216,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 			numTracks--;
 		}
 		double offsetFromStart = seekPosition;
@@ -3068,6 +3232,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		mIsLiveStream = !(mpd->GetType() == "static");
 		aamp->SetIsLive(mIsLiveStream);
+		if(ContentType_UNKNOWN == aamp->GetContentType())
+		{
+			if(mIsLiveStream)
+				aamp->SetContentType("LINEAR_TV");
+			else
+				aamp->SetContentType("VOD");
+		}
 		map<string, string> mpdAttributes = mpd->GetRawAttributes();
 		if(mpdAttributes.find("fogtsb") != mpdAttributes.end())
 		{
@@ -3077,6 +3248,17 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		if(mIsLiveStream)
 		{
+			if (aamp->mIsVSS)
+			{
+				mIsVssStream = CheckForVssTags();
+				std::string vssVirtualStreamId = GetVssVirtualStreamID();
+				
+				if (!vssVirtualStreamId.empty())
+				{
+					AAMPLOG_INFO("%s:%d Virtual stream ID :%s", __FUNCTION__, __LINE__, vssVirtualStreamId.c_str()); 
+					aamp->SetVssVirtualStreamID(vssVirtualStreamId);
+				}
+			}
 			std::string tempStr = mpd->GetMinimumUpdatePeriod();
 			if(!tempStr.empty())
 			{
@@ -3233,7 +3415,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					else
 					{
 						seekPeriods = false;
-						logprintf("currentPeriodIdx %d/%d", iPeriod, (int)numPeriods);
 					}
 				}
 				else if(periodStartSeconds <= offsetFromStart)
@@ -3405,7 +3586,13 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		onAdEvent(AdEvent::INIT, offsetFromStart);
 
 		UpdateLanguageList();
-		StreamSelection(true);
+
+		if (eTUNETYPE_SEEK == tuneType)
+		{
+			forceSpeedsChangedEvent = true; // Send speed change event if seek done from non-iframe period to iframe available period to inform XRE to allow trick operations.
+		}
+
+		StreamSelection(true, forceSpeedsChangedEvent);
 
 		if(mAudioType == eAUDIO_UNSUPPORTED)
 		{
@@ -3636,9 +3823,9 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 //Save the last 3 MPDs
 #ifdef HARVEST_MPD
 		static int counter = 0;
-		string fileSuffix = to_string(counter % 3);
+		string fileSuffix = to_string(counter % 999);
 		counter++;
-		string fullPath = "/opt/logs/ProcessNodeError.txt" + fileSuffix;
+		string fullPath = "/tmp/data/fog/vssmanifest-" + fileSuffix + ".mpd";
 		logprintf("Saving manifest to %s",fullPath.c_str());
 		FILE *outputFile = fopen(fullPath.c_str(), "w");
 		fwrite(manifest.ptr, manifest.len, 1, outputFile);
@@ -3649,7 +3836,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		MPD* mpd = nullptr;
 		vector<std::string> locationUrl;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
-		AAMPLOG_INFO("%s:%d Created MPD[%p]", __FUNCTION__, __LINE__, mpd);
 		if (eAAMPSTATUS_OK == ret)
 		{
 			/* DELIA-42794: All manifest requests after the first should
@@ -3719,52 +3905,64 @@ bool PrivateStreamAbstractionMPD::IsEmptyPeriod(IPeriod *period)
 	for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
 		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-		IRepresentation *representation = NULL;
-		ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
-		if (segmentTemplate)
+
+		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
-			isEmptyPeriod = false;
+			if (IsIframeTrack(adaptationSet))
+			{
+				isEmptyPeriod = false;
+				break;
+			}
 		}
 		else
 		{
-			if(adaptationSet->GetRepresentation().size() > 0)
+			IRepresentation *representation = NULL;
+			ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
+			if (segmentTemplate)
 			{
-				//Get first representation in the adapatation set
-				representation = adaptationSet->GetRepresentation().at(0);	
+				isEmptyPeriod = false;
 			}
-			if(representation)
+			else
 			{
-				segmentTemplate = representation->GetSegmentTemplate();
-				if(segmentTemplate)
+				if(adaptationSet->GetRepresentation().size() > 0)
 				{
-					isEmptyPeriod = false;
+					//Get first representation in the adapatation set
+					representation = adaptationSet->GetRepresentation().at(0);
 				}
-				else
+				if(representation)
 				{
-					ISegmentList *segmentList = representation->GetSegmentList();
-					if(segmentList)
+					segmentTemplate = representation->GetSegmentTemplate();
+					if(segmentTemplate)
 					{
 						isEmptyPeriod = false;
 					}
 					else
 					{
-						ISegmentBase *segmentBase = representation->GetSegmentBase();
-						if(segmentBase)
+						ISegmentList *segmentList = representation->GetSegmentList();
+						if(segmentList)
 						{
 							isEmptyPeriod = false;
+						}
+						else
+						{
+							ISegmentBase *segmentBase = representation->GetSegmentBase();
+							if(segmentBase)
+							{
+								isEmptyPeriod = false;
+							}
 						}
 					}
 				}
 			}
-		}
-	
-		if(!isEmptyPeriod)
-		{
-			// Not to loop thru all Adaptations if one found.
-			break;
+
+			if(!isEmptyPeriod)
+			{
+				// Not to loop thru all Adaptations if one found.
+				break;
+			}
 		}
 	}
-	
+
 	return isEmptyPeriod;
 }
 
@@ -4082,6 +4280,41 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 				}
 			}
 		}
+		else if ((schemeIdUri == "urn:scte:dash:asset-id:upid:2015"))
+		{
+			double start = startMS / 1000.0f;
+			std::ostringstream s;
+			for(auto childNode : node->GetSubNodes())
+			{
+				if(childNode->GetAttributeValue("type") == "URI")
+				{
+					s << "ID=" << "\"" << childNode->GetAttributeValue("value") << "\"";
+				}
+				else if(childNode->GetAttributeValue("type") == "ADI")
+				{
+					s << ",SIGNAL=" << "\"" << childNode->GetAttributeValue("value") << "\"";
+				}
+			}
+			std::string content = s.str();
+			AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-SOURCE-STREAM:%s", start, content.c_str());
+
+			for (int i = 0; i < aamp->subscribedTags.size(); i++)
+			{
+				const std::string& tag = aamp->subscribedTags.at(i);
+				if (tag == "#EXT-X-SOURCE-STREAM") {
+					if(reportBulkMeta && isInit)
+					{
+						aamp->SaveTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
+					}
+					else
+					{
+						aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+					}
+					break;
+				}
+			}
+		}
+
 	}
 }
 
@@ -4243,7 +4476,7 @@ void PrivateStreamAbstractionMPD::ProcessTrickModeRestriction(Node* node, const 
 void * TrackDownloader(void *arg)
 {
 	struct HeaderFetchParams* fetchParms = (struct HeaderFetchParams*)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampFetchInit"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDTrackDL"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -4271,7 +4504,7 @@ void * TrackDownloader(void *arg)
 void * FragmentDownloader(void *arg)
 {
 	struct FragmentDownloadParams* downloadParams = (struct FragmentDownloadParams*) arg;
-	if(aamp_pthread_setname(pthread_self(), "aampFragDown"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDFragDL"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -4316,7 +4549,7 @@ void * FragmentDownloader(void *arg)
 static void * FragmentCollector(void *arg)
 {
 	PrivateStreamAbstractionMPD *context = (PrivateStreamAbstractionMPD *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampMPDFetch"))
+	if(aamp_pthread_setname(pthread_self(), "aampMPDFetcher"))
 	{
 		logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
 	}
@@ -4377,7 +4610,7 @@ std::string PrivateStreamAbstractionMPD::GetLanguageForAdaptationSet( IAdaptatio
 		lang = lang2;
 	}
  
-	if( gpGlobalConfig->bDescriptiveAudioTrack )
+	if( gpGlobalConfig->bDescriptiveAudioTrack && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
 	{
 		std::vector<IDescriptor *> role = adaptationSet->GetRole();
 		for (unsigned iRole = 0; iRole < role.size(); iRole++)
@@ -4412,6 +4645,110 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 		}
 	}
 }
+
+#ifdef AAMP_MPD_DRM
+/**
+ * @brief Process Early Available License Request
+ * @param drmHelper early created drmHelper
+ * @param mediaType type of track
+ * @param string periodId of EAP
+ */
+void PrivateStreamAbstractionMPD::ProcessEAPLicenseRequest()
+{
+	AAMPLOG_TRACE("%s:%d Processing License request for pending KeyIDs: %d", __FUNCTION__, __LINE__, mPendingKeyIDs.size());
+	if(!deferredDRMRequestThreadStarted)
+	{
+		// wait for thread to complete and create a new thread
+		if ((deferredDRMRequestThread!= NULL) && (deferredDRMRequestThread->joinable()))
+		{
+			deferredDRMRequestThread->join();
+			delete deferredDRMRequestThread;
+			deferredDRMRequestThread = NULL;
+		}
+
+		if(NULL == deferredDRMRequestThread)
+		{
+			AAMPLOG_INFO("%s:%d New Deferred DRM License thread starting", __FUNCTION__, __LINE__);
+			mAbortDeferredLicenseLoop = false;
+			deferredDRMRequestThread = new std::thread(&PrivateStreamAbstractionMPD::StartDeferredDRMRequestThread, this, eMEDIATYPE_VIDEO);
+			deferredDRMRequestThreadStarted = true;
+		}
+	}
+	else
+	{
+		AAMPLOG_TRACE("%s:%d Diferred License Request Thread already running", __FUNCTION__, __LINE__);
+	}
+}
+
+
+/**
+ * @brief Start Deferred License Request
+ * @param drmHelper early created drmHelper
+ * @param mediaType type of track
+ */
+void PrivateStreamAbstractionMPD::StartDeferredDRMRequestThread(MediaType mediaType)
+{
+	AAMPLOG_INFO("%s:%d Enter", __FUNCTION__, __LINE__);
+	int deferTime;
+	bool exitLoop = false;
+	// Start tread
+	do
+	{
+		// Wait for KeyID entry in queue
+		if(mPendingKeyIDs.empty())
+		{
+			if(mAbortDeferredLicenseLoop)
+			{
+				AAMPLOG_ERR("%s aborted", __FUNCTION__);
+				break;
+			}
+			else
+			{
+				continue;
+			}
+		}
+		else
+		{
+			deferTime = 0;
+		}
+
+		// Process all pending key ID requests
+		while(!mPendingKeyIDs.empty())
+		{
+			std::string keyID = mPendingKeyIDs.front();
+			if (mCommonKeyDuration > 0)
+			{
+				// TODO : Logic to share time for pending Key IDs
+				// (mCommonKeyDuration)/(mPendingKeyIds.size())
+				deferTime = aamp_GetDeferTimeMs(mCommonKeyDuration);
+				// Going to sleep for deferred key process
+				aamp->InterruptableMsSleep(deferTime);
+				AAMPLOG_TRACE("%s:%d sleep over for deferred time:%d", __FUNCTION__, __LINE__, deferTime);
+			}
+
+			if((aamp->DownloadsAreEnabled()) && (!mEarlyAvailableKeyIDMap[keyID].isLicenseFailed))
+			{
+				AAMPLOG_TRACE("%s:%d Processing License request after sleep", __FUNCTION__, __LINE__);
+				// Process content protection with early created helper
+				ProcessVssContentProtection(mEarlyAvailableKeyIDMap[keyID].helper, mediaType);
+				mEarlyAvailableKeyIDMap[keyID].isLicenseProcessed = true;
+			}
+			else
+			{
+				AAMPLOG_ERR("%s Aborted", __FUNCTION__);
+				exitLoop = true;
+				break;
+			}
+			// Remove processed keyID from FIFO queue
+			mPendingKeyIDs.pop();
+		}
+	}
+	while(!exitLoop);
+	deferredDRMRequestThreadStarted = false;
+	AAMPLOG_INFO("%s:%d Exit", __FUNCTION__, __LINE__);
+}
+#endif
+
 
 int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,AudioType &CodecType)
 {
@@ -4551,13 +4888,16 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
  * @brief Does stream selection
  * @param newTune true if this is a new tune
  */
-void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
+void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeedsChangedEvent)
 {
+	std::vector<AudioTrackInfo> aTracks;
+	std::vector<TextTrackInfo> tTracks;
+	std::string aTrackIdx;
+	std::string tTrackIdx;
 	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
 	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 	{
-		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d - subtitles disabled by application", __FUNCTION__, __LINE__);
 		numTracks--;
 	}
 	IPeriod *period = mCurrentPeriod;
@@ -4569,7 +4909,31 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 	AudioType selectedCodecType = eAUDIO_UNKNOWN;
 	int audioRepresentationIndex = -1;
  	int desiredRepIdx = -1;	
-	int audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+	int audioAdaptationSetIndex = -1;
+	AudioTrackInfo preferredAudioTrack = aamp->GetPreferredAudioTrack();
+	if (!preferredAudioTrack.index.empty())
+	{
+		if (newTune)
+		{
+			//TODO: Need to check if a better logic is available
+			std::string index = preferredAudioTrack.index;
+			size_t delim = index.find('-');
+			logprintf("%s: delim - %zu, substr: %s", __FUNCTION__, delim, index.substr(0, delim).c_str());
+			audioAdaptationSetIndex = atoi(index.substr(0, delim).c_str());
+			desiredRepIdx = std::stoi(index.substr(delim + 1));
+		}
+		// This is a period change, tread carefully here
+		else
+		{
+			//TODO: Dummy code, test
+			aamp->UpdateAudioLanguageSelection(preferredAudioTrack.language.c_str());
+			audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+		}
+	}
+	else
+	{
+		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+	}
 	IAdaptationSet *audioAdaptationSet = NULL;
 	if ( audioAdaptationSetIndex >= 0 )
 	{
@@ -4599,8 +4963,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		int  selAdaptationSetIndex = -1;
 		int selRepresentationIndex = -1;
 		bool isIframeAdaptationAvailable = false;
-		int videoRepresentationIdx;
-		uint32_t selRepBandwidth = 0;
+		int videoRepresentationIdx;   //CID:118900 - selRepBandwidth variable locally declared but not reflected
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -4612,22 +4975,21 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				{
 					if (eMEDIATYPE_SUBTITLE == i)
 					{
-						// map 3 character language code to 2 character
-						char lang2[MAX_LANGUAGE_TAG_LENGTH];
-						strcpy( lang2, adaptationSet->GetLang().c_str() ); // should use GetLanguageForAdaptationSet?
-						iso639map_NormalizeLanguageCode( lang2, ISO639_PREFER_2_CHAR_LANGCODE  );
-						std::string lang = lang2;
+						std::string lang = GetLanguageForAdaptationSet(adaptationSet);
 						if (lang == aamp->mSubLanguage)
 						{
-							//We support only plain text vtt for now
-							const char* supportedMimeType = "text/vtt";
 							std::string adaptationMimeType = adaptationSet->GetMimeType();
 							if (!adaptationMimeType.empty())
 							{
-								if (adaptationMimeType == supportedMimeType)
+								if (IsCompatibleMimeType(adaptationMimeType, MediaType::eMEDIATYPE_SUBTITLE))
 								{
 									selAdaptationSetIndex = iAdaptationSet;
 									selRepresentationIndex = 0;
+									pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
+									if (pMediaStreamContext->mSubtitleParser) 
+									{
+										pMediaStreamContext->mSubtitleParser->init(0.0, 0);
+									}
 								}
 							}
 							else
@@ -4637,17 +4999,21 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								{
 									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
 									std::string mimeType = rep->GetMimeType();
-									if (!mimeType.empty() && (mimeType == supportedMimeType))
+									if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, MediaType::eMEDIATYPE_SUBTITLE)))
 									{
 										selAdaptationSetIndex = iAdaptationSet;
 										selRepresentationIndex = representationIndex;
 									}
 								}
 							}
+							if (selAdaptationSetIndex != -1)
+							{
+								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
+							}
 							if (selAdaptationSetIndex != iAdaptationSet)
 							{
 								//Even though language matched, mimeType is missing or not supported right now. Log for now
-								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!", __FUNCTION__, __LINE__, lang.c_str());
+								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!\n", __FUNCTION__, __LINE__, lang.c_str());
 							}
 						}
 					}
@@ -4655,6 +5021,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 					{
 						selAdaptationSetIndex = audioAdaptationSetIndex;
 						selRepresentationIndex = audioRepresentationIndex;
+						aTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
 					}
 					else if (!gpGlobalConfig->bAudioOnlyPlayback)
 					{
@@ -4667,7 +5034,6 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 								if (videoRepresentationIdx != -1)
 								{
 									selAdaptationSetIndex = iAdaptationSet;
-									AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s %d > Got video Adaptation Set[%d] Representation[%d]",__FUNCTION__, __LINE__, iAdaptationSet, videoRepresentationIdx);
 								}
 								if(!newTune)
 								{
@@ -4706,12 +5072,113 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 						break;
 					}
 				}
+
+				//Populate audio and text track info
+				if (eMEDIATYPE_AUDIO == i || eMEDIATYPE_SUBTITLE == i)
+				{
+					IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+					std::string lang = GetLanguageForAdaptationSet(adaptationSet);
+					const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+					std::string codec;
+					std::string group; // value of <Role>, empty if <Role> not present
+					{
+						std::vector<IDescriptor *> role = adaptationSet->GetRole();
+						for (unsigned iRole = 0; iRole < role.size(); iRole++)
+						{
+							if (role.at(iRole)->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+							{
+								group = role.at(iRole)->GetValue();
+							}
+						}
+					}
+					// check for codec defined in Adaptation Set
+					const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+					const std::string adapMimeType = adaptationSet->GetMimeType();
+					for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+					{
+						std::string index = std::to_string(iAdaptationSet) + "-" + std::to_string(representationIndex);
+						const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+						std::string name = rep->GetId();
+						uint32_t bandwidth = rep->GetBandwidth();
+						const std::vector<std::string> repCodecs = rep->GetCodecs();
+						// check if Representation includes codec
+						if (repCodecs.size())
+						{
+							codec = repCodecs.at(0);
+						}
+						else if (adapCodecs.size()) // else check if Adaptation has codec
+						{
+							codec = adapCodecs.at(0);
+						}
+						else
+						{
+							// For subtitle, it might be vtt/ttml format
+							codec = adaptationSet->GetMimeType();
+						}
+
+						if (eMEDIATYPE_AUDIO == i)
+						{
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d",
+								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth);
+							aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth));
+						}
+						else
+						{
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d Text Track - lang:%s, isCC:0, group:%s, name:%s, codec:%s",
+								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str());
+							tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec));
+						}
+					}
+				}
+				// Look in VIDEO adaptation for inband CC track related info
+				else if (eMEDIATYPE_VIDEO == i)
+				{
+					IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+					std::vector<IDescriptor *> adapAccessibility = adaptationSet->GetAccessibility();
+					for (int index = 0 ; index < adapAccessibility.size(); index++)
+					{
+						std::string schemeId = adapAccessibility.at(index)->GetSchemeIdUri();
+						if (schemeId.find("urn:scte:dash:cc:cea") != string::npos)
+						{
+							std::string empty;
+							std::string lang, id;
+							std::string value = adapAccessibility.at(index)->GetValue();
+							if (!value.empty())
+							{
+								// Expected formats : 	eng;deu
+								// 			CC1=eng;CC2=deu
+								//			1=lang:eng;2=lang:deu
+								//			1=lang:eng;2=lang:eng,war:1,er:1
+								size_t delim = value.find(';');
+								while (delim != std::string::npos)
+								{
+									ParseCCStreamIDAndLang(value.substr(0, delim), id, lang);
+									AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d CC Track - lang:%s, isCC:1, group:%s, id:%s",
+										__FUNCTION__, __LINE__, lang.c_str(), schemeId.c_str(), id.c_str());
+									tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty));
+									value = value.substr(delim + 1);
+									delim = value.find(';');
+								}
+								ParseCCStreamIDAndLang(value, id, lang);
+								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d CC Track - lang:%s, isCC:1, group:%s, id:%s",
+									__FUNCTION__, __LINE__, lang.c_str(), schemeId.c_str(), id.c_str());
+								tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty));
+							}
+							else
+							{
+								// value = empty is highly discouraged as per spec, just added as fallback
+								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s() %d CC Track - group:%s, isCC:1", __FUNCTION__, __LINE__, schemeId.c_str());
+								tTracks.push_back(TextTrackInfo(empty, empty, true, schemeId, empty, empty, empty));
+							}
+						}
+					}
+				}
 			}
 		} // next iAdaptationSet
 
 		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && (eMEDIATYPE_VIDEO != i) && selAdaptationSetIndex >= 0)
 		{
-            AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Selected Audio Track codec is unknown", __FUNCTION__, __LINE__);
 			mAudioType = eAUDIO_AAC; // assuming content is still playable
 		}
 
@@ -4736,7 +5203,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 				aamp->previousAudioType = selectedCodecType;
 				mContext->SetESChangeStatus();
 			}
-			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
+			logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
 				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
@@ -4745,11 +5212,11 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
-			logprintf("PrivateStreamAbstractionMPD::%s %d > No valid adaptation set found for Media[%s]",
+			logprintf("PrivateStreamAbstractionMPD::%s %d > No valid adaptation set found for Media[%s]\n",
 				__FUNCTION__, __LINE__, mMediaTypeName[i]);
 		}
 
-		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s",
+		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//Store the iframe track status in current period if there is any change
@@ -4757,7 +5224,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		{
 			aamp->mIsIframeTrackPresent = isIframeAdaptationAvailable;
 			//Iframe tracks changed mid-stream, sent a playbackspeed changed event
-			if (!newTune)
+			if (!newTune || forceSpeedsChangedEvent)
 			{
 				aamp->SendSupportedSpeedsChangedEvent(aamp->mIsIframeTrackPresent);
 			}
@@ -4776,6 +5243,10 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune)
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->profileChanged = true;
 		mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
 	}
+
+	// Set audio/text track related structures
+	mContext->SetAudioTrackInfo(aTracks, aTrackIdx);
+	mContext->SetTextTrackInfo(tTracks, tTrackIdx);
 }
 
 /**
@@ -4819,6 +5290,25 @@ static void GetBitrateInfoFromCustomMpd(IAdaptationSet *adaptationSet, std::vect
 	}
 }
 
+/**
+ * @brief Get profile index for bandwidth notification
+ * @param bandwidth - bandwidth to identify profile index from list
+ * @retval profile index of the current bandwidth
+ */
+int PrivateStreamAbstractionMPD::GetProfileIdxForBandwidthNotification(uint32_t bandwidth)
+{
+	int profileIndex = 0; // Keep default index as 0
+
+	std::vector<long>::iterator it = std::find(mBitrateIndexVector.begin(), mBitrateIndexVector.end(), (long)bandwidth);
+
+	if (it != mBitrateIndexVector.end())
+	{
+		// Get index of element from iterator
+		profileIndex = std::distance(mBitrateIndexVector.begin(), it);
+	}
+
+	return profileIndex;
+}
 
 /**
  * @brief Updates track information based on current state
@@ -4863,7 +5353,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 					vector<Representation *> representations;
 					GetBitrateInfoFromCustomMpd(pMediaStreamContext->adaptationSet, representations);
 					int representationCount = representations.size();
-					if ((representationCount != mBitrateIndexMap.size()) && mStreamInfo)
+					if ((representationCount != mBitrateIndexVector.size()) && mStreamInfo)
 					{
 						delete[] mStreamInfo;
 						mStreamInfo = NULL;
@@ -4873,7 +5363,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 						mStreamInfo = new StreamInfo[representationCount];
 					}
 					mContext->GetABRManager().clearProfiles();
-					mBitrateIndexMap.clear();
+					mBitrateIndexVector.clear();
 					mMaxTSBBandwidth = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
@@ -4899,8 +5389,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 							double frate = val2? ((double)val1/val2):val1;
 							mStreamInfo[idx].resolution.framerate = frate;
 						}
-						
-						mBitrateIndexMap[mStreamInfo[idx].bandwidthBitsPerSecond] = idx;
+
+						mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 						delete representation;
 
 						if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
@@ -4912,7 +5402,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 					IRepresentation* representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(0);
 					pMediaStreamContext->fragmentDescriptor.Bandwidth = representation->GetBandwidth();
 					aamp->profiler.SetBandwidthBitsPerSecondVideo(pMediaStreamContext->fragmentDescriptor.Bandwidth);
-					mContext->profileIdxForBandwidthNotification = mBitrateIndexMap[pMediaStreamContext->fragmentDescriptor.Bandwidth];
+					mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 				}
 				else if(!isFogTsb && mUpdateStreamInfo)
 				{
@@ -4931,7 +5421,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 						mStreamInfo = new StreamInfo[representationCount];
 					}
 					mContext->GetABRManager().clearProfiles();
-					mBitrateIndexMap.clear();
+					mBitrateIndexVector.clear();
 					int addedProfiles = 0;
 					for (int idx = 0; idx < representationCount; idx++)
 					{
@@ -5558,8 +6048,7 @@ bool PrivateStreamAbstractionMPD::CheckForInitalClearPeriod()
 void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 {
 	//Find the first period with contentProtection
-	size_t numPeriods = mpd->GetPeriods().size();
-	int headerCount = 0;
+	size_t numPeriods = mpd->GetPeriods().size();  //CID:96576 - Removed the  headerCount variable which is initialized but not used
 	for(int i = mNumberOfTracks - 1; i >= 0; i--)
 	{
 		bool encryptionFound = false;
@@ -5652,6 +6141,66 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 	}
 }
 
+
+/**
+ * @brief Check if the given period is empty
+ */
+static bool IsEmptyPeriod(IPeriod *period)
+{
+	bool isEmptyPeriod = true;
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+	size_t numAdaptationSets = period->GetAdaptationSets().size();
+	for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
+	{
+		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+		IRepresentation *representation = NULL;
+		ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
+		if (segmentTemplate)
+		{
+			isEmptyPeriod = false;
+		}
+		else
+		{
+			if(adaptationSet->GetRepresentation().size() > 0)
+			{
+				//Get first representation in the adapatation set
+				representation = adaptationSet->GetRepresentation().at(0);
+			}
+			if(representation)
+			{
+				segmentTemplate = representation->GetSegmentTemplate();
+				if(segmentTemplate)
+				{
+					isEmptyPeriod = false;
+				}
+				else
+				{
+					ISegmentList *segmentList = representation->GetSegmentList();
+					if(segmentList)
+					{
+						isEmptyPeriod = false;
+					}
+					else
+					{
+						ISegmentBase *segmentBase = representation->GetSegmentBase();
+						if(segmentBase)
+						{
+							isEmptyPeriod = false;
+						}
+					}
+				}
+			}
+		}
+
+		if(!isEmptyPeriod)
+		{
+			break;
+		}
+	}
+	return isEmptyPeriod;
+}
+
+
 /**
  * @brief Fetches and caches fragments in a loop
  */
@@ -5661,8 +6210,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	bool trickPlay = (AAMP_NORMAL_PLAY_RATE != rate);
 	bool mpdChanged = false;
 	double delta = 0;
-	bool lastLiveFlag = false;
-	bool placeNextAd = false;
+	bool lastLiveFlag = false;  //CID:96059 - Removed the  placeNextAd variable which is initialized but not used
 	int direction = 1;
   
 	if(rate < 0)
@@ -5690,7 +6238,31 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 		{
 			size_t numPeriods = mpd->GetPeriods().size();
 			unsigned iPeriod = mCurrentPeriodIdx;
-			AAMPLOG_INFO("MPD has %d periods current period index %d", numPeriods, mCurrentPeriodIdx);
+			AAMPLOG_INFO("MPD has %zu periods current period index %u", numPeriods, mCurrentPeriodIdx);
+			std::vector<IPeriod*> availablePeriods = mpd->GetPeriods();
+			unsigned upperBoundary = numPeriods - 1;
+			unsigned lowerBoundary = 0;
+			// Calculate lower boundary of playable periods, discard empty periods at the start
+			for(auto temp : availablePeriods)
+			{
+				if(IsEmptyPeriod(temp))
+				{
+					lowerBoundary++;
+					continue;
+				}
+				break;
+			}
+			// Calculate upper boundary of playable periods, discard empty periods at the end
+			for(auto iter = availablePeriods.rbegin() ; iter != availablePeriods.rend(); iter++ )
+			{
+				if(IsEmptyPeriod(*iter))
+				{
+					upperBoundary--;
+					continue;
+				}
+				break;
+			}
+
 			while(iPeriod < numPeriods && iPeriod >= 0 && !exitFetchLoop)
 			{
 				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
@@ -5699,18 +6271,82 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					bool discontinuity = false;
 					bool requireStreamSelection = false;
 					uint64_t nextSegmentTime = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.Time;
-					mpdChanged = false;
+
+					if(mpdChanged)
+					{
+#ifdef AAMP_MPD_DRM
+						if(mIsVssStream)
+						{
+							std::vector<IPeriod*> vssPeriods;
+							// Collect only new vss periods from manifest
+							GetAvailableVSSPeriods(vssPeriods);
+							for (auto tempPeriod : vssPeriods)
+							{
+								if (NULL != tempPeriod)
+								{
+									// Save new period ID and create DRM helper for that
+									mEarlyAvailablePeriodIds.push_back(tempPeriod->GetId());
+									std::shared_ptr<AampDrmHelper> drmHelper = CreateDrmHelper(tempPeriod->GetAdaptationSets().at(0), eMEDIATYPE_VIDEO);
+									// Identify key ID from parsed PSSH data
+									std::vector<uint8_t> keyIdArray;
+									drmHelper->getKey(keyIdArray);
+
+									if (!keyIdArray.empty())
+									{
+										// Save individual VSS stream information
+										EarlyAvailablePeriodInfo vssKeyPeriodInfo;
+										vssKeyPeriodInfo.periodId = tempPeriod->GetId();
+										vssKeyPeriodInfo.helper = drmHelper;
+										std::string keyIdDebugStr = AampLogManager::getHexDebugStr(keyIdArray);
+										AAMPLOG_INFO("%s:%d New VSS Period : %s Key ID: %s", __FUNCTION__, __LINE__, tempPeriod->GetId().c_str(), keyIdDebugStr.c_str());
+										// Check whether key ID is already marked as failure.
+										if (!aamp->mDRMSessionManager->IsKeyIdUsable(keyIdArray))
+										{
+											vssKeyPeriodInfo.isLicenseFailed = true;
+										}
+
+										// Insert VSS period information into map if key is not processed
+										std::pair<std::map<std::string,EarlyAvailablePeriodInfo>::iterator,bool> retVal;
+										retVal = mEarlyAvailableKeyIDMap.insert(std::pair<std::string, EarlyAvailablePeriodInfo>(keyIdDebugStr, vssKeyPeriodInfo));
+										if ((retVal.second) && (!vssKeyPeriodInfo.isLicenseFailed))
+										{
+											// FIFO queue for processing license request
+											mPendingKeyIDs.push(keyIdDebugStr);
+										}
+										else
+										{
+											AAMPLOG_TRACE("%s:%d Skipping license request for keyID : %s", __FUNCTION__, __LINE__, keyIdDebugStr);
+										}
+									}
+									else
+									{
+										AAMPLOG_WARN("%s:%d Failed to get keyID for vss common key EAP", __FUNCTION__, __LINE__);
+									}
+								}
+							}
+							// Proces EAP License request if there is pending keyIDs
+							if(!mPendingKeyIDs.empty())
+							{
+								// Check Deferred License thread status, and process license request
+								ProcessEAPLicenseRequest();
+							}
+						}
+#endif
+						mpdChanged = false;
+					}
+
+
 					if (periodChanged)
 					{
 						IPeriod *newPeriod = mpd->GetPeriods().at(iPeriod);
 
 						//for VOD and cDVR
-						logprintf("%s:%d Period(%s - %d/%d) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
-							mBasePeriodId.c_str(), mCurrentPeriodIdx,numPeriods, mBasePeriodOffset, mIsLiveStream,aamp->IsInProgressCDVR());
+						logprintf("%s:%d Period(%s - %d/%zu) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
+							mBasePeriodId.c_str(), mCurrentPeriodIdx, numPeriods, mBasePeriodOffset, mIsLiveStream, aamp->IsInProgressCDVR());
 
 						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
 						int adaptationSetCount = adapatationSets.size();
-						if(0 == adaptationSetCount)
+						if(0 == adaptationSetCount || IsEmptyPeriod(newPeriod))
 						{
 							/*To Handle non fog scenarios where empty periods are
 							* present after mpd update causing issues (DELIA-29879)
@@ -5718,6 +6354,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 							iPeriod += direction;
 							continue;
 						}
+
 
 						if(mBasePeriodId != newPeriod->GetId() && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
 						{
@@ -6006,7 +6643,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					if (vEos || aEos)
 					{
 						bool eosOutSideAd = (AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState &&
-								((rate > 0 && mCurrentPeriodIdx >= (numPeriods -1)) || (rate < 0 && 0 == mCurrentPeriodIdx)));
+								((rate > 0 && mCurrentPeriodIdx >= upperBoundary) || (rate < 0 && lowerBoundary == mCurrentPeriodIdx)));
 
 						bool eosAdPlayback = (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState &&
 								((rate > 0 && mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime >= mLiveEndPosition)
@@ -6202,7 +6839,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			break;
 		}
 
-		if(mIsFogTSB)
+		if(mIsLiveStream)
 		{
 			//Periods could be added or removed, So select period based on periodID
 			//If period ID not found in MPD that means it got culled, in that case select
@@ -6230,7 +6867,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			size_t newPeriods = mpd->GetPeriods().size();
 			if(mCurrentPeriodIdx > (newPeriods - 1))
 			{
-				logprintf("MPD Fragment Collector detected reset in Period(New Size:%d)(currentIdx:%d->%d)",
+				logprintf("MPD Fragment Collector detected reset in Period(New Size:%zu)(currentIdx:%d->%zu)",
 					newPeriods,mCurrentPeriodIdx,newPeriods - 1);
 				mCurrentPeriodIdx = newPeriods - 1;
 			}
@@ -6241,6 +6878,117 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	logprintf("MPD fragment collector done");
 }
 
+
+/**
+ * @brief Check new early available periods
+ * @param vector of new Early Available Perids
+ */
+void PrivateStreamAbstractionMPD::GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds)
+{
+	for(IPeriod* tempPeriod : mpd->GetPeriods())
+	{
+		if (STARTS_WITH_IGNORE_CASE(tempPeriod->GetId().c_str(), VSS_DASH_EARLY_AVAILABLE_PERIOD_PREFIX))
+		{
+			if(1 == tempPeriod->GetAdaptationSets().size() && IsEmptyPeriod(tempPeriod))
+			{
+				if(std::find(mEarlyAvailablePeriodIds.begin(), mEarlyAvailablePeriodIds.end(), tempPeriod->GetId()) == mEarlyAvailablePeriodIds.end())
+				{
+					PeriodIds.push_back(tempPeriod);
+				}
+			}
+		}
+	}
+}
+
+
+/**
+ * @brief Check for VSS tags
+ * @retval bool true if found, false otherwise
+ */
+bool PrivateStreamAbstractionMPD::CheckForVssTags()
+{
+	bool isVss = false;
+	IMPDElement* nodePtr = mpd;
+
+	if (!nodePtr)
+	{
+		AAMPLOG_ERR("%s:%d > API Failed due to Invalid Arguments", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		for (INode* childNode : nodePtr->GetAdditionalSubNodes())
+		{
+			const std::string& name = childNode->GetName();
+			if (name == SUPPLEMENTAL_PROPERTY_TAG)
+			{
+				if (childNode->HasAttribute("schemeIdUri"))
+				{
+					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
+					if (schemeIdUri == SCHEME_ID_URI_VSS_STREAM)
+					{
+						if (childNode->HasAttribute("value"))
+						{
+							std::string value = childNode->GetAttributeValue("value");
+							std::stringstream ckValue(value);
+							ckValue >> mCommonKeyDuration;
+							AAMPLOG_INFO("%s:%d Recieved Common Key Duration : %d of VSS stream", __FUNCTION__, __LINE__, mCommonKeyDuration);
+							isVss = true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return isVss;
+}
+
+
+/**
+ * @brief GetVssVirtualStreamID from manifest
+ * @retval return Virtual stream ID string
+ */
+std::string PrivateStreamAbstractionMPD::GetVssVirtualStreamID()
+{
+	std::string ret;
+	IMPDElement* nodePtr = mpd;
+
+	if (!nodePtr)
+	{
+		AAMPLOG_ERR("%s:%d > API Failed due to Invalid Arguments", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		for (auto* childNode : mpd->GetProgramInformations())
+		{
+				for (auto infoNode : childNode->GetAdditionalSubNodes())
+				{
+					std::string subNodeName;
+					std::string ns;
+					ParseXmlNS(infoNode->GetName(), ns, subNodeName);
+					const std::string& infoNodeType = infoNode->GetAttributeValue("type");
+					if ((subNodeName == "ContentIdentifier") && (infoNodeType == "URI" || infoNodeType == "URN"))
+					{
+						if (infoNode->HasAttribute("value"))
+						{
+							std::string value = infoNode->GetAttributeValue("value");
+							if (value.find(VSS_VIRTUAL_STREAM_ID_PREFIX) != std::string::npos)
+							{
+								ret = value.substr(sizeof(VSS_VIRTUAL_STREAM_ID_PREFIX)-1);
+								AAMPLOG_INFO("%s:%d Parsed Virtual Stream ID from manifest:%s", __FUNCTION__, __LINE__, ret.c_str());
+								break;
+							}
+						}
+					}
+				}
+			if (!ret.empty())
+			{
+				break;
+			}
+		}
+	}
+	return ret;
+}
 
 /**
  * @brief StreamAbstractionAAMP_MPD Constructor
@@ -6340,6 +7088,18 @@ void PrivateStreamAbstractionMPD::Stop()
 		}
 		fragmentCollectorThreadStarted = false;
 	}
+
+	if(deferredDRMRequestThreadStarted)
+	{
+		if((deferredDRMRequestThread) && (deferredDRMRequestThread->joinable()))
+		{
+			mAbortDeferredLicenseLoop = true;
+			deferredDRMRequestThread->join();
+			delete deferredDRMRequestThread;
+			deferredDRMRequestThread = NULL;
+		}
+	}
+
 	aamp->mStreamSink->ClearProtectionEvent();
  #ifdef AAMP_MPD_DRM
 	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
@@ -6371,6 +7131,7 @@ PrivateStreamAbstractionMPD::~PrivateStreamAbstractionMPD(void)
 	{
 		delete[] mStreamInfo;
 	}
+
 
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 
@@ -6482,7 +7243,7 @@ int PrivateStreamAbstractionMPD::GetProfileCount()
 
 	if(isFogTsb)
 	{
-		ret = mBitrateIndexMap.size();
+		ret = mBitrateIndexVector.size();
 	}
 	else
 	{
@@ -6729,11 +7490,19 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 			{
 				for(auto &evtChild: event->GetAdditionalSubNodes())
 				{
-					if("scte35:Signal" == evtChild->GetName())
+					std::string prefix = "scte35:";
+
+					if(evtChild->HasAttribute("xmlns") && "http://www.scte.org/schemas/35/2016" == evtChild->GetAttributeValue("xmlns"))
+					{
+						//scte35 namespace defined here. Hence, this & children don't need the prefix 'scte35'
+						prefix = "";
+					}
+
+					if(prefix+"Signal" == evtChild->GetName())
 					{
 						for(auto &signalChild: evtChild->GetNodes())
 						{
-							if(signalChild && "scte35:Binary" == signalChild->GetName())
+							if(signalChild && prefix+"Binary" == signalChild->GetName())
 							{
 								uint32_t timeScale = 1;
 								if(eventStream->GetTimescale() > 1)
@@ -6759,7 +7528,7 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 }
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
 {
-	double adOffset;
+	double adOffset  = 0.0;   //CID:89257 - Intialization
 	return onAdEvent(evt, adOffset);
 }
 
@@ -7093,5 +7862,50 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 	return stateChanged;
 }
 
+/**
+ * @brief To set the audio tracks of current period
+ *
+ * @param[in] tracks - available audio tracks in period
+ * @param[in] trackIndex - index of current audio track
+ * @return void
+ */
+void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex)
+{
+	bool tracksChanged = false;
+	if (tracks.size() != mAudioTracks.size())
+	{
+		tracksChanged = true;
+	}
 
+	mAudioTracks = tracks;
+	mAudioTrackIndex = trackIndex;
 
+	if (tracksChanged)
+	{
+		aamp->NotifyAudioTracksChanged();
+	}
+}
+
+/**
+ * @brief To set the text tracks of current period
+ *
+ * @param[in] tracks - available text tracks in period
+ * @param[in] trackIndex - index of current text track
+ * @return void
+ */
+void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex)
+{
+	bool tracksChanged = false;
+	if (tracks.size() != mTextTracks.size())
+	{
+		tracksChanged = true;
+	}
+
+	mTextTracks = tracks;
+	mTextTrackIndex = trackIndex;
+
+	if (tracksChanged)
+	{
+		aamp->NotifyTextTracksChanged();
+	}
+}

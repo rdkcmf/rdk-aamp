@@ -21,14 +21,7 @@
 #define iso639map_hpp
 
 #include <stdio.h>
-
-typedef enum
-{
-    ISO639_NO_LANGCODE_PREFERENCE,
-    ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE,
-    ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE,
-    ISO639_PREFER_2_CHAR_LANGCODE
-} LangCodePreference;
+#include "main_aamp.h"
 
 void iso639map_NormalizeLanguageCode( char lang[], LangCodePreference langCodePreference );
 

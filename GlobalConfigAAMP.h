@@ -28,7 +28,7 @@
 #include "AampDrmSystems.h"
 #include "AampLogManager.h"
 
-#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (10000)		/**< aamp abr threshold size */
+#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
@@ -109,7 +109,7 @@ public:
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
 	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
 	bool noFog;                 /**< Disable FOG*/
-	int mapMPD;                 /**< Mapping of HLS to MPD: 0=Disable, 1=Rename m3u8 to mpd, 2=COAM mapping, 3='*-nat-*.comcast.net/' to 'ctv-nat-slivel4lb-vip.cmc.co.ndcwest.comcast.net/'*/
+	char *mapMPD;               /**< Mapping of HLS to MPD url for matching string */
 	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 	int harvest;                /**< Save decrypted fragments for debugging*/
@@ -170,7 +170,7 @@ public:
 	bool linearTrickplayFPSLocalOverride;   /**< Enabled LIVE Trickplay FPS local overriding*/
 	int stallErrorCode;                     /**< Stall error code*/
 	int stallTimeoutInMS;                   /**< Stall timeout in milliseconds*/
-	const char* httpProxy;                  /**< HTTP proxy address*/
+	char* httpProxy;                  /**< HTTP proxy address*/
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
 	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
@@ -185,8 +185,6 @@ public:
 	int licenseRetryWaitTime;
 	long iframeBitrate;                     /**< Default bitrate for iframe track selection for non-4K assets*/
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
-	char *prLicenseServerURL;               /**< Playready License server URL*/
-	char *wvLicenseServerURL;               /**< Widevine License server URL*/
 	char *ckLicenseServerURL;				/**< ClearKey License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
 	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
@@ -224,7 +222,10 @@ public:
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
+	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
+	bool nativeCCRendering;  /*** If native CC rendering to be supported */
+	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 public:
 	std::string getUnknownValue(const std::string& key)
 	{
@@ -255,12 +256,13 @@ public:
 			return defaultValue;
 		}
 	}
-	int getUnknownValue(const std::string& key, bool defaultValue)
+	bool getUnknownValue(const std::string& key, bool defaultValue)
 	{
 		auto iter = unknownValues.find(key);
 		if (iter != unknownValues.end())
 		{
-			return iter->second.compare("true") == 0 || iter->second.compare("1") || iter->second.compare("on");
+			bool ret = (iter->second.compare("true") == 0 || iter->second.compare("1") == 0 || iter->second.compare("on") == 0);
+			return ret;
 		}
 		else
 		{
@@ -298,7 +300,7 @@ public:
 	/**
 	 * @brief GlobalConfigAAMP Constructor
 	 */
-	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(0), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
+	GlobalConfigAAMP() :defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL), fogSupportsDash(true),abrCacheLife(DEFAULT_ABR_CACHE_LIFE),abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 		harvest(0),
 		harvestpath(0),
@@ -318,7 +320,7 @@ public:
 		reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true),bForceHttp(false),
 		internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 		iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD),
-		prLicenseServerURL(NULL), wvLicenseServerURL(NULL),ckLicenseServerURL(NULL)
+		ckLicenseServerURL(NULL)
 		,curlStallTimeout(0), curlDownloadStartTimeout(0)
 		,enableMicroEvents(false),enablePROutputProtection(false), reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0)
 		,waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
@@ -365,6 +367,9 @@ public:
 		,initFragmentRetryCount(-1)
 		,useMatchingBaseUrl(eUndefinedState)
 		,unknownValues()
+		,bEnableSubtec(false)
+		,nativeCCRendering(false)
+		,preferredCEA708(eUndefinedState)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -377,7 +382,7 @@ public:
 	/**
 	 * @brief GlobalConfigAAMP Destructor
 	 */
-	~GlobalConfigAAMP(){}
+	~GlobalConfigAAMP();
 
 	GlobalConfigAAMP(const GlobalConfigAAMP&) = delete;
 
@@ -396,7 +401,7 @@ public:
 			free(pUserAgentString);
 		}
 		pUserAgentString =(char*) malloc(iLen);
-		sprintf(pUserAgentString, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);
+		snprintf(pUserAgentString,iLen, "%s %s",newUserAgent,AAMP_USERAGENT_SUFFIX);  //CID:85162 - DC>STRING_BUFFER
 	}
 };
 

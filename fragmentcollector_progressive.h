@@ -50,7 +50,7 @@ public:
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
     double GetBufferedDuration() override;
-    bool IsFragmentBufferingRequired() override;
+    bool IsInitialCachingSupported() override;
     int GetBWIndex(long bitrate) override;
     std::vector<long> GetVideoBitrates(void) override;
     std::vector<long> GetAudioBitrates(void) override;
@@ -58,9 +58,8 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-    void NotifyFirstVideoPTS(unsigned long long pts) { };
+	void NotifyFirstVideoPTS(unsigned long long pts) { };
 
-    void NotifyBasePTS(unsigned long long pts) { };
     void FetcherLoop();
 protected:
     StreamInfo* GetStreamInfo(int idx) override;

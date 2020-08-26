@@ -379,7 +379,7 @@ private:
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
 	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
 	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
-	bool notifiedCachingComplete;       /**< Fragment caching completed or not*/
+	bool cachingCompleted;              /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
 	int bandwidthBitsPerSecond;        /**< Bandwidth of last selected profile*/
@@ -572,8 +572,17 @@ public:
 	 *
 	 *   @return buffer value 
 	 */                
-        virtual double GetBufferedDuration (void) = 0;
-        /**
+	virtual double GetBufferedDuration (void) = 0;
+
+    /**
+	 *   @brief Check whether the current profile is lowest.
+	 *
+	 *   @param currentProfileIndex - current profile index to be checked.
+	 *   @return true if the given profile index is lowest.
+	 */
+	bool IsLowestProfile(int currentProfileIndex);
+
+    /**
 	 *   @brief Check for ramdown profile.
 	 *
 	 *   @param http_error
@@ -634,11 +643,11 @@ public:
 	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
 	
 	/**
-	 *   @brief Fragment Buffering is required before playing.
+	 *   @brief Check if Initial Fragment Caching is supported
 	 *
-	 *   @return true if buffering is required.
+	 *   @return true if is supported
 	 */
-	virtual bool IsFragmentBufferingRequired();
+	virtual bool IsInitialCachingSupported();
 
 	/**
 	 *   @brief Whether we are playing at live point or not.
@@ -811,7 +820,7 @@ public:
 	 *   @param[in] pts - pts value
 	 */
 	virtual void NotifyFirstVideoPTS(unsigned long long pts) = 0;
-
+	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic
@@ -847,14 +856,14 @@ public:
 	 *
 	 *   @return std::vector<AudioTrackInfo> list of audio tracks
 	 */
-	virtual std::vector<AudioTrackInfo> GetAvailableAudioTracks() { return mAudioTracks; };
+	std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
 
 	/**
 	 *   @brief Get available text tracks.
 	 *
 	 *   @return std::vector<TextTrackInfo> list of text tracks
 	 */
-	virtual std::vector<TextTrackInfo> GetAvailableTextTracks() { return mTextTracks; };
+	std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
 
 	/**
 	*   @brief Update seek position when player is initialized
@@ -903,6 +912,20 @@ public:
 	 *   @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
 	 */
 	void UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo);
+
+	/**
+	 *   @brief Get current audio track
+	 *
+	 *   @return int - index of current audio track
+	 */
+	int GetAudioTrack();
+
+	/**
+	 *   @brief Get current text track
+	 *
+	 *   @return int - index of current text track
+	 */
+	int GetTextTrack();
 
 protected:
 	/**
@@ -961,9 +984,11 @@ private:
 	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
-	std::vector<AudioTrackInfo> mAudioTracks;
-	std::vector<TextTrackInfo> mTextTracks;
+	std::vector<AudioTrackInfo> mAudioTracks; /**< Available audio tracks */
+	std::vector<TextTrackInfo> mTextTracks; /**< Available text tracks */
 	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
+	std::string mAudioTrackIndex; /**< Current audio track index in track list */
+	std::string mTextTrackIndex; /**< Current text track index in track list */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

@@ -63,7 +63,7 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampVgdrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo) {}
+	AampVgdrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), mPsshStr(), memorySystem() {}
 	~AampVgdrmHelper() { }
 
 private:
