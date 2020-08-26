@@ -3936,7 +3936,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	if (http_error)
 	{
 		*http_error = http_code;
-		*downloadTime = fileDownloadTime;
+		if(downloadTime)
+		{
+			*downloadTime = fileDownloadTime;
+		}
 	}
 	if (httpHeaders != NULL)
 	{
@@ -5181,6 +5184,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		struct GrowableBuffer sniffedBytes = {0, 0, 0};
 		std::string effectiveUrl;
 		long http_error;
+		double downloadTime;
 		long bitrate;
 		int fogError;
 
@@ -5191,7 +5195,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 							&sniffedBytes,
 							effectiveUrl,
 							&http_error,
-							NULL,
+							&downloadTime,
 							"0-100", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
 							eCURLINSTANCE_MANIFEST_PLAYLIST,
@@ -8606,7 +8610,8 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 						std::string playlistEffectiveUrl;
 						GrowableBuffer playlistStore;
 						long http_error;
-						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, NULL, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						double downloadTime;
+						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
 						{
 							// If successful download , then insert into Cache 
 							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl, false, newelem.type);
