@@ -1045,7 +1045,31 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			std::string moneytracestr;
 			requestMetadata[0][0] = "X-MoneyTrace";
 			aamp->GetMoneyTraceString(moneytracestr);
-			requestMetadata[0][1] = moneytracestr.c_str();			
+			requestMetadata[0][1] = moneytracestr.c_str();
+			uint8_t numberOfAccessAttributes = 0;
+			const char *accessAttributes[2][2] = {NULL, NULL, NULL, NULL};
+			std::string serviceZone, streamID;
+			if(aamp->mIsVSS)
+			{
+				if (gpGlobalConfig->enableAccessAttributes)
+				{
+					serviceZone = aamp->GetServiceZone();
+					streamID = aamp->GetVssVirtualStreamID();
+					if (!serviceZone.empty())
+					{
+						accessAttributes[numberOfAccessAttributes][0] = VSS_SERVICE_ZONE_KEY_STR;
+						accessAttributes[numberOfAccessAttributes][1] = serviceZone.c_str();
+						numberOfAccessAttributes++;
+					}
+					if (!streamID.empty())
+					{
+						accessAttributes[numberOfAccessAttributes][0] = VSS_VIRTUAL_STREAM_ID_KEY_STR;
+						accessAttributes[numberOfAccessAttributes][1] = streamID.c_str();
+						numberOfAccessAttributes++;
+					}
+				}
+				AAMPLOG_INFO("%s:%d accessAttributes : {\"%s\" : \"%s\", \"%s\" : \"%s\"}", __FUNCTION__, __LINE__, accessAttributes[0][0], accessAttributes[0][1], accessAttributes[1][0], accessAttributes[1][1]);
+			}
 
 			logprintf("[HHH] Before calling SecClient_AcquireLicense-----------");
 			logprintf("destinationURL is %s", destinationURL.c_str());
@@ -1062,7 +1086,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				attemptCount++;
 				sec_client_result = SecClient_AcquireLicense(destinationURL.c_str(), 1,
-									requestMetadata, 0, NULL,
+									requestMetadata, numberOfAccessAttributes,
+							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
 									encodedData,
 									strlen(encodedData),
 									licenseRequest, strlen(licenseRequest), keySystem, mediaUsage,

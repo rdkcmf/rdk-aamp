@@ -629,6 +629,7 @@ private:
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	bool IsEmptyPeriod(IPeriod *period);
+	std::string GetVssVirtualStreamID();
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -3081,6 +3082,15 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 
 		if(mIsLiveStream)
 		{
+			if (aamp->mIsVSS)
+			{
+				std::string vssVirtualStreamId = GetVssVirtualStreamID();
+				if (!vssVirtualStreamId.empty())
+				{
+					AAMPLOG_INFO("%s:%d Virtual stream ID :%s", __FUNCTION__, __LINE__, vssVirtualStreamId.c_str());
+					aamp->SetVssVirtualStreamID(vssVirtualStreamId);
+				}
+			}
 			std::string tempStr = mpd->GetMinimumUpdatePeriod();
 			if(!tempStr.empty())
 			{
@@ -6281,6 +6291,52 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	logprintf("MPD fragment collector done");
 }
 
+
+/**
+ * @brief GetVssVirtualStreamID from manifest
+ * @retval return Virtual stream ID string
+ */
+std::string PrivateStreamAbstractionMPD::GetVssVirtualStreamID()
+{
+	std::string ret;
+	IMPDElement* nodePtr = mpd;
+
+	if (!nodePtr)
+	{
+		AAMPLOG_ERR("%s:%d > API Failed due to Invalid Arguments", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		for (auto* childNode : mpd->GetProgramInformations())
+		{
+				for (auto infoNode : childNode->GetAdditionalSubNodes())
+				{
+					std::string subNodeName;
+					std::string ns;
+					ParseXmlNS(infoNode->GetName(), ns, subNodeName);
+					const std::string& infoNodeType = infoNode->GetAttributeValue("type");
+					if ((subNodeName == "ContentIdentifier") && (infoNodeType == "URI" || infoNodeType == "URN"))
+					{
+						if (infoNode->HasAttribute("value"))
+						{
+							std::string value = infoNode->GetAttributeValue("value");
+							if (value.find(VSS_VIRTUAL_STREAM_ID_PREFIX) != std::string::npos)
+							{
+								ret = value.substr(sizeof(VSS_VIRTUAL_STREAM_ID_PREFIX)-1);
+								AAMPLOG_INFO("%s:%d Parsed Virtual Stream ID from manifest:%s", __FUNCTION__, __LINE__, ret.c_str());
+								break;
+							}
+						}
+					}
+				}
+			if (!ret.empty())
+			{
+				break;
+			}
+		}
+	}
+	return ret;
+}
 
 /**
  * @brief StreamAbstractionAAMP_MPD Constructor

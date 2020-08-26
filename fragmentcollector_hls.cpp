@@ -1048,17 +1048,21 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
 				{
 #ifdef AVE_DRM
-					std::string vssServiceZone = aamp->getServiceZone();
+					std::string vssServiceZone = aamp->GetServiceZone();
 
 					if(!vssServiceZone.empty())
 					{
 						char * ptrContentID = ptr;
 
-						if(startswith(&ptr, "urn:merlin:linear:stream:"))
+						if(startswith(&ptr, VSS_VIRTUAL_STREAM_ID_PREFIX))
 						{
-							std::string vssData = " \"client:accessAttributes\": [\"content:xcal:virtualStreamId\",\"";
+							std::string vssData = " \"client:accessAttributes\": [\"";
+							vssData.append(VSS_VIRTUAL_STREAM_ID_KEY_STR);
+							vssData.append("\",\"");
 							vssData.append(ptr);
-							vssData.append("\",\"device:xcal:serviceZone\",\"");
+							vssData.append("\",\"");
+							vssData.append(VSS_SERVICE_ZONE_KEY_STR);
+							vssData.append("\",\"");
 							vssData.append(vssServiceZone);
 							vssData.append("\"]");
 							setCustomLicensePayLoad(vssData.c_str());

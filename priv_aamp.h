@@ -120,6 +120,9 @@ static const char *mMediaFormatName[] =
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
+#define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
+#define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
 //Upper and lower limit for dash drm sessions
 #define MIN_DASH_DRM_SESSIONS 2
@@ -684,6 +687,7 @@ public:
 	long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
+	bool enableAccessAttributes;	/*** Enable Access attributes for VSS DRM Sec client request */
 
 public:
 
@@ -753,7 +757,7 @@ public:
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
-		,useMatchingBaseUrl(eUndefinedState)
+		,useMatchingBaseUrl(eUndefinedState), enableAccessAttributes(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -3172,10 +3176,22 @@ public:
 	void SignalTrickModeDiscontinuity();
 
 	/**
-	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @brief  pass service zone, extracted from locator &sz URI parameter
 	 *   @return std::string
 	 */
-	std::string & getServiceZone() { return mServiceZone; }
+	std::string & GetServiceZone() { return mServiceZone; }
+
+	/**
+	 *   @brief  pass virtual stream ID
+	 *   @return std::string
+	 */
+	std::string & GetVssVirtualStreamID() { return mVssVirtualStreamId; }
+
+	/**
+	 *   @brief  set virtual stream ID, extracted from manifest
+	 */
+	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
 	 *
@@ -3648,6 +3664,7 @@ private:
 	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
+	std::string  mVssVirtualStreamId; // part of manifest file
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 #ifdef PLACEMENT_EMULATION
