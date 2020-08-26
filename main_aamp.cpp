@@ -4739,25 +4739,13 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
  */
 static void DeFog(std::string& url)
 {
-<<<<<<< HEAD   (1eafec RDKCMF-8655 fix aamp video playback problem)
 	char *dst = NULL, *head = NULL;
 	head = dst = strdup(url.c_str());
 	const char *src = strstr(dst, "&recordedUrl=");
 	if (src)
-=======
-	std::string prefix("&recordedUrl=");
-	size_t startPos = url.find(prefix);
-	if( startPos != std::string::npos )
->>>>>>> CHANGE (bed833 DELIA-45042:Box is unable to play AV once we disable the FOG)
 	{
-<<<<<<< HEAD   (1eafec RDKCMF-8655 fix aamp video playback problem)
 		src += 13;
 		for (;;)
-=======
-		startPos += prefix.size();
-		size_t len = url.find( '&',startPos );
-		if( len != std::string::npos )
->>>>>>> CHANGE (bed833 DELIA-45042:Box is unable to play AV once we disable the FOG)
 		{
 			char c = *src++;
 			if (c == '%')
