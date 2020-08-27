@@ -1026,7 +1026,7 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 	{
 		return helper->friendlyName().c_str();
 	}
-	return "";
+	return "NONE";
 }
 
 /**
