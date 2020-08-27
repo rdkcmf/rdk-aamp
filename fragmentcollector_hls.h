@@ -292,6 +292,9 @@ private:
 	void InitiateDRMKeyAcquisition(int indexPosn=-1);
 	/// Function to set the DRM Metadata into Adobe DRM Layer for decryption
 	void SetDrmContext();
+	// Flushes all old fragments and switches playlist without restarting pipeline
+	void SwitchSubtitleTrack();
+
 public:
 	std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
 	std::string mPlaylistUrl; 		/**< uri associated with downloaded playlist */
