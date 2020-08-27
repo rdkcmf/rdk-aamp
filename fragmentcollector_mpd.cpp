@@ -7419,7 +7419,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
-	AbortWaitForAudioTrackCatchup();
+	AbortWaitForAudioTrackCatchup(false);
 	mPriv->Stop();
 	aamp->EnableDownloads();
 }

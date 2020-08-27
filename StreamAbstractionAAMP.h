@@ -306,6 +306,13 @@ public:
 	 */
 	void OnSinkBufferFull();
 
+	/**
+	 * @brief Flushes all cached fragments
+	 *
+	 * @return void
+	 */
+	void FlushFragments();
+
 protected:
 
 	/**
@@ -363,6 +370,7 @@ public:
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
 	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
+	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
@@ -837,7 +845,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void AbortWaitForAudioTrackCatchup(void);
+	void AbortWaitForAudioTrackCatchup(bool force);
 
 	/**
 	 *   @brief Set Client Side DAI object instance
@@ -928,6 +936,13 @@ public:
 	 *   @return int - index of current text track
 	 */
 	int GetTextTrack();
+
+	/**
+	 *   @brief Refresh subtitle track
+	 *
+	 *   @return void
+	 */
+	void RefreshSubtitles();
 
 	/**
 	 * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h) for OTA streams only

@@ -3129,6 +3129,10 @@ void TrackState::RefreshPlaylist(void)
 		{
 			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
 		}
+		else if (type == eTRACK_SUBTITLE)
+		{
+			actualType = eMEDIATYPE_PLAYLIST_SUBTITLE;
+		}
 
 		double downloadTime;
 		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
@@ -3422,8 +3426,8 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 				playlistURI = mediaInfo[mediaInfoIndex].uri;
 				mTextTrackIndex = std::to_string(mediaInfoIndex);
 				aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
-				*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
-				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s and format %d", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI, *format);
+				if (format) *format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI);
 			}
 			else
 			{
@@ -5252,6 +5256,34 @@ double TrackState::GetBufferedDuration()
 	return (playTargetBufferCalc - (aamp->GetPositionMs() / 1000));
 }
 
+/***************************************************************************
+* @fn SwitchSubtitleTrack
+* @brief Flushes out all old segments and sets up new playlist
+*        Used to switch subtitle tracks without restarting the pipeline
+*
+* @return void
+***************************************************************************/
+void TrackState::SwitchSubtitleTrack()
+{
+	if (eTRACK_SUBTITLE == type && mSubtitleParser)
+	{
+		pthread_mutex_lock(&mutex);
+		
+		AAMPLOG_INFO("%s:%d Preparing to flush fragments and switch playlist", __FUNCTION__, __LINE__);
+		// Flush all counters, reset the playlist URL and refresh the playlist
+		FlushFragments();
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
+		RefreshPlaylist();
+
+		playTarget = 0.0;
+		fragmentURI = GetNextFragmentUriFromPlaylist();
+		context->AbortWaitForAudioTrackCatchup(true);
+
+		mSubtitleParser->init(aamp->GetPositionMilliseconds() / 1000.0, aamp->GetBasePTS());
+
+		pthread_mutex_unlock(&mutex);		
+	}
+}
 
 /***************************************************************************
 * @fn RunFetchLoop
@@ -5262,7 +5294,8 @@ double TrackState::GetBufferedDuration()
 void TrackState::RunFetchLoop()
 {
 	bool skipFetchFragment = false;
-        bool abortedDownload = false;
+	bool abortedDownload = false;
+
 	for (;;)
 	{
 		while (!abortedDownload && fragmentURI && aamp->DownloadsAreEnabled())
@@ -5342,6 +5375,17 @@ void TrackState::RunFetchLoop()
 				}
 #endif
 			}
+			
+			// This will switch the subtitle track without restarting AV
+			// Should be a smooth transition to new language
+			if (refreshSubtitles)
+			{
+				// Reset abort flag (this was set to exit the fetch loop)
+				abort = false;
+				refreshSubtitles = false;
+				SwitchSubtitleTrack();
+			}
+			
 			pthread_mutex_lock(&mutex);
 			if(refreshPlaylist)
 			{
@@ -5707,7 +5751,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
-	AbortWaitForAudioTrackCatchup();
+	AbortWaitForAudioTrackCatchup(false);
 
 	//This is purposefully kept in a separate loop to avoid being hung
 	//on pthread_join of fragmentCollectorThread

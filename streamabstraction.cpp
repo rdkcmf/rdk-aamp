@@ -817,6 +817,26 @@ int MediaTrack::GetCurrentBandWidth()
 	return this->bandwidthBitsPerSecond;
 }
 
+/**
+ *   @brief Flushes all media fragments and resets all relevant counters
+ * 			Only intended for use on subtitle streams
+ *
+ *   @return void
+ */
+void MediaTrack::FlushFragments()
+{
+	for (int i = 0; i < gpGlobalConfig->maxCachedFragmentsPerTrack; i++)
+	{
+		aamp_Free(&cachedFragment[i].fragment.ptr);
+		memset(&cachedFragment[i], 0, sizeof(CachedFragment));
+	}
+	fragmentIdxToInject = 0;
+	fragmentIdxToFetch = 0;
+	numberOfFragmentsCached = 0;
+	totalFetchedDuration = 0;
+	totalFragmentsDownloaded = 0;
+	totalInjectedDuration = 0;
+}
 
 /**
  * @brief MediaTrack Constructor
@@ -833,7 +853,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
-		mSubtitleParser(NULL)
+		mSubtitleParser(NULL), refreshSubtitles(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -1961,13 +1981,13 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
  *   @brief Unblocks subtitle track injection if downloads are stopped
  *
  */
-void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup()
+void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup(bool force)
 {
 	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
 	if (subtitle && subtitle->enabled)
 	{
 		pthread_mutex_lock(&mLock);
-		if (!aamp->DownloadsAreEnabled())
+		if (force || !aamp->DownloadsAreEnabled())
 		{
 			pthread_cond_signal(&mSubCond);
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -2378,4 +2398,20 @@ int StreamAbstractionAAMP::GetTextTrack()
 		}
 	}
 	return index;
+}
+
+/**
+ *   @brief Refresh subtitle track
+ *
+ *   @return void
+ */
+void StreamAbstractionAAMP::RefreshSubtitles()
+{
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		logprintf("Setting refreshSubtitles");
+		subtitle->refreshSubtitles = true;
+		subtitle->AbortWaitForCachedAndFreeFragment(true);
+	}
 }
