@@ -9209,15 +9209,24 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				//TODO: Effective handling between subtitle and CC tracks
 				// SetPreferredTextTrack will not have any impact on CC rendering if already active
 				SetPreferredTextTrack(track);
-				discardEnteringLiveEvt = true;
-
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-				TeardownStream(false);
-				TuneHelper(eTUNETYPE_SEEK);
-
-				discardEnteringLiveEvt = false;
+				RefreshSubtitles();
 			}
 		}
+	}
+}
+
+/**
+ *   @brief Switch the subtitle track following a change to the 
+ * 			preferredTextTrack
+ *
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::RefreshSubtitles()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->RefreshSubtitles();
 	}
 }
 
