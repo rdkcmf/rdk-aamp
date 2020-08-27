@@ -1219,6 +1219,9 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				{
 					eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
 				}
+				AAMPLOG_WARN("%s:%d deleting existing DRM session for %s, Authorisation failed", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+				delete drmSessionContexts[sessionSlot].drmSession;
+				drmSessionContexts[sessionSlot].drmSession = nullptr;
 			}
 			else if (CURLE_OPERATION_TIMEDOUT == httpResponseCode)
 			{
@@ -1229,6 +1232,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
 				eventHandle->setResponseCode(httpResponseCode);
 			}
+			cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 
 			return KEY_ERROR;
 		}
