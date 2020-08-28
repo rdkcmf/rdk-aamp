@@ -2499,12 +2499,15 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
 				simType == eMEDIATYPE_PLAYLIST_IFRAME)
-			{				
+			{		
+				// For Manifest file : Set starttimeout to 0 ( no wait for first byte). Playlist/Manifest with DAI
+				// contents take more time , hence to avoid frequent timeout, its set as 0		
 				progressCtx.startTimeout = 0;
 			}
 			else
 			{
-				progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
+				// for Video/Audio segments , set the start timeout as configured by Application
+				progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
 			}
 			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
                   
