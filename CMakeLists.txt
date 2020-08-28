@@ -359,12 +359,6 @@ elseif(CMAKE_CDM_DRM)
     endif()
 endif()
 
-if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
-        message("AAMP RFC set")
-        set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
-        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
-endif()
-
 if (CMAKE_RDK_CC_ENABLED)
 	message("CMAKE_RDK_CC_ENABLED set")
 	include_directories(${DIRECTFB_INCLUDE_DIRS})
@@ -437,7 +431,7 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
-  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

@@ -32,16 +32,27 @@
 #include "AampDrmHelper.h"
 #include "AampJsonObject.h"
 #include "AampUtils.h"
-#include "AampRfc.h"
+
 
 //#define LOG_TRACE 1
-#define LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
+#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
+#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE "application/vnd.xcal.mds.licenseResponse+json; version=1"
 
-#define LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
+#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
+#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE "application/vnd.xcal.mds.licenseRequest+json; version=1"
 
 #define LICENCE_RESPONSE_JSON_LICENCE_KEY "license"
-#define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
-#define DRM_METADATA_TAG_END "</ckm:policy>"
+#ifdef USE_SECCLIENT
+#define COMCAST_QA_DRM_LICENCE_SERVER_URL "mds-qa.ccp.xcal.tv"
+#define COMCAST_DRM_LICENCE_SERVER_URL "mds.ccp.xcal.tv"
+#define COMCAST_ROGERS_DRM_LICENCE_SERVER_URL "mds-rogers.ccp.xcal.tv"
+#else
+#define COMCAST_QA_DRM_LICENCE_SERVER_URL "https://mds-qa.ccp.xcal.tv/license"
+#define COMCAST_DRM_LICENCE_SERVER_URL "https://mds.ccp.xcal.tv/license"
+#define COMCAST_ROGERS_DRM_LICENCE_SERVER_URL "https://mds-rogers.ccp.xcal.tv/license"
+#endif
+#define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
+#define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
 #define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
@@ -1294,15 +1305,15 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		{
 			if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
 			{
-				externLicenseServerURL = RFCSettings::getRogersDrmLicenseServer();
+				externLicenseServerURL = string(COMCAST_ROGERS_DRM_LICENCE_SERVER_URL);
 			}
 			else if (string::npos != licenseRequest.url.find("qa.ccp.xcal.tv"))
 			{
-				externLicenseServerURL = RFCSettings::getQADrmLicenseServer();
+				externLicenseServerURL = string(COMCAST_QA_DRM_LICENCE_SERVER_URL);
 			}
 			else if (string::npos != licenseRequest.url.find("ccp.xcal.tv"))
 			{
-				externLicenseServerURL = RFCSettings::getProdDrmLicenseServer();
+				externLicenseServerURL = string(COMCAST_DRM_LICENCE_SERVER_URL);
 			}
 		}
 
@@ -1329,8 +1340,6 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 		if (isComcastStream)
 		{
-			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
-			std::string lhrContentType = RFCSettings::getLRHContentType();
 			// Comcast stream, add Comcast headers
 			if (customHeaders.empty())
 			{
@@ -1338,8 +1347,8 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 				licenseRequest.headers.clear();
 			}
 
-			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {lhrAcceptValue.c_str()}});
-			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_ACCEPT, {COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE}});
+			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE, {COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE}});
 		}
 
 		licenseServerProxy = aampInstance->GetLicenseReqProxy();
