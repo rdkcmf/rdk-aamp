@@ -94,8 +94,8 @@ private:
 	static bool initialized;
 	void Flush(void);
 	void DisconnectCallbacks();
-
 	pthread_mutex_t mBufferingLock;
+	pthread_mutex_t mProtectionLock;
 };
 
 #endif // AAMPGSTPLAYER_H

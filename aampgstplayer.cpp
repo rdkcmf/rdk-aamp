@@ -224,7 +224,8 @@ const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
-AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL), mBufferingLock()
+AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
+	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
@@ -234,6 +235,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	this->aamp = aamp;
 
 	pthread_mutex_init(&mBufferingLock, NULL);
+	pthread_mutex_init(&mProtectionLock, NULL);
 
 	CreatePipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
@@ -249,6 +251,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 	DestroyPipeline();
 	free(privateContext);
 	pthread_mutex_destroy(&mBufferingLock);
+	pthread_mutex_destroy(&mProtectionLock);
 }
 
 /**
@@ -1434,6 +1437,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	logprintf("queueing protection event for type:%d keysystem: %s initdata size: %d", type, protSystemId, initDataSize);
 
 	pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
+	pthread_mutex_lock(&mProtectionLock);
 	if (this->aamp->IsDashAsset())
 	{
 		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
@@ -1442,7 +1446,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	{
 		privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
 	}
-
+	pthread_mutex_unlock(&mProtectionLock);
 	gst_buffer_unref (pssi);
 #endif
 }
@@ -1452,6 +1456,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
  */
 void AAMPGstPlayer::ClearProtectionEvent()
 {
+	pthread_mutex_lock(&mProtectionLock);
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		if(privateContext->protectionEvent[i])
@@ -1461,6 +1466,7 @@ void AAMPGstPlayer::ClearProtectionEvent()
 			privateContext->protectionEvent[i] = NULL;
 		}
 	}
+	pthread_mutex_unlock(&mProtectionLock);
 }
 
 /**
