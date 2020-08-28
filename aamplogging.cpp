@@ -310,11 +310,11 @@ void AampLogManager::LogDRMError(int major, int minor)
 		{
 			if(minor == 102)
 			{
-				description = "Invalid signiture request on the Adobe individualization request. Expired certs can cause this, so the first course of action is to verify if the certs, temp baked in or production fkps, have not expired. See table at bottom of https://www.teamccp.com/confluence/display/CPE/Certificate+Library.";
+				description = "Invalid signiture request on the Adobe individualization request. Expired certs can cause this, so the first course of action is to verify if the certs, temp baked in or production fkps, have not expired.";
 			}
 			else if(minor == 10100)
 			{
-				description = "Unknown Device class error from the Adobe individualization server. The drm certs may be been distributed to comcast security team for inclusion in fkps, but Adobe has not yet added the device info to their indi server.";
+				description = "Unknown Device class error from the Adobe individualization server. The drm certs may be been distributed to MSO security team for inclusion in fkps, but Adobe has not yet added the device info to their indi server.";
 			}
 			else if(minor == 1107296357)
 			{
@@ -349,7 +349,7 @@ void AampLogManager::LogDRMError(int major, int minor)
 
 		case 3329: /* Application errors (our consec errors) */
 		{
-			description = "Comcast license server error response. This could happen for various reasons: bad cache data, bad session token, any license related issue. To attempt a quick fix: Back up /opt/drm and /opt/persistent/adobe, perform a factory reset, and see if that fixes the issue. Reach out to ComSec team for help diagnosing the error.";
+			description = "MSO license server error response. This could happen for various reasons: bad cache data, bad session token, any license related issue. To attempt a quick fix: Back up /opt/drm and /opt/persistent/adobe, perform a factory reset, and see if that fixes the issue. Reach out to ComSec team for help diagnosing the error.";
 		}
 			break; /* 3329 */
 
