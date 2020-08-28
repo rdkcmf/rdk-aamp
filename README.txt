@@ -116,8 +116,8 @@ appSrcForProgressivePlayback // Enables appsrc for playing progressive AV type
 decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp error
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
-forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
-disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.
+forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in live environment to test Dolby track.
+disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in live environment to disable Dolby track.
 		//This flag makes AAC preferred over ATMOS and DD+
 		//Default priority of audio selction is ATMOS, DD+ then AAC
 disableATMOS=1 //For playback makes DD+ or AAC preferred over ATMOS (EC+3)
