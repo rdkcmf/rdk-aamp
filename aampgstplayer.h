@@ -106,6 +106,7 @@ private:
 	void FlushLastId3Data();
 
 	pthread_mutex_t mBufferingLock;
+	pthread_mutex_t mProtectionLock;
 };
 
 #endif // AAMPGSTPLAYER_H
