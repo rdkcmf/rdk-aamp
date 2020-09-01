@@ -70,6 +70,10 @@
 static PlayerInstanceAAMP *mSingleton = NULL;
 static PlayerInstanceAAMP *mBackgroundPlayer = NULL;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
+std::mutex appsinkData_mutex;
+#endif
 
 /**
  * @enum AAMPGetTypes
@@ -1715,7 +1719,6 @@ typedef struct{
 	int width = 0;
 	int height = 0;
 	uint8_t *yuvBuffer = NULL;
-	std::mutex mutex;
 }AppsinkData;
 
 static AppsinkData appsinkData;
@@ -1897,7 +1900,7 @@ void glRender(void){
 	unsigned char *yPlane, *uPlane, *vPlane;
 
 	{
-		std::lock_guard<std::mutex> lock(appsinkData.mutex);
+		std::lock_guard<std::mutex> lock(appsinkData_mutex);
 		yuvBuffer = appsinkData.yuvBuffer;
 		appsinkData.yuvBuffer = NULL;
 		pixel_w = appsinkData.width;
@@ -1954,7 +1957,7 @@ void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
 	memcpy(frameBuf, buffer, size);
 
 	{
-		std::lock_guard<std::mutex> lock(appsinkData.mutex);
+		std::lock_guard<std::mutex> lock(appsinkData_mutex);
 		if(appsinkData.yuvBuffer)
 		{
 			logprintf("Drops frame.\n");
