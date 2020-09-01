@@ -251,6 +251,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
         , std::function< void(uint8_t *, int, int, int) > exportFrames
 #endif
 	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	, cbExportYUVFrame(NULL)
+#endif
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	if(privateContext)
