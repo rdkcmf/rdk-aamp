@@ -1892,7 +1892,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE))
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
