@@ -1147,6 +1147,25 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				if (isComcastStream)
 				{
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
+					if (412 == httpResponseCode)
+					{
+						AAMPLOG_INFO("%s:%d License Req failure by Expired access token Error[%d]", __FUNCTION__, __LINE__, httpResponseCode);
+						if(accessToken)
+						{
+							free(accessToken);
+							accessToken = NULL;
+							accessTokenLen = 0;
+						}
+						int tokenLen = 0;
+						long tokenError = 0;
+						const char *sessionToken = getAccessToken(tokenLen, tokenError);
+						if (NULL != sessionToken)
+						{
+							AAMPLOG_INFO("%s:%d Requesting License with new access token", __FUNCTION__, __LINE__);
+							challengeInfo.accessToken = std::string(sessionToken, tokenLen);
+							licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
+						}
+					}
 				}
 				else
 #endif
