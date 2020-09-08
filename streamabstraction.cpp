@@ -2266,7 +2266,7 @@ int StreamAbstractionAAMP::GetAudioTrack()
 int StreamAbstractionAAMP::GetTextTrack()
 {
 	int index = -1;
-	if (!mTextTrackIndex.empty())
+	if (!mTextTrackIndex.empty() && !aamp->subtitles_muted)
 	{
 		for (auto it = mTextTracks.begin(); it != mTextTracks.end(); it++)
 		{
