@@ -1406,7 +1406,7 @@ static void ProcessConfigEntry(std::string cfg)
 		}
 		else if (ReadConfigNumericHelper(cfg, "disableMidFragmentSeek=", value) == 1)
 		{
-			gpGlobalConfig->midFragmentSeekEnabled = (!value==1);
+			gpGlobalConfig->midFragmentSeekEnabled = (value!=1);
 			logprintf("%s Mid-Fragment Seek",gpGlobalConfig->midFragmentSeekEnabled?"Enabled":"Disabled");
 		}
 		else
