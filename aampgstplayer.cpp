@@ -247,6 +247,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
 #endif
 	) : aamp(NULL) , privateContext(NULL), mBufferingLock()
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	, cbExportYUVFrame(NULL)
+#endif
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
@@ -1770,7 +1773,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
 		}
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-		else if(_this->cbExportYUVFrame)
+//		else if(_this->cbExportYUVFrame)
 		{
 			if (eMEDIATYPE_VIDEO == streamId)
 			{
