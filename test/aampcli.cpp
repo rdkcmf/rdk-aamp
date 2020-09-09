@@ -65,7 +65,7 @@ static PlayerInstanceAAMP *mSingleton = NULL;
 static PlayerInstanceAAMP *mBackgroundPlayer = NULL;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
+static void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
 std::mutex appsinkData_mutex;
 #endif
 
@@ -2530,7 +2530,7 @@ void glRender(void){
 	}
 }
 
-void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
+static void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
 {
 	uint8_t* frameBuf = new uint8_t[size];
 	memcpy(frameBuf, buffer, size);
