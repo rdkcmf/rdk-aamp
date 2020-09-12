@@ -3,10 +3,39 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 48;
+	objectVersion = 50;
 	objects = {
 
 /* Begin PBXFileReference section */
+		5C7D0BE4250C4AC600662813 /* AAMP-UVE-API.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "AAMP-UVE-API.pdf"; sourceTree = "<group>"; };
+		5C7D0BE5250C4AC600662813 /* AampUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampUtils.cpp; sourceTree = "<group>"; };
+		5C7D0BE6250C4AC600662813 /* README.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.txt; sourceTree = "<group>"; };
+		5C7D0BE7250C4AC600662813 /* AampEvent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampEvent.h; sourceTree = "<group>"; };
+		5C7D0BE8250C4AC600662813 /* AampDrmSystems.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampDrmSystems.h; sourceTree = "<group>"; };
+		5C7D0BE9250C4AC600662813 /* AampProfiler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampProfiler.h; sourceTree = "<group>"; };
+		5C7D0BEA250C4AC600662813 /* AampJsonObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampJsonObject.h; sourceTree = "<group>"; };
+		5C7D0BEB250C4AC700662813 /* ota_shim.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ota_shim.h; sourceTree = "<group>"; };
+		5C7D0BEC250C4AC700662813 /* AampDrmCallbacks.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampDrmCallbacks.h; sourceTree = "<group>"; };
+		5C7D0BED250C4AC700662813 /* GlobalConfigAAMP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GlobalConfigAAMP.cpp; sourceTree = "<group>"; };
+		5C7D0BEE250C4AC700662813 /* AampProfiler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampProfiler.cpp; sourceTree = "<group>"; };
+		5C7D0BEF250C4AC700662813 /* AampEventListener.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampEventListener.h; sourceTree = "<group>"; };
+		5C7D0BF0250C4AC700662813 /* AampMediaType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampMediaType.h; sourceTree = "<group>"; };
+		5C7D0BF1250C4AC700662813 /* AampLogManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampLogManager.h; sourceTree = "<group>"; };
+		5C7D0BF2250C4AC700662813 /* ota_shim.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ota_shim.cpp; sourceTree = "<group>"; };
+		5C7D0BF3250C4AC700662813 /* AampUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampUtils.h; sourceTree = "<group>"; };
+		5C7D0BF4250C4AC700662813 /* priv_aamp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = priv_aamp.cpp; sourceTree = "<group>"; };
+		5C7D0BF5250C4AC700662813 /* AampConstants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampConstants.h; sourceTree = "<group>"; };
+		5C7D0BF6250C4AC700662813 /* AampJsonObject.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampJsonObject.cpp; sourceTree = "<group>"; };
+		5C7D0BF7250C4AC700662813 /* AampEventListener.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampEventListener.cpp; sourceTree = "<group>"; };
+		5C7D0BF8250C4AC700662813 /* AampMutex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampMutex.h; sourceTree = "<group>"; };
+		5C7D0BF9250C4AC700662813 /* hdmiin_shim.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = hdmiin_shim.h; sourceTree = "<group>"; };
+		5C7D0BFA250C4AC700662813 /* AampEvent.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampEvent.cpp; sourceTree = "<group>"; };
+		5C7D0BFB250C4AC700662813 /* GlobalConfigAAMP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GlobalConfigAAMP.h; sourceTree = "<group>"; };
+		5C7D0BFC250C4AC700662813 /* hdmiin_shim.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = hdmiin_shim.cpp; sourceTree = "<group>"; };
+		5C7D0BFD250C4AC700662813 /* AampMemoryUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = AampMemoryUtils.cpp; sourceTree = "<group>"; };
+		5C7D0BFE250C4AC700662813 /* AampMemoryUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AampMemoryUtils.h; sourceTree = "<group>"; };
+		5C7D0BFF250C4AF100662813 /* closedcaptions */ = {isa = PBXFileReference; lastKnownFileType = folder; path = closedcaptions; sourceTree = "<group>"; };
+		5C7D0C00250C4B0000662813 /* CMakeLists.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
 		5E461A30209B8B8900683077 /* priv_aamp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = priv_aamp.h; sourceTree = "<group>"; };
 		5E4FA8752097C6140068DEAC /* fragmentcollector_hls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = fragmentcollector_hls.h; sourceTree = "<group>"; };
 		5E4FA8762097C6140068DEAC /* aampgstplayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = aampgstplayer.h; sourceTree = "<group>"; };
@@ -50,6 +79,35 @@
 		5E4FA86A2097C5AE0068DEAC = {
 			isa = PBXGroup;
 			children = (
+				5C7D0C00250C4B0000662813 /* CMakeLists.txt */,
+				5C7D0BFF250C4AF100662813 /* closedcaptions */,
+				5C7D0BE4250C4AC600662813 /* AAMP-UVE-API.pdf */,
+				5C7D0BF5250C4AC700662813 /* AampConstants.h */,
+				5C7D0BEC250C4AC700662813 /* AampDrmCallbacks.h */,
+				5C7D0BE8250C4AC600662813 /* AampDrmSystems.h */,
+				5C7D0BFA250C4AC700662813 /* AampEvent.cpp */,
+				5C7D0BE7250C4AC600662813 /* AampEvent.h */,
+				5C7D0BF7250C4AC700662813 /* AampEventListener.cpp */,
+				5C7D0BEF250C4AC700662813 /* AampEventListener.h */,
+				5C7D0BF6250C4AC700662813 /* AampJsonObject.cpp */,
+				5C7D0BEA250C4AC600662813 /* AampJsonObject.h */,
+				5C7D0BF1250C4AC700662813 /* AampLogManager.h */,
+				5C7D0BF0250C4AC700662813 /* AampMediaType.h */,
+				5C7D0BFD250C4AC700662813 /* AampMemoryUtils.cpp */,
+				5C7D0BFE250C4AC700662813 /* AampMemoryUtils.h */,
+				5C7D0BF8250C4AC700662813 /* AampMutex.h */,
+				5C7D0BEE250C4AC700662813 /* AampProfiler.cpp */,
+				5C7D0BE9250C4AC600662813 /* AampProfiler.h */,
+				5C7D0BE5250C4AC600662813 /* AampUtils.cpp */,
+				5C7D0BF3250C4AC700662813 /* AampUtils.h */,
+				5C7D0BED250C4AC700662813 /* GlobalConfigAAMP.cpp */,
+				5C7D0BFB250C4AC700662813 /* GlobalConfigAAMP.h */,
+				5C7D0BFC250C4AC700662813 /* hdmiin_shim.cpp */,
+				5C7D0BF9250C4AC700662813 /* hdmiin_shim.h */,
+				5C7D0BF2250C4AC700662813 /* ota_shim.cpp */,
+				5C7D0BEB250C4AC700662813 /* ota_shim.h */,
+				5C7D0BF4250C4AC700662813 /* priv_aamp.cpp */,
+				5C7D0BE6250C4AC600662813 /* README.txt */,
 				5E461A30209B8B8900683077 /* priv_aamp.h */,
 				5E838F3E2419218700D39371 /* AampCacheHandler.cpp */,
 				5E838F46241921CC00D39371 /* drm */,
