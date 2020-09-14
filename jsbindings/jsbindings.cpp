@@ -2126,6 +2126,7 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 	{
 		char* contentType = NULL;
 		char* strTraceId = NULL;
+		char* strAuthToken = NULL;
 		bool bFinalAttempt = false;
 		bool bFirstAttempt = true;
 		if (argumentCount == 2 && JSValueIsObject(context, arguments[1]))
@@ -2162,9 +2163,21 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 				bFinalAttempt = JSValueToBoolean(context, paramValue);
 			}
 			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("authToken");
+			paramValue = JSObjectGetProperty(context, argument, paramName, NULL);
+			if (JSValueIsString(context, paramValue))
+			{
+				strAuthToken = aamp_JSValueToCString(context, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
 		}
 
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
+		if (strAuthToken != NULL){
+			LOG("[AAMP_JS] %s() - authToken provided by the App", __FUNCTION__);
+			pAAMP->_aamp->SetSessionToken(strAuthToken);
+		}
 		pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
 		delete [] url;
