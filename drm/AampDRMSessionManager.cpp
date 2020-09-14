@@ -1199,6 +1199,22 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				if(e->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
+					// Cached Token . Clear the session Token for this tune,will recover in next session
+					AAMPLOG_WARN("%s:%d License Req failure by Expired access token Error[%d]", __FUNCTION__, __LINE__, responseCode);
+					if(accessToken)
+					{
+						free(accessToken);
+						accessToken = NULL;
+						accessTokenLen = 0;
+					}
+	
+					int tokenLen = 0;
+					long tokenError = 0;
+					const char *sessionToken = getAccessToken(tokenLen, tokenError);
+					if (NULL != sessionToken)
+					{
+						AAMPLOG_WARN("%s:%d New access token cached", __FUNCTION__, __LINE__);
+					}
 					e->data.dash_drmmetadata.failure = AAMP_TUNE_AUTHORISATION_FAILURE;
 				}
 			}
