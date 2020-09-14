@@ -1264,6 +1264,14 @@ public:
 	 */
 	void SetPreferredCEAFormat(int format);
 
+	/**
+	 *   @brief Set the session token for player
+	 *
+	 *   @param[in]string -  sessionToken
+	 *   @return void
+	 */
+	void SetSessionToken(std::string sessionToken);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

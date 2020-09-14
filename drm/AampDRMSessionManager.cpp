@@ -1085,7 +1085,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 	else
 	{
 		AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
-
+		
 		/**
 		 * Generate a License challenge from the CDM
 		 */
@@ -1103,6 +1103,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 		}
 		else
 		{
+			/** flag for authToken set externally by app **/
+			bool usingAppDefinedAuthToken = !aampInstance->mSessionToken.empty();
 			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 
 			if (!(drmHelper->getDrmMetaData().empty() || gpGlobalConfig->licenseAnonymousRequest))
@@ -1111,8 +1113,18 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 
 				int tokenLen = 0;
 				long tokenError = 0;
-				const char *sessionToken = getAccessToken(tokenLen, tokenError);
-
+				char *sessionToken = NULL;
+				if(!usingAppDefinedAuthToken)
+				{ /* authToken not set externally by app */
+					sessionToken = (char *)getAccessToken(tokenLen, tokenError);
+					AAMPLOG_WARN("%s:%d Access Token from AuthServer", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					sessionToken = (char *)aampInstance->mSessionToken.c_str();
+					tokenLen = aampInstance->mSessionToken.size();
+					AAMPLOG_WARN("%s:%d Got Access Token from External App", __FUNCTION__, __LINE__);
+				}
 				if (NULL == sessionToken)
 				{
 					// Failed to get access token, but will still try without it
@@ -1152,11 +1164,11 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
 #ifdef USE_SECCLIENT
-				if (isComcastStream)
+				if (isComcastStream || usingAppDefinedAuthToken)
 				{
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 					// Reload Expired access token only on http error code 412 with status code 401
-					if (412 == httpResponseCode && 401 == httpExtendedStatusCode)
+					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
 					{
 						AAMPLOG_INFO("%s:%d License Req failure by Expired access token httpResCode %d statusCode %d", __FUNCTION__, __LINE__, httpResponseCode, httpExtendedStatusCode);
 						if(accessToken)
