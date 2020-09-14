@@ -909,7 +909,8 @@ static bool IsAtmosAudio(const IMPDElement *nodePtr)
  * @param[out] selectedCodecType type of desired representation
  * @retval index of desired representation
  */
-static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedCodecType, uint32_t &selectedRepBandwidth)
+static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedCodecType, uint32_t &selectedRepBandwidth,
+				bool disableEC3,bool disableATMOS)
 {
 	int selectedRepIdx = -1;
 	if(adaptationSet != NULL)
@@ -965,9 +966,9 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 			*/
 			if ((selectedCodecType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0)) || // Select any profile for the first time, reject unsupported streams then
 				(selectedCodecType == audioType && bandwidth>selectedRepBandwidth) || // same type but better quality
-				(selectedCodecType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !gpGlobalConfig->disableATMOS && !gpGlobalConfig->disableEC3) || // promote to atmos
-				(selectedCodecType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !gpGlobalConfig->disableEC3) || // promote to ddplus
-				(selectedCodecType != eAUDIO_AAC && audioType == eAUDIO_AAC && gpGlobalConfig->disableEC3) || // force AAC
+				(selectedCodecType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !disableATMOS && !disableEC3) || // promote to atmos
+				(selectedCodecType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !disableEC3) || // promote to ddplus
+				(selectedCodecType != eAUDIO_AAC && audioType == eAUDIO_AAC && disableEC3) || // force AAC
 				(selectedCodecType == eAUDIO_UNSUPPORTED) // anything better than nothing
 				)
 			{
@@ -5101,7 +5102,7 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 			{
 				AudioType selectedCodecType = eAUDIO_UNKNOWN;
 				uint32_t selRepBandwidth = 0;
-				int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth);
+				int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
 
 				if (isExactMatch && iAdaptationSet_codec_cmp < selectedCodecType)
 				{
@@ -5164,7 +5165,7 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 			if( audioAdaptationSet )
 			{
 				uint32_t selRepBandwidth = 0;
-				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth);
+				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
 			}
 		}
 	}
@@ -6433,7 +6434,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 										{
 											AudioType selectedAudioType = eAUDIO_UNKNOWN;
 											uint32_t selectedRepBandwidth = 0;
-											representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth);
+											representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
 											if(selectedAudioType != mAudioType)
 											{
 												continue;

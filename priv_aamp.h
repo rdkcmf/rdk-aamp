@@ -569,6 +569,9 @@ public:
 	bool mWesterosSinkEnabled;
 	bool mEnableRectPropertyEnabled;
 	bool mBulkTimedMetadata;
+	bool mDisableEC3;
+	bool mDisableATMOS;
+	bool mForceEC3;
 	bool mUseRetuneForUnpairedDiscontinuity;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
