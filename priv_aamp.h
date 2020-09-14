@@ -1856,6 +1856,7 @@ public:
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
+	std::string mSessionToken; /**< Field to set session token for player */
 
 	/**
 	 * @brief Curl initialization function
@@ -3597,6 +3598,14 @@ public:
 	 * @return license server url
 	 */
 	std::string GetLicenseServerUrlForDrm(DRMSystems type);
+
+	/**
+	 *   @brief Set the session Token for player
+	 *
+	 *   @param[in] string - sessionToken
+	 *   @return void
+	 */
+	void SetSessionToken(std::string &sessionToken);
 
 private:
 

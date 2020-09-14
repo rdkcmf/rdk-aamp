@@ -948,7 +948,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		}
 
 		bool isComcastStream = false;
-
+		/** flag for authToken set externally by app **/
+		bool usingAppDefinedAuthToken = !aamp->mSessionToken.empty();
 		std::string externLicenseServerURL = aamp->GetLicenseServerUrlForDrm(drmType);
 
 		e->data.dash_drmmetadata.isSecClientError = false;
@@ -981,7 +982,19 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 			int tokenLen = 0;
 			long tokenError = 0;
-			const char * sessionToken = getAccessToken(tokenLen, tokenError);
+			char *sessionToken = NULL;
+			if(!usingAppDefinedAuthToken)
+			{ /* authToken not set externally by app */
+				sessionToken = (char *)getAccessToken(tokenLen, tokenError);
+				AAMPLOG_WARN("%s:%d Access Token from AuthServer", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				sessionToken = (char *)aamp->mSessionToken.c_str();
+				tokenLen = aamp->mSessionToken.size();
+				AAMPLOG_WARN("%s:%d Got Access Token from External App", __FUNCTION__, __LINE__);
+			}
+
 			const char * secclientSessionToken = NULL;
 			if(sessionToken != NULL && !gpGlobalConfig->licenseAnonymousRequest)
 			{

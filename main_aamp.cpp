@@ -7849,6 +7849,11 @@ void PrivateInstanceAAMP::Stop()
 	{
 		pipeline_paused = false;
 	}
+
+	/* Clear the session data*/
+	if(!mSessionToken.empty()){
+		mSessionToken.clear();
+	}
 	EnableDownloads();
 }
 
@@ -8346,6 +8351,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mAudioDecoderStreamSync(true)
 	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls()
+	, mSessionToken()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -11009,6 +11015,40 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 		}
 	}
 	return url;
+}
+
+/**
+ *   @brief Set the session Token for player
+ *
+ *   @param[in] string - sessionToken
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetSessionToken(sessionToken);
+	return;
+}
+
+
+/**	
+ *   @brief Set the session Token for player	
+ *
+ *   @param[in] string - sessionToken	
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)	
+{
+	if (sessionToken.empty())	
+	{
+		AAMPLOG_ERR("%s:%d Failed to set session Token : empty", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		AAMPLOG_INFO("%s:%d Setting Session Token", __FUNCTION__, __LINE__);	
+		mSessionToken = sessionToken;
+	}
+	return;
 }
 
 /**
