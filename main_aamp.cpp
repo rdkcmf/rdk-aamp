@@ -368,7 +368,7 @@ static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
-
+static pthread_mutex_t gCurlInitMutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief Get ID of DRM system
@@ -2087,6 +2087,40 @@ CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
 	return rc;
 }
 
+/**	
+ * @brief	
+ * @param curl ptr to CURL instance
+ * @param data curl data lock
+ * @param acess curl access lock
+ * @param user_ptr CurlCallbackContext pointer
+ * @retval void
+ */
+static void curl_lock_callback(CURL *curl, curl_lock_data data, curl_lock_access access, void *user_ptr)	
+{
+	(void)access; /* unused */	
+	(void)user_ptr; /* unused */
+	(void)curl; /* unused */
+	(void)data; /* unused */
+	pthread_mutex_lock(&gCurlInitMutex);
+}
+		
+/**
+ * @brief	
+ * @param curl ptr to CURL instance
+ * @param data curl data lock
+ * @param acess curl access lock
+ * @param user_ptr CurlCallbackContext pointer
+ * @retval void
+ */
+static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_access access, void *user_ptr)	
+{
+	(void)access; /* unused */	
+	(void)user_ptr; /* unused */
+	(void)curl; /* unused */
+	(void)data; /* unused */
+	pthread_mutex_unlock(&gCurlInitMutex);
+}
+	
 /**
  * @brief Initialize curl instances
  * @param startIdx start index
@@ -2119,6 +2153,9 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
+			long dns_cache_timeout = 5*60;
+			curl_easy_setopt(curl[i], CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout);
+			curl_easy_setopt(curl[i], CURLOPT_SHARE, mCurlShared);
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
@@ -8269,6 +8306,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mEnableRectPropertyEnabled(true)
 	,waitforplaystart()
 	,mMutexPlaystart()
+	,mCurlShared(NULL)
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED),mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
 	,mUseAvgBandwidthForABR(false)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
@@ -8315,7 +8353,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
-
+	mCurlShared = curl_share_init();
+	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
+	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
+	curl_share_setopt(mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -8465,6 +8506,12 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 		mAampCacheHandler = NULL;
 	}
 #endif
+
+	if(mCurlShared)
+	{
+		curl_share_cleanup(mCurlShared);
+		mCurlShared = NULL;
+        }
 }
 
 

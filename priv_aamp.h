@@ -1751,6 +1751,7 @@ public:
 	AudioType previousAudioType; /* Used to maintain previous audio type */
 
 	CURL *curl[eCURLINSTANCE_MAX];
+	CURLSH* mCurlShared;
 
 	// To store Set Cookie: headers and X-Reason headers in HTTP Response
 	httpRespHeaderData httpRespHeaders[eCURLINSTANCE_MAX];
