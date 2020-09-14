@@ -568,6 +568,9 @@ public:
 	bool mEnableRectPropertyEnabled;
 	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
+	bool mDisableEC3;
+	bool mDisableATMOS;
+	bool mForceEC3;
 	bool mUseRetuneForUnpairedDiscontinuity;
 	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
