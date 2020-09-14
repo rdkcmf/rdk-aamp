@@ -1809,5 +1809,18 @@ void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
 }
 
 /**
+ *   @brief Set the session Token for player
+ *
+ *   @param[in] string - sessionToken
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetSessionToken(sessionToken);
+	return;
+}
+
+/**
  * @}
  */

@@ -241,6 +241,7 @@ enum ConfigParamType
 	ePARAM_USE_NATIVE_CC,
 	ePARAM_LANG_CODE_PREFERENCE,
 	ePARAM_USE_DESCRIPTIVE_TRACK_NAME,
+	ePARAM_AUTHTOKEN,
 	ePARAM_MAX_COUNT
 };
 
@@ -299,6 +300,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_NATIVE_CC, "nativeCCRendering" },
 	{ ePARAM_LANG_CODE_PREFERENCE, "langCodePreference" },
 	{ ePARAM_USE_DESCRIPTIVE_TRACK_NAME, "descriptiveTrackName" },
+	{ ePARAM_AUTHTOKEN, "authToken"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -718,6 +720,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_NETWORKPROXY:
 			case ePARAM_LICENSEREQPROXY:
 			case ePARAM_SUBTITLELANGUAGE:
+			case ePARAM_AUTHTOKEN:
 				ret = ParseJSPropAsString(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsString);
 				break;
 			case ePARAM_DRMCONFIG:
@@ -870,6 +873,11 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
 					useRole = valueAsBoolean;
 					break;
+				case ePARAM_AUTHTOKEN:
+					privObj->_aamp->SetSessionToken(valueAsString);
+					delete[] valueAsString;
+					break;
+					
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
