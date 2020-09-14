@@ -147,7 +147,7 @@ public:
 			const unsigned char * initDataPtr, uint16_t dataLength, MediaType streamType,
 			const unsigned char *contentMetadata, PrivateInstanceAAMP* aamp, AAMPEvent *e,bool isPrimarySession = false);
 
-	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL, struct curl_slist *customHeader = NULL, DRMSystems drmSystem = eDRM_NONE);
+	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL, struct curl_slist *customHeader = NULL, DRMSystems drmSystem = eDRM_NONE);
 
 	void clearSessionData();
 
