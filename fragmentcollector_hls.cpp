@@ -809,10 +809,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	char* ptr = mainManifest.ptr;
 	bool secondPass = false;
 	// Get the initial configuration to filter the profiles
-	bool bDisableEC3 = gpGlobalConfig->disableEC3;
-	bool bDisableAC3 = gpGlobalConfig->disableEC3;
+	bool bDisableEC3 = aamp->mDisableEC3;
+	bool bDisableAC3 = aamp->mDisableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (gpGlobalConfig->disableEC3) ? true : gpGlobalConfig->disableATMOS;
+	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
 	bool bDisableAAC = false;
 
 	bool ignoreProfile = false, clearProfiles = false;

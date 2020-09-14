@@ -141,9 +141,9 @@ public:
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
-	int forceEC3;                           /**< Forcefully enable DDPlus*/
-	int disableEC3;                         /**< Disable DDPlus*/
-	int disableATMOS;                       /**< Disable Dolby ATMOS*/
+	TriState forceEC3;                           /**< Forcefully enable DDPlus*/
+	TriState disableEC3;                         /**< Disable DDPlus*/
+	TriState disableATMOS;                       /**< Disable Dolby ATMOS*/
 	int liveOffset;                         /**< Current LIVE offset*/
 	int cdvrliveOffset;                     /**< CDVR LIVE offset*/
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
