@@ -678,6 +678,7 @@ void MediaTrack::StartInjectLoop()
  */
 void MediaTrack::RunInjectLoop()
 {
+	AAMPLOG_WARN("fragment injector started. track %s", name);
 	bool notifyFirstFragment = true;
 	bool keepInjecting = true;
 	if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
@@ -846,6 +847,13 @@ MediaTrack::~MediaTrack()
 		}
 #endif
 	}
+
+	if (fragmentInjectorThreadStarted)
+	{
+		// DELIA-45035: For debugging purpose
+		logprintf("In MediaTrack destructor - fragmentInjectorThreads are still running, signalling cond variable");
+	}
+
 	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
@@ -855,9 +863,9 @@ MediaTrack::~MediaTrack()
 		delete [] cachedFragment;
 		cachedFragment = NULL;
 	}
-	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&fragmentFetched);
 	pthread_cond_destroy(&fragmentInjected);
+	pthread_mutex_destroy(&mutex);
 }
 
 /**
