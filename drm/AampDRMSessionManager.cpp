@@ -212,9 +212,12 @@ void AampDRMSessionManager::clearFailedKeyIds()
 	pthread_mutex_lock(&cachedKeyMutex);
 	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if((!cachedKeyIDs[i].data.empty()) && cachedKeyIDs[i].isFailedKeyId)
+		if(cachedKeyIDs[i].isFailedKeyId)
 		{
-			cachedKeyIDs[i].data.clear();
+			if(!cachedKeyIDs[i].data.empty())
+			{
+				cachedKeyIDs[i].data.clear();
+			}
 			cachedKeyIDs[i].isFailedKeyId = false;
 			cachedKeyIDs[i].creationTime = 0;
 		}
@@ -845,7 +848,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	int selectedSlot = INVALID_SESSION_SLOT;
 
-	AAMPLOG_INFO("%s:%d keySystem is %s", __FUNCTION__, __LINE__, drmHelper->ocdmSystemId().c_str());
+	AAMPLOG_INFO("%s:%d StreamType :%d keySystem is %s", __FUNCTION__, __LINE__,streamType, drmHelper->ocdmSystemId().c_str());
 
 	/**
 	 * Create drm session without primaryKeyId markup OR retrieve old DRM session.
@@ -960,6 +963,16 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			}
 			logprintf("%s:%d  Selected slot %d for keyId %s",__FUNCTION__, __LINE__, sessionSlot, keyIdDebugStr.c_str());
 		}
+		else
+		{
+			// Already same session Slot is marked failed , not to proceed again .
+			if(cachedKeyIDs[sessionSlot].isFailedKeyId)
+			{
+				logprintf("%s:%d Found FailedKeyId at sesssionSlot :%d, return key error",__FUNCTION__, __LINE__,sessionSlot);
+				return KEY_ERROR;
+			}
+		}
+		
 
 		if (!isCachedKeyId)
 		{
@@ -1270,6 +1283,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				{
 					eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
 				}
+				AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
 				AAMPLOG_WARN("%s:%d deleting existing DRM session for %s, Authorisation failed", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
 				delete drmSessionContexts[sessionSlot].drmSession;
 				drmSessionContexts[sessionSlot].drmSession = nullptr;
@@ -1283,6 +1297,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
 				eventHandle->setResponseCode(httpResponseCode);
 			}
+			AampMutexHold keymutex(cachedKeyMutex);
 			cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 
 			return KEY_ERROR;
