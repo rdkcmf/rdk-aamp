@@ -759,17 +759,20 @@ static void ProcessConfigEntry(std::string cfg)
                         logprintf("harvestpath=%s\n", gpGlobalConfig->harvestpath);
                 }
 #endif
-		else if (ReadConfigNumericHelper(cfg, "forceEC3=", gpGlobalConfig->forceEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "forceEC3=", value) == 1)
 		{
-			logprintf("forceEC3=%d", gpGlobalConfig->forceEC3);
+			gpGlobalConfig->forceEC3 = (TriState)(value != 0);
+			logprintf("forceEC3=%d", value);
 		}
-		else if (ReadConfigNumericHelper(cfg, "disableEC3=", gpGlobalConfig->disableEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableEC3=", value) == 1)
 		{
-			logprintf("disableEC3=%d", gpGlobalConfig->disableEC3);
+			gpGlobalConfig->disableEC3 = (TriState)(value != 0);
+			logprintf("disableEC3=%d", value);
 		}
-		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", gpGlobalConfig->disableATMOS) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", value) == 1)
 		{
-			logprintf("disableATMOS=%d", gpGlobalConfig->disableATMOS);
+			gpGlobalConfig->disableATMOS = (TriState)(value != 0);
+			logprintf("disableATMOS=%d", value);
 		}
 		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
 		{
@@ -1787,6 +1790,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
 	,mCurlShared(NULL)
+	,mDisableEC3(false),mDisableATMOS(false),mForceEC3(false)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
@@ -1898,6 +1902,19 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	if (gpGlobalConfig->licenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
+	
+	if(gpGlobalConfig->disableEC3 != eUndefinedState)
+	{
+		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
+	}
+	if(gpGlobalConfig->disableATMOS != eUndefinedState)
+	{
+		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
+	}
+	if(gpGlobalConfig->forceEC3 != eUndefinedState)
+	{
+		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
 	}
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
@@ -4336,8 +4353,8 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		if(env_aamp_force_aac)
 		{
 			logprintf("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
-			gpGlobalConfig->disableEC3 = 1;
-			gpGlobalConfig->disableATMOS = 1;
+			gpGlobalConfig->disableEC3 = eTrueState;
+			gpGlobalConfig->disableATMOS = eTrueState;
 		}
 
 		const char *env_aamp_force_info = getenv("AAMP_FORCE_INFO");
@@ -5082,11 +5099,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			DeFog(mManifestUrl);
 		}
 
-		if (gpGlobalConfig->forceEC3)
+		if (mForceEC3)
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (gpGlobalConfig->disableEC3)
+		if (mDisableEC3)
 		{
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
@@ -8055,9 +8072,16 @@ DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
 	// If Stereo Only Mode is true, then disable DD+ and ATMOS (or) make if enable
-	gpGlobalConfig->disableEC3 = bValue;
-	gpGlobalConfig->disableATMOS = bValue;
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS and EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	if(gpGlobalConfig->disableEC3 == eUndefinedState)
+	{
+		mDisableEC3 = bValue;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	}
+	if(gpGlobalConfig->disableATMOS == eUndefinedState)
+	{
+		mDisableATMOS = bValue;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	}
 }
 
 /**
