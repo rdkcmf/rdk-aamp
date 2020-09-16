@@ -3545,10 +3545,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if(offsetFromStart >= 0 && seekPeriods)
 			{
 				tempString = period->GetStart();
-				if(!tempString.length())
-				{
-					AAMPLOG_WARN("%s:%d :  tempString is null", __FUNCTION__, __LINE__);  //CID:82173 - Null Returns
-				}
 				if(!tempString.empty() && !mIsFogTSB)
 				{
 					ParseISO8601Duration( tempString.c_str(), periodStartMs);
@@ -7083,7 +7079,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						bool temp =  mMediaStreamContext[eMEDIATYPE_VIDEO]->WaitForFreeFragmentAvailable(timeoutMs);
 						if(temp == false)
 						{
-							AAMPLOG_WARN("%s:%d: Error at  WaitForFreeFragmentAvailable", __FUNCTION__, __LINE__);  //CID:82355 - checked return
+							AAMPLOG_TRACE("%s:%d:  Waiting for FreeFragmentAvailable", __FUNCTION__, __LINE__);  //CID:82355 - checked return
 						}
 					}
 					else
