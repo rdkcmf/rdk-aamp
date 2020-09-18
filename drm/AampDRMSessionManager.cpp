@@ -450,7 +450,7 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 
 #ifdef USE_SECCLIENT
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
-		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, AAMPEvent* eventHandle)
+		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, AAMPEvent* eventHandle)
 {
 	DrmData *licenseResponse = nullptr;
 	const char *mediaUsage = "stream";
@@ -543,8 +543,9 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 
 	if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 	{
-		logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+		logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
 		*httpCode = sec_client_result;
+		*httpExtStatusCode = statusInfo.statusCode;
 	}
 	else
 	{
@@ -573,7 +574,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
-		long *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy)
+		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy)
 {
 	*httpCode = -1;
 	CURL *curl;
@@ -1066,7 +1067,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
                 AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType)
 {
 	shared_ptr<DrmData> licenseResponse;
-	long httpResponseCode = -1;
+	int32_t httpResponseCode = -1;
+	int32_t httpExtendedStatusCode = -1;
 	KeyState code = KEY_ERROR;
 
 	if (drmHelper->isExternalLicense())
@@ -1146,10 +1148,11 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 #ifdef USE_SECCLIENT
 				if (isComcastStream)
 				{
-					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
-					if (412 == httpResponseCode)
+					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
+					// Reload Expired access token only on http error code 412 with status code 401
+					if (412 == httpResponseCode && 401 == httpExtendedStatusCode)
 					{
-						AAMPLOG_INFO("%s:%d License Req failure by Expired access token Error[%d]", __FUNCTION__, __LINE__, httpResponseCode);
+						AAMPLOG_INFO("%s:%d License Req failure by Expired access token httpResCode %d statusCode %d", __FUNCTION__, __LINE__, httpResponseCode, httpExtendedStatusCode);
 						if(accessToken)
 						{
 							free(accessToken);
@@ -1163,7 +1166,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 						{
 							AAMPLOG_INFO("%s:%d Requesting License with new access token", __FUNCTION__, __LINE__);
 							challengeInfo.accessToken = std::string(sessionToken, tokenLen);
-							licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, eventHandle));
+							httpResponseCode = httpExtendedStatusCode = -1;
+							licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 						}
 					}
 				}
@@ -1186,7 +1190,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 }
 
 KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
-		long httpResponseCode, shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
+		int32_t httpResponseCode, shared_ptr<DrmData> licenseResponse, AAMPEvent* eventHandle, PrivateInstanceAAMP* aampInstance)
 {
 	if (!drmHelper->isExternalLicense())
 	{
