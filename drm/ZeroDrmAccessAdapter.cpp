@@ -21,6 +21,7 @@
 #include <stddef.h> 
 #include <string.h> 
 #include "ZeroDrmAccessAdapter.h"
+#include "AampRfc.h"
 #ifdef TEST_CODE_ON
 #include <iostream>
 #include <fstream>
@@ -722,6 +723,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 		}
 		else
 		{
+			std::string zeroDrmHost = RFCSettings::getZeroDrmHostUrl();
 			 // storing KeyTagInfo
 			metadata->keyTagInfo.method             =       keyTag.method;
 			metadata->keyTagInfo.useFirst16BytesAsIV        =       keyTag.useFirst16BytesAsIV;
@@ -736,7 +738,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 				// get MoneyTrace string
 				moneytracebuf = zeroDrmGetTraceId();
 				requestMetadata[1][1] = moneytracebuf;
-				sec_client_result = acquireRecordingReceipt(ZERO_DRM_HOST_URL, ZERO_DRM_REQMETADATA_SZ, requestMetadata,
+				sec_client_result = acquireRecordingReceipt(zeroDrmHost.c_str(), ZERO_DRM_REQMETADATA_SZ, requestMetadata,
 							(const char *)metadata->metadataPtr, 0, NULL,(char **) &metadata->receiptdataPtr);
 				if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 				{
@@ -768,7 +770,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 				zdebuglogprintf("KeyReqTrace[%s] Metadata[%d][%s]",moneytracebuf,strlen((const char *)metadata->receiptdataPtr),((const char *)metadata->receiptdataPtr));
 				
 				memset(&metadata->secureContext, 0, sizeof(metadata->secureContext));
-				sec_client_result = acquirePlaybackKey(ZERO_DRM_HOST_URL, ZERO_DRM_REQMETADATA_SZ, requestMetadata, 
+				sec_client_result = acquirePlaybackKey(zeroDrmHost.c_str(), ZERO_DRM_REQMETADATA_SZ, requestMetadata, 
 								(const char *)metadata->receiptdataPtr, &metadata->secureContext);
 				if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 				{
