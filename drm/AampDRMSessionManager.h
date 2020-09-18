@@ -177,9 +177,9 @@ public:
 
 #ifdef USE_SECCLIENT
 	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
-			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, long *httpCode, DrmMetaDataEventPtr eventHandle);
+			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle);
 #endif
-	DrmData * getLicense(AampLicenseRequest &licRequest, long *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
+	DrmData * getLicense(AampLicenseRequest &licRequest, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL);
 
 	bool IsKeyIdUsable(std::vector<uint8_t> keyIdArray);
 
@@ -205,7 +205,7 @@ public:
 			DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType);
 
 	KeyState handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
-			long httpResponseCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance);
+			int32_t httpResponseCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance);
 
 	KeyState processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
 			shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance);
