@@ -901,14 +901,20 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 		if (aamp->mpStreamAbstractionAAMP)
 		{
 			logprintf("aamp_SetLanguage(%s) retuning", language);
+			if(aamp->mMediaFormat == eMEDIAFORMAT_OTA)
+			{
+				aamp->mpStreamAbstractionAAMP->SetAudioTrackByLanguage(language);
+			}
+			else
+			{
+				aamp->discardEnteringLiveEvt = true;
 
-			aamp->discardEnteringLiveEvt = true;
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
+				aamp->TeardownStream(false);
+				aamp->TuneHelper(eTUNETYPE_SEEK);
 
-			aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
-			aamp->TeardownStream(false);
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-
-			aamp->discardEnteringLiveEvt = false;
+				aamp->discardEnteringLiveEvt = false;
+			}
 		}
 	}
 	else

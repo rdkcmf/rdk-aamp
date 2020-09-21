@@ -84,6 +84,16 @@ select:focus {
 	var serviceTable;
 	var fromPC = false;
 	
+	var en_spaInitConfig = {
+		preferredAudioLanguage: "eng,spa"
+	};
+
+	var spa_enInitConfig = {
+		preferredAudioLanguage: "spa,eng"
+	};
+  
+  
+	
 	function Connect()
 	{
 		
@@ -511,9 +521,7 @@ function playChannel()
 		else
 		{
 			aampPlayer = new AAMPMediaPlayer();
-		    aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
-			var preferredAudioLanguage = "eng,spa";
-			SetPreferredLanguages(preferredAudioLanguage);
+			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 		}
 		aampPlayer.load(strLocator);
 	}
@@ -541,44 +549,110 @@ function onChannelMapNav()
 /**
  * Sets the Audio Language
  */
-function SetPreferredLanguages(languageList) {
-    console.log("Invoked SetPreferredLanguages");
-    aampPlayer.SetPreferredLanguages(languageList);
-}
+function SetPreferredLanguages(languageListInitConfig) {
 
-/**
- * Sets the Audio Language
- */
-function setAudioLanguage(language) {
-    console.log("Invoked setAudioLanguage with language " +language);
-    aampPlayer.setAudioLanguage(language);
+var chMapElement = document.getElementById("chMap");
+    var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
+	var strData = chMapElement.options[chMapElement.selectedIndex].text;
+	setCurrentPlayingChText(strData);
+	
+		if( aampPlayer )
+		{
+		// this is hack as setting pref lang is hangging . hence stoping and creating new with 
+// init config
+			aampPlayer.stop(); // needed for AMLOGIC-550 workaround?
+		}
+		
+		aampPlayer = new AAMPMediaPlayer();
+		aampPlayer.initConfig(languageListInitConfig);
+		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+		aampPlayer.load(strLocator);
+	
+	isPlaying = true;
 }
-
 /**
  * Gets the current Audio Track
  */
 function getAudioTrack() {
-    console.log("Invoked getAudioTrack");
-    return aampPlayer.getAudioTrack();
+	var audioTrack = aampPlayer.getAudioTrack();
+	console.log("Invoked getAudioTrack " +audioTrack);
+	setGuideText("Invoked getAudioTrack " +audioTrack);
+}
+
+/*For browser testing without box*/
+function _getAvailableAudioTracks() {
+    var _avlAudioTracks =  [{
+                "name": "16",
+                "language":     "eng",
+                "codec":        "AC3",
+                "rendition":    "NORMAL"
+        }, {
+                "name": "17",
+                "language":     "spa",
+                "codec":        "AC3",
+                "rendition":    "NORMAL"
+        }];
+    return _avlAudioTracks;
+}
+
+function clearAudioList() {
+	var audioListElement = document.getElementById("AudioList");
+	// when length is 0, the evaluation will return false.
+	while (audioListElement.options.length)
+	{
+		// continue to remove the first option until no options remain.
+		audioListElement.remove(0);
+	}
 }
 
 /**
  * Get available audio track info
  */
 function getAvailableAudioTracks() {
-    console.log("Invoked getAvailableAudioTracks");
-    return aampPlayer.getAvailableAudioTracks();
+	//var avlAudioTracks = _getAvailableAudioTracks();
+	var audioListBox = document.getElementById("AudioList");
+
+	var avlAudioTracks = aampPlayer.getAvailableAudioTracks();
+	if(avlAudioTracks != undefined)
+    {
+		var textTrackList = JSON.parse(avlAudioTracks);
+		console.log("Invoked getAvailableAudioTracks " +avlAudioTracks);
+		setGuideText("Invoked getAvailableAudioTracks " +avlAudioTracks);
+		clearAudioList();
+		for (var i in textTrackList) {
+			var strData = textTrackList[i].language;
+			var opt = document.createElement('option');
+			opt.text = strData + " " +textTrackList[i].codec;
+			opt.lang = strData;
+			opt.value = i;
+			console.log("Invoked getAvailableAudioTracks loop: " +opt.text);
+	
+			audioListBox.add(opt,null);
+		}
+	}
 }
+
+/**
+ * Sets the Audio Language
+ */
+function setAudioLanguage() {
+	var audioListElement = document.getElementById("AudioList");
+	var language = audioListElement.options[audioListElement.selectedIndex].lang;
+	console.log("Invoked setAudioLanguage with language " +language);
+	aampPlayer.setAudioLanguage(language);
+}
+
 /**
  * Sets audio track
  */
-function setAudioTrack(track) {
-    console.log("Invoked setAudioTrack with track " +track);
+function setAudioTrack() {
+	var audioListElement = document.getElementById("AudioList");
+	var track = audioListElement.options[audioListElement.selectedIndex].value;
+	console.log("Invoked setAudioTrack with track " +track);
 	aampPlayer.setAudioTrack(track);
 }
 
-
-var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12 };
+var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12 };
 function playbackStateChanged(event) {
     console.log("Playback state changed event: " + JSON.stringify(event));
     switch (event.state) {
@@ -590,19 +664,15 @@ function playbackStateChanged(event) {
             break;
         case playerStatesEnum.initialized:
             playerState = playerStatesEnum.initialized;
-	        break;
+            break;
         case playerStatesEnum.preparing:
             playerState = playerStatesEnum.preparing;
             break;
+        case playerStatesEnum.prepared:
+            playerState = playerStatesEnum.prepared;
+            break;
         case playerStatesEnum.playing:
             playerState = playerStatesEnum.playing;
-			var avlAudioTracksStr = "Available audio tracks: " + getAvailableAudioTracks();
-			console.log(avlAudioTracksStr);
-            setGuideText(avlAudioTracksStr);
-            
-            var audioTrackStr = "Current audio track: " + getAudioTrack();			
-			console.log(audioTrackStr);
-            setGuideText(audioTrackStr);			
             break;
         case playerStatesEnum.complete:
             playerState = playerStatesEnum.complete;
@@ -611,6 +681,7 @@ function playbackStateChanged(event) {
             playerState = playerStatesEnum.error;
             break;
         default:
+            playerState = event.state;
             console.log("State not expected");
             break;
         }
@@ -644,35 +715,16 @@ function playbackStateChanged(event) {
 		<input type="button" value="BR" onclick="SetRectangle(0.5,0.5,0.5,0.5);"/>
 		
 		<br/>
-		<label for="language"><b>Audio Languages</b></label>
-        <!--
-		<select name="language" id="language">
-			<option value="eng" onclick="setAudioLanguage(eng);">Eng</option>
-			<option value="spa" onclick="setAudioLanguage(spa);">Spa</option>
-			<option value="ger" onclick="setAudioLanguage(ger);">Ger</option>
-		</select>
-		
-		<label for="track">Audio Track:</label>
 
-		<select name="track" id="track">
-			<option value="0" onclick="setAudioTrack(0);">0</option>
-			<option value="1" onclick="setAudioTrack(1);">1</option>
-			<option value="2" onclick="setAudioTrack(2);">2</option>
-		</select>
-		-->
-		<input type="radio" id="eng" name="language" value="eng">
-		<label for="eng" onclick="setAudioLanguage('eng');">eng</label>
-		<input type="radio" id="spa" name="language" value="spa">
-		<label for="spa" onclick="setAudioLanguage('spa');">spa</label>
+		<input type="button" value="GetTrack" onclick="getAudioTrack();"/>
+		<input type="button" value="GetAvlTracks" onclick="getAvailableAudioTracks();"/>
+		<select id = "AudioList" size="3"></select>
+		<input type="button" value="SetAudLan" onclick="setAudioLanguage();"/>
+		<input type="button" value="SetAudTrack" onclick="setAudioTrack();"/>
 		
-		<label for="track"><b> Audio Tracks </b></label>
-		<input type="radio" id="index0" name="track" value="0">
-		<label for="index0" onclick="setAudioTrack(0);">0</label>
-		<input type="radio" id="index1" name="track" value="1">
-		<label for="index1" onclick="setAudioTrack(1);">1</label>
-		
-		<input type="button" value="GetTrack" onclick="getAudioTrack();"/>	
-        <input type="button" value="GetAvlTracks" onclick="getAvailableAudioTracks();"/>	
+		<!-- <input type="button" value="Preferred-Eng" onclick="SetPreferredLanguages(`eng`);"/> -->
+		<input type="button" value="Preferred-Eng,Spa" onclick="SetPreferredLanguages(en_spaInitConfig);"/>
+		<input type="button" value="Preferred-Spa,Eng" onclick="SetPreferredLanguages(spa_enInitConfig);"/>
 		
 		<br/>
 		<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>

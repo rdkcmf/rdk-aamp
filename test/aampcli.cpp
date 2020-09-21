@@ -472,6 +472,9 @@ public:
 		case AAMP_EVENT_BITRATE_CHANGED:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
+		case AAMP_EVENT_AUDIO_TRACKS_CHANGED:
+			logprintf("AAMP_EVENT_AUDIO_TRACKS_CHANGED");
+			break;
 		case AAMP_EVENT_ID3_METADATA:
 			{
 				logprintf("AAMP_EVENT_ID3_METADATA");
