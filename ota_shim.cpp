@@ -43,6 +43,7 @@ using namespace WPEFramework;
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
 
 #define MEDIAPLAYER_CALLSIGN "org.rdk.MediaPlayer.1"
+#define MEDIASETTINGS_CALLSIGN "org.rdk.MediaSettings.1"
 #define APP_ID "MainPlayer"
 
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
@@ -120,6 +121,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     tuned = false;
 
     thunderAccessObj.ActivatePlugin();
+    mediaSettingsObj.ActivatePlugin();
     std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
 
     thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
@@ -144,6 +146,7 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
                             , tuned(false),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
+                            mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
 #endif
 { // STUB
@@ -236,6 +239,8 @@ void StreamAbstractionAAMP_OTA::Start(void)
 #else
 	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
 	JsonObject result;
+
+	SetPreferredAudioLanguage();
 
 	JsonObject createParam;
 	createParam["id"] = APP_ID;
@@ -334,6 +339,232 @@ void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
         }
 
         thunderAccessObj.InvokeJSONRPC("setVideoRectangle", param, result);
+#endif
+}
+
+/**
+ * @brief NotifyAudioTrackChange To notify audio track change.Currently not used
+ * as mediaplayer does not have support yet.
+ *
+ * @param[in] tracks - updated audio track info
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks)
+{
+    if ((0 != mAudioTracks.size()) && (tracks.size() != mAudioTracks.size()))
+    {
+        aamp->NotifyAudioTracksChanged();
+    }
+    return;
+}
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks()
+{
+    if (mAudioTrackIndex.empty())
+        GetAudioTracks();
+
+    return mAudioTracks;
+}
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+int StreamAbstractionAAMP_OTA::GetAudioTrack()
+{
+    int index = -1;
+    if (mAudioTrackIndex.empty())
+        GetAudioTracks();
+
+    if (!mAudioTrackIndex.empty())
+    {
+        for (auto it = mAudioTracks.begin(); it != mAudioTracks.end(); it++)
+        {
+            if (it->index == mAudioTrackIndex)
+            {
+                index = std::distance(mAudioTracks.begin(), it);
+            }
+        }
+    }
+    return index;
+}
+
+/**
+ * @brief SetPreferredAudioLanguage set the preferred audio language list
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+    JsonObject result;
+    JsonObject param;
+    JsonObject properties;
+
+    if(aamp->preferredLanguagesList.size() > 0) {
+        properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
+        param["properties"] = properties;
+        mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
+    }
+#endif
+}
+
+/**
+ * @brief SetAudioTrackByLanguage set the audio language
+ *
+ * @param[in] lang : Audio Language to be set
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+    JsonObject param;
+    JsonObject result;
+    JsonObject properties;
+    int index = -1;
+
+    if(NULL != lang)
+    {
+       if(mAudioTrackIndex.empty())
+           GetAudioTracks();
+
+       std::vector<AudioTrackInfo>::iterator itr;
+       for(itr = mAudioTracks.begin(); itr != mAudioTracks.end(); itr++)
+       {
+           if(0 == strcmp(lang, itr->language.c_str()))
+           {
+               index = std::distance(mAudioTracks.begin(), itr);
+               memcpy(aamp->language, itr->language.c_str(),itr->language.length());
+               break;
+           }
+       }
+    }
+    if(-1 != index)
+    {
+        SetAudioTrack(index);
+    }
+    return;
+#endif
+}
+/**
+ * @brief GetAudioTracks get the available audio tracks for the selected service / media
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::GetAudioTracks()
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+    JsonObject param;
+    JsonObject result;
+    JsonArray attributesArray;
+    std::vector<AudioTrackInfo> aTracks;
+    std::string aTrackIdx = "";
+    std::string index;
+    std::string output;
+    JsonArray outputArray;
+    JsonObject audioData;
+    int i = 0,arrayCount = 0;
+    long bandwidth = -1;
+    int currentTrackPk = 0;
+
+    currentTrackPk = GetAudioTrackInternal();
+
+    attributesArray.Add("pk"); // int - Unique primary key dynamically allocated. Used for track selection.
+    attributesArray.Add("name"); // 	Name to display in the UI when doing track selection
+    attributesArray.Add("type");  // e,g "MPEG4_AAC" "MPEG2" etc
+    attributesArray.Add("description"); //Track description supplied by the content provider
+    attributesArray.Add("language"); //ISO 639-2 three character text language (terminology variant per DVB standard, i.e. "deu" instead of "ger")
+    attributesArray.Add("contentType"); // e.g "DIALOGUE" , "EMERGENCY" , "MUSIC_AND_EFFECTS" etc
+    attributesArray.Add("mixType"); // Signaled audio mix type - orthogonal to AudioTrackType; For example, ac3 could be either surround or stereo.e.g "STEREO" , "SURROUND_SOUND"
+    attributesArray.Add("isSelected"); // Is Currently selected track
+
+    param["id"] = APP_ID;
+    param["attributes"] = attributesArray;
+
+    thunderAccessObj.InvokeJSONRPC("getAudioTracks", param, result);
+
+    result.ToString(output);
+    AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d audio track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+    outputArray = result["table"].Array();
+    arrayCount = outputArray.Length();
+
+    for(i = 0; i < arrayCount; i++)
+    {
+        index = to_string(i);
+        audioData = outputArray[i].Object();
+
+        if(currentTrackPk == audioData["pk"].Number()){
+            aTrackIdx = to_string(i);
+        }
+
+        std::string languageCode;
+        languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String());
+        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode,/* lang */ audioData["name"].String(),	/* name*/ audioData["type"].String(), /* codecStr  */ (int)audioData["pk"].Number()));           //pk
+    }
+
+    mAudioTracks = aTracks;
+    mAudioTrackIndex = aTrackIdx;
+    return;
+#endif
+}
+
+/**
+ * @brief GetAudioTrackInternal get the primary key for the selected audio
+ *
+ * @param[in]
+ * @param[in]
+ */
+int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+    int pk = 0;
+    JsonObject param;
+    JsonObject result;
+
+    AAMPLOG_TRACE("[OTA_SHIM]Entered %s ", __FUNCTION__);
+    param["id"] = APP_ID;
+    thunderAccessObj.InvokeJSONRPC("getAudioTrack", param, result);
+    pk = result["pk"].Number();
+    return pk;
+#endif
+}
+
+/**
+ * @brief SetAudioTrack sets a specific audio track
+ *
+ * @param[in] Index of the audio track.
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+    JsonObject param;
+    JsonObject result;
+
+    param["id"] = APP_ID;
+
+    param["trackPk"] = mAudioTracks[trackId].primaryKey;
+
+    thunderAccessObj.InvokeJSONRPC("setAudioTrack", param, result);
+    if (result["success"].Boolean()) {
+        mAudioTrackIndex = to_string(trackId);
+        memset(aamp->language, 0, sizeof(aamp->language));
+        strncpy (aamp->language, mAudioTracks[trackId].language.c_str(),mAudioTracks[trackId].language.length());
+    }
+    return;
 #endif
 }
 

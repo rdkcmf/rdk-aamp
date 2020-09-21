@@ -194,20 +194,27 @@ struct AudioTrackInfo
 	std::string characteristics;
 	int channels;
 	long bandwidth;
+	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
 
-	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0)
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1)
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang,std::string trackName, std::string codecStr,int pk):
+			index(idx), language(lang), rendition(), name(trackName),
+			codec(codecStr), characteristics(), channels(0), bandwidth(-1),primaryKey(pk)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw)
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0)
 	{
 	}
 };

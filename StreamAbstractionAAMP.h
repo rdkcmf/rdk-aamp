@@ -866,7 +866,7 @@ public:
 	 *
 	 *   @return std::vector<AudioTrackInfo> list of audio tracks
 	 */
-	std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
+	virtual std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
 
 	/**
 	 *   @brief Get available text tracks.
@@ -928,7 +928,7 @@ public:
 	 *
 	 *   @return int - index of current audio track
 	 */
-	int GetAudioTrack();
+	virtual int GetAudioTrack();
 
 	/**
 	 *   @brief Get current text track
@@ -952,6 +952,22 @@ public:
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
 	
+        /**
+          * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
+          *
+          * @param[in]
+          * @param[in]
+          */
+        virtual void SetAudioTrack (int index) {}
+
+        /**
+          * @brief SetAudioTrackByLanguage set the audio language. [currently for OTA]
+          *
+          * @param[in] lang Language to be set
+          * @param[in]
+          */
+        virtual void SetAudioTrackByLanguage(const char* lang) {}
+
 	void MuteSubtitles(bool mute);
 
 protected:
