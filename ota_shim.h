@@ -69,16 +69,25 @@ public:
     void SeekPosUpdate(double) { };
     void NotifyFirstVideoPTS(unsigned long long pts) { };
     void SetVideoRectangle(int x, int y, int w, int h) override;
+    void SetAudioTrack(int index) override;
+    void SetAudioTrackByLanguage(const char* lang) override;
+    std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
+    int GetAudioTrack() override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;
+    ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
     bool tuned;
 
     ThunderAccessAAMP thunderRDKShellObj;
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
 #endif
+    void GetAudioTracks();
+    void SetPreferredAudioLanguage();
+    int GetAudioTrackInternal();
+    void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 };

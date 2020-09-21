@@ -9253,14 +9253,20 @@ void PrivateInstanceAAMP::SetAudioTrack(int trackId)
 			SetPreferredAudioTrack(tracks[trackId]);
 			// TODO: Confirm if required
 			languageSetByUser = true;
+			if (mMediaFormat == eMEDIAFORMAT_OTA)
+			{
+				mpStreamAbstractionAAMP->SetAudioTrack(trackId);
+			}
+                        else
+                        {
+				discardEnteringLiveEvt = true;
 
-			discardEnteringLiveEvt = true;
+				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				TeardownStream(false);
+				TuneHelper(eTUNETYPE_SEEK);
 
-			seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-			TeardownStream(false);
-			TuneHelper(eTUNETYPE_SEEK);
-
-			discardEnteringLiveEvt = false;
+				discardEnteringLiveEvt = false;
+                        }
 		}
 	}
 }
