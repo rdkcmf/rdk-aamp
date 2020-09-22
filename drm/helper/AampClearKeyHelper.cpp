@@ -84,7 +84,9 @@ void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challen
         {
 		if (!mDrmInfo.keyURI.empty())
 		{
-			licenseRequest.url = aamp_getAbsoluteKeyUri(mDrmInfo.manifestURL, mDrmInfo.keyURI);
+			std::string keyURI;
+			aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str());
+			licenseRequest.url = keyURI;
 		}
 		else
 		{
