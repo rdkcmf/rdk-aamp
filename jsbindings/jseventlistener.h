@@ -34,7 +34,7 @@
  * @class AAMP_JSEventListener
  * @brief Event listener impl for AAMPMediaPlayer_JS object
  */
-class AAMP_JSEventListener : public AAMPEventListener
+class AAMP_JSEventListener : public AAMPEventObjectListener
 {
 public:
 
@@ -48,9 +48,9 @@ public:
 	AAMP_JSEventListener(const AAMP_JSEventListener&) = delete;
 	AAMP_JSEventListener& operator=(const AAMP_JSEventListener&) = delete;
 
-	void Event(const AAMPEvent& e);
+	void Event(const AAMPEventPtr& e);
 
-	virtual void SetEventProperties(const AAMPEvent& ev, JSObjectRef jsEventObj)
+	virtual void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
 	{
 	}
 
