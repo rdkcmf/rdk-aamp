@@ -40,6 +40,13 @@
 #define AES_CTR_KID_LEN 16
 #define AES_CTR_IV_LEN 16
 #define AES_CTR_KEY_LEN 16
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define OPEN_SSL_CONTEXT mOpensslCtx
+#else
+#define OPEN_SSL_CONTEXT &mOpensslCtx
+#endif
+
 /**
  * @brief ClearKeySession Constructor
  */
@@ -64,7 +71,11 @@ ClearKeySession::ClearKeySession() :
  */
 void ClearKeySession::initAampDRMSession()
 {
-	EVP_CIPHER_CTX_init(&mOpensslCtx);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	OPEN_SSL_CONTEXT = EVP_CIPHER_CTX_new();
+#else
+	EVP_CIPHER_CTX_init(OPEN_SSL_CONTEXT);
+#endif
 	AAMPLOG_ERR("ClearKeySession:: %s:%d :: enter ", __FUNCTION__,__LINE__);
 }
 
@@ -171,7 +182,15 @@ void ClearKeySession::generateAampDRMSession(const uint8_t *f_pbInitData,
 ClearKeySession::~ClearKeySession()
 {
 	pthread_mutex_destroy(&decryptMutex);
-	EVP_CIPHER_CTX_cleanup(&mOpensslCtx);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if( OPEN_SSL_CONTEXT )
+	{
+		EVP_CIPHER_CTX_free(OPEN_SSL_CONTEXT);
+		OPEN_SSL_CONTEXT = NULL;
+	}
+#else
+	EVP_CIPHER_CTX_cleanup(OPEN_SSL_CONTEXT);
+#endif
     if(m_keyId != NULL)
     {
         free(m_keyId);
@@ -538,13 +557,13 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		{
 			uint32_t decLen = payloadDataSize;
 
-			if(!EVP_DecryptInit_ex(&mOpensslCtx, EVP_aes_128_ctr(), NULL, m_keyStr, ivBuff))
+			if(!EVP_DecryptInit_ex(OPEN_SSL_CONTEXT, EVP_aes_128_ctr(), NULL, m_keyStr, ivBuff))
 			{
 				AAMPLOG_TRACE( "ClearKeySession::%s:%d: EVP_DecryptInit_ex failed",  __FUNCTION__, __LINE__);
 			}
 			else
 			{
-				if (!EVP_DecryptUpdate(&mOpensslCtx,(unsigned char*) decryptedDataBuf, (int*) &decLen, (const unsigned char*) payloadData,
+				if (!EVP_DecryptUpdate(OPEN_SSL_CONTEXT,(unsigned char*) decryptedDataBuf, (int*) &decLen, (const unsigned char*) payloadData,
 					payloadDataSize))
 				{
 					AAMPLOG_TRACE("ClearKeySession::%s:%d: EVP_DecryptUpdate failed", __FUNCTION__, __LINE__);
@@ -554,7 +573,7 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 					decryptedDataLen = decLen;
 					decLen = 0;
 					AAMPLOG_TRACE("ClearKeySession::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d payload Data length = %d", __FUNCTION__, __LINE__, (int) decryptedDataLen, (int)payloadDataSize);
-					if (!EVP_DecryptFinal_ex(&mOpensslCtx, (unsigned char*) (decryptedDataBuf + decryptedDataLen), (int*) &decLen))
+					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, (unsigned char*) (decryptedDataBuf + decryptedDataLen), (int*) &decLen))
 					{
 						AAMPLOG_TRACE("ClearKeySession::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d", __FUNCTION__, __LINE__, (int) m_eKeyState);
 					}
@@ -608,7 +627,15 @@ void ClearKeySession:: clearDecryptContext()
 		m_keyStr = NULL;
 		m_keyLen = 0;
 	}
-	EVP_CIPHER_CTX_cleanup(&mOpensslCtx);
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	if( OPEN_SSL_CONTEXT )
+	{
+		EVP_CIPHER_CTX_free(OPEN_SSL_CONTEXT);
+		OPEN_SSL_CONTEXT = NULL;
+	}
+#else
+	EVP_CIPHER_CTX_cleanup(OPEN_SSL_CONTEXT);
+#endif
 	m_eKeyState = KEY_INIT;
 }
 
