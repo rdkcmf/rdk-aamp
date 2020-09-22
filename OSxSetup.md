@@ -10,10 +10,19 @@ This document contains the instructions to setup and debug stand alone AAMP (aam
 
 **2. Install XCode Command Line Tools**
 
+This is required for MacOS version < 10.15
+
 ```
 xcode-select --install
 sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_<version>.pkg -target /
 ```
+
+For MacOS 10.15 & above, we can check the SDK install path as
+```
+xcrun --sdk macosx --show-sdk-path
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk
+```
+
 **3. Install GStreamer packages**
 
 Install Homebrew, if not available in your Mac:
@@ -31,6 +40,8 @@ More details about packages available at [freedesktop.org](https://gstreamer.fre
 
 **4. Install [Cmake](https://cmake.org/download/)**
 
+like cmake-3.18.0-Darwin-x86_64.dmg or latest
+
 Set link for CMake command line.
 ``` ln -s /Applications/CMake.app/Contents/bin/cmake /usr/local/bin```
 
@@ -38,8 +49,11 @@ Set link for CMake command line.
 
 ```
 brew install openssl
-sudo ln -s /usr/local/Cellar/openssl/<version> /usr/local/ssl
+brew reinstall openssl		//if already installed
+sudo ln -s /usr/local/Cellar/openssl\@1.1/1.1.1g /usr/local/ssl
 ```
+Here 1.1.1g is the version 
+
 **6. Install libXML2**
 
 ```
@@ -98,7 +112,14 @@ echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \
 ```
 brew install ossp-uuid
 ```
-**9. Install aampabr**
+
+**9. Install cjson
+
+```
+brew install cjson
+```
+
+**10. Install aampabr**
 
 ```
 git clone https://code.rdkcentral.com/r/rdk/components/generic/aampabr aampabr
@@ -112,11 +133,16 @@ make install
 ##Build and execute aamp-cli
 **1. Open aamp.xcodeproj in Xcode**
 
+```
+git clone "https://code.rdkcentral.com/r/rdk/components/generic/aamp" -b dev_sprint
+```
+
 **2. Build the code**
 
 ```
 	Product -> Build
 ```
+
 **3. Select target to execute**
 
 ```
