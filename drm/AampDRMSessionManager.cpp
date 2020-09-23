@@ -429,7 +429,7 @@ static void mssleep(int milliseconds)
  *
  */
 DrmData * AampDRMSessionManager::getLicense(DrmData * keyChallenge,
-		string destinationURL, long *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
+		string destinationURL, int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy, struct curl_slist *customHeader, DRMSystems drmSystem)
 {
 
 	*httpCode = -1;
@@ -656,7 +656,8 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const unsigned char* contentMetadataPtr, PrivateInstanceAAMP* aamp, AAMPEvent *e, bool isPrimarySession)
 {
 	KeyState code = KEY_CLOSED;
-	long responseCode = -1;
+	int32_t responseCode = -1;
+	int32_t extendedStatusCode = -1;
 	unsigned char * contentMetaData = NULL;
 	int contentMetaDataLen = 0;
 	unsigned char *keyId = NULL;
@@ -1121,8 +1122,9 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 			if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 			{
-				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
 				responseCode = sec_client_result;
+				extendedStatusCode = statusInfo.statusCode;
 			}
 			else
 			{
@@ -1199,21 +1201,23 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 			{
 				if(e->data.dash_drmmetadata.failure != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
-					// Cached Token . Clear the session Token for this tune,will recover in next session
-					AAMPLOG_WARN("%s:%d License Req failure by Expired access token Error[%d]", __FUNCTION__, __LINE__, responseCode);
-					if(accessToken)
-					{
-						free(accessToken);
-						accessToken = NULL;
-						accessTokenLen = 0;
-					}
+					if (401 == extendedStatusCode) {
+						// Cached Token . Clear the session Token for this tune,will recover in next session
+						AAMPLOG_WARN("%s:%d License Req failure by Expired access token Error[%d]", __FUNCTION__, __LINE__, responseCode);
+						if(accessToken)
+						{
+							free(accessToken);
+							accessToken = NULL;
+							accessTokenLen = 0;
+						}
 	
-					int tokenLen = 0;
-					long tokenError = 0;
-					const char *sessionToken = getAccessToken(tokenLen, tokenError);
-					if (NULL != sessionToken)
-					{
-						AAMPLOG_WARN("%s:%d New access token cached", __FUNCTION__, __LINE__);
+						int tokenLen = 0;
+						long tokenError = 0;
+						const char *sessionToken = getAccessToken(tokenLen, tokenError);
+						if (NULL != sessionToken)
+						{
+							AAMPLOG_WARN("%s:%d New access token cached", __FUNCTION__, __LINE__);
+						}
 					}
 					e->data.dash_drmmetadata.failure = AAMP_TUNE_AUTHORISATION_FAILURE;
 				}
