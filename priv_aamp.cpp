@@ -49,11 +49,9 @@
 #include "manager.hpp"
 #include "libIBus.h"
 #include "libIBusDaemon.h"
-
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 #endif
-
 #include <sys/time.h>
 #include <cmath>
 #include <regex>
@@ -134,6 +132,8 @@ static int PLAYERID_CNTR = 0;
 
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
+static bool activeInterfaceWifi = false;
+
 GlobalConfigAAMP *gpGlobalConfig;
 
 /**
@@ -190,6 +190,29 @@ struct CurlProgressCbContext
 	double downloadSize;
 	CurlAbortReason abortReason;
 };
+
+/**
+ * @brief Enumeration for net_srv_mgr active interface event callback
+ */
+typedef enum _NetworkManager_EventId_t {
+        IARM_BUS_NETWORK_MANAGER_EVENT_SET_INTERFACE_ENABLED=50,
+        IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS=55,
+        IARM_BUS_NETWORK_MANAGER_MAX
+} IARM_Bus_NetworkManager_EventId_t;
+
+/**
+ * @struct _IARM_BUS_NetSrvMgr_Iface_EventData_t
+ * @brief IARM Bus struct contains active streaming interface, origional definition present in homenetworkingservice.h
+ */
+typedef struct _IARM_BUS_NetSrvMgr_Iface_EventData_t {
+	union{
+		char activeIface[10];
+		char allNetworkInterfaces[50];
+		char enableInterface[10];
+	};
+	char interfaceCount;
+	bool isInterfaceEnabled;
+} IARM_BUS_NetSrvMgr_Iface_EventData_t;
 
 static TuneFailureMap tuneFailureMap[] =
 {
@@ -637,7 +660,60 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
 	}
 	return strConfig;
 }
+/**
+ * @brief Active interface state change from netsrvmgr
+ * @param owner reference to net_srv_mgr
+ * @param IARM eventId received
+ * @data pointer reference to interface struct
+ */
+void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+{
+
+	if (strcmp (owner, "NET_SRV_MGR") != 0)
+		return;
+
+	IARM_BUS_NetSrvMgr_Iface_EventData_t *param = (IARM_BUS_NetSrvMgr_Iface_EventData_t *) data;
+
+	AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+
+	if (NULL != strstr (param->activeIface, "wlan"))
+	{
+		 activeInterfaceWifi = true;
+	}
+	else if (NULL != strstr (param->activeIface, "eth"))
+	{
+		 activeInterfaceWifi = false;
+	}
+}
 #endif
+
+/**
+ * @brief Active streaming interface is wifi
+ *
+ * @return bool - true if wifi interface connected
+ */
+static bool IsActiveStreamingInterfaceWifi (void)
+{
+        bool wifiStatus = false;
+#ifdef IARM_MGR
+        IARM_Result_t ret = IARM_RESULT_SUCCESS;
+        IARM_BUS_NetSrvMgr_Iface_EventData_t param;
+
+        ret = IARM_Bus_Call("NET_SRV_MGR", "getActiveInterface", (void*)&param, sizeof(param));
+        if (ret != IARM_RESULT_SUCCESS) {
+                AAMPLOG_ERR("NET_SRV_MGR getActiveInterface read failed : %d", ret);
+        }
+        else
+        {
+                logprintf("NET_SRV_MGR getActiveInterface = %s", param.activeIface);
+                if (!strcmp(param.activeIface, "WIFI")){
+                        wifiStatus = true;
+                }
+        }
+        IARM_Bus_RegisterEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
+#endif
+        return wifiStatus;
+}
 
 /**
 * @brief helper function to avoid dependency on unsafe sscanf while reading strings
@@ -1419,6 +1495,11 @@ static void ProcessConfigEntry(std::string cfg)
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
+		else if (ReadConfigNumericHelper(cfg, "disableWifiCurlHeader=", value) == 1)
+                {
+                        gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
+                        logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
+                }
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1859,6 +1940,17 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
+	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
+		if (true == IsActiveStreamingInterfaceWifi()) {
+			mCustomHeaders["Wifi:"] = std::vector<std::string> { "1" };
+			activeInterfaceWifi = true;
+		}
+		else
+		{
+			mCustomHeaders["Wifi:"] = std::vector<std::string> { "0" };
+			activeInterfaceWifi = false;
+		}
+	}
 	// Add Connection: Keep-Alive custom header - DELIA-26832
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
@@ -1998,7 +2090,10 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	{
 		curl_share_cleanup(mCurlShared);
 		mCurlShared = NULL;
-	}
+        }
+#ifdef IARM_MGR
+	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
+#endif //IARM_MGR
 }
 
 /**
@@ -3596,6 +3691,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 									aamp_GetCurrentTimeMS());
 						}
 						headerValue = buf;
+					}
+					if (it->first.compare("Wifi:") == 0)
+					{
+						if (true == activeInterfaceWifi)
+						{
+							headerValue = "1";
+						}
+						else
+						{
+							 headerValue = "0";
+						}
 					}
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
