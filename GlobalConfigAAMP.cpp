@@ -74,7 +74,12 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0),
 	initFragmentRetryCount(-1), unknownValues(), useMatchingBaseUrl(eUndefinedState), bEnableSubtec(true), bWebVttNative(false),
 	nativeCCRendering(false), preferredCEA708(eUndefinedState)
-	,mInitRampdownLimit(-1), midFragmentSeekEnabled(false)
+	,mInitRampdownLimit(-1), midFragmentSeekEnabled(false),
+#ifdef IARM_MGR
+	wifiCurlHeaderEnabled(true)
+#else
+	wifiCurlHeaderEnabled(false)
+#endif
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
