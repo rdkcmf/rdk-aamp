@@ -48,12 +48,8 @@
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
-
-#ifdef PLATCO
-#define DEFAULT_DISCONTINUITY_TIMEOUT 0             /**< Default discontinuity timeout after cache is empty in MS, disabling on Platco. AMLOGIC-843 to track */
-#else
 #define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
-#endif
+
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10sec */
 #define FRAGMENT_DOWNLOAD_WARNING_THRESHOLD 2000    /**< MAX Fragment download threshold time in Msec*/
