@@ -47,6 +47,8 @@ using namespace WPEFramework;
 #define MEDIAPLAYER_CALLSIGN "org.rdk.MediaPlayer.1"
 #define APP_ID "MainPlayer"
 
+#define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
+
 void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
     std::string message;
     JsonObject playerData;
@@ -126,6 +128,10 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
     AAMPStatusType retval = eAAMPSTATUS_OK;
+
+    //activate RDK Shell
+    thunderRDKShellObj.ActivatePlugin(RDKSHELL_CALLSIGN);
+
 #endif
     return retval;
 }
@@ -272,6 +278,24 @@ void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 #endif
 }
 
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & screenHeight)
+{
+	 JsonObject param;
+	 JsonObject result;
+	 bool bRetVal = false;
+
+	 if( thunderRDKShellObj.InvokeJSONRPC("getScreenResolution", param, result) )
+	 {
+		 screenWidth = result["w"].Number();
+		 screenHeight = result["h"].Number();
+		 AAMPLOG_INFO( "StreamAbstractionAAMP_OTA:%s:%d screenWidth:%d screenHeight:%d  ",__FUNCTION__, __LINE__,screenWidth, screenHeight);
+		 bRetVal = true;
+	 }
+	 return bRetVal;
+}
+#endif
+
 /**
  * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h)
  *
@@ -296,6 +320,16 @@ void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
         param["y"] = y;
         param["w"] = w;
         param["h"] = h;
+        int screenWidth = 0;
+        int screenHeight = 0;
+        if(GetScreenResolution(screenWidth,screenHeight))
+        {
+		JsonObject meta;
+		meta["resWidth"] = screenWidth;
+		meta["resHeight"] = screenHeight;
+		param["meta"] = meta;
+        }
+
         thunderAccessObj.InvokeJSONRPC("setVideoRectangle", param, result);
 #endif
 }
