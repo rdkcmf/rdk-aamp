@@ -888,14 +888,8 @@ MediaTrack::~MediaTrack()
 
 	if (fragmentInjectorThreadStarted)
 	{
-		// TODO: DELIA-45035: For debugging purpose, remove later
+		// DELIA-45035: For debugging purpose
 		logprintf("In MediaTrack destructor - fragmentInjectorThreads are still running, signalling cond variable");
-		assert(false); // purposefully crash here to inspect stack trace and logs to identify sequences that result in this.
-#if 0
-		pthread_mutex_lock(&mutex);
-		pthread_cond_signal(&fragmentFetched);
-		pthread_mutex_unlock(&mutex);
-#endif
 	}
 
 	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
