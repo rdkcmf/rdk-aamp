@@ -555,12 +555,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmDecrypt(const uint32_t contextId,void
 					{
 						logprintf("[%s]->waiting for key acquisition to complete Ctx[%d],wait time:%d->State[%d]",__FUNCTION__,contextId,timeInMs ,metadata->mZeroDrmState);
 						struct timespec ts;
-						struct timeval tv;
-						gettimeofday(&tv, NULL);
-						ts.tv_sec = time(NULL) + timeInMs / 1000;
-						ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-						ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-						ts.tv_nsec %= (1000 * 1000 * 1000);
+						ts = aamp_GetTimespec(timeInMs);
 						if(ETIMEDOUT == pthread_cond_timedwait(&mJobStatusCondVar, &mMutexJSCondVar, &ts)) // block until drm ready
 						{
 							logprintf("[%s]-> Ctx[%d] wait for key acquisition timed out", __FUNCTION__, contextId);

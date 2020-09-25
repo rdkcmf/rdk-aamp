@@ -6052,13 +6052,8 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 	if (timeInMs > 0)
 	{
 		struct timespec ts;
-		struct timeval tv;
 		int ret;
-		gettimeofday(&tv, NULL);
-		ts.tv_sec = time(NULL) + timeInMs / 1000;
-		ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-		ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-		ts.tv_nsec %= (1000 * 1000 * 1000);
+		ts = aamp_GetTimespec(timeInMs);
 		pthread_mutex_lock(&mLock);
 		if (mDownloadsEnabled)
 		{

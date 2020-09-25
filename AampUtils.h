@@ -142,4 +142,11 @@ void trim(std::string& src);
  */
 std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
 
+/**
+ * @brief To get the timespec
+ * @param[in] timeInMs 
+ * @retval[out] timespec.
+ */
+struct timespec aamp_GetTimespec(int timeInMs);
+
 #endif  /* __AAMP_UTILS_H__ */
