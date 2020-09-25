@@ -670,3 +670,16 @@ std::string Getiso639map_NormalizeLanguageCode(std::string  lang )
         }
 	return lang;
 }
+
+struct timespec aamp_GetTimespec(int timeInMs)
+{
+	struct timespec tspec;
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        tspec.tv_sec = tv.tv_sec + timeInMs / 1000;
+        tspec.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
+        tspec.tv_sec += tspec.tv_nsec / (1000 * 1000 * 1000);
+        tspec.tv_nsec %= (1000 * 1000 * 1000);
+
+	return tspec;
+}
