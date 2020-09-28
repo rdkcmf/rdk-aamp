@@ -1150,6 +1150,14 @@ public:
 	void SetRetuneForUnpairedDiscontinuity(bool bValue);
 
 	/**
+	 *	 @brief Set retune configuration for gstpipeline internal data stream error.
+	 *	 @param[in] bValue - true if gst internal error retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForGSTInternalError(bool bValue);
+
+	/**
 	 *   @brief Indicates if session token has to be used with license request or not.
 	 *
 	 *   @param[in]  isAnonymous - True if session token should be blank and false otherwise.

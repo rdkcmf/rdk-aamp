@@ -862,6 +862,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			// Trying to play a 4K content on a non-4K TV .Report error to XRE with no retune
 			_this->aamp->SendErrorEvent(AAMP_TUNE_HDCP_COMPLIANCE_ERROR, errorDesc, false);
 		}
+		else if (strstr(error->message, "Internal data stream error") && _this->aamp->mUseRetuneForGSTInternalError)
+		{
+			// This can be executed only for Peacock when it hits Internal data stream error.
+			AAMPLOG_WARN("%s:%d Schedule retune for GstPipeline Error", __FUNCTION__, __LINE__);
+			_this->aamp->ScheduleRetune(eGST_ERROR_GST_PIPELINE_INTERNAL, eMEDIATYPE_VIDEO);
+		}
 		else
 		{
 			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc);
