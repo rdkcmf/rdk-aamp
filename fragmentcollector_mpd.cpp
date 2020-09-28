@@ -3363,7 +3363,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			mPendingKeyIDs.pop();
 	}
 
-	aamp->IsTuneTypeNew = false;
+	aamp->IsTuneTypeNew = newTune;
 
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
