@@ -69,7 +69,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #else
 	bPositionQueryEnabled(true),
 #endif
-	useRetuneForUnpairedDiscontinuity(eUndefinedState), uriParameter(NULL), customHeaderStr{""},
+	useRetuneForUnpairedDiscontinuity(eUndefinedState), uriParameter(NULL), customHeaderStr{""}, useRetuneForGSTInternalError(eUndefinedState),
 	minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN), maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP),
 	rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0),
 	initFragmentRetryCount(-1), unknownValues(), useMatchingBaseUrl(eUndefinedState), bEnableSubtec(true), bWebVttNative(false),

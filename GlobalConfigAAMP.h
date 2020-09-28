@@ -138,6 +138,7 @@ public:
 	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
 	TriState useRetuneForUnpairedDiscontinuity; /**< Used for unpaired discontinuity retune logic*/
+	TriState useRetuneForGSTInternalError;	/**< Retune mitigation for GST Internal data stream error*/
 	TriState mAsyncTuneConfig;		/**< Enalbe Async tune from application */
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/

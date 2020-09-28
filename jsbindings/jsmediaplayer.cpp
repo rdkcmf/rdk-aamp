@@ -242,6 +242,7 @@ enum ConfigParamType
 	ePARAM_LANG_CODE_PREFERENCE,
 	ePARAM_USE_DESCRIPTIVE_TRACK_NAME,
 	ePARAM_AUTHTOKEN,
+	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
 	ePARAM_MAX_COUNT
 };
 
@@ -301,6 +302,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_LANG_CODE_PREFERENCE, "langCodePreference" },
 	{ ePARAM_USE_DESCRIPTIVE_TRACK_NAME, "descriptiveTrackName" },
 	{ ePARAM_AUTHTOKEN, "authToken"},
+	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -738,6 +740,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_MATCHING_BASEURL:
 			case ePARAM_USE_NATIVE_CC:
 			case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
+			case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -827,6 +830,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 					privObj->_aamp->SetRetuneForUnpairedDiscontinuity(valueAsBoolean);
+					break;
+				case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
+					privObj->_aamp->SetRetuneForGSTInternalError(valueAsBoolean);
 					break;
 				case ePARAM_AVGBWFORABR:
 					privObj->_aamp->SetAvgBWForABR(valueAsBoolean);

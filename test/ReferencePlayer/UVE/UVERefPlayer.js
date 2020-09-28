@@ -214,6 +214,11 @@ var defaultInitConfig = {
     //useRetuneForUnpairedDiscontinuity: true,
 
     /**
+     * enable gst internal error retune mitigation config
+     */
+    //useRetuneForGSTInternalError: true,
+
+    /**
      * max attempts for init frag curl timeout failures
      */
     //initFragmentRetryCount: 3

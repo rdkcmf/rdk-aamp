@@ -193,6 +193,7 @@ reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow
 useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
+useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.
 curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
 customHeader=<customHeaderString> custom header string data to be appended to curl request
         Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
