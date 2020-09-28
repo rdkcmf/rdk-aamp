@@ -4039,6 +4039,11 @@ int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& value1, T
 			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
 			logprintf("useRetuneForUnpairedDiscontinuity=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useRetuneForGstInternalError=", value) == 1)
+		{
+			gpGlobalConfig->useRetuneForGSTInternalError = (TriState)(value != 0);
+			logprintf("useRetuneForGstInternalError=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "useWesterosSink=", value) == 1)
 		{
 			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
@@ -5207,6 +5212,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
 	ConfigureRetuneForUnpairedDiscontinuity();
+	ConfigureRetuneForGSTInternalError();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
@@ -8193,8 +8199,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
-									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
-									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" : "STARTTIME RESET";
+					(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
+					(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
+					(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
@@ -8327,6 +8334,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, prevPositionMiliseconds(-1)
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mUseRetuneForUnpairedDiscontinuity(true)
+	, mUseRetuneForGSTInternalError(true)
 	, mInitFragmentRetryCount(-1)
 	, mbPlayEnabled(true)
 	, mAampCacheHandler(new AampCacheHandler())
@@ -9877,6 +9885,19 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
     AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For Unpaired Discontinuity [%d]", __FUNCTION__, __LINE__, mUseRetuneForUnpairedDiscontinuity);
 }
 
+/**	
+ *   @brief To set retune configuration for gstpipeline internal data stream error.	
+ *
+ */	
+void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()	
+{
+    if(gpGlobalConfig->useRetuneForGSTInternalError != eUndefinedState)	
+    {
+	mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
+    }
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For GST Internal Stream Error [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);	
+}
+
 /**
  *   @brief Set unpaired discontinuity retune flag
  *   @param[in] bValue - true if unpaired discontinuity retune set
@@ -9887,6 +9908,18 @@ void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 {
     mUseRetuneForUnpairedDiscontinuity = bValue;
     AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+/**	
+ *   @brief Set retune configuration for gstpipeline internal data stream error.	
+ *   @param[in] bValue - true if gst internal error retune set
+ *
+ *   @return void	
+ */
+void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)	
+{
+	mUseRetuneForGSTInternalError = bValue;	
+	AAMPLOG_INFO("%s:%d Retune For GST Internal Stream Error Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**
@@ -10352,6 +10385,15 @@ void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
 const char* PrivateInstanceAAMP::GetNetworkProxy() const
 {
 	return mNetworkProxy;
+}
+
+/**
+ *   @brief Set retune configuration for gstpipeline internal data stream error.
+ */
+void PlayerInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetRetuneForGSTInternalError(bValue);
 }
 
 /**

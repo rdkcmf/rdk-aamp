@@ -208,7 +208,8 @@ enum PlaybackErrorType
 	eGST_ERROR_VIDEO_BUFFERING,     /**< Video buffering error */
 	eGST_ERROR_OUTPUT_PROTECTION_ERROR,     /**< Output Protection error */
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
-	eSTALL_AFTER_DISCONTINUITY      /** Playback stall after notifying discontinuity */
+	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
+	eGST_ERROR_GST_PIPELINE_INTERNAL	/** GstPipeline Internal Error */
 };
 
 
@@ -595,6 +596,7 @@ public:
 	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
 	TriState useRetuneForUnpairedDiscontinuity; /**< Used for unpaired discontinuity retune logic*/
+	TriState useRetuneForGSTInternalError;	/**< Retune mitigation for GST Internal data stream error*/
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
@@ -753,6 +755,7 @@ public:
 		,minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
 		,maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP)
 		,useRetuneForUnpairedDiscontinuity(eUndefinedState)
+		,useRetuneForGSTInternalError(eUndefinedState)
 		,initFragmentRetryCount(-1)
                 ,langCodePreference(0)
 		,bDescriptiveAudioTrack(false)
@@ -1778,6 +1781,7 @@ public:
 	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
 	bool mUseRetuneForUnpairedDiscontinuity;
+	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
@@ -2756,6 +2760,14 @@ public:
 	void SetRetuneForUnpairedDiscontinuity(bool bValue);
 
 	/**
+	 *	 @brief Set retune configuration for gstpipeline internal data stream error.
+	 *	 @param[in] bValue - true if gst internal error retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForGSTInternalError(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
@@ -3060,6 +3072,12 @@ public:
 	 *
 	 */
 	void ConfigureRetuneForUnpairedDiscontinuity();
+
+	/**
+	 *	 @brief To set retune configuration for gstpipeline internal data stream error.
+	 *
+	 */
+	void ConfigureRetuneForGSTInternalError();
 
 	/**
 	 *	 @brief Function to configure PreCachePlaylist

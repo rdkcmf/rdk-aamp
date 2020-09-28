@@ -236,6 +236,7 @@ enum ConfigParamType
 	ePARAM_SEGMENTINJECTLIMIT,
 	ePARAM_DRMDECRYPTLIMIT,
 	ePARAM_USE_MATCHING_BASEURL,
+	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
 	ePARAM_MAX_COUNT
 };
 
@@ -291,6 +292,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
 	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
+	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -723,6 +725,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_AVGBWFORABR:
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 			case ePARAM_USE_MATCHING_BASEURL:
+			case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -812,6 +815,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 					privObj->_aamp->SetRetuneForUnpairedDiscontinuity(valueAsBoolean);
+					break;
+				case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
+					privObj->_aamp->SetRetuneForGSTInternalError(valueAsBoolean);
 					break;
 				case ePARAM_AVGBWFORABR:
 					privObj->_aamp->SetAvgBWForABR(valueAsBoolean);
