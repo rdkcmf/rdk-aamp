@@ -1405,6 +1405,15 @@ void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 }
 
 /**
+ *   @brief Set retune configuration for gstpipeline internal data stream error.
+ */
+void PlayerInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetRetuneForGSTInternalError(bValue);
+}
+
+/**
  *   @brief Setting the alternate contents' (Ads/blackouts) URL.
  *
  *   @param[in] Adbreak's unique identifier.
