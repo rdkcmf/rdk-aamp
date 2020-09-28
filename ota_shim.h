@@ -75,6 +75,9 @@ private:
     ThunderAccessAAMP thunderAccessObj;
     std::string prevState;
     bool tuned;
+
+    ThunderAccessAAMP thunderRDKShellObj;
+    bool GetScreenResolution(int & screenWidth, int & screenHeight);
 #endif
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
