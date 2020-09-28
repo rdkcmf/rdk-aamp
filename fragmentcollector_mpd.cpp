@@ -3038,7 +3038,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();
 
-	aamp->IsTuneTypeNew = false;
+	aamp->IsTuneTypeNew = newTune;
 
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);

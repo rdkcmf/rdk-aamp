@@ -1059,12 +1059,13 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 
 		bool lGetBWIndex = false;
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond))
+		if(aamp->mLogTimetoTopProfile && cacheFragStreamInfo.bandwidthBitsPerSecond == GetMaxBitrate())
 		{
 			MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 			logprintf("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f", cacheFragStreamInfo.bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
-			aamp->IsTuneTypeNew = false;
+			aamp->mLogTimetoTopProfile = false;
 			lGetBWIndex = true;
+
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
