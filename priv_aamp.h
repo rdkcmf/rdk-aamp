@@ -598,6 +598,7 @@ public:
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
+	bool mLogTimetoTopProfile; /* Flag for logging time to top profile ,only one time after tune .*/
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;

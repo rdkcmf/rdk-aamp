@@ -1756,7 +1756,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
+	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
@@ -4922,7 +4922,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-		
+	mLogTimetoTopProfile = true;	
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
