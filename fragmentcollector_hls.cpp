@@ -618,6 +618,7 @@ static char *mystrpbrk(char *ptr)
 ***************************************************************************/
 static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim, char *fin, void *context), void *context)
 {
+	char *origParseStr = attrName;
 	while (*attrName)
 	{
 		while (*attrName == ' ')
@@ -631,7 +632,13 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 		}
 		while (*delimEqual != '=')
 		{ // An AttributeName is an unquoted string containing characters from the set [A..Z], [0..9] and '-'
-			delimEqual++;
+			char c = *delimEqual++;
+			if(c < ' ')
+			{
+				// if 0x00, newline, or other unprintable characters, bail out
+				AAMPLOG_WARN("%s:%d Missing equal delimiter %s", __FUNCTION__, __LINE__,origParseStr);
+				return;
+			}
 		}
 		char *fin = delimEqual;
 		bool inQuote = false;
@@ -2122,13 +2129,14 @@ void TrackState::FetchFragment()
 							context->mCheckForRampdown = true;
 							// Rampdown attempt success, download same segment from lower profile.
 							mSkipSegmentOnError = false;
+						
+							AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 						}
 						else
 						{
 							AAMPLOG_WARN("%s:%d %s Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__,name);
 							context->mRampDownCount = 0;
 						}
-						AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 					}
 				}
 				else if (decryption_error)
