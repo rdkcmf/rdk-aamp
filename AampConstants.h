@@ -17,22 +17,21 @@
  * limitations under the License.
 */
 
-#ifndef AAMPDRMMEDIAFORMAT_H
-#define AAMPDRMMEDIAFORMAT_H
-
 /**
- * @brief Media format types
+ * @file AampConstants.h
+ * @brief Constants in AAMP
  */
-typedef enum
-{
-	eMEDIAFORMAT_HLS,
-	eMEDIAFORMAT_DASH,
-	eMEDIAFORMAT_PROGRESSIVE,
-	eMEDIAFORMAT_HLS_MP4,
-        eMEDIAFORMAT_OTA,
-        eMEDIAFORMAT_HDMI,
-	eMEDIAFORMAT_UNKNOWN
-} MediaFormat;
 
-#endif /* AAMPDRMMEDIAFORMAT_H */
+#ifndef __AAMP_CONSTANTS_H__
+#define __AAMP_CONSTANTS_H__
+
+//DRM UUIDs
+#define PLAYREADY_UUID "9a04f079-9840-4286-ab92-e65be0885f95"
+#define WIDEVINE_UUID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+#define CLEARKEY_UUID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
+#define CONSEC_AGNOSTIC_UUID "afbcb50e-bf74-3d13-be8f-13930c783962"
+
+#define AAMP_MAX_PIPE_DATA_SIZE 1024    /**< Max size of data send across pipe */
+
+#endif /* __AAMP_CONSTANTS_H__ */
 

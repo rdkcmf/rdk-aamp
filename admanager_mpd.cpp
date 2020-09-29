@@ -23,6 +23,7 @@
  */
 
 #include "admanager_mpd.h"
+#include "AampUtils.h"
 #include "fragmentcollector_mpd.h"
 #include <inttypes.h>
 
@@ -478,9 +479,10 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	GrowableBuffer manifest;
 	bool gotManifest = false;
 	long http_error = 0;
+	double downloadTime = 0;
 	std::string effectiveUrl;
 	memset(&manifest, 0, sizeof(manifest));
-	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, NULL, eCURLINSTANCE_DAI);
+	gotManifest = mAamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_DAI);
 	if (gotManifest)
 	{
 		AAMPLOG_TRACE("PrivateCDAIObjectMPD::%s - manifest download success", __FUNCTION__);
@@ -518,7 +520,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 			GrowableBuffer fogManifest;
 			memset(&fogManifest, 0, sizeof(manifest));
 			http_error = 0;
-			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, NULL, eCURLINSTANCE_DAI);
+			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_DAI);
 			if(200 == http_error || 204 == http_error)
 			{
 				manifestUrl = effectiveUrl;

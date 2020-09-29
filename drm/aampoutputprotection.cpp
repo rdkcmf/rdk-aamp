@@ -19,7 +19,7 @@
 
 /**
  * @file aampoutputprotection.cpp
- * @brief Comcast Output protection management for Aamp
+ * @brief Output protection management for Aamp
  */
 
 

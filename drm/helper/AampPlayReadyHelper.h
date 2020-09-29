@@ -77,9 +77,6 @@ public:
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 
 	bool isDRM(const struct DrmInfo& drmInfo) const;
-
-private:
-	const std::string PLAYREADY_UUID{"9a04f079-9840-4286-ab92-e65be0885f95"};
 };
 
 #endif //_AAMP_PLAYREADY_HELPER_H

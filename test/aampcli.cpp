@@ -123,6 +123,7 @@ typedef enum{
 	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
 	eAAMP_SET_RampDownLimit,
+	eAAMP_SET_InitRampdownLimit,
 	eAAMP_SET_MinimumBitrate,
 	eAAMP_SET_MaximumBitrate,
 	eAAMP_SET_MaximumSegmentInjFailCount,
@@ -358,17 +359,18 @@ void ShowHelpSet(){
 	logprintf("30 - Set Parallel Playlist download (0/1)");
 	logprintf("31 - Set Preferred languages (string \"lang1, lang2, ...\")");
 	logprintf("32 - Set Ramp Down limit");
-	logprintf("33 - Set Minimum bitrate");
-	logprintf("34 - Set Maximum bitrate");
-	logprintf("35 - Set Maximum segment injection fail count");
-	logprintf("36 - Set Maximum DRM Decryption fail count");
-	logprintf("37 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
-	logprintf("38 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
-	logprintf("39 - Set Initial Buffer Duration (int in sec)");
-	logprintf("40 - Set AudioTrack (int track index)" );
-	logprintf("41 - Set TextTrack (int track index)" );
-	logprintf("42 - Set CC status (0/1)" );
-	logprintf("43 - Set a predefined CC style option (1/2/3)" );
+	logprintf("33 - Set Init Ramp Down limit");
+	logprintf("34 - Set Minimum bitrate");
+	logprintf("35 - Set Maximum bitrate");
+	logprintf("36 - Set Maximum segment injection fail count");
+	logprintf("37 - Set Maximum DRM Decryption fail count");
+	logprintf("38 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
+	logprintf("39 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
+	logprintf("40 - Set Initial Buffer Duration (int in sec)");
+	logprintf("41 - Set AudioTrack (int track index)" );
+	logprintf("42 - Set TextTrack (int track index)" );
+	logprintf("43 - Set CC status (0/1)" );
+	logprintf("44 - Set a predefined CC style option (1/2/3)" );
 }
 
 #define LOG_CLI_EVENTS
@@ -379,7 +381,7 @@ static class PlayerInstanceAAMP *mpPlayerInstanceAAMP;
  * @class myAAMPEventListener
  * @brief
  */
-class myAAMPEventListener :public AAMPEventListener
+class myAAMPEventListener :public AAMPEventObjectListener
 {
 public:
 
@@ -387,23 +389,34 @@ public:
 	 * @brief Implementation of event callback
 	 * @param e Event
 	 */
-	void Event(const AAMPEvent & e)
+	void Event(const AAMPEventPtr& e)
 	{
-		switch (e.type)
+		switch (e->getType())
 		{
 		case AAMP_EVENT_STATE_CHANGED:
-			logprintf("AAMP_EVENT_STATE_CHANGED: %d", e.data.stateChanged.state);
-			break;
-		case AAMP_EVENT_SEEKED:
-			logprintf("AAMP_EVENT_SEEKED: new positionMs %f", e.data.seeked.positionMiliseconds);
-			break;
-		case AAMP_EVENT_MEDIA_METADATA:
-			logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
-			for( int i=0; i<e.data.metadata.languageCount; i++ )
 			{
-				logprintf( "language: %s\n", e.data.metadata.languages[i] );
+				StateChangedEventPtr ev = std::dynamic_pointer_cast<StateChangedEvent>(e);
+				logprintf("AAMP_EVENT_STATE_CHANGED: %d", ev->getState());
+				break;
 			}
-			break;
+		case AAMP_EVENT_SEEKED:
+			{
+				SeekedEventPtr ev = std::dynamic_pointer_cast<SeekedEvent>(e);
+				logprintf("AAMP_EVENT_SEEKED: new positionMs %f", ev->getPosition());
+				break;
+			}
+		case AAMP_EVENT_MEDIA_METADATA:
+			{
+				MediaMetadataEventPtr ev = std::dynamic_pointer_cast<MediaMetadataEvent>(e);
+				std::vector<std::string> languages = ev->getLanguages();
+				int langCount = ev->getLanguagesCount();
+				logprintf("AAMP_EVENT_MEDIA_METADATA\n" );
+				for (int i = 0; i < langCount; i++)
+				{
+					logprintf("language: %s\n", languages[i].c_str());
+				}
+				break;
+			}
 		case AAMP_EVENT_TUNED:
 			logprintf("AAMP_EVENT_TUNED");
 			break;
@@ -424,7 +437,6 @@ public:
 			break;
 		case AAMP_EVENT_PROGRESS:
 			//logprintf("AAMP_EVENT_PROGRESS");
-			//logprintf("videoBufferedMilliseconds: %.0f", e.data.progress.videoBufferedMiliseconds);
 			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			logprintf("AAMP_EVENT_CC_HANDLE_RECEIVED");
@@ -433,16 +445,20 @@ public:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
 		case AAMP_EVENT_ID3_METADATA:
-			logprintf("AAMP_EVENT_ID3_METADATA");
-
-			logprintf("ID3 payload, length %d bytes:", e.data.id3Metadata.length);
-			printf("\t");
-			for (int i = 0; i < e.data.id3Metadata.length; i++)
 			{
-				printf("%c", *(e.data.id3Metadata.data+i));
+				logprintf("AAMP_EVENT_ID3_METADATA");
+				ID3MetadataEventPtr ev = std::dynamic_pointer_cast<ID3MetadataEvent>(e);
+				std::vector<uint8_t> metadata = ev->getMetadata();
+				int len = ev->getMetadataSize();
+				logprintf("ID3 payload, length %d bytes:", len);
+				printf("\t");
+				for (int i = 0; i < len; i++)
+				{
+					printf("%c", metadata[i]);
+				}
+				printf("\n");
+				break;
 			}
-			printf("\n");
-			break;
 		default:
 			break;
 		}
@@ -477,7 +493,9 @@ static void ProcessCLIConfEntry(char *cfg)
 					else if (
 							 memcmp(token, "udp:", 4)==0 ||
 							 memcmp(token, "http:", 5) == 0 ||
-							 memcmp(token, "https:", 6) == 0 )
+							 memcmp(token, "https:", 6) == 0 ||
+							 memcmp(token, "hdmiin:", 7) == 0 ||
+							 memcmp(token, "live:", 5) == 0)
 					{
 						channelInfo.uri = token;
 					}
@@ -1076,7 +1094,15 @@ static void ProcessCliCommand(char *cmd)
 						mSingleton->SetPreferredLanguages(NULL);
 					break;
 				}
-
+				case eAAMP_SET_InitRampdownLimit:
+                                {
+					int rampDownLimit;
+					logprintf("Matched Command eAAMP_SET_InitRampdownLimit - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
+						mSingleton->SetInitRampdownLimit(rampDownLimit);
+					}
+					break;
+                                }
 				case eAAMP_SET_RampDownLimit:
                                 {
 					int rampDownLimit;

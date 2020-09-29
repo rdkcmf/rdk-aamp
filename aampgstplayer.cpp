@@ -184,9 +184,16 @@ struct AAMPGstPlayerPriv
 class Id3CallbackData
 {
 public:
+	Id3CallbackData(class AAMPGstPlayer *instance, const uint8_t* ptr, uint32_t len) : _this(instance), data()
+	{
+		data = std::vector<uint8_t>(ptr, ptr + len);
+	}
+	Id3CallbackData() = delete;
+	Id3CallbackData(const Id3CallbackData&) = delete;
+	Id3CallbackData& operator=(const Id3CallbackData&) = delete;
+
 	class AAMPGstPlayer* _this; // AAMPGstPlayer instance
-	uint8_t* data; // Pointer to start of id3 metadata
-	int32_t len; // Length of id3 metadata
+	std::vector<uint8_t> data; //id3 metadata
 };
 
 
@@ -558,7 +565,7 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
 {
 	Id3CallbackData *id3 = (Id3CallbackData*)user_data;
 
-	id3->_this->aamp->SendId3MetadataEvent(id3->data, id3->len);
+	id3->_this->aamp->SendId3MetadataEvent(id3->data);
 	id3->_this->privateContext->id3MetadataCallbackTaskPending = false;
 	id3->_this->privateContext->id3MetadataCallbackIdleTaskId = 0;
 
@@ -997,7 +1004,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 				}
 #endif
-#if defined(INTELCE) || (defined(__APPLE__))
+#if defined(INTELCE) || defined(RPI) || (defined(__APPLE__))
 				if(!_this->privateContext->firstFrameReceived)
 				{
 					_this->privateContext->firstFrameReceived = true;
@@ -1007,7 +1014,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				_this->aamp->NotifyFirstFrameReceived();
 #endif
 
-#if defined(INTELCE) || defined(__APPLE__)
+#if defined(INTELCE) || defined(RPI) || defined(__APPLE__)
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
@@ -1147,27 +1154,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		GstClockTime running_time;
 		gst_message_parse_reset_time (msg, &running_time);
 		printf("GST_MESSAGE_RESET_TIME %llu\n", (unsigned long long)running_time);
-		break;
-#endif
-
-#ifdef USE_GST1
-	case GST_MESSAGE_NEED_CONTEXT:
-
-		/*
-		 * Code to avoid logs flooding with NEED-CONTEXT message for DRM systems
-		 */
-		/*
-		const gchar* contextType;
-		gst_message_parse_context_type(msg, &contextType);
-		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
-		{
-			logprintf("Setting Playready context");
-			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
-			GstStructure* contextStructure = gst_context_writable_structure(context);
-			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, "9a04f079-9840-4286-ab92-e65be0885f95", NULL);
-			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
-		}
-		*/
 		break;
 #endif
 
@@ -1908,7 +1894,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
  * @param[in] length length of segment buffer
  * @retval true if segment has an ID3 section
  */
-bool hasId3Header(MediaType mediaType, StreamOutputFormat format, const uint8_t* data, int32_t length)
+bool hasId3Header(MediaType mediaType, const uint8_t* data, int32_t length)
 {
 	if ((mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_VIDEO || mediaType == eMEDIATYPE_DSM_CC)
 		&& length >= 3)
@@ -1973,34 +1959,30 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
 
 	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
-		hasId3Header(mediaType, privateContext->stream[eMEDIATYPE_AUDIO].format,
-								static_cast<const uint8_t*>(ptr), len0))
+		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len0))
 	{
-		Id3CallbackData* id3Metadata = new Id3CallbackData;
-		id3Metadata->_this = this;
-		id3Metadata->len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
-		if (id3Metadata->len
-				&& (id3Metadata->len != privateContext->lastId3DataLen
-						|| !privateContext->lastId3Data
-						|| (memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
+		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
+		if (len && (len != privateContext->lastId3DataLen ||
+					!privateContext->lastId3Data ||
+					(memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
 		{
 			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
 			FlushLastId3Data();
-			id3Metadata->data = (uint8_t*)g_malloc(id3Metadata->len);
-			privateContext->lastId3Data = (uint8_t*)g_malloc(id3Metadata->len);
-			//TODO: Consider maximum length for ID3 data - spec allows 256MB
-			if (id3Metadata->data)
-			{
-				memcpy(id3Metadata->data, ptr, id3Metadata->len);
-			}
+			Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len);
+			privateContext->lastId3Data = (uint8_t*)g_malloc(len);
 			if (privateContext->lastId3Data)
 			{
-				privateContext->lastId3DataLen = id3Metadata->len;
-				memcpy(privateContext->lastId3Data, ptr, id3Metadata->len);
+				privateContext->lastId3DataLen = len;
+				memcpy(privateContext->lastId3Data, ptr, len);
 			}
 
 			privateContext->id3MetadataCallbackTaskPending = true;
 			privateContext->id3MetadataCallbackIdleTaskId = g_idle_add(IdleCallbackOnId3Metadata, id3Metadata);
+			if (!privateContext->id3MetadataCallbackTaskPending)
+			{
+				logprintf("%s:%d id3MetadataCallbackTask already finished, reset id", __FUNCTION__, __LINE__);
+				privateContext->id3MetadataCallbackIdleTaskId = 0;
+			}
 		}
 	}
 
@@ -2022,7 +2004,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	}
 	else
 	{
-		//For Dash, if using playersinkbin, broadcom plugins has buffer size limitation.
+		//For TS, if using playersinkbin, broadcom plugins has buffer size limitation.
 		maxBytes = MAX_BYTES_TO_SEND;
 	}
 #ifdef TRACE_VID_PTS
@@ -2993,9 +2975,10 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
  */
 void AAMPGstPlayer::SetAudioVolume(int volume)
 {
-	privateContext->audioVolume = volume / 100.0;
 
+	privateContext->audioVolume = volume / 100.0;
 	setVolumeOrMuteUnMute();
+
 }
 
 

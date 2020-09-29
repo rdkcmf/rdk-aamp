@@ -1,5 +1,14 @@
 #include <openssl/evp.h>
 
+EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void)
+{
+	return NULL;
+}
+
+void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
+{
+}
+
 void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *a)
 {
 }

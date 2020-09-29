@@ -561,7 +561,7 @@ bool MediaTrack::InjectFragment()
 #endif
 #endif
 				}
-				if (eTRACK_VIDEO == type)
+				if (eTRACK_VIDEO == type && GetContext()->GetProfileCount())
 				{
 					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
@@ -1005,27 +1005,29 @@ double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
  */
 int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 {
-	int desiredProfileIndex;
-	if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
+	int desiredProfileIndex = 0;
+	if(GetProfileCount())
 	{
-		desiredProfileIndex = GetIframeTrack();
+		if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
+		{
+			desiredProfileIndex = GetIframeTrack();
+		}
+		else
+		{
+			desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
+		}
+		profileIdxForBandwidthNotification = desiredProfileIndex;
+		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+		if(video)
+		{
+			video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
+		}
+		else
+		{
+			AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
+		}
+		AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
 	}
-	else
-	{
-		desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
-	}
-	profileIdxForBandwidthNotification = desiredProfileIndex;
-	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
-	if(video)
-	{
-		video->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
-	}
-	else
-	{
-		AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
-	}
-	AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
-
 	return desiredProfileIndex;
 }
 
@@ -1037,7 +1039,7 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
  */
 void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position)
 {
-	if (profileIndex != aamp->GetPersistedProfileIndex())
+	if (profileIndex != aamp->GetPersistedProfileIndex() && cacheFragStreamInfo.bandwidthBitsPerSecond != 0)
 	{
 		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
 
@@ -1433,7 +1435,7 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 
 	if (!aamp->IsTSBSupported())
 	{
-		if (http_error == 404 || http_error == 500 || http_error == 503 || http_error == CURLE_PARTIAL_FILE)
+		if (http_error == 404 || http_error == 502 || http_error == 500 || http_error == 503 || http_error == CURLE_PARTIAL_FILE)
 		{
 			if (RampDownProfile(http_error))
 			{

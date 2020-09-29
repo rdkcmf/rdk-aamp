@@ -25,6 +25,7 @@
 #ifndef STREAMABSTRACTIONAAMP_H
 #define STREAMABSTRACTIONAAMP_H
 
+#include "AampMemoryUtils.h"
 #include "priv_aamp.h"
 #include <map>
 #include <iterator>
@@ -926,6 +927,14 @@ public:
 	 *   @return int - index of current text track
 	 */
 	int GetTextTrack();
+
+	/**
+	 * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h) for OTA streams only
+	 *
+	 * @param[in] x,y - position coordinates of video rectangle
+	 * @param[in] wxh - width & height of video rectangle
+	 */
+	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
 
 protected:
 	/**

@@ -35,6 +35,7 @@ pkg_check_modules(CURL REQUIRED libcurl)
 pkg_check_modules(LibXml2 REQUIRED libxml-2.0)
 pkg_check_modules(LIBDASH REQUIRED libdash)
 pkg_check_modules(OPENSSL REQUIRED openssl)
+pkg_check_modules(LIBCJSON REQUIRED libcjson)
 
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
 	message("CMAKE_QT5WEBKIT_JSBINDINGS set, require Qt5WebKit")
@@ -55,12 +56,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
         COMMAND bash -c "xcrun --show-sdk-path" OUTPUT_VARIABLE osxSdkPath OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     set(OS_CXX_FLAGS "${OS_CXX_FLAGS} -g -x objective-c++ -Wno-inconsistent-missing-override -F${osxSdkPath}/System/Library/Frameworks")
-    set(OS_LD_FLAGS "${OS_LD_FLAGS} -F${osxSdkPath}/System/Library/Frameworks -framework Cocoa")
+    set(OS_LD_FLAGS "${OS_LD_FLAGS} -F${osxSdkPath}/System/Library/Frameworks -framework Cocoa -L${osxSdkPath}/../MacOSX.sdk/usr/lib -L/usr/local/lib/")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isysroot ${osxSdkPath}/../MacOSX.sdk -I/usr/local/include")
     string(STRIP ${OS_LD_FLAGS} OS_LD_FLAGS)
     set(AAMP_CLI_LD_FLAGS "${AAMP_CLI_LD_FLAGS} -lgstvideo-1.0")
     string(STRIP ${AAMP_CLI_LD_FLAGS} AAMP_CLI_LD_FLAGS)
     set(AAMP_OS_SOURCES cocoa_window.mm)
     link_directories(${OPENSSL_LIBRARY_DIRS})
+    set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+    set(CMAKE_HAVE_THREADS_LIBRARY 1)
 else()
     set(LIB_SHARED SHARED)
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
@@ -72,41 +76,47 @@ endif()
 
 find_package (Threads REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle metrics isobmff)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle isobmff)
 include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${CURL_INCLUDE_DIRS})
 include_directories(${GSTREAMERBASE_INCLUDE_DIRS})
 include_directories(${LIBDASH_INCLUDE_DIRS})
 include_directories(${LibXml2_INCLUDE_DIRS})
 include_directories(${OPENSSL_INCLUDE_DIRS})
+include_directories(${OPENGL_INCLUDE_DIRS})
+include_directories(${GLEW_INCLUDE_DIRS})
+include_directories(${LIBCJSON_INCLUDE_DIRS})
 
 set(LIBAAMP_SOURCES iso639map.cpp
                     base16.cpp
+                    ota_shim.cpp
+                    hdmiin_shim.cpp
+                    _base64.cpp
+                    AampMemoryUtils.cpp
+                    AampCacheHandler.cpp
+                    AampUtils.cpp
+                    AampJsonObject.cpp
+                    AampProfiler.cpp
+                    GlobalConfigAAMP.cpp
+                    AampEvent.cpp
+                    AampEventListener.cpp
                     fragmentcollector_progressive.cpp
                     fragmentcollector_hls.cpp
                     fragmentcollector_mpd.cpp
                     admanager_mpd.cpp
                     streamabstraction.cpp
-                    _base64.cpp
                     drm/ave/drm.cpp
+                    priv_aamp.cpp
                     main_aamp.cpp
                     aampgstplayer.cpp
                     tsprocessor.cpp
                     drm/aes/aamp_aes.cpp
                     aamplogging.cpp
                     subtitle/webvttParser.cpp
-                    AampCacheHandler.cpp
-                    metrics/HTTPStatistics.cpp
-                    metrics/LicnStatistics.cpp
-                    metrics/FragmentStatistics.cpp
-                    metrics/VideoStat.cpp
-                    metrics/ProfileInfo.cpp
                     isobmff/isobmffbox.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
-                    AampUtils.cpp
-                    AampJsonObject.cpp
 )
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
@@ -174,8 +184,8 @@ include_directories(subtec)
 
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
-	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
+	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer -lmetrics")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM -DSESSION_STATS")
 	set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
 	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
@@ -405,11 +415,11 @@ install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)
 
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
-install(FILES drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
+install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
-  drm/helper/AampDrmHelper.h subtitle/vttCue.h metrics/VideoStat.h metrics/HTTPStatistics.h 
-  metrics/FragmentStatistics.h metrics/LicnStatistics.h metrics/ProfileInfo.h AampUtils.h
+  drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

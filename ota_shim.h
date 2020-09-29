@@ -18,12 +18,12 @@
 */
 
 /**
- * @file fragmentcollector_progressive.h
- * @brief Streamer for progressive mp3/mp4 playback
+ * @file ota_shim.h
+ * @brief shim for dispatching UVE OTA ATSC playback
  */
 
-#ifndef FRAGMENTCOLLECTOR_PROGRESSIVE_H_
-#define FRAGMENTCOLLECTOR_PROGRESSIVE_H_
+#ifndef OTA_SHIM_H_
+#define OTA_SHIM_H_
 
 #include "StreamAbstractionAAMP.h"
 #include <string>
@@ -31,16 +31,16 @@
 using namespace std;
 
 /**
- * @class StreamAbstractionAAMP_PROGRESSIVE
- * @brief Streamer for progressive mp3/mp4 playback
+ * @class StreamAbstractionAAMP_OTA
+ * @brief Fragment collector for OTA
  */
-class StreamAbstractionAAMP_PROGRESSIVE : public StreamAbstractionAAMP
+class StreamAbstractionAAMP_OTA : public StreamAbstractionAAMP
 {
 public:
-    StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
-    ~StreamAbstractionAAMP_PROGRESSIVE();
-    StreamAbstractionAAMP_PROGRESSIVE(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
-    StreamAbstractionAAMP_PROGRESSIVE& operator=(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
+    StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    ~StreamAbstractionAAMP_OTA();
+    StreamAbstractionAAMP_OTA(const StreamAbstractionAAMP_OTA&) = delete;
+    StreamAbstractionAAMP_OTA& operator=(const StreamAbstractionAAMP_OTA&) = delete;
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
@@ -58,18 +58,13 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
-
-    void FetcherLoop();
+    void NotifyFirstVideoPTS(unsigned long long pts) { };
+    void SetVideoRectangle(int x, int y, int w, int h) override;
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
-private:
-    void StreamFile( const char *uri, long *http_error );
-    bool fragmentCollectorThreadStarted;
-    pthread_t fragmentCollectorThreadID;
 };
 
-#endif //FRAGMENTCOLLECTOR_PROGRESSIVE_H_
+#endif //OTA_SHIM_H_
 /**
  * @}
  */

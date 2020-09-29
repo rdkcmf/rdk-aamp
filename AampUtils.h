@@ -26,8 +26,16 @@
 #ifndef __AAMP_UTILS_H__
 #define __AAMP_UTILS_H__
 
+#include "AampDrmSystems.h"
+#include "main_aamp.h"
+#include "iso639map.h"
+
 #include <string>
 #include <sstream>
+#include <chrono>
+
+#define NOW_SYSTEM_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()     /**< Getting current system clock in milliseconds */
+#define NOW_STEADY_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()     /**< Getting current steady clock in milliseconds */
 
 /**
  * @brief Get current time from epoch is milliseconds
@@ -74,5 +82,64 @@ void aamp_DecodeUrlParameter( std::string &uriParam );
  * @retval durationMs duration in milliseconds
  */
 double ISO8601DateTimeToUTCSeconds(const char *ptr);
+
+/**
+ * @brief aamp_PostJsonRPC posts JSONRPC data
+ * @param[in] id string containing player id
+ * @param[in] method string containing JSON method
+ * @param[in] params string containing params:value pair list
+ */
+std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params );
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
+
+/**
+ * @brief Get name of DRM system
+ * @param drmSystem drm system
+ * @retval Name of the DRM system, empty string if not supported
+ */
+const char * GetDrmSystemName(DRMSystems drmSystem);
+
+/**
+ * @brief Get DRM system from ID
+ * @param ID of the DRM system, empty string if not supported
+ * @retval drmSystem drm system
+ */
+DRMSystems GetDrmSystem(std::string drmSystemID);
+
+/**
+ * @brief Get ID of DRM system
+ * @param drmSystem drm system
+ * @retval ID of the DRM system, empty string if not supported
+ */
+const char * GetDrmSystemID(DRMSystems drmSystem);
+
+/**
+ * @brief Encode URL
+ *
+ * @param[in] inStr - Input URL
+ * @param[out] outStr - Encoded URL
+ * @return Encoding status
+ */
+bool UrlEncode(std::string inStr, std::string &outStr);
+
+/**
+ * @brief Trim a string
+ * @param[in][out] src Buffer containing string
+ */
+void trim(std::string& src);
+
+/**
+ * @brief To get the preferred iso639mapped language code
+ * @param[in] lang
+ * @retval[out] preferred iso639 mapped language.
+ */
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
 
 #endif  /* __AAMP_UTILS_H__ */

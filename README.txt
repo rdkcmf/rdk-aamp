@@ -116,8 +116,8 @@ appSrcForProgressivePlayback // Enables appsrc for playing progressive AV type
 decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp error
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
-forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to test Dolby track.
-disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in comcast live environment to disable Dolby track.
+forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in live environment to test Dolby track.
+disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in live environment to disable Dolby track.
 		//This flag makes AAC preferred over ATMOS and DD+
 		//Default priority of audio selction is ATMOS, DD+ then AAC
 disableATMOS=1 //For playback makes DD+ or AAC preferred over ATMOS (EC+3)
@@ -129,6 +129,7 @@ enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events 
 map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
+map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
 min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
 manifestTimeout=<manifest download time out> Specify manifest download time out in seconds, default is 10 seconds
@@ -197,8 +198,10 @@ langcodepref=<X>
 	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
+useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
+initRampdownLimit=<X> Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
 minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
@@ -219,13 +222,14 @@ This can be done for n number of channels.
 
 =================================================================================================================
 
-To enable Westeros
+To disable Westeros
 -------------------
 
-Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
-flag in SetEnv.sh under /opt, then restart the receiver process:
+Westeros is default enabled .
+Developers can enable broadcom encoder via SetEnv as below.
+Export  below flag in SetEnv.sh under /opt, then restart the receiver process:
 
-	export AAMP_ENABLE_WESTEROS_SINK=true
+	export AAMP_ENABLE_WESTEROS_SINK=false
 
 Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
 instead of going through browser rendering.  This allows for smoother video zoom animations
@@ -274,7 +278,7 @@ version#3
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime
 
 version#4
-version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune
+version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
 
 MicroEvents Information
 =====================

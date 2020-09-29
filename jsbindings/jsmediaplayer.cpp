@@ -28,14 +28,15 @@
 #include "jseventlistener.h"
 #include <vector>
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.6"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.7"
 
 extern "C"
 {
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
-static pthread_t tuneThreadId = 0;
+static pthread_t tuneThreadId;
+static bool tuneThreadIdIsValid = false;
 static bool bTuneInProgress = false;
 
 /**
@@ -222,12 +223,12 @@ enum ConfigParamType
 	ePARAM_MANIFESTTIMEOUT,
 	ePARAM_PLAYLISTTIMEOUT,
 	ePARAM_PARALLELPLAYLISTDL,
-	ePARAM_USE_WESTEROS_SINK,
 	ePARAM_AVGBWFORABR,
 	ePARAM_PROGRESSREPORTINTERVAL,
 	ePARAM_PARALLELPLAYLISTREFRESH,
 	ePARAM_PRECACHEPLAYLISTTIME,
 	ePARAM_USE_NEWABR,
+	ePARAM_INIT_RAMPDOWN_LIMIT,
 	ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY,
 	ePARAM_USE_NEW_ADBREAKER,
 	ePARAM_INIT_FRAGMENT_RETRY_COUNT,
@@ -280,12 +281,12 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_DOWNLOADSTARTTIMEOUT, "downloadStartTimeout" },
 	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
 	{ ePARAM_PARALLELPLAYLISTDL, "parallelPlaylistDownload" },
-	{ ePARAM_USE_WESTEROS_SINK, "useWesterosSink" },
 	{ ePARAM_AVGBWFORABR, "useAverageBandwidth" },
 	{ ePARAM_PROGRESSREPORTINTERVAL, "progressReportingInterval" },
 	{ ePARAM_PARALLELPLAYLISTREFRESH, "parallelPlaylistRefresh" },
 	{ ePARAM_PRECACHEPLAYLISTTIME, "preCachePlaylistTime" },
 	{ ePARAM_USE_NEWABR, "useNewABR" },
+	{ ePARAM_INIT_RAMPDOWN_LIMIT, "initRampdownLimit" },
 	{ ePARAM_USE_NEW_ADBREAKER, "useNewAdBreaker" },
 	{ ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY, "useRetuneForUnpairedDiscontinuity" },
 	{ ePARAM_INIT_FRAGMENT_RETRY_COUNT, "initFragmentRetryCount" },
@@ -598,7 +599,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 					INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
 					pthread_join(tuneThreadId, &status);
 					bTuneInProgress = false;
-					tuneThreadId = 0;
+					tuneThreadIdIsValid = false;
 				}
 
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
@@ -608,11 +609,12 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 				class AsyncTune* asyncTune = new AsyncTune(privObj->_aamp, urlString);
 				int err = pthread_create(&tuneThreadId, NULL, do_AsyncTune, asyncTune);
 				bTuneInProgress = (err == 0);
+				tuneThreadIdIsValid = (err == 0);
 				delete [] url;
 			}
 			else
 			{
-				if(bTuneInProgress && tuneThreadId != 0)
+				if(bTuneInProgress && tuneThreadIdIsValid)
 				{
 					// if previous tune was Async and next tune app changed the configuration
 					// safe to check and join the thread 
@@ -620,7 +622,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	                                INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
 	                                pthread_join(tuneThreadId, &status);
 	                                bTuneInProgress = false;
-	                                tuneThreadId = 0;
+	                                tuneThreadIdIsValid = false;
 				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url,autoPlay);
@@ -704,6 +706,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PROGRESSREPORTINTERVAL:
 			case ePARAM_PRECACHEPLAYLISTTIME:
 			case ePARAM_RAMPDOWN_LIMIT:
+			case ePARAM_INIT_RAMPDOWN_LIMIT:
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
@@ -724,7 +727,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_ASYNCTUNE:
 			case ePARAM_PARALLELPLAYLISTDL:
 			case ePARAM_PARALLELPLAYLISTREFRESH:
-			case ePARAM_USE_WESTEROS_SINK:
 			case ePARAM_USE_NEWABR:
 			case ePARAM_USE_NEW_ADBREAKER:
 			case ePARAM_AVGBWFORABR:
@@ -810,9 +812,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_PARALLELPLAYLISTREFRESH:
 					privObj->_aamp->SetParallelPlaylistRefresh(valueAsBoolean);
 					break;
-				case ePARAM_USE_WESTEROS_SINK:
-					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
-					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);
 					break;
@@ -845,6 +844,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_RAMPDOWN_LIMIT:
 					privObj->_aamp->SetRampDownLimit((int) valueAsNumber);
+					break;
+				case ePARAM_INIT_RAMPDOWN_LIMIT:
+					privObj->_aamp->SetInitRampdownLimit((int) valueAsNumber);
 					break;
 				case ePARAM_SEGMENTINJECTLIMIT:
 					privObj->_aamp->SetSegmentInjectFailCount((int) valueAsNumber);
@@ -2774,6 +2776,90 @@ void ClearAAMPPlayerInstances(void)
 }
 
 
+#ifdef PLATCO
+// temporary patch to avoid JavaScript exception in webapps referencing XREReceiverObject in builds that don't support it
+
+/**
+ * @brief API invoked from JS when executing XREReceiver.oneven() method)
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("%s arg count - %d", __FUNCTION__, argumentCount);
+	return JSValueMakeUndefined(ctx);
+}
+
+static const JSStaticFunction XREReceiver_JS_static_functions[] = 
+{
+	{ "onEvent", XREReceiverJS_onevent, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ NULL, NULL, 0 }
+};
+
+/**
+ * @brief API invoked when AAMPMediaPlayer is used along with 'new'
+ * @param[in] ctx JS execution context
+ * @param[in] constructor JSObject that is the constructor being called
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSObject that is the constructor's return value
+ */
+JSObjectRef XREReceiver_JS_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+        TRACELOG("Enter %s()", __FUNCTION__);
+	*exception = aamp_GetException(ctx, AAMPJS_GENERIC_ERROR, "Cannot create an object of XREReceiver");
+        TRACELOG("Exit %s()", __FUNCTION__);
+	return NULL;
+}
+
+static void XREReceiver_JS_finalize(JSObjectRef thisObject)
+{
+       TRACELOG("%s(): object=%p", __FUNCTION__, thisObject);
+}
+
+static JSClassDefinition XREReceiver_JS_class_def {
+	0, // version
+	kJSClassAttributeNone, // attributes: JSClassAttributes
+	"__XREReceiver_class", // className: *const c_char
+	NULL, // parentClass: JSClassRef
+	NULL, // staticValues: *const JSStaticValue
+	XREReceiver_JS_static_functions, // staticFunctions: *const JSStaticFunction
+	NULL, // initialize: JSObjectInitializeCallback
+	XREReceiver_JS_finalize, // finalize: JSObjectFinalizeCallback
+	NULL, // hasProperty: JSObjectHasPropertyCallback
+	NULL, // getProperty: JSObjectGetPropertyCallback
+	NULL, // setProperty: JSObjectSetPropertyCallback
+	NULL, // deleteProperty: JSObjectDeletePropertyCallback
+	NULL, // getPropertyNames: JSObjectGetPropertyNamesCallback
+	NULL, // callAsFunction: JSObjectCallAsFunctionCallback
+	XREReceiver_JS_class_constructor, // callAsConstructor: JSObjectCallAsConstructorCallback,
+	NULL, // hasInstance: JSObjectHasInstanceCallback
+	NULL  // convertToType: JSObjectConvertToTypeCallback
+};
+
+void LoadXREReceiverStub(void* context)
+{
+	TRACELOG("Enter %s(), context = %p", __FUNCTION__, context);
+	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
+
+	JSClassRef myClass = JSClassCreate(&XREReceiver_JS_class_def);
+	JSObjectRef classObj = JSObjectMake(jsContext, myClass, NULL);
+	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);
+
+	JSStringRef str = JSStringCreateWithUTF8CString("XREReceiver");
+	JSObjectSetProperty(jsContext, globalObj, str, classObj, kJSPropertyAttributeReadOnly, NULL);
+
+	TRACELOG("Exit %s()", __FUNCTION__);
+}
+#endif // PLATCO
+
+
 /**
  * @brief Loads AAMPMediaPlayer JS constructor into JS context
  * @param[in] context JS execution context
@@ -2795,9 +2881,13 @@ void AAMPPlayer_LoadJS(void* context)
 
 	JSClassRelease(mediaPlayerClass);
 	JSStringRelease(str);
+	
+#ifdef PLATCO
+	LoadXREReceiverStub(context);
+#endif
+	
 	TRACELOG("Exit %s()", __FUNCTION__);
 }
-
 
 /**
  * @brief Removes the AAMPMediaPlayer constructor from JS context
