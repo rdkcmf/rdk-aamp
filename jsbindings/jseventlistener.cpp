@@ -332,6 +332,14 @@ public:
 		prop = JSStringCreateWithUTF8CString("hasDrm");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->hasDrm()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("isLive");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->isLive()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("DRM");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getDrmType().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 };
 

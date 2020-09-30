@@ -661,6 +661,8 @@ class MediaMetadataEvent: public AAMPEventObject
 	int mHeight;				/**< Maximum video height */
 	bool mHasDrm;				/**< Drm enabled */
 	std::vector<int> mSupportedSpeeds;	/**< Supported playback speeds */
+	bool mIsLive;				/**< Is Live */
+	std::string mDrmType;			/**< DRM type */
 
 public:
 	MediaMetadataEvent() = delete;
@@ -674,8 +676,10 @@ public:
 	 * @param[in] width    - Video width
 	 * @param[in] height   - Video height
 	 * @param[in] hasDrm   - Drm enablement status
+	 * @param[in] isLive   - Is Live
+	 * @param[in] DrmType  - DRM Type
 	 */
-	MediaMetadataEvent(long duration, int width, int height, bool hasDrm);
+	MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType);
 
 	/**
 	 * @brief MediaMetadataEvent Destructor
@@ -753,6 +757,20 @@ public:
 	 * @return DRM enablement status
 	 */
 	bool hasDrm() const;
+
+	/**
+	 * @brief Check for Live content or VOD
+	 *
+	 * @return isLive
+	 */
+	bool isLive() const;
+
+	/**
+	 * @brief Get Current DRM Type
+	 *
+	 * @return Current DRM
+	 */
+	const std::string &getDrmType() const;
 
 	/**
 	 * @brief Add a supported speed

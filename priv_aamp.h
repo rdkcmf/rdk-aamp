@@ -640,7 +640,6 @@ public:
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
 	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
 #endif
-	Playermode mPlayermode;
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
 	bool mABRBufferCheckEnabled;
@@ -1941,14 +1940,6 @@ public:
 	void ConfigureWesterosSink();
 
 	/**
-	 *   @brief Set Playermode config for JSPP / Mediaplayer.
-	 *   @param[in] playermode - either JSPP and Mediaplayer.
-	 *
-	 *   @return void
-	 */
-	void ConfigurePlayerModeSettings();
-
-	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
 	 *   @param[in] preferred timeout value
@@ -2651,6 +2642,14 @@ public:
 	 *   @return void
 	 */
 	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+
+	/**
+	 *   @brief Set video rectangle property
+	 *
+	 *   @param[in] video rectangle property
+	 */
+	void EnableVideoRectangle(bool rectProperty);
+
 
 private:
 

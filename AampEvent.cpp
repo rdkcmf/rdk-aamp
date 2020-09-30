@@ -233,15 +233,17 @@ unsigned long CCHandleEvent::getCCHandle() const
 /*
  * @brief MediaMetadataEvent Constructor
  *
- * @param[in] duration - Duration of Media Metadata
- * @param[in] width    - Video width
- * @param[in] height   - Video height
- * @param[in] hasDrm   - Drm enablement status
+ * @param[in] duration   - Duration of Media Metadata
+ * @param[in] width      - Video width
+ * @param[in] height     - Video height
+ * @param[in] hasDrm     - Drm enablement status
+ * @param[in] isLive     - Is Live
+ * @param[in] DrmType    - Current DRM Type
  */
-MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm):
+MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType):
 		AAMPEventObject(AAMP_EVENT_MEDIA_METADATA), mDuration(duration),
 		mLanguages(), mBitrates(), mWidth(width), mHeight(height),
-		mHasDrm(hasDrm), mSupportedSpeeds()
+		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType)
 {
 
 }
@@ -377,6 +379,26 @@ const std::vector<int> &MediaMetadataEvent::getSupportedSpeeds() const
 int MediaMetadataEvent::getSupportedSpeedCount() const
 {
 	return mSupportedSpeeds.size();
+}
+
+/**
+ * @brief Check for Live content or VOD
+ *
+ * @return isLive
+ */
+bool MediaMetadataEvent::isLive() const
+{
+	return mIsLive;
+}
+
+/**
+ * @brief Get Current DRM Type
+ *
+ * @return Current DRM
+ */
+const std::string &MediaMetadataEvent::getDrmType() const
+{
+	return mDrmType;
 }
 
 /*

@@ -505,7 +505,7 @@ static bool AAMP_setProperty_preferredCEAFormat(JSContextRef context, JSObjectRe
 		return false;
 	}
 
-	pAAMP->_aamp->SetPreferredCEAFormat((int)JSValueToNumber(context, value, exception));
+	pAAMP->_aamp->SetCEAFormat((int)JSValueToNumber(context, value, exception));
 	return true;
 }
 
@@ -4011,7 +4011,7 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 		pthread_mutex_lock(&mutex);
 		if (NULL == _allocated_aamp )
 		{
-			_allocated_aamp = new PlayerInstanceAAMP(NULL, NULL, PLAYERMODE_JSPLAYER);
+			_allocated_aamp = new PlayerInstanceAAMP(NULL, NULL);
 			LOG("[AAMP_JS] %s:%d create aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
 		}
 		else

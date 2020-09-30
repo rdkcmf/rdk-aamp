@@ -92,7 +92,7 @@
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	, Playermode playermode) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -114,8 +114,6 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
-	aamp->mPlayermode = playermode;
-	aamp->ConfigurePlayerModeSettings();
 }
 
 /**
@@ -1707,6 +1705,26 @@ void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 }
 
 /**
+ *   @brief To set the vod-tune-event according to the player.
+ *
+ *   @param[in] preferred tune event type
+ */
+void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
+{
+	aamp->SetTuneEventConfig(static_cast<TunedEventConfig> (tuneEventType));
+}
+
+/**
+ *   @brief Set video rectangle property
+ *
+ *   @param[in] video rectangle property
+ */
+void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
+{
+	aamp->EnableVideoRectangle(rectProperty);
+}
+
+/**
  *   @brief Set audio track
  *
  *   @param[in] trackId index of audio track in available track list
@@ -1809,7 +1827,7 @@ void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
  *   @param[in] format - 0 for 608, 1 for 708
  *   @return void
  */
-void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
+void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
 #ifdef AAMP_RDK_CC_ENABLED
 	if (format == eCLOSEDCAPTION_FORMAT_608)
