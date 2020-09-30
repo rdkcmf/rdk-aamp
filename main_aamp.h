@@ -59,16 +59,6 @@
  */
 
 /**
- * @brief Play mode : media player/JS platyer.
-	set the vod-tune-event according to the play mode.
- */
-enum Playermode
-{
-	PLAYERMODE_MEDIAPLAYER,
-	PLAYERMODE_JSPLAYER
-};
-
-/**
  * @brief AAMP anomaly message types
  */
 typedef enum
@@ -522,8 +512,7 @@ public:
 	 */
 	PlayerInstanceAAMP(StreamSink* streamSink = NULL
 			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
-                        , Playermode playermode = PLAYERMODE_JSPLAYER
-			);
+            );
 
 	/**
 	 *   @brief PlayerInstanceAAMP Destructor.
@@ -1152,6 +1141,22 @@ public:
 	 *
 	 */
 	 const char* GetPreferredLanguages();
+
+	/**
+	*   @brief To set the vod-tune-event according to the player.
+	*
+	*   @param[in] preferred tune event type
+	*/
+	void SetTuneEventConfig(int tuneEventType);
+
+
+	/**
+	*   @brief Set video rectangle property
+	*
+	*   @param[in] video rectangle property
+	*/
+	void EnableVideoRectangle(bool rectProperty);
+
 	/*
 	 * @brief Set profile ramp down limit.
 	 *
@@ -1270,7 +1275,7 @@ public:
 	 *   @param[in] format - 0 for 608, 1 for 708
 	 *   @return void
 	 */
-	void SetPreferredCEAFormat(int format);
+	void SetCEAFormat(int format);
 
 	/**
 	 *   @brief Set the session token for player
