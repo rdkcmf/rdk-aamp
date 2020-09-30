@@ -40,10 +40,11 @@ using namespace WPEFramework;
  *   @retval NA
  *   @retval NA
  */
-ThunderAccessAAMP::ThunderAccessAAMP()
+ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
                  : remoteObject(NULL),
                    controllerObject(NULL),
-                   query("")
+                   query(""),
+                   pluginCallsign(callsign)
 {
     AAMPLOG_INFO( "[ThunderAccessAAMP]Inside %s ", __FUNCTION__ );
 
@@ -75,6 +76,16 @@ ThunderAccessAAMP::ThunderAccessAAMP()
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s : Controller object creation success", __FUNCTION__ );
         }
     }
+
+    //remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""), false, query);
+    /*To Do: Need to switch to above line once auth token is required*/
+    remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""));
+    if (NULL == remoteObject) {
+        AAMPLOG_WARN( "[ThunderAccessAAMP] %s : %s Client initialization failed", __FUNCTION__, pluginCallsign.c_str());
+        ret = false;
+    } else {
+        AAMPLOG_INFO( "[ThunderAccessAAMP] %s : %s Client initialization success", __FUNCTION__, pluginCallsign.c_str());
+    }
 }
 
 /**
@@ -105,7 +116,7 @@ ThunderAccessAAMP::~ThunderAccessAAMP()
  *   @retval true on success
  *   @retval false on failure
  */
-bool ThunderAccessAAMP::ActivatePlugin(std::string pluginCallsign)
+bool ThunderAccessAAMP::ActivatePlugin()
 {
     bool ret = true;
     JsonObject result;
@@ -121,16 +132,6 @@ bool ThunderAccessAAMP::ActivatePlugin(std::string pluginCallsign)
     } else {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : Controller Object NULL ", __FUNCTION__);
         ret = false;
-    }
-
-    //remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""), false, query);
-    /*To Do: Need to switch to above line once auth token is required*/
-    remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""));
-    if (NULL == remoteObject) {
-        AAMPLOG_WARN( "[ThunderAccessAAMP] %s : %s Client initialization failed", __FUNCTION__, pluginCallsign.c_str());
-        ret = false;
-    } else {
-        AAMPLOG_INFO( "[ThunderAccessAAMP] %s : %s Client initialization success", __FUNCTION__, pluginCallsign.c_str());
     }
 
     return ret;

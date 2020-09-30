@@ -74,8 +74,12 @@ AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp), hdmiInputPort(-1)
-
+StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                             : StreamAbstractionAAMP(aamp),
+                               hdmiInputPort(-1)
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+                               ,thunderAccessObj(HDMIINPUT_CALLSIGN)
+#endif
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d constructor  activating org.rdk.HdmiInput ",__FUNCTION__,__LINE__);
@@ -83,7 +87,7 @@ StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstance
 	logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 #else
     AAMPLOG_WARN( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
-    thunderAccessObj.ActivatePlugin(HDMIINPUT_CALLSIGN);
+    thunderAccessObj.ActivatePlugin();
 
 #endif
 }

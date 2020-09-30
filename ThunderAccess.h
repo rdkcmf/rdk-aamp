@@ -38,10 +38,10 @@ using namespace WPEFramework;
 class ThunderAccessAAMP
 {
 public:
-    ThunderAccessAAMP();
+    ThunderAccessAAMP(std::string callsign);
     ~ThunderAccessAAMP();
 
-    bool ActivatePlugin(std::string pluginCallsign);
+    bool ActivatePlugin();
     bool InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result);
     bool SubscribeEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
     bool UnSubscribeEvent (string eventName);
@@ -53,5 +53,6 @@ private:
     JSONRPC::LinkType<Core::JSON::IElement> *controllerObject;
     /*For Authentication token*/
     string query;
+    std::string pluginCallsign;
 };
 #endif // THUNDERACCESS_H_

@@ -122,15 +122,15 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     prevState = "IDLE";
     tuned = false;
 
-    thunderAccessObj.ActivatePlugin(MEDIAPLAYER_CALLSIGN);
+    thunderAccessObj.ActivatePlugin();
     std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
 
     thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
     AAMPStatusType retval = eAAMPSTATUS_OK;
 
-    //activate RDK Shell
-    thunderRDKShellObj.ActivatePlugin(RDKSHELL_CALLSIGN);
+    //activate RDK Shell - not required as this plugin is already activated
+    // thunderRDKShellObj.ActivatePlugin();
 
 #endif
     return retval;
@@ -142,7 +142,12 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp)
+StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                          : StreamAbstractionAAMP(aamp)
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+                            ,thunderAccessObj(MEDIAPLAYER_CALLSIGN),
+                            thunderRDKShellObj(RDKSHELL_CALLSIGN)
+#endif
 { // STUB
 }
 
