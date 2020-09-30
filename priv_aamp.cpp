@@ -1870,7 +1870,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
-	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
 	,mCurlShared(NULL)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
@@ -1884,7 +1884,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
-	, mPlayermode(PLAYERMODE_JSPLAYER), mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
+	,  mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
 	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
@@ -2022,7 +2022,18 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
 	}
-
+	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+	}
+	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
+	}
 	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
@@ -7859,7 +7870,14 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 
 	GetPlayerVideoSize(width, height);
 
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm);
+	std::string drmType = "NONE";
+	std::shared_ptr<AampDrmHelper> helper = GetCurrentDRM();
+	if (helper)
+	{
+		drmType = helper->friendlyName();
+	}
+
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType);
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
@@ -8164,40 +8182,7 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
 		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
 
-	if (PLAYERMODE_MEDIAPLAYER == mPlayermode)
-	{
-		mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : true);
-	}
-	else
-	{
-		mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : (!mWesterosSinkEnabled));
-	}
-
 	AAMPLOG_WARN("%s Westeros Sink", mWesterosSinkEnabled ? "Enabling" : "Disabling");
-}
-
-/**
- * @brief Set Playermode config for JSPP / Mediaplayer.
- *
- * @param[in] playermode - either JSPP and Mediaplayer.
- *
- */
-void PrivateInstanceAAMP::ConfigurePlayerModeSettings()
-{
-	switch (mPlayermode)
-	{
-		case PLAYERMODE_MEDIAPLAYER:
-		{
-			SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
-		}
-			break; /* PLAYERMODE_MEDIAPLAYER */
-
-		case PLAYERMODE_JSPLAYER:
-		{
-			SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
-		}
-			break; /* PLAYERMODE_JSPLAYER */
-	}
 }
 
 /**
@@ -9628,6 +9613,26 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
 	}
 }
+
+
+/**
+ *   @brief Set video rectangle property
+ *
+ *   @param[in] video rectangle property
+ */
+void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
+{
+	//  Value can be set only if local override is not available.Local setting takes preference
+	if(gpGlobalConfig->mEnableRectPropertyCfg == eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = rectProperty;
+	}
+	else
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+}
+
 
 /**
  * @brief Set Maximum Cache Size for playlist store
