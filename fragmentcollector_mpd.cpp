@@ -2590,9 +2590,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
  * @param ptr ISO8601 string
  * @param[out] durationMs duration in milliseconds
  */
-static void ParseISO8601Duration(const char *ptr, uint64_t &durationMs)
+static uint64_t ParseISO8601Duration(const char *ptr)
 {
-	durationMs = 0;
 	int hour = 0;
 	int minute = 0;
 	double seconds = 0;
@@ -2622,7 +2621,7 @@ static void ParseISO8601Duration(const char *ptr, uint64_t &durationMs)
 	{
 		logprintf("%s:%d - Invalid input %s", __FUNCTION__, __LINE__, ptr);
 	}
-	durationMs = ((double)(((hour * 60) + minute) * 60 + seconds)) * 1000;
+	return( ((double)(((hour * 60) + minute) * 60 + seconds)) * 1000 );
 }
 
 
@@ -3051,7 +3050,7 @@ double PrivateStreamAbstractionMPD::GetPeriodStartTime(IMPD *mpd, int periodInde
 		string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
 		if(!startTimeStr.empty())
 		{
-			ParseISO8601Duration(startTimeStr.c_str(), periodStartMs);
+			periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
 		}
 		periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
 		AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodStart %f", __FUNCTION__, __LINE__, periodStart);
@@ -3106,7 +3105,7 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 			}
 			else
 			{
-				ParseISO8601Duration(startTimeStr.c_str(), periodStartMs);
+				periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
 			}
 			periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
 		}
@@ -3135,9 +3134,22 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 	std::string tempString = period->GetDuration();
 	if(!tempString.empty())
 	{
-		ParseISO8601Duration( tempString.c_str(), durationMs);
+		durationMs = ParseISO8601Duration( tempString.c_str());
 	}
-
+        //DELIA-45784 Calculate duration from @mediaPresentationDuration for a single period VOD stream having empty @duration.This is added as a fix for voot stream seekposition timestamp issue.
+        size_t numPeriods = mpd->GetPeriods().size();
+        if(0 == durationMs && mpd->GetType() == "static" && numPeriods == 1)
+	{
+	        std::string durationStr =  mpd->GetMediaPresentationDuration();
+	        if(!durationStr.empty())
+		{
+		        durationMs = ParseISO8601Duration( durationStr.c_str());
+		}
+	        else
+		{
+			AAMPLOG_WARN("%s:%d : mediaPresentationDuration missing in period %s", __FUNCTION__, __LINE__, period->GetId().c_str());
+		}
+	}
 	if(0 == durationMs)
 	{
 		const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
@@ -3186,8 +3198,8 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 							{
 								uint64_t periodStart = 0;
 								uint64_t totalDuration = 0;
-								ParseISO8601Duration( periodStartStr.c_str(), periodStart);
-								ParseISO8601Duration( durationStr.c_str(), totalDuration);
+								periodStart = ParseISO8601Duration( periodStartStr.c_str() );
+								totalDuration = ParseISO8601Duration( durationStr.c_str() );
 								durationMs = totalDuration - periodStart;
 							}
 							else if(periodIndex == (periods.size() - 1))
@@ -3223,9 +3235,9 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 									uint64_t periodStart = 0;
 									uint64_t availablilityStart = 0;
 									uint64_t minUpdatePeriod = 0;
-									ParseISO8601Duration( periodStartStr.c_str(), periodStart);
+									periodStart = ParseISO8601Duration( periodStartStr.c_str() );
 									availablilityStart = (uint64_t)ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str()) * 1000;
-									ParseISO8601Duration( minimumUpdatePeriodStr.c_str(), minUpdatePeriod);
+									minUpdatePeriod = ParseISO8601Duration( minimumUpdatePeriodStr.c_str() );
 									AAMPLOG_INFO("%s:%d : periodStart %lu availabilityStartTime %lu minUpdatePeriod %lu mpdDownloadTime %lu", __FUNCTION__, __LINE__, periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
 									uint64_t periodEndTime = mpdDownloadTime + minUpdatePeriod;
 									uint64_t periodStartTime = availablilityStart + periodStart;
@@ -3245,8 +3257,8 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 								{
 									uint64_t periodStart = 0;
 									uint64_t nextPeriodStart = 0;
-									ParseISO8601Duration( periodStartStr.c_str(), periodStart);
-									ParseISO8601Duration( nextPeriodStartStr.c_str(), nextPeriodStart);
+									periodStart = ParseISO8601Duration( periodStartStr.c_str() );
+									nextPeriodStart = ParseISO8601Duration( nextPeriodStartStr.c_str() );
 									durationMs = nextPeriodStart - periodStart;
 									if(durationMs <= 0)
 									{
@@ -3368,7 +3380,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		}
 		if(!tempString.empty())
 		{
-			ParseISO8601Duration( tempString.c_str(), durationMs);
+			durationMs = ParseISO8601Duration( tempString.c_str() );
 			mpdDurationAvailable = true;
 			logprintf("PrivateStreamAbstractionMPD::%s:%d - MPD duration str %s val %" PRIu64 " seconds", __FUNCTION__, __LINE__, tempString.c_str(), durationMs/1000);
 		}
@@ -3405,7 +3417,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			std::string tempStr = mpd->GetMinimumUpdatePeriod();
 			if(!tempStr.empty())
 			{
-				ParseISO8601Duration( tempStr.c_str(), (uint64_t&)mMinUpdateDurationMs);
+				mMinUpdateDurationMs = ParseISO8601Duration( tempStr.c_str() );
 			}
 			else
 			{
@@ -3423,7 +3435,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			uint64_t timeshiftBufferDepthMS = 0;
 			if(!tempStr.empty())
 			{
-				ParseISO8601Duration( tempStr.c_str(), timeshiftBufferDepthMS);
+				timeshiftBufferDepthMS = ParseISO8601Duration( tempStr.c_str() );
 			}
 			if(timeshiftBufferDepthMS)
 			{
@@ -3433,7 +3445,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				tempStr = mpd->GetMaxSegmentDuration();
 				if(!tempStr.empty())
 				{
-					ParseISO8601Duration( tempStr.c_str(), (uint64_t&)segmentDuration);
+					segmentDuration = ParseISO8601Duration( tempStr.c_str() );
 				}
 				if(mTSBDepth < ( 4 * (double)segmentDuration))
 				{
@@ -3445,7 +3457,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			uint64_t presentationDelay = 0;
 			if(!tempStr.empty())
 			{
-				ParseISO8601Duration( tempStr.c_str(), presentationDelay);
+				presentationDelay = ParseISO8601Duration( tempStr.c_str() );
 			}
 			if(presentationDelay)
 			{
@@ -3457,7 +3469,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				uint64_t minimumBufferTime = 0;
 				if(!tempStr.empty())
 				{
-					ParseISO8601Duration( tempStr.c_str(), minimumBufferTime);
+					minimumBufferTime = ParseISO8601Duration( tempStr.c_str() );
 				}
 				if(minimumBufferTime)
 				{
@@ -3498,7 +3510,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			uint64_t periodDurationMs = 0;
 			if(!tempString.empty())
 			{
-				ParseISO8601Duration( tempString.c_str(), periodDurationMs);
+				periodDurationMs = ParseISO8601Duration( tempString.c_str() );
 				if(!mpdDurationAvailable)
 				{
 					durationMs += periodDurationMs;
@@ -3517,7 +3529,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 				tempString = period->GetStart();
 				if(!tempString.empty() && !mIsFogTSB)
 				{
-					ParseISO8601Duration( tempString.c_str(), periodStartMs);
+					periodStartMs = ParseISO8601Duration( tempString.c_str() );
 				}
 				else if (periodDurationMs)
 				{
@@ -3690,7 +3702,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 					uint64_t  periodStartMs = 0;
 					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
 					std::string tempString = period->GetStart();
-					ParseISO8601Duration( tempString.c_str(), periodStartMs);
+					periodStartMs = ParseISO8601Duration( tempString.c_str() );
 					currentPeriodStart = (double)periodStartMs/1000;
 					offsetFromStart = duration - aamp->mLiveOffset - currentPeriodStart;
 				}
@@ -4194,7 +4206,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					const std::string& value = node->GetAttributeValue("start");
 					uint64_t valueMS = 0;
 					if (!value.empty())
-						ParseISO8601Duration(value.c_str(), valueMS);
+						valueMS = ParseISO8601Duration(value.c_str() );
 					if (periodStartMS < valueMS)
 						periodStartMS = valueMS;
 				}
@@ -4203,7 +4215,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 					const std::string& value = node->GetAttributeValue("duration");
 					uint64_t valueMS = 0;
 					if (!value.empty())
-						ParseISO8601Duration(value.c_str(), valueMS);
+						valueMS = ParseISO8601Duration(value.c_str() );
 					periodDurationMS = valueMS;
 				}
 				IPeriod * period = NULL;
@@ -8191,7 +8203,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 				const std::string &startStr = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
 				if(!startStr.empty())
 				{
-					ParseISO8601Duration(startStr.c_str(), resPosMS);
+					resPosMS = ParseISO8601Duration(startStr.c_str() );
 				}
 				resPosMS += (uint64_t)(mBasePeriodOffset * 1000);
 			}
