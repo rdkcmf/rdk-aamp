@@ -495,12 +495,7 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	{
 		logprintf( "AveDrm::%s:%d[%p] waiting for key acquisition to complete,wait time:%d", __FUNCTION__, __LINE__, this, timeInMs );
 		struct timespec ts;
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
-		ts.tv_sec = time(NULL) + timeInMs / 1000;
-		ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-		ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-		ts.tv_nsec %= (1000 * 1000 * 1000);
+		ts = aamp_GetTimespec(timeInMs);
 
 		if(ETIMEDOUT == pthread_cond_timedwait(&cond, &mutex, &ts)) // block until drm ready
 		{

@@ -301,12 +301,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 
 		timeoutMs = 500;
 		struct timespec tspec;
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
-		tspec.tv_sec = time(NULL) + timeoutMs / 1000;
-		tspec.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeoutMs % 1000));
-		tspec.tv_sec += tspec.tv_nsec / (1000 * 1000 * 1000);
-		tspec.tv_nsec %= (1000 * 1000 * 1000);
+		tspec = aamp_GetTimespec(timeoutMs);
 
 		pthreadReturnValue = pthread_cond_timedwait(&aamp->waitforplaystart, &aamp->mMutexPlaystart, &tspec);
 
@@ -328,13 +323,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 	{
 		if (timeoutMs >= 0)
 		{
-			struct timespec tspec;
-			struct timeval tv;
-			gettimeofday(&tv, NULL);
-			tspec.tv_sec = time(NULL) + timeoutMs / 1000;
-			tspec.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeoutMs % 1000));
-			tspec.tv_sec += tspec.tv_nsec / (1000 * 1000 * 1000);
-			tspec.tv_nsec %= (1000 * 1000 * 1000);
+			struct timespec tspec = aamp_GetTimespec(timeoutMs);
 
 			pthreadReturnValue = pthread_cond_timedwait(&fragmentInjected, &mutex, &tspec);
 
@@ -944,8 +933,6 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	{
 
 		struct timespec ts;
-		struct timeval tv;
-		int waitTimeInMs = 100;
 		int ret = 0;
 
 		pthread_mutex_lock(&mLock);
@@ -958,11 +945,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 			logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f",
 				__FUNCTION__, __LINE__, audioDuration, videoDuration,video->fragmentDurationSeconds);
 	#endif
-			gettimeofday(&tv, NULL);
-			ts.tv_sec = time(NULL) + waitTimeInMs / 1000;
-			ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (waitTimeInMs % 1000));
-			ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-			ts.tv_nsec %= (1000 * 1000 * 1000);
+			ts = aamp_GetTimespec(100);
 
 			ret = pthread_cond_timedwait(&mCond, &mLock, &ts);
 
@@ -1941,8 +1924,6 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 		}
 
 		struct timespec ts;
-		struct timeval tv;
-		int waitTimeInMs = 100;
 		int ret = 0;
 
 		pthread_mutex_lock(&mLock);
@@ -1956,11 +1937,7 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 			logprintf("%s:%d waiting for mSubCond - subtitleDuration %f audioDuration %f",
 				__FUNCTION__, __LINE__, subtitleDuration, audioDuration);
 	#endif
-			gettimeofday(&tv, NULL);
-			ts.tv_sec = time(NULL) + waitTimeInMs / 1000;
-			ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (waitTimeInMs % 1000));
-			ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-			ts.tv_nsec %= (1000 * 1000 * 1000);
+			ts = aamp_GetTimespec(100);
 
 			ret = pthread_cond_timedwait(&mSubCond, &mLock, &ts);
 

@@ -271,13 +271,8 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
 	struct timespec ts;
-	struct timeval tv;
 	AAMPLOG_INFO( "aamp:waiting for key acquisition to complete,wait time:%d",timeInMs );
-	gettimeofday(&tv, NULL);
-	ts.tv_sec = time(NULL) + timeInMs / 1000;
-	ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-	ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-	ts.tv_nsec %= (1000 * 1000 * 1000);
+	ts = aamp_GetTimespec(timeInMs);
 
 	if(0 != pthread_cond_timedwait(&mCond, &mMutex, &ts)) // block until drm ready
 	{
