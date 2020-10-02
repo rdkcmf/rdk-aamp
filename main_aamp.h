@@ -43,6 +43,7 @@
 #include <string>
 #include <string.h>
 #include <stddef.h>
+#include <functional>
 #include "AampEvent.h"
 #include "AampEventListener.h"
 

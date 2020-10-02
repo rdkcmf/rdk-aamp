@@ -23,7 +23,7 @@
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
 #include "drm.h"
-#include "openssl/evp.h"
+#include <openssl/evp.h>
 #include <memory>
 
 /**
