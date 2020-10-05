@@ -64,6 +64,7 @@
 #define MIN_DELAY_BETWEEN_MPD_UPDATE_MS (500) // 500mSec
 #define MIN_TSB_BUFFER_DEPTH 6 //6 seconds from 4.3.3.2.2 in https://dashif.org/docs/DASH-IF-IOP-v4.2-clean.htm
 #define VSS_DASH_EARLY_AVAILABLE_PERIOD_PREFIX "vss-"
+#define INVALID_VOD_DURATION  (0)
 
 /**
  * Macros for extended audio codec check as per ETSI-TS-103-420-V1.2.1
@@ -3707,6 +3708,12 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		else
 		{
 			// Non-live - VOD/CDVR(Completed) - DELIA-30266
+			if(durationMs == INVALID_VOD_DURATION)
+			{
+				AAMPLOG_WARN("%s:%d Duration of VOD content is 0", __FUNCTION__, __LINE__) ;
+				return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
+			}
+
 			double seekWindowEnd = (double) durationMs / 1000;
 			if(seekPosition > seekWindowEnd)
 			{
