@@ -832,6 +832,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	{
 		logprintf("%s:%d No active session found with keyId %s, proceeding to create new session\n", __FUNCTION__, __LINE__, keyId);
 		sessionFound = false;
+#if 0
 		/*
 		 * Check if both sessions have valid KeyIDs
 		 * if yes proceed to clear the oldest session
@@ -840,6 +841,13 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 		{
 			sessionType = otherSession;
 		}
+#else
+		/* Keep the session index as 0 all the time to avoid macro blocking in Intel XG1v1 when cached session was processed.
+		 * Now there is only one session will be cached and if the same key id found in next channel it will be used,
+		 * otherwise the current cached session will be overwritten by a new session.
+		 */
+		sessionType = 0;
+#endif /* 0 */
 
 		if(cachedKeyIDs[sessionType].data != NULL)
 		{
