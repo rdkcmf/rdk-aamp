@@ -53,7 +53,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
     std::string message;
     JsonObject playerData;
     parameters.ToString(message);
-    PrivAAMPState state;
+    PrivAAMPState state = eSTATE_IDLE;
     std::string currState;
 
     /*To Do : Confirm that player name is same as APP_ID. The plugin documentation use "MainPlayer" as player name*/
@@ -145,7 +145,8 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                            ,thunderAccessObj(MEDIAPLAYER_CALLSIGN),
+                            , tuned(false),
+                            thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
 #endif
 { // STUB
