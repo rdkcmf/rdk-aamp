@@ -344,6 +344,10 @@ static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
 	{
 		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
 	}
+	else if (source == _this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].source)
+	{
+		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_AUX_AUDIO); // signal fragment downloader thread
+	}
         else
 	{
 		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_VIDEO); // signal fragment downloader thread
@@ -365,6 +369,10 @@ static void enough_data(GstElement *source, AAMPGstPlayer * _this)
 	else if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
 	{
 		_this->aamp->StopTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
+	}
+	else if (source == _this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].source)
+	{
+		_this->aamp->StopTrackDownloads(eMEDIATYPE_AUX_AUDIO); // signal fragment downloader thread
 	}
         else
 	{
@@ -408,7 +416,7 @@ static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType me
 		g_object_set(source, "max-bytes", (guint64)4194304, NULL); // 4096k
 #endif
 	}
-	else
+	else if (eMEDIATYPE_AUDIO == mediaType || eMEDIATYPE_AUX_AUDIO == mediaType)
 	{
 #ifdef CONTENT_4K_SUPPORTED
 		g_object_set(source, "max-bytes", 512000 * 3, NULL); // 512k * 3 for audio
@@ -511,6 +519,11 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	{
 		logprintf("Found source for audio");
 		mediaType = eMEDIATYPE_AUDIO;
+	}
+	else if (object == G_OBJECT(_this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].sinkbin))
+	{
+		logprintf("Found source for auxiliary audio");
+		mediaType = eMEDIATYPE_AUX_AUDIO;
 	}
 	else
 	{
@@ -1814,6 +1827,18 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 			}
 		}
 #endif
+		if (eMEDIATYPE_AUX_AUDIO == streamId)
+		{
+			// We need to route audio through audsrvsink
+			GstElement *audiosink = gst_element_factory_make("audsrvsink", NULL);
+			g_object_set(audiosink, "audio-pts-offset", 22000, NULL );
+			g_object_set(audiosink, "session-type", 2, NULL );
+			g_object_set(audiosink, "session-name", "btSAP", NULL );
+			g_object_set(audiosink, "session-private", TRUE, NULL );
+
+			g_object_set(stream->sinkbin, "audio-sink", audiosink, NULL);
+			AAMPLOG_WARN("AAMPGstPlayer_SetupStream - using audsrvsink");
+		}
 #else
 		logprintf("AAMPGstPlayer_SetupStream - using playbin2");
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
@@ -1867,6 +1892,8 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 	}
 	else
 	{
+		//TODO: For auxiliary audio playback, when using playersinbin, we might have to set some additional
+		// properties, need to check
 		stream->source = AAMPGstPlayer_GetAppSrc(_this,stream->format);
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->source);
 		gst_element_sync_state_with_parent(stream->source);
@@ -2332,13 +2359,14 @@ void AAMPGstPlayer::Stream()
  * @param[in] audioFormat audio format
  * @param[in] bESChangeStatus
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus)
 {
-	logprintf("AAMPGstPlayer::%s %d > format %d audioFormat %d", __FUNCTION__, __LINE__, format, audioFormat);
+	logprintf("AAMPGstPlayer::%s %d > videoFormat %d audioFormat %d auxFormat %d", __FUNCTION__, __LINE__, format, audioFormat, auxFormat);
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
 	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_NONE;
+	newFormat[eMEDIATYPE_AUX_AUDIO] = auxFormat;
 
 	if (!aamp->mWesterosSinkEnabled)
 	{
@@ -2624,6 +2652,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	TearDownStream(eMEDIATYPE_VIDEO);
 	TearDownStream(eMEDIATYPE_AUDIO);
 	TearDownStream(eMEDIATYPE_SUBTITLE);
+	TearDownStream(eMEDIATYPE_AUX_AUDIO);
 	DestroyPipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 	privateContext->lastKnownPTS = 0;
@@ -3201,6 +3230,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 {
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
 	privateContext->rate = rate;
+	//TODO: Need to decide if required for AUX_AUDIO
 	privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun = false;
 	privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun = false;
 

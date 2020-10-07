@@ -454,7 +454,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
 			aamp->LogPlayerPreBuffered();
-			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
+			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
 			aamp->mpStreamAbstractionAAMP->StartInjection();
 			aamp->mStreamSink->Stream();
 			aamp->pipeline_paused = false;
@@ -1828,6 +1828,70 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetSessionToken(sessionToken);
 	return;
+}
+
+/**
+ *   @brief Set auxiliary language
+ *
+ *   @param[in] language - auxiliary language
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
+{
+	ERROR_STATE_CHECK_VOID();
+#ifdef AAMP_AUXILIARY_AUDIO_ENABLED
+	//Can set the property only for BT enabled device
+
+	std::string currentLanguage = aamp->GetAuxiliaryAudioLanguage();
+	AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s)->(%s)", currentLanguage.c_str(), language.c_str());
+
+	//TODO: Decide if this logic is acceptable
+	// Auxiliary language is same as audio language. Do we need to play same stream on both tracks??
+	// This will cause major synchronisation problems in streamer if its muxed
+	if (aamp->language == language)
+	{
+		AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s) is same as primary audio language(%s), stop auxiliary playback for now", aamp->language, language.c_str());
+		aamp->SetAuxiliaryLanguage(""); // set empty to turn off
+		if (aamp->mpStreamAbstractionAAMP)
+		{
+			AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s) retuning", language.c_str());
+			aamp->discardEnteringLiveEvt = true;
+			aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
+			aamp->TeardownStream(false);
+			aamp->TuneHelper(eTUNETYPE_SEEK);
+
+			aamp->discardEnteringLiveEvt = false;
+		}
+	}
+	else if(language != currentLanguage)
+	{
+		// There is no active playback session, save the language for later
+		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
+		{
+			aamp->languageSetByUser = true;
+			aamp->SetAuxiliaryLanguage(language);
+		}
+		// check if language is supported in manifest languagelist
+		else if((aamp->IsAudioLanguageSupported(language.c_str())) || (!aamp->mMaxLanguageCount))
+		{
+			aamp->SetAuxiliaryLanguage(language);
+			if (aamp->mpStreamAbstractionAAMP)
+			{
+				AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s) retuning", language.c_str());
+
+				aamp->discardEnteringLiveEvt = true;
+
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
+				aamp->TeardownStream(false);
+				aamp->TuneHelper(eTUNETYPE_SEEK);
+
+				aamp->discardEnteringLiveEvt = false;
+			}
+		}
+	}
+#else
+	AAMPLOG_ERR("%s:%d Auxiliary audio language is not supported in this platform, ignoring the input!", __FUNCTION__, __LINE__);
+#endif
 }
 
 /**

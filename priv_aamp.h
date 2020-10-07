@@ -64,9 +64,9 @@ static const char *mMediaFormatName[] =
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
 #endif
 
-#define AAMP_TRACK_COUNT 3              /**< internal use - audio+video+sub track */
+#define AAMP_TRACK_COUNT 4              /**< internal use - audio+video+sub+aux track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
-#define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
+#define AAMP_DRM_CURL_COUNT 4           /**< audio+video+sub+aux track DRMs */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 #define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
@@ -146,6 +146,7 @@ enum AampCurlInstance
 	eCURLINSTANCE_VIDEO,
 	eCURLINSTANCE_AUDIO,
 	eCURLINSTANCE_SUBTITLE,
+	eCURLINSTANCE_AUX_AUDIO,
 	eCURLINSTANCE_MANIFEST_PLAYLIST,
 	eCURLINSTANCE_DAI,
 	eCURLINSTANCE_AES,
@@ -535,6 +536,7 @@ public:
 	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mVideoFormat;
 	StreamOutputFormat mAudioFormat;
+	StreamOutputFormat mAuxFormat;
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
 	StreamSink* mStreamSink;
@@ -2619,6 +2621,28 @@ public:
 	 */
 	void SetSessionToken(std::string &sessionToken);
 
+	/**
+	 *   @brief To check if auxiliary audio is enabled
+	 *
+	 *   @return bool - true if aux audio is enabled
+	 */
+	bool IsAuxiliaryAudioEnabled(void);
+
+	/**
+	 *   @brief Set auxiliary language
+	 *
+	 *   @param[in] language - auxiliary language
+	 *   @return void
+	 */
+	void SetAuxiliaryLanguage(const std::string &language) { mAuxAudioLanguage = language; }
+
+	/**
+	 *   @brief Get auxiliary language
+	 *
+	 *   @return std::string auxiliary audio language
+	 */
+	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
+
 private:
 
 	/**
@@ -2675,6 +2699,26 @@ private:
  	 */
 	void NotifySinkBufferFull(MediaType type);
 
+	/**
+	 *   @brief Check if discontinuity processed in all tracks
+	 *
+	 *   @return true if discontinuity processed in all track
+	 */
+	bool DiscontinuitySeenInAllTracks();
+
+	/**
+	 *   @brief Check if discontinuity processed in any track
+	 *
+	 *   @return true if discontinuity processed in any track
+	 */
+	bool DiscontinuitySeenInAnyTracks();
+
+	/**
+	 *   @brief Reset discontinuity flag for all tracks
+	 *
+	 *   @return void
+	 */
+	void ResetDiscontinuityInTracks();
 
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
@@ -2735,5 +2779,6 @@ private:
 	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
+	std::string mAuxAudioLanguage; /**< auxiliary audio language */
 };
 #endif // PRIVAAMP_H

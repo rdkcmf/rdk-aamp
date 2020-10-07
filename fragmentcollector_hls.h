@@ -407,7 +407,7 @@ public:
 	/// Function to initialize member variables,download main manifest and parse
 	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat);
 	/// Function to return current playing position of stream 
 	double GetStreamPosition() { return seekPosition; }
 	/// Function to return first PTS 
@@ -470,6 +470,11 @@ public:
 
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts);
+
+	/// Function to get matching mediaInfo index for a language and track type
+	int GetMediaIndexForLanguage(std::string lang, TrackType type);
+	/// Function to get output format for audio/aux track
+	StreamOutputFormat GetStreamOutputFormatForAudio(void);
 
 protected:
 	/// Function to get StreamInfo stucture based on the index input

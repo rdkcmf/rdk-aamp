@@ -169,12 +169,14 @@ void StreamAbstractionAAMP_HDMIIN::DumpProfiles(void)
  *
  * @param[out]  primaryOutputFormat - format of primary track
  * @param[out]  audioOutputFormat - format of audio track
+ * @param[out]  auxAudioOutputFormat - format of aux track
  */
-void StreamAbstractionAAMP_HDMIIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
+void StreamAbstractionAAMP_HDMIIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 { // STUB
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
     primaryOutputFormat = FORMAT_NONE;
     audioOutputFormat = FORMAT_NONE;
+    auxAudioOutputFormat = FORMAT_NONE;
 }
 
 /**

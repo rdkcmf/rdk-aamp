@@ -261,7 +261,7 @@ public:
 	 *   @param[in]  bESChangeStatus - Flag to keep force configure the pipeline value
 	 *   @return void
 	 */
-	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)=0;
+	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus)=0;
 
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.
@@ -1283,6 +1283,14 @@ public:
 	 *   @return void
 	 */
 	void SetSessionToken(std::string sessionToken);
+
+	/**
+	 *   @brief Set auxiliary language
+	 *
+	 *   @param[in] language - auxiliary language
+	 *   @return void
+	 */
+	void SetAuxiliaryLanguage(const std::string &language);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

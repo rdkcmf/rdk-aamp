@@ -169,7 +169,7 @@ struct PeriodInfo {
 };
 
 
-static const char *mMediaTypeName[] = { "video", "audio", "text" };
+static const char *mMediaTypeName[] = { "video", "audio", "text", "aux-audio" };
 
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 #ifdef USE_PLAYERSINKBIN
@@ -600,7 +600,7 @@ public:
 	void Start();
 	void Stop();
 	AAMPStatusType Init(TuneType tuneType);
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat);
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat);
 
 	/**
 	 * @brief Get current stream position.
@@ -671,6 +671,7 @@ private:
 	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
 	bool CheckForVssTags();
 	std::string GetVssVirtualStreamID();
+	bool IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex);
 
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
@@ -844,6 +845,7 @@ static bool IsCompatibleMimeType(const std::string& mimeType, MediaType mediaTyp
 			break;
 
 		case eMEDIATYPE_AUDIO:
+		case eMEDIATYPE_AUX_AUDIO:
 			if ((mimeType == "audio/webm") ||
 				(mimeType == "audio/mp4"))
 				isCompatible = true;
@@ -1029,6 +1031,12 @@ static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
 static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 {
 	const char *name = mMediaTypeName[mediaType];
+	//RDK-27796, we need distinct names for other areas, not for the below checks
+	if (mediaType == eMEDIATYPE_AUX_AUDIO)
+	{
+		name = mMediaTypeName[eMEDIATYPE_AUDIO];
+	}
+
 	if(name != NULL)
 	{
 		if (adaptationSet->GetContentType() == name)
@@ -3383,7 +3391,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	bool forceSpeedsChangedEvent = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT, aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
 
 	aamp->mStreamSink->ClearProtectionEvent();
@@ -3419,11 +3427,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	if (ret == eAAMPSTATUS_OK)
 	{
 		std::string manifestUrl = aamp->GetManifestUrl();
-		mMaxTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
-		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			mMaxTracks--;
-		}
+		mMaxTracks = (rate == AAMP_NORMAL_PLAY_RATE) ? AAMP_TRACK_COUNT : 1;
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -3431,7 +3435,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		std::string tempString;
 		if(mpd != NULL)
 		{
-				tempString =  mpd->GetMediaPresentationDuration();
+			tempString =  mpd->GetMediaPresentationDuration();
 		}
 		else
 		{
@@ -4834,7 +4838,7 @@ void * FragmentDownloader(void *arg)
 			int timeoutMs = downloadParams->context->GetMinUpdateDuration() - (int)(aamp_GetCurrentTimeMS() - downloadParams->lastPlaylistUpdateMS);
 			if(downloadParams->pMediaStreamContext->WaitForFreeFragmentAvailable(timeoutMs))
 			{
-				downloadParams->context->PushNextFragment(downloadParams->pMediaStreamContext, 1);
+				downloadParams->context->PushNextFragment(downloadParams->pMediaStreamContext, (eCURLINSTANCE_VIDEO + downloadParams->pMediaStreamContext->mediaType));
 				if (downloadParams->pMediaStreamContext->eos)
 				{
 					if(!downloadParams->context->aamp->IsLive() && downloadParams->playingLastPeriod)
@@ -5300,58 +5304,45 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 		{
 			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
 			AAMPLOG_TRACE("PrivateStreamAbstractionMPD::%s %d > Content type [%s] AdapSet [%d] ",
-					__FUNCTION__, __LINE__, adaptationSet->GetContentType().c_str(),iAdaptationSet);
+					__FUNCTION__, __LINE__, adaptationSet->GetContentType().c_str(), iAdaptationSet);
 			if (IsContentType(adaptationSet, (MediaType)i ))
 			{
 				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
-					if (eMEDIATYPE_SUBTITLE == i)
+					if (eMEDIATYPE_SUBTITLE == i && aamp->IsSubtitleEnabled())
 					{
-						std::string lang = GetLanguageForAdaptationSet(adaptationSet);
-						if (lang == aamp->mSubLanguage)
+						if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->mSubLanguage, adaptationSet, selRepresentationIndex) == true)
 						{
-							std::string adaptationMimeType = adaptationSet->GetMimeType();
-							if (!adaptationMimeType.empty())
+							selAdaptationSetIndex = iAdaptationSet;
+							std::string mimeType = adaptationSet->GetMimeType();
+							if (mimeType.empty())
 							{
-								if (IsCompatibleMimeType(adaptationMimeType, MediaType::eMEDIATYPE_SUBTITLE))
-								{
-									selAdaptationSetIndex = iAdaptationSet;
-									selRepresentationIndex = 0;
-									pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
-									if (pMediaStreamContext->mSubtitleParser) 
-									{
-										if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
-											pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-										else {
-											delete pMediaStreamContext->mSubtitleParser;
-											pMediaStreamContext->mSubtitleParser = NULL;
-										}
-									}
-								}
+								mimeType = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetMimeType();
 							}
-							else
+							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
+							if (pMediaStreamContext->mSubtitleParser) 
 							{
-								const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
-								for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+								if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
 								{
-									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
-									std::string mimeType = rep->GetMimeType();
-									if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, MediaType::eMEDIATYPE_SUBTITLE)))
-									{
-										selAdaptationSetIndex = iAdaptationSet;
-										selRepresentationIndex = representationIndex;
-									}
+									pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+								}
+								else
+								{
+									delete pMediaStreamContext->mSubtitleParser;
+									pMediaStreamContext->mSubtitleParser = NULL;
 								}
 							}
 							if (selAdaptationSetIndex != -1)
 							{
 								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
 							}
-							if (selAdaptationSetIndex != iAdaptationSet)
-							{
-								//Even though language matched, mimeType is missing or not supported right now. Log for now
-								AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching subtitle language:%s but not supported mimeType and thus disabled!!\n", __FUNCTION__, __LINE__, lang.c_str());
-							}
+						}
+					}
+					else if (eMEDIATYPE_AUX_AUDIO == i && aamp->IsAuxiliaryAudioEnabled())
+					{
+						if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->GetAuxiliaryAudioLanguage(), adaptationSet, selRepresentationIndex) == true)
+						{
+							selAdaptationSetIndex = iAdaptationSet;
 						}
 					}
 					else if (eMEDIATYPE_AUDIO == i)
@@ -5360,7 +5351,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 						selRepresentationIndex = audioRepresentationIndex;
 						aTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
 					}
-					else if (!gpGlobalConfig->bAudioOnlyPlayback)
+					else if (eMEDIATYPE_VIDEO == i && !gpGlobalConfig->bAudioOnlyPlayback)
 					{
 						if (!isIframeAdaptationAvailable || selAdaptationSetIndex == -1)
 						{
@@ -5556,6 +5547,19 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 
 		logprintf("PrivateStreamAbstractionMPD::%s %d > Media[%s] %s\n",
 			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
+
+		//RDK-27796, we need this hack for cases where subtitle is not enabled, but auxiliary audio track is enabled
+		if (eMEDIATYPE_AUX_AUDIO == i && pMediaStreamContext->enabled && !mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled)
+		{
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Auxiliary enabled, but subtitle disabled, swap MediaStreamContext of both", __FUNCTION__, __LINE__);
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->adaptationSetIdx = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->adaptationSetIdx;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->representationIndex;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->mediaType = eMEDIATYPE_AUX_AUDIO;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->type = eTRACK_AUX_AUDIO;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->profileChanged = true;
+			mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled = false;
+		}
 
 		//Store the iframe track status in current period if there is any change
 		if (!gpGlobalConfig->bAudioOnlyPlayback && (i == eMEDIATYPE_VIDEO) && (aamp->mIsIframeTrackPresent != isIframeAdaptationAvailable))
@@ -6265,7 +6269,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
-								if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0, range.c_str(), true ))
+								if(!pMediaStreamContext->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + pMediaStreamContext->mediaType), pMediaStreamContext->fragmentTime, 0, range.c_str(), true ))
 								{
 									logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 								}
@@ -6366,7 +6370,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
 										pMediaStreamContext->profileChanged = false;
-										if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0.0, range.c_str(), true ))
+										if(!pMediaStreamContext->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + pMediaStreamContext->mediaType), pMediaStreamContext->fragmentTime, 0.0, range.c_str(), true ))
 										{
 											logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 										}
@@ -6511,7 +6515,7 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 										if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())
 										{
 											logprintf("%s %d Pushing encrypted header for %s", __FUNCTION__, __LINE__, mMediaTypeName[i]);
-											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, i, mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
+											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + mMediaStreamContext[i]->mediaType), mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
 											if(!temp)
 											{
 												AAMPLOG_WARN("%s:%d: Error at  pthread_create", __FUNCTION__, __LINE__);  //CID:84438 - checked return
@@ -7544,7 +7548,7 @@ PrivateStreamAbstractionMPD::~PrivateStreamAbstractionMPD(void)
 	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
 	{
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
-		if(track )
+		if(track)
 		{
 			delete track;
 		}
@@ -7583,7 +7587,7 @@ void StreamAbstractionAAMP_MPD::DumpProfiles(void)
  *   @param[out]  primaryOutputFormat - format of primary track
  *   @param[out]  audioOutputFormat - format of audio track
  */
-void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
+void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
 {
 	if(mMediaStreamContext[eMEDIATYPE_VIDEO] && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled )
 	{
@@ -7601,6 +7605,16 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	{
 		audioOutputFormat = FORMAT_NONE;
 	}
+	//RDK-27796, if subtitle is disabled, but aux is enabled, then its status is saved in place of eMEDIATYPE_SUBTITLE
+	if (mMediaStreamContext[eMEDIATYPE_AUX_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled ||
+		mMediaStreamContext[eMEDIATYPE_SUBTITLE] && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->type == eTRACK_AUX_AUDIO)
+	{
+		auxOutputFormat = FORMAT_ISO_BMFF;
+	}
+	else
+	{
+		auxOutputFormat = FORMAT_NONE;
+	}
 }
 
 
@@ -7610,9 +7624,9 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
  * @param[out]  primaryOutputFormat - format of primary track
  * @param[out]  audioOutputFormat - format of audio track
  */
-void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
+void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
 {
-	mPriv->GetStreamFormat(primaryOutputFormat, audioOutputFormat);
+	mPriv->GetStreamFormat(primaryOutputFormat, audioOutputFormat, auxOutputFormat);
 }
 
 
@@ -8361,4 +8375,52 @@ void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo
 	{
 		aamp->NotifyTextTracksChanged();
 	}
+}
+
+/**
+ * @brief To check if the adaptation set is having matching language and supported mime type
+ *
+ * @param[in] type - media type
+ * @param[in] lang - language to be matched
+ * @param[in] adaptationSet - adaptation to be checked for
+ * @param[out] representionIndex - represention within adaptation with matching params
+ * @return bool true if the params are matching
+ */
+bool PrivateStreamAbstractionMPD::IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex)
+{
+       bool ret = false;
+       std::string adapLang = GetLanguageForAdaptationSet(adaptationSet);
+       if (adapLang == lang)
+       {
+               std::string adaptationMimeType = adaptationSet->GetMimeType();
+               if (!adaptationMimeType.empty())
+               {
+                       if (IsCompatibleMimeType(adaptationMimeType, type))
+                       {
+                               ret = true;
+                               representationIndex = 0;
+                       }
+               }
+               else
+               {
+                       const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+                       for (int repIndex = 0; repIndex < representation.size(); repIndex++)
+                       {
+                               const dash::mpd::IRepresentation *rep = representation.at(repIndex);
+                               std::string mimeType = rep->GetMimeType();
+                               if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, type)))
+                               {
+                                       ret = true;
+                                       representationIndex = repIndex;
+                               }
+                       }
+               }
+               if (ret != true)
+               {
+                       //Even though language matched, mimeType is missing or not supported right now. Log for now
+                       AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > Found matching track[%d] with language:%s but not supported mimeType and thus disabled!!\n",
+                                               __FUNCTION__, __LINE__, type, lang.c_str());
+               }
+       }
+       return ret;
 }

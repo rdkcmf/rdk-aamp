@@ -40,9 +40,10 @@
  */
 typedef enum
 {
-	eTRACK_VIDEO,   /**< Video track */
-	eTRACK_AUDIO,    /**< Audio track */
-	eTRACK_SUBTITLE  /**< Subtitle track */
+	eTRACK_VIDEO,     /**< Video track */
+	eTRACK_AUDIO,     /**< Audio track */
+	eTRACK_SUBTITLE,  /**< Subtitle track */
+	eTRACK_AUX_AUDIO  /**< Auxiliary audio track */
 } TrackType;
 
 /**
@@ -464,9 +465,10 @@ public:
 	 *
 	 *   @param[out]  primaryOutputFormat - format of primary track
 	 *   @param[out]  audioOutputFormat - format of audio track
+	 *   @param[out]  auxAudioOutputFormat - format of aux audio track
 	 *   @return void
 	 */
-	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) = 0;
+	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat) = 0;
 
 	/**
 	 *   @brief Get current stream position.
@@ -491,7 +493,7 @@ public:
 	virtual MediaTrack* GetMediaTrack(TrackType type) = 0;
 
 	/**
-	 *   @brief Waits track injection until caught up with video track.
+	 *   @brief Waits audio track injection until caught up with video track.
 	 *          Used internally by injection logic
 	 *
 	 *   @param None
@@ -954,6 +956,15 @@ public:
 	
 	void MuteSubtitles(bool mute);
 
+	/**
+	 *   @brief Waits aux track injection until caught up with video track.
+	 *          Used internally by injection logic
+	 *
+	 *   @param None
+	 *   @return void
+	 */
+	void WaitForVideoTrackCatchupForAux();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
@@ -989,6 +1000,7 @@ private:
 	pthread_mutex_t mLock;              /**< lock for A/V track catchup logic*/
 	pthread_cond_t mCond;               /**< condition for A/V track catchup logic*/
 	pthread_cond_t mSubCond;            /**< condition for Audio/Subtitle track catchup logic*/
+	pthread_cond_t mAuxCond;            /**< condition for Aux and video track catchup logic*/
 
 	// abr variables
 	long mCurrentBandwidth;             /**< stores current bandwidth*/

@@ -698,7 +698,7 @@ void MediaTrack::RunInjectLoop()
 		{
 			keepInjecting = false;
 		}
-		if (notifyFirstFragment && type != eTRACK_SUBTITLE)
+		if (notifyFirstFragment && type != eTRACK_SUBTITLE && type != eTRACK_AUX_AUDIO)
 		{
 			notifyFirstFragment = false;
 			GetContext()->NotifyFirstFragmentInjected();
@@ -722,6 +722,10 @@ void MediaTrack::RunInjectLoop()
 				else if (eTRACK_SUBTITLE == type)
 				{
 					pContext->WaitForAudioTrackCatchup();
+				}
+				else if (eTRACK_AUX_AUDIO == type)
+				{
+					pContext->WaitForVideoTrackCatchupForAux();
 				}
 			}
 			else
@@ -903,6 +907,7 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	MediaTrack *aux = GetMediaTrack(eTRACK_AUX_AUDIO);
 	if( audio && video )
 	{
 		pthread_mutex_lock(&mLock);
@@ -915,6 +920,18 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 			logprintf("%s:%d signalling cond - audioDuration %f videoDuration %f",
 				__FUNCTION__, __LINE__, audioDuration, videoDuration);
 #endif
+		}
+		if (aux && aux->enabled)
+		{
+			double auxDuration = aux->GetTotalInjectedDuration();
+			if (auxDuration < (videoDuration + (2 * video->fragmentDurationSeconds)) || !aamp->DownloadsAreEnabled() || video->IsDiscontinuityProcessed() || abort || video->IsAtEndOfTrack())
+			{
+				pthread_cond_signal(&mAuxCond);
+#ifdef AAMP_DEBUG_FETCH_INJECT
+				logprintf("%s:%d signalling cond - auxDuration %f videoDuration %f",
+					__FUNCTION__, __LINE__, auxDuration, videoDuration);
+#endif
+			}
 		}
 		pthread_mutex_unlock(&mLock);
 	}
@@ -942,7 +959,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 		while ((audioDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !audio->IsDiscontinuityProcessed() && !video->IsInjectionAborted() && !(video->IsAtEndOfTrack()))
 		{
 	#ifdef AAMP_DEBUG_FETCH_INJECT
-			logprintf("\n%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f",
+			logprintf("%s:%d waiting for cond - audioDuration %f videoDuration %f video->fragmentDurationSeconds %f",
 				__FUNCTION__, __LINE__, audioDuration, videoDuration,video->fragmentDurationSeconds);
 	#endif
 			ts = aamp_GetTimespec(100);
@@ -985,13 +1002,15 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0),
 		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
-		mAudioTrackIndex(), mTextTrackIndex()
+		mAudioTrackIndex(), mTextTrackIndex(),
+		mAuxCond()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
 	pthread_cond_init(&mSubCond, NULL);
+	pthread_cond_init(&mAuxCond, NULL);
 
 	pthread_mutex_init(&mStateLock, NULL);
 	pthread_cond_init(&mStateCond, NULL);
@@ -1019,6 +1038,7 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
 	pthread_cond_destroy(&mCond);
 	pthread_cond_destroy(&mSubCond);
+	pthread_cond_destroy(&mAuxCond);
 	pthread_mutex_destroy(&mLock);
 
 	pthread_cond_destroy(&mStateCond);
@@ -2158,6 +2178,11 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 	{
 		state = eDISCONTINUIY_IN_AUDIO;
 	}
+	// RDK-27796, bypass discontinuity check for auxiliary audio for now
+	else if (type == eTRACK_AUX_AUDIO)
+	{
+		aamp->Discontinuity(eMEDIATYPE_AUX_AUDIO, false);
+	}
 
 	if (state != eDISCONTIUITY_FREE)
 	{
@@ -2399,4 +2424,52 @@ void StreamAbstractionAAMP::RefreshSubtitles()
 		subtitle->refreshSubtitles = true;
 		subtitle->AbortWaitForCachedAndFreeFragment(true);
 	}
+}
+
+
+/**
+ *   @brief Waits aux track injection until caught up with video track.
+ *   Used internally by injection logic
+ */
+void StreamAbstractionAAMP::WaitForVideoTrackCatchupForAux()
+{
+	MediaTrack *aux = GetMediaTrack(eTRACK_AUX_AUDIO);
+	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	if(video != NULL)
+	{
+
+		struct timespec ts;
+		int ret = 0;
+
+		pthread_mutex_lock(&mLock);
+		double auxDuration = aux->GetTotalInjectedDuration();
+		double videoDuration = video->GetTotalInjectedDuration();
+
+		while ((auxDuration > (videoDuration + video->fragmentDurationSeconds)) && aamp->DownloadsAreEnabled() && !aux->IsDiscontinuityProcessed() && !video->IsInjectionAborted() && !(video->IsAtEndOfTrack()))
+		{
+	#ifdef AAMP_DEBUG_FETCH_INJECT
+			logprintf("%s:%d waiting for cond - auxDuration %f videoDuration %f video->fragmentDurationSeconds %f",
+				__FUNCTION__, __LINE__, auxDuration, videoDuration, video->fragmentDurationSeconds);
+	#endif
+			ts = aamp_GetTimespec(100);
+
+			ret = pthread_cond_timedwait(&mAuxCond, &mLock, &ts);
+
+			if (ret == 0)
+			{
+				break;
+			}
+	#ifndef WIN32
+			if (ret != ETIMEDOUT)
+			{
+				logprintf("%s:%d error while calling pthread_cond_timedwait - %s", __FUNCTION__, __LINE__, strerror(ret));
+			}
+	#endif
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  video  is null", __FUNCTION__, __LINE__);  //CID:85054 - Null Returns
+	}
+	pthread_mutex_unlock(&mLock);
 }

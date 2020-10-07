@@ -156,7 +156,8 @@ typedef enum{
 	eAAMP_SET_AudioTrack,
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
-	eAAMP_SET_CCStyle
+	eAAMP_SET_CCStyle,
+	eAAMP_SET_AuxiliaryAudio
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -399,6 +400,7 @@ void ShowHelpSet(){
 	logprintf("42 - Set TextTrack (int track index)" );
 	logprintf("43 - Set CC status (0/1)" );
 	logprintf("44 - Set a predefined CC style option (1/2/3)" );
+	logprintf("45 - Set auxiliary audio language (string lang)" );
 }
 
 #define LOG_CLI_EVENTS
@@ -1291,6 +1293,17 @@ static void ProcessCliCommand(char *cmd)
 					}
 					break;
 				}
+
+				case eAAMP_SET_AuxiliaryAudio:
+                                {
+					char lang[12];
+					logprintf("Matchde Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, lang) == 2)
+					{
+						mSingleton->SetAuxiliaryLanguage(lang);
+					}
+					break;
+                                }
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
