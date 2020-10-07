@@ -23,22 +23,29 @@
 /**
  * @brief Media types
  */
+// Please maintain the order video, audio, subtitle and aux_audio in future
+// Above order to be maintained across fragment, init and playlist media types
+// These enums are used in a lot of calculation in AAMP code and breaking the order will bring a lot of issues
+// This order is also followed in other enums like AampCurlInstance and TrackType
 enum MediaType
 {
 	eMEDIATYPE_VIDEO,               /**< Type video */
 	eMEDIATYPE_AUDIO,               /**< Type audio */
 	eMEDIATYPE_SUBTITLE,            /**< Type subtitle */
+	eMEDIATYPE_AUX_AUDIO,           /**< Type auxiliary audio */
 	eMEDIATYPE_MANIFEST,            /**< Type manifest */
 	eMEDIATYPE_LICENCE,             /**< Type license */
 	eMEDIATYPE_IFRAME,              /**< Type iframe */
 	eMEDIATYPE_INIT_VIDEO,          /**< Type video init fragment */
 	eMEDIATYPE_INIT_AUDIO,          /**< Type audio init fragment */
-	eMEDIATYPE_INIT_SUBTITLE,          /**< Type audio init fragment */
+	eMEDIATYPE_INIT_SUBTITLE,       /**< Type subtitle init fragment */
+	eMEDIATYPE_INIT_AUX_AUDIO,      /**< Type auxiliary audio init fragment */
 	eMEDIATYPE_PLAYLIST_VIDEO,      /**< Type video playlist */
 	eMEDIATYPE_PLAYLIST_AUDIO,      /**< Type audio playlist */
 	eMEDIATYPE_PLAYLIST_SUBTITLE,	/**< Type subtitle playlist */
-	eMEDIATYPE_PLAYLIST_IFRAME,		 /**< Type Iframe playlist */
-	eMEDIATYPE_INIT_IFRAME,			/**< Type IFRAME init fragment */
+	eMEDIATYPE_PLAYLIST_AUX_AUDIO,	/**< Type auxiliary audio playlist */
+	eMEDIATYPE_PLAYLIST_IFRAME,     /**< Type Iframe playlist */
+	eMEDIATYPE_INIT_IFRAME,         /**< Type IFRAME init fragment */
 	eMEDIATYPE_DSM_CC,              /**< Type digital storage media command and control (DSM-CC) */
 	eMEDIATYPE_IMAGE,		/**< Type image for thumbnail playlist */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */

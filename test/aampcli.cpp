@@ -149,6 +149,7 @@ typedef enum{
 	eAAMP_SET_SslVerifyPeer,
 	eAAMP_SET_DownloadDelayOnFetch,
 	eAAMP_SET_PausedBehavior,
+	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_TYPE_COUNT
 }AAMPSetTypes;
 
@@ -507,7 +508,6 @@ static void InitGetHelpText()
 	mGetHelpText[eAAMP_GET_ThumbnailData] = "Get Thumbnail timerange data(int startpos, int endpos)";
 
 }
-
 /**
  * @brief Show help menu with aamp command line interface
  */
@@ -564,6 +564,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_SslVerifyPeer] =                      "<x>             // Set Ssl Verify Peer flag (x = 1 for enabling)";
 	mSetHelpText[eAAMP_SET_DownloadDelayOnFetch] =               "<x>             // Set delay while downloading fragments (unsigned int x = download delay in ms)";
 	mSetHelpText[eAAMP_SET_PausedBehavior] =                     "<x>             // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"";
+	mSetHelpText[eAAMP_SET_AuxiliaryAudio] =                     "<x>             // Set auxiliary audio language (x = string lang)";
 }
 /**
  * @brief Show help menu with aamp command line interface
@@ -1782,6 +1783,17 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+
+				case eAAMP_SET_AuxiliaryAudio:
+                                {
+					char lang[12];
+					logprintf("Matchde Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
+					if (sscanf(cmd, "set %d %s", &opt, lang) == 2)
+					{
+						mSingleton->SetAuxiliaryLanguage(lang);
+					}
+					break;
+                                }
 				default:
 					printf("[AAMPCLI] Invalid set command %d\n", opt);
 					break;

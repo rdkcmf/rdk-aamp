@@ -222,7 +222,7 @@ void StreamAbstractionAAMP_VIDEOIN::DumpProfiles(void)
  * @param[out]  audioOutputFormat - format of audio track
  * @param[out]  auxAudioOutputFormat - format of aux track
  */
-void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat/*, StreamOutputFormat &auxAudioOutputFormat*/)
+void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 { // STUB
 	AAMPLOG_WARN("%s:%d %s ",__FUNCTION__,__LINE__,mName.c_str());
     primaryOutputFormat = FORMAT_INVALID;

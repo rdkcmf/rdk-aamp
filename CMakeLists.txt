@@ -518,6 +518,11 @@ else()
     message("CMAKE_WPEWEBKIT_JSBINDINGS not set, not creating jsbinding library")
 endif()
 
+if(CMAKE_AUXILIARY_AUDIO_ENABLED)
+	message("CMAKE_AUXILIARY_AUDIO_ENABLED set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_AUXILIARY_AUDIO_ENABLED")
+endif()
+
 message("LIB_AAMP_DEPENDS is ${LIBAAMP_DEPENDS}")
 
 target_link_libraries(aamp ${LIBAAMP_DEPENDS})

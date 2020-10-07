@@ -82,8 +82,12 @@ typedef enum
 	 * used with playersinkbin*/
 	eStreamOp_QUEUE_AUDIO,
 	/** Send queued audio after video*/
-	eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO
-}StreamOperation;
+	eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO,
+	/** Demux and inject auxiliary audio only*/
+	eStreamOp_DEMUX_AUX,
+	/** Demux and inject auxiliary audio and video*/
+	eStreamOp_DEMUX_VIDEO_AND_AUX
+} StreamOperation;
 
 /**
  * @enum TrackToDemux
@@ -106,7 +110,7 @@ typedef enum
 class TSProcessor : public MediaProcessor
 {
    public:
-      TSProcessor(class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL);
+      TSProcessor(class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL, TSProcessor* auxTSProcessor = NULL);
       TSProcessor(const TSProcessor&) = delete;
       TSProcessor& operator=(const TSProcessor&) = delete;
       ~TSProcessor();
@@ -319,6 +323,8 @@ class TSProcessor : public MediaProcessor
       bool m_demuxInitialized;
       long long m_basePTSFromPeer;
       unsigned char m_AudioTrackIndexToPlay;
+      TSProcessor* m_auxTSProcessor;
+      bool m_auxiliaryAudio;
 };
 
 #endif

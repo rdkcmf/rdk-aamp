@@ -698,6 +698,7 @@ static bool IsCompatibleMimeType(const std::string& mimeType, MediaType mediaTyp
 			break;
 
 		case eMEDIATYPE_AUDIO:
+		case eMEDIATYPE_AUX_AUDIO:
 			if ((mimeType == "audio/webm") ||
 				(mimeType == "audio/mp4"))
 				isCompatible = true;
@@ -891,6 +892,8 @@ static const char* getMediaTypeName( MediaType mediaType )
                         return MEDIATYPE_TEXT;
                 case eMEDIATYPE_IMAGE:
                         return MEDIATYPE_IMAGE;
+				case eMEDIATYPE_AUX_AUDIO:
+					return MEDIATYPE_AUX_AUDIO;
                 default:
                         return NULL;
 	}
@@ -3696,7 +3699,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	bool forceSpeedsChangedEvent = false;
 	bool pushEncInitFragment = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT, aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
 
 	aamp->mStreamSink->ClearProtectionEvent();
@@ -3735,11 +3738,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	if (ret == eAAMPSTATUS_OK)
 	{
 		std::string manifestUrl = aamp->GetManifestUrl();
-		mMaxTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
-		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			mMaxTracks--;
-		}
+		mMaxTracks = (rate == AAMP_NORMAL_PLAY_RATE) ? AAMP_TRACK_COUNT : 1;
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
 		mNumberOfTracks = 0;
@@ -3747,7 +3746,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		std::string tempString;
 		if(mpd != NULL)
 		{
-				tempString =  mpd->GetMediaPresentationDuration();
+			tempString =  mpd->GetMediaPresentationDuration();
 		}
 		else
 		{
@@ -5215,7 +5214,7 @@ static void * FragmentDownloader(void *arg)
 			int timeoutMs = downloadParams->context->GetMinUpdateDuration() - (int)(aamp_GetCurrentTimeMS() - downloadParams->lastPlaylistUpdateMS);
 			if(downloadParams->pMediaStreamContext->WaitForFreeFragmentAvailable(timeoutMs))
 			{
-				downloadParams->context->PushNextFragment(downloadParams->pMediaStreamContext, 1);
+				downloadParams->context->PushNextFragment(downloadParams->pMediaStreamContext, (eCURLINSTANCE_VIDEO + downloadParams->pMediaStreamContext->mediaType));
 				if (downloadParams->pMediaStreamContext->eos)
 				{
 					if(!downloadParams->context->aamp->IsLive() && downloadParams->playingLastPeriod)
@@ -5664,16 +5663,14 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 							std::string mimeType = adaptationSet->GetMimeType();
 							if (mimeType.empty())
 							{
-								const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
-								for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+								if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
 								{
-									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
-									std::string mimeType = rep->GetMimeType();
-									if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, MediaType::eMEDIATYPE_SUBTITLE)))
-									{
-										selAdaptationSetIndex = iAdaptationSet;
-										selRepresentationIndex = representationIndex;
-									}
+									pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+								}
+								else
+								{
+									pMediaStreamContext->mSubtitleParser.reset(nullptr); 
+									pMediaStreamContext->mSubtitleParser = NULL;
 								}
 							}
 							tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
@@ -5684,6 +5681,19 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 								selAdaptationSetIndex = -1;
 							}
 							aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
+						}
+					}
+					else if (eMEDIATYPE_AUX_AUDIO == i && aamp->IsAuxiliaryAudioEnabled())
+					{
+						if (aamp->GetAuxiliaryAudioLanguage() == aamp->mAudioTuple.language)
+						{
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > auxiliary audio same as primary audio, set forward audio flag", __FUNCTION__, __LINE__);
+							SetAudioFwdToAuxStatus(true);
+							break;
+						}
+						else if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->GetAuxiliaryAudioLanguage(), adaptationSet, selRepresentationIndex) == true)
+						{
+							selAdaptationSetIndex = iAdaptationSet;
 						}
 					}
 					else if (eMEDIATYPE_AUDIO == i)
@@ -5888,6 +5898,19 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s",
 			__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)), pMediaStreamContext->enabled?"enabled":"disabled");
+
+		//RDK-27796, we need this hack for cases where subtitle is not enabled, but auxiliary audio track is enabled
+		if (eMEDIATYPE_AUX_AUDIO == i && pMediaStreamContext->enabled && !mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled)
+		{
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Auxiliary enabled, but subtitle disabled, swap MediaStreamContext of both", __FUNCTION__, __LINE__);
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->adaptationSetIdx = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->adaptationSetIdx;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->representationIndex = mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->representationIndex;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->mediaType = eMEDIATYPE_AUX_AUDIO;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->type = eTRACK_AUX_AUDIO;
+			mMediaStreamContext[eMEDIATYPE_SUBTITLE]->profileChanged = true;
+			mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled = false;
+		}
 
 		//Store the iframe track status in current period if there is any change
 		if (!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && (i == eMEDIATYPE_VIDEO) && (aamp->mIsIframeTrackPresent != isIframeAdaptationAvailable))
@@ -8162,7 +8185,7 @@ void StreamAbstractionAAMP_MPD::DumpProfiles(void)
  * @param[out]  primaryOutputFormat - format of primary track
  * @param[out]  audioOutputFormat - format of audio track
  */
-void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
+void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
 {
 	if(mMediaStreamContext[eMEDIATYPE_VIDEO] && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled )
 	{
@@ -8179,6 +8202,16 @@ void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutpu
 	else
 	{
 		audioOutputFormat = FORMAT_INVALID;
+	}
+	//RDK-27796, if subtitle is disabled, but aux is enabled, then its status is saved in place of eMEDIATYPE_SUBTITLE
+	if (mMediaStreamContext[eMEDIATYPE_AUX_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled ||
+		mMediaStreamContext[eMEDIATYPE_SUBTITLE] && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->type == eTRACK_AUX_AUDIO)
+	{
+		auxOutputFormat = FORMAT_ISO_BMFF;
+	}
+	else
+	{
+		auxOutputFormat = FORMAT_INVALID;
 	}
 }
 
