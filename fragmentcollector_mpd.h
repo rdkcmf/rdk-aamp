@@ -154,7 +154,7 @@ public:
 	void Start() override;
 	void Stop(bool clearChannelData) override;
 	AAMPStatusType Init(TuneType tuneType) override;
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat) override;
 	double GetStreamPosition() override;
 	MediaTrack* GetMediaTrack(TrackType type) override;
 	double GetFirstPTS() override;
