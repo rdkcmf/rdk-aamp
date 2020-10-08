@@ -254,24 +254,30 @@ static void ShowHelp(void)
 	int i = 0;
 	if (!mVirtualChannelMap.empty())
 	{
-		logprintf("\nChannel Map from aampcli.cfg\n*************************");
+		logprintf("aampcli.cfg virtual channel map:");
 
 		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
 		{
 			VirtualChannelInfo &pChannelInfo = *it;
-			printf("%4d: %s", pChannelInfo.channelNumber, pChannelInfo.name.c_str());
-			if ((i % 4) == 3)
-			{
+			const char *channelName = pChannelInfo.name.c_str();
+			printf("%4d: %s", pChannelInfo.channelNumber, channelName );
+			if ((i % 4) == 3 )
+			{ // four virtual channels per row
 				printf("\n");
 			}
 			else
 			{
-				printf("\t");
+				size_t len = strlen(channelName);
+				while( len<20 )
+				{ // pad each column to 20 characters, for clean layout
+					printf( " " );
+					len++;
+				}
 			}
 		}
-		printf("\n");
+		printf("\n\n");
 	}
-	logprintf( "Commands:\n" );
+	logprintf( "Commands:" );
 	logprintf( "<channelNumber>               // Play selected channel from guide");
 	logprintf( "<url>                         // Play arbitrary stream");
 	logprintf( "pause play stop status flush  // Playback options");
@@ -514,7 +520,24 @@ static void ProcessCLIConfEntry(char *cfg)
 					{
 						channelInfo.name = "CH" + std::to_string(channelInfo.channelNumber);
 					}
-					mVirtualChannelMap.push_back(channelInfo);
+					bool duplicate = false;
+					for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+					{
+						VirtualChannelInfo &existingChannelInfo = *it;
+						if(channelInfo.channelNumber == existingChannelInfo.channelNumber )
+						{
+							duplicate = true;
+							break;
+						}
+					}
+					if( duplicate )
+					{
+						//printf( "duplicate entry for channel %d\n", channelInfo.channelNumber );
+					}
+					else
+					{
+						mVirtualChannelMap.push_back(channelInfo);
+					}
 				}
 				else
 				{
