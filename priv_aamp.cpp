@@ -3627,7 +3627,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
-		AAMPLOG_INFO("aamp url:%d,%d,%s",mediaType, simType, remoteUrl.c_str());
+		AAMPLOG_INFO("aamp url:%d,%d,%d,%s", mediaType, simType, curlInstance, remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
 		{
