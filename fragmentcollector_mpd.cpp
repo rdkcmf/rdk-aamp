@@ -1289,6 +1289,34 @@ static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *
 	aamp_ResolveURL(fragmentUrl, fragmentDescriptor->manifestUrl, constructedUri.c_str());
 }
 
+/**
+ * @brief Gets a curlInstance index for a given MediaType
+ * @param type the stream MediaType
+ * @retval AampCurlInstance index to curl_easy_perform session
+ */
+static AampCurlInstance getCurlInstanceByMediaType(MediaType type)
+{
+	AampCurlInstance instance;
+
+	switch (type)
+	{
+	case eMEDIATYPE_VIDEO:
+		instance = eCURLINSTANCE_VIDEO;
+		break;
+	case eMEDIATYPE_AUDIO:
+		instance = eCURLINSTANCE_AUDIO;
+		break;
+	case eMEDIATYPE_SUBTITLE:
+		instance = eCURLINSTANCE_SUBTITLE;
+		break;
+	default:
+		instance = eCURLINSTANCE_VIDEO;
+		break;
+	}
+
+	return instance;
+}
+
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 
 #include <sys/stat.h>
@@ -4779,7 +4807,7 @@ void * TrackDownloader(void *arg)
 		fetchParms->context->FetchFragment(fetchParms->pMediaStreamContext,
 				fetchParms->initialization,
 				fetchParms->fragmentduration,
-				fetchParms->isinitialization, (eMEDIATYPE_AUDIO == fetchParms->pMediaStreamContext->mediaType), //CurlContext 0=Video, 1=Audio)
+				fetchParms->isinitialization, getCurlInstanceByMediaType(fetchParms->pMediaStreamContext->mediaType), //CurlContext 0=Video, 1=Audio)
 				fetchParms->discontinuity);
 		fetchParms->pMediaStreamContext->discontinuity = false;
 	}
@@ -5292,8 +5320,12 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 									pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
 									if (pMediaStreamContext->mSubtitleParser) 
 									{
-										pMediaStreamContext->mSubtitleParser->init(0.0, 0);
-										pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+										if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+											pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+										else {
+											delete pMediaStreamContext->mSubtitleParser;
+											pMediaStreamContext->mSubtitleParser = NULL;
+										}
 									}
 								}
 							}
@@ -6198,8 +6230,8 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
-								
-								FetchFragment(pMediaStreamContext, initialization, fragmentDuration,true, (eMEDIATYPE_AUDIO == i), pMediaStreamContext->discontinuity);
+
+								FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(i)), pMediaStreamContext->discontinuity);
 								pMediaStreamContext->discontinuity = false;
 							}
 						}
@@ -6278,7 +6310,7 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
 										pMediaStreamContext->profileChanged = false;
-										FetchFragment(pMediaStreamContext, initialization, fragmentDuration,true, (eMEDIATYPE_AUDIO == i));
+										FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(i)));
 									}
 								}
 							}
@@ -6954,7 +6986,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 											delta = SkipFragments(pMediaStreamContext, delta);
 											mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 										}
-										if(PushNextFragment(pMediaStreamContext,i))
+										if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(i))))
 										{
 											if (mIsLiveManifest)
 											{
