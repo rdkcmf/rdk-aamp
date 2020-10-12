@@ -1356,6 +1356,14 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 			if(!mFragmentURIFromIndex.empty()){
 				uri = (char *)mFragmentURIFromIndex.c_str();
 			}
+			
+			//The EXT-X-TARGETDURATION tag specifies the maximum Media Segment   duration.  
+			//The EXTINF duration of each Media Segment in the Playlist   file, when rounded to the nearest integer, 
+			//MUST be less than or equal   to the target duration
+			if(uri && std::round(fragmentDurationSeconds) > targetDurationSeconds) 
+			{
+				AAMPLOG_WARN("%s WARN - Fragment duration[%f] > TargetDuration[%f] for URI:%s",__FUNCTION__,fragmentDurationSeconds ,targetDurationSeconds,uri);
+			}
 		}
 		else
 		{
@@ -1723,6 +1731,14 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					mSyncAfterDiscontinuityInProgress = false;
 					traceprintf("%s:%d [%s] Discontinuity - %d", __FUNCTION__, __LINE__, name, (int)this->discontinuity);
 					rc = ptr;
+					//The EXT-X-TARGETDURATION tag specifies the maximum Media Segment   duration.  
+					//The EXTINF duration of each Media Segment in the Playlist   file, 
+					//when rounded to the nearest integer, 
+					//MUST be less than or equal   to the target duration
+					if(rc && std::round(fragmentDurationSeconds) > targetDurationSeconds) 
+					{
+						AAMPLOG_WARN("%s WARN - Fragment duration[%f] > TargetDuration[%f] for URI:%s",__FUNCTION__,fragmentDurationSeconds ,targetDurationSeconds,rc);
+					}
 					break;
 				}
 				else
@@ -6310,9 +6326,16 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 						// No PDT , now compare the position based on culled delta 
 						// Additional fragmentDuration is considered as rounding with decimal is missing the position when culled delta is same 
 						// Ignore milli second accuracy 
-						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds);
-						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds);
-						int roundedPosn = (int)position;
+						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds - 1.0);
+						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds + 1.0);
+						// DELIA-46385 
+						// Due to increase in fragment duration and mismatch between audio and video,
+						// Discontinuity pairing is missed 
+						// Example : input posn:2290 index[12] position:2293 deltaCulled:0.000000 limit1:2291 limit2:2295
+						// As a workaround , adding a buffer of +/- 1sec around the limit check .
+						// Also instead of int conversion ,round is called for better 
+						int roundedPosn = std::round(position);
+						
 						AAMPLOG_INFO("%s Comparing position input posn:%d index[%d] position:%d deltaCulled:%f limit1:%d limit2:%d  ",__FUNCTION__,roundedPosn,i,(int)(discontinuityIndex[i].position),deltaCulledSec,
 										limit1, limit2);
 						if(roundedPosn >= limit1 && roundedPosn <= limit2 )
