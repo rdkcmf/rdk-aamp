@@ -643,7 +643,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	}
 	unsigned int attemptCount = 0;
 	bool requestFailed = true;
-	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+	/* Check whether stopped or not before looping - download will be disabled */
+	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && aamp->DownloadsAreEnabled())
 	{
 		bool loopAgain = false;
 		attemptCount++;
@@ -651,6 +652,12 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		res = curl_easy_perform(curl);
 		long long tEndTime = NOW_STEADY_TS_MS;
 		long long downloadTimeMS = tEndTime - tStartTime;
+		/** Restrict further processing license if stop called in between  */
+		if(!aamp->DownloadsAreEnabled())
+		{
+			logprintf("%s:%d Aborting License acquisition", __FUNCTION__, __LINE__);
+			break;
+		}
 		if (res != CURLE_OK)
 		{
 			// To avoid scary logging
