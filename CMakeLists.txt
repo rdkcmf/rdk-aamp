@@ -90,6 +90,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     link_directories(${OPENSSL_LIBRARY_DIRS})
     set(CMAKE_THREAD_LIBS_INIT "-lpthread")
     set(CMAKE_HAVE_THREADS_LIBRARY 1)
+    pkg_check_modules(GLIB REQUIRED GLib-2.0)
+    include_directories(${GLIB_INCLUDE_DIRS})
 else()
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
@@ -110,6 +112,7 @@ include_directories(${OPENSSL_INCLUDE_DIRS})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${LIBCJSON_INCLUDE_DIRS})
+
 
 set(LIBAAMP_SOURCES iso639map.cpp
                     base16.cpp
