@@ -2422,6 +2422,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		{
 			TearDownStream((MediaType) i);
 			stream->format = newFormat[i];
+	#if !defined (REALTEKCE)
 	#ifdef USE_PLAYERSINKBIN
 			if (FORMAT_MPEGTS == stream->format )
 			{
@@ -2429,6 +2430,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 				stream->using_playersinkbin = TRUE;
 			}
 			else
+	#endif
 	#endif
 			{
 				stream->using_playersinkbin = FALSE;
@@ -3267,7 +3269,14 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			logprintf("AAMPGstPlayer::%s:%d Pipeline is NULL", __FUNCTION__, __LINE__);
 			return;
 		}
-
+#if defined (REALTEKCE)
+		// Audio playbin must be removed from pipeline or trickplay will not transition to PLAYING state
+		if (privateContext->rate > 1 || privateContext->rate < 0)
+		{
+			logprintf("%s:%d: Stopping audio stream for trickplay", __FUNCTION__, __LINE__);
+			TearDownStream(eMEDIATYPE_AUDIO);
+		}
+#endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		bool bPauseNeeded = false;
