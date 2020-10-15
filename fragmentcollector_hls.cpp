@@ -4412,6 +4412,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
 				ts->IndexPlaylist(false,dummy);
 
+#ifndef AVE_DRM
+				if(ts->mDrmMetaDataIndexCount > 0)
+				{
+					logprintf("TrackState::[%s] Sending Error event DRM unsupported",__FUNCTION__);
+					return eAAMPSTATUS_UNSUPPORTED_DRM_ERROR;
+				}
+#endif
 				if (ts->mDuration == 0.0f)
 				{
 					if (iTrack == eTRACK_SUBTITLE)
