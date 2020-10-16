@@ -3347,8 +3347,8 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 bool AAMPGstPlayer::Discontinuity(MediaType type)
 {
 	bool ret = false;
-	logprintf("Entering AAMPGstPlayer::%s type %d", __FUNCTION__, (int)type);
 	media_stream *stream = &privateContext->stream[type];
+	logprintf("Entering AAMPGstPlayer::%s type(%d) format(%d) resetPosition(%d)", __FUNCTION__, (int)type, stream->format, stream->resetPosition);
 	/*Handle discontinuity only if atleast one buffer is pushed*/
 	if (stream->format != FORMAT_INVALID && stream->resetPosition == true)
 	{
@@ -3367,10 +3367,12 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 
 /**
  * @brief Check if PTS is changing
- * @retval true if PTS changed from lastKnown PTS, will optimistically return true
+ *
+ * @param[in] timeout - to check if PTS hasn't changed within a time duration
+ * @retval true if PTS changed from lastKnown PTS or timeout hasn't expired, will optimistically return true
  * 			if video-pts attribute is not available from decoder
  */
-bool AAMPGstPlayer::CheckForPTSChange()
+bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 {
 	bool ret = true;
 #ifndef INTELCE
@@ -3390,7 +3392,12 @@ bool AAMPGstPlayer::CheckForPTSChange()
 		}
 		else
 		{
-			ret = false;
+			long diff = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
+			if (diff > timeout)
+			{
+				AAMPLOG_WARN("AAMPGstPlayer::%s():%d Video PTS hasn't been updated for %ld ms and timeout - %ld ms", __FUNCTION__, __LINE__, diff, timeout);
+				ret = false;
+			}
 		}
 	}
 	else
@@ -3457,20 +3464,12 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 #ifndef INTELCE
 			else
 			{
-				bool ptsChanged = CheckForPTSChange();
+				bool ptsChanged = CheckForPTSChangeWithTimeout(AAMP_MIN_PTS_UPDATE_INTERVAL);
 				if(!ptsChanged)
 				{
-					long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
-					if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
-					{
-						//Timeout hasn't expired. Need to wait for PTS min update interval to expire
-						ret = false;
-					}
-					else
-					{
-						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)\n",
-								__FUNCTION__, __LINE__, deltaMS, ret);
-					}
+					//PTS hasn't changed for the timeout value
+					AAMPLOG_WARN("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
+									__FUNCTION__, __LINE__, AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
 				}
 				else
 				{

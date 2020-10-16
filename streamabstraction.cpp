@@ -502,13 +502,35 @@ bool MediaTrack::InjectFragment()
 			}
 			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
-				logprintf("%s:%d - track %s - encountered aamp discontinuity @position - %f", __FUNCTION__, __LINE__, name, cachedFragment->position);
+				bool isDiscoIgnoredForOtherTrack = aamp->IsDiscontinuityIgnoredForOtherTrack((MediaType)!type);
+				logprintf("%s:%d - track %s - encountered aamp discontinuity @position - %f, isDiscoIgnoredForOtherTrack - %d", __FUNCTION__, __LINE__, name, cachedFragment->position, isDiscoIgnoredForOtherTrack);
 				cachedFragment->discontinuity = false;
 				ptsError = false;
+
 				if (totalInjectedDuration == 0)
 				{
 					stopInjection = false;
-					logprintf("%s:%d - ignoring discontinuity since no buffer pushed before!", __FUNCTION__, __LINE__);
+
+					if (!isDiscoIgnoredForOtherTrack)
+					{
+						// set discontinuity ignored flag to check and avoid paired discontinuity processing of other track.
+						aamp->SetTrackDiscontinuityIgnoredStatus((MediaType)type);
+					}
+					else
+					{
+						// reset the flag when both the paired discontinuities ignored; since no buffer pushed before.
+						aamp->ResetTrackDiscontinuityIgnoredStatus();
+					}
+
+					logprintf("%s:%d - ignoring %s discontinuity since no buffer pushed before!", __FUNCTION__, __LINE__, name);
+				}
+				else if (isDiscoIgnoredForOtherTrack)
+				{
+					logprintf("%s:%d - discontinuity ignored for %s track prior, no need to process for %s track", __FUNCTION__, __LINE__, ((!type == eTRACK_AUDIO) ? "audio" : "video"), name);
+					stopInjection = false;
+
+					// reset the flag when both the paired discontinuities ignored.
+					aamp->ResetTrackDiscontinuityIgnoredStatus();
 				}
 				else
 				{
