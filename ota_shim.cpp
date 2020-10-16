@@ -49,58 +49,57 @@ using namespace WPEFramework;
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
 
 void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
-    std::string message;
-    JsonObject playerData;
-    parameters.ToString(message);
-    PrivAAMPState state = eSTATE_IDLE;
-    std::string currState;
+	std::string message;
+	parameters.ToString(message);
 
-    /*To Do : Confirm that player name is same as APP_ID. The plugin documentation use "MainPlayer" as player name*/
-    playerData = parameters[APP_ID].Object();
-    AAMPLOG_TRACE( "[OTA_SHIM]%s Received event : message : %s ", __FUNCTION__, message.c_str());
-    /*Detailed Event Data*/
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : locator : %s ", __FUNCTION__, playerData["locator"].String().c_str());
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : playerStatus : %s ", __FUNCTION__, playerData["playerStatus"].String().c_str());
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : length : %s ", __FUNCTION__, playerData["length"].String().c_str());
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : position : %s ", __FUNCTION__, playerData["position"].String().c_str());
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : liveOffset : %s ", __FUNCTION__, playerData["liveOffset"].String().c_str());
-    //AAMPLOG_INFO( "[OTA_SHIM]%s Received event : speed: %s ", __FUNCTION__, playerData["speed"].String().c_str());
+	JsonObject playerData = parameters[APP_ID].Object();
+	AAMPLOG_TRACE( "[OTA_SHIM]%s Received event : message : %s ", __FUNCTION__, message.c_str());
+	/* For detailed event data, we can print or use details like
+	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
-    currState = playerData["playerStatus"].String();
-    if(0 != prevState.compare(currState))
-    {
-        AAMPLOG_INFO( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
-        prevState.clear();
-        prevState = currState;
-        if(0 == prevState.compare("IDLE"))
-        {
-            state = eSTATE_IDLE;
-        }else if(0 == prevState.compare("ERROR"))
-        {
-            aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC tune error");
-            state = eSTATE_ERROR;
-        }else if(0 == prevState.compare("PROCESSING"))
-        {
-            state = eSTATE_PREPARING;
-        }else if(0 == prevState.compare("PLAYING"))
-        {
-            if(!tuned){
-                aamp->SendTunedEvent();
-                tuned = true;
-            }
-            state = eSTATE_PLAYING;
-        }else if(0 == prevState.compare("DONE"))
-        {
-            if(tuned){
-                tuned = false;
-            }
-            state = eSTATE_IDLE;
-        }else
-        {
-            AAMPLOG_INFO( "[OTA_SHIM]%s Unsupported state change!", __FUNCTION__);
-        }
-        aamp->SetState(state);
-    }
+	std::string currState = playerData["playerStatus"].String();
+	if(0 != prevState.compare(currState))
+	{
+		PrivAAMPState state = eSTATE_IDLE;
+		AAMPLOG_INFO( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		prevState = currState;
+		if(0 == currState.compare("PROCESSING"))
+		{
+			state = eSTATE_PREPARING;
+		}else if(0 == currState.compare("ERROR"))
+		{
+			aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC Tuner Error");
+			state = eSTATE_BUFFERING;
+		}else if(0 == currState.compare("PLAYING"))
+		{
+			if(!tuned){
+				aamp->SendTunedEvent();
+				/* For consistency, during first tune, first move to
+				 PREPARED state to match normal IPTV flow sequence */
+				aamp->SetState(eSTATE_PREPARED);
+				tuned = true;
+			}
+			state = eSTATE_PLAYING;
+		}else if(0 == currState.compare("DONE"))
+		{
+			if(tuned){
+				tuned = false;
+			}
+			state = eSTATE_COMPLETE;
+		}else
+		{
+			if(0 == currState.compare("IDLE"))
+			{
+				aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC Tuner Idle");
+			}else{
+				/* Currently plugin lists only "IDLE","ERROR","PROCESSING","PLAYING"&"DONE" */
+				AAMPLOG_INFO( "[OTA_SHIM]%s Unsupported state change!", __FUNCTION__);
+			}
+			/* Need not set a new state hence returning */
+			return;
+		}
+		aamp->SetState(state);
+	}
 }
 #endif
 
