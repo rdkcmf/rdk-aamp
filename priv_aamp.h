@@ -163,7 +163,8 @@ enum PlaybackErrorType
 	eGST_ERROR_VIDEO_BUFFERING,     /**< Video buffering error */
 	eGST_ERROR_OUTPUT_PROTECTION_ERROR,     /**< Output Protection error */
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
-	eSTALL_AFTER_DISCONTINUITY      /** Playback stall after notifying discontinuity */
+	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
+	eGST_ERROR_GST_PIPELINE_INTERNAL	/** GstPipeline Internal Error */
 };
 
 
@@ -195,7 +196,8 @@ enum AAMPStatusType
 	eAAMPSTATUS_MANIFEST_INVALID_TYPE,
 	eAAMPSTATUS_PLAYLIST_PLAYBACK,
 	eAAMPSTATUS_SEEK_RANGE_ERROR,
-	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR
+	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR,
+	eAAMPSTATUS_UNSUPPORTED_DRM_ERROR
 };
 
 
@@ -570,6 +572,7 @@ public:
 	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
 	bool mUseRetuneForUnpairedDiscontinuity;
+	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	bool mNewLiveOffsetflag;	
@@ -587,6 +590,7 @@ public:
 	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
 	VideoZoomMode zoom_mode;
 	bool video_muted;
+	bool subtitles_muted;
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
@@ -596,6 +600,7 @@ public:
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 	bool IsTuneTypeNew; /* Flag for the eTUNETYPE_NEW_NORMAL */
 	/* END: Added As Part of DELIA-28363 and DELIA-28247 */
+	bool mLogTimetoTopProfile; /* Flag for logging time to top profile ,only one time after tune .*/
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;
@@ -1585,6 +1590,14 @@ public:
 	void SetRetuneForUnpairedDiscontinuity(bool bValue);
 
 	/**
+	 *	 @brief Set retune configuration for gstpipeline internal data stream error.
+	 *	 @param[in] bValue - true if gst internal error retune set
+	 *
+	 *	 @return void
+	 */
+	void SetRetuneForGSTInternalError(bool bValue);
+
+	/**
 	 *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
 	 *
 	 *   @param[in] Adbreak's unique identifier.
@@ -1891,6 +1904,12 @@ public:
 	void ConfigureRetuneForUnpairedDiscontinuity();
 
 	/**
+	 *	 @brief To set retune configuration for gstpipeline internal data stream error.
+	 *
+	 */
+	void ConfigureRetuneForGSTInternalError();
+
+	/**
 	 *	 @brief Function to configure PreCachePlaylist
 	 *
 	 */
@@ -2090,6 +2109,13 @@ public:
 	 */
 	bool IsSubtitleEnabled(void);
 	
+	/**
+	 *   @brief To check if JavaScript cue listeners are registered
+	 *
+	 *   @return bool - true if listeners are registered
+	 */
+	bool WebVTTCueListenersRegistered(void);
+
 	/**   @brief updates download metrics to VideoStat object,
 	 *
 	 *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )

@@ -240,7 +240,8 @@ const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
  * @brief AAMPGstPlayer Constructor
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
-AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateContext(NULL), mBufferingLock()
+AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
+	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
 	memset(privateContext, 0, sizeof(*privateContext));
@@ -250,6 +251,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp) : aamp(NULL) , privateCo
 	this->aamp = aamp;
 
 	pthread_mutex_init(&mBufferingLock, NULL);
+	pthread_mutex_init(&mProtectionLock, NULL);
 
 	CreatePipeline();
 	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
@@ -265,6 +267,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 	DestroyPipeline();
 	free(privateContext);
 	pthread_mutex_destroy(&mBufferingLock);
+	pthread_mutex_destroy(&mProtectionLock);
 }
 
 /**
@@ -944,6 +947,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			// Trying to play a 4K content on a non-4K TV .Report error to XRE with no retune
 			_this->aamp->SendErrorEvent(AAMP_TUNE_HDCP_COMPLIANCE_ERROR, errorDesc, false);
 		}
+		else if (strstr(error->message, "Internal data stream error") && _this->aamp->mUseRetuneForGSTInternalError)
+		{
+			// This can be executed only for Peacock when it hits Internal data stream error.
+			AAMPLOG_WARN("%s:%d Schedule retune for GstPipeline Error", __FUNCTION__, __LINE__);
+			_this->aamp->ScheduleRetune(eGST_ERROR_GST_PIPELINE_INTERNAL, eMEDIATYPE_VIDEO);
+		}
 		else
 		{
 			_this->aamp->SendErrorEvent(AAMP_TUNE_GST_PIPELINE_ERROR, errorDesc);
@@ -1461,13 +1470,14 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	/* There is a possibility that only single protection event is queued for multiple type since they are encrypted using same id.
 	 * Don't worry if you see only one protection event queued here.
 	 */
-
+	pthread_mutex_lock(&mProtectionLock);
 	if (privateContext->protectionEvent[type] != NULL)
 	{
 		AAMPLOG_WARN("%s:%d Previously cached protection event is present for type(%d), clearing!", __FUNCTION__, __LINE__, type);
 		gst_event_unref(privateContext->protectionEvent[type]);
 		privateContext->protectionEvent[type] = NULL;
 	}
+	pthread_mutex_unlock(&mProtectionLock); 
 
 	AAMPLOG_WARN("%s:%d Queueing protection event for type(%d) keysystem(%s) initData(%p) initDataSize(%d)", __FUNCTION__, __LINE__, type, protSystemId, initData, initDataSize);
 
@@ -1477,7 +1487,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 		GstBuffer *pssi;
 
 		pssi = gst_buffer_new_wrapped(g_memdup (initData, initDataSize), initDataSize);
-
+		pthread_mutex_lock(&mProtectionLock);
 		if (this->aamp->IsDashAsset())
 		{
 			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "dash/mpd");
@@ -1486,6 +1496,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 		{
 			privateContext->protectionEvent[type] = gst_event_new_protection (protSystemId, pssi, "hls/m3u8");
 		}
+		pthread_mutex_unlock(&mProtectionLock);
 
 		gst_buffer_unref (pssi);
 	}
@@ -1497,6 +1508,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
  */
 void AAMPGstPlayer::ClearProtectionEvent()
 {
+	pthread_mutex_lock(&mProtectionLock);
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		if(privateContext->protectionEvent[i])
@@ -1506,6 +1518,7 @@ void AAMPGstPlayer::ClearProtectionEvent()
 			privateContext->protectionEvent[i] = NULL;
 		}
 	}
+	pthread_mutex_unlock(&mProtectionLock);
 }
 
 /**
@@ -1792,7 +1805,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE))
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);

@@ -75,6 +75,7 @@ public:
 	virtual void setProgressEventOffset(double offset) = 0;
 	virtual void updateTimestamp(unsigned long long positionMs) = 0;
 	virtual void pause(bool pause) {}
+	virtual void mute(bool mute) {}
 
 protected:
 

@@ -219,6 +219,7 @@ static TuneFailureMap tuneFailureMap[] =
 	{AAMP_TUNE_CORRUPT_DRM_DATA, 51, "AAMP: DRM failure due to Corrupt DRM files"},
 	{AAMP_TUNE_CORRUPT_DRM_METADATA, 50, "AAMP: DRM failure due to Bad DRMMetadata in stream"},
 	{AAMP_TUNE_DRM_DECRYPT_FAILED, 50, "AAMP: DRM Decryption Failed for Fragments"},
+	{AAMP_TUNE_DRM_UNSUPPORTED, 50, "AAMP: DRM format Unsupported"},
 	{AAMP_TUNE_GST_PIPELINE_ERROR, 80, "AAMP: Error from gstreamer pipeline"},
 	{AAMP_TUNE_PLAYBACK_STALLED, 7600, "AAMP: Playback was stalled due to lack of new fragments"},
 	{AAMP_TUNE_CONTENT_NOT_FOUND, 20, "AAMP: Resource was not found at the URL(HTTP 404)"},
@@ -1082,6 +1083,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
 			logprintf("useRetuneForUnpairedDiscontinuity=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useRetuneForGstInternalError=", value) == 1)
+		{
+			gpGlobalConfig->useRetuneForGSTInternalError = (TriState)(value != 0);
+			logprintf("useRetuneForGstInternalError=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "async-tune=", value) == 1)
 		{
 			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
@@ -1367,10 +1373,10 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->nativeCCRendering = (value == 1);
 			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
 		}
-		else if (cfg.compare("enableSubtec") == 0)
+		else if (cfg.compare("disableSubtec") == 0)
 		{
-			gpGlobalConfig->bEnableSubtec = true;
-			logprintf("Subtec subtitles enabled");
+			gpGlobalConfig->bEnableSubtec = false;
+			logprintf("Subtec subtitles disabled");
 		}
 		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
 		{
@@ -1751,7 +1757,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),
+	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	playStartUTCMS(0), durationSeconds(0.0), culledSeconds(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000), initialTuneTimeMs(0),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
@@ -1788,7 +1794,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
 	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
-	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
+	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS), mUseRetuneForGSTInternalError(true)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
@@ -4781,6 +4787,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				failReason = AAMP_TUNE_INIT_FAILED_MANIFEST_PARSE_ERROR; break;
 			case eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR:
 				failReason = AAMP_TUNE_INIT_FAILED_TRACK_SYNC_ERROR; break;
+			case eAAMPSTATUS_UNSUPPORTED_DRM_ERROR:
+				failReason = AAMP_TUNE_DRM_UNSUPPORTED; break;
 			default :
 				break;
 			}
@@ -4911,12 +4919,13 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureParallelFetch();
 	ConfigureBulkTimedMetadata();
 	ConfigureRetuneForUnpairedDiscontinuity();
+	ConfigureRetuneForGSTInternalError();
 	ConfigureWesterosSink();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-		
+	mLogTimetoTopProfile = true;	
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
@@ -6590,7 +6599,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
 									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
-									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" : "STARTTIME RESET";
+									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
+									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
@@ -7903,6 +7913,19 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
 }
 
 /**
+ *   @brief To set retune configuration for gstpipeline internal data stream error.
+ *
+ */
+void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
+{
+    if(gpGlobalConfig->useRetuneForGSTInternalError != eUndefinedState)
+    {
+            mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
+    }
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For GST Internal Stream Error [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
+}
+
+/**
  *   @brief Set unpaired discontinuity retune flag
  *   @param[in] bValue - true if unpaired discontinuity retune set
  *
@@ -7912,6 +7935,18 @@ void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 {
     mUseRetuneForUnpairedDiscontinuity = bValue;
     AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+}
+
+/**
+ *   @brief Set retune configuration for gstpipeline internal data stream error.
+ *   @param[in] bValue - true if gst internal error retune set
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
+{
+	mUseRetuneForGSTInternalError = bValue;
+	AAMPLOG_INFO("%s:%d Retune For GST Internal Stream Error Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**
@@ -8504,6 +8539,16 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 }
 
 /**
+ *   @brief To check if JavaScript cue listeners are registered
+ *
+ *   @return bool - true if listeners are registered
+ */
+bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
+{
+	return (mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+}
+
+/**
  *   @brief To get any custom license HTTP headers that was set by application
  *
  *   @param[out] headers - map of headers
@@ -9092,6 +9137,8 @@ int PrivateInstanceAAMP::GetAudioTrack()
 	return idx;
 }
 
+#define MUTE_SUBTITLES_TRACKID (-1)
+
 /**
  *   @brief Set text track
  *
@@ -9102,6 +9149,13 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 {
 	if (mpStreamAbstractionAAMP)
 	{
+		// Passing in -1 as the track ID mutes subs
+		if (MUTE_SUBTITLES_TRACKID == trackId)
+		{
+			SetCCStatus(false);
+			return;
+		}
+
 		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
 		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
 		{
@@ -9150,6 +9204,9 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			}
 			else
 			{
+				//Unmute subtitles
+				SetCCStatus(true);
+				
 				//TODO: Effective handling between subtitle and CC tracks
 				// SetPreferredTextTrack will not have any impact on CC rendering if already active
 				SetPreferredTextTrack(track);
@@ -9208,6 +9265,12 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 #ifdef AAMP_RDK_CC_ENABLED
 	AampRDKCCManager::GetInstance()->SetStatus(enabled);
 #endif
+
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->MuteSubtitles(!enabled);
+	}
+	subtitles_muted = !enabled;
 }
 
 /**

@@ -200,6 +200,7 @@ langcodepref=<X>
 
 useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
+useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.
 fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
 initRampdownLimit=<X> Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
 minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.

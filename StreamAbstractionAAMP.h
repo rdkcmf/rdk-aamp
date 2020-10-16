@@ -935,6 +935,8 @@ public:
 	 * @param[in] wxh - width & height of video rectangle
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
+	
+	void MuteSubtitles(bool mute);
 
 protected:
 	/**

@@ -1279,7 +1279,7 @@ static void ProcessCliCommand(char *cmd)
 					logprintf( "CURRENT AUDIO TRACK: %d", mSingleton->GetAudioTrack() );
 					break;
 				case eAAMP_GET_TextTrack:
-					logprintf( "CURRENT AUDIO TRACK: %d", mSingleton->GetTextTrack() );
+					logprintf( "CURRENT TEXT TRACK: %d", mSingleton->GetTextTrack() );
 					break;
 				case eAAMP_GET_AvailableAudioTracks:
 					logprintf( "AVAILABLE AUDIO TRACKS: %s", mSingleton->GetAvailableAudioTracks().c_str() );

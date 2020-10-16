@@ -3196,7 +3196,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			mPendingKeyIDs.pop();
 	}
 
-	aamp->IsTuneTypeNew = false;
+	aamp->IsTuneTypeNew = newTune;
 
 #ifdef AAMP_MPD_DRM
 	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
@@ -4981,6 +4981,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 									if (pMediaStreamContext->mSubtitleParser) 
 									{
 										pMediaStreamContext->mSubtitleParser->init(0.0, 0);
+										pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
 									}
 								}
 							}

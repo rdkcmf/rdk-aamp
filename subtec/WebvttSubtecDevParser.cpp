@@ -163,6 +163,16 @@ bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 	return ret;
 }
 
+void WebVTTSubtecDevParser::mute(bool mute)
+{
+	if (mute)
+		PacketSender::Instance()->AddPacket(m_channel->generateMutePacket());
+	else
+		PacketSender::Instance()->AddPacket(m_channel->generateUnmutePacket());
+		
+	PacketSender::Instance()->SendPackets();
+}
+
 void WebVTTSubtecDevParser::pause(bool pause)
 {
 	if (pause)
