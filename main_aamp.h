@@ -426,9 +426,11 @@ public:
 
 	/**
 	 * @brief Check if PTS is changing
-	 * @retval true if PTS is changing
+	 *
+	 * @param[in] timeout - max time period within which PTS hasn't changed
+	 * @retval true if PTS is changing, false if PTS hasn't changed for timeout msecs
 	 */
-	virtual bool CheckForPTSChange() {return true;};
+	virtual bool CheckForPTSChangeWithTimeout(long timeout) { return true; }
 
 	/**
 	 * @brief Check if first frame received or not

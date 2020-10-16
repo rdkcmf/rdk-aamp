@@ -2877,7 +2877,6 @@ private:
 	long long mPlayerLoadTime;
 	PrivAAMPState mState;
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
-	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
 	std::shared_ptr<AampDrmHelper> mCurrentDrm;
 	int  mPersistedProfileIndex;
