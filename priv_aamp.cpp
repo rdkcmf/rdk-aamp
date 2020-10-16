@@ -1887,7 +1887,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
-	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
+	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false),
@@ -1966,6 +1966,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 		mTrackInjectionBlocked[i] = false;
 		lastUnderFlowTimeMs[i] = 0;
 		mProcessingDiscontinuity[i] = false;
+		mIsDiscontinuityIgnored[i] = false;
 	}
 
 	pthread_mutex_lock(&gMutex);
@@ -2810,8 +2811,14 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	{
 		bool continueDiscontProcessing = true;
 		logprintf("PrivateInstanceAAMP::%s:%d mProcessingDiscontinuity set", __FUNCTION__, __LINE__);
+		// DELIA-46559, there is a chance that synchronous progress event sent will take some time to return back to AAMP
+		// This can lead to discontinuity stall detection kicking in. So once we start discontinuity processing, reset the flags
+		mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+		mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+		ResetTrackDiscontinuityIgnoredStatus();
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
+
 		{
 			double newPosition = GetPositionMilliseconds() / 1000.0;
 			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
@@ -2864,9 +2871,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
-			mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-			mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-			mLastDiscontinuityTimeMs = 0;
 		}
 		else
 		{
@@ -4573,6 +4577,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	//reset discontinuity related flags
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
 
 	if (mpStreamAbstractionAAMP)
@@ -4752,7 +4757,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		lastUnderFlowTimeMs[i] = 0;
 	}
-	mLastDiscontinuityTimeMs = 0;
 	LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
@@ -5439,29 +5443,13 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
 	AAMPLOG_TRACE("%s:%d : Enter mediaType %d", __FUNCTION__, __LINE__, mediaType);
-	if(!(mStreamSink->CheckForPTSChange()))
+	if(!(mStreamSink->CheckForPTSChangeWithTimeout(gpGlobalConfig->discontinuityTimeout)))
 	{
-		auto now =  aamp_GetCurrentTimeMS();
-		if(mLastDiscontinuityTimeMs == 0)
-		{
-			mLastDiscontinuityTimeMs = now;
-		}
-		else
-		{
-			auto diff = now - mLastDiscontinuityTimeMs;
-			AAMPLOG_INFO("%s:%d : No change in PTS for last %lld ms\n",__FUNCTION__, __LINE__, diff);
-			if(diff > gpGlobalConfig->discontinuityTimeout)
-			{
-				mLastDiscontinuityTimeMs = 0;
-				mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
-				mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
-				ScheduleRetune(eSTALL_AFTER_DISCONTINUITY,mediaType);
-			}
-		}
-	}
-	else
-	{
-		mLastDiscontinuityTimeMs = 0;
+		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, gpGlobalConfig->discontinuityTimeout);
+		mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
+		mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
+		ResetTrackDiscontinuityIgnoredStatus();
+		ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, mediaType);
 	}
 	AAMPLOG_TRACE("%s:%d : Exit mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
 }
@@ -6752,9 +6740,11 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 
 		/*If underflow is caused by a discontinuity processing, continue playback from discontinuity*/
-		if (IsDiscontinuityProcessPending())
+		// If discontinuity process in progress, skip further processing
+		// DELIA-46559 Since discontinuity flags are reset a bit earlier, additional checks added below to check if discontinuity processing in progress
+		pthread_mutex_lock(&mLock);
+		if (IsDiscontinuityProcessPending() || mDiscontinuityTuneOperationId != 0 || mDiscontinuityTuneOperationInProgress)
 		{
-			pthread_mutex_lock(&mLock);
 			if (mDiscontinuityTuneOperationId != 0 || mDiscontinuityTuneOperationInProgress)
 			{
 				pthread_mutex_unlock(&mLock);
@@ -6768,7 +6758,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Underflow due to discontinuity handled", __FUNCTION__, __LINE__);
 			return;
 		}
-		else if (mpStreamAbstractionAAMP->IsStreamerStalled())
+		pthread_mutex_unlock(&mLock);
+
+		if (mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->IsStreamerStalled())
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall", __FUNCTION__, __LINE__);
 			return;
@@ -9630,6 +9622,37 @@ void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
 		mSessionToken = sessionToken;
 	}
 	return;
+}
+
+/**
+ *   @brief Set discontinuity ignored flag for given track
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTrackDiscontinuityIgnoredStatus(MediaType track)
+{
+	mIsDiscontinuityIgnored[track] = true;
+}
+
+/**
+ *   @brief Check whether the given track discontinuity ignored earlier.
+ *
+ *   @return true - if the discontinuity already ignored.
+ */
+bool PrivateInstanceAAMP::IsDiscontinuityIgnoredForOtherTrack(MediaType track)
+{
+	return (mIsDiscontinuityIgnored[track]);
+}
+
+/**
+ *   @brief Reset discontinuity ignored flag for audio and video tracks
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::ResetTrackDiscontinuityIgnoredStatus(void)
+{
+	mIsDiscontinuityIgnored[eTRACK_VIDEO] = false;
+	mIsDiscontinuityIgnored[eTRACK_AUDIO] = false;
 }
 
 /**
