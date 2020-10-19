@@ -1362,8 +1362,8 @@ static void ProcessConfigEntry(std::string cfg)
 		}
 		else if (ReadConfigNumericHelper(cfg, "sslverifypeer=", value) == 1)
 		{
-			gpGlobalConfig->disableSslVerifyPeer = (value != 1);
-			logprintf("ssl verify peer is %s", gpGlobalConfig->disableSslVerifyPeer? "disabled" : "enabled");
+			gpGlobalConfig->sslVerifyPeer = (TriState)(value == 1);
+			logprintf("ssl verify peer is %s", gpGlobalConfig->sslVerifyPeer? "disabled" : "enabled");
 		}
 		else if (ReadConfigNumericHelper(cfg, "curl-stall-timeout=", gpGlobalConfig->curlStallTimeout) == 1)
 		{
@@ -3664,7 +3664,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
-			if(gpGlobalConfig->disableSslVerifyPeer)
+			if(!gpGlobalConfig->sslVerifyPeer)
 			{
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -4370,7 +4370,9 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		if(!gpGlobalConfig->sslVerifyPeer){
+			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		}
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
 		res = curl_easy_perform(curl);
@@ -5103,6 +5105,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
+	}
+
+	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState){
+		/* Disable ssl verification by default */
+		gpGlobalConfig->sslVerifyPeer = eFalseState;
+		AAMPLOG_INFO("%s:%d : SSL Verification has not configured , default is False", __FUNCTION__,__LINE__);
 	}
 
 	//temporary hack for peacock
@@ -6188,6 +6196,23 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
 	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
 }
+
+/**
+ *   @brief to disable SSL verify peer 
+ *
+ *   @param[in] bValue - true to enable the configuration
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
+{
+	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState)
+	{
+		gpGlobalConfig->sslVerifyPeer = (TriState)bValue;
+	}
+	logprintf("%s:%d Disable Ssl Verify Peer : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->sslVerifyPeer)?"True":"False");
+}
+
 
 /**
  *   @brief Set Westeros sink Configuration

@@ -53,7 +53,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
 	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0), waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
-	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), disableSslVerifyPeer(true),
+	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true),
 	discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
 	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE),

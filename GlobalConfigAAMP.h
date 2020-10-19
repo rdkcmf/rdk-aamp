@@ -200,7 +200,7 @@ public:
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
-	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
+	TriState sslVerifyPeer;		/**< Enable or Disable curl ssl certificate verification. */
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
