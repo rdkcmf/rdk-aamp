@@ -1334,7 +1334,9 @@ long AveDrmManager::setSessionToken()
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, tokenReply);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	if(!gpGlobalConfig->sslVerifyPeer){
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	}
 	curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
 	res = curl_easy_perform(curl);

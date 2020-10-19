@@ -111,7 +111,7 @@ curl-download-start-timeout=<X> specify the value in seconds for after which a C
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
-sslverifypeer=1	Enable TLS certificate verification.
+sslverifypeer=<X>	X = 1 to enable TLS certificate verification, X = 0 to disable peer verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 

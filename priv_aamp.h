@@ -2339,6 +2339,14 @@ public:
 	void SetPropagateUriParameters(bool bValue);
 
 	/**
+	 *   @brief to configure disable ssl verify peer parameter
+	 *
+	 *   @param[in] bValue - default value: false
+	 *   @return void
+	 */
+	void SetSslVerifyPeerConfig(bool bValue);
+
+	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
 	 *
