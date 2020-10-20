@@ -5073,6 +5073,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 			}
 		}
 	}
+	aamp->StoreLanguageList(mLangList);
 }
 
 #ifdef AAMP_MPD_DRM
@@ -5382,7 +5383,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 		if( audioAdaptationSet )
 		{
 			std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
-			aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
+			aamp->UpdateAudioLanguageSelection( lang.c_str(), true);
 			if(desiredRepIdx != -1 )
 			{
 				audioRepresentationIndex = desiredRepIdx;
@@ -7621,7 +7622,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		primaryOutputFormat = FORMAT_NONE;
+		primaryOutputFormat = FORMAT_INVALID;
 	}
 	if(mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled )
 	{
@@ -7629,7 +7630,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		audioOutputFormat = FORMAT_NONE;
+		audioOutputFormat = FORMAT_INVALID;
 	}
 }
 

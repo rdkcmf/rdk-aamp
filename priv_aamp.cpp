@@ -1808,6 +1808,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mCacheMaxSize(0)
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
+	, mPreviousAudioType (FORMAT_INVALID)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2638,7 +2639,9 @@ void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
  */
 bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
-	return (mProcessingDiscontinuity[eMEDIATYPE_AUDIO] || mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
+	return (vidDiscontinuity || audDiscontinuity);
 }
 
 /**
@@ -3122,7 +3125,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
  * @brief Store language list of stream
  * @param langlist Array of languges
  */
-void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &langlist)
+void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlist)
 {
 	// store the language list
 	int langCount = langlist.size();
@@ -3131,14 +3134,15 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &lang
 		langCount = MAX_LANGUAGE_COUNT; //boundary check
 	}
 	mMaxLanguageCount = langCount;
-	for (int cnt=0; cnt < langCount; cnt ++)
+	std::set<std::string>::const_iterator iter = langlist.begin();
+	for (int cnt = 0; cnt < langCount; cnt++, iter++)
 	{
-		strncpy(mLanguageList[cnt], langlist[cnt].c_str(), MAX_LANGUAGE_TAG_LENGTH);
+		strncpy(mLanguageList[cnt], iter->c_str(), MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
 #ifdef SESSION_STATS
 		if( this->mVideoEnd )
 		{
-			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, langlist[cnt], cnt+1);
+			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, (*iter), cnt+1);
 		}
 #endif
 	}
@@ -4650,8 +4654,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		durationSeconds = 60 * 60; // 1 hour
 		rate = AAMP_NORMAL_PLAY_RATE;
 		playStartUTCMS = aamp_GetCurrentTimeMS();
-		std::vector<std::string> emptyLanglist;
-		StoreLanguageList(emptyLanglist);
+		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
 	}
 
@@ -7488,14 +7491,34 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 /**
  * @brief Update audio language selection
  * @param lang string corresponding to language
- * @param overwriteLangFlag - flag to check for overwriting user setting
+ * @param checkBeforeOverwrite - if set will do additional checks before overwriting user setting
  */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag)
+void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite)
 {
-	if(overwriteLangFlag)
+	bool overwriteSetting = true;
+	if (checkBeforeOverwrite)
 	{
-		strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-		language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		// Check if the user provided language is present in the available language list
+		// in which case this is just temporary and no need to overwrite user settings
+		for (int cnt = 0; cnt < mMaxLanguageCount; cnt++)
+		{
+			if(strncmp(mLanguageList[cnt], language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+			{
+				overwriteSetting = false;
+				break;
+			}
+		}
+
+	}
+
+	if (overwriteSetting)
+	{
+		if (strncmp(language, lang, MAX_LANGUAGE_TAG_LENGTH) != 0)
+		{
+			AAMPLOG_WARN("%s:%d Update audio language from (%s) -> (%s)", __FUNCTION__, __LINE__, language, lang);
+			strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
+			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		}
 	}
 	noExplicitUserLanguageSelection = false;
 
@@ -7698,15 +7721,12 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
-		const char *src = (*iter).c_str();
-		size_t len = strlen(src);
-		if (len > 0)
+		if (!iter->empty())
 		{
-			assert(len < MAX_LANGUAGE_TAG_LENGTH - 1);
-			event->addLanguage(std::string(src));
+			assert(iter->size() < MAX_LANGUAGE_TAG_LENGTH - 1);
+			event->addLanguage((*iter));
 		}
 	}
-	StoreLanguageList(event->getLanguages());
 
 	for (int i = 0; i < bitrateList.size(); i++)
 	{
@@ -9457,6 +9477,43 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
 	{
 		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
+	}
+}
+
+/**
+ *   @brief Set stream format for audio/video tracks
+ *
+ *   @param[in] videoFormat - video stream format
+ *   @param[in] audioFormat - audio stream format
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
+{
+	bool reconfigure = false;
+	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
+
+	// We need to make some hardcore decisions here. What we know already -
+	// 1. We know GStreamer can identify caps using typefind element
+	// 2. Everytime Configure() is called, it "recreates" all playbins if there is a change in even one track's format(even unknown to known)
+	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
+	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
+	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
+	if (mVideoFormat != videoFormat && mVideoFormat == FORMAT_INVALID && videoFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mVideoFormat = videoFormat;
+	}
+	if (audioFormat != mAudioFormat && mAudioFormat == FORMAT_INVALID && audioFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mAudioFormat = audioFormat;
+	}
+
+	if (reconfigure)
+	{
+		// Configure pipeline as TSProcessor might have detected the actual stream type
+		// or even presence of audio
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
 	}
 }
 

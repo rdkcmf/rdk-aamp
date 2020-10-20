@@ -54,8 +54,6 @@
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_IV_LEN 16
-#define AAMP_AUDIO_FORMAT_MAP_LEN 7
-#define AAMP_VIDEO_FORMAT_MAP_LEN 3
 
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
@@ -89,6 +87,7 @@ typedef struct HlsStreamInfo: public StreamInfo
 	long averageBandwidth;	/**< Average Bandwidth */
 	const char *closedCaptions;	/**< CC if present */
 	const char *subtitles;	/**< Subtitles */
+	StreamOutputFormat audioFormat; /**< Audio codec format*/
 } HlsStreamInfo;
 
 /**
@@ -104,7 +103,7 @@ typedef struct MediaInfo
 	bool autoselect;		/**< AutoSelect */
 	bool isDefault;			/**< IsDefault */
 	const char *uri;		/**< URI Information */
-
+	StreamOutputFormat audioFormat; /**< Audio codec format*/
 	// rarely present
 	int channels;			/**< Channel */
 	const char *instreamID;	/**< StreamID */
@@ -418,6 +417,8 @@ public:
 	std::vector<long> GetAudioBitrates(void);
 	/// Function to get the Media count 
 	int GetMediaCount(void) { return mMediaCount;}	
+	/// Function to filter the audio codec based on the configuration
+	bool FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat);
 	// Function to update seek position
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
 	/// Function to initiate precaching of playlist
@@ -429,6 +430,8 @@ public:
 	
 	void NotifyPlaybackPaused(bool pause) override;
 
+	// Function to get the total number of profiles
+	int GetTotalProfileCount() { return mProfileCount;}
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	
@@ -466,9 +469,15 @@ public:
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts);
 
+	/// Function to get matching mediaInfo index for a language and track type
+	int GetMediaIndexForLanguage(std::string lang, TrackType type);
+
+	/// Function to get output format for track type
+	StreamOutputFormat GetStreamOutputFormatForTrack(TrackType type);
+
 protected:
-	/// Function to get StreamInfo stucture based on the index input
-	StreamInfo* GetStreamInfo(int idx){ return &streamInfo[idx];}
+	/// Function to get streamInfo for the profileIndex
+	StreamInfo* GetStreamInfo(int idx);
 private:
 	/// Function to Synchronize timing of Audio /Video for live streams 
 	AAMPStatusType SyncTracks(void);
@@ -478,10 +487,21 @@ private:
 	AAMPStatusType SyncTracksForDiscontinuity();
 	/// Populate audio and text track info structures
 	void PopulateAudioAndTextTracks();
+
+	/// Function to select the audio track and update AudioProfileIndex
+	void ConfigureAudioTrack();
+	/// Function to select the best match video profiles based on audio and filters
+	void ConfigureVideoProfiles();
+	/// Function to select the text track and update TextTrackProfileIndex
+	void ConfigureTextTrack();
+
 	int segDLFailCount;						/**< Segment Download fail count */
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 	int mMediaCount;						/**< Number of media in the stream */
+	int mProfileCount;						/**< Number of Video/Iframe in the stream */
+	bool mIframeAvailable;					/**< True if iframe available in the stream */
 	bool mUseAvgBandwidthForABR;
+	std::set<std::string> mLangList; /**< Available language list */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H

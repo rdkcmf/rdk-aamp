@@ -182,7 +182,7 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
 void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
     primaryOutputFormat = FORMAT_ISO_BMFF;
-    audioOutputFormat = FORMAT_NONE;
+    audioOutputFormat = FORMAT_INVALID;
 }
 
 /**

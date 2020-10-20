@@ -533,6 +533,7 @@ public:
 	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mVideoFormat;
 	StreamOutputFormat mAudioFormat;
+	StreamOutputFormat mPreviousAudioType; /* Used to maintain previous audio type of HLS playback */
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
 	StreamSink* mStreamSink;
@@ -695,7 +696,7 @@ public:
 	 * @param[in] langlist - Vector of languages
 	 * @return void
 	 */
-	void StoreLanguageList(const std::vector<std::string> &langlist);
+	void StoreLanguageList(const std::set<std::string> &langlist);
 
 	/**
 	 * @brief Checking whether audio language supported
@@ -1753,10 +1754,10 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
-	 *   @param[in] overwriteLangFlag - flag to enable overwrite language
+	 *   @param[in] checkBeforeOverwrite - flag to enable additional check before overwriting language
 	 *   @return void
 	 */
-	void UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag=true );
+	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
 
 	/**
 	 *   @brief Update subtitle language selection
@@ -2615,6 +2616,15 @@ public:
 	 *   @param[in] enabled - true if enabled
 	 */
 	void SetReportVideoPTS(bool enabled);
+
+	/**
+	 *   @brief Set stream format for audio/video tracks
+	 *
+	 *   @param[in] videoFormat - video stream format
+	 *   @param[in] audioFormat - audio stream format
+	 *   @return void
+	 */
+	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
 
 private:
 
