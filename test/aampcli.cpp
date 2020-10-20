@@ -603,6 +603,10 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Tune(cmd);
 	}
+	else if (memcmp(cmd, "live", 4) == 0)
+	{
+		mSingleton->Tune(cmd);
+	}
 	else if (isNumber(cmd))
 	{
 		int channelNumber = atoi(cmd);

@@ -5564,6 +5564,11 @@ std::string PrivateInstanceAAMP::GetContentTypString()
             strRet =  "OTT"; //ott
             break;
         }
+        case ContentType_OTA :
+        {
+            strRet =  "OTA"; //ota
+            break;
+        }
         default:
         {
             strRet =  "Unknown";
@@ -5642,6 +5647,10 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 		else if(playbackMode == "OTT")
 		{
 			mContentType = ContentType_OTT; //ott
+		}
+		else if(playbackMode == "OTA")
+		{
+			mContentType = ContentType_OTA; //ota
 		}
 	}
 }
