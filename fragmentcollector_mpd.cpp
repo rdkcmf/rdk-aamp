@@ -327,6 +327,7 @@ public:
 		{
 			AAMPLOG_INFO("%s:%d Bitrate changed from %u to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
 			fragmentDescriptor.Bandwidth = bitrate;
+			mContext->SetTsbBandwidth(bitrate);
 			mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
 			mDownloadedFragment.avail = cachedFragment->fragment.avail;
 			mDownloadedFragment.len = cachedFragment->fragment.len;
@@ -1546,6 +1547,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						pMediaStreamContext->profileChanged = true;
 						mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 						FetchAndInjectInitialization();
+						mContext->UpdateRampdownProfileReason();
 						return false;
 					}
 					else if(mContext->mCheckForRampdown && pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
@@ -1573,6 +1575,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						pMediaStreamContext->profileChanged = true;
 						mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
 						FetchAndInjectInitialization();
+						mContext->UpdateRampdownProfileReason();
 						return false;
 					}
 				}
@@ -1880,6 +1883,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 									pMediaStreamContext->profileChanged = true;
 									mContext->profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(bitrate);
 									FetchAndInjectInitialization();
+									mContext->UpdateRampdownProfileReason();
 									return false; //Since we need to check WaitForFreeFragmentCache
 								}
 							}
@@ -6592,7 +6596,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 											{
 												pMediaStreamContext->mContext->CheckForProfileChange();
 											}
-											else
+
+											if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i))
 											{
 												pMediaStreamContext->mContext->CheckUserProfileChangeReq();
 											}
