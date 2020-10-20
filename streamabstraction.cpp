@@ -1092,7 +1092,6 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 		StreamInfo* streamInfo = GetStreamInfo(GetMaxBWProfile());
 		if(streamInfo != NULL)
 		{
-
 			bool lGetBWIndex = false;
 			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 			if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (streamInfo->bandwidthBitsPerSecond))
@@ -1159,20 +1158,29 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
 		StreamInfo* streamInfo = GetStreamInfo(profileIdxForBandwidthNotification);
-		if(streamInfo != NULL)
+		if (profileIdxForBandwidthNotification != desiredProfileIndex)
 		{
-			profileIdxForBandwidthNotification = desiredProfileIndex;
-			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
-			GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
-			mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+			if(streamInfo != NULL)
+			{
+				profileIdxForBandwidthNotification = desiredProfileIndex;
+				GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
+				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+			}
 		}
 	}
 }
 
+/**
+ * @brief Update ramp down profile reason on fragments download failure
+ */
+void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
+{
+	mBitrateReason = eAAMP_BITRATE_CHANGE_BY_RAMPDOWN;
+}
 
 /**
  * @brief GetDesiredProfileOnBuffer - Get the new profile corrected based on buffer availability
