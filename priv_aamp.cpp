@@ -2739,6 +2739,8 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	}
+
+	logprintf("BitrateChanged:%d", reason);
 }
 
 
