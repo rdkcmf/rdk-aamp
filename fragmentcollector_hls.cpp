@@ -75,7 +75,6 @@
 static const int DEFAULT_STREAM_WIDTH = 720;
 static const int DEFAULT_STREAM_HEIGHT = 576;
 static const double DEFAULT_STREAM_FRAMERATE = 25.0;
-static const std::string DEFAULT_STREAM_CODECS = "avc1.66.30,mp4a.40.5";
 
 
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
@@ -99,7 +98,7 @@ struct FormatMap
 };
 
 /// Variable initialization for various audio formats
-static const FormatMap mAudioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
+static const FormatMap mAudioFormatMap[] =
 {
 	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
 	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
@@ -109,6 +108,7 @@ static const FormatMap mAudioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
 };
+#define AAMP_AUDIO_FORMAT_MAP_LEN ARRAY_SIZE(mAudioFormatMap)
 
 /// Variable initialization for various video formats 
 static const FormatMap * GetAudioFormatForCodec( const char *codecs )
@@ -127,12 +127,14 @@ static const FormatMap * GetAudioFormatForCodec( const char *codecs )
 }
 
 /// Variable initialization for various video formats
-static const FormatMap mVideoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
+static const FormatMap mVideoFormatMap[] =
 {
 	{ "avc1.", FORMAT_VIDEO_ES_H264 },
 	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
+	{ "hev1.", FORMAT_VIDEO_ES_HEVC },
 	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
 };
+#define AAMP_VIDEO_FORMAT_MAP_LEN ARRAY_SIZE(mVideoFormatMap)
 
 static const FormatMap * GetVideoFormatForCodec( const char *codecs )
 {
@@ -765,7 +767,7 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	int width = gpGlobalConfig->getUnknownValue(keyName + ".width", DEFAULT_STREAM_WIDTH);
 	int height = gpGlobalConfig->getUnknownValue(keyName + ".height", DEFAULT_STREAM_HEIGHT);
 	double framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", DEFAULT_STREAM_FRAMERATE);
-	const std::string& codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs", DEFAULT_STREAM_CODECS);
+	const std::string& codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs");
 
 	keyName = "stream.";
 	char itoaBuf[12] = {0};
@@ -3381,25 +3383,12 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			if (index >= 0)
 			{
 				aamp->UpdateAudioLanguageSelection( GetLanguageCode(index).c_str() );
-				logprintf("GetPlaylistURI : AudioTrack: Audio selected name is %s", GetLanguageCode(index).c_str());
+				logprintf("GetPlaylistURI : AudioTrack: language selected is %s", GetLanguageCode(index).c_str());
 				playlistURI = this->mediaInfo[index].uri;
 				mAudioTrackIndex = std::to_string(index);
 				if( format )
 				{
-					*format = FORMAT_NONE;
-					HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
-					const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
-					if( map )
-					{ // video profile specifies audio format
-						*format = map->format;
-						logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]",
-								  map->format, map->codec );
-					}
-					else
-					{ // HACK
-						logprintf("GetPlaylistURI : AudioTrack: assuming stereo" );
-						*format = FORMAT_AUDIO_ES_AAC;
-					}
+					*format = GetStreamOutputFormatForTrack(trackType);
 				}
 			}
 		}
@@ -3442,13 +3431,13 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 				playlistURI = mediaInfo[mediaInfoIndex].uri;
 				mTextTrackIndex = std::to_string(mediaInfoIndex);
 				aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
-				if (format) *format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
+				if (format) *format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_UNKNOWN;
 				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI);
 			}
 			else
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage);
-				*format = FORMAT_NONE;
+				*format = FORMAT_INVALID;
 			}
 		}
 		break;
@@ -4238,14 +4227,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d subtitles disabled by application", __FUNCTION__, __LINE__);
 				ts->enabled = false;
-				ts->streamOutputFormat = FORMAT_NONE;
+				ts->streamOutputFormat = FORMAT_INVALID;
 				continue;
 			}
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)
 			{
 				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri);
-				if(ts->streamOutputFormat != FORMAT_NONE)
+				if(ts->streamOutputFormat != FORMAT_INVALID)
 				{
 					ts->enabled = true;
 					mNumberOfTracks++;
@@ -4272,14 +4261,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if(audio->enabled)
 			{
 				video->enabled = false;
-				video->streamOutputFormat = FORMAT_NONE;
+				video->streamOutputFormat = FORMAT_INVALID;
 			}
 			else
 			{
 				trackState[eTRACK_VIDEO]->type = eTRACK_AUDIO;
 			}
 			subtitle->enabled = false;
-			subtitle->streamOutputFormat = FORMAT_NONE;
+			subtitle->streamOutputFormat = FORMAT_INVALID;
+
 		}
 		aamp->profiler.SetBandwidthBitsPerSecondAudio(audio->GetCurrentBandWidth());
 
@@ -4458,7 +4448,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						//Subtitle is optional and not critical to playback
 						ts->enabled = false;
-						AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Subtitle playlist duration is zero!!", __FUNCTION__, __LINE__);
+						ts->streamOutputFormat = FORMAT_INVALID;
+						AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d %s playlist duration is zero!!",
+								__FUNCTION__, __LINE__, ts->name);
 					}
 					else
 					{
@@ -4526,7 +4518,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					if (eMEDIATYPE_SUBTITLE == iTrack)
 					{
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported subtitle format from fragment extension:%d", __FUNCTION__, __LINE__, format);
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4545,7 +4537,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						if (subtitle->enabled)
 						{
 							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported media format for audio or video - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__);
-							subtitle->streamOutputFormat = FORMAT_NONE;
+							subtitle->streamOutputFormat = FORMAT_INVALID;
 							subtitle->fragmentURI = NULL;
 							//mSubtitleParser will be deleted in destructor, so unhandled here
 							subtitle->enabled = false;
@@ -4556,6 +4548,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Not ISOBMFF, no need for encrypted header check and associated logic
 				// But header identification might have been already done, if EXT-X-MAP is present in playlist
 				ts->mCheckForInitialFragEnc = false;
+				// Elementary stream, we can skip playContext creation
 				if (FORMAT_AUDIO_ES_AAC == format)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC", ts->name);
@@ -4585,7 +4578,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 					else
 					{
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4595,18 +4588,20 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					if (this->rate == AAMP_NORMAL_PLAY_RATE)
 					{
+						// Creation of playContext is required only for TS fragments
 						if (format == FORMAT_MPEGTS)
 						{
 							if (gpGlobalConfig->gAampDemuxHLSAudioTsTrack)
 							{
-								logprintf("Configure audio TS track demuxing");
-								ts->playContext = new TSProcessor(aamp,eStreamOp_DEMUX_AUDIO);
+								logprintf("StreamAbstractionAAMP_HLS::%s : Configure audio TS track demuxing", __FUNCTION__);
+								ts->playContext = new TSProcessor(aamp, eStreamOp_DEMUX_AUDIO);
 							}
 							else if (gpGlobalConfig->gAampMergeAudioTrack)
 							{
 								logprintf("Configure audio TS track to queue");
-								ts->playContext = new TSProcessor(aamp,eStreamOp_QUEUE_AUDIO);
-								ts->streamOutputFormat = FORMAT_NONE;
+								ts->playContext = new TSProcessor(aamp, eStreamOp_QUEUE_AUDIO);
+								// Audio is muxed with video, no need to configure pipeline for the same
+								ts->streamOutputFormat = FORMAT_INVALID;
 								audioQueuedPC = static_cast<TSProcessor*> (ts->playContext);
 							}
 							if (ts->playContext)
@@ -4633,7 +4628,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					else
 					{
 						logprintf("Disable audio format - trick play");
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4641,19 +4636,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == AAMP_NORMAL_PLAY_RATE))
 						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != AAMP_NORMAL_PLAY_RATE)))
 				{
-					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 					/*Populate format from codec data*/
-					format = FORMAT_INVALID;
-					if (streamInfo->codecs)
-					{
-						const FormatMap *map = GetVideoFormatForCodec(streamInfo->codecs);
-						if( map )
-						{
-							format = map->format;
-							AAMPLOG_INFO("StreamAbstractionAAMP_HLS::Init : VideoTrack: format is %d [%s]",
-								map->format, map->codec);
-						}
-					}
+					format = GetStreamOutputFormatForTrack(eTRACK_VIDEO);
+
 					if (FORMAT_INVALID != format)
 					{
 						StreamOperation demuxOp;
@@ -4664,32 +4649,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 						else
 						{
-							if (streamInfo->codecs)
+							// In case of muxed, where there is no X-MEDIA tag but CODECS show presence of audio
+							// This could be changed later, once we let TSProcessor configure tracks based on demux status
+							StreamOutputFormat audioFormat = GetStreamOutputFormatForTrack(eTRACK_AUDIO);
+							if (audioFormat != FORMAT_UNKNOWN)
 							{
-								const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
-								if( map )
-								{
-									trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = map->format;
-									logprintf("StreamAbstractionAAMP_HLS::Init : Audio format is %d [%s]",
-										map->format, map->codec);
-								}
+								trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = audioFormat;
 							}
-							if(FORMAT_NONE != trackState[eMEDIATYPE_AUDIO]->streamOutputFormat)
+
+							// Even if audio info is not present in manifest, we let TSProcessor run a full sweep
+							// If audio is found, then TSProcessor will configure stream sink accordingly
+							if(!gpGlobalConfig->bAudioOnlyPlayback)
 							{
-								if(!gpGlobalConfig->bAudioOnlyPlayback)
-								{
-									demuxOp = eStreamOp_DEMUX_ALL;
-								}
-								else
-								{
-									demuxOp = eStreamOp_DEMUX_AUDIO;
-									video->streamOutputFormat = FORMAT_NONE;
-								}
+								// For muxed tracks, demux audio and video
+								demuxOp = eStreamOp_DEMUX_ALL;
 							}
 							else
 							{
-								logprintf("StreamAbstractionAAMP_HLS::%s:%d Demux only video. codecs %s", __FUNCTION__, __LINE__, streamInfo[currentProfileIndex].codecs);
-								demuxOp = eStreamOp_DEMUX_VIDEO;
+								// Audio only playback, disable video
+								demuxOp = eStreamOp_DEMUX_AUDIO;
+								video->streamOutputFormat = FORMAT_INVALID;
 							}
 						}
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d", demuxOp);
@@ -5543,7 +5522,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		MediaTrack(type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
 		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),playTargetBufferCalc(0),lastDownloadedIFrameTarget(-1),
-		streamOutputFormat(FORMAT_NONE), playContext(NULL),
+		streamOutputFormat(FORMAT_INVALID), playContext(NULL),
 		playTargetOffset(0),
 		discontinuity(false),
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
@@ -7057,6 +7036,36 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 {
 	seekPosition = secondsRelativeToTuneTime;
+}
+
+
+/***************************************************************************
+* @fn GetStreamOutputFormatForAudio
+* @brief Function to get output format for audio track
+*
+* @param[in] type track type
+* @return StreamOutputFormat for the audio codec selected
+***************************************************************************/
+StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(TrackType type)
+{
+	StreamOutputFormat format = FORMAT_UNKNOWN;
+
+	HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
+	const FormatMap *map = NULL;
+	if (type == eTRACK_VIDEO)
+	{
+		map = GetVideoFormatForCodec(streamInfo->codecs);
+	}
+	else if (type == eTRACK_AUDIO )
+	{
+		map = GetAudioFormatForCodec(streamInfo->codecs);
+	}
+	if (map)
+	{ // video profile specifies audio format
+		format = map->format;
+		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Track[%d] format is %d [%s]", __FUNCTION__, __LINE__, type, map->format, map->codec);
+	}
+	return format;
 }
 
 /**

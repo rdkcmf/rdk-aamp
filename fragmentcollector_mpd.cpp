@@ -7527,7 +7527,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		primaryOutputFormat = FORMAT_NONE;
+		primaryOutputFormat = FORMAT_INVALID;
 	}
 	if(mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled )
 	{
@@ -7535,7 +7535,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		audioOutputFormat = FORMAT_NONE;
+		audioOutputFormat = FORMAT_INVALID;
 	}
 }
 
