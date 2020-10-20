@@ -102,7 +102,8 @@ enum ContentType
 	ContentType_IPDVR,          /**< 8 - IPDVR */
 	ContentType_PPV,            /**< 10 - PPV */
 	ContentType_OTT,            /**< 11 - OTT */
-	ContentType_MAX             /**< 12 - Type Count*/
+	ContentType_OTA,            /**< 12 - OTA*/
+	ContentType_MAX             /**< 13 - Type Count*/
 };
 
 /**
