@@ -2797,8 +2797,8 @@ bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
 	// RDK-27796, aux track check is omitted, because this function is called from ScheduleRetune
 	// and we haven't registered callbacks for underflow for aux track
-	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mVideoFormat != FORMAT_NONE && mProcessingDiscontinuity[eMEDIATYPE_VIDEO] == true);
-	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mAudioFormat != FORMAT_NONE && mProcessingDiscontinuity[eMEDIATYPE_AUDIO] == true);
+	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
 	return (vidDiscontinuity || audDiscontinuity);
 }
 
@@ -9614,9 +9614,9 @@ bool PrivateInstanceAAMP::DiscontinuitySeenInAllTracks()
 {
 	// Check if track is disabled or if mProcessingDiscontinuity is set
 	// Split off the logical expression for better clarity
-	bool vidDiscontinuity = (mVideoFormat == FORMAT_INVALID || mVideoFormat == FORMAT_NONE || mProcessingDiscontinuity[eMEDIATYPE_VIDEO] == true);
-	bool audDiscontinuity = (mAudioFormat == FORMAT_INVALID || mAudioFormat == FORMAT_NONE || mProcessingDiscontinuity[eMEDIATYPE_AUDIO] == true);
-	bool auxDiscontinuity = (mAuxFormat == FORMAT_INVALID || mAuxFormat == FORMAT_NONE || mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] == true);
+	bool vidDiscontinuity = (mVideoFormat == FORMAT_INVALID || mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool audDiscontinuity = (mAudioFormat == FORMAT_INVALID || mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
+	bool auxDiscontinuity = (mAuxFormat == FORMAT_INVALID || mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
 
 	return (vidDiscontinuity && auxDiscontinuity && auxDiscontinuity);
 }
@@ -9630,9 +9630,9 @@ bool PrivateInstanceAAMP::DiscontinuitySeenInAnyTracks()
 {
 	// Check if track is enabled and if mProcessingDiscontinuity is set
 	// Split off the logical expression for better clarity
-	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mVideoFormat != FORMAT_NONE && mProcessingDiscontinuity[eMEDIATYPE_VIDEO] == true);
-	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mAudioFormat != FORMAT_NONE && mProcessingDiscontinuity[eMEDIATYPE_AUDIO] == true);
-	bool auxDiscontinuity = (mAuxFormat != FORMAT_INVALID && mAuxFormat != FORMAT_NONE && mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] == true);
+	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
+	bool auxDiscontinuity = (mAuxFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
 
 	return (vidDiscontinuity || auxDiscontinuity || auxDiscontinuity);
 }
@@ -9647,6 +9647,43 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 	mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] = false;
+}
+
+/**
+ *   @brief Set stream format for audio/video tracks
+ *
+ *   @param[in] videoFormat - video stream format
+ *   @param[in] audioFormat - audio stream format
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
+{
+	bool reconfigure = false;
+	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
+
+	// We need to make some hardcore decisions here. What we know already -
+	// 1. We know GStreamer can identify caps using typefind element
+	// 2. Everytime Configure() is called, it "recreates" all playbins if there is a change in even one track's format(even unknown to known)
+	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
+	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
+	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
+	if (mVideoFormat != videoFormat && mVideoFormat == FORMAT_INVALID && videoFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mVideoFormat = videoFormat;
+	}
+	if (audioFormat != mAudioFormat && mAudioFormat == FORMAT_INVALID && audioFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mAudioFormat = audioFormat;
+	}
+
+	if (reconfigure)
+	{
+		// Configure pipeline as TSProcessor might have detected the actual stream type
+		// or even presence of audio
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, false);
+	}
 }
 
 /**

@@ -129,12 +129,12 @@ enum StreamOutputFormat
 	FORMAT_AUDIO_ES_AAC,    /**< AAC Audio Elementary Stream */
 	FORMAT_AUDIO_ES_AC3,    /**< AC3 Audio Elementary Stream */
 	FORMAT_AUDIO_ES_EC3,    /**< Dolby Digital Plus Elementary Stream */
-	FORMAT_AUDIO_ES_ATMOS,   /**< ATMOS Audio stream */
+	FORMAT_AUDIO_ES_ATMOS,  /**< ATMOS Audio stream */
 	FORMAT_VIDEO_ES_H264,   /**< MPEG-4 Video Elementary Stream */
 	FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
 	FORMAT_VIDEO_ES_MPEG2,  /**< MPEG-2 Video Elementary Stream */
 	FORMAT_SUBTITLE_WEBVTT, /**< WebVTT subtitle Stream */
-	FORMAT_NONE             /**< Unknown Format */
+	FORMAT_UNKNOWN          /**< Unknown Format */
 };
 
 /**

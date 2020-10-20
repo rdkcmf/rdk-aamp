@@ -284,8 +284,8 @@ void StreamAbstractionAAMP_PROGRESSIVE::DumpProfiles(void)
 void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 {
     primaryOutputFormat = FORMAT_ISO_BMFF;
-    audioOutputFormat = FORMAT_NONE;
-    auxAudioOutputFormat = FORMAT_NONE;
+    audioOutputFormat = FORMAT_INVALID;
+    auxAudioOutputFormat = FORMAT_INVALID;
 }
 
 /**

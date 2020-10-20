@@ -54,8 +54,6 @@
 #define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6*1000)
 #define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 #define DRM_IV_LEN 16
-#define AAMP_AUDIO_FORMAT_MAP_LEN 7
-#define AAMP_VIDEO_FORMAT_MAP_LEN 3
 
 #define MAX_LICENSE_ACQ_WAIT_TIME 12000  /*!< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define MAX_SEQ_NUMBER_LAG_COUNT 50 /*!< Configured sequence number max count to avoid continuous looping for an edge case scenario, which leads crash due to hung */
@@ -473,8 +471,8 @@ public:
 
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
-	/// Function to get output format for audio/aux track
-	StreamOutputFormat GetStreamOutputFormatForAudio(void);
+	/// Function to get output format for track type
+	StreamOutputFormat GetStreamOutputFormatForTrack(TrackType type);
 
 protected:
 	/// Function to get StreamInfo stucture based on the index input

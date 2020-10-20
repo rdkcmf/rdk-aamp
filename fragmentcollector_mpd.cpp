@@ -7600,7 +7600,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		primaryOutputFormat = FORMAT_NONE;
+		primaryOutputFormat = FORMAT_INVALID;
 	}
 	if(mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled )
 	{
@@ -7608,7 +7608,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		audioOutputFormat = FORMAT_NONE;
+		audioOutputFormat = FORMAT_INVALID;
 	}
 	//RDK-27796, if subtitle is disabled, but aux is enabled, then its status is saved in place of eMEDIATYPE_SUBTITLE
 	if (mMediaStreamContext[eMEDIATYPE_AUX_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUX_AUDIO]->enabled ||
@@ -7618,7 +7618,7 @@ void PrivateStreamAbstractionMPD::GetStreamFormat(StreamOutputFormat &primaryOut
 	}
 	else
 	{
-		auxOutputFormat = FORMAT_NONE;
+		auxOutputFormat = FORMAT_INVALID;
 	}
 }
 

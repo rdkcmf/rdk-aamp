@@ -141,6 +141,28 @@ void print_nop(const char *format, ...){}
 #define DEBUG_DEMUX DEBUG
 #endif
 
+enum StreamType
+{
+	eSTREAM_TYPE_MPEG2_VIDEO = 0x02, // MPEG2 Video
+	eSTREAM_TYPE_MPEG1_AUDIO = 0x03, // MPEG1 Audio
+	eSTREAM_TYPE_MPEG2_AUDIO = 0x04, // MPEG2 Audio
+	eSTREAM_TYPE_PES_PRIVATE = 0x06, // PES packets containing private data
+	eSTREAM_TYPE_AAC_ADTS    = 0x0F, // MPEG2 AAC Audio
+	eSTREAM_TYPE_AAC_LATM    = 0x11, // MPEG4 LATM AAC Audio
+	eSTREAM_TYPE_DSM_CC      = 0x15, // ISO/IEC13818-6 DSM CC deferred association tag with ID3 metadata
+	eSTREAM_TYPE_H264        = 0x1B, // H.264 Video
+	eSTREAM_TYPE_HEVC_VIDEO  = 0x24, // HEVC video
+	eSTREAM_TYPE_ATSC_VIDEO  = 0x80, // ATSC Video
+	eSTREAM_TYPE_ATSC_AC3    = 0x81, // ATSC AC3 Audio
+	eSTREAM_TYPE_HDMV_DTS    = 0x82, // HDMV DTS Audio
+	eSTREAM_TYPE_LPCM_AUDIO  = 0x83, // LPCM Audio
+	eSTREAM_TYPE_ATSC_AC3PLUS  = 0x84, // SDDS Audio
+	eSTREAM_TYPE_DTSHD_AUDIO = 0x86, // DTS-HD Audio
+	eSTREAM_TYPE_ATSC_EAC3   = 0x87, // ATSC E-AC3 Audio
+	eSTREAM_TYPE_DTS_AUDIO   = 0x8A, // DTS Audio
+	eSTREAM_TYPE_AC3_AUDIO   = 0x91, // A52b/AC3 Audio
+	eSTREAM_TYPE_SDDS_AUDIO1 = 0x94  // SDDS Audio
+};
 
 /**
  * @class Demuxer
@@ -667,6 +689,57 @@ static void dumpPackets(unsigned char *packets, int len, int packetSize)
 }
 
 /**
+ * @brief Get the format for a stream type
+ * @param[in] streamType stream type
+ * @return StreamOutputFormat format for input stream type
+ */
+static StreamOutputFormat getStreamFormatForCodecType(int streamType)
+{
+	StreamOutputFormat format = FORMAT_UNKNOWN; // Maybe GStreamer will be able to detect the format
+
+	switch (streamType)
+	{
+		case eSTREAM_TYPE_MPEG2_VIDEO:
+			format = FORMAT_VIDEO_ES_MPEG2;
+			break;
+		case eSTREAM_TYPE_MPEG1_AUDIO:
+		case eSTREAM_TYPE_MPEG2_AUDIO:
+		case eSTREAM_TYPE_AAC_ADTS:
+		case eSTREAM_TYPE_AAC_LATM:
+			format = FORMAT_AUDIO_ES_AAC;
+			break;
+		case eSTREAM_TYPE_H264:
+			format = FORMAT_VIDEO_ES_H264;
+			break;
+		case eSTREAM_TYPE_HEVC_VIDEO:
+			format = FORMAT_VIDEO_ES_HEVC;
+			break;
+		case eSTREAM_TYPE_ATSC_AC3:
+			format = FORMAT_AUDIO_ES_AC3;
+			break;
+		case eSTREAM_TYPE_ATSC_AC3PLUS:
+		case eSTREAM_TYPE_ATSC_EAC3:
+			format = FORMAT_AUDIO_ES_EC3;
+			break;
+		case eSTREAM_TYPE_PES_PRIVATE:
+			//could be any ac4, ac3, subtitles etc.
+			break;
+		// not sure on the format, so keep as unknown
+		case eSTREAM_TYPE_DSM_CC:
+		case eSTREAM_TYPE_ATSC_VIDEO:
+		case eSTREAM_TYPE_HDMV_DTS:
+		case eSTREAM_TYPE_LPCM_AUDIO:
+		case eSTREAM_TYPE_DTSHD_AUDIO:
+		case eSTREAM_TYPE_DTS_AUDIO:
+		case eSTREAM_TYPE_AC3_AUDIO:
+		case eSTREAM_TYPE_SDDS_AUDIO1:
+		default:
+			break;
+	}
+	return format;
+}
+
+/**
  * @brief TSProcessor Constructor
  * @param[in] aamp Pointer to aamp associated with this TSProcessor
  * @param[in] streamOperation Operation to be done on injected data.
@@ -915,6 +988,8 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 	unsigned int dataDescTags[MAX_PIDS];
 	int streamType = 0, pid = 0, len = 0;
 	char work[32];
+	StreamOutputFormat videoFormat = FORMAT_INVALID;
+	StreamOutputFormat audioFormat = FORMAT_INVALID;
 
 	int version = ((section[2] >> 1) & 0x1F);
 	int pcrPid = (((section[5] & 0x1F) << 8) + section[6]);
@@ -951,9 +1026,9 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		len = (((programInfo[3] & 0x0F) << 8) + programInfo[4]);
 		switch (streamType)
 		{
-		case 0x02: // MPEG2 Video
-		case 0x24: // HEVC video
-		case 0x80: // ATSC Video
+		case eSTREAM_TYPE_MPEG2_VIDEO:
+		case eSTREAM_TYPE_HEVC_VIDEO:
+		case eSTREAM_TYPE_ATSC_VIDEO:
 			if (videoComponentCount < MAX_PIDS)
 			{
 				videoComponents[videoComponentCount].pid = pid;
@@ -965,7 +1040,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 				WARNING("Warning: RecordContext: pmt contains more than %d video PIDs", MAX_PIDS);
 			}
 			break;
-		case 0x1B: // H.264 Video
+		case eSTREAM_TYPE_H264: // H.264 Video
 			if (videoComponentCount < MAX_PIDS)
 			{
 				videoComponents[videoComponentCount].pid = pid;
@@ -979,19 +1054,21 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 				WARNING("Warning: RecordContext: pmt contains more than %d video PIDs", MAX_PIDS);
 			}
 			break;
-		case 0x03: // MPEG1 Audio
-		case 0x04: // MPEG2 Audio
-		case 0x0F: // MPEG2 AAC Audio
-		case 0x11: // MPEG4 LATM AAC Audio
-		case 0x81: // ATSC AC3 Audio
-		case 0x82: // HDMV DTS Audio
-		case 0x83: // LPCM Audio
-		case 0x84: // SDDS Audio
-		case 0x86: // DTS-HD Audio
-		case 0x87: // ATSC E-AC3 Audio
-		case 0x8A: // DTS Audio
-		case 0x91: // A52b/AC3 Audio
-		case 0x94: // SDDS Audio
+		case eSTREAM_TYPE_MPEG1_AUDIO:
+		case eSTREAM_TYPE_MPEG2_AUDIO:
+		// TODO : Add logic to detect the streamType for 0x06
+		case eSTREAM_TYPE_PES_PRIVATE:
+		case eSTREAM_TYPE_AAC_ADTS:
+		case eSTREAM_TYPE_AAC_LATM:
+		case eSTREAM_TYPE_ATSC_AC3:
+		case eSTREAM_TYPE_HDMV_DTS:
+		case eSTREAM_TYPE_LPCM_AUDIO:
+		case eSTREAM_TYPE_ATSC_AC3PLUS:
+		case eSTREAM_TYPE_DTSHD_AUDIO:
+		case eSTREAM_TYPE_ATSC_EAC3:
+		case eSTREAM_TYPE_DTS_AUDIO:
+		case eSTREAM_TYPE_AC3_AUDIO:
+		case eSTREAM_TYPE_SDDS_AUDIO1:
 			if (audioComponentCount < MAX_PIDS)
 			{
 				audioComponents[audioComponentCount].pid = pid;
@@ -1031,7 +1108,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 			}
 			break;
 
-		case 0x15: // ISO/IEC13818-6 DSM CC deferred association tag with ID3 metadata
+		case eSTREAM_TYPE_DSM_CC:
 			if(!m_dsmccComponentFound)
 			{
 				m_dsmccComponent.pid = pid;
@@ -1058,6 +1135,18 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		NOTICE( "[%p] found %d audio pids in program %d with pcr pid %d audio pid %d",
 			this, audioComponentCount, m_program, pcrPid, audioComponents[0].pid);
 	}
+
+	if (videoComponentCount > 0)
+	{
+		videoFormat = getStreamFormatForCodecType(videoComponents[0].elemStreamType);
+	}
+	if (audioComponentCount > 0)
+	{
+		audioFormat = getStreamFormatForCodecType(audioComponents[0].elemStreamType);
+	}
+	// Notify the format to StreamSink
+	aamp->SetStreamFormat(videoFormat, audioFormat);
+
 	if (m_dsmccComponentFound)
 	{
 		NOTICE( "[%p] found dsmcc pid in program %d with pcr pid %d dsmcc pid %d",

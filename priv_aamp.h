@@ -2643,6 +2643,15 @@ public:
 	 */
 	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
 
+	/**
+	 *   @brief Set stream format for audio/video tracks
+	 *
+	 *   @param[in] videoFormat - video stream format
+	 *   @param[in] audioFormat - audio stream format
+	 *   @return void
+	 */
+	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+
 private:
 
 	/**
