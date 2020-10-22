@@ -19,7 +19,7 @@
 
 /**
  * @file playreadydrmsession.h
- * @brief Comcast Playready Session management
+ * @brief Playready Session management
  */
 
 #ifndef PlayReadyDrmSession_h

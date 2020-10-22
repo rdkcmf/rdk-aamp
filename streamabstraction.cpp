@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <cmath>
 
-#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
+#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for MSO specific linear streams.
 
 using namespace std;
 

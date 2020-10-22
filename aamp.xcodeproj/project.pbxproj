@@ -65,11 +65,9 @@
 		5E838F3F2419218700D39371 /* admanager_mpd.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = admanager_mpd.cpp; sourceTree = "<group>"; };
 		5E838F402419218700D39371 /* fragmentcollector_progressive.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = fragmentcollector_progressive.cpp; sourceTree = "<group>"; };
 		5E838F412419218700D39371 /* iso639map.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iso639map.h; sourceTree = "<group>"; };
-		5E838F43241921CC00D39371 /* metrics */ = {isa = PBXFileReference; lastKnownFileType = folder; path = metrics; sourceTree = "<group>"; };
 		5E838F44241921CC00D39371 /* isobmff */ = {isa = PBXFileReference; lastKnownFileType = folder; path = isobmff; sourceTree = "<group>"; };
 		5E838F45241921CC00D39371 /* jsbindings */ = {isa = PBXFileReference; lastKnownFileType = folder; path = jsbindings; sourceTree = "<group>"; };
 		5E838F46241921CC00D39371 /* drm */ = {isa = PBXFileReference; lastKnownFileType = folder; path = drm; sourceTree = "<group>"; };
-		5E838F47241921CC00D39371 /* receiver-integration */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "receiver-integration"; sourceTree = "<group>"; };
 		5E838F48241921CC00D39371 /* subtitle */ = {isa = PBXFileReference; lastKnownFileType = folder; path = subtitle; sourceTree = "<group>"; };
 		5E838F49241921CC00D39371 /* mediaprocessor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mediaprocessor.h; sourceTree = "<group>"; };
 		5E9CB170220F58DC00920F99 /* test */ = {isa = PBXFileReference; lastKnownFileType = folder; path = test; sourceTree = "<group>"; };
@@ -114,8 +112,6 @@
 				5E838F44241921CC00D39371 /* isobmff */,
 				5E838F45241921CC00D39371 /* jsbindings */,
 				5E838F49241921CC00D39371 /* mediaprocessor.h */,
-				5E838F43241921CC00D39371 /* metrics */,
-				5E838F47241921CC00D39371 /* receiver-integration */,
 				5E838F48241921CC00D39371 /* subtitle */,
 				5E838F392419218600D39371 /* AampCacheHandler.h */,
 				5E838F3A2419218700D39371 /* aamplogging.cpp */,
