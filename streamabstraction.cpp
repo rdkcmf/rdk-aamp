@@ -101,10 +101,14 @@ void MediaTrack::MonitorBufferHealth()
 {
 	assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
 	unsigned int bufferMontiorScheduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
-	aamp->InterruptableMsSleep(bufferMontiorScheduleTime *1000);
+	bool keepRunning = false;
+	if(aamp->DownloadsAreEnabled() && !abort)
+	{
+		aamp->InterruptableMsSleep(bufferMontiorScheduleTime *1000);
+		keepRunning = true;
+	}
 	int monitorInterval = gpGlobalConfig->bufferHealthMonitorInterval  * 1000;
-	bool keepRunning = true;
-	while(keepRunning)
+	while(keepRunning && !abort)
 	{
 		aamp->InterruptableMsSleep(monitorInterval);
 		pthread_mutex_lock(&mutex);
