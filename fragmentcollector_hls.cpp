@@ -745,7 +745,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
 					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
 					if (NULL != drmData){
-/* This needs effort from Comcast as to what they want to do viz-a-viz preferred DRM, */						
+/* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
 							drmDataToUse = drmData;
 						}
 					}
@@ -997,7 +997,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						// if stream only profiles were parsed , its easy to flush them out and continue with parsing
 						// but if iframes are mixed along with video profile, then its tricky to remove the interleaved entries from StreamInfo
 						// Easiest way is to clearAllProfiles and reparse again
-						// SecondParse happens rarely in some streams , no impact on regular Comcast streams
+						// SecondParse happens rarely in some streams , no impact on regular MSO specific streams
 						if(iFrameCount)
 						{
 							// IFrame and Stream Profile mixed, only way is reparse from beginning

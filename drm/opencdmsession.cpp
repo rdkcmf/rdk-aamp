@@ -17,7 +17,7 @@
  * limitations under the License.
 */
 
-/* Comcast Playready Session management
+/* Playready Session management
  *
  */
 #include "config.h"

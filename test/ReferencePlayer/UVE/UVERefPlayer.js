@@ -49,11 +49,11 @@ let previousAdPosition = -2;
 //To turn on native CC rendering
 var enableNativeCC = true;
 
-//Comcast DRM config for AAMP
-var DrmConfig = {'com.microsoft.playready':'mds.ccp.xcal.tv', 'com.widevine.alpha':'mds.ccp.xcal.tv', 'preferredKeysystem':'com.widevine.alpha'};
-
 //DRM config for Sintel asset
-var SintelDrmConfig = {'com.microsoft.playready':'https://amssamples.keydelivery.mediaservices.windows.net/PlayReady/', 'com.widevine.alpha':'https://amssamples.keydelivery.mediaservices.windows.net/Widevine/?KID=f9dbca11-a1e2-45c8-891f-fb71063cbfdb', 'preferredKeysystem':'com.microsoft.playready'};
+var SintelDrmConfig = {
+	'com.microsoft.playready':'https://amssamples.keydelivery.mediaservices.windows.net/PlayReady/',
+	'com.widevine.alpha':'https://amssamples.keydelivery.mediaservices.windows.net/Widevine/?KID=f9dbca11-a1e2-45c8-891f-fb71063cbfdb',
+	'preferredKeysystem':'com.microsoft.playready'};
 //AAMP initConfig is used to pass certain predefined config params to AAMP
 //Commented out values are not implemented for now
 //Values assigned are default values of each config param
@@ -163,7 +163,7 @@ var defaultInitConfig = {
     /**
      * drmConfig for the playback
      */
-    drmConfig: DrmConfig, //For sample structure DrmConfig
+    //drmConfig: DrmConfig, //For sample structure DrmConfig
 
     /**
      * stereo-only for the playback
@@ -423,7 +423,7 @@ function subscribedTagNotifier(event) {
             placementRequest: {
                 id: "ad1",
                 pts: 0,
-                url: "http://cdn-ec-pan-02.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/453393990093/5a60d158-b057-4636-92ac-0d2ec324dd87/263/209/CSNR8803918400100001_mezz_LVLH07.mpd"
+                url: "<Add url to play for Ad insertion>"
             }
         };
         // According to scte-35 duration, multiple reservation Objects with different/same ad urls and unique ad IDs can be passed to setAlternateContent.

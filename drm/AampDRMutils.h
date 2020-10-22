@@ -45,7 +45,7 @@
 #define DRM_API_FAILED  (-1)
 
 /**
- * @brief start and end tags for Comcast DRM policy
+ * @brief start and end tags for DRM policy
  */
 #define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
