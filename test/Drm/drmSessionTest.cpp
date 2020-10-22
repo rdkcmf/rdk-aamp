@@ -562,7 +562,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionWithMdsServer)
 	const TestCurlResponse *licenseResponse = getCurlPerformResponse(prLicenseServerURL);
 	CHECK_EQUAL(1, licenseResponse->callCount);
 
-	// Expecting MDS headers
+	// Expecting MSO-specific MDS headers
 	std::vector<std::string> expectedHeaders = {
 			"Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1",
 			"Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"

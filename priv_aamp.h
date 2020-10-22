@@ -86,7 +86,7 @@ static const char *mMediaFormatName[] =
 
 #define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
 
-// VSS Service Zone identifier in url
+// MSO-specific VSS Service Zone identifier in URL
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG			"%3Fsz%3D" // URI-encoded ?sz=

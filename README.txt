@@ -1,87 +1,27 @@
 Advanced Adaptive Micro Player (AAMP)
 
-https://code.rdkcentral.com/r/rdk/components/generic/aamp
-
-git clone https://code.rdkcentral.com/r/rdk/components/generic/aamp && (cd aamp && gitdir=$(git rev-parse --git-dir); curl -o ${gitdir}/hooks/commit-msg https://code.rdkcentral.com/r/tools/hooks/commit-msg ; chmod +x ${gitdir}/hooks/commit-msg)
-git push origin HEAD:refs/for/master
-
-========================================================================================
-
-Win32 build:
-prerequisite - install
-docs.gstreamer.com (0.10); installs to C:\gstreamer-sdk\0.10\x86_64\bin
-	GStreamer SDK 2013.6 (Congo) for Windows 64 bits (Runtime)
-		gstreamer-sdk-x86_64-2013.6.msi
-
-	GStreamer SDK 2013.6 (Congo) for Windows 64 bits (Development Files)
-		gstreamer-sdk-devel-x86_64-2013.6.msi
-
-	GStreamer SDK 2013.6 (Congo) for Windows 64 bits (Merge Modules) (not needed)
-		gstreamer-sdk-x86_64-2013.6-merge-modules.zip (not needed)
-
-	open aamp\vs2010\tutorials.sln in Visual Studio 2013 (or 2010?)
-
-
-	if libcurl.dll error,
-	copy libcurl.dll from AAMP\vs2010\curl-7.46.0-win64\dlls to C:\gstreamer-sdk\0.10\x86_64\bin
-
-	if VCRUNTIME140.dll error, install runtime (required by gstreamer)
-	https://www.microsoft.com/en-us/download/details.aspx?id=48145
-
-========================================================================================
-
-RDK Build notes
-
-1. complete and install build
-	bitbake comcast-mediaclient-vbn-image // builds everything
-	bitbake -v -C compile -f  xre-receiver-default // rebuild just receiver
-	bitbake -v -C compile -f  aamp // rebuilt just aamp lib
-
-2. Enable receiver use of AAMP Video Engine.
-
-2.a) Via RFC rule 'AAMP' in prod or DEV RFC xconf - add eSTB Mac
-- After adding the box mac in the list, reboot the box twice, one for downloading RFC config and next for getting AAMP configuration
-
-- or -
-
-2.b) Locally configure device to use AAMP:
-Create /opt/SetEnv.sh with following entries
-# cat /opt/SetEnv.sh
-export XRE_DEBUG_ENABLE_OVERRIDE=1
-export ENABLE_AAMP=TRUE
-Create /opt/xre_rt.conf with following entry and reboot the box
-# cat /opt/xre_rt.conf
-enableAAMP=true
-
-3. AAMP will now be used by default instead of Adobe player; inspect logs to confirm:
-tail /opt/logs/receiver.log | grep aamp
-
-**********************************************************************************************
-
-CLI AAMP is generated as part of build, but not automatically copied to settop image
-
-**********************************************************************************************
 Source Overview:
 
-main.cpp
-- entry point for command line test app and options
+aampcli.cpp
+- entry point for command line test app
 
 aampgstplayer.cpp
-- gstreamer setup - allows playback of unencrypted video fragments
+- gstreamer abstraction - allows playback of unencrypted video fragments
 
-base16, base64
-- fast utility functions
+base16, _base64
+- utility functions
 
 fragmentcollector_hls
-- hls parsing and fragment collection
+- hls playlist parsing and fragment collection
 
 fragmentcollector_mpd
-- dash fragment collection (using libdash)
+- dash manifest parsing and fragment collection
 
-drm.cpp
-- abstraction for AVE DRM
-- input: encrypted fragment & encryption (currently Adobe Access) metadata
-- performs decryption in-place, yielding content that can be presented by gstreamer
+fragmentcollector_progressive
+- raw mp4 playback support
+
+drm
+- digital rights management support and plugins
 
 ================================================================================================
 
@@ -127,7 +67,7 @@ cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playba
 disablePlaylistIndexEvent=1    disables generation of playlist indexed event by AAMP on tune/trickplay/seek
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
 map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
-dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is / . Sample - http://assets.player.xcal.tv/super8sapcc/index.mpd
+dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
 fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
 map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
 min-init-cache	Video duration to be cached before playing in seconds.
@@ -271,12 +211,6 @@ To add channelmap for CLI, enter channel entries in below format in /opt/aampcli
 ================================================================================================
 Following line can be added as a header while making CSV with profiler data.
 
-version#2
-version,build,tuneStartBaseUTCMS,ManifestDownloadStartTime,ManifestDownloadTotalTime,ManifestDownloadFailCount,PlaylistDownloadStartTime,PlaylistDownloadTotalTime,PlaylistDownloadFailCount,VideoInit1DownloadStartTime,VideoInit1DownloadTotalTime,VideoInit1FailCount,VideoFragment1DownloadStartTime,VideoFragment1DownloadTotalTime,VideoFragment1DownloadFailCount,VideoFragment1Bandwidth,VideoFragment1DecryptTime,AudioInit1DownloadStartTime,AudioInit1DownloadTotalTime,AudioInit1FailCount,AudioFragment1DownloadStartTime,AudioFragment1DownloadTotalTime,AudioFragment1DownloadFailCount,AudioFragment1DecryptTime,drmLicenseRequestStart,drmLicenseRequestTotalTime,drmFailErrorCode,gstStart,gstReady,gstPlaying,gstFirstFrame
-
-version#3
-version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime
-
 version#4
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
 
@@ -322,7 +256,7 @@ d = Duration till the completion of event
 o = Output of Event (200:Success, Non 200:Error Code)
 
 
-VideoEnd Event Information
+VideoEnd (Session Statistics) Event Information
 ==========================
 vr = version of video end event (currently "1.0")
 tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth

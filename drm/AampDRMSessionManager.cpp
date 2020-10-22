@@ -1350,30 +1350,10 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 	if (!contentMetaData.empty())
 	{
-		string externLicenseServerURL = licenseRequest.url;
-
-		if (!gpGlobalConfig->licenseServerLocalOverride)
-		{
-			if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
-			{
-				externLicenseServerURL = RFCSettings::getRogersDrmLicenseServer();
-			}
-			else if (string::npos != licenseRequest.url.find("qa.ccp.xcal.tv"))
-			{
-				externLicenseServerURL = RFCSettings::getQADrmLicenseServer();
-			}
-			else if (string::npos != licenseRequest.url.find("ccp.xcal.tv"))
-			{
-				externLicenseServerURL = RFCSettings::getProdDrmLicenseServer();
-			}
-		}
-
-		if (!externLicenseServerURL.empty())
+		if (!licenseRequest.url.empty())
 		{
 #ifdef USE_SECCLIENT
-			licenseRequest.url = getFormattedLicenseServerURL(externLicenseServerURL);
-#else
-			licenseRequest.url = string(externLicenseServerURL);
+			licenseRequest.url = getFormattedLicenseServerURL(licenseRequest.url);
 #endif
 		}
 	}
