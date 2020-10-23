@@ -6491,6 +6491,7 @@ void PrivateStreamAbstractionMPD::SetCDAIObject(CDAIObject *cdaiObj)
 
 bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35)
 {
+#ifndef INTELCE
 	const std::vector<IEventStream *> &eventStreams = period->GetEventStreams();
 	for(auto &eventStream: eventStreams)
 	{
@@ -6525,6 +6526,7 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 			}
 		}
 	}
+#endif /* INTELCE */
 	return false;
 }
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)

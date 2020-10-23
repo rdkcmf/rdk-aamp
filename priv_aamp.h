@@ -121,8 +121,13 @@ static const char *mMediaFormatName[] =
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
 
 //Upper and lower limit for dash drm sessions
+#ifdef SUPPORT_SINGLE_DRM_SESSION
+#define MIN_DASH_DRM_SESSIONS 1
+#define MAX_DASH_DRM_SESSIONS 1
+#else
 #define MIN_DASH_DRM_SESSIONS 2
 #define MAX_DASH_DRM_SESSIONS 30
+#endif /* SUPPORT_SINGLE_DRM_SESSION */
 
 //#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/

@@ -4674,7 +4674,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType)
 	
 	if (mMediaFormat == eMEDIAFORMAT_DASH)
 	{
-		#if  defined (DISABLE_DASH) || defined (INTELCE)
+		#if  defined (DISABLE_DASH)
 			logprintf("Error: Dash playback not available\n");
 			mInitSuccess = false;
 			SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
@@ -4894,7 +4894,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		{
 			mAampCacheHandler = new AampCacheHandler();
 		}
-#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+#if (defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)) && !defined(SUPPORT_SINGLE_DRM_SESSION)
 		if(NULL == mDRMSessionManager)
 		{
 			mDRMSessionManager = new AampDRMSessionManager();
@@ -7379,7 +7379,7 @@ void PrivateInstanceAAMP::Stop()
 			delete mAampCacheHandler;
 			mAampCacheHandler = NULL;
 		}
-#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+#if (defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)) && !defined(SUPPORT_SINGLE_DRM_SESSION)
 		if (mDRMSessionManager)
 		{
 			delete mDRMSessionManager;
@@ -8025,7 +8025,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 		delete mAampCacheHandler;
 		mAampCacheHandler = NULL;
 	}
-#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+#if (defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)) && !defined(SUPPORT_SINGLE_DRM_SESSION)
 	if (mDRMSessionManager)
 	{
 		delete mDRMSessionManager;

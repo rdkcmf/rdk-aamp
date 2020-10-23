@@ -203,7 +203,9 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 AAMPOCDMSession::~AAMPOCDMSession()
 {
 	logprintf("[HHH]OCDMSession destructor called! keySystem %s", m_keySystem.c_str());
+#ifndef SUPPORT_SINGLE_DRM_SESSION
 	clearDecryptContext();
+#endif /* SUPPORT_SINGLE_DRM_SESSION */
 
 	pthread_mutex_destroy(&decryptMutex);
 #if USE_NEW_OPENCDM
@@ -307,6 +309,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 	{
 		logprintf("processKey: Key Usable!");
 	}
+#ifndef INTELCE
 	else if(keyStatus == media::OpenCdm::KeyStatus::HWError)
 	{
 		// BCOM-3537 - SAGE Hang .. Need to restart the wpecdmi process and then self kill player to recover
@@ -363,6 +366,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key)
 		pthread_mutex_unlock(&decryptMutex);
 		return retvalue;
 	}
+#endif /* INTELCE */
 
 	m_eKeyState = KEY_READY;
 #if USE_NEW_OPENCDM
@@ -417,12 +421,14 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	{
 		media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Status();
 		AAMPLOG_INFO("%s : decrypt returned : %d key status is : %d", __FUNCTION__, retvalue,keyStatus);
+#ifndef INTELCE
 		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
 			retvalue =  HDCP_OUTPUT_PROTECTION_FAILURE;
 		}
 		else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22){
 			retvalue =  HDCP_COMPLIANCE_CHECK_FAILURE;
         	}
+#endif /* INTELCE */
     	}
 	if(payloadDataSize > 0) {
 		LogPerformanceExt(__FUNCTION__, start_decrypt_time, end_decrypt_time, payloadDataSize);

@@ -1182,7 +1182,7 @@ static void * run_commnds(void *arg)
 int main(int argc, char **argv)
 {
 
-#ifdef IARM_MGR
+#if (defined(IARM_MGR) && !defined(INTELCE))
 	char Init_Str[] = "aamp-cli";
 	IARM_Bus_Init(Init_Str);
 	IARM_Bus_Connect();

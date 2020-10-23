@@ -122,7 +122,7 @@ static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_DRM_CURL_COUNT] =
 	{PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO};
 
-#ifdef AVE_DRM
+#if (defined(AVE_DRM) && !defined(INTELCE))
 extern "C"
 {
 //setCustomLicensePayload is new extension to AVE's DRM library, required to be populated with Virtual Stream Stitcher (VSS) content 
@@ -762,7 +762,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
 	secondPass = false;
-#ifdef AVE_DRM
+#if (defined(AVE_DRM) && !defined(INTELCE))
 	//clear previouse data
 	setCustomLicensePayLoad(NULL);
 #endif
@@ -973,7 +973,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				}
 				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
 				{
-#ifdef AVE_DRM
+#if (defined(AVE_DRM) && !defined(INTELCE))
 					std::string vssServiceZone = aamp->getServiceZone();
 
 					if(!vssServiceZone.empty())
