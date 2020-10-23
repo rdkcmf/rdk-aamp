@@ -319,8 +319,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 			}
 			else
 			{
-				if (!EVP_DecryptUpdate(OPEN_SSL_CONTEXT, decryptedDataBuf, &decLen, (const unsigned char*) encryptedDataPtr,
-				        encryptedDataLen))
+				if (!EVP_DecryptUpdate(OPEN_SSL_CONTEXT, decryptedDataBuf, &decLen, (const unsigned char*) encryptedDataPtr, encryptedDataLen))
 				{
 					logprintf("AesDec::%s:%d: EVP_DecryptUpdate failed mDrmState = %d", __FUNCTION__, __LINE__, (int) mDrmState);
 				}
