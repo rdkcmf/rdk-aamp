@@ -7347,7 +7347,8 @@ bool PrivateStreamAbstractionMPD::CheckForVssTags()
 						if (childNode->HasAttribute("value"))
 						{
 							std::string value = childNode->GetAttributeValue("value");
-							mCommonKeyDuration = std::stoi(value);
+							std::stringstream ckValue(value);
+							ckValue >> mCommonKeyDuration;
 							AAMPLOG_INFO("%s:%d Recieved Common Key Duration : %d of VSS stream", __FUNCTION__, __LINE__, mCommonKeyDuration);
 							isVss = true;
 						}

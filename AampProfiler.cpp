@@ -76,11 +76,10 @@ void ProfileEventAAMP::addtuneEvent(ProfilerBucketType pbt, unsigned int start, 
  * @param[in] success - Tune success/failure
  * @return void
  */
-void ProfileEventAAMP::getTuneEventsJSON(std::string &outStr, const std::string &streamType, const char *url, bool success)
+void ProfileEventAAMP::getTuneEventsJSON(std::stringstream &outSS, const std::string &streamType, const char *url, bool success)
 {
 	bool siblingEvent = false;
 	unsigned int tEndTime = NOW_STEADY_TS_MS;
-	unsigned int td = tEndTime - tuneStartMonotonicBase;
 	size_t end = 0;
 
 	std::string temlUrl = url;
@@ -91,28 +90,27 @@ void ProfileEventAAMP::getTuneEventsJSON(std::string &outStr, const std::string 
 		temlUrl = temlUrl.substr(0, end);
 	}
 
-	char outPtr[512];
-	memset(outPtr, '\0', 512);
-
-	snprintf(outPtr, 512, "{\"s\":%lld,\"td\":%d,\"st\":\"%s\",\"u\":\"%s\",\"tf\":{\"i\":%d,\"er\":%d},\"r\":%d,\"v\":[",tuneStartBaseUTCMS, td, streamType.c_str(), temlUrl.c_str(), mTuneFailBucketType, mTuneFailErrorCode, (success ? 1 : 0));
-
-	outStr.append(outPtr);
+	outSS << "{\"s\":" << tuneStartBaseUTCMS
+			//TODO: It should be the duration relative to XRE start time.
+			<< ",\"td\":" << (tEndTime - tuneStartMonotonicBase)
+			<< ",\"st\":\"" << streamType << "\",\"u\":\"" << temlUrl
+			<< "\",\"tf\":{" << "\"i\":" << mTuneFailBucketType << ",\"er\":" << mTuneFailErrorCode << "}"
+			<< ",\"r\":" << (success ? 1 : 0) << ",\"v\":[";
 
 	std::lock_guard<std::mutex> lock(tuneEventListMtx);
 	for(auto &te:tuneEventList)
 	{
 		if(siblingEvent)
 		{
-			outStr.append(",");
+			outSS<<",";
 		}
-		char eventPtr[256];
-		memset(eventPtr, '\0', 256);
-		snprintf(eventPtr, 256, "{\"i\":%d,\"b\":%d,\"d\":%d,\"o\":%d}", te.id, te.start, te.duration, te.result);
-		outStr.append(eventPtr);
+		outSS << "{\"i\":" << te.id << ",\"b\":"
+				<< te.start << ",\"d\":" << te.duration << ",\"o\":"
+				<< te.result << "}";
 
 		siblingEvent = true;
 	}
-	outStr.append("]}");
+	outSS<<"]}";
 
 	tuneEventList.clear();
 	mTuneFailErrorCode = 0;
