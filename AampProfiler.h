@@ -265,7 +265,7 @@ public:
 	 * @param[in] success - Tune success/failure
 	 * @return void
 	 */
-	void getTuneEventsJSON(std::stringstream &outSS, const std::string &streamType, const char *url, bool success);
+	void getTuneEventsJSON(std::string &outSS, const std::string &streamType, const char *url, bool success);
 
 	/**
 	 * @brief Profiler method to perform tune begin related operations.

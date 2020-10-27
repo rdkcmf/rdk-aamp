@@ -2990,16 +2990,15 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
  */
 void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 {
-	std::stringstream eventsJSON;
+	std::string eventsJSON;
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
-	std::string jsonStr = eventsJSON.str();
-	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
+	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.c_str());
 
 	//for now, avoid use of logprintf, to avoid potential truncation when URI in tune profiling or
 	//extra events push us over limit
-	AAMPLOG_WARN("tune-profiling: %s", jsonStr.c_str());
+	AAMPLOG_WARN("tune-profiling: %s", eventsJSON.c_str());
 
-	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(jsonStr);
+	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(eventsJSON);
 	SendEventAsync(e);
 }
 
@@ -5673,11 +5672,11 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 	std::string drmInitDataStr;
 
 	const size_t queryPos = urlStr.find("?");
+	std::string modUrl;
 	if (queryPos != std::string::npos)
 	{
 		// URL contains a query string. Strip off & decode the drmInitData (if present)
-		std::stringstream modifiedUrl;
-		modifiedUrl << urlStr.substr(0, queryPos);
+		modUrl = urlStr.substr(0, queryPos);
 		const std::string parameterDefinition("drmInitData=");
 		std::string parameter;
 		std::stringstream querySs(urlStr.substr(queryPos + 1, std::string::npos));
@@ -5690,10 +5689,11 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 			}
 			else
 			{ // filter out drmInitData; reintroduce all other URI parameters
-				modifiedUrl << ((modifiedUrl.tellp() == queryPos) ? "?" : "&") << parameter;
+				modUrl.append((queryPos == modUrl.length()) ? "?" : "&");
+				modUrl.append(parameter);
 			}
 		}
-		urlStr = modifiedUrl.str();
+		urlStr = modUrl;
 	}
 	return std::tuple<std::string, std::string>(urlStr, drmInitDataStr);
 }
