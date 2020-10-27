@@ -3624,10 +3624,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		AAMPLOG_ERR("PrivateStreamAbstractionMPD::%s:%d corrupt/invalid manifest",__FUNCTION__,__LINE__);
 		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 	}
-
-	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
-	FetchAndInjectInitialization();
-
 	return retval;
 }
 
@@ -6045,6 +6041,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	mPushEncInitFragment = false;
 #endif
 
+	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
+	FetchAndInjectInitialization();
 	IPeriod *currPeriod = mCurrentPeriod;
 	std::string currentPeriodId = currPeriod->GetId();
 	mPrevAdaptationSetCount = currPeriod->GetAdaptationSets().size();
@@ -6384,80 +6382,70 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					for (int i = mNumberOfTracks-1; i >= 0; i--)
 					{
 						struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
-						bool isAllowNextFrag = true;
-
-						if (!trickPlay)
+						if (pMediaStreamContext->adaptationSet )
 						{
-							isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable();
-						}
-
-						if (isAllowNextFrag)
-						{
-							if (pMediaStreamContext->adaptationSet )
-							{
-								if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
-								{	// profile not changed and Cache not full scenario
-									if (!pMediaStreamContext->eos)
+							if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
+							{	// profile not changed and Cache not full scenario
+								if (!pMediaStreamContext->eos)
+								{
+									if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
 									{
-										if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
+										if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
 										{
-											if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
-											{
-												delta = rate / gpGlobalConfig->vodTrickplayFPS;
-											}
-											double currFragTime = pMediaStreamContext->fragmentTime;
-											delta = SkipFragments(pMediaStreamContext, delta);
-											mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
+											delta = rate / gpGlobalConfig->vodTrickplayFPS;
 										}
-							
-										if(PushNextFragment(pMediaStreamContext,i))
+										double currFragTime = pMediaStreamContext->fragmentTime;
+										delta = SkipFragments(pMediaStreamContext, delta);
+										mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
+									}
+
+									if(PushNextFragment(pMediaStreamContext,i))
+									{
+										if (mIsLiveManifest)
 										{
-											if (mIsLiveManifest)
-											{
-												mContext->CheckForPlaybackStall(true);
-											}
-											if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i) && (!aamp->IsTSBSupported()))
-											{
-												if (aamp->CheckABREnabled())
-												{
-													pMediaStreamContext->mContext->CheckForProfileChange();
-												}
-												else
-												{
-													pMediaStreamContext->mContext->CheckUserProfileChangeReq();
-												}
-											}
+											mContext->CheckForPlaybackStall(true);
 										}
-										else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
+										if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i) && (!aamp->IsTSBSupported()))
 										{
-											mContext->CheckForPlaybackStall(false);
-										}
-							
-										if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
-												&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
-										{
-											//Ensuring that Ad playback doesn't go beyond Adbreak
-											AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
-																__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
-											pMediaStreamContext->eos = true;
+											if (aamp->CheckABREnabled())
+											{
+												pMediaStreamContext->mContext->CheckForProfileChange();
+											}
+											else
+											{
+												pMediaStreamContext->mContext->CheckUserProfileChangeReq();
+											}
 										}
 									}
+									else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
+									{
+										mContext->CheckForPlaybackStall(false);
+									}
+
+									if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
+											&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
+									{
+										//Ensuring that Ad playback doesn't go beyond Adbreak
+										AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
+															__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
+										pMediaStreamContext->eos = true;
+									}
 								}
-								// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
-								// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
-								// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
-								// DELIA-32017
-								else if(pMediaStreamContext->profileChanged)
-								{	// Profile changed case
-									FetchAndInjectInitialization();
-								}
-							
-								if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
-								{
-									bCacheFullState = false;
-								}
-							
 							}
+							// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
+							// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
+							// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
+							// DELIA-32017
+							else if(pMediaStreamContext->profileChanged)
+							{	// Profile changed case
+								FetchAndInjectInitialization();
+							}
+
+							if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
+							{
+								bCacheFullState = false;
+							}
+
 						}
 						if (!aamp->DownloadsAreEnabled())
 						{
