@@ -43,6 +43,9 @@
 #include <queue>
 #include <VideoStat.h>
 #include <limits>
+#include <algorithm>
+#include <thread>
+
 
 static const char *mMediaFormatName[] =
 {
@@ -831,6 +834,14 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
  * @return Current time in milliseconds
  */
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
+
+/*
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
  * @brief Log error

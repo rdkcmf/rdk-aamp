@@ -60,6 +60,18 @@
 #endif
 #include <uuid/uuid.h>
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
+
+#ifdef USE_MAC_FOR_RANDOM_GEN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <openssl/sha.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include "base16.h"
+#endif
+
 #ifdef WIN32
 #include "conio.h"
 #else
@@ -87,6 +99,16 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen);
 
 static const char* STRBGPLAYER = "BACKGROUND";
 static const char* STRFGPLAYER = "FOREGROUND";
+
+
+#define AAMP_STALL_CHECK_TOLERANCE 2
+#define DEFER_DRM_LIC_OFFSET_FROM_START 5
+#define DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND 5
+#define MAC_STRING_LEN 12
+#define URAND_STRING_LEN 16
+#define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
+#define MAX_BUFF_LENGTH 4096 
+
 
 static int PLAYERID_CNTR = 0;
 
@@ -345,6 +367,9 @@ GlobalConfigAAMP *gpGlobalConfig;
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+#define PLAYREADY_UUID "9a04f079-9840-4286-ab92-e65be0885f95"
+#define WIDEVINE_UUID "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"
+#define CLEARKEY_UUID "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"
 
 /**
  * New state for treating a VOD asset as a "virtual linear" stream
@@ -436,6 +461,144 @@ static guint aamp_GetSourceID()
 	return callbackId;
 }
 
+#ifdef USE_MAC_FOR_RANDOM_GEN
+/**
+ * @brief get EstbMac
+ *
+ * @param  mac[out] eSTB MAC address
+ * @return true on success.
+ */
+static bool getEstbMac(char* mac)
+{
+	bool ret = false;
+	char nwInterface[IFNAMSIZ] = { 'e', 't', 'h', '0', '\0' };
+#ifdef READ_ESTB_IFACE_FROM_DEVICE_PROPERTIES
+	FILE* fp = fopen("/etc/device.properties", "rb");
+	if (fp)
+	{
+		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
+		char buf[MAX_BUFF_LENGTH];
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			if(strstr(buf, "ESTB_INTERFACE") != NULL)
+			{
+				const char * nwIfaceNameStart = buf + 15;
+				int ifLen = 0;
+				for (int i = 0; i < IFNAMSIZ-1; i++ )
+				{
+					if (!isspace(nwIfaceNameStart[i]))
+					{
+						nwInterface[i] = nwIfaceNameStart[i];
+					}
+					else
+					{
+						nwInterface[i] = '\0';
+						break;
+					}
+				}
+				nwInterface[IFNAMSIZ-1] = '\0';
+				break;
+			}
+		}
+		fclose(fp);
+	}
+	else
+	{
+		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
+	}
+#endif
+	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
+	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sockFd == -1)
+	{
+		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		struct ifreq ifr;
+		strcpy(ifr.ifr_name, nwInterface);
+		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
+		{
+			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
+			strcpy(mac, macAddress);
+			free(macAddress);
+			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
+			ret = true;
+		}
+		close(sockFd);
+	}
+	return ret;
+}
+#endif
+
+
+/**
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds)
+{
+	int ret = 0;
+#ifdef USE_MAC_FOR_RANDOM_GEN
+	static char randString[RAND_STRING_LEN+1];
+	static bool estbMacAvalable = getEstbMac(randString);
+	if (estbMacAvalable)
+	{
+		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
+		int randFD = open("/dev/urandom", O_RDONLY);
+		if (randFD < 0)
+		{
+			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			char* uRandString = &randString[MAC_STRING_LEN];
+			int uRandStringLen = 0;
+			unsigned char temp;
+			for (int i = 0; i < URAND_STRING_LEN; i++)
+			{
+				ssize_t bytes = read(randFD, &temp, 1);
+				if (bytes < 0)
+				{
+					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
+					break;
+				}
+				sprintf(uRandString + i * 2, "%02x", temp);
+			}
+			close(randFD);
+			randString[RAND_STRING_LEN] = '\0';
+			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
+			unsigned char hash[SHA_DIGEST_LENGTH];
+			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
+			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
+
+			int mod = 0;
+			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+			{
+				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
+				mod = (mod * 10 + hash[i]) % divisor;
+			}
+			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
+			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
+		}
+	}
+	else
+	{
+		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
+		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+	}
+#else
+	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
+#endif
+	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
+	return ret;
+}
 
 /**
  * @brief Report progress event to listeners
@@ -1524,6 +1687,26 @@ void aamp_Error(const char *msg)
 	//exit(1);
 }
 
+/**
+ * @brief unescape uri-encoded uri parameter
+ * @param uriParam string to un-escape
+ */
+void aamp_DecodeUrlParameter( std::string &uriParam )
+{
+	std::string rc;
+	CURL *curl = curl_easy_init();
+	if (curl != NULL)
+	{
+		int unescapedLen;
+		const char* unescapedData = curl_easy_unescape(curl, uriParam.c_str(), uriParam.size(), &unescapedLen);
+		if (unescapedData != NULL)
+		{
+			uriParam = std::string(unescapedData, unescapedLen);
+			curl_free((void*)unescapedData);
+		}
+		curl_easy_cleanup(curl);
+	}
+}
 
 /**
  * @brief Convert custom curl errors to original
@@ -4815,41 +4998,18 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
  */
 static void DeFog(std::string& url)
 {
-	char *dst = NULL, *head = NULL;
-	head = dst = strdup(url.c_str());
-	const char *src = strstr(dst, "&recordedUrl=");
-	if (src)
+	const char *prefix = "&recordedUrl=";
+	size_t startPos = url.find(prefix);
+	if( startPos != std::string::npos )
 	{
-		src += 13;
-		for (;;)
+		startPos += STRLEN_LITERAL(prefix);
+		size_t len = url.find( '&',startPos );
+		if( len != std::string::npos )
 		{
-			char c = *src++;
-			if (c == '%')
-			{
-				size_t len;
-				unsigned char *tmp = base16_Decode(src, 2, &len);
-				if (tmp)
-				{
-					*dst++ = tmp[0];
-					free(tmp);
-				}
-				src += 2;
-			}
-			else if (c == 0 || c == '&')
-			{
-				*dst++ = 0x00;
-				break;
-			}
-			else
-			{
-				*dst++ = c;
-			}
+			len -= startPos;
 		}
-	}
-	if(head != NULL)
-	{
-		url = head;
-		free(head);
+		url = url.substr(startPos,len);
+		aamp_DecodeUrlParameter(url);
 	}
 }
 
@@ -5535,31 +5695,21 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 {
 	if(mIsVSS && !url.empty())
 	{
-		std::string vssURL;
-        size_t vssURLPos;
 		if(mTSBEnabled)
-		{
+		{ // extract original locator from FOG recordedUrl URI parameter
 			DeFog(url);
-		}	
-		AAMPLOG_WARN("PrivateInstanceAAMP::%s url:%s ", __FUNCTION__,url.c_str());
-		vssURL = url;
-
-		if( (vssURLPos = vssURL.find(VSS_MARKER)) != std::string::npos )
+		}
+		size_t vssStart = url.find(VSS_MARKER);
+		if( vssStart != std::string::npos )
 		{
-			vssURLPos = vssURLPos + VSS_MARKER_LEN;
-			// go till start of service zone. 
-			vssURL = vssURL.substr(vssURLPos);
-
-			size_t  nextQueryParameterPos = vssURL.find('&');
-			if(nextQueryParameterPos != std::string::npos)
+			vssStart += VSS_MARKER_LEN; // skip "?sz="
+			size_t vssLen = url.find('&',vssStart);
+			if( vssLen != std::string::npos )
 			{
-				// remove anything after & . i.e get string from 0 till nextQueryParameterPos
-				mServiceZone = vssURL.substr(0, nextQueryParameterPos);
+				vssLen -= vssStart;
 			}
-			else
-			{
-				mServiceZone = vssURL;
-			}
+			mServiceZone = url.substr(vssStart, vssLen );
+			aamp_DecodeUrlParameter(mServiceZone); // DELIA-44703
 		}
 		else
 		{
