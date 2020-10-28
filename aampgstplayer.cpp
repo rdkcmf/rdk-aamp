@@ -176,6 +176,7 @@ struct AAMPGstPlayerPriv
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 #if defined(REALTEKCE)
 	bool firstTuneWithWesterosSinkOff; // DELIA-33640: track if first tune was done for Realtekce build
+	gboolean audioSinkAsyncEnabled; // XIONE-1279: track if AudioSink Async Mode is enabled for Realtekce build
 #endif
 };
 
@@ -1219,6 +1220,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
 					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
 				}
+#if defined (REALTEKCE)
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink") == true)
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+				}
+#endif
 
 				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
 
@@ -1500,6 +1507,9 @@ bool AAMPGstPlayer::CreatePipeline()
 			logprintf("%s buffering_enabled forced 0, INTELCE", GST_ELEMENT_NAME(privateContext->pipeline));
 #else
 			logprintf("%s buffering_enabled %u", GST_ELEMENT_NAME(privateContext->pipeline), privateContext->buffering_enabled);
+#endif
+#if defined(REALTEKCE)
+			privateContext->audioSinkAsyncEnabled = FALSE;
 #endif
 			if (privateContext->positionQuery == NULL)
 			{
@@ -3276,11 +3286,27 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			return;
 		}
 #if defined (REALTEKCE)
-		// Audio playbin must be removed from pipeline or trickplay will not transition to PLAYING state
-		if (privateContext->rate > 1 || privateContext->rate < 0)
+		if (privateContext->audio_sink)
 		{
-			logprintf("%s:%d: Stopping audio stream for trickplay", __FUNCTION__, __LINE__);
-			TearDownStream(eMEDIATYPE_AUDIO);
+			if (privateContext->rate > 1 || privateContext->rate < 0)
+			{
+				//aamp won't feed audio bitstreame to gstreamer at trickplay.
+				//It needs to disable async of audio base sink to prevent audio sink never sends ASYNC_DONE to pipeline.
+				logprintf("%s:%d: Disable async for audio stream at trickplay", __FUNCTION__, __LINE__);
+				privateContext->audioSinkAsyncEnabled =
+						gst_base_sink_is_async_enabled(GST_BASE_SINK(privateContext->audio_sink));
+
+				if(privateContext->audioSinkAsyncEnabled == TRUE)
+				{
+					privateContext->audioSinkAsyncEnabled = FALSE;
+					gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), FALSE);
+				}
+			}
+			else if(privateContext->audioSinkAsyncEnabled == FALSE)
+			{
+				privateContext->audioSinkAsyncEnabled = TRUE;
+				gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), TRUE);
+			}
 		}
 #endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
