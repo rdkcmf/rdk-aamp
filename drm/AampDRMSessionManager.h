@@ -149,8 +149,6 @@ public:
 
 	DrmData * getLicense(DrmData * keyChallenge, string destinationURL, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream = false, char* licenseProxy = NULL, struct curl_slist *customHeader = NULL, DRMSystems drmSystem = eDRM_NONE);
 
-	bool IsKeyIdUsable(unsigned char* keyId, size_t keyIdLen);
-
 	void clearSessionData();
 
 	void clearAccessToken();
