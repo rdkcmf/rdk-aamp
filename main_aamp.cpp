@@ -4998,11 +4998,11 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
  */
 static void DeFog(std::string& url)
 {
-	std::string prefix("&recordedUrl=");
+	const char *prefix = "&recordedUrl=";
 	size_t startPos = url.find(prefix);
 	if( startPos != std::string::npos )
 	{
-		startPos += prefix.size();
+		startPos += STRLEN_LITERAL(prefix);
 		size_t len = url.find( '&',startPos );
 		if( len != std::string::npos )
 		{
