@@ -43,6 +43,9 @@
 #include <queue>
 #include <VideoStat.h>
 #include <limits>
+#include <algorithm>
+#include <thread>
+
 
 static const char *mMediaFormatName[] =
 {
@@ -119,9 +122,12 @@ static const char *mMediaFormatName[] =
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
+#define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
+#define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
 //Upper and lower limit for dash drm sessions
-#define MIN_DASH_DRM_SESSIONS 2
+#define MIN_DASH_DRM_SESSIONS 3
 #define MAX_DASH_DRM_SESSIONS 30
 
 //#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.
@@ -667,6 +673,8 @@ public:
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
 	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
+	bool enableAccessAttributes;	/*** Enable Access attributes for VSS DRM Sec client request */
+
 public:
 
 	/**
@@ -734,6 +742,7 @@ public:
 		,useRetuneForGSTInternalError(eUndefinedState)
 		,initFragmentRetryCount(-1)
 		,rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0)
+		, enableAccessAttributes(true)
 	{
 		//XRE sends onStreamPlaying while receiving onTuned event.
 		//onVideoInfo depends on the metrics received from pipe.
@@ -818,6 +827,14 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
  * @return Current time in milliseconds
  */
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
+
+/*
+ * @brief Get time to defer DRM acquisition
+ *
+ * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
+ * @return Time in MS to defer DRM acquisition
+ */
+int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
  * @brief Log error
@@ -3171,10 +3188,22 @@ public:
 	void SignalTrickModeDiscontinuity();
 
 	/**
-	 *   @brief  return service zone, extracted from locator &sz URI parameter
+	 *   @brief  pass service zone, extracted from locator &sz URI parameter
 	 *   @return std::string
 	 */
-	std::string & getServiceZone() { return mServiceZone; }
+	std::string & GetServiceZone() { return mServiceZone; }
+
+	/**
+	 *   @brief  pass virtual stream ID
+	 *   @return std::string
+	 */
+	std::string & GetVssVirtualStreamID() { return mVssVirtualStreamId; }
+
+	/**
+	 *   @brief  set virtual stream ID, extracted from manifest
+	 */
+	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
 	 *
@@ -3601,6 +3630,7 @@ private:
 	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
+	std::string  mVssVirtualStreamId; // part of manifest file
 
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 #ifdef PLACEMENT_EMULATION

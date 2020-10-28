@@ -197,6 +197,7 @@ minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
+enableAccessAttributes=0 Enable/Disable access attributes for sec client DRM request, default is true
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

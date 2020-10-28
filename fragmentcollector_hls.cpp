@@ -990,17 +990,21 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
 				{
 #ifdef AVE_DRM
-					std::string vssServiceZone = aamp->getServiceZone();
+					std::string vssServiceZone = aamp->GetServiceZone();
 
 					if(!vssServiceZone.empty())
 					{
 						char * ptrContentID = ptr;
 
-						if(startswith(&ptr, "urn:merlin:linear:stream:"))
+						if(startswith(&ptr, VSS_VIRTUAL_STREAM_ID_PREFIX))
 						{
-							std::string vssData = " \"client:accessAttributes\": [\"content:xcal:virtualStreamId\",\"";
+							std::string vssData = " \"client:accessAttributes\": [\"";
+							vssData.append(VSS_VIRTUAL_STREAM_ID_KEY_STR);
+							vssData.append("\",\"");
 							vssData.append(ptr);
-							vssData.append("\",\"device:xcal:serviceZone\",\"");
+							vssData.append("\",\"");
+							vssData.append(VSS_SERVICE_ZONE_KEY_STR);
+							vssData.append("\",\"");
 							vssData.append(vssServiceZone);
 							vssData.append("\"]");
 							setCustomLicensePayLoad(vssData.c_str());
@@ -2292,7 +2296,7 @@ void TrackState::ComputeDeferredKeyRequestTime()
 				if(!foundFlag)
 				{
 					// Found new Meta with no key Mapping. Need to defer key request for this Meta
-					int deferredTimeMs = GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
+					int deferredTimeMs = aamp_GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
 					drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
 
 					logprintf("[%s][%d][%s] Found New Meta[%d] without KeyTag mapping.Defer license request[%d]",
@@ -2307,7 +2311,7 @@ void TrackState::ComputeDeferredKeyRequestTime()
 					// be requested on Emergency mode
 					if(foundMetaCounter > 2)
 					{
-						int deferredTimeMs = GetDeferTimeMs(30);
+						int deferredTimeMs = aamp_GetDeferTimeMs(30);
 						drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
 						logprintf("[%s][%d][%s] Found New Meta[%d] with KeyTag mapping.Deferring license request due to load[%d]",__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
 					}
