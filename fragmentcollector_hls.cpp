@@ -2386,7 +2386,7 @@ void TrackState::ComputeDeferredKeyRequestTime()
 				if(!foundFlag)
 				{
 					// Found new Meta with no key Mapping. Need to defer key request for this Meta
-					int deferredTimeMs = GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
+					int deferredTimeMs = aamp_GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
 					drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
 
 					logprintf("[%s][%d][%s] Found New Meta[%d] without KeyTag mapping.Defer license request[%d]",
@@ -2401,7 +2401,7 @@ void TrackState::ComputeDeferredKeyRequestTime()
 					// be requested on Emergency mode
 					if(foundMetaCounter > 2)
 					{
-						int deferredTimeMs = GetDeferTimeMs(30);
+						int deferredTimeMs = aamp_GetDeferTimeMs(30);
 						drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
 						logprintf("[%s][%d][%s] Found New Meta[%d] with KeyTag mapping.Deferring license request due to load[%d]",__FUNCTION__,__LINE__,name,idx,deferredTimeMs);
 					}
