@@ -2655,8 +2655,8 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 	{
 		drmHelper = std::make_shared<AampDrmHelper>();
 		drmHelper->drmType = eDRM_PlayReady;
-		drmHelper->data = wvData;
-		drmHelper->dataLength = wvDataLength;
+		drmHelper->data = prData;
+		drmHelper->dataLength = prDataLength;
 		if(wvData)
 		{
 			free(wvData);
@@ -2670,8 +2670,8 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 	{
 		drmHelper = std::make_shared<AampDrmHelper>();
 		drmHelper->drmType = eDRM_ClearKey;
-		drmHelper->data = wvData;
-		drmHelper->dataLength = wvDataLength;
+		drmHelper->data = ckData;
+		drmHelper->dataLength = ckDataLength;
 	}
 
 	if(drmHelper)
