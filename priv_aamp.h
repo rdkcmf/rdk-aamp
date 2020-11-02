@@ -2519,6 +2519,14 @@ public:
 	void SetCCStatus(bool enabled);
 
 	/**
+	 *   @brief Switch the subtitle track following a change to the 
+	 * 			preferredTextTrack
+	 *
+	 *   @return void
+	 */
+	void RefreshSubtitles();
+
+	/**
 	 *   @brief Function to notify available audio tracks changed
 	 *
 	 *   @return void
@@ -2585,6 +2593,13 @@ public:
 	 *   @return bool true if available
 	 */
 	static bool IsActiveInstancePresent();
+
+	/**
+	 *   @brief Return BasePTS - for non-HLS/TS streams this will be zero
+	 *
+	 *   @return unsigned long long mVideoBasePTS
+	 */
+	unsigned long long GetBasePTS() { return mVideoBasePTS; }
 private:
 
 	/**
