@@ -238,16 +238,23 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 		if (next && strlen(buffer) >= 6)
 		{
 			char *token = strtok(buffer, " \t\n\r");
-			//VTT is UTF-8 encoded and BOM is 0xEF,0xBB,0xBF
-			if ((unsigned char) token[0] == 0xEF && (unsigned char) token[1] == 0xBB && (unsigned char) token[2] == 0xBF)
+			if(token != NULL)
 			{
-				//skip BOM
-				token += 3;
+				//VTT is UTF-8 encoded and BOM is 0xEF,0xBB,0xBF
+				if ((unsigned char) token[0] == 0xEF && (unsigned char) token[1] == 0xBB && (unsigned char) token[2] == 0xBF)
+				{
+					//skip BOM
+					token += 3;
+				}
+				if (strlen(token) == 6 && strncmp(token, "WEBVTT", 6) == 0)
+				{
+					buffer = next;
+					ret = true;
+				}
 			}
-			if (strlen(token) == 6 && strncmp(token, "WEBVTT", 6) == 0)
+			else
 			{
-				buffer = next;
-				ret = true;
+				AAMPLOG_WARN("%s:%d :  token  is null", __FUNCTION__, __LINE__);  //CID:85449,85515 - Null Returns
 			}
 		}
 	}

@@ -279,27 +279,34 @@ static gboolean handle_bus_message(GstBus *bus, GstMessage *msg, void* arg)
 				note: alternate "window-set" works as well
 				*/
 				GstElement *pbin = GST_ELEMENT(GST_MESSAGE_SRC(msg));
-				while(GST_ELEMENT_PARENT(pbin))
+				if(pbin != NULL)
 				{
-					pbin = GST_ELEMENT_PARENT(pbin);
-				}
-				const char * rect = DEFAULT_VIDEO_RECT;
-				int zorder = 0;
-				if (PLAYBINTEST_NUMBER_OF_VID > 1 )
-				{
-					for (int i=0; i< PLAYBINTEST_NUMBER_OF_VID; i++)
+					while(GST_ELEMENT_PARENT(pbin))
 					{
-						if (strcmp(GST_OBJECT_NAME(pbin), playbin_names[i]) == 0)
+						pbin = GST_ELEMENT_PARENT(pbin);
+					}
+					const char * rect = DEFAULT_VIDEO_RECT;
+					int zorder = 0;
+					if (PLAYBINTEST_NUMBER_OF_VID > 1 )
+					{
+						for (int i=0; i< PLAYBINTEST_NUMBER_OF_VID; i++)
 						{
-							rect = video_rectangle[i];
-							zorder = i;
-							break;
+							if (strcmp(GST_OBJECT_NAME(pbin), playbin_names[i]) == 0)
+							{
+								rect = video_rectangle[i];
+								zorder = i;
+								break;
+							}
 						}
 					}
+					g_print("*%s : setting rectangle to %s zorder to %d*\n", GST_OBJECT_NAME(pbin),  rect, zorder);
+					g_object_set(GST_MESSAGE_SRC(msg), "rectangle", rect, NULL);
+					g_object_set(GST_MESSAGE_SRC(msg), "zorder", zorder, NULL);
 				}
-				g_print("*%s : setting rectangle to %s zorder to %d*\n", GST_OBJECT_NAME(pbin),  rect, zorder);
-				g_object_set(GST_MESSAGE_SRC(msg), "rectangle", rect, NULL);
-				g_object_set(GST_MESSAGE_SRC(msg), "zorder", zorder, NULL);
+				else
+				{
+					g_printerr("%s:%d :  pbin  is null", __FUNCTION__, __LINE__);  //CID:82519 - Null Returns
+				}
 			}
 			break;
 		}
@@ -406,8 +413,10 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 	}
-	pthread_create(&uiThreadID, NULL, &ui_thread, NULL);
-
+	if(0 != pthread_create(&uiThreadID, NULL, &ui_thread, NULL))
+	{
+		g_printerr("%s:%d: Error at  pthread_create", __FUNCTION__, __LINE__);  //CID:83354 - checked return
+	}
 	main_loop = g_main_loop_new(NULL, FALSE);
 	g_main_loop_run(main_loop);
 

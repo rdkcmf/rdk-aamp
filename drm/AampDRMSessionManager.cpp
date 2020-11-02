@@ -371,12 +371,21 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 				if(tokenStatusCode.length() == 1 && tokenStatusCode.c_str()[0] == '0')
 				{
 					string token = _extractSubstring(tokenReplyStr, "token\":\"", "\"");
-					if(token.length() != 0)
+					size_t len = token.length();
+					if(len > 0)
 					{
-						accessToken = (char*)calloc(token.length()+1, sizeof(char));
-						accessTokenLen = token.length();
-						strncpy(accessToken,token.c_str(),token.length());
-						logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+						accessToken = (char*)malloc(len+1);
+						if(accessToken)
+						{
+							accessTokenLen = len;
+							memcpy( accessToken, token.c_str(), len );
+							accessToken[len] = 0x00;
+							logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+						}
+						else
+						{
+							AAMPLOG_WARN("%s:%d :  accessToken is null", __FUNCTION__, __LINE__);  //CID:83536 - Null Returns
+						}
 					}
 					else
 					{
