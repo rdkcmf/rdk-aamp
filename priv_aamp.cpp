@@ -2244,7 +2244,11 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 	// Check if we are paused and culled past paused playback position
 	// AAMP internally caches fragments in sw and gst buffer, so we should be good here
-	if (pipeline_paused && mpStreamAbstractionAAMP)
+	// Pipeline will be in Paused state when Lightning trickplay is done. During this state XRE will send the resume position to exit pause state .
+	// Issue observed when culled position reaches the paused position during lightning trickplay and player resumes the playback with paused position as playback position ignoring XRE shown position.
+	// Fix checks if the player is put into paused state with lighting mode(by checking last stored rate). 
+  	// In this state player will not come out of Paused state, even if the culled position reaches paused position.
+	if (pipeline_paused && mpStreamAbstractionAAMP && (rate != AAMP_RATE_FWD_4X) && (rate != AAMP_RATE_REW_4X))
 	{
 		double position = GetPositionMilliseconds() / 1000.0; // in seconds
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
