@@ -722,6 +722,7 @@ private:
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
 	double mAvailabilityStartTime;
 	std::map<std::string, int> mDrmPrefs;
+	int mMaxTracks; /* Max number of tracks for this session */
 };
 
 
@@ -750,6 +751,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mLastDrmHelper()
 	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mIsVssStream(false), mCommonKeyDuration(0)
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
+	, mMaxTracks(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -3211,10 +3213,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	if (ret == eAAMPSTATUS_OK)
 	{
 		std::string manifestUrl = aamp->GetManifestUrl();
-		int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
+		mMaxTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 		if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			numTracks--;
+			mMaxTracks--;
 		}
 		double offsetFromStart = seekPosition;
 		uint64_t durationMs = 0;
@@ -3327,7 +3329,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d - MPD minupdateduration val %" PRIu64 " seconds mTSBDepth %f mPresentationOffsetDelay :%f ", __FUNCTION__, __LINE__,  mMinUpdateDurationMs/1000, mTSBDepth,mPresentationOffsetDelay);
 		}
 
-		for (int i = 0; i < numTracks; i++)
+		for (int i = 0; i < mMaxTracks; i++)
 		{
 			mMediaStreamContext[i] = new MediaStreamContext((TrackType)i, mContext, aamp, mMediaTypeName[i]);
 			mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = manifestUrl;
@@ -4890,15 +4892,10 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 	std::vector<TextTrackInfo> tTracks;
 	std::string aTrackIdx;
 	std::string tTrackIdx;
-	int numTracks = (rate == AAMP_NORMAL_PLAY_RATE)?AAMP_TRACK_COUNT:1;
 	mNumberOfTracks = 0;
-	if (!aamp->IsSubtitleEnabled() && rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		numTracks--;
-	}
 	IPeriod *period = mCurrentPeriod;
 	AAMPLOG_INFO("Selected Period index %d, id %s", mCurrentPeriodIdx, period->GetId().c_str());
-	for( int i=0; i<numTracks; i++ )
+	for( int i = 0; i < mMaxTracks; i++ )
 	{
 		mMediaStreamContext[i]->enabled = false;
 	}
@@ -4952,7 +4949,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 		logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
 	}
 
-	for (int i = 0; i < numTracks; i++)
+	for (int i = 0; i < mMaxTracks; i++)
 	{
 		struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
 		size_t numAdaptationSets = period->GetAdaptationSets().size();
@@ -7036,7 +7033,7 @@ void PrivateStreamAbstractionMPD::Start(void)
 #endif
 	pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
 	fragmentCollectorThreadStarted = true;
-	for (int i=0; i< mNumberOfTracks; i++)
+	for (int i = 0; i < mNumberOfTracks; i++)
 	{
 		if(aamp->IsPlayEnabled())
 		{
@@ -7065,15 +7062,38 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 */
 void PrivateStreamAbstractionMPD::Stop()
 {
-	for (int iTrack = 0; iTrack < mNumberOfTracks; iTrack++)
+	// DELIA-45035: Change order of stopping threads. Collector thread has to be stopped at the earliest
+	// There is a chance fragment collector is processing StreamSelection() which can change the mNumberOfTracks
+	// and Enabled() status of MediaTrack momentarily.
+	// Call AbortWaitForCachedAndFreeFragment() to unblock collector thread from WaitForFreeFragmentAvailable
+	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
+	{
+		MediaStreamContext *track = mMediaStreamContext[iTrack];
+		if(track)
+		{
+			track->AbortWaitForCachedAndFreeFragment(true);
+		}
+	}
+
+	if(fragmentCollectorThreadStarted)
+	{
+		int rc = pthread_join(fragmentCollectorThreadID, NULL);
+		if (rc != 0)
+		{
+			logprintf("%s:%d ***pthread_join failed, returned %d", __FUNCTION__, __LINE__, rc);
+		}
+		fragmentCollectorThreadStarted = false;
+	}
+
+	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
 	{
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
 		if(track && track->Enabled())
 		{
-			track->AbortWaitForCachedAndFreeFragment(true);
 			track->StopInjectLoop();
 		}
 	}
+
 	if(drmSessionThreadStarted)
 	{
 		AAMPLOG_INFO("Waiting to join CreateDRMSession thread");
@@ -7084,15 +7104,6 @@ void PrivateStreamAbstractionMPD::Stop()
 		}
 		AAMPLOG_INFO("Joined CreateDRMSession thread");
 		drmSessionThreadStarted = false;
-	}
-	if(fragmentCollectorThreadStarted)
-	{
-		int rc = pthread_join(fragmentCollectorThreadID, NULL);
-		if (rc != 0)
-		{
-			logprintf("%s:%d ***pthread_join failed, returned %d", __FUNCTION__, __LINE__, rc);
-		}
-		fragmentCollectorThreadStarted = false;
 	}
 
 	if(deferredDRMRequestThreadStarted)
@@ -7117,7 +7128,7 @@ void PrivateStreamAbstractionMPD::Stop()
  */
 PrivateStreamAbstractionMPD::~PrivateStreamAbstractionMPD(void)
 {
-	for (int iTrack = 0; iTrack < mNumberOfTracks; iTrack++)
+	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
 	{
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
 		if(track )
