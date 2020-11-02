@@ -33,7 +33,7 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.9"
+#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.7"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
