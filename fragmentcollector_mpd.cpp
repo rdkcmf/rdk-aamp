@@ -3951,10 +3951,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			if(!gpGlobalConfig->midFragmentSeekEnabled)
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
-			}
-			if(0 != mCurrentPeriodIdx)
-			{
-				seekPosition += currentPeriodStart;
+				if(0 != mCurrentPeriodIdx)
+				{
+					seekPosition += currentPeriodStart;
+				}
 			}
 			for (int i = 0; i < mNumberOfTracks; i++)
 			{
