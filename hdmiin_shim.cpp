@@ -43,6 +43,18 @@ Note: portId takes int values. portId can be extracted from the response of exis
  Testing Note: Anyone working on a blob board will need HDCP keys from Scott to make HDMI-in work. But should work as-is on CAD1.0 hardware.
 */
 
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+
+#include <core/core.h>
+#include <websocket/websocket.h>
+
+using namespace std;
+using namespace WPEFramework;
+
+/*Need to be changed to org.rdk.HdmiInput*/
+//#define HDMIINPUT_CALLSIGN "org.rdk.MediaServicesMoc"
+#define HDMIINPUT_CALLSIGN "org.rdk.HdmiInput.1"
+#endif
 /**
  *   @brief  Initialize a newly created object.
  *   @note   To be implemented by sub classes
@@ -62,12 +74,22 @@ AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp), hdmiInputPort(-1)
-
+StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                             : StreamAbstractionAAMP(aamp),
+                               hdmiInputPort(-1)
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+                               ,thunderAccessObj(HDMIINPUT_CALLSIGN)
+#endif
 {
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d constructor  activating org.rdk.HdmiInput ",__FUNCTION__,__LINE__);
 	std::string response = aamp_PostJsonRPC("3", "Controller.1.activate", "{\"callsign\":\"org.rdk.HdmiInput\"}" );
 	logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+#else
+    AAMPLOG_WARN( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
+    thunderAccessObj.ActivatePlugin();
+
+#endif
 }
 		   
 /**
@@ -90,6 +112,7 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 	{
 		AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d port is %d ",__FUNCTION__,__LINE__, hdmiInputPort);
 
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 		std::string params = "{\"portId\":" + std::to_string(hdmiInputPort) + "}";
 		std::string success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.startHdmiInput", params );
 		logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, success.c_str());
@@ -97,6 +120,14 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 		Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.startHdmiInput", "params":{"portId":0}}
 		Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
 		 */
+#else
+    AAMPLOG_INFO( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
+    JsonObject param;
+    JsonObject result;
+    param["portId"] = hdmiInputPort;
+    thunderAccessObj.InvokeJSONRPC("startHdmiInput", param, result);
+
+#endif
 	}
 }
 
@@ -108,6 +139,7 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
 	if( hdmiInputPort>=0 )
 	{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 		std::string  success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.stopHdmiInput", "null" );
 		logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, success.c_str());
 		hdmiInputPort = -1;
@@ -115,6 +147,12 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 	 Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.stopHdmiInput"}
 	 Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
 	*/
+#else
+    AAMPLOG_INFO( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
+    JsonObject param;
+    JsonObject result;
+    thunderAccessObj.InvokeJSONRPC("stopHdmiInput", param, result);
+#endif
 	}
 }
 

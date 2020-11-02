@@ -1,12 +1,20 @@
 <html>
 	<head>
 		<style>
+			
 input[type=button]:focus {
 	background-color: #4CAF50;
 	border: none;
 	color: white;
 }
+
+select:focus {
+		background-color: #4CAF50;
+		border: none;
+		color: white;
 		
+}
+
 #myprogressBar {
  width: 1%;
  height: 35px;
@@ -15,10 +23,16 @@ input[type=button]:focus {
  line-height: 32px;
  color: black;
 }
+
+#content {
+	position:absolute;
+	z-index: 1;
+}
 	
 </style>
 		
 <script src="thunderJS.js"></script>
+
 <script>
 	function log(text)
 	{
@@ -46,33 +60,29 @@ input[type=button]:focus {
 	document.getElementById("currChSelLabel").innerHTML = text;
 	}
 	
-	function setPlayButtonText(text)
-	{
-		document.getElementById("btn_play").value = 'Play : ' + text;
-	}
 	function setChaCountLabel(text)
 	{
 	document.getElementById("chcountLabel").innerHTML = text;
 	}
 	
 	function clearChannelMapList() {
-	 var chMapElement = document.getElementById("chMap");
-			
-  // when length is 0, the evaluation will return false.
-  while (chMapElement.options.length) {
-    // continue to remove the first option until no options remain.
-    chMapElement.remove(0);
-  }
-}
+		var chMapElement = document.getElementById("chMap");
+		// when length is 0, the evaluation will return false.
+		while (chMapElement.options.length)
+		{
+			// continue to remove the first option until no options remain.
+			chMapElement.remove(0);
+		}
+	}
+
 	var tc;
 	var listener;
 	var listenerOnPlayerStatus;
-	var currChaIndex;
 	var totalChannels;
 	var aampPlayer;
 	var isPlaying;
 	var serviceTable;
-	var fromPC = false; 
+	var fromPC = false;
 	
 	function Connect()
 	{
@@ -102,7 +112,6 @@ input[type=button]:focus {
 		}
 
 		log( "Thunder Configuration: " + JSON.stringify(config) );
-		
 		tc = ThunderJS(config);
 	}
 	function Activate( callsign )
@@ -191,38 +200,65 @@ input[type=button]:focus {
 		});
 	}
 	
+	function ProcessServiceTable( result )
+	{
+		serviceTable = result; //store for future use
+		var chMapElement = document.getElementById("chMap");
+		totalChannels = 0;
+		for (var i in result.table) {
+			var strData = result.table[i].displayChannel + ' ' +
+				result.table[i].shortName +
+				' str=' + result.table[i].signalStrength +
+				' qual=' + result.table[i].signalQuality;
+				// +' ' + result.table[i].locator;
+				
+			var opt = document.createElement('option');
+			opt.text = strData;
+			opt.value = result.table[i].locator;
+			if( i==0 )
+			{
+				opt.selected = true;
+			}
+			chMapElement.add(opt,null);
+			totalChannels = totalChannels +1;
+			log('channel:' + strData);
+		}
+		log('total channels found:' + totalChannels);
+		setChaCountLabel( totalChannels );
+	}
+
 	function getAllServices()
 	{
-		tc.call("org.rdk.MediaServices","getServices",{}).then(result => {
-			//log('getService Success '+ JSON.stringify(result))
-			serviceTable = result; //store for future use
-			 var chMapElement = document.getElementById("chMap");
-			totalChannels = 0;
+		clearChannelMapList();
 		
-		    for (var i in result.table) {
-      var strData = result.table[i].displayChannel + '::' + result.table[i].shortName + ':' +':'+ result.table[i].signalStrength + ':' + result.table[i].signalQuality + ':' + result.table[i].locator ;
-			
-					 var opt = document.createElement('option');
-    opt.text = strData;
-    opt.value = result.table[i].locator;
-		chMapElement.add(opt,null);
-		totalChannels = totalChannels +1;
-			  log('channel:' + strData);
-    }
-		log('total channels found:' + totalChannels);
-		setChaCountLabel(' : '+ totalChannels );
+		if( false )
+		{ // for simulator testing in chrome - canned channel map
+			result = {
+				"table":[]
+			};
+			for( var i=0; i<32; i++ )
+			{
+				result.table[i] = {};
+				result.table[i].locator = "live://"+(i+1);
+				result.table[i].displayChannel = "1."+(i+1);
+				result.table[i].shortName = "ABC"+(i+1);
+				result.table[i].signalStrength = "1.0";
+				result.table[i].signalQuality = "1.0";
+			}
+			ProcessServiceTable( result );
+		}
+
+		tc.call("org.rdk.MediaServices","getServices",{}).then(result => {
+			ProcessServiceTable(result);
 		}).catch(err => {
 			log('getService Error '+ err)
 		});
 	}
-		function getHiddenServices()
+
+	function getHiddenServices()
 	{
 		tc.call("org.rdk.MediaServices","getServices",{"listId":"clist:1","attributes": [ "pk","name","channel" ],"aliases": [ "pk","n" ],"filter": {"hidden":"HIDDEN", "categories": ["TV","RADIO","DATA"]}}).then(result => {
-			log('getService Success '+ JSON.stringify(result))
-			
-		
-		
-		
+log('getService Success '+ JSON.stringify(result));
 		}).catch(err => {
 			log('getService Error '+ err)
 		});
@@ -234,7 +270,6 @@ input[type=button]:focus {
 	{
 		tc.call("org.rdk.MediaGuide","startScan", { "type": "ATSC", "onlyFree": true} ).then(result => {
 		isPlaying = false;
-		clearChannelMapList();
 			log('startScan Success'+ JSON.stringify(result))
 		}).catch(err => {
 			log('startScan Error' + err );
@@ -251,7 +286,7 @@ input[type=button]:focus {
 	}
 	
 	function getAllGuideEvents()
-	{
+	{ // todo: get guide data only for currently tuned program
 		tc.call("org.rdk.MediaGuide","getEvents",{}).then(result => {
 			
 		var guideEventsStr = JSON.stringify(result);
@@ -262,30 +297,19 @@ input[type=button]:focus {
 	}
 	
 	function onChSelected() {}
-	
+
  function fullscreen(enable) {
   var videoWindowElement = document.getElementById("vidWindow");
   if(enable)
   {
-  //"height:40%; width:40%; position:absolute; bottom:100; left:400">
-	videoWindowElement.style['height'] = "100%";
-	videoWindowElement.style['width'] = "100%";
-	videoWindowElement.style['bottom'] = "0";
-	videoWindowElement.style['left'] = "0";
-	//tc.call("org.rdk.MediaPlayer","setVideoRectangle",  { "id":"MainPlayer","x":0,"y":0,"w":1280,"h":720 }
+	  SetRectangle(0.0,0.0,1.0,1.0);
   }
   else
   {
-	videoWindowElement.style['height'] = "40%";
-	videoWindowElement.style['width'] = "40%";
-		videoWindowElement.style['bottom'] = "50";
-	videoWindowElement.style['left'] = "500";
-	
-	//tc.call("org.rdk.MediaPlayer","setVideoRectangle",  { "id":"MainPlayer","x":0,"y":0,"w":1280,"h":720 }
+	  SetRectangle(0.6,0.0,0.4,0.4);
   }
-	
  }
- function halfscreen() {}
+ 
  function update() {
  var element = document.getElementById("myprogressBar");
  var width = 1;
@@ -300,16 +324,48 @@ input[type=button]:focus {
   }
  }
 }
- function setProgressBarValue(value) {
- var element = document.getElementById("myprogressBar");
- element.style.width = value + '%';
-   element.innerHTML = value * 1 + '%';
+
+function setProgressBarValue(value)
+{
+	var element = document.getElementById("myprogressBar");
+	element.style.width = value + '%';
+	element.innerHTML = value * 1 + '%';
 }
+
+function SetRectangle( pctx, pcty, pctw, pcth )
+{
+	var graphics_width  = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+	var graphics_height = window.innerHeight|| document.documentElement.clientHeight|| document.body.clientHeight;
+	console.log("window width=" + graphics_width + ", height=" + graphics_height);
+	
+	var x = Math.floor(pctx*graphics_width);
+	var w = Math.floor(pctw*graphics_width);
+	var y = Math.floor(pcty*graphics_height);
+	var h = Math.floor(pcth*graphics_height);
+	
+	var videoWindowElement = document.getElementById("vidWindow");
+	videoWindowElement.style['height'] = h;
+	videoWindowElement.style['width'] = w;
+	videoWindowElement.style['top'] =  y;
+	videoWindowElement.style['left'] = x;
+
+	console.log( "holepunch: x=" + x + ",y=" + y + ",w="+ w + ",h=" + h);
+	//tc.call("org.rdk.MediaPlayer", "setVideoRectangle", {"id":"MainPlayer","x":x,"y":y,"w":w,"h":h,"meta":{"resWidth":graphics_width,"resHeight":graphics_height}} );
+	
+	if( aampPlayer )
+	{
+		aampPlayer.setVideoRect(x,y,w,h);
+	}
+}
+
 	window.onload = function()
 	{
-	totalChannels = 0;
-			currChaIndex = 0;
-			isPlaying = false;
+
+		//window.resizeBy(1280,720);
+		
+		totalChannels = 0;
+		isPlaying = false;
+		
 		try
 		{
 			if( AAMPMediaPlayer )
@@ -331,17 +387,25 @@ input[type=button]:focus {
 		registerOnScanAction();
 		registerOnPlayerStatus();
 		getAllServices();
-		setPlayButtonText(currChaIndex);
-		
 	}
+
 var focusIndex;
 var navElements;
 var bFullScreen = false;
+
+function Blur()
+{
+	navElements[focusIndex].blur();
+}
+function Focus()
+{
+	navElements[focusIndex].focus();
+}
 function CollectButtons()
 {
-	navElements = document.getElementsByTagName("input");
+	navElements = document.querySelectorAll( "select,input" );//document.getElementsByTagName("select");
 	focusIndex = 0;
-	navElements[focusIndex].focus();
+	Focus();
 }
 //ch down 34
 // ch up 33
@@ -362,8 +426,8 @@ window.onkeydown = function(elt)
 	//setGuideText('keyCode:' + keyCode);
 	switch( keyCode )
 	{
-	
-		case 118: // big red record button 
+		case 65:
+		case 118: // big red record button
 		{
 			if(bFullScreen)
 			{
@@ -373,44 +437,52 @@ window.onkeydown = function(elt)
 			{
 				bFullScreen = true;
 			}
+			// todo: replace with use of SetRectangle helper function
 			fullscreen(bFullScreen);
 		}
 		break;
 		case 37: // left
-		case 38: // up
 		if( focusIndex>0 )
 		{
-			navElements[focusIndex].blur();
+			Blur();
 			focusIndex--;
-			navElements[focusIndex].focus();
+			Focus();
 		}
 		break;
+		
 		case 39: // right
-		case 40: // down
 		if( focusIndex<navElements.length-1 )
 		{
-			navElements[focusIndex].blur();
+			Blur();
 			focusIndex++;
-			navElements[focusIndex].focus();
+			Focus();
 		}
 		break;
 		
 		//down - 174, up - 175
 		
-		
+		case 40: // down
+			break;
+			
+		case 38: // up
+			break;
+
 		//case 33: // ch up
 		case 175: // volume up
-		channelUp(true);
-		break;
+			//channelUp(true);
+			break;
 		
 		//case 34: // ch down
 		case 174: // volume down
-		channelDown(true);
-		break;
-		
+			//channelDown(true);
+			break;
 		
 		case 13: // return
 		case 32: // space
+		if( focusIndex == 0 )
+		{
+			playChannel(true);
+		}
 		break;
 	}
 }
@@ -418,36 +490,34 @@ function playerLoad(url) {
 	tc.call("org.rdk.MediaPlayer","create",{"id":"main"});
 	tc.call("org.rdk.MediaPlayer","load",{"id":"main","url":url});
 }
-function playChannel(play)
+function playChannel()
 {
-  //clog('T:'+totalChannels+ ' cur:'+currChaIndex);
-	if( totalChannels > 0 )
+	var chMapElement = document.getElementById("chMap");
+    var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
+	var strData = chMapElement.options[chMapElement.selectedIndex].text;
+	setCurrentPlayingChText(strData);
+	
+	//setGuideText(strData);
+	if(fromPC)
 	{
-		if( currChaIndex >= 0 && currChaIndex < totalChannels )
-		{
-			var e = document.getElementById("chMap");
-			var strLocator = e.options[currChaIndex].value;
-			var strData = e.options[currChaIndex].text;
-			e.selectedIndex = currChaIndex;
-			setCurrentPlayingChText(strData);
-			setPlayButtonText(currChaIndex);
-			//log('data:'+strData);
-			if(play)
-			{
-			//setGuideText(strData);
-				if(fromPC)
-				{
-					playerLoad(strLocator);
-				}
-				else //from pc 
-				{
-					aampPlayer = new AAMPMediaPlayer();
-					aampPlayer.load(strLocator);
-				}
-				isPlaying = true;
-			}
-		}
+		playerLoad(strLocator);
 	}
+	else
+	{
+		if( aampPlayer )
+		{
+			aampPlayer.stop(); // needed for AMLOGIC-550 workaround?
+		}
+		else
+		{
+			aampPlayer = new AAMPMediaPlayer();
+		    aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+			var preferredAudioLanguage = "eng,spa";
+			SetPreferredLanguages(preferredAudioLanguage);
+		}
+		aampPlayer.load(strLocator);
+	}
+	isPlaying = true;
 }
 function toggleVistoggleVis(divId) {
 	var div=document.getElementById(divId);
@@ -460,73 +530,166 @@ function toggleVistoggleVis(divId) {
 		setGuideText('display:' + div.style.display);
 	}
 }
-function channelUp(play)
+
+function onChannelMapNav()
 {
-	currChaIndex++;
-	
-	if ( currChaIndex >= totalChannels )
-	{
-		currChaIndex = 0;
-	}
-	
-
-		playChannel(play);
-
-	
+	var chMapElement = document.getElementById("chMap");
+    var selectedValue = chMapElement.options[chMapElement.selectedIndex].value;
+    //clog(selectedValue);
 }
-function channelDown(play)
-{
-	currChaIndex--;
-	if(currChaIndex < 0 )
-	{
-		currChaIndex = 0;
-	}
 
-		playChannel(play);
+/**
+ * Sets the Audio Language
+ */
+function SetPreferredLanguages(languageList) {
+    console.log("Invoked SetPreferredLanguages");
+    aampPlayer.SetPreferredLanguages(languageList);
+}
 
+/**
+ * Sets the Audio Language
+ */
+function setAudioLanguage(language) {
+    console.log("Invoked setAudioLanguage with language " +language);
+    aampPlayer.setAudioLanguage(language);
+}
+
+/**
+ * Gets the current Audio Track
+ */
+function getAudioTrack() {
+    console.log("Invoked getAudioTrack");
+    return aampPlayer.getAudioTrack();
+}
+
+/**
+ * Get available audio track info
+ */
+function getAvailableAudioTracks() {
+    console.log("Invoked getAvailableAudioTracks");
+    return aampPlayer.getAvailableAudioTracks();
+}
+/**
+ * Sets audio track
+ */
+function setAudioTrack(track) {
+    console.log("Invoked setAudioTrack with track " +track);
+	aampPlayer.setAudioTrack(track);
+}
+
+
+var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12 };
+function playbackStateChanged(event) {
+    console.log("Playback state changed event: " + JSON.stringify(event));
+    switch (event.state) {
+        case playerStatesEnum.idle:
+            playerState = playerStatesEnum.idle;
+            break;
+        case playerStatesEnum.initializing:
+            playerState = playerStatesEnum.initializing;
+            break;
+        case playerStatesEnum.initialized:
+            playerState = playerStatesEnum.initialized;
+	        break;
+        case playerStatesEnum.preparing:
+            playerState = playerStatesEnum.preparing;
+            break;
+        case playerStatesEnum.playing:
+            playerState = playerStatesEnum.playing;
+			var avlAudioTracksStr = "Available audio tracks: " + getAvailableAudioTracks();
+			console.log(avlAudioTracksStr);
+            setGuideText(avlAudioTracksStr);
+            
+            var audioTrackStr = "Current audio track: " + getAudioTrack();			
+			console.log(audioTrackStr);
+            setGuideText(audioTrackStr);			
+            break;
+        case playerStatesEnum.complete:
+            playerState = playerStatesEnum.complete;
+            break;
+        case playerStatesEnum.error:
+            playerState = playerStatesEnum.error;
+            break;
+        default:
+            console.log("State not expected");
+            break;
+        }
+        var evetStr = "Player state is: " + playerState;
+        console.log(evetStr);
+
+        setGuideText(evetStr);
 }
 </script>
 </head>
-<body bgcolor = "#FFFFCC" text = "#000000" topmargin="100" leftmargin="100">
-	<body>
-		<div id="videoContainer">
-			<video id="vidWindow" style="height:40%; width:40%; position:absolute; bottom:50; left:500">
-				<source src="dummy.mp4"> <!-- hole punching -->
-			</video>
-		</div>
-	<input type="button" value="PrevCh" onclick="channelDown(false);"</input>
-	<input id = "btn_play" type="button" value="Play" onclick="playChannel(true);"</input>
-	<input type="button" value="NextCh" onclick="channelUp(false);"</input>
-	<b>Help: Use Vol up/down for channel up/down. Use Record red key to toggle fullscreen video</b>
-	<br/>
+	
+<body bgcolor = "#FFFFCC" text = "#000000" topmargin="50" leftmargin="100">
+	<div id="videoContainer">
+		<video id="vidWindow" style="height:40%; width:40%; position:absolute; top:50; left:500">
+			<source src="dummy.mp4"> <!-- hole punching -->
+		</video>
+	</div>
+	
+	<div id="content">
+		<select id = "chMap" size="28" onchange="onChannelMapNav();" onclick="playChannel();"></select>
+				
+		<input type="button" value="startScan" onclick="startScan();"/>
+		<input type="button" value="abortScan" onclick="abortScan();"/>
+		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
+		<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"/>
 
-	
-		<input type="button" value="startScan" onclick="startScan();"</input>
-		<input type="button" value="abortScan" onclick="abortScan();"</input>
-	 <!-- 	<input type="button" value="fullscreen" onclick="fullscreen();"</input> -->
-		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"</input>
-		<b>Help: Use RefreshChannelMap when channel list is not populated autmatically</b>
+		<input type="button" value="full" onclick="SetRectangle(0,0,1,1);"/>
+		<input type="button" value="TR" onclick="SetRectangle(0.5,0,0.5,0.5);"/>
+		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>
+		<input type="button" value="BL" onclick="SetRectangle(0.0,0.5,0.5,0.5);"/>
+		<input type="button" value="BR" onclick="SetRectangle(0.5,0.5,0.5,0.5);"/>
+		
+		<br/>
+		<label for="language"><b>Audio Languages</b></label>
+        <!--
+		<select name="language" id="language">
+			<option value="eng" onclick="setAudioLanguage(eng);">Eng</option>
+			<option value="spa" onclick="setAudioLanguage(spa);">Spa</option>
+			<option value="ger" onclick="setAudioLanguage(ger);">Ger</option>
+		</select>
+		
+		<label for="track">Audio Track:</label>
+
+		<select name="track" id="track">
+			<option value="0" onclick="setAudioTrack(0);">0</option>
+			<option value="1" onclick="setAudioTrack(1);">1</option>
+			<option value="2" onclick="setAudioTrack(2);">2</option>
+		</select>
+		-->
+		<input type="radio" id="eng" name="language" value="eng">
+		<label for="eng" onclick="setAudioLanguage('eng');">eng</label>
+		<input type="radio" id="spa" name="language" value="spa">
+		<label for="spa" onclick="setAudioLanguage('spa');">spa</label>
+		
+		<label for="track"><b> Audio Tracks </b></label>
+		<input type="radio" id="index0" name="track" value="0">
+		<label for="index0" onclick="setAudioTrack(0);">0</label>
+		<input type="radio" id="index1" name="track" value="1">
+		<label for="index1" onclick="setAudioTrack(1);">1</label>
+		
+		<input type="button" value="GetTrack" onclick="getAudioTrack();"/>	
+        <input type="button" value="GetAvlTracks" onclick="getAvailableAudioTracks();"/>	
+		
+		<br/>
+		<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>
+		<input type="button" value="abortGuideScan" onclick="startGuideScan();"</input> -->
+
+		<br/>
+		<b>Total Channels:</b><label id="chcountLabel"></label>
+		<b> Tuned:</b> <label id = "currChSelLabel"></label>
+		<br/>
 		<div id="myprogressBar">1%</div>
-	<textarea rows="5" cols="120" id="console" style="border:solid 1px orange;"></textarea>
-	<br/>
-	<b>Guide Data</b>
-	<br/>
-	<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>
-	<input type="button" value="abortGuideScan" onclick="startGuideScan();"</input> -->
-	<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"</input>
-	<br/>
-	<textarea rows="5" cols="120" id="guideText" style="border:solid 1px orange;"></textarea>
-	<br/>
-	<b>Total Channels</b>
-		<label id = "chcountLabel"> : </label>
-		
+		<textarea rows="4" cols="120" id="console" style="border:solid 1px orange;"></textarea>
 		<br/>
-	
-<b>Current Channel:</b> <label id = "currChSelLabel">  </label>
-			<br/>
-		<b>------------------------------------ </b>
-		
+		<b>Guide Data</b>
 		<br/>
-		<select id = "chMap" Size="20">
+		<textarea rows="4" cols="120" id="guideText" style="border:solid 1px orange;"></textarea>
+		<br/>
+		<b>Use red record key to toggle fullscreen mode</b>
+	</div>
 	</body>
 </html>

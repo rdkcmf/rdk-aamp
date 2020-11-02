@@ -28,6 +28,10 @@
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+#include <core/core.h>
+#include "ThunderAccess.h"
+#endif
 using namespace std;
 
 /**
@@ -41,6 +45,11 @@ public:
     ~StreamAbstractionAAMP_OTA();
     StreamAbstractionAAMP_OTA(const StreamAbstractionAAMP_OTA&) = delete;
     StreamAbstractionAAMP_OTA& operator=(const StreamAbstractionAAMP_OTA&) = delete;
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    /*Event Handler*/
+    void onPlayerStatusHandler(const JsonObject& parameters);
+#endif
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
@@ -60,6 +69,16 @@ public:
     void SeekPosUpdate(double) { };
     void NotifyFirstVideoPTS(unsigned long long pts) { };
     void SetVideoRectangle(int x, int y, int w, int h) override;
+private:
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    ThunderAccessAAMP thunderAccessObj;
+    std::string prevState;
+    bool tuned;
+
+    ThunderAccessAAMP thunderRDKShellObj;
+    bool GetScreenResolution(int & screenWidth, int & screenHeight);
+#endif
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 };
