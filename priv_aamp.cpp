@@ -3183,7 +3183,31 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
 			curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 			curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
-			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+                        //Depending on ip mode supported by box, force curl to use that particular ip mode (DELIA-46626)
+                        struct stat v4Stat;
+                        struct stat v6Stat;
+                        bool is_v4(::stat( "/tmp/estb_ipv4", &v4Stat) == 0);
+                        bool is_v6(::stat( "/tmp/estb_ipv6", &v6Stat) == 0);
+                        if( is_v4 && is_v6 )
+                        {
+                                curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+                                logprintf("aamp ipv4=%d and ipv6=%d enabled",is_v4,is_v6);
+                        }
+                        else if(is_v6)
+                        {
+                                curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6);
+                                logprintf("aamp ipv6=%d enabled",is_v6);
+                        }
+                        else if(is_v4)
+                        {
+                                curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+                                logprintf("aamp ipv4=%d enabled",is_v4);
+                        }
+                        else
+                        {
+                                curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+                                logprintf("aamp /tmp/estb_ipv6 and /tmp/estb_ipv6 are not found");
+                        }
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
 			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
