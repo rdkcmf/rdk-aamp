@@ -7901,7 +7901,9 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex)
 {
 	bool tracksChanged = false;
-	if (tracks.size() != mAudioTracks.size())
+	if (!mAudioTracks.empty()
+			&& tracks.size() != mAudioTracks.size())
+		//TODO: compare pld of tracks too once requirements available
 	{
 		tracksChanged = true;
 	}
@@ -7925,7 +7927,9 @@ void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackIn
 void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex)
 {
 	bool tracksChanged = false;
-	if (tracks.size() != mTextTracks.size())
+	if (!mTextTracks.empty()
+			&& tracks.size() != mTextTracks.size())
+		//TODO: compare pld of tracks too once requirements available
 	{
 		tracksChanged = true;
 	}
