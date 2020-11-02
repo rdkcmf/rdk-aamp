@@ -9671,34 +9671,34 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
  *   @param[in] audioFormat - audio stream format
  *   @return void
  */
+
 void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
 {
 	bool reconfigure = false;
 	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
 
-	// We need to make some hardcore decisions here. What we know already -
-	// 1. We know GStreamer can identify caps using typefind element
-	// 2. Everytime Configure() is called, it "recreates" all playbins if there is a change in even one track's format(even unknown to known)
-	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
-	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
-	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
-	//
+	// 1. Modified Configure() not to recreate all playbins if there is a change in track's format.
+	// 2. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble.
+	// Hence call Configure() only for following scenarios to reduce the overhead,
+	// i.e FORMAT_INVALID to any KNOWN/FORMAT_UNKNOWN, FORMAT_UNKNOWN to any KNOWN and any FORMAT_KNOWN to FORMAT_KNOWN if it's not same.
 	// Truth table
 	// mVideFormat   videoFormat  reconfigure
-	// *              INVALID       false
+	// *		  INVALID	false
+	// INVALID        INVALID       false
 	// INVALID        UNKNOWN       true
+	// INVALID	  KNOWN         true
+	// UNKNOWN	  INVALID	false
 	// UNKNOWN        UNKNOWN       false
-	// KNOWN          UNKNWON       false // this maybe an unknown format for tsprocessor but specified in manifest
-	// INVALID        KNOWN         true
-	// UNKNOWN        KNOWN         false // as described in TODO
-	// KNOWN          KNWON         true if format changes, false if same
-	//
-	if (mVideoFormat != videoFormat && (mVideoFormat == FORMAT_INVALID || (mVideoFormat != FORMAT_UNKNOWN && videoFormat != FORMAT_UNKNOWN)) && videoFormat != FORMAT_INVALID)
+	// UNKNOWN	  KNOWN		true
+	// KNOWN	  INVALID	false
+	// KNOWN          UNKNOWN	false
+	// KNOWN          KNOWN         true if format changes, false if same
+	if (videoFormat != FORMAT_INVALID && mVideoFormat != videoFormat && (videoFormat != FORMAT_UNKNOWN || mVideoFormat == FORMAT_INVALID))
 	{
 		reconfigure = true;
 		mVideoFormat = videoFormat;
 	}
-	if (audioFormat != mAudioFormat && (mAudioFormat == FORMAT_INVALID || (mAudioFormat != FORMAT_UNKNOWN && audioFormat != FORMAT_UNKNOWN)) && audioFormat != FORMAT_INVALID)
+	if (audioFormat != FORMAT_INVALID && mAudioFormat != audioFormat && (audioFormat != FORMAT_UNKNOWN || mAudioFormat == FORMAT_INVALID))
 	{
 		reconfigure = true;
 		mAudioFormat = audioFormat;
