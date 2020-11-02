@@ -232,6 +232,7 @@ public:
 	bool bWebVttNative; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
+	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 public:
 
