@@ -1378,6 +1378,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bEnableSubtec = false;
 			logprintf("Subtec subtitles disabled");
 		}
+		else if (cfg.compare("webVttNative") == 0)
+		{
+			gpGlobalConfig->bWebVttNative = true;
+			logprintf("Native WebVTT processing enabled");
+		}
 		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
 		{
 			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;

@@ -89,6 +89,15 @@ public:
         case PacketType::TTML_TIMESTAMP:
             ret = "TTML_TIMESTAMP";
             break;
+        case PacketType::WEBVTT_SELECTION:
+            ret = "WEBVTT_SELECTION";
+            break;
+        case PacketType::WEBVTT_DATA:
+            ret = "WEBVTT_DATA";
+            break;
+        case PacketType::WEBVTT_TIMESTAMP:
+            ret = "WEBVTT_TIMESTAMP";
+            break;
         case PacketType::CC_DATA :
             ret = "CC_DATA";
             break;
@@ -135,6 +144,9 @@ protected:
         RESUME = 12,
         MUTE = 13,
         UNMUTE = 14,
+        WEBVTT_SELECTION = 15,
+        WEBVTT_DATA = 16,
+        WEBVTT_TIMESTAMP = 17,
 
         INVALID = 0xFFFFFFFF,
     };
