@@ -77,7 +77,10 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				/* For consistency, during first tune, first move to
 				 PREPARED state to match normal IPTV flow sequence */
 				aamp->SetState(eSTATE_PREPARED);
+                                aamp->SetContentType("OTA");
 				tuned = true;
+				aamp->LogFirstFrame();
+				aamp->LogTuneComplete();
 			}
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
