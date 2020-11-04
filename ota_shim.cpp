@@ -107,6 +107,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		aamp->SetState(state);
 	}
 }
+
 #endif
 
 /**
@@ -545,6 +546,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+    return 0;
 #else
     int pk = 0;
     JsonObject param;
@@ -686,6 +688,61 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 }
 
 /**
+ * @brief Disable Restrictions (unlock) till seconds mentioned
+ *
+ * @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+ * @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+ * @param[in] eventChange - disable restriction handling till next program event boundary
+ */
+void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time, bool eventChange)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	if(-1 == grace){
+
+		param["grace"] = -1;
+		param["time"] = -1;
+		param["eventChange"] = false;
+		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next reboot or explicit enable", __FUNCTION__ );
+	}else{
+		param["grace"] = 0;
+		param["time"] = time;
+		param["eventChange"] = eventChange;
+
+		if(-1 != time)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, time);
+
+		if(eventChange)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
+	}
+	thunderAccessObj.InvokeJSONRPC("disableContentRestrictionsUntil", param, result);
+
+#endif
+}
+
+/**
+ * @brief Enable Content Restriction (lock)
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	AAMPLOG_WARN( "[OTA_SHIM]%s: locked ", __FUNCTION__);
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	thunderAccessObj.InvokeJSONRPC("enableContentRestrictions", param, result);
+
+#endif
+}
+
+/**
  * @brief Stub implementation
  */
 void StreamAbstractionAAMP_OTA::DumpProfiles(void)
@@ -806,10 +863,3 @@ void StreamAbstractionAAMP_OTA::StopInjection(void)
 void StreamAbstractionAAMP_OTA::StartInjection(void)
 { // STUB - discontinuity related
 }
-
-
-
-
-
-
-

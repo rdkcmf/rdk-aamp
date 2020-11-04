@@ -74,6 +74,8 @@ public:
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
     std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
+    void DisableContentRestrictions(long grace, long time, bool eventChange) override;
+    void EnableContentRestrictions() override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS

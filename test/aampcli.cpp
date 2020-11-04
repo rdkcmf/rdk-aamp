@@ -294,6 +294,8 @@ static void ShowHelp(void)
 	logprintf( "underflow                     // Simulate underflow" );
 	logprintf( "retune                        // schedule retune" );
 	logprintf( "reset                         // delete player instance and create a new one" );
+	logprintf( "unlock <cond>                 // unlock a channel <until> - time in seconds/-1 till reboot/ no param - till programChange" );
+	logprintf( "lock                          // lock the current channel" );
 	logprintf( "get help                      // Show help of get command" );
 	logprintf( "set help                      // Show help of set command" );
 	logprintf( "exit                          // Exit from application" );
@@ -594,6 +596,10 @@ static void ProcessCliCommand(char *cmd)
 	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	char cacheUrl[200];
 	int keepPaused = 0;
+	long unlockSeconds = 0;
+	long grace = 0;
+	long time = -1;
+	bool eventChange=false;
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -825,6 +831,26 @@ static void ProcessCliCommand(char *cmd)
 #endif
 		logprintf(" New mSingleton instance %p ", mSingleton);
 
+	}
+	else if (sscanf(cmd, "unlock %ld", &unlockSeconds) >= 1)
+	{
+		logprintf("unlocking for %ld seconds" , unlockSeconds);
+		if(-1 == unlockSeconds)
+			grace = -1;
+		else
+			time = unlockSeconds;
+
+		mSingleton->DisableContentRestrictions(grace, time, eventChange);
+	}
+	else if (memcmp(cmd, "unlock", 6) == 0 )
+	{
+		logprintf("unlocking till next program change\n");
+		eventChange = true;
+		mSingleton->DisableContentRestrictions(grace, time, eventChange);
+	}
+	else if (memcmp(cmd, "lock", 4) == 0 )
+	{
+		mSingleton->EnableContentRestrictions();
 	}
 	else if (memcmp(cmd, "set", 3) == 0 )
 	{

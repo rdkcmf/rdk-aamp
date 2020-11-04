@@ -997,6 +997,22 @@ public:
 
 	void MuteSubtitles(bool mute);
 
+	/**
+	 *       @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *       @return void
+	 */
+	virtual void DisableContentRestrictions(long grace, long time, bool eventChange){};
+
+	/**
+	 *       @brief Enable Content Restrictions - lock
+	 *       @return void
+	 */
+	virtual void EnableContentRestrictions(){};
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
