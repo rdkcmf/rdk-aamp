@@ -9761,6 +9761,34 @@ void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
 }
 
 /**
+*   @brief Disable Content Restrictions - unlock
+*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+*   @param[in] eventChange - disable restriction handling till next program event boundary
+*
+*   @return void
+*/
+void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
+	}
+}
+
+/**
+*   @brief Enable Content Restrictions - lock
+*   @return void
+*/
+void PrivateInstanceAAMP::EnableContentRestrictions()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->EnableContentRestrictions();
+	}
+}
+
+/**
  *   @brief Enable video PTS reporting in progress event
  *
  *   @param[in] enabled - true if enabled

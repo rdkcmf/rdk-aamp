@@ -2691,6 +2691,23 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
+	/**
+	 *       @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *       @return void
+	 */
+	void DisableContentRestrictions(long grace=0, long time=-1, bool eventChange=false);
+
+	/**
+	 *       @brief Enable Content Restrictions - lock
+	 *       @return void
+	 */
+	void EnableContentRestrictions();
+
+
 private:
 
 	/**

@@ -250,6 +250,8 @@ enum ConfigParamType
 	ePARAM_ENABLE_SEEKABLE_RANGE,
 	ePARAM_REPORT_VIDEO_PTS,
 	ePARAM_PROPAGATE_URI_PARAMETERS,
+	ePARAM_RELOCKONTIMEOUT,
+	ePARAM_RELOCKONPROGRAMCHANGE,
 	ePARAM_MAX_COUNT
 };
 
@@ -318,6 +320,16 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
 	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
 	{ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
+	{ ePARAM_MAX_COUNT, "" }
+};
+
+/**
+ * @brief Map relockConditionParamNames and its string equivalent
+ */
+static ConfigParamMap relockConditionParamNames[] =
+{
+	{ ePARAM_RELOCKONTIMEOUT, "time" },
+	{ ePARAM_RELOCKONPROGRAMCHANGE, "programChange" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -2637,6 +2649,129 @@ static JSValueRef AAMPMediaPlayerJS_getTextStyleOptions(JSContextRef ctx, JSObje
 	}
 }
 
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.disableContentRestrictions()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call disableContentRestrictions() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	long grace = 0;
+	long time = -1;
+	bool eventChange=false;
+	bool updateStatus = false;
+	if (argumentCount == 1 && JSValueIsObject(ctx, arguments[0]))
+	{
+		JSValueRef _exception = NULL;
+		bool ret = false;
+		bool valueAsBoolean = false;
+		double valueAsNumber = 0;
+
+		int numRelockParams = sizeof(relockConditionParamNames)/sizeof(relockConditionParamNames[0]);
+		JSObjectRef unlockConditionObj = JSValueToObject(ctx, arguments[0], &_exception);
+		if (unlockConditionObj == NULL || _exception != NULL)
+		{
+			ERROR("%s(): InvalidArgument - argument passed is NULL/not a valid object", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - object of unlockConditions required");
+			return JSValueMakeUndefined(ctx);
+		}
+
+
+		for (int iter = 0; iter < numRelockParams; iter++)
+		{
+			ret = false;
+			switch(relockConditionParamNames[iter].paramType)
+			{
+			case ePARAM_RELOCKONTIMEOUT:
+				ret = ParseJSPropAsNumber(ctx, unlockConditionObj, relockConditionParamNames[iter].paramName, valueAsNumber);
+				break;
+			case ePARAM_RELOCKONPROGRAMCHANGE:
+				ret = ParseJSPropAsBoolean(ctx, unlockConditionObj, relockConditionParamNames[iter].paramName, valueAsBoolean);
+				break;
+			default: //ePARAM_MAX_COUNT
+				ret = false;
+				break;
+			}
+
+			if(ret)
+			{
+				updateStatus = true;
+				switch(relockConditionParamNames[iter].paramType)
+				{
+				case ePARAM_RELOCKONTIMEOUT:
+					time = (long) valueAsNumber;
+					break;
+				case ePARAM_RELOCKONPROGRAMCHANGE:
+					eventChange = valueAsBoolean;
+					break;
+
+				default: //ePARAM_MAX_COUNT
+					break;
+				}
+			}
+		}
+		if(updateStatus)
+		{
+			privObj->_aamp->DisableContentRestrictions(grace, time, eventChange);
+		}
+	}
+	else if(argumentCount > 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or no argument", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - 1 argument of type IConfig required");
+	}
+	else
+	{
+		//No parameter:parental control locking will be disabled until settop reboot, or explicit call to enableContentRestrictions
+		grace = -1;
+		privObj->_aamp->DisableContentRestrictions(grace, time, eventChange);
+	}
+
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.enableContentRestrictions()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_enableContentRestrictions (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call enableContentRestrictions() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	privObj->_aamp->EnableContentRestrictions();
+
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
 
 /**
  * @brief Array containing the AAMPMediaPlayer's statically declared functions
@@ -2687,6 +2822,8 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setClosedCaptionStatus", AAMPMediaPlayerJS_setClosedCaptionStatus, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setTextStyleOptions", AAMPMediaPlayerJS_setTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getTextStyleOptions", AAMPMediaPlayerJS_getTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "disableContentRestrictions", AAMPMediaPlayerJS_disableContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "enableContentRestrictions", AAMPMediaPlayerJS_enableContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
