@@ -989,6 +989,43 @@ public:
 	 */
 	void WaitForVideoTrackCatchupForAux();
 
+        /**
+         *       @brief Set Content Restrictions
+         *       @param[in] restrictions - restrictions to be applied
+         *
+         *       @return void
+         */
+        virtual void ApplyContentRestrictions(std::vector<std::string> restrictions){};
+
+        /**
+         *   @brief Get Content Restrictions
+         *
+         *   @return std::vector<std::string> list of restrictions
+         */
+        virtual std::vector<std::string> GetContentRestrictions();
+
+        /**
+         *       @brief Disable Content Restrictions - unlock
+         *       @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+         *
+         *       @return void
+         */
+        virtual void DisableContentRestrictions(long secondsRelativeToCurrentTime){};
+
+        /**
+         *       @brief Disable Content Restrictions - unlock
+         *       @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
+         *
+         *       @return void
+         */
+        virtual void DisableContentRestrictions(bool untilProgramChange){};
+
+        /**
+         *       @brief Enable Content Restrictions - lock
+         *       @return void
+         */
+        virtual void EnableContentRestrictions(){};
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

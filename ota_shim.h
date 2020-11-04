@@ -31,8 +31,73 @@
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
 #include <core/core.h>
 #include "ThunderAccess.h"
+
+//moc parental control
+#include <thread>
+#include <chrono>
+
 #endif
 using namespace std;
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+//moc parental control
+
+/**
+ * @brief Structure holding the pc config
+ */
+struct pcConfigItem
+{
+        long pgmDuration;      /**< Program duration based on config file*/
+        std::string pgmRestrictions;     /**< Restriction set for the program*/
+};
+
+
+class cTimer{
+    private:
+        bool clear;
+        int interval;
+        void (*callBack_function)();
+    public:
+        /***
+         * @brief    : Constructor.
+         * @return   : nil.
+         */
+        cTimer();
+
+        /***
+         * @brief    : Destructor.
+         * @return   : nil.
+         */
+        ~cTimer();
+
+        /***
+         * @brief    : start timer thread.
+         * @return   : <bool> False if timer thread couldn't be started.
+         */
+        bool start ();
+
+        /***
+         * @brief   : stop timer thread.
+         * @return   : nil
+         */
+        void stop();
+
+        /***
+         * @brief        : Set Callback function
+         * @param1[in]   : function which has to be invoked on timed intervals
+         * @return       : nil
+         */
+        void setCallback(void (*function)());
+	/***
+	 * @brief     : Set interval in which the given function should be invoked.
+	 * @param2[in]  : timer interval val.
+	 * @return     : nil
+	 */
+	void setInterval(int val);
+
+};
+
+#endif
 
 /**
  * @class StreamAbstractionAAMP_OTA
@@ -49,6 +114,7 @@ public:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     /*Event Handler*/
     void onPlayerStatusHandler(const JsonObject& parameters);
+    void onContentRestrictedHandler(bool locked);
 #endif
     void DumpProfiles(void) override;
     void Start() override;
@@ -73,6 +139,11 @@ public:
     void SetAudioTrackByLanguage(const char* lang) override;
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
+    void ApplyContentRestrictions(std::vector<std::string> restrictions) override;
+    std::vector<std::string> GetContentRestrictions() override;
+    void DisableContentRestrictions(long secondsRelativeToCurrentTime) override;
+    void DisableContentRestrictions(bool untilProgramChange) override;
+    void EnableContentRestrictions() override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
@@ -83,6 +154,22 @@ private:
 
     ThunderAccessAAMP thunderRDKShellObj;
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
+
+//moc parental control
+    /*Temporarily saving restrictions at ota till the PC APIs are ready*/
+    std::vector<std::string> restrictionsOta;
+    static std::vector<std::string> currentPgmRestrictions;
+    bool m_unlocktimeout, m_unlockpc, m_unlockfull;
+    static cTimer m_lockTimer;
+    static void mocLockCallback();
+    static cTimer m_pcTimer;
+    static void mocProgramChangeCallback();
+    static bool m_isPcConfigRead;
+    static std::vector<pcConfigItem> m_pcProgramList;
+    static int m_pcProgramCount;
+    void ProcessPcConfigEntry(std::string cfg);
+    int ReadConfigStringHelper(std::string buf, const char *prefixPtr, const char **valueCopyPtr);
+    int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, long& value);
 #endif
     void GetAudioTracks();
     void SetPreferredAudioLanguage();
@@ -90,6 +177,13 @@ private:
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+//moc parental control
+public:
+    static StreamAbstractionAAMP_OTA* _instance;
+#endif
+
 };
 
 #endif //OTA_SHIM_H_

@@ -657,6 +657,7 @@ public:
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	std::string mSessionToken; /**< Field to set session token for player */
 
+        std::vector<std::string> mRestrictions; /**< Parental Control Restrictions set by user */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1866,6 +1867,15 @@ public:
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 
 	/**
+	 *   @brief  Generate Content Restricted event based on args passed.
+	 *
+	 *   @param[in] reason          - Reason for restriction
+	 *   @param[in] locked          - Current lock status
+	 *   @param[in] restrictionList - Restriction List
+	 */
+	void SendContentRestrictedEvent(std::string reason, bool locked, std::vector<std::string> restrictionList);
+
+	/**
 	 *   @brief To set the initial bitrate value.
 	 *
 	 *   @param[in] initial bitrate to be selected
@@ -2666,6 +2676,44 @@ public:
 	 *   @param[in] enabled - true if enabled
 	 */
 	void SetReportVideoPTS(bool enabled);
+
+        /**
+         *       @brief Set Content Restrictions
+         *       @param[in] restrictions - restrictions to be applied
+         *
+         *       @return void
+         */
+        void SetContentRestrictions(std::vector<std::string> restrictions);
+
+        /**
+         *   @brief Get Content Restrictions
+         *
+         *   @return std::vector<std::string> list of restrictions
+         */
+        std::vector<std::string> GetContentRestrictions();
+
+        /**
+         *       @brief Disable Content Restrictions - unlock
+         *       @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+         *
+         *       @return void
+         */
+        void DisableContentRestrictions(long secondsRelativeToCurrentTime);
+
+        /**
+         *       @brief Disable Content Restrictions - unlock
+         *       @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
+         *
+         *       @return void
+         */
+        void DisableContentRestrictions(bool untilProgramChange);
+
+        /**
+         *       @brief Enable Content Restrictions - lock
+         *       @return void
+         */
+        void EnableContentRestrictions();
+
 
 private:
 

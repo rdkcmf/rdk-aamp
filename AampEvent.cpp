@@ -1113,3 +1113,66 @@ const std::string &DrmMessageEvent::getMessage() const
 {
 	return mMessage;
 }
+
+/*
+ * @brief ContentRestrictedEvent Constructor
+ *
+ * @param[in] reason    - Reason for restriction
+ * @param[in] locked   - Current lock status
+ */
+ContentRestrictedEvent::ContentRestrictedEvent(const std::string &reason, bool locked):
+		AAMPEventObject(AAMP_EVENT_CONTENT_RESTRICTED), mReason(reason), mLocked(locked), mRestrictions()
+{
+
+}
+
+/**
+ * @brief Get the reason for restriction
+ *
+ * @return Reason for restriction
+ */
+const std::string &ContentRestrictedEvent::getReason() const
+{
+	return mReason;
+}
+
+/**
+ * @brief Add a restriction listed for current content
+ *
+ * @param[in] restriction - reported restriction
+ * @return void
+ */
+void ContentRestrictedEvent::addRestriction(const std::string &restriction)
+{
+	return mRestrictions.push_back(restriction);
+}
+
+/**
+ * @brief Get the list of restrictions
+ *
+ * @return List of restrictions
+ */
+const std::vector<std::string> &ContentRestrictedEvent::getRestrictions() const
+{
+	return mRestrictions;
+}
+
+/**
+ * @brief Get the restrictions count
+ *
+ * @return count of restrictions
+ */
+int ContentRestrictedEvent::getRestrictionsCount() const
+{
+	return mRestrictions.size();
+}
+
+/**
+ * @brief Get the lock status
+ *
+ * @return true if locked, false if unlocked
+ */
+bool ContentRestrictedEvent::getLockStatus() const
+{
+	return mLocked;
+}

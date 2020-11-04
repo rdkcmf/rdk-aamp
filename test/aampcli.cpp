@@ -105,7 +105,8 @@ typedef enum {
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
-	eAAMP_GET_TextTrack
+	eAAMP_GET_TextTrack,
+	eAAMP_GET_ContentRestrictions
 }AAMPGetTypes;
 
 /**
@@ -157,7 +158,8 @@ typedef enum{
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
-	eAAMP_SET_AuxiliaryAudio
+	eAAMP_SET_AuxiliaryAudio,
+	eAAMP_SET_ContentRestrictions
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -315,6 +317,8 @@ static void ShowHelp(void)
 	logprintf( "underflow                     // Simulate underflow" );
 	logprintf( "retune                        // schedule retune" );
 	logprintf( "reset                         // delete player instance and create a new one" );
+	logprintf( "unlock <cond>                 // unlock a channel <until - time in seconds/programChange" );
+	logprintf( "lock                          // lock the current channel" );
 	logprintf( "get help                      // Show help of get command" );
 	logprintf( "set help                      // Show help of set command" );
 	logprintf( "exit                          // Exit from application" );
@@ -345,6 +349,7 @@ void ShowHelpGet(){
 	logprintf("13 - Get Available Text Tracks ()");
 	logprintf("14 - Get Audio Track ()");
 	logprintf("15 - Get Text Track ()");
+	logprintf("16 - Get Content Restrictions ()");
 }
 
 /**
@@ -401,6 +406,7 @@ void ShowHelpSet(){
 	logprintf("43 - Set CC status (0/1)" );
 	logprintf("44 - Set a predefined CC style option (1/2/3)" );
 	logprintf("45 - Set auxiliary audio language (string lang)" );
+	logprintf("46 - Set Content Restrictions (string array ratings to be restricted)" );
 }
 
 #define LOG_CLI_EVENTS
@@ -488,6 +494,22 @@ public:
 					printf("%c", metadata[i]);
 				}
 				printf("\n");
+				break;
+			}
+		case AAMP_EVENT_CONTENT_RESTRICTED:
+			{
+				logprintf("AAMP_EVENT_CONTENT_RESTRICTED\n" );
+				ContentRestrictedEventPtr ev = std::dynamic_pointer_cast<ContentRestrictedEvent>(e);
+				std::string reason = ev->getReason();
+				logprintf("restriction reason = \"%s\" ", reason.c_str());
+				bool locked = ev->getLockStatus();
+				logprintf("lock status = \"%s\" ", locked? "yes" : "no");
+				std::vector<std::string> restrictions = ev->getRestrictions();
+				int restrictionCount = ev->getRestrictionsCount();
+				for (int i = 0; i < restrictionCount; i++)
+				{
+					logprintf("restriction : %s\n", restrictions[i].c_str());
+				}
 				break;
 			}
 		default:
@@ -605,6 +627,7 @@ static void ProcessCliCommand(char *cmd)
 	char lang[MAX_LANGUAGE_TAG_LENGTH];
 	char cacheUrl[200];
 	int keepPaused = 0;
+	long unlockSeconds = 0;
 	trim(&cmd);
 	if (cmd[0] == 0)
 	{
@@ -832,6 +855,20 @@ static void ProcessCliCommand(char *cmd)
 #endif
 		logprintf(" New mSingleton instance %p ", mSingleton);
 
+	}
+	else if (sscanf(cmd, "unlock %ld", &unlockSeconds) >= 1)
+	{
+		logprintf("unlocking for %ld seconds" , unlockSeconds);
+		mSingleton->DisableContentRestrictions(unlockSeconds);
+	}
+	else if (memcmp(cmd, "unlock", 6) == 0 )
+	{
+		logprintf("unlocking till next program change"); 
+		mSingleton->DisableContentRestrictions(true);
+	}
+	else if (memcmp(cmd, "lock", 4) == 0 )
+	{
+		mSingleton->EnableContentRestrictions();
 	}
 	else if (memcmp(cmd, "set", 3) == 0 )
 	{
@@ -1311,6 +1348,36 @@ static void ProcessCliCommand(char *cmd)
 					}
 					break;
                                 }
+				case eAAMP_SET_ContentRestrictions:
+				{
+					logprintf("Matched Command eAAMP_SET_ContentRestrictions - %s ", cmd);
+					const char* listStart = NULL;
+					const char* listEnd = NULL;
+					if((listStart = strchr(cmd, '"')) == NULL
+							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) == NULL) )
+					{
+						logprintf("ratings to be restricted has to be wrapped with \" \" ie \"TV-PG,TV-14\"");
+						break;
+					}
+
+					std::string restrictionList (listStart+1, listEnd-listStart-1);
+                                        std::string delimiter = ",";
+                                        std::vector<std::string> contentRestrictions;
+
+					size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+					std::string token;
+
+					while ((pos_end = restrictionList.find (delimiter, pos_start)) != std::string::npos) {
+						token = restrictionList.substr (pos_start, pos_end - pos_start);
+						pos_start = pos_end + delim_len;
+						contentRestrictions.push_back (token);
+					}
+
+					contentRestrictions.push_back (restrictionList.substr (pos_start));
+
+					mSingleton->SetContentRestrictions(contentRestrictions);
+					break;
+                                }
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
@@ -1417,6 +1484,17 @@ static void ProcessCliCommand(char *cmd)
 				{
 					const char *prefferedLanguages = mSingleton->GetPreferredLanguages();
 					logprintf(" PREFERRED LANGUAGES = \"%s\" ", prefferedLanguages? prefferedLanguages : "<NULL>");
+					break;
+				}
+				case eAAMP_GET_ContentRestrictions:
+				{
+					std::vector<std::string> restrictions = mSingleton->GetContentRestrictions();
+					int restrictionCount = restrictions.size();
+					logprintf(" CURRENT CONTENT RESTRICTIONS : \n");
+                                        for (int i = 0; i < restrictionCount; i++)
+                                        {
+						logprintf(" %s\n", restrictions[i].c_str());
+                                        }
 					break;
 				}
 

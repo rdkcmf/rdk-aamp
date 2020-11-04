@@ -1316,6 +1316,43 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
+	/**
+	 *	 @brief Set Content Restrictions
+	 *	 @param[in] restrictions - restrictions to be applied
+	 *
+	 *	 @return void
+	 */
+	void SetContentRestrictions(std::vector<std::string> restrictions);
+
+	/**
+	 *   @brief Get Content Restrictions
+	 *
+	 *   @return std::vector<std::string> list of restrictions
+	 */
+	std::vector<std::string> GetContentRestrictions();
+
+	/**
+	 *	 @brief Disable Content Restrictions - unlock
+	 *	 @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+	 *
+	 *	 @return void
+	 */
+	void DisableContentRestrictions(long secondsRelativeToCurrentTime);
+
+	/**
+	 *	 @brief Disable Content Restrictions - unlock
+	 *	 @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
+	 *
+	 *	 @return void
+	 */
+	void DisableContentRestrictions(bool untilProgramChange);
+
+	/**
+	 *	 @brief Enable Content Restrictions - lock
+	 *	 @return void
+	 */
+	void EnableContentRestrictions();
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

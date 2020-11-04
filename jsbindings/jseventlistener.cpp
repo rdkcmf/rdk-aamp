@@ -1088,6 +1088,59 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_Listener_ContentRestricted
+ * @brief Event listener impl for AAMP_EVENT_CONTENT_RESTRICTED event.
+ */
+class AAMP_Listener_ContentRestricted: public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_ContentRestricted Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_ContentRestricted(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		ContentRestrictedEventPtr evt = std::dynamic_pointer_cast<ContentRestrictedEvent>(ev);
+
+		JSStringRef prop;
+                JSValueRef reason = aamp_CStringToJSValue(p_obj->_ctx, evt->getReason().c_str());
+                prop = JSStringCreateWithUTF8CString("reason");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, reason, kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+                prop = JSStringCreateWithUTF8CString("locked");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, evt->getLockStatus()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		int count = evt->getRestrictionsCount();
+		const std::vector<std::string> &restrictionsVect = evt->getRestrictions();
+		JSValueRef* array = new JSValueRef[count];
+		for (int32_t i = 0; i < count; i++)
+		{
+			JSValueRef restriction = aamp_CStringToJSValue(p_obj->_ctx, restrictionsVect[i].c_str());
+			array[i] = restriction;
+		}
+		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
+
+		prop = JSStringCreateWithUTF8CString("restrictions");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, count, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		delete [] array;
+	}
+};
 
 /**
  * @brief AAMP_JSEventListener Constructor
@@ -1253,6 +1306,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_ID3_METADATA:
 			pListener = new AAMP_Listener_Id3Metadata(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_CONTENT_RESTRICTED:
+			pListener = new AAMP_Listener_ContentRestricted(obj, type, jsCallback);
 			break;
 		// Following events are not having payload and hence falls under default case
 		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE,
