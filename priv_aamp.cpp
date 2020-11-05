@@ -6413,9 +6413,7 @@ void PrivateInstanceAAMP::Stop()
 	pthread_mutex_unlock(&mMutexPlaystart);
 	if(mPreCachePlaylistThreadFlag)
 	{
-		logprintf("PrivateInstanceAAMP::%s() - joining thread - %d", __FUNCTION__, mPreCachePlaylistThreadId);
 		pthread_join(mPreCachePlaylistThreadId,NULL);
-		logprintf("PrivateInstanceAAMP::%s() - joined thread - %d", __FUNCTION__, mPreCachePlaylistThreadId);
 		mPreCachePlaylistThreadFlag=false;
 		mPreCachePlaylistThreadId = 0;
 	}
@@ -8834,17 +8832,13 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 	{
 		PrivAAMPState state;
 		// First wait for Tune to complete to start this functionality
-		logprintf("PrivateInstanceAAMP::%s() - Acquiring mMutexPlaystart %x", __FUNCTION__, mMutexPlaystart);
 		pthread_mutex_lock(&mMutexPlaystart);
 		pthread_cond_wait(&waitforplaystart, &mMutexPlaystart);
-		logprintf("PrivateInstanceAAMP::%s() - releasing mutex - mMutexPlaystart %x", __FUNCTION__, mMutexPlaystart);
 		pthread_mutex_unlock(&mMutexPlaystart);
-		logprintf("PrivateInstanceAAMP::%s() - released mutex - mMutexPlaystart %x", __FUNCTION__, mMutexPlaystart);
-
 		// May be Stop is called to release all resources .
 		// Before download , check the state 
 		GetState(state);
-		logprintf("PrivateInstanceAAMP::%s() - returned from GetState", __FUNCTION__);
+		// Check for state not IDLE also to avoid DELIA-46092
 		if(state != eSTATE_RELEASED || state != eSTATE_IDLE)
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE, 1, GetNetworkProxy());
