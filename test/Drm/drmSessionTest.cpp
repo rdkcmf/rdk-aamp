@@ -547,7 +547,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionWithMdsServer)
 	setupChallengeCallbacks();
 
 	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format.
-	// Here we add ckm:policy, which should cause this stream to be identified as a Comcast stream.
+	// Here we add ckm:policy, which should cause this stream to be identified as an MSO specific stream.
 	// This in turn should lead to
 	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
 

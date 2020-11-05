@@ -19,7 +19,7 @@
 
 /**
  * @file playreadydrmsession.cpp
- * @brief Comcast Playready Session management
+ * @brief Playready Session management
  */
 
 #include "config.h"

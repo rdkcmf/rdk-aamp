@@ -20,7 +20,7 @@ B. Target audience:
 
 C. General setup:
 
-    C.1. Setup in RDK devices(Comcast):
+    C.1. Setup in RDK devices:
 
          a. Host ReferencePlayer folder in a web server or in /opt/www/ folder in device
             Folders in /opt/www/ can be accessed using http://localhost:50050/<folder name>
@@ -33,7 +33,7 @@ C. General setup:
             b.2. /opt/xrehtmlappswhitelist.conf
 
 
-         c. To launch reference player, use Comcast's Chariot App (https://send2chariot.xreapps.net:8443/send2chariot/#/send/html)
+         c. To launch reference player, use Chariot App (https://send2chariot.xreapps.net:8443/send2chariot/#/send/html)
            c.1 Fill in X1 Device ID (from XRAY)
            c.2 Select "Chariot XRE" for Launch Type
            c.3 fill in URL to launch (i.e. http://localhost:50050/ReferencePlayer/index.html)
@@ -90,10 +90,6 @@ b. /opt/xrehtmlappswhitelist.conf
     {
       "name" : "About Blank Page",
       "url" : "about:blank"
-    },
-    {
-      "name" : "Viper Player",
-      "url" : "ccr.player-platform-stage.xcr.comcast.net/index.html"
     },
     {
       "name" : "Google",

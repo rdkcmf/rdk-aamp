@@ -564,7 +564,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  *  @param[in]	licenseRequest - License request details (URL, headers etc.)
  *  @param[out]	httpCode - Gets updated with http error; default -1.
- *  @param[in]	isComcastStream - Flag to indicate whether Comcast specific headers
+ *  @param[in]	isContentMetadataAvailable - Flag to indicate whether MSO specific headers
  *  			are to be used.
  *  @param[in]	licenseProxy - Proxy to use for license requests.
  *  @param[in]	headers - Custom headers from application for license request.
@@ -576,7 +576,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
-		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isComcastStream, char* licenseProxy)
+		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, char* licenseProxy)
 {
 	*httpCode = -1;
 	CURL *curl;
@@ -761,7 +761,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
  *  @param[in]	streamType - Whether audio or video.
  *  @param[in]	contentMetadataPtr - Pointer to content meta data, when content meta data
  *  			is already extracted during manifest parsing. Used when content meta data
- *  			is available as part of another PSSH header, like Comcast DRM Agnostic PSSH
+ *  			is available as part of another PSSH header, like DRM Agnostic PSSH
  *  			header.
  *  @param[in]	aamp - Pointer to PrivateInstanceAAMP, for DRM related profiling.
  *  @param[out]	error_code - Gets updated with proper error code, if session creation fails.
@@ -1168,7 +1168,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				 * Configure the License acquisition parameters
 				 */
 				char *licenseServerProxy = nullptr;
-				bool isComcastStream = configureLicenseServerParameters(drmHelper, licenseRequest, licenseServerProxy, challengeInfo, aampInstance);
+				bool isContentMetadataAvailable = configureLicenseServerParameters(drmHelper, licenseRequest, licenseServerProxy, challengeInfo, aampInstance);
 
 				/**
 				 * Perform License acquistion by invoking http license request to license server
@@ -1177,7 +1177,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
 #ifdef USE_SECCLIENT
-				if (isComcastStream || usingAppDefinedAuthToken)
+				if (isContentMetadataAvailable || usingAppDefinedAuthToken)
 				{
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 					// Reload Expired access token only on http error code 412 with status code 401
@@ -1205,7 +1205,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				else
 #endif
 				{
-					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isComcastStream, licenseServerProxy));
+					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isContentMetadataAvailable, licenseServerProxy));
 				}
 			}
 		}
@@ -1346,7 +1346,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
 {
 	string contentMetaData = drmHelper->getDrmMetaData();
-	bool isComcastStream = !contentMetaData.empty();
+	bool isContentMetadataAvailable = !contentMetaData.empty();
 
 	if (!contentMetaData.empty())
 	{
@@ -1358,7 +1358,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		}
 	}
 
-	if(!isComcastStream)
+	if(!isContentMetadataAvailable)
 	{
 		std::unordered_map<std::string, std::vector<std::string>> customHeaders;
 		aampInstance->GetCustomLicenseHeaders(customHeaders);
@@ -1369,14 +1369,14 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 			licenseRequest.headers = customHeaders;
 		}
 
-		if (isComcastStream)
+		if (isContentMetadataAvailable)
 		{
 			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
 			std::string lhrContentType = RFCSettings::getLRHContentType();
-			// Comcast stream, add Comcast headers
+			// Content metadata is available, Add corresponding headers 
 			if (customHeaders.empty())
 			{
-				// Not using custom headers, Comcast headers will also override any headers from the helper
+				// Not using custom headers, These headers will also override any headers from the helper
 				licenseRequest.headers.clear();
 			}
 
@@ -1387,7 +1387,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		licenseServerProxy = aampInstance->GetLicenseReqProxy();
 	}
 
-	return isComcastStream;
+	return isContentMetadataAvailable;
 }
 
 

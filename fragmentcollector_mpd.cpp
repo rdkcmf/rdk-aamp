@@ -73,6 +73,7 @@
 #define SUPPLEMENTAL_PROPERTY_TAG "SupplementalProperty"
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
 #define SCHEME_ID_URI_VSS_STREAM "urn:comcast:x1:lin:ck"
+#define SCHEME_ID_URI_DAI_STREAM "urn:comcast:dai:2018"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
 /**
  * @struct FragmentDescriptor
@@ -2874,7 +2875,7 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 			}
 		}
 
-		// Comcast use a special PSSH to signal data to append to the widevine challenge request
+		// A special PSSH is used to signal data to append to the widevine challenge request
 		if (drmInfo.systemUUID == CONSEC_AGNOSTIC_UUID)
 		{
 			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
@@ -4460,7 +4461,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 			}
 			if (name == "SupplementalProperty" && node->HasAttribute("schemeIdUri")) {
 				const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
-				if (schemeIdUri == "urn:comcast:dai:2018" && node->HasAttribute("id")) {
+				if (schemeIdUri == SCHEME_ID_URI_DAI_STREAM && node->HasAttribute("id")) {
 					const std::string& ID = node->GetAttributeValue("id");
 					if (ID == "identityADS" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
@@ -4535,7 +4536,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
 		if(!schemeIdUri.empty())
 		{
-			if ((schemeIdUri == "urn:comcast:dai:2018") && node->HasAttribute("id")) {
+			if ((schemeIdUri == SCHEME_ID_URI_DAI_STREAM) && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if ((ID == "Tracking") && node->HasAttribute("value")) {
 					const std::string& value = node->GetAttributeValue("value");

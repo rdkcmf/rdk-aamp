@@ -87,7 +87,7 @@ From FlashAccessKeyFormats.pdf:
 - persists across reboots as a .bin file
 
 2. Key Negotiation
-- client parses manifest, reading URL of local comcast license server (from EXT-X-KEY)
+- client parses manifest, reading URL of local license server (from EXT-X-KEY)
 - client extracts initialization vector (IV); placeholder for stronger security (from EXT-X-KEY)
 - client collects additional channel-specific DRM metadata from manifest (from EXT-X-FAXS-CM)
 - client transmits DRM metadata and machine certificate as parameters to an encrypted license request

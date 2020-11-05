@@ -484,7 +484,7 @@ function subscribedTagNotifier(event) {
             placementRequest: {
                 id: "ad1",
                 pts: 0,
-                url: "http://cdn-ec-pan-02.ip-ads.xcr.comcast.net/omg05/UNI_Packaging_-_Production/453393990093/5a60d158-b057-4636-92ac-0d2ec324dd87/263/209/CSNR8803918400100001_mezz_LVLH07.mpd"
+                url: "<Add url to play for Ad insertion>"
             }
         };
         // According to scte-35 duration, multiple reservation Objects with different/same ad urls and unique ad IDs can be passed to setAlternateContent.
