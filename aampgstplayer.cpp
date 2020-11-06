@@ -27,6 +27,9 @@
 #include "AampUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
+#if defined(REALTEKCE)
+#include <gst/app/gstappsink.h>
+#endif
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
