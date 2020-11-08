@@ -1997,12 +1997,12 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					char range[128];
 					sprintf(range, "%d-%d", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
 					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,mMediaTypeName[pMediaStreamContext->mediaType], range);
-					if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
+					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
 					{
-						logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
+						pMediaStreamContext->fragmentTime += fragmentDuration;
+						pMediaStreamContext->fragmentOffset += referenced_size;
+						retval = true;
 					}
-					pMediaStreamContext->fragmentTime += fragmentDuration;
-					pMediaStreamContext->fragmentOffset += referenced_size;
 				}
 				else
 				{ // done with index
