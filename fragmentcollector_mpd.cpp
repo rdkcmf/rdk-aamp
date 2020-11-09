@@ -2515,9 +2515,13 @@ static uint64_t ParseISO8601Duration(const char *ptr)
 	int hour = 0;
 	int minute = 0;
 	double seconds = 0;
-	if (ptr[0] == 'P' && ptr[1] == 'T')
+	// Some manifests contain date info along with duration info
+	// Skip the date info in that case
+	const char* durationPtr = strchr(ptr, 'T');
+
+	if (ptr[0] == 'P' && durationPtr != NULL)
 	{
-		ptr += 2;
+		ptr = durationPtr + 1;
 		const char* temp = strchr(ptr, 'H');
 		if (temp)
 		{
