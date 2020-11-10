@@ -108,6 +108,7 @@ struct media_stream
 	bool resetPosition;
 	bool bufferUnderrun;
 	bool eosReached;
+	bool sourceConfigured;
 };
 
 /**
@@ -495,6 +496,7 @@ static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType me
 	{
 		g_object_set(source, "typefind", TRUE, NULL);
 	}
+	stream->sourceConfigured = true;
 }
 
 
@@ -1678,6 +1680,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		stream->format = FORMAT_INVALID;
 		stream->sinkbin = NULL;
 		stream->source = NULL;
+		stream->sourceConfigured = false;
 	}
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
@@ -1774,7 +1777,8 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
-		}else
+		}
+		else
 		{
 			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
 			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
@@ -2043,10 +2047,45 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		return;
 	}
 
+	// Make sure source element is present before data is injected
+	media_stream *stream = &privateContext->stream[mediaType];
+	//If format is FORMAT_INVALID, we don't know what we are doing here
+	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
+	{
+		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
+		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int waitInterval = 100; //ms
+		while(timeRemaining >= 0)
+		{
+			aamp->InterruptableMsSleep(waitInterval);
+			if (aamp->DownloadsAreEnabled())
+			{
+				if (stream->sourceConfigured)
+				{
+					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
+					break;
+				}
+			}
+			else
+			{
+				//Playback stopped by application
+				break;
+			}
+			timeRemaining -= waitInterval;
+		}
+		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
+		{
+			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
+			// What do we with the data buffer
+			// This flavour of Send() copies from data buffer so no need to free buffer
+			return;
+		}
+	}
+
 	gboolean discontinuity = FALSE;
 	size_t maxBytes;
 	GstFlowReturn ret;
-	bool isFirstBuffer = privateContext->stream[mediaType].resetPosition;
+	bool isFirstBuffer = stream->resetPosition;
 
 	if (privateContext->stream[eMEDIATYPE_VIDEO].format == FORMAT_ISO_BMFF)
 	{
@@ -2115,15 +2154,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			GST_BUFFER_DURATION(buffer) = duration;
 	#endif
 		
-			ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
+			ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 			if (ret != GST_FLOW_OK)
 			{
 				logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
 				assert(false);
 			}
-			else if (privateContext->stream[mediaType].bufferUnderrun)
+			else if (stream->bufferUnderrun)
 			{
-				privateContext->stream[mediaType].bufferUnderrun = false;
+				stream->bufferUnderrun = false;
 			}
 			ptr = len + (unsigned char *)ptr;
 			len0 -= len;
@@ -2165,7 +2204,8 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
 	gboolean discontinuity = FALSE;
-	bool isFirstBuffer = privateContext->stream[mediaType].resetPosition;
+	media_stream *stream = &privateContext->stream[mediaType];
+	bool isFirstBuffer = stream->resetPosition;
 
 #ifdef TRACE_VID_PTS
 	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
@@ -2181,6 +2221,41 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 		logprintf("");
 	}
 #endif
+	// Make sure source element is present before data is injected
+	//If format is FORMAT_INVALID, we don't know what we are doing here
+	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
+	{
+		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
+		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int waitInterval = 100; //ms
+		while(timeRemaining >= 0)
+		{
+			aamp->InterruptableMsSleep(waitInterval);
+			if (aamp->DownloadsAreEnabled())
+			{
+				if (stream->sourceConfigured)
+				{
+					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
+					break;
+				}
+			}
+			else
+			{
+				//Playback stopped by application
+				break;
+			}
+			timeRemaining -= waitInterval;
+		}
+		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
+		{
+			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
+			// What do we with the data buffer
+			// This flavour of Send() sends the data buffer as such so free data buffer to avoid memory leak and reset pBuffer
+			aamp_Free(&pBuffer->ptr);
+			memset(pBuffer, 0x00, sizeof(GrowableBuffer));
+			return;
+		}
+	}
 
 #ifdef DUMP_STREAM
 	static FILE* fp = NULL;
@@ -2209,15 +2284,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	GST_BUFFER_DURATION(buffer) = duration;
 #endif
 
-	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
+	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 	if (ret != GST_FLOW_OK)
 	{
 		logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
 		assert(false);
 	}
-	else if (privateContext->stream[mediaType].bufferUnderrun)
+	else if (stream->bufferUnderrun)
 	{
-		privateContext->stream[mediaType].bufferUnderrun = false;
+		stream->bufferUnderrun = false;
 	}
 
 	/*Since ownership of buffer is given to gstreamer, reset pBuffer */
