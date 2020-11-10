@@ -790,7 +790,6 @@ private:
 	double mVideoPosRemainder;
 	double mFirstFragPTS[AAMP_TRACK_COUNT];
 	AudioType mAudioType;
-	bool mPushEncInitFragment;
 	int mPrevAdaptationSetCount;
 	std::vector<long> mBitrateIndexVector;
 	bool mIsFogTSB;
@@ -831,7 +830,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true), mContext(context),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
 	mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
-	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
+	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN),
 	mPrevAdaptationSetCount(0), mBitrateIndexVector(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
@@ -3463,6 +3462,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 {
 	bool forceSpeedsChangedEvent = false;
+	bool pushEncInitFragment = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
@@ -3488,7 +3488,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	aamp->IsTuneTypeNew = newTune;
 
 #ifdef AAMP_MPD_DRM
-	mPushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
+	pushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
 #endif
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -3984,6 +3984,18 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		AAMPLOG_ERR("PrivateStreamAbstractionMPD::%s:%d corrupt/invalid manifest",__FUNCTION__,__LINE__);
 		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 	}
+
+#ifdef AAMP_MPD_DRM
+	if (pushEncInitFragment && CheckForInitalClearPeriod())
+	{
+		AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Pushing EncryptedHeaders", __FUNCTION__, __LINE__);
+		PushEncryptedHeaders();
+	}
+#endif
+
+	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
+	FetchAndInjectInitialization();
+
 	return retval;
 }
 
@@ -6703,6 +6715,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 {
 	bool exitFetchLoop = false;
 	bool trickPlay = (AAMP_NORMAL_PLAY_RATE != rate);
+	bool waitForFreeFrag = true;
 	bool mpdChanged = false;
 	double delta = 0;
 	bool lastLiveFlag = false;  //CID:96059 - Removed the  placeNextAd variable which is initialized but not used
@@ -6711,16 +6724,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	if(rate < 0)
 		direction = -1;
 	bool adStateChanged = false;
-#ifdef AAMP_MPD_DRM
-	if (mPushEncInitFragment && CheckForInitalClearPeriod())
-	{
-		PushEncryptedHeaders();
-	}
-	mPushEncInitFragment = false;
-#endif
 
-	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
-	FetchAndInjectInitialization();
 	IPeriod *currPeriod = mCurrentPeriod;
 	if(!currPeriod)
 	{
@@ -7058,70 +7062,89 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					for (int i = mNumberOfTracks-1; i >= 0; i--)
 					{
 						struct MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
-						if (pMediaStreamContext->adaptationSet )
+						bool isAllowNextFrag = true;
+
+						if (waitForFreeFrag && !trickPlay)
 						{
-							if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
-							{	// profile not changed and Cache not full scenario
-								if (!pMediaStreamContext->eos)
-								{
-									if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
+							PrivAAMPState state;
+							aamp->GetState(state);
+
+							if(state == eSTATE_PLAYING)
+							{
+								waitForFreeFrag = false;
+							}
+							else
+							{
+								isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable();
+							}
+						}
+
+						if (isAllowNextFrag)
+						{
+							if (pMediaStreamContext->adaptationSet )
+							{
+								if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
+								{	// profile not changed and Cache not full scenario
+									if (!pMediaStreamContext->eos)
 									{
-										if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
+										if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
 										{
-											delta = rate / gpGlobalConfig->vodTrickplayFPS;
+											if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
+											{
+												delta = rate / gpGlobalConfig->vodTrickplayFPS;
+											}
+											double currFragTime = pMediaStreamContext->fragmentTime;
+											delta = SkipFragments(pMediaStreamContext, delta);
+											mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 										}
-										double currFragTime = pMediaStreamContext->fragmentTime;
-										delta = SkipFragments(pMediaStreamContext, delta);
-										mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
-									}
-									if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(i))))
-									{
-										if (mIsLiveManifest)
+										if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(i))))
 										{
-											mContext->CheckForPlaybackStall(true);
+											if (mIsLiveManifest)
+											{
+												mContext->CheckForPlaybackStall(true);
+											}
+											if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i))
+											{
+												if (aamp->CheckABREnabled())
+												{
+													pMediaStreamContext->mContext->CheckForProfileChange();
+												}
+												else
+												{
+													pMediaStreamContext->mContext->CheckUserProfileChangeReq();
+												}
+											}
+										}
+										else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
+										{
+											mContext->CheckForPlaybackStall(false);
 										}
 
-										if((!pMediaStreamContext->mContext->trickplayMode) && (eMEDIATYPE_VIDEO == i))
+										if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
+												&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
 										{
-											if (aamp->CheckABREnabled())
-											{
-												pMediaStreamContext->mContext->CheckForProfileChange();
-											}
-											else
-											{
-												pMediaStreamContext->mContext->CheckUserProfileChangeReq();
-											}
+											//Ensuring that Ad playback doesn't go beyond Adbreak
+											AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
+																__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
+											pMediaStreamContext->eos = true;
 										}
-									}
-									else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
-									{
-										mContext->CheckForPlaybackStall(false);
-									}
-
-									if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
-											&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
-									{
-										//Ensuring that Ad playback doesn't go beyond Adbreak
-										AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
-															__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
-										pMediaStreamContext->eos = true;
 									}
 								}
-							}
-							// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
-							// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
-							// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
-							// DELIA-32017
-							else if(pMediaStreamContext->profileChanged)
-							{	// Profile changed case
-								FetchAndInjectInitialization();
-							}
+								// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
+								// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
+								// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
+								// DELIA-32017
+								else if(pMediaStreamContext->profileChanged)
+								{	// Profile changed case
+									FetchAndInjectInitialization();
+								}
 
-							if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
-							{
-								bCacheFullState = false;
-							}
+								if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
+								{
+									bCacheFullState = false;
+								}
 
+							}
 						}
 						if (!aamp->DownloadsAreEnabled())
 						{
