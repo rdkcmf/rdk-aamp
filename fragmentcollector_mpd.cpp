@@ -4147,7 +4147,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
-				if (aamp->SendTunedEvent())
+				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{
 					logprintf("aamp: mpd - sent tune event after indexing playlist");
 				}

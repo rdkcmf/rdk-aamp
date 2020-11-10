@@ -51,6 +51,7 @@
 
 #include "AampDrmSystems.h"
 #include "AampMediaType.h"
+#include "AampScheduler.h"
 
 /*! \mainpage
  *
@@ -511,7 +512,7 @@ public:
 /**
  * @brief Player interface class for the JS pluggin.
  */
-class PlayerInstanceAAMP
+class PlayerInstanceAAMP : public AampScheduler
 {
 public:
 	/**
@@ -883,9 +884,9 @@ public:
 	void SetReportInterval(int reportIntervalMS);
 
 	/**
-	 *	 @brief To set the max retry attempts for init frag curl timeout failures
+	 *   @brief To set the max retry attempts for init frag curl timeout failures
 	 *
-	 *	 @param  count - max attempt for timeout retry count
+	 *   @param  count - max attempt for timeout retry count
 	 */
 	void SetInitFragTimeoutRetryCount(int count);
 
@@ -1106,7 +1107,6 @@ public:
          *       @return void
          */
         void SetOutputResolutionCheck(bool bValue);
-
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
@@ -1447,6 +1447,13 @@ public:
          */
 	void SetUseAbsoluteTimeline(bool configState);
 
+	/**
+	 *   @brief Enable async operation and initialize resources
+	 *
+	 *   @return void
+	 */
+	void EnableAsyncOperation();
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 
@@ -1460,6 +1467,7 @@ private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 	static std::mutex mPrvAampMtx;      /**< Mutex to protect aamp instance in GetState() */
+	bool mAsyncRunning;                 /**< Flag denotes if async mode is on or not */
 };
 
 #endif // MAINAAMP_H

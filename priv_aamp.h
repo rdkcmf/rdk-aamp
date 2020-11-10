@@ -122,6 +122,8 @@ static const char *mMediaFormatName[] =
 #define STRBGPLAYER "BACKGROUND"
 #define STRFGPLAYER "FOREGROUND"
 
+#define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
+
 /**
  * @brief Structure of X-Start HLS Tag
  */
@@ -712,6 +714,7 @@ public:
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	bool mLicenseCaching;	/**< Enable/Disable license caching */
+	bool mAutoResumeTaskPending;
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
@@ -1094,7 +1097,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReportProgress(void);
+	void ReportProgress(bool sync = true);
 
 	/**
 	 *   @brief Report Ad progress event
@@ -1537,14 +1540,6 @@ public:
 	 */
 	void GetState(PrivAAMPState &state);
 
-	/**
-	 *   @brief Add idle task to the gstreamer
-	 *
-	 *   @param[in] task - Task
-	 *   @param[in] arg - Arguments
-	 *   @return void
-	 */
-	static void AddIdleTask(IdleTask task, void* arg);
 	/**
 	*   @brief Add high priority idle task to the gstreamer
 	*
@@ -2860,6 +2855,44 @@ public:
 	 */
 	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
 
+	/**
+	 *   @brief Set the scheduler instance to schedule tasks
+	 *
+	 *   @param[in] instance - schedule instance
+	 */
+	void SetScheduler(AampScheduler *instance) { mScheduler = instance; }
+
+	/**
+	 *   @brief Add async task to scheduler
+	 *
+	 *   @param[in] task - Task
+	 *   @param[in] arg - Arguments
+	 *   @return int - task id
+	 */
+	int ScheduleAsyncTask(IdleTask task, void *arg);
+
+	/**
+	 *   @brief Remove async task scheduled earlier
+	 *
+	 *   @param[in] id - task id
+	 *   @return bool - true if removed, false otherwise
+	 */
+	bool RemoveAsyncTask(int taskId);
+
+	/**
+	 *	 @brief acquire streamsink lock
+	 *
+	 *	 @return void
+	 */
+	void AcquireStreamLock();
+	
+	/**
+	 *	 @brief release streamsink lock
+	 *
+	 *	 @return void
+	 */
+	void ReleaseStreamLock();
+
 private:
 
 	/**
@@ -2985,5 +3018,11 @@ private:
 	bool mReportVideoPTS;
 	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
+
+	guint mAutoResumeTaskId; /**< handler id for auto resume idle callback */
+	AampScheduler *mScheduler; /**< instance to schedule async tasks */
+	pthread_mutex_t mEventLock; /**< lock for operation on mPendingAsyncEvents */
+	int mEventPriority; /**< priority for async events */
+	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
 };
 #endif // PRIVAAMP_H

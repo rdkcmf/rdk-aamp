@@ -101,7 +101,8 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),
+	mAsyncRunning(false)
 {
 
 #ifdef IARM_MGR
@@ -148,6 +149,10 @@ if(!iarmInitialized)
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
+	if (gpGlobalConfig->mAsyncTuneConfig == eTrueState)
+	{
+		EnableAsyncOperation();
+	}
 }
 
 /**
@@ -161,8 +166,23 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		aamp->GetState(state);
 		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
 		{
+			if (mAsyncRunning)
+			{
+				// Before stop, clear up any remaining commands in queue
+				RemoveAllTasks();
+				aamp->DisableDownloads();
+				AcquireExLock();
+			}
+
 			//Avoid stop call since already stopped
 			aamp->Stop();
+
+			if (mAsyncRunning)
+			{
+				//Release lock
+				ReleaseExLock();
+				EnableScheduleTask();
+			}
 		}
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
 		delete aamp;
@@ -171,6 +191,13 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (mInternalStreamSink)
 	{
 		delete mInternalStreamSink;
+	}
+
+	// Stop the async thread, queue will be cleared during Stop
+	if (mAsyncRunning)
+	{
+		mAsyncRunning = false;
+		StopScheduler();
 	}
 
 	bool isLastPlayerInstance = !PrivateInstanceAAMP::IsActiveInstancePresent();
@@ -215,8 +242,23 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 			return;
 		}
 
+		if (mAsyncRunning)
+		{
+			// Before stop, clear up any remaining commands in queue
+			RemoveAllTasks();
+			aamp->DisableDownloads();
+			AcquireExLock();
+		}
+
 		StopInternal(sendStateChangeEvent);
 
+		if (mAsyncRunning)
+		{
+			//Release lock
+			ReleaseExLock();
+			EnableScheduleTask();
+			// EnableDownloads() not called, because it will be called in aamp->Stop()
+		}
 	}
 }
 
@@ -254,6 +296,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
+
 }
 
 
@@ -264,7 +307,17 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  */
 void PlayerInstanceAAMP::detach()
 {
+	if (mAsyncRunning)
+	{
+		//Acquire lock
+		AcquireExLock();
+	}
 	aamp->detach();
+	if (mAsyncRunning)
+	{
+		//Release lock
+		ReleaseExLock();
+	}
 }
 
 /**
@@ -614,7 +667,9 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->pipeline_paused = false;
 			aamp->mSeekFromPausedState = false;
 			aamp->ResumeDownloads();
+			aamp->AcquireStreamLock();
 			aamp->TuneHelper(tuneTypePlay); // this unpauses pipeline as side effect
+			aamp->ReleaseStreamLock();
 		}
 
 		if(retValue)
@@ -697,7 +752,9 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	if (aamp->mpStreamAbstractionAAMP)
 	{ // for seek while streaming
 		aamp->SetState(eSTATE_SEEKING);
+		aamp->AcquireStreamLock();
 		aamp->TuneHelper(tuneType);
+		aamp->ReleaseStreamLock();
 		if (sentSpeedChangedEv)
 		{
 			aamp->NotifySpeedChanged(aamp->rate, false);
@@ -796,7 +853,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
+			aamp->AcquireStreamLock();
 			aamp->TuneHelper(tuneType, seekWhilePause);
+			aamp->ReleaseStreamLock();
 			if (sentSpeedChangedEv && (!seekWhilePause) )
 			{
 				aamp->NotifySpeedChanged(aamp->rate, false);
@@ -826,10 +885,12 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
+	aamp->AcquireStreamLock();
 	aamp->TeardownStream(false);
 	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 	aamp->rate = rate;
 	aamp->TuneHelper(eTUNETYPE_SEEK);
+	aamp->ReleaseStreamLock();
 }
 
 /**
@@ -855,12 +916,17 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->zoom_mode = zoom;
-	if (aamp->mpStreamAbstractionAAMP ){
+	aamp->AcquireStreamLock();
+	if (aamp->mpStreamAbstractionAAMP )
+	{
 		aamp->SetVideoZoom(zoom);
-	}else{
+	}
+	else
+	{
 		AAMPLOG_WARN("%s:%d Player is in state (%s) , value has been cached",
 		__FUNCTION__, __LINE__, "eSTATE_IDLE");
 	}
+	aamp->ReleaseStreamLock();
 }
 
 /**
@@ -872,6 +938,7 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->video_muted = muted;
+	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		aamp->SetVideoMute(muted);
@@ -880,6 +947,7 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 	{
 		AAMPLOG_WARN("%s:%d Player is in state eSTATE_IDLE, value has been cached", __FUNCTION__, __LINE__);
 	}
+	aamp->ReleaseStreamLock();
 }
 
 /**
@@ -894,7 +962,9 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 	{
 		AAMPLOG_WARN("%s:%d Audio level (%d) is outside the range supported.. discarding it..",
 		__FUNCTION__, __LINE__, volume);
-	}else{
+	}
+	else
+	{
 		aamp->audio_volume = volume;
 		if (aamp->mpStreamAbstractionAAMP)
 		{
@@ -1239,10 +1309,12 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
 {
 	long bitrate = 0;
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
+	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrate = aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
 	}
+	aamp->ReleaseStreamLock();
 	return bitrate;
 }
 
@@ -1265,7 +1337,14 @@ void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 long PlayerInstanceAAMP::GetAudioBitrate(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
-	return aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
+	long bitrate = 0;
+	aamp->AcquireStreamLock();
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		bitrate = aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
+	}
+	aamp->ReleaseStreamLock();
+	return bitrate;
 }
 
 /**
@@ -1313,7 +1392,14 @@ int PlayerInstanceAAMP::GetPlaybackRate(void)
 std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
-	return aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
+	std::vector<long> bitrates;
+	aamp->AcquireStreamLock();
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		bitrates = aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
+	}
+	aamp->ReleaseStreamLock();
+	return bitrates;
 }
 
 /**
@@ -1324,7 +1410,14 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
-	return aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
+	std::vector<long> bitrates;
+	aamp->AcquireStreamLock();
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		bitrates = aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
+	}
+	aamp->ReleaseStreamLock();
+	return bitrates;
 }
 
 /**
@@ -1546,17 +1639,6 @@ void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetParallelPlaylistRefresh(bValue);
-}
-
-/**
- *   @brief Set Async Tune Configuration
- *   @param[in] bValue - true if async tune enabled
- *
- *   @return void
- */
-void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
-{
-	aamp->SetAsyncTuneConfig(bValue);
 }
 
 /**
@@ -2004,11 +2086,14 @@ std::string PlayerInstanceAAMP::GetAvailableThumbnailTracks(void)
 bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
-	if(thumbIndex < 0 || !aamp->mpStreamAbstractionAAMP)
+	bool ret = false;
+	aamp->AcquireStreamLock();
+	if(thumbIndex >= 0 && aamp->mpStreamAbstractionAAMP)
 	{
-		return false;
+		ret = aamp->mpStreamAbstractionAAMP->SetThumbnailTrack(thumbIndex);
 	}
-	return aamp->mpStreamAbstractionAAMP->SetThumbnailTrack(thumbIndex);
+	aamp->ReleaseStreamLock();
+	return ret;
 }
 
 /**
@@ -2157,6 +2242,25 @@ void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
 	if(gpGlobalConfig->mUseAbsoluteTimeline == eUndefinedState)
 	{
 		aamp->mUseAbsoluteTimeline  = configState;
+	}
+}
+
+/**
+ *   @brief Enable async operation and initialize resources
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::EnableAsyncOperation()
+{
+	// Check if global configuration is set to false
+	// Additional check added here, since this API can be called from jsbindings/native app
+	if (gpGlobalConfig->mAsyncTuneConfig != eFalseState && !mAsyncRunning)
+	{
+		AAMPLOG_WARN("%s:%d Enable async tune operation!!", __FUNCTION__, __LINE__);
+		mAsyncRunning = true;
+		StartScheduler();
+		aamp->SetAsyncTuneConfig(true);
+		aamp->SetScheduler(this);
 	}
 }
 

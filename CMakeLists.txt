@@ -120,6 +120,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     _base64.cpp
                     AampMemoryUtils.cpp
                     AampCacheHandler.cpp
+                    AampScheduler.cpp
                     AampUtils.cpp
                     AampJsonObject.cpp
                     AampProfiler.cpp
@@ -527,7 +528,7 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
-  AampGstUtils.h AampRfc.h
+  AampGstUtils.h AampRfc.h AampScheduler.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

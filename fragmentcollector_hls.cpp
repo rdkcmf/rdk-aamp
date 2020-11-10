@@ -4028,6 +4028,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		else
 		{
 			logprintf("Manifest download failed : http response : %d", (int) http_error);
+			retval = eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
@@ -4330,8 +4331,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			return eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR;
 		}
 
-		bool bSetStatePreparing = false;
-
 		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
 			trickplayMode = true;
@@ -4408,18 +4407,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						// Send bulk report
 						aamp->ReportBulkTimedMetadata();
 					}
-				}
-
-				if (newTune && needMetadata)
-				{
-					needMetadata = false;
-					std::vector<long> bitrateList;
-					bitrateList = GetVideoBitrates();
-					aamp->mIsIframeTrackPresent = mIframeAvailable;
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
-					// Delay "preparing" state until all tracks have been processed.
-					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
-					bSetStatePreparing = true;
 				}
 
 				if (iTrack == eMEDIATYPE_VIDEO)
@@ -4675,8 +4662,29 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 
-		if (bSetStatePreparing)
+		if (newTune && needMetadata)
+		{
+			needMetadata = false;
+			std::vector<long> bitrateList = GetVideoBitrates();
+			aamp->mIsIframeTrackPresent = mIframeAvailable;
+			double duration = 0;
+			if (trackState[eTRACK_VIDEO]->enabled && trackState[eTRACK_VIDEO]->mDuration != 0)
+			{
+				duration = trackState[eTRACK_VIDEO]->mDuration;
+			}
+			else if (trackState[eTRACK_AUDIO]->enabled && trackState[eTRACK_AUDIO]->mDuration != 0)
+			{
+				duration = trackState[eTRACK_AUDIO]->mDuration;
+			}
+			else
+			{
+				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d No valid duration found in audio and video, sending duration as 0", __FUNCTION__, __LINE__);
+			}
+			aamp->SendMediaMetadataEvent((duration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+			// Delay "preparing" state until all tracks have been processed.
+			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 			aamp->SetState(eSTATE_PREPARING);
+		}
 
 		//Currently un-used playlist indexed event, might save some JS overhead
 		if (!gpGlobalConfig->disablePlaylistIndexEvent)
@@ -4701,7 +4709,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
-				if (aamp->SendTunedEvent())
+				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{
 					logprintf("aamp: hls - sent tune event after indexing playlist");
 				}

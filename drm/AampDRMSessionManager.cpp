@@ -702,8 +702,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		if(!aamp->DownloadsAreEnabled())
 		{
 			logprintf("%s:%d Aborting License acquisition", __FUNCTION__, __LINE__);
-			// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
-			*httpCode = CURLE_ABORTED_BY_CALLBACK;
+			// Update httpCode so that DRM error event will not be sent by upper layer
+			*httpCode = res;
 			break;
 		}
 		if (res != CURLE_OK)
