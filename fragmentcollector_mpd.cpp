@@ -168,12 +168,15 @@ struct PeriodInfo {
 
 static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
 {
+	double newduration = 2.0;
 	if( duration && timeScale )
 	{
-		return (double)duration / (double)timeScale;
+		newduration =  (double)duration / (double)timeScale;
+		newduration = ceil(newduration * 1000.0) / 1000.0;
+		return newduration;
 	}
 	AAMPLOG_WARN( "%s:%d bad fragment duration", __FUNCTION__, __LINE__ );
-	return 2.0;
+	return newduration;
 }
 	
 class SegmentTemplates
@@ -220,7 +223,8 @@ public:
 	{
 		uint32_t timeScale = 0;
 		if( segmentTemplate1 ) timeScale = segmentTemplate1->GetTimescale();
-		if( timeScale==0 && segmentTemplate2 ) timeScale = segmentTemplate2->GetTimescale();
+		// if timescale missing in template ,GetTimeScale returns 1
+		if((timeScale==1 || timeScale==0) && segmentTemplate2 ) timeScale = segmentTemplate2->GetTimescale();
 		return timeScale;
 	}
 
@@ -238,6 +242,14 @@ public:
 		if( segmentTemplate1 ) startNumber = segmentTemplate1->GetStartNumber();
 		if( startNumber==0 && segmentTemplate2 ) startNumber = segmentTemplate2->GetStartNumber();
 		return startNumber;
+	}
+
+	uint32_t GetPresentationTimeOffset()
+	{
+		uint32_t presentationOffset = 0;
+		if(segmentTemplate1 ) presentationOffset = segmentTemplate1->GetPresentationTimeOffset();
+		if( presentationOffset==0 && segmentTemplate2) presentationOffset = segmentTemplate2->GetPresentationTimeOffset();
+		return presentationOffset;
 	}
 	
 	std::string Getinitialization()
@@ -689,6 +701,7 @@ public:
 	bool FetchFragment(MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance = 0, bool discontinuity = false );
 	double GetPeriodEndTime(IMPD *mpd, int periodIndex, uint64_t mpdRefreshTime);
 	double GetPeriodStartTime(IMPD *mpd, int periodIndex);
+	double GetPeriodDuration(IMPD *mpd, int periodIndex);
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
 	StreamInfo* GetStreamInfo(int idx);
@@ -771,8 +784,9 @@ private:
 	double mPrevStartTimeSeconds;
 	std::string mPrevLastSegurlMedia;
 	long mPrevLastSegurlOffset; //duration offset from beginning of TSB
-	uint64_t mPeriodEndTime;
-	uint64_t mPeriodStartTime;
+	double mPeriodEndTime;
+	double mPeriodStartTime;
+	double mPeriodDuration;
 	int64_t mMinUpdateDurationMs;
 	double mTSBDepth;
 	double mPresentationOffsetDelay;
@@ -821,7 +835,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seekpos), rate(rate), fragmentCollectorThreadID(0), createDRMSessionThreadID(0),
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true), mContext(context),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
-	mPeriodEndTime(0), mPeriodStartTime(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
+	mPeriodEndTime(0), mPeriodStartTime(0), mPeriodDuration(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN), mPushEncInitFragment(false),
 	mPrevAdaptationSetCount(0), mBitrateIndexVector(), mIsFogTSB(false), mMPDPeriodsInfo(),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
@@ -1472,6 +1486,7 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 				pMediaStreamContext->fragmentTime = 0;
 			}
 		}
+		pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 	}
 	return retval;
 }
@@ -1489,8 +1504,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 	SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
 					pMediaStreamContext->adaptationSet->GetSegmentTemplate() );
 #ifdef DEBUG_TIMELINE
-	logprintf("%s:%d Type[%d] timeLineIndex %d segmentTemplate fragmentRepeatCount %u", __FUNCTION__, __LINE__,pMediaStreamContext->type,
-			pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount);
+	logprintf("%s:%d Type[%d] timeLineIndex %d fragmentRepeatCount %u PeriodDuration:%f mCurrentPeriodIdx:%d mPeriodStartTime %f", __FUNCTION__, __LINE__,pMediaStreamContext->type,
+				pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount,mPeriodDuration,mCurrentPeriodIdx,mPeriodStartTime );
 #endif
 	if( segmentTemplates.HasSegmentTemplate() )
 	{
@@ -1502,9 +1517,9 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 		{
 			std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 #ifdef DEBUG_TIMELINE
-			logprintf("%s:%d Type[%d] timelineCnt=%d timeLineIndex:%d fragTime=%f L=%" PRIu64 " [fragmentTime = %f,  mLiveEndPosition = %f]", __FUNCTION__, __LINE__,
-				pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime
-				, pMediaStreamContext->fragmentTime, mLiveEndPosition);
+				logprintf("%s:%d Type[%d] timelineCnt=%d timeLineIndex:%d FDTime=%f L=%" PRIu64 " [fragmentTime = %f,  mLiveEndPosition = %f]", __FUNCTION__, __LINE__,
+					pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime
+					, pMediaStreamContext->fragmentTime, mLiveEndPosition);
 #endif
 
 			if ((pMediaStreamContext->timeLineIndex >= timelines.size()) || (pMediaStreamContext->timeLineIndex < 0)
@@ -1517,13 +1532,125 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			}
 			else
 			{
-				if (pMediaStreamContext->fragmentRepeatCount == 0)
+				// Presentation Offset handling - When period is splitted for Ads, additional segments
+				// for last period will be added which are not required to play.Need to play based on
+				// presentationtimeoffset attribute
+
+				// When new period starts , need to check if PresentationOffset exists and its
+				// different from startTime of first timeline
+				// ->During refresh of manifest, fragmentDescriptor.Time != 0.Not to update PTSOffset
+				// ->During period change or start of playback , fragmentDescriptor.Time=0. Need to
+				//      update with PTSOffset
+				uint32_t presentationTimeOffset = segmentTemplates.GetPresentationTimeOffset();
+				if (presentationTimeOffset > 0 && pMediaStreamContext->lastSegmentDuration ==  0 
+					&& pMediaStreamContext->fragmentDescriptor.Time == 0)
+				{
+					// Check the first timeline starttime.
+					int index = 0;
+					uint64_t startTime = 0;
+					ITimeline *timeline = timelines.at(index);
+					// Some timeline may not have attribute for timeline , check it .
+					map<string, string> attributeMap = timeline->GetRawAttributes();
+					if(attributeMap.find("t") != attributeMap.end())
+					{
+						startTime = timeline->GetStartTime();
+					}
+					else
+					{
+						startTime = presentationTimeOffset;
+					}
+
+					// This logic comes into picture if startTime is different from
+					// presentation Offset
+					if(startTime != presentationTimeOffset)
+					{
+						// if startTime is 0 or if no timeline attribute "t"
+						if(startTime == 0)
+						{
+							AAMPLOG_INFO("%s:%d Type[%d] Setting start time with PTSOffset:%" PRIu64 "",__FUNCTION__, __LINE__,pMediaStreamContext->type,presentationTimeOffset);
+							startTime = presentationTimeOffset;
+						}
+						else
+						{
+							// Non zero startTime , need to traverse and find the right
+							// line index and repeat number
+							uint32_t duration =0;
+							uint32_t repeatCount =0;
+							uint64_t nextStartTime = 0;
+							int offsetNumber = 0;
+							// This loop is to go to the right index and segment number
+							//based on presentationTimeOffset
+							pMediaStreamContext->fragmentRepeatCount = 0;
+							while(index<timelines.size())
+							{
+								timeline = timelines.at(index);
+								map<string, string> attributeMap = timeline->GetRawAttributes();
+								if(attributeMap.find("t") != attributeMap.end())
+								{
+									startTime = timeline->GetStartTime();
+								}
+								else
+								{
+									startTime = nextStartTime;
+								}
+								duration = timeline->GetDuration();
+								// For Dynamic segment timeline content
+								if (0 == startTime && 0 != duration)
+								{
+									startTime = nextStartTime;
+								}
+								repeatCount = timeline->GetRepeatCount();
+								nextStartTime = startTime+((uint64_t)((repeatCount+1)*duration));
+								// found the right index
+								if(nextStartTime > (presentationTimeOffset+1))
+								{
+									// if timeline has repeat value ,go to correct offset
+									if (repeatCount != 0)
+									{
+										uint64_t segmentStartTime = startTime;
+										for(int i=0; i<repeatCount; i++)
+										{
+											segmentStartTime += duration;
+											if(segmentStartTime > (presentationTimeOffset+1))
+											{       // found the right offset
+												break;
+											}
+											startTime = segmentStartTime;
+											offsetNumber++;
+											pMediaStreamContext->fragmentRepeatCount++;
+										}
+									}
+									break; // break the while loop
+								}
+								// Add all the repeat count before going to next timeline
+								offsetNumber += (repeatCount+1);
+								index++;
+							}
+								// After exit of loop , update the fields
+							if(index != timelines.size())
+							{
+								pMediaStreamContext->fragmentDescriptor.Number += offsetNumber;
+								pMediaStreamContext->timeLineIndex = index;
+								AAMPLOG_INFO("%s:%d Type[%d] skipping fragments[%d] to Index:%d FNum=%d Repeat:%d", __FUNCTION__, __LINE__, pMediaStreamContext->type,offsetNumber,index,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentRepeatCount);
+							}
+						}
+					}
+					// Modify the descriptor time to start download
+					pMediaStreamContext->fragmentDescriptor.Time = startTime;
+#ifdef DEBUG_TIMELINE
+					logprintf("%s:%d Type[%d] timelineCnt=%d timeLineIndex:%d FDTime=%f L=%" PRIu64 " [fragmentTime = %f,  mLiveEndPosition = %f]", __FUNCTION__, __LINE__,
+						pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime,
+						pMediaStreamContext->fragmentTime, mLiveEndPosition);
+#endif
+				}
+				else if (pMediaStreamContext->fragmentRepeatCount == 0)
 				{
 					ITimeline *timeline = timelines.at(pMediaStreamContext->timeLineIndex);
 					uint64_t startTime = 0;
 					map<string, string> attributeMap = timeline->GetRawAttributes();
 					if(attributeMap.find("t") != attributeMap.end())
 					{
+						// If there is a presentation offset time, update start time to that value.
 						startTime = timeline->GetStartTime();
 					}
 					else
@@ -1543,7 +1670,16 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 							for(;index<timelines.size();index++)
 							{
 								timeline = timelines.at(index);
-								startTime = timeline->GetStartTime();
+								map<string, string> attributeMap = timeline->GetRawAttributes();
+								if(attributeMap.find("t") != attributeMap.end())
+								{
+									startTime = timeline->GetStartTime();
+								}
+								else
+								{
+									startTime = pMediaStreamContext->fragmentDescriptor.Time;
+								}
+
 								duration = timeline->GetDuration();
 								// For Dynamic segment timeline content
 								if (0 == startTime && 0 != duration)
@@ -1559,19 +1695,19 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								pMediaStreamContext->fragmentDescriptor.Number += (repeatCount+1);
 							}// end of for
 
+								
 							/*
 							*  Boundary check added to handle the edge case leading to crash,
 							*  reported in DELIA-30316.
 							*/
 							if(index == timelines.size())
-							{
+							{	
 								logprintf("%s:%d Type[%d] Boundary Condition !!! Index(%d) reached Max.Start=%" PRIu64 " Last=%" PRIu64 " ",__FUNCTION__, __LINE__,
 									pMediaStreamContext->type,index,startTime,pMediaStreamContext->lastSegmentTime);
 								index--;
 								startTime = pMediaStreamContext->lastSegmentTime;
 								pMediaStreamContext->fragmentRepeatCount = repeatCount+1;
 							}
-
 #ifdef DEBUG_TIMELINE
 							logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d Index=%d Num=%" PRIu64 " FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->type,
 							startTime,pMediaStreamContext->lastSegmentTime, duration, repeatCount,index,
@@ -1610,19 +1746,25 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				uint32_t repeatCount = timeline->GetRepeatCount();
 				uint32_t duration = timeline->GetDuration();
 #ifdef DEBUG_TIMELINE
-				logprintf("%s:%d Type[%d] t=%" PRIu64 " L=%" PRIu64 " d=%d r=%d fragrep=%d x=%d num=%lld",__FUNCTION__, __LINE__,
-				pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,
-				pMediaStreamContext->lastSegmentTime, duration, repeatCount,pMediaStreamContext->fragmentRepeatCount,
-				pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Number);
+				logprintf("%s:%d Type[%d] FDt=%f L=%" PRIu64 " d=%d r=%d fragrep=%d x=%d num=%lld",__FUNCTION__, __LINE__,
+					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,
+					pMediaStreamContext->lastSegmentTime, duration, repeatCount,pMediaStreamContext->fragmentRepeatCount,
+					pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Number);
 #endif
 				if ((pMediaStreamContext->fragmentDescriptor.Time > pMediaStreamContext->lastSegmentTime) || (0 == pMediaStreamContext->lastSegmentTime))
 				{
-#ifdef DEBUG_TIMELINE
-					logprintf("%s:%d Type[%d] presenting %" PRIu64 " Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) ",__FUNCTION__, __LINE__,
-					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime);
-#endif
 					double fragmentDuration = ComputeFragmentDuration(duration,timeScale);
-					retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
+					// magic number of 20msec added , this is to avoid the decimal point correction between fragmentTime and endTime
+					double endTime  = (mPeriodStartTime+(mPeriodDuration/1000))+ 0.020;
+#ifdef DEBUG_TIMELINE
+					logprintf("%s:%d Type[%d] presenting FDt%f Number(%lld) Last=%" PRIu64 " Duration(%d) FTime(%f) endTime:%f",__FUNCTION__, __LINE__,
+						pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime,endTime);
+#endif
+					retval = true;
+					if(!mPeriodDuration || (mPeriodDuration !=0 && pMediaStreamContext->fragmentTime <= endTime))
+					{
+						retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
+					}
 					if(retval)
 					{
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
@@ -1905,6 +2047,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					{
 						pMediaStreamContext->fragmentTime += fragmentDuration;
 						pMediaStreamContext->fragmentOffset += referenced_size;
+						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						retval = true;
 					}
 				}
@@ -2187,6 +2330,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						skipTime -= fragmentDuration;
 						pMediaStreamContext->fragmentTime += fragmentDuration;
+						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time += duration;
 						pMediaStreamContext->fragmentDescriptor.Number++;
 						pMediaStreamContext->fragmentRepeatCount++;
@@ -2201,6 +2345,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						skipTime += fragmentDuration;
 						pMediaStreamContext->fragmentTime -= fragmentDuration;
+						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time -= duration;
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentRepeatCount--;
@@ -2267,6 +2412,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						pMediaStreamContext->fragmentDescriptor.Number++;
 						pMediaStreamContext->fragmentTime += segmentDuration;
+						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time += segmentDuration;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime -= segmentDuration;
@@ -2275,6 +2421,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					{
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentTime -= segmentDuration;
+						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time -= segmentDuration;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime += segmentDuration;
@@ -2366,12 +2513,14 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 							pMediaStreamContext->fragmentIndex++;
 							skipTime -= segmentDuration;
 							pMediaStreamContext->fragmentTime += segmentDuration;
+							pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						}
 						else if (-(skipTime) >= segmentDuration)
 						{
 							pMediaStreamContext->fragmentIndex--;
 							skipTime += segmentDuration;
 							pMediaStreamContext->fragmentTime -= segmentDuration;
+							pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						}
 						else
 						{
@@ -3043,15 +3192,103 @@ double PrivateStreamAbstractionMPD::GetPeriodStartTime(IMPD *mpd, int periodInde
 {
 	double periodStart = 0;
 	uint64_t  periodStartMs = 0;
-	string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
-	if(!startTimeStr.empty())
+	if(mpd != NULL)
 	{
-		periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
+		int periodCnt= mpd->GetPeriods().size();
+		if(periodIndex < periodCnt)
+		{
+			string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
+			if(!startTimeStr.empty())
+			{
+				periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
+				periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex %d periodStart %f", __FUNCTION__, __LINE__, periodIndex, periodStart);
+			}
+			else
+			{
+				double durationTotal = 0;
+				for(int idx=0;idx < periodIndex; idx++)
+				{
+					string durationStr = mpd->GetPeriods().at(idx)->GetDuration();
+					uint64_t  periodDurationMs = 0;
+					if(!durationStr.empty())
+					{
+						periodDurationMs = ParseISO8601Duration(durationStr.c_str());
+						durationTotal += periodDurationMs;
+					}
+				}
+				periodStart =  mAvailabilityStartTime + ((double)durationTotal / (double)1000);
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex %d periodStart %f", __FUNCTION__, __LINE__, periodIndex, periodStart);
+			}
+		}
 	}
-	periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
-	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodStart %f", __FUNCTION__, __LINE__, periodStart);
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  mpd is null", __FUNCTION__, __LINE__);  //CID:83436 Null Returns
+	}
 	return periodStart;
 }
+
+
+/**
+ * @brief Get duration of current period
+ * @param mpd : pointer manifest
+ * @param periodIndex
+ * @retval current period's duration
+ */
+double PrivateStreamAbstractionMPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
+{
+	double periodDuration = 0;
+	uint64_t  periodDurationMs = 0;
+	if(mpd != NULL)
+	{
+		int periodCnt= mpd->GetPeriods().size();
+		if(periodIndex < periodCnt)
+		{
+			string durationStr = mpd->GetPeriods().at(periodIndex)->GetDuration();
+			if(!durationStr.empty())
+			{
+				periodDurationMs = ParseISO8601Duration(durationStr.c_str());
+				periodDuration = ((double)periodDurationMs / (double)1000);
+				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
+			}
+			else
+			{
+				if(periodCnt-1 == periodIndex)
+				{
+					std::string durationStr =  mpd->GetMediaPresentationDuration();
+					if(!durationStr.empty())
+					{
+						periodDurationMs = ParseISO8601Duration( durationStr.c_str());
+						periodDuration = ((double)periodDurationMs / (double)1000);
+						AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
+					}
+				}
+				else
+				{
+					string curStartStr = mpd->GetPeriods().at(periodIndex)->GetStart();
+					if(!curStartStr.empty())
+					{
+						uint64_t  curPeriodStartMs = 0;
+						uint64_t  nextPeriodStartMs = 0;
+						curPeriodStartMs = ParseISO8601Duration(curStartStr.c_str());
+						string nextStartStr = mpd->GetPeriods().at(periodIndex+1)->GetStart();
+						nextPeriodStartMs = ParseISO8601Duration(nextStartStr.c_str());
+						periodDurationMs = nextPeriodStartMs - curPeriodStartMs;
+						periodDuration = ((double)periodDurationMs / (double)1000);
+						AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  mpd is null", __FUNCTION__, __LINE__);  //CID:83436 Null Returns
+	}
+	return periodDurationMs;
+}
+
 
 /**
  * @brief Get end time of current period
@@ -3090,7 +3327,7 @@ double PrivateStreamAbstractionMPD::GetPeriodEndTime(IMPD *mpd, int periodIndex,
 		}
 		periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
 	}
-	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodEndTime %f", __FUNCTION__, __LINE__, periodEndTime);
+	AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d - MPD periodIndex:%d periodEndTime %f", __FUNCTION__, __LINE__, periodIndex, periodEndTime);
 	return periodEndTime;
 }
 
@@ -3641,6 +3878,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 						while(mCurrentPeriodIdx >= 0)
 						{
 							mPeriodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+
 							duration = (double)(aamp_GetPeriodDuration(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs)) / 1000;
 							currentPeriodStart -= duration;
 							if(mPeriodStartTime < startTime)
@@ -3690,6 +3928,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 			}
 		}
 		mPeriodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+		mPeriodDuration =  GetPeriodDuration(mpd, mCurrentPeriodIdx);
 		mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
 		mBasePeriodId = mCurrentPeriod->GetId();
@@ -5703,6 +5942,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 				//update period start and endtimes as period has changed.
 				mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+				mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
 			}
 
 			SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
@@ -6598,6 +6838,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						{
 							mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 							mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+							mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
 
 							for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
 							{
