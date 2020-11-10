@@ -149,6 +149,8 @@ use-matching-baseurl=1 Enable host matching while selecting base url, host of ma
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
+disableWifiCurlHeader=1 Disble wifi custom curl header inclusion
+maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer appsource setup to complete
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

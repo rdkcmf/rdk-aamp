@@ -1481,6 +1481,10 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
 			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
 		}
+		else if(ReadConfigNumericHelper(cfg, "maxTimeoutForSourceSetup=", gpGlobalConfig->mTimeoutForSourceSetup) == 1)
+		{
+			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -9603,12 +9607,23 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
 	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
 	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
-	if (mVideoFormat != videoFormat && mVideoFormat == FORMAT_INVALID && videoFormat != FORMAT_INVALID)
+	//
+	// Truth table
+	// mVideFormat   videoFormat  reconfigure
+	// *              INVALID       false
+	// INVALID        UNKNOWN       true
+	// UNKNOWN        UNKNOWN       false
+	// KNOWN          UNKNWON       false // this maybe an unknown format for tsprocessor but specified in manifest
+	// INVALID        KNOWN         true
+	// UNKNOWN        KNOWN         false // as described in TODO
+	// KNOWN          KNWON         true if format changes, false if same
+	//
+	if (mVideoFormat != videoFormat && (mVideoFormat == FORMAT_INVALID || (mVideoFormat != FORMAT_UNKNOWN && videoFormat != FORMAT_UNKNOWN)) && videoFormat != FORMAT_INVALID)
 	{
 		reconfigure = true;
 		mVideoFormat = videoFormat;
 	}
-	if (audioFormat != mAudioFormat && mAudioFormat == FORMAT_INVALID && audioFormat != FORMAT_INVALID)
+	if (audioFormat != mAudioFormat && (mAudioFormat == FORMAT_INVALID || (mAudioFormat != FORMAT_UNKNOWN && audioFormat != FORMAT_UNKNOWN)) && audioFormat != FORMAT_INVALID)
 	{
 		reconfigure = true;
 		mAudioFormat = audioFormat;
