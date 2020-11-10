@@ -329,7 +329,13 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 			aamp->NotifySpeedChanged(aamp->rate);
 		}
 	}
+	aamp->mAutoResumeTaskPending = false;
 	return G_SOURCE_REMOVE;
+}
+
+static void ResumeAsyncTask(void *data)
+{
+	PrivateInstanceAAMP_Resume((gpointer)data);
 }
 
 /**
@@ -341,7 +347,8 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 {
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP*) ptr;
 
-	if (!g_source_is_destroyed(g_main_current_source()))
+	GSource *src = g_main_current_source();
+	if (src == NULL || !g_source_is_destroyed(src))
 	{
 		bool ret = aamp->ProcessPendingDiscontinuity();
 		// This is to avoid calling cond signal, in case Stop() interrupts the ProcessPendingDiscontinuity
@@ -354,6 +361,11 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 		}
 	}
 	return G_SOURCE_REMOVE;
+}
+
+static void ProcessDiscontinuityAsyncTask(void *data)
+{
+	PrivateInstanceAAMP_ProcessDiscontinuity((gpointer)data);
 }
 
 /**
@@ -430,6 +442,7 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 	else
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event->getType());
+		assert(false);
 	}
 	e->aamp->SendEventSync(e->event);
 	return G_SOURCE_REMOVE;
@@ -1912,6 +1925,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreferredAudioTrack(), mPreferredTextTrack(), midFragmentSeekCache(false), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage(), mRestrictions()
 	, mEnableSeekableRange(false), mReportVideoPTS(false),mCacheMaxSize(0)
+	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -1928,6 +1942,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&mLock, &mMutexAttr);
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
+	pthread_mutex_init(&mEventLock, &mMutexAttr);
 	mCurlShared = curl_share_init();
 	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
@@ -1975,7 +1990,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
 	pthread_mutex_init(&mMutexPlaystart, NULL);
-	SetAsyncTuneConfig(false);
 	ConfigureWithLocalOptions();
 	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
@@ -2037,6 +2051,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 	pthread_mutex_destroy(&mFragmentCachingLock);
+	pthread_mutex_destroy(&mEventLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -2082,7 +2097,7 @@ void PrivateInstanceAAMP::SyncEnd(void)
 /**
  * @brief Report progress event to listeners
  */
-void PrivateInstanceAAMP::ReportProgress(void)
+void PrivateInstanceAAMP::ReportProgress(bool sync)
 {
 	if (mDownloadsEnabled)
 	{
@@ -2151,7 +2166,14 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			}
 		}
 		mReportProgressPosn = position;
-		SendEventSync(evt);
+		if (sync)
+		{
+			SendEventSync(evt);
+		}
+		else
+		{
+			SendEventAsync(evt);
+		}
 		mReportProgressTime = aamp_GetCurrentTimeMS();
 	}
 }
@@ -2240,7 +2262,15 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		if (this->culledSeconds >= position)
 		{
 			logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
-			g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+			if (!mAutoResumeTaskPending)
+			{
+				mAutoResumeTaskPending = true;
+				mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
+			}
 		}
 		else if (this->culledSeconds >= minPlaylistPositionToResume)
 		{
@@ -2252,7 +2282,15 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 			if (culledSecs <= maxRefreshPlaylistIntervalSecs)
 			{
 				logprintf("%s(): Resume playback since start position(%f) moved very close to minimum resume position(%f) ", __FUNCTION__, this->culledSeconds, minPlaylistPositionToResume);
-				g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+				if (!mAutoResumeTaskPending)
+				{
+					mAutoResumeTaskPending = true;
+					mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+				}
+				else
+				{
+					AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
+				}
 			}
 		}
 
@@ -2608,6 +2646,11 @@ void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
 			AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
 		}
 	}
+	if (0 == aamp_GetSourceID())
+	{
+		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, eventType);
+		assert(false);
+	}
 
 	//TODO protect mEventListener
 	if (mEventListener)
@@ -2825,7 +2868,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 
 		// To notify app of discontinuity processing complete
-		ReportProgress();
+		ReportProgress(!mAsyncTuneEnabled);
 
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
@@ -2940,7 +2983,7 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 {
 	//TODO protect mEventListener
 	e->aamp = this;
-	guint callbackID = g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
+	guint callbackID = g_idle_add_full(mEventPriority, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
 	SetCallbackAsPending(callbackID);
 }
 
@@ -4573,7 +4616,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			}
 			else
 			{
-				g_source_remove(mDiscontinuityTuneOperationId);
+				RemoveAsyncTask(mDiscontinuityTuneOperationId);
 				mDiscontinuityTuneOperationId = 0;
 			}
 		}
@@ -4607,7 +4650,14 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		if (!gpGlobalConfig->nativeCCRendering)
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(0);
-			SendEventSync(event);
+			if (!mAsyncTuneEnabled)
+			{
+				SendEventSync(event);
+			}
+			else
+			{
+				SendEventAsync(event);
+			}
 			logprintf("%s:%d Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle", __FUNCTION__, __LINE__);
 		}
 #else
@@ -4903,7 +4953,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			logprintf("mpStreamAbstractionAAMP Init Failed.Seek Position(%f) out of range(%lld)",mpStreamAbstractionAAMP->GetStreamPosition(),(GetDurationMs()/1000));
 			NotifyEOSReached();
 		}
-		else
+		else if (DownloadsAreEnabled())
 		{
 			logprintf("mpStreamAbstractionAAMP Init Failed.Error(%d)",retVal);
 			AAMPTuneFailure failReason = AAMP_TUNE_INIT_FAILED;
@@ -6003,14 +6053,8 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
  */
 void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
 {
-	if(gpGlobalConfig->mAsyncTuneConfig == eUndefinedState)
-	{
-		mAsyncTuneEnabled = bValue;
-	}
-	else
-	{
-		mAsyncTuneEnabled = (bool)gpGlobalConfig->mAsyncTuneConfig;
-	}
+	mAsyncTuneEnabled = bValue;
+	mEventPriority = AAMP_MAX_EVENT_PRIORITY;
 	AAMPLOG_INFO("%s:%d Async Tune Config : %s ",__FUNCTION__,__LINE__,(mAsyncTuneEnabled)?"True":"False");
 }
 
@@ -6374,6 +6418,13 @@ void PrivateInstanceAAMP::Stop()
 	}
 	pthread_mutex_unlock(&gMutex);
 
+	if (mAutoResumeTaskPending)
+	{
+		RemoveAsyncTask(mAutoResumeTaskId);
+		mAutoResumeTaskId = 0;
+		mAutoResumeTaskPending = false;
+	}
+
 	DisableDownloads();
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
@@ -6388,7 +6439,7 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	TeardownStream(true);
-	pthread_mutex_lock(&mLock);
+	pthread_mutex_lock(&mEventLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
 		logprintf("PrivateInstanceAAMP::%s() - mPendingAsyncEvents.size - %d", __FUNCTION__, mPendingAsyncEvents.size());
@@ -6409,12 +6460,14 @@ void PrivateInstanceAAMP::Stop()
 		}
 		mPendingAsyncEvents.clear();
 	}
+	pthread_mutex_unlock(&mEventLock);
+
+	// Streamer threads are stopped when we reach here, thread synchronization not required
 	if (timedMetadata.size() > 0)
 	{
 		timedMetadata.clear();
 	}
 
-	pthread_mutex_unlock(&mLock);
 	seek_pos_seconds = -1;
 	culledSeconds = 0;
 	durationSeconds = 0;
@@ -6522,7 +6575,14 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
-				SendEventSync(eventData);
+				if (!mAsyncTuneEnabled)
+				{
+					SendEventSync(eventData);
+				}
+				else
+				{
+					SendEventAsync(eventData);
+				}
 				free(bulkData);
 			}
 			cJSON_Delete(root);
@@ -6541,7 +6601,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
  * @param durationMS - Duration in milliseconds
  * @param nb unused
  */
-void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char *szName, const char *szContent,int nb, bool bSyncCall,const char *id, double durationMS)
+void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char *szName, const char *szContent, int nb, bool bSyncCall, const char *id, double durationMS)
 {
 	std::string content(szContent, nb);
 	bool bFireEvent = false;
@@ -6598,7 +6658,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 
 
-		if ((eventData->getName() == "SCTE35") || !bSyncCall )
+		if ((eventData->getName() == "SCTE35") || !bSyncCall || mAsyncTuneEnabled)
 		{
 			SendEventAsync(eventData);
 		}
@@ -6739,7 +6799,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					__FUNCTION__, __LINE__, mDiscontinuityTuneOperationId, mDiscontinuityTuneOperationInProgress);
 				return;
 			}
-			mDiscontinuityTuneOperationId = g_idle_add(PrivateInstanceAAMP_ProcessDiscontinuity, (gpointer) this);
+			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this);
 			pthread_mutex_unlock(&mLock);
 
 			logprintf("PrivateInstanceAAMP::%s:%d: Underflow due to discontinuity handled", __FUNCTION__, __LINE__);
@@ -6806,7 +6866,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									gAAMPInstance->reTune = true;
 									logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune. diffMs %lld < threshold %lld",
 										__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
-									g_idle_add(PrivateInstanceAAMP_Retune, (gpointer)this);
+									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
 								}
 							}
 							else
@@ -6828,7 +6888,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					{
 						logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune errorType %d error %s", __FUNCTION__, __LINE__, errorType, errorString);
 						gAAMPInstance->reTune = true;
-						g_idle_add(PrivateInstanceAAMP_Retune, (gpointer) this);
+						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
 					}
 				}
 				activeAAMPFound = true;
@@ -6915,17 +6975,6 @@ void PrivateInstanceAAMP::GetState(PrivAAMPState& state)
 	pthread_mutex_lock(&mLock);
 	state = mState;
 	pthread_mutex_unlock(&mLock);
-}
-
-/**
- * @brief Add idle task
- * @note task shall return 0 to be removed, 1 to be repeated
- * @param task task function pointer
- * @param arg passed as parameter during idle task execution
- */
-void PrivateInstanceAAMP::AddIdleTask(IdleTask task, void* arg)
-{
-	g_idle_add(task, (gpointer)arg);
 }
 
 /**
@@ -7411,7 +7460,7 @@ void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
  */
 void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 {
-	pthread_mutex_lock(&mLock);
+	pthread_mutex_lock(&mEventLock);
 	std::map<guint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
@@ -7423,7 +7472,7 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 		logprintf("%s:%d id not in mPendingAsyncEvents, insert and mark as not pending", __FUNCTION__, __LINE__, id);
 		mPendingAsyncEvents[id] = false;
 	}
-	pthread_mutex_unlock(&mLock);
+	pthread_mutex_unlock(&mEventLock);
 }
 
 /**
@@ -7432,7 +7481,7 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
  */
 void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 {
-	pthread_mutex_lock(&mLock);
+	pthread_mutex_lock(&mEventLock);
 	std::map<guint, bool>::iterator  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
@@ -7444,7 +7493,7 @@ void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 	{
 		mPendingAsyncEvents[id] = true;
 	}
-	pthread_mutex_unlock(&mLock);
+	pthread_mutex_unlock(&mEventLock);
 }
 
 /**
@@ -9967,6 +10016,60 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 {
 	mCacheMaxSize = cacheSize * 1024 ;
+}
+
+/**
+ *   @brief Add async task to scheduler
+ *
+ *   @param[in] task - Task
+ *   @param[in] arg - Data
+ *   @return int - task id
+ */
+int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
+{
+	int taskId = 0;
+	if (mAsyncTuneEnabled)
+	{
+		if (mScheduler)
+		{
+#if 0
+			taskId = mScheduler->ScheduleTask(AsyncTaskObj([task](void *data)
+									{
+										task(gpointer(data));
+									}), arg);
+#endif
+			taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg));
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d mScheduler is NULL, this is a potential issue, dropping the schedule request for now", __FUNCTION__, __LINE__);
+		}
+	}
+	else
+	{
+		taskId = g_idle_add(task, (gpointer)arg);
+	}
+	return taskId;
+}
+
+/**
+ *   @brief Remove async task scheduled earlier
+ *
+ *   @param[in] id - task id
+ *   @return bool - true if removed, false otherwise
+ */
+bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
+{
+	bool ret = false;
+	if (mAsyncTuneEnabled)
+	{
+		ret = mScheduler->RemoveTask(taskId);
+	}
+	else
+	{
+		ret = g_source_remove(taskId);
+	}
+	return ret;
 }
 
 /**

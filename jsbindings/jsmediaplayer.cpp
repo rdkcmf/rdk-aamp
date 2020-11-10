@@ -34,71 +34,6 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
-static pthread_t tuneThreadId;
-static bool tuneThreadIdIsValid = false;
-static bool bTuneInProgress = false;
-
-/**
- * @class AsyncTune
- * @brief AsyncTune implementation for Ref-Player
- */
-class AsyncTune
-{
-public:
-	/**
-	 * @brief AsyncTune Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] string-url - playback url
-	 */
-	AsyncTune(class PlayerInstanceAAMP* aamp, std::string url)
-			: _aamp(aamp)
-			, _url(url)
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Destructor
-	 */
-	virtual ~AsyncTune()
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Copy Constructor
-	 */
-	AsyncTune(const AsyncTune&) = delete;
-
-	/**
-	 * @brief AsyncTune Assignment operator overloading
-	 */
-	AsyncTune& operator=(const AsyncTune&) = delete;
-
-public:
-	class PlayerInstanceAAMP* _aamp;
-	std::string _url;
-};
-
-/**
- * @brief Async Tune function.
- * @param arg passed as parameter during the async tune
- */
-static void* do_AsyncTune(void* arg)
-{
-	class AsyncTune* pAsyncTune = (class AsyncTune*)arg;
-	const char* szUrl = pAsyncTune->_url.c_str();
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE START url='%s'", __FUNCTION__, szUrl);
-
-	pAsyncTune->_aamp->Tune(szUrl);
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE FINISH url='%s'", __FUNCTION__, szUrl);
-	delete pAsyncTune;
-
-	return NULL;
-}
-
 /**
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
@@ -664,50 +599,32 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 			if(privObj->_aamp->GetAsyncTuneConfig())	
 			{
-				if (bTuneInProgress)
-				{
-					void* status;
-					INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
-					pthread_join(tuneThreadId, &status);
-					bTuneInProgress = false;
-					tuneThreadIdIsValid = false;
-				}
+				const std::string manifest = std::string(url);
+				const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
+				const std::string traceId = (strTraceId != NULL) ? std::string(strTraceId) : std::string();
 
-				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
-
-				std::string urlString(url);
-				class AsyncTune* asyncTune = new AsyncTune(privObj->_aamp, urlString);
-				int err = pthread_create(&tuneThreadId, NULL, do_AsyncTune, asyncTune);
-				bTuneInProgress = (err == 0);
-				tuneThreadIdIsValid = (err == 0);
-				delete [] url;
+				privObj->_aamp->ScheduleTask(AsyncTaskObj([manifest, autoPlay, cType, bFirstAttempt, bFinalAttempt, traceId](void *data)
+									{
+										PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+										instance->Tune(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt, traceId.c_str());
+									}, (void *) privObj->_aamp));
 			}
 			else
 			{
-				if(bTuneInProgress && tuneThreadIdIsValid)
-				{
-					// if previous tune was Async and next tune app changed the configuration
-					// safe to check and join the thread 
-					void* status;
-	                                INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
-	                                pthread_join(tuneThreadId, &status);
-	                                bTuneInProgress = false;
-	                                tuneThreadIdIsValid = false;
-				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
-				delete [] url;
-				if (contentType)
-				{
-					delete[] contentType;
-				}
+			}
 
-				if (strTraceId)
-				{
-					delete[] strTraceId;
-				}
+			delete [] url;
+			if (contentType)
+			{
+				delete[] contentType;
+			}
+			if (strTraceId)
+			{
+				delete[] strTraceId;
 			}
 		
 			break;
@@ -908,7 +825,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetParallelPlaylistRefresh(valueAsBoolean);
 					break;
 				case ePARAM_ASYNCTUNE:
-					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
+					if (valueAsBoolean == true)
+					{
+						privObj->_aamp->EnableAsyncOperation();
+					}
 					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);
@@ -1033,7 +953,18 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj([](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->SetRate(AAMP_NORMAL_PLAY_RATE);
+							}, (void *) privObj->_aamp));
+	}
+	else
+	{
+		privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
+	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1085,7 +1016,18 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	privObj->_aamp->SetRate(0);
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj([](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->SetRate(0);
+							}, (void *) privObj->_aamp));
+	}
+	else
+	{
+		privObj->_aamp->SetRate(0);
+	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1143,7 +1085,18 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
 		double newSeekPos = JSValueToNumber(ctx, arguments[0], exception);
 		bool keepPaused = (argumentCount == 2)? JSValueToBoolean(ctx, arguments[1]) : false;
 
-		privObj->_aamp->Seek(newSeekPos, keepPaused);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj([newSeekPos, keepPaused](void *data)
+								{
+									PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+									instance->Seek(newSeekPos, keepPaused);
+								}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->Seek(newSeekPos, keepPaused);
+		}
 	}
 	else
 	{
@@ -1521,7 +1474,18 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= 0)
 		{
-			privObj->_aamp->SetAudioTrack(index);
+			if (privObj->_aamp->GetAsyncTuneConfig())
+			{
+				privObj->_aamp->ScheduleTask(AsyncTaskObj([index](void *data)
+									{
+										PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+										instance->SetAudioTrack(index);
+									}, (void *) privObj->_aamp));
+			}
+			else
+			{
+				privObj->_aamp->SetAudioTrack(index);
+			}
 		}
 		else
 		{
@@ -1695,7 +1659,19 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 	if (argumentCount == 1)
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], exception);
-		privObj->_aamp->SetLanguage(lang);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			std::string language = std::string(lang);
+			privObj->_aamp->ScheduleTask(AsyncTaskObj([language](void *data)
+								{
+									PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+									instance->SetLanguage(language.c_str());
+								}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetLanguage(lang);
+		}
 		delete[] lang;
 	}
 	else
@@ -1761,7 +1737,18 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 		{
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);
 		}
-		privObj->_aamp->SetRate(rate, overshootCorrection);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj([rate, overshootCorrection](void *data)
+								{
+									PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+									instance->SetRate(rate, overshootCorrection);
+								}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetRate(rate, overshootCorrection);
+		}
 	}
 	else
 	{
@@ -2673,7 +2660,19 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 	if (argumentCount == 1)
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], NULL);
-		privObj->_aamp->SetAuxiliaryLanguage(std::string(lang));
+		std::string language = std::string(lang);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj([language](void *data)
+								{
+									PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+									instance->SetAuxiliaryLanguage(language);
+								}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetAuxiliaryLanguage(language);
+		}
 		delete[] lang;
 	}
 	else

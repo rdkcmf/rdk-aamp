@@ -92,7 +92,8 @@
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),
+	mAsyncRunning(false)
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -114,6 +115,10 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
+	if (gpGlobalConfig->mAsyncTuneConfig == eTrueState)
+	{
+		EnableAsyncOperation();
+	}
 }
 
 /**
@@ -123,6 +128,13 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
 	if (aamp)
 	{
+		if (mAsyncRunning)
+		{
+			// Before stop, clear up any remaining commands in queue
+			RemoveAllTasks();
+			aamp->DisableDownloads();
+			AcquireExLock();
+		}
 		PrivAAMPState state;
 		aamp->GetState(state);
 		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
@@ -130,12 +142,24 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			//Avoid stop call since already stopped
 			aamp->Stop();
 		}
+		if (mAsyncRunning)
+		{
+			//Release lock
+			ReleaseExLock();
+		}
 		delete aamp;
 		aamp = NULL;
 	}
 	if (mInternalStreamSink)
 	{
 		delete mInternalStreamSink;
+	}
+
+	// Stop the async thread, queue will be cleared during Stop
+	if (mAsyncRunning)
+	{
+		mAsyncRunning = false;
+		StopScheduler();
 	}
 
 	bool isLastPlayerInstance = !PrivateInstanceAAMP::IsActiveInstancePresent();
@@ -171,12 +195,24 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 {
 	if (aamp)
 	{
+		if (mAsyncRunning)
+		{
+			// Before stop, clear up any remaining commands in queue
+			RemoveAllTasks();
+			aamp->DisableDownloads();
+			AcquireExLock();
+		}
 		PrivAAMPState state;
 		aamp->GetState(state);
 
 		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
 		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
+			if (mAsyncRunning)
+			{
+				ReleaseExLock();
+				aamp->EnableDownloads();
+			}
 			return;
 		}
 
@@ -194,6 +230,13 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 
 		AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 		aamp->Stop();
+
+		if (mAsyncRunning)
+		{
+			//Release lock
+			ReleaseExLock();
+			// EnableDownloads() not called, because it will be called in aamp->Stop()
+		}
 	}
 }
 
@@ -229,6 +272,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 	}
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
+
 }
 
 
@@ -239,7 +283,17 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
  */
 void PlayerInstanceAAMP::detach()
 {
+	if (mAsyncRunning)
+	{
+		//Acquire lock
+		AcquireExLock();
+	}
 	aamp->detach();
+	if (mAsyncRunning)
+	{
+		//Release lock
+		ReleaseExLock();
+	}
 }
 
 /**
@@ -1541,17 +1595,6 @@ void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 }
 
 /**
- *   @brief Set Async Tune Configuration
- *   @param[in] bValue - true if async tune enabled
- *
- *   @return void
- */
-void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
-{
-	aamp->SetAsyncTuneConfig(bValue);
-}
-
-/**
  *   @brief Get Async Tune configuration
  *
  *   @return bool - true if config set
@@ -1998,6 +2041,24 @@ void PlayerInstanceAAMP::EnableContentRestrictions()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL();
 	aamp->EnableContentRestrictions();
+}
+
+/**
+ *   @brief Enable async operation and initialize resources
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::EnableAsyncOperation()
+{
+	// Check if global configuration is set to false
+	// Additional check added here, since this API can be called from jsbindings/native app
+	if (gpGlobalConfig->mAsyncTuneConfig != eFalseState && !mAsyncRunning)
+	{
+		AAMPLOG_WARN("%s:%d Enable async tune operation!!", __FUNCTION__, __LINE__);
+		mAsyncRunning = true;
+		StartScheduler();
+		aamp->SetAsyncTuneConfig(true);
+	}
 }
 
 /**
