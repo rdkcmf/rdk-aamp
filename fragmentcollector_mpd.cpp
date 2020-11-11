@@ -7574,11 +7574,6 @@ void PrivateStreamAbstractionMPD::Stop()
 	// There is a chance fragment collector is processing StreamSelection() which can change the mNumberOfTracks
 	// and Enabled() status of MediaTrack momentarily.
 	// Call AbortWaitForCachedAndFreeFragment() to unblock collector thread from WaitForFreeFragmentAvailable
-#ifdef AAMP_MPD_DRM
-	/* Abort all the curl request - including license request
-	 * while calling stop */
-	aamp->mDRMSessionManager->setCurlAbort(true);
-#endif
 	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
 	{
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
