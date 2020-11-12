@@ -732,7 +732,7 @@ public:
 	 *
 	 *   @return number of profiles.
 	 */
-	int GetProfileCount() {
+	virtual int GetProfileCount() {
 		return mAbrManager.getProfileCount();
 	}
 

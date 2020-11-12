@@ -7264,9 +7264,18 @@ int PrivateStreamAbstractionMPD::GetProfileCount()
 	}
 	else
 	{
-		ret = mContext->GetProfileCount();
+		ret = mContext->GetABRManager().getProfileCount();
 	}
 	return ret;
+}
+
+/**
+ * @brief Gets number of profiles
+ * @retval number of profiles
+ */
+int StreamAbstractionAAMP_MPD::GetProfileCount()
+{
+	return mPriv->GetProfileCount();
 }
 
 /**
