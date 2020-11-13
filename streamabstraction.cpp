@@ -560,7 +560,7 @@ bool MediaTrack::InjectFragment()
 #endif
 #endif
 				}
-				if (eTRACK_VIDEO == type)
+				if (eTRACK_VIDEO == type && GetContext()->GetProfileCount())
 				{
 					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
