@@ -1012,7 +1012,7 @@ static void ProcessConfigEntry(std::string cfg)
 		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{
-			gpGlobalConfig->bReportVideoPTS = true;
+			gpGlobalConfig->bReportVideoPTS = eTrueState;
 			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
 		else if (cfg.compare("decoderunavailablestrict") == 0)
@@ -1478,6 +1478,11 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
 		}
+		else if(ReadConfigNumericHelper(cfg, "enableSeekableRange=", value))
+		{
+			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
+			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -1899,6 +1904,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mCacheMaxSize(0)
 	, midFragmentSeekCache(false)
+	, mEnableSeekableRange(false), mReportVideoPTS(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -1948,9 +1954,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	gActivePrivAAMP_t gAAMPInstance = { this, false, 0 };
 	gActivePrivAAMPs.push_back(gAAMPInstance);
 	pthread_mutex_unlock(&gMutex);
-	discardEnteringLiveEvt = false;
-	licenceFromManifest = false;
-	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
 	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
@@ -1969,78 +1972,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
 	pthread_mutex_init(&mMutexPlaystart, NULL);
-	mNetworkProxy = NULL;
-	mLicenseProxy = NULL;
-	mCdaiObject = NULL;
-	mAdPrevProgressTime = 0;
-	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
-	if(gpGlobalConfig->rampdownLimit >= 0)
-	{
-		mRampDownLimit = gpGlobalConfig->rampdownLimit;
-	}
-	if(gpGlobalConfig->minBitrate > 0)
-	{
-		mMinBitrate = gpGlobalConfig->minBitrate;
-	}
-	if(gpGlobalConfig->maxBitrate > 0)
-	{
-		mMaxBitrate = gpGlobalConfig->maxBitrate;
-	}
-	if(gpGlobalConfig->segInjectFailCount > 0)
-	{
-		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
-	}
-	if(gpGlobalConfig->drmDecryptFailCount > 0)
-	{
-		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
-	}
-	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
-	{
-		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
-	}
-	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
-	{
-		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
-	}
-	if (gpGlobalConfig->ckLicenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
-	}
-	if (gpGlobalConfig->licenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
-	}
-	
-	if(gpGlobalConfig->disableEC3 != eUndefinedState)
-	{
-		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
-	}
-	if(gpGlobalConfig->disableATMOS != eUndefinedState)
-	{
-		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
-	}
-	if(gpGlobalConfig->forceEC3 != eUndefinedState)
-	{
-		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
-	}
-	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
-	{
-		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
-	}
-	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
-	{
-		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
-	}
-	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
-	{
-		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
-	}
-	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
-	{
-		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
-	}
-	preferredLanguagesList.push_back("en");
+	ConfigureWithLocalOptions();
+        preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -2159,9 +2093,10 @@ void PrivateInstanceAAMP::ReportProgress(void)
 		long long videoPTS = -1;
 		double bufferedDuration = 0.0;
 
-		//If tsb is not available for linear send -1  for start and end
+		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
-		if( mContentType == ContentType_LINEAR && !mTSBEnabled)
+		// Override above logic if mEnableSeekableRange is set, used by third-party apps
+		if (!mEnableSeekableRange && (mContentType == ContentType_LINEAR && !mTSBEnabled))
 		{
 			start = -1;
 			end = -1;
@@ -2182,7 +2117,7 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			}
 		}
 
-		if(gpGlobalConfig->bReportVideoPTS)
+		if(mReportVideoPTS)
 		{
 				/*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
 				**In order to report PTS of video currently being played out, we add the base PTS
@@ -9630,7 +9565,6 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 	}
 }
 
-
 /**
  *   @brief Set video rectangle property
  *
@@ -9649,7 +9583,115 @@ void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 	}
 }
 
+/**
+ *   @brief Enable seekable range values in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
+{
+	if(gpGlobalConfig->mEnableSeekableRange == eUndefinedState)
+	{
+		mEnableSeekableRange = enabled;
+	}
+	else
+	{
+		mEnableSeekableRange = (bool)gpGlobalConfig->mEnableSeekableRange;
+	}
+}
 
+/**
+ *   @brief Enable video PTS reporting in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
+{
+	if(gpGlobalConfig->bReportVideoPTS == eUndefinedState)
+	{
+		mReportVideoPTS = enabled;
+	}
+	else
+	{
+		mReportVideoPTS = (bool)gpGlobalConfig->bReportVideoPTS;
+	}
+}
+
+void PrivateInstanceAAMP::ConfigureWithLocalOptions()
+{
+	if(gpGlobalConfig->rampdownLimit >= 0)
+	{
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+	}
+	if(gpGlobalConfig->minBitrate > 0)
+	{
+		mMinBitrate = gpGlobalConfig->minBitrate;
+	}
+	if(gpGlobalConfig->maxBitrate > 0)
+	{
+		mMaxBitrate = gpGlobalConfig->maxBitrate;
+	}
+	if(gpGlobalConfig->segInjectFailCount > 0)
+	{
+		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+	}
+	if(gpGlobalConfig->drmDecryptFailCount > 0)
+	{
+		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+	}
+	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
+	{
+		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
+	}
+	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
+	}
+	if (gpGlobalConfig->ckLicenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
+	}
+	if (gpGlobalConfig->licenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
+	if(gpGlobalConfig->disableEC3 != eUndefinedState)
+	{
+		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
+	}
+	if(gpGlobalConfig->disableATMOS != eUndefinedState)
+	{
+		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
+	}
+	if(gpGlobalConfig->forceEC3 != eUndefinedState)
+	{
+		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
+	}
+	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	{
+		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
+	}
+	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+	}
+	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
+	}
+	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)
+	{
+		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;
+	}
+	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
+	{
+		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
+	}
+}
 /**
  * @brief Set Maximum Cache Size for playlist store
  *

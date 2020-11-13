@@ -1143,18 +1143,17 @@ public:
 	 const char* GetPreferredLanguages();
 
 	/**
-	*   @brief To set the vod-tune-event according to the player.
-	*
-	*   @param[in] preferred tune event type
-	*/
+	 *   @brief To set the vod-tune-event according to the player.
+	 *
+	 *   @param[in] preferred tune event type
+	 */
 	void SetTuneEventConfig(int tuneEventType);
 
-
 	/**
-	*   @brief Set video rectangle property
-	*
-	*   @param[in] video rectangle property
-	*/
+	 *   @brief Set video rectangle property
+	 *
+	 *   @param[in] video rectangle property
+	 */
 	void EnableVideoRectangle(bool rectProperty);
 
 	/*
@@ -1163,7 +1162,7 @@ public:
 	 */
 	void SetRampDownLimit(int limit);
 
-		/*
+	/*
 	 * @brief Set Initial profile ramp down limit.
 	 *
 	 */
@@ -1290,6 +1289,20 @@ public:
 	 *       @return void
 	*/
 	void SetMaxPlaylistCacheSize(int cacheSize);
+
+	/**
+	 *   @brief Enable seekable range values in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void EnableSeekableRange(bool enabled);
+
+	/**
+	 *   @brief Enable video PTS reporting in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void SetReportVideoPTS(bool enabled);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
