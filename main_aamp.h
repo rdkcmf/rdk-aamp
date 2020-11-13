@@ -1144,13 +1144,14 @@ public:
 	 *
 	 */
 	 const char* GetPreferredLanguages();
+
 	/*
 	 * @brief Set profile ramp down limit.
 	 *
 	 */
 	void SetRampDownLimit(int limit);
 
-		/*
+	/*
 	 * @brief Set Initial profile ramp down limit.
 	 *
 	 */
@@ -1277,6 +1278,20 @@ public:
 	 *       @return void
 	*/
 	void SetMaxPlaylistCacheSize(int cacheSize);
+
+	/**
+	 *   @brief Enable seekable range values in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void EnableSeekableRange(bool enabled);
+
+	/**
+	 *   @brief Enable video PTS reporting in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void SetReportVideoPTS(bool enabled);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

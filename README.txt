@@ -118,8 +118,8 @@ decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in live environment to test Dolby track.
 disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in live environment to disable Dolby track.
-		//This flag makes AAC preferred over ATMOS and DD+
-		//Default priority of audio selction is ATMOS, DD+ then AAC
+	//This flag makes AAC preferred over ATMOS and DD+
+	//Default priority of audio selction is ATMOS, DD+ then AAC
 disableATMOS=1 //For playback makes DD+ or AAC preferred over ATMOS (EC+3)
 
 live-offset    live offset time in seconds, aamp starts live playback this much time before the live point
@@ -186,17 +186,17 @@ useLinearSimulator Enable linear simulator for testing purpose, simulate VOD ass
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 curlHeader=1 enable curl header response logging on curl errors.  Default is false (disabled).
 customHeader=<customHeaderString> custom header string data to be appended to curl request
-        Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
+Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
 
 langcodepref=<X>
-	0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
-	1: ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE language codes normalized to 3-character iso639-2 bibliographic encoding(i.e. "ger")
-	2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
-	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
+0: NO_LANGCODE_PREFERENCE (pass through language codes from manifest - default)
+1: ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE language codes normalized to 3-character iso639-2 bibliographic encoding(i.e. "ger")
+2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
+3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
@@ -208,6 +208,8 @@ maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LON
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
+enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
+reportvideopts if present, current video pts is reported via progress events
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

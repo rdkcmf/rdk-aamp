@@ -243,6 +243,8 @@ enum ConfigParamType
 	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
 	ePARAM_AUTHTOKEN,
 	ePARAM_MAX_PLAYLIST_CACHE_SIZE,
+	ePARAM_ENABLE_SEEKABLE_RANGE,
+	ePARAM_REPORT_VIDEO_PTS,
 	ePARAM_MAX_COUNT
 };
 
@@ -304,6 +306,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_AUTHTOKEN, "authToken"},
 	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
+	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
+	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -743,6 +747,8 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_NATIVE_CC:
 			case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
 			case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
+			case ePARAM_ENABLE_SEEKABLE_RANGE:
+			case ePARAM_REPORT_VIDEO_PTS:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -887,6 +893,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
 					privObj->_aamp->SetMaxPlaylistCacheSize((int) valueAsNumber);
+					break;
+				case ePARAM_ENABLE_SEEKABLE_RANGE:
+					privObj->_aamp->EnableSeekableRange(valueAsBoolean);
+					break;
+				case ePARAM_REPORT_VIDEO_PTS:
+					privObj->_aamp->SetReportVideoPTS(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

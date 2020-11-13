@@ -1838,5 +1838,27 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 }
 
 /**
+ *   @brief Enable seekable range values in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PlayerInstanceAAMP::EnableSeekableRange(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->EnableSeekableRange(enabled);
+}
+
+/**
+ *   @brief Enable video PTS reporting in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PlayerInstanceAAMP::SetReportVideoPTS(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetReportVideoPTS(enabled);
+}
+
+/**
  * @}
  */
