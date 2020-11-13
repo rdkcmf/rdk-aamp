@@ -147,6 +147,8 @@ segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/fai
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
+enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
+reportvideopts if present, current video pts is reported via progress events
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

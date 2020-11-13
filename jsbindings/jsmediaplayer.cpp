@@ -246,6 +246,8 @@ enum ConfigParamType
 	ePARAM_USE_DESCRIPTIVE_TRACK_NAME,
 	ePARAM_AUTHTOKEN,
 	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
+	ePARAM_ENABLE_SEEKABLE_RANGE,
+	ePARAM_REPORT_VIDEO_PTS,
 	ePARAM_MAX_COUNT
 };
 
@@ -309,6 +311,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_DESCRIPTIVE_TRACK_NAME, "descriptiveTrackName" },
 	{ ePARAM_AUTHTOKEN, "authToken"},
 	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
+	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
+	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -800,6 +804,8 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_ENABLE_VIDEO_RECTANGLE:
 			case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
 			case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
+			case ePARAM_ENABLE_SEEKABLE_RANGE:
+			case ePARAM_REPORT_VIDEO_PTS:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -951,7 +957,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetSessionToken(valueAsString);
 					delete[] valueAsString;
 					break;
-					
+				case ePARAM_ENABLE_SEEKABLE_RANGE:
+					privObj->_aamp->EnableSeekableRange(valueAsBoolean);
+					break;
+				case ePARAM_REPORT_VIDEO_PTS:
+					privObj->_aamp->SetReportVideoPTS(valueAsBoolean);
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
