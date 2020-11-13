@@ -2625,6 +2625,19 @@ public:
 	 */
 	void EnableVideoRectangle(bool rectProperty);
 
+	/**
+	 *   @brief Enable seekable range values in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void EnableSeekableRange(bool enabled);
+
+	/**
+	 *   @brief Enable video PTS reporting in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void SetReportVideoPTS(bool enabled);
 
 private:
 
@@ -2680,6 +2693,13 @@ private:
 	 *   @return tuple containing the modified URL and DRM init data
 	 */
 	const std::tuple<std::string, std::string> ExtractDrmInitData(const char *url);
+
+	/**
+	 *   @brief Set local configurations to variables
+	 *
+	 *   @return void
+	 */
+	void ConfigureWithLocalOptions();
 
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
@@ -2741,5 +2761,7 @@ private:
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
 	int mCacheMaxSize;
+	bool mEnableSeekableRange;
+	bool mReportVideoPTS;
 };
 #endif // PRIVAAMP_H

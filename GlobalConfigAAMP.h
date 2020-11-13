@@ -208,7 +208,7 @@ public:
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
 	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
-	bool bReportVideoPTS;                    /**< Enables Video PTS reporting */
+	TriState bReportVideoPTS;                    /**< Enables Video PTS reporting */
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
@@ -238,6 +238,7 @@ public:
 	bool midFragmentSeekEnabled;    /*** Enables Mid Fragment Seek functionality ***/
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
+	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 public:
 
 	/**
