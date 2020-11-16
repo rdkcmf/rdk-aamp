@@ -5204,7 +5204,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 	if( audioAdaptationSet )
 	{
 		std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
-		aamp->UpdateAudioLanguageSelection( lang.c_str() );
+		aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
 		if(desiredRepIdx != -1 )
 		{
 			audioRepresentationIndex = desiredRepIdx;
