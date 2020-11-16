@@ -7479,16 +7479,20 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 /**
  * @brief Update audio language selection
  * @param lang string corresponding to language
+ * @param overwriteLangFlag - flag to check for overwriting user setting
  */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
+void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag)
 {
-	strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	if(overwriteLangFlag)
+	{
+		strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
+		language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	}
 	noExplicitUserLanguageSelection = false;
 
 	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
 	{
-		if(strncmp(mLanguageList[cnt],language,MAX_LANGUAGE_TAG_LENGTH) == 0)
+		if(strncmp(mLanguageList[cnt],lang,MAX_LANGUAGE_TAG_LENGTH) == 0)
 		{
 			mCurrentLanguageIndex = cnt; // needed?
 			break;
