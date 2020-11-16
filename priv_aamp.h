@@ -1757,9 +1757,10 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
+	 *   @param[in] overwriteLangFlag - flag to enable overwrite language
 	 *   @return void
 	 */
-	void UpdateAudioLanguageSelection(const char *lang);
+	void UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag=true );
 
 	/**
 	 *   @brief Update subtitle language selection
