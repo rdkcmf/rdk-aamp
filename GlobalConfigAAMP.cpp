@@ -80,7 +80,6 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #else
 	wifiCurlHeaderEnabled(false)
 #endif
-	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
