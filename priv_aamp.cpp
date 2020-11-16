@@ -9544,7 +9544,6 @@ bool PrivateInstanceAAMP::IsAuxiliaryAudioEnabled(void)
 	return !mAuxAudioLanguage.empty();
 }
 
-
 /**
  *   @brief Check if discontinuity processed in all tracks
  *
@@ -9747,7 +9746,18 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
 	}
-
+	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+	}
+	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
+	}
 }
 /**
  * EOF
