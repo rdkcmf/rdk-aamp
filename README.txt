@@ -208,8 +208,7 @@ maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LON
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
-disableWifiCurlHeader=1 Disble wifi custom curl header inclusion
-maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer appsource setup to complete
+disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
