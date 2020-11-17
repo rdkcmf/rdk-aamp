@@ -2319,6 +2319,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 	MediaTrackDiscontinuityState state = eDISCONTIUITY_FREE;
 	MediaTrack *track = GetMediaTrack(type);
 	MediaTrack *otherTrack = NULL;
+	bool bProcessFlag = false;
+
 	if (type == eTRACK_AUDIO)
 	{
 		otherTrack = GetMediaTrack(eTRACK_VIDEO);
@@ -2339,16 +2341,17 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 			bool isDiscontinuitySeen = mTrackState & state;
 			if (isDiscontinuitySeen)
 			{
+				double cachedDuration = 0;
+				bool isDiscontinuityPresent;
 				double duration = track->GetTotalInjectedDuration();
 				double otherTrackDuration = otherTrack->GetTotalInjectedDuration();
-				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f!",
-								__FUNCTION__, __LINE__, type, duration, otherTrackDuration, track->fragmentDurationSeconds);
+				double diff = otherTrackDuration - duration;
+				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f, diff:%f",
+								__FUNCTION__, __LINE__, type, duration, otherTrackDuration, track->fragmentDurationSeconds, diff);
 				if (otherTrackDuration >= duration)
 				{
 					//Check for future discontinuity
-					double diff = otherTrackDuration - duration;
-					double cachedDuration = 0;
-					bool isDiscontinuityPresent = otherTrack->CheckForFutureDiscontinuity(cachedDuration);
+					isDiscontinuityPresent = otherTrack->CheckForFutureDiscontinuity(cachedDuration);
 					if (isDiscontinuityPresent)
 					{
 						//Scenario - video wait on discontinuity, and audio has a future discontinuity
@@ -2363,31 +2366,49 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					}
 					// If discontinuity is not seen in future fragments or if the unblocked track has finished more than 2 * fragmentDurationSeconds,
 					// unblock this track
-					else if ((diff + cachedDuration) > (2 * track->fragmentDurationSeconds))
+					else if (((diff + cachedDuration) > (2 * track->fragmentDurationSeconds)))
 					{
 						AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
-						if (aamp->mUseRetuneForUnpairedDiscontinuity && type != eTRACK_AUDIO)
+						bProcessFlag = true;
+					}
+				}
+				// Current track injected duration goes very huge value with the below cases
+				// 1. When the EOS for earlier discontinuity missed to processing due to singular discontinuity or some edge case missing
+				// 2. When there is no EOS processed message for the previous discontinuity seen from the pipeline.
+				// In that case the diff value will go to negative and this CheckForMediaTrackInjectionStall() continuously called
+				// until stall happens from outside or explicitely aamp_stop() to be called from XRE or Apps,
+				// so need to control the stalling as soon as possible for the negative diff case from here.
+				else if ((diff < 0) && (abs(diff) > (2 * track->fragmentDurationSeconds)))
+				{
+					AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff is negative: %f, injectedDuration: %f)",
+							__FUNCTION__, __LINE__, type, diff, otherTrackDuration);
+					isDiscontinuityPresent = otherTrack->CheckForFutureDiscontinuity(cachedDuration); // called just to get the value of cachedDuration of the track.
+					bProcessFlag = true;
+				}
+
+				if (bProcessFlag)
+				{
+					if (aamp->mUseRetuneForUnpairedDiscontinuity && type != eTRACK_AUDIO)
+					{
+						if(aamp->GetBufUnderFlowStatus())
 						{
-							if(aamp->GetBufUnderFlowStatus())
-							{
-								AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
-										__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
-								aamp->ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, (MediaType) type);
-							}
-							else
-							{
-								//Check for PTS change for 1 second
-								aamp->CheckForDiscontinuityStall((MediaType) type);
-							}
+							AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+									__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
+							aamp->ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, (MediaType) type);
 						}
 						else
 						{
-							AAMPLOG_WARN("%s:%d Ignoring discontinuity in track:%d since other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
-									__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
-							mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
-							pthread_cond_signal(&mStateCond);
+							//Check for PTS change for 1 second
+							aamp->CheckForDiscontinuityStall((MediaType) type);
 						}
+					}
+					else
+					{
+						AAMPLOG_WARN("%s:%d Ignoring discontinuity in track:%d since other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
+						mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
+						pthread_cond_signal(&mStateCond);
 					}
 				}
 			}
