@@ -1461,15 +1461,14 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 		if (isContentMetadataAvailable)
 		{
-			// Comcast stream, add Comcast headers
+#ifdef AAMP_RFC_ENABLED
+			// Content metadata is available, Add corresponding headers 
 			if (customHeaders.empty())
 			{
 				// Not using custom headers, These headers will also override any headers from the helper
 				licenseRequest.headers.clear();
 			}
-
-			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_ACCEPT, {COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE}});
-			licenseRequest.headers.insert({COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE, {COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE}});
+#endif
 		}
 
 		licenseServerProxy = aampInstance->GetLicenseReqProxy();
