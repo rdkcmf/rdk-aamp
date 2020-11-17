@@ -145,6 +145,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
 )
+
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp)
 endif()
@@ -188,6 +189,13 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-multichar -std=c++11 -Wno-non-virtual-dtor -Werror=effc++")
+
+if (CMAKE_AAMP_RFC_REQUIRED)
+	message("AAMP RFC set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RFC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
+	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
+endif()
 
 if(CMAKE_IARM_MGR)
 	message("CMAKE_IARM_MGR set")
@@ -377,11 +385,6 @@ elseif(CMAKE_CDM_DRM)
     endif()
 endif()
 
-if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
-        message("AAMP RFC set")
-        set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
-        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
-endif()
 
 if (CMAKE_RDK_CC_ENABLED)
 	message("CMAKE_RDK_CC_ENABLED set")
@@ -464,8 +467,12 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
-  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
+
+if (CMAKE_AAMP_RFC_REQUIRED)
+install(FILES AampRfc.h DESTINATION include)
+endif()
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
 message("LIBAAMP_SOURCES is ${LIBAAMP_SOURCES}")

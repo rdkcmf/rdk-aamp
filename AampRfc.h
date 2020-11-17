@@ -24,15 +24,8 @@
 #ifndef _AAMP_RFC_H
 #define _AAMP_RFC_H
 
+#ifdef AAMP_RFC_ENABLED
 namespace RFCSettings{ 
-
-    /**
-     * @brief   Fetch Zero Drm Host URL  from RFC
-     * @param   None
-     * @retval  std::string host value
-     */
-    std::string getZeroDrmHostUrl();
-
     /**
      * @brief   Fetch License Request Header AcceptValue from RFC
      * @param   None
@@ -48,25 +41,19 @@ namespace RFCSettings{
     std::string getLRHContentType();
 
     /**
-     * @brief   Fetch QA DRM License Server from RFC
+     * @brief   get the scheme id uri for dai streams
      * @param   None
-     * @retval  std::string host value
+     * @retval  std::string scheme id uri
      */
-    std::string getQADrmLicenseServer();
+    std::string getSchemeIdUriDaiStream();
 
     /**
-     * @brief   Fetch DRM License Server from RFC
+     * @brief   get the scheme id uri for vss streams
      * @param   None
-     * @retval  std::string host value
+     * @retval  std::string scheme id uri
      */
-    std::string getProdDrmLicenseServer();
-
-    /**
-     * @brief   Fetch Rogers DRM License Server from RFC
-     * @param   None
-     * @retval  std::string host value
-     */
-    std::string getRogersDrmLicenseServer();
+    std::string getSchemeIdUriVssStream();
 
 }
+#endif
 #endif
