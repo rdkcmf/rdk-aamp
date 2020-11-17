@@ -8165,7 +8165,6 @@ void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
     {
             mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
     }
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d GST Internal Stream Error Retune Config [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
 }
 
 /**
@@ -8189,7 +8188,7 @@ void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
 {
 	mUseRetuneForGSTInternalError = bValue;
-	AAMPLOG_INFO("%s:%d Retune For GST Internal Stream Error Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
+	AAMPLOG_INFO("%s:%d GST Retune Config from App : %d", __FUNCTION__, __LINE__, bValue);
 }
 
 /**
