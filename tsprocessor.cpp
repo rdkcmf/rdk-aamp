@@ -124,6 +124,9 @@ void print_nop(const char *format, ...){}
 #define PES_PAYLOAD_LENGTH(pesStart) (pesStart[4]<<8|pesStart[5])
 #define MAX_FIRST_PTS_OFFSET (45000) /*500 ms*/
 
+#define DESCRIPTOR_TAG_SUBTITLE 0x59
+#define DESCRIPTOR_TAG_AC3 0x6A
+#define DESCRIPTOR_TAG_EAC3 0x7A
 //#define DEBUG_DEMUX_TRACK 1
 #ifdef DEBUG_DEMUX_TRACK
 #define DEBUG_DEMUX(a...) { \
@@ -1054,10 +1057,48 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 				WARNING("Warning: RecordContext: pmt contains more than %d video PIDs", MAX_PIDS);
 			}
 			break;
+		case eSTREAM_TYPE_PES_PRIVATE:
+		{
+			/*Check descriptors for audio in private PES*/
+			bool isAudio = false;
+			if (len > 2)
+			{
+				int descIdx, maxIdx;
+				int descrTag, descrLen;
+
+				descIdx = 5;
+				maxIdx = descIdx + len;
+
+				while (descIdx < maxIdx)
+				{
+					descrTag = programInfo[descIdx];
+					descrLen = programInfo[descIdx + 1];
+					NOTICE("descrTag 0x%x descrLen %d", descrTag, descrLen);
+					if (descrTag == DESCRIPTOR_TAG_AC3)
+					{
+						NOTICE("descrTag 0x%x descrLen %d. marking as audio component", descrTag, descrLen);
+						isAudio = true;
+						audioFormat = FORMAT_AUDIO_ES_AC3;
+						break;
+					}
+					if (descrTag == DESCRIPTOR_TAG_EAC3)
+					{
+						NOTICE("descrTag 0x%x descrLen %d. marking as audio component", descrTag, descrLen);
+						isAudio = true;
+						audioFormat = FORMAT_AUDIO_ES_EC3;
+						break;
+					}
+					descIdx += (2 + descrLen);
+				}
+			}
+			if (!isAudio)
+			{
+				break;
+			}
+		}
+		//no break - intentional fall-through. audio detected in private PES
 		case eSTREAM_TYPE_MPEG1_AUDIO:
 		case eSTREAM_TYPE_MPEG2_AUDIO:
-		// TODO : Add logic to detect the streamType for 0x06
-		case eSTREAM_TYPE_PES_PRIVATE:
 		case eSTREAM_TYPE_AAC_ADTS:
 		case eSTREAM_TYPE_AAC_LATM:
 		case eSTREAM_TYPE_ATSC_AC3:
@@ -1140,7 +1181,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 	{
 		videoFormat = getStreamFormatForCodecType(videoComponents[0].elemStreamType);
 	}
-	if (audioComponentCount > 0)
+	if (audioComponentCount > 0 && (eSTREAM_TYPE_PES_PRIVATE != audioComponents[0].elemStreamType))
 	{
 		audioFormat = getStreamFormatForCodecType(audioComponents[0].elemStreamType);
 	}
@@ -1961,6 +2002,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 	bool isTrickMode = !( 1.0 == m_playRate);
 	bool notifyPeerBasePTS = false;
 	bool ret = true;
+	bool basePtsUpdatedFromCurrentSegment = false;
 
 	if (m_vidDemuxer && ((trackToDemux == ePC_Track_Both) || (trackToDemux == ePC_Track_Video)))
 	{
@@ -2105,11 +2147,15 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 				}
 				notifyPeerBasePTS = false;
 			}
-			if (ptsError && !dsmccDemuxerUsed)
+			if (ptsError && !dsmccDemuxerUsed && !basePtsUpdatedFromCurrentSegment)
 			{
 				WARNING("PTS error, discarding segment");
 				ret = false;
 				break;
+			}
+			if (basePTSUpdated)
+			{
+				basePtsUpdatedFromCurrentSegment = true;
 			}
 		}
 		else
