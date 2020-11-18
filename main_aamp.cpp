@@ -8602,6 +8602,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&drmParserMutex, NULL);
 #endif
 	SetAsyncTuneConfig(false);
+	preferredLanguagesList.push_back("en");
 }
 
 
