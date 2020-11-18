@@ -1971,6 +1971,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&mMutexPlaystart, NULL);
 	SetAsyncTuneConfig(false);
 	ConfigureWithLocalOptions();
+	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
