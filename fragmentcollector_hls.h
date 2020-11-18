@@ -468,6 +468,8 @@ public:
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts);
 
+	/// Function to get default mediaInfo index for a track type
+	int GetMediaIndexForDefaultLanguage(TrackType type);
 	/// Function to get output format for track type
 	StreamOutputFormat GetStreamOutputFormatForTrack(TrackType type);
 
