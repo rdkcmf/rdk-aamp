@@ -1916,7 +1916,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
-	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
+	if (!gpGlobalConfig->mSubtitleLanguage.empty()) strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -9383,9 +9383,19 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				SetCCStatus(true);
 				
 				//TODO: Effective handling between subtitle and CC tracks
-				// SetPreferredTextTrack will not have any impact on CC rendering if already active
-				SetPreferredTextTrack(track);
-				RefreshSubtitles();
+				int textTrack = mpStreamAbstractionAAMP->GetTextTrack();
+				AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
+				if (trackId != textTrack)
+				{
+					SetPreferredTextTrack(track);
+					discardEnteringLiveEvt = true;
+					
+					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					TeardownStream(false);
+					TuneHelper(eTUNETYPE_SEEK);
+
+					discardEnteringLiveEvt = false;
+				}
 			}
 		}
 	}
@@ -9431,7 +9441,7 @@ int PrivateInstanceAAMP::GetTextTrack()
 		}
 	}
 #endif
-	if (mpStreamAbstractionAAMP && idx == -1)
+	if (mpStreamAbstractionAAMP && idx == -1 && !subtitles_muted)
 	{
 		idx = mpStreamAbstractionAAMP->GetTextTrack();
 	}
