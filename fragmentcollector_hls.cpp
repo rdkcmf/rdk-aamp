@@ -3420,6 +3420,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			}
 			else
 			{
+				// First check for preferred language
 				HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 				const char *group = streamInfo->subtitles;
 				if (group)
@@ -3441,8 +3442,15 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 						}
 					}
 				}
+
+				// Then check for the playlist DEFAULT language
+				if (mediaInfoIndex == -1)
+				{
+					mediaInfoIndex = GetMediaIndexForDefaultLanguage(trackType);
+				}
 			}
-			if (mediaInfoIndex != -1)
+
+			if (mediaInfoIndex >= 0)
 			{
 				playlistURI = mediaInfo[mediaInfoIndex].uri;
 				mTextTrackIndex = std::to_string(mediaInfoIndex);
@@ -7061,6 +7069,54 @@ void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 	seekPosition = secondsRelativeToTuneTime;
 }
 
+/***************************************************************************
+* @fn GetMediaIndexForDefaultLanguage
+* @brief Function to get matching mediaInfo index for the manifest default lang
+*
+* @param[in] type track type
+* @return int mediaInfo index of default track
+***************************************************************************/
+int StreamAbstractionAAMP_HLS::GetMediaIndexForDefaultLanguage(TrackType type)
+{
+	int index = -1;
+	int first_index = -1;
+	const char *group = NULL;
+	HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
+
+	if (type == eTRACK_SUBTITLE)
+	{
+		group = streamInfo->subtitles;
+	}
+
+	if (group)
+	{
+		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d track [%d] group [%s]", __FUNCTION__, __LINE__, type, group);
+		for (int i = 0; i < mMediaCount; i++)
+		{
+			if (this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
+			{
+				//Save first index in case there's no default
+				if (first_index == -1)
+				{
+					first_index = i;
+				}
+				if (this->mediaInfo[i].isDefault)
+				{
+					//Found media tag with preferred language
+					index = i;
+					break;
+				}
+			}
+		}
+	}
+
+	if (index == -1)
+	{
+		index = first_index;
+	}
+
+	return index;
+}
 
 /***************************************************************************
 * @fn GetStreamOutputFormatForAudio
