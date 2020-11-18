@@ -128,7 +128,7 @@ static const char *mMediaFormatName[] =
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
 //Upper and lower limit for dash drm sessions
-#define MIN_DASH_DRM_SESSIONS 2
+#define MIN_DASH_DRM_SESSIONS 3
 #define MAX_DASH_DRM_SESSIONS 30
 
 //#define PLACEMENT_EMULATION 1    //Only for Dev testing. Can remove later.

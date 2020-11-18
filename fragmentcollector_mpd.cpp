@@ -677,7 +677,6 @@ private:
 	std::thread *deferredDRMRequestThread;
 	bool deferredDRMRequestThreadStarted;
 	bool mAbortDeferredLicenseLoop;
-	bool mIsVssStream;
 	bool drmSessionThreadStarted;
 	dash::mpd::IMPD *mpd;
 	MediaStreamContext *mMediaStreamContext[AAMP_TRACK_COUNT];
@@ -751,7 +750,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mPresentationOffsetDelay(0)
 	,mAvailabilityStartTime(0)
 	,mUpdateStreamInfo(false)
-	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mIsVssStream(false), mCommonKeyDuration(0)
+	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mCommonKeyDuration(0)
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
 {
 	this->aamp = aamp;
@@ -3199,7 +3198,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		{
 			if (aamp->mIsVSS)
 			{
-				mIsVssStream = CheckForVssTags();
 				std::string vssVirtualStreamId = GetVssVirtualStreamID();
 
 				if (!vssVirtualStreamId.empty())
@@ -3804,6 +3802,10 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			this->mpd = mpd;
 			mIsLiveManifest = !(mpd->GetType() == "static");
                         aamp->SetIsLive(mIsLiveManifest);
+			if(aamp->mIsVSS)
+			{
+				CheckForVssTags();
+			}
 			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
 				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
@@ -4663,7 +4665,7 @@ void PrivateStreamAbstractionMPD::StartDeferredDRMRequestThread(MediaType mediaT
 			deferTime = 0;
 		}
 
-		// Process all pending key ID requests
+		// Process all pending key ID requests from queue
 		while(!mPendingKeyIDs.empty())
 		{
 			std::string keyID = mPendingKeyIDs.front();
@@ -6092,7 +6094,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					if(mpdChanged)
 					{
 #ifdef AAMP_MPD_DRM
-						if(mIsVssStream)
+						if(aamp->mIsVSS)
 						{
 							std::vector<IPeriod*> vssPeriods;
 							// Collect only new vss periods from manifest
