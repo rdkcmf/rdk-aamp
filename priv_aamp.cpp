@@ -6581,7 +6581,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Underflow due to discontinuity handled", __FUNCTION__, __LINE__);
 			return;
 		}
-		else if (mpStreamAbstractionAAMP->IsStreamerStalled())
+		else if (mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->IsStreamerStalled())
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall", __FUNCTION__, __LINE__);
 			return;
