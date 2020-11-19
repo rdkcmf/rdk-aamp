@@ -80,6 +80,8 @@
 #define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
+#define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -234,6 +236,7 @@ public:
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
+	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 public:
 
 	/**
