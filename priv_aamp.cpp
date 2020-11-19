@@ -8794,10 +8794,11 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		if(gpGlobalConfig->midFragmentSeekEnabled)
+		if(gpGlobalConfig->midFragmentSeekEnabled && position != 0 )
 		{
-			//RDK-26957 Sending seekposition value to position value.
-			mStreamSink->SeekStreamSink(seek_pos_seconds, rate);
+			//RDK-26957 Adding midSeekPtsOffset to position value.
+			//Enables us to seek to the desired position in the mp4 fragment.
+			mStreamSink->SeekStreamSink(position + GetFirstPTS(), rate);
 		}
 		else
 		{
