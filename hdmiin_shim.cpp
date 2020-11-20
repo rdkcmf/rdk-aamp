@@ -136,23 +136,24 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 */
 void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 { // STUB
-	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
 	if( hdmiInputPort>=0 )
 	{
+		AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 		std::string  success = aamp_PostJsonRPC( "3", "org.rdk.HdmiInput.1.stopHdmiInput", "null" );
 		logprintf( "StreamAbstractionAAMP_HDMIIN:%s:%d response '%s'\n", __FUNCTION__, __LINE__, success.c_str());
-		hdmiInputPort = -1;
-	/*
-	 Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.stopHdmiInput"}
-	 Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
-	*/
+		/*
+	 	Request: {"jsonrpc":"2.0", "id":3, "method":"org.rdk.HdmiInput.1.stopHdmiInput"}
+	 	Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
+		*/
 #else
-    AAMPLOG_INFO( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
-    JsonObject param;
-    JsonObject result;
-    thunderAccessObj.InvokeJSONRPC("stopHdmiInput", param, result);
+    		JsonObject param;
+    		JsonObject result;
+    		thunderAccessObj.InvokeJSONRPC("stopHdmiInput", param, result);
 #endif
+
+		hdmiInputPort = -1;
 	}
 }
 
