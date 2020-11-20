@@ -231,10 +231,14 @@ set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecPar
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
 include_directories(subtec)
 
+#To enable session based stats for latency histogram
+set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
+set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
+
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer -lmetrics")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM -DSESSION_STATS")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
 	set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
 	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
