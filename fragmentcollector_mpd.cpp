@@ -2368,6 +2368,56 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 	}
 	else
 	{
+		ISegmentBase *segmentBase = pMediaStreamContext->representation->GetSegmentBase();
+		if (segmentBase)
+		{ // single-segment
+			std::string range = segmentBase->GetIndexRange();
+			if (!pMediaStreamContext->index_ptr)
+			{   // lazily load index
+				std::string fragmentUrl;
+				GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
+				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
+				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
+				std::string effectiveUrl;
+				long http_code;
+				double downloadTime;
+				int iFogError = -1;
+				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, pMediaStreamContext->mediaType, range.c_str(),&http_code, &downloadTime, actualType,&iFogError);
+			}
+			if (pMediaStreamContext->index_ptr)
+			{
+				unsigned int referenced_size = 0;
+				float fragmentDuration = 0.00;
+				float fragmentTime = 0.00;
+				int fragmentIndex =0;
+				while (fragmentTime < skipTime)
+				{
+					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration))
+					{
+						fragmentTime += fragmentDuration;
+						fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
+						pMediaStreamContext->fragmentOffset += referenced_size;
+					}
+					else
+					{ 
+						// done with index
+						aamp_Free(&pMediaStreamContext->index_ptr);
+						pMediaStreamContext->eos = true;
+						break;
+					}
+				}
+				
+				//updated seeked position
+				pMediaStreamContext->fragmentIndex = fragmentIndex;
+				pMediaStreamContext->fragmentTime = fragmentTime;
+			}
+			else
+			{
+				pMediaStreamContext->eos = true;
+			}
+		}
+		else
+		{
 		ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
 		if (segmentList)
 		{
@@ -2464,6 +2514,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 		else
 		{
 			AAMPLOG_ERR("%s:%d not-yet-supported mpd format",__FUNCTION__,__LINE__);
+		}
 		}
 	}
 	return skipTime;
