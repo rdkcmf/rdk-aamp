@@ -672,6 +672,7 @@ private:
 	std::thread *deferredDRMRequestThread;
 	bool deferredDRMRequestThreadStarted;
 	bool mAbortDeferredLicenseLoop;
+	bool mIsVssStream;
 	bool drmSessionThreadStarted;
 	dash::mpd::IMPD *mpd;
 	MediaStreamContext *mMediaStreamContext[AAMP_TRACK_COUNT];
@@ -748,7 +749,7 @@ PrivateStreamAbstractionMPD::PrivateStreamAbstractionMPD( StreamAbstractionAAMP_
 	,mUpdateStreamInfo(false)
 	,mDrmPrefs({{CLEARKEY_UUID, 1}, {WIDEVINE_UUID, 2}, {PLAYREADY_UUID, 3}})// Default values, may get changed due to config file
 	,mLastDrmHelper()
-	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mCommonKeyDuration(0)
+	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mIsVssStream(false), mCommonKeyDuration(0)
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
 	, mMaxTracks(0)
 {
@@ -3260,6 +3261,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		{
 			if (aamp->mIsVSS)
 			{
+				mIsVssStream = CheckForVssTags();
 				std::string vssVirtualStreamId = GetVssVirtualStreamID();
 				
 				if (!vssVirtualStreamId.empty())
@@ -3863,10 +3865,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 			this->mpd = mpd;
 			mIsLiveManifest = !(mpd->GetType() == "static");
                         aamp->SetIsLive(mIsLiveManifest);
-			if(aamp->mIsVSS)
-			{
-				CheckForVssTags();
-			}
 			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
 				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
@@ -6278,7 +6276,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					if(mpdChanged)
 					{
 #ifdef AAMP_MPD_DRM
-						if(aamp->mIsVSS)
+						if(mIsVssStream)
 						{
 							std::vector<IPeriod*> vssPeriods;
 							// Collect only new vss periods from manifest
