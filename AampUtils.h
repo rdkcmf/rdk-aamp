@@ -47,6 +47,13 @@
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
 
 /**
+ * @brief Get curl IPRESOLVE based on current IP protocol
+ *
+ * @retval - current IPRESOLVE
+ */
+long aamp_GetIPResolveValue();
+
+/**
  * @brief Extract host string from url
  *
  * @param url - Input URL
