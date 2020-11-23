@@ -39,6 +39,8 @@ public:
 
 	bool isHdcp22Required() const { return gpGlobalConfig->enablePROutputProtection; }
 
+	void setDrmMetaData(const std::string& metaData);
+
 	void getKey(std::vector<uint8_t>& keyID) const;
 
 	virtual int getDrmCodecType() const { return CODEC_TYPE; }

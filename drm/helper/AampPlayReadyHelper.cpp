@@ -90,6 +90,14 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	return res;
 }
 
+void AampPlayReadyHelper::setDrmMetaData(const std::string& metaData)
+{
+	if (mContentMetaData.empty())
+	{
+		mContentMetaData = metaData;
+	}
+}
+
 void AampPlayReadyHelper::getKey(std::vector<uint8_t>& keyID) const
 {
 	keyID = this->mKeyID;
