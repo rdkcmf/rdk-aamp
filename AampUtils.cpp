@@ -33,9 +33,10 @@
 #include <ctime>
 #include <curl/curl.h>
 
-#ifdef USE_MAC_FOR_RANDOM_GEN
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#ifdef USE_MAC_FOR_RANDOM_GEN
 #include <fcntl.h>
 #include <unistd.h>
 #include <openssl/sha.h>
