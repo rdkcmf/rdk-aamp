@@ -2015,6 +2015,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	{
 		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
 	}
+	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
