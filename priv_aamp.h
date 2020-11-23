@@ -2657,9 +2657,10 @@ public:
 	 *
 	 *   @param[in] videoFormat - video stream format
 	 *   @param[in] audioFormat - audio stream format
+	 *   @param[in] auxFormat - aux stream format
 	 *   @return void
 	 */
-	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat);
 
 	/**
 	 *   @brief Set video rectangle property

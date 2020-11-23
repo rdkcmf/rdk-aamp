@@ -322,6 +322,7 @@ class TSProcessor : public MediaProcessor
       bool m_demuxInitialized;
       long long m_basePTSFromPeer;
       TSProcessor* m_auxTSProcessor;
+      bool m_auxiliaryAudio;
 };
 
 #endif

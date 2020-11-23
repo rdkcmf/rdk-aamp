@@ -178,6 +178,7 @@ struct AAMPGstPlayerPriv
 	bool firstTuneWithWesterosSinkOff; // DELIA-33640: track if first tune was done for Realtekce build
 	gboolean audioSinkAsyncEnabled; // XIONE-1279: track if AudioSink Async Mode is enabled for Realtekce build
 #endif
+	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
 };
 
 /**
@@ -2172,30 +2173,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	//If format is FORMAT_INVALID, we don't know what we are doing here
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
-		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
-		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
-		int waitInterval = 100; //ms
-		while(timeRemaining >= 0)
+		bool status = WaitForSourceSetup(mediaType);
+		if (!aamp->DownloadsAreEnabled() || !status)
 		{
-			aamp->InterruptableMsSleep(waitInterval);
-			if (aamp->DownloadsAreEnabled())
-			{
-				if (stream->sourceConfigured)
-				{
-					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
-					break;
-				}
-			}
-			else
-			{
-				//Playback stopped by application
-				break;
-			}
-			timeRemaining -= waitInterval;
-		}
-		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
-		{
-			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
 			// What do we with the data buffer
 			// This flavour of Send() copies from data buffer so no need to free buffer
 			return;
@@ -2242,6 +2222,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	if (isFirstBuffer)
 	{
 		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
+		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
+		{
+			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
+		}
 		discontinuity = TRUE;
 	}
 
@@ -2273,6 +2257,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			GST_BUFFER_TIMESTAMP(buffer) = pts;
 			GST_BUFFER_DURATION(buffer) = duration;
 	#endif
+			if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
+			{
+				ForwardBuffersToAuxPipeline(buffer);
+			}
 		
 			ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 			if (ret != GST_FLOW_OK)
@@ -2344,30 +2332,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	//If format is FORMAT_INVALID, we don't know what we are doing here
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
-		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
-		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
-		int waitInterval = 100; //ms
-		while(timeRemaining >= 0)
+		bool status = WaitForSourceSetup(mediaType);
+		if (!aamp->DownloadsAreEnabled() || !status)
 		{
-			aamp->InterruptableMsSleep(waitInterval);
-			if (aamp->DownloadsAreEnabled())
-			{
-				if (stream->sourceConfigured)
-				{
-					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
-					break;
-				}
-			}
-			else
-			{
-				//Playback stopped by application
-				break;
-			}
-			timeRemaining -= waitInterval;
-		}
-		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
-		{
-			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
 			// What do we with the data buffer
 			// This flavour of Send() sends the data buffer as such so free data buffer to avoid memory leak and reset pBuffer
 			aamp_Free(&pBuffer->ptr);
@@ -2387,6 +2354,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	if (isFirstBuffer)
 	{
 		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
+		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
+		{
+			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
+		}
 		discontinuity = TRUE;
 	}
 
@@ -2402,6 +2373,10 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	GST_BUFFER_TIMESTAMP(buffer) = pts;
 	GST_BUFFER_DURATION(buffer) = duration;
 #endif
+	if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
+	{
+		ForwardBuffersToAuxPipeline(buffer);
+	}
 
 	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 	if (ret != GST_FLOW_OK)
@@ -2444,16 +2419,28 @@ void AAMPGstPlayer::Stream()
  * @brief Configure pipeline based on A/V formats
  * @param[in] format video format
  * @param[in] audioFormat audio format
+ * @param[in] auxFormat aux audio format
  * @param[in] bESChangeStatus
+ * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux)
 {
 	logprintf("AAMPGstPlayer::%s %d > videoFormat %d audioFormat %d auxFormat %d", __FUNCTION__, __LINE__, format, audioFormat, auxFormat);
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
 	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_INVALID;
-	newFormat[eMEDIATYPE_AUX_AUDIO] = auxFormat;
+	if (forwardAudioToAux)
+	{
+		AAMPLOG_WARN("AAMPGstPlayer::%s %d > Override auxFormat %d -> %d", __FUNCTION__, __LINE__, auxFormat, audioFormat);
+		privateContext->forwardAudioBuffers = true;
+		newFormat[eMEDIATYPE_AUX_AUDIO] = audioFormat;
+	}
+	else
+	{
+		privateContext->forwardAudioBuffers = false;
+		newFormat[eMEDIATYPE_AUX_AUDIO] = auxFormat;
+	}
 
 	if (!aamp->mWesterosSinkEnabled)
 	{
@@ -3905,6 +3892,100 @@ static void type_check_instance( const char * str, GstElement * elem)
 {
 	logprintf("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
 }
+
+/**
+ * @brief Wait for source element to be configured.
+ *
+ * @param[in] mediaType - source element for media type
+ * @return bool - true if source setup completed within timeout
+ */
+bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
+{
+	bool ret = false;
+	media_stream *stream = &privateContext->stream[mediaType];
+	int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+	int waitInterval = 100; //ms
+
+	AAMPLOG_WARN("%s:%d Source element[%p] for track[%d] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source, mediaType);
+	while(timeRemaining >= 0)
+	{
+		aamp->InterruptableMsSleep(waitInterval);
+		if (aamp->DownloadsAreEnabled())
+		{
+			if (stream->sourceConfigured)
+			{
+				AAMPLOG_WARN("%s:%d Source element[%p] for track[%d] setup completed!", __FUNCTION__, __LINE__, stream->source, mediaType);
+				ret = true;
+				break;
+			}
+		}
+		else
+		{
+			//Playback stopped by application
+			break;
+		}
+		timeRemaining -= waitInterval;
+	}
+
+	if (!ret)
+	{
+		AAMPLOG_WARN("%s:%d Wait for source element setup for track[%d] exited/timedout!", __FUNCTION__, __LINE__, mediaType);
+	}
+	return ret;
+}
+
+/**
+ * @brief Forward buffer to aux pipeline
+ *
+ * @param[in] buffer - input buffer to be forwarded
+ */
+void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
+{
+	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUX_AUDIO];
+	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
+	{
+		bool status = WaitForSourceSetup(eMEDIATYPE_AUX_AUDIO);
+		if (!aamp->DownloadsAreEnabled() || !status)
+		{
+			// Buffer is not owned by us, no need to free
+			return;
+		}
+	}
+
+	GstBuffer *fwdBuffer = gst_buffer_new();
+	if (fwdBuffer != NULL)
+	{
+#ifdef USE_GST1
+		if (FALSE == gst_buffer_copy_into(fwdBuffer, buffer, GST_BUFFER_COPY_ALL, 0, -1))
+		{
+			AAMPLOG_ERR("%s:%d Error while copying audio buffer to auxiliary buffer!!", __FUNCTION__, __LINE__);
+			gst_buffer_unref(fwdBuffer);
+			return;
+		}
+#else
+		memcpy(GST_BUFFER_DATA(fwdBuffer), GST_BUFFER_DATA(buffer), GST_BUFFER_SIZE(buffer));
+		gst_buffer_copy_metadata(fwdBuffer, buffer, GST_BUFFER_COPY_ALL);
+#endif
+		//AAMPLOG_TRACE("%s:%d Forward audio buffer to auxiliary pipeline!!", __FUNCTION__, __LINE__);
+		GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), fwdBuffer);
+		if (ret != GST_FLOW_OK)
+		{
+			AAMPLOG_ERR("%s:%d gst_app_src_push_buffer error: %d[%s] mediaType %d", __FUNCTION__, __LINE__, ret, gst_flow_get_name (ret), (int)eMEDIATYPE_AUX_AUDIO);
+			assert(false);
+		}
+	}
+}
+
+/**
+ * @brief Check if audio buffers to be forwarded or not
+ *
+ * @return bool - true if audio to be forwarded
+ */
+bool AAMPGstPlayer::ForwardAudioBuffersToAux()
+{
+	return (privateContext->forwardAudioBuffers && privateContext->stream[eMEDIATYPE_AUX_AUDIO].format != FORMAT_INVALID);
+}
+
 /**
  * @}
  */
