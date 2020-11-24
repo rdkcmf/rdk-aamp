@@ -140,6 +140,7 @@ langcodepref=<X>
 3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
+propagateUriParameters=0 to disable feature where top-level manifest URI parameters included when downloading fragments.  Default is 1 (enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.
 fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
