@@ -4216,17 +4216,19 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 		AAMPLOG_ERR("PrivateStreamAbstractionMPD::%s:%d corrupt/invalid manifest",__FUNCTION__,__LINE__);
 		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 	}
-
-#ifdef AAMP_MPD_DRM
-	if (pushEncInitFragment && CheckForInitalClearPeriod())
+	if (ret == eAAMPSTATUS_OK)
 	{
-		AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Pushing EncryptedHeaders", __FUNCTION__, __LINE__);
-		PushEncryptedHeaders();
-	}
+#ifdef AAMP_MPD_DRM
+		if (pushEncInitFragment && CheckForInitalClearPeriod())
+		{
+			AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s:%d Pushing EncryptedHeaders", __FUNCTION__, __LINE__);
+			PushEncryptedHeaders();
+		}
 #endif
 
-	logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
-	FetchAndInjectInitialization();
+		logprintf("PrivateStreamAbstractionMPD::%s:%d - fetch initialization fragments", __FUNCTION__, __LINE__);
+		FetchAndInjectInitialization();
+	}
 
 	return retval;
 }
