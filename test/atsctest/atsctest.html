@@ -527,6 +527,28 @@ function playChannel()
 	}
 	isPlaying = true;
 }
+
+function playHdmiin()
+{
+    var strLocator = "hdmiin://localhost/deviceid/0"
+        if(fromPC)
+        {
+                //no option for hdmiin
+        }
+        else
+        {
+                if( aampPlayer )
+                {
+                        aampPlayer.stop();
+                }
+                else
+                {
+                        aampPlayer = new AAMPMediaPlayer();
+                }
+                aampPlayer.load(strLocator);
+        }
+}
+
 function toggleVistoggleVis(divId) {
 	var div=document.getElementById(divId);
 	setGuideText('toggleVistoggleVis');
@@ -708,6 +730,7 @@ function playbackStateChanged(event) {
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
 		<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"/>
 
+		<input type="button" value="hdmiin" onclick="playHdmiin();"/>
 		<input type="button" value="full" onclick="SetRectangle(0,0,1,1);"/>
 		<input type="button" value="TR" onclick="SetRectangle(0.5,0,0.5,0.5);"/>
 		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>

@@ -651,6 +651,10 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Tune(cmd);
 	}
+	else if (memcmp(cmd, "hdmiin", 6) == 0)
+	{
+		mSingleton->Tune(cmd);
+	}
 	else if (isNumber(cmd))
 	{
 		int channelNumber = atoi(cmd);

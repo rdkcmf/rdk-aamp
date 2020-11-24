@@ -165,7 +165,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 }
 
 /**
- * @brief StreamAbstractionAAMP_MPD Constructor
+ * @brief StreamAbstractionAAMP_OTA Constructor
  * @param aamp pointer to PrivateInstanceAAMP object associated with player
  * @param seek_pos Seek position
  * @param rate playback rate
@@ -375,7 +375,7 @@ bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & scr
 #endif
 
 /**
- * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h)
+ * @brief SetVideoRectangle sets the position coordinates (x,y) & size (w,h)
  *
  * @param[in] x,y - position coordinates of video rectangle
  * @param[in] wxh - width & height of video rectangle

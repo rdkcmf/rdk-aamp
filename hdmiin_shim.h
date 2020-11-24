@@ -48,6 +48,7 @@ public:
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
+    void SetVideoRectangle(int x, int y, int w, int h) override;
     AAMPStatusType Init(TuneType tuneType) override;
     void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat) override;
     double GetStreamPosition() override;
@@ -68,7 +69,9 @@ protected:
 private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;
+    ThunderAccessAAMP thunderRDKShellObj;
 #endif
+    bool GetScreenResolution(int & screenWidth, int & screenHeight);
 	int hdmiInputPort;
 };
 
