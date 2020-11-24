@@ -54,6 +54,10 @@ using namespace WPEFramework;
 /*Need to be changed to org.rdk.HdmiInput*/
 //#define HDMIINPUT_CALLSIGN "org.rdk.MediaServicesMoc"
 #define HDMIINPUT_CALLSIGN "org.rdk.HdmiInput.1"
+#define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
+
+#define UHD_4K_WIDTH 3840
+#define UHD_4K_HEIGHT 2160
 #endif
 /**
  *   @brief  Initialize a newly created object.
@@ -78,7 +82,8 @@ StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstance
                              : StreamAbstractionAAMP(aamp),
                                hdmiInputPort(-1)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                               ,thunderAccessObj(HDMIINPUT_CALLSIGN)
+                               ,thunderAccessObj(HDMIINPUT_CALLSIGN),
+				thunderRDKShellObj(RDKSHELL_CALLSIGN)
 #endif
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
@@ -121,11 +126,11 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 		Response: {"jsonrpc":"2.0","id":3,"result":{"success":true}}
 		 */
 #else
-    AAMPLOG_INFO( "[HDMIIN_SHIM]Inside %s ", __FUNCTION__ );
-    JsonObject param;
-    JsonObject result;
-    param["portId"] = hdmiInputPort;
-    thunderAccessObj.InvokeJSONRPC("startHdmiInput", param, result);
+		//AAMPLOG_INFO("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+		JsonObject param;
+		JsonObject result;
+		param["portId"] = hdmiInputPort;
+		thunderAccessObj.InvokeJSONRPC("startHdmiInput", param, result);
 
 #endif
 	}
@@ -155,6 +160,63 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 
 		hdmiInputPort = -1;
 	}
+}
+
+bool StreamAbstractionAAMP_HDMIIN::GetScreenResolution(int & screenWidth, int & screenHeight)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+	return false;
+#else
+	JsonObject param;
+	JsonObject result;
+	bool bRetVal = false;
+
+	if( thunderRDKShellObj.InvokeJSONRPC("getScreenResolution", param, result) )
+	{
+		screenWidth = result["w"].Number();
+		screenHeight = result["h"].Number();
+		AAMPLOG_INFO( "StreamAbstractionAAMP_HDMIIN:%s:%d screenWidth:%d screenHeight:%d  ",__FUNCTION__, __LINE__,screenWidth, screenHeight);
+		bRetVal = true;
+	}
+	return bRetVal;
+#endif
+}
+
+/**
+ * @brief SetVideoRectangle sets the position coordinates (x,y) & size (w,h)
+ *
+ * @param[in] x,y - position coordinates of video rectangle
+ * @param[in] wxh - width & height of video rectangle
+ */
+
+void StreamAbstractionAAMP_HDMIIN::SetVideoRectangle(int x, int y, int w, int h)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	AAMPLOG_INFO("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+
+	int screenWidth = 0;
+	int screenHeight = 0;
+	int width_ratio = 1, height_ratio = 1;
+	if(GetScreenResolution(screenWidth,screenHeight))
+        {
+		/*Temporary fix as hdmiin expects the scaling in 4k space*/
+		if((0 != screenWidth) && (0 != screenHeight))
+		{
+			width_ratio = UHD_4K_WIDTH / screenWidth;
+			height_ratio = UHD_4K_HEIGHT / screenHeight;
+		}
+	}
+
+	JsonObject param;
+	JsonObject result;
+	param["x"] = x * width_ratio;
+	param["y"] = y * height_ratio;
+	param["w"] = w * width_ratio;
+	param["h"] = h * height_ratio;
+
+	thunderAccessObj.InvokeJSONRPC("setVideoRectangle", param, result);
+#endif
 }
 
 /**
