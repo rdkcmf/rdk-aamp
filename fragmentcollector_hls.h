@@ -471,6 +471,7 @@ public:
 
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
+	int GetMediaIndexForDefaultLanguage(TrackType type);
 	/// Function to get output format for track type
 	StreamOutputFormat GetStreamOutputFormatForTrack(TrackType type);
 
