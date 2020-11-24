@@ -94,9 +94,6 @@ static const char *mMediaFormatName[] =
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
-//Upper and lower limit for dash drm sessions
-#define MIN_DASH_DRM_SESSIONS 3
-#define MAX_DASH_DRM_SESSIONS 30
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
