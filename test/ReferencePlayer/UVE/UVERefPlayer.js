@@ -228,6 +228,8 @@ var defaultInitConfig = {
      * if not then first base url is selected ( default behavior ) 
      */
     //useMatchingBaseUrl : true
+    propagateUriParameters : true
+
 };
 
 var playerState = playerStatesEnum.idle;

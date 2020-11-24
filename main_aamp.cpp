@@ -1579,6 +1579,17 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 }
 
 /**
+ *   @brief Configure URI  parameters
+ *   @param[in] bValue -true to enable
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
+{
+        aamp->SetPropagateUriParameters(bValue);
+}
+
+/**
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
  *             from most to least preferred. Set NULL to clear current list.

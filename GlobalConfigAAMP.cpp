@@ -61,7 +61,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE),
 	langCodePreference(0), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), reportBufferEvent(true),
 	manifestTimeoutMs(-1), fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
-	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
+	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),
 	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState),
 #ifdef INTELCE
