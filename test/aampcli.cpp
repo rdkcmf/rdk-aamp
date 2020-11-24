@@ -159,7 +159,8 @@ typedef enum{
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_AuxiliaryAudio,
-	eAAMP_SET_ContentRestrictions
+	eAAMP_SET_ContentRestrictions,
+	eAAMP_SET_PropagateUriParam
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -407,6 +408,7 @@ void ShowHelpSet(){
 	logprintf("44 - Set a predefined CC style option (1/2/3)" );
 	logprintf("45 - Set auxiliary audio language (string lang)" );
 	logprintf("46 - Set Content Restrictions (string array ratings to be restricted)" );
+	logprintf("47 - Set propagateUriParameters: (0-disable)" );
 }
 
 #define LOG_CLI_EVENTS
@@ -1377,6 +1379,15 @@ static void ProcessCliCommand(char *cmd)
 
 					mSingleton->SetContentRestrictions(contentRestrictions);
 					break;
+                                }
+				case eAAMP_SET_PropagateUriParam:
+                                {
+                                        int propagateUriParam;
+                                        logprintf("Matched Command eAAMP_SET_PropogateUriParam - %s ", cmd);
+                                        if (sscanf(cmd, "set %d %d", &opt, &propagateUriParam) == 2){
+                                                mSingleton->SetPropagateUriParameters((bool) propagateUriParam);
+                                        }
+                                        break;
                                 }
 				default:
 					logprintf("Invalid set command %d\n", opt);

@@ -178,26 +178,26 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 				basePtr++;
 			}
 		}
-
 		dst = base.substr(0,baseEnd-baseStart);
 		if( uri[0]!='/' )
 		{
 			dst += "/";
 		}
 		dst += uri;
-
-		if (strchr(uri,'?') == 0)
-		{ // uri doesn't have url parameters; copy from parents if present
-			const char *baseParams = strchr(basePtr,'?');
-			if( baseParams )
-			{
-				std::string params = base.substr(baseParams-baseStart);
-				dst.append(params);
+		if( gpGlobalConfig->mPropagateUriParameters )
+		{
+			if (strchr(uri,'?') == 0)
+			{ // uri doesn't have url parameters; copy from parents if present
+				const char *baseParams = strchr(basePtr,'?');
+				if( baseParams )
+				{
+					std::string params = base.substr(baseParams-baseStart);
+					dst.append(params);
+				}
 			}
 		}
 	}
 }
-
 /**
  * @brief Extract host string from url
  *

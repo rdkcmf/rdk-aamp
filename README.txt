@@ -131,6 +131,7 @@ langcodepref=<X>
 
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
+propagateUriParameters=0 to disable feature where top-level manifest URI parameters included when downloading fragments.  Default is 1 (enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.

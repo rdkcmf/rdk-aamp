@@ -1090,6 +1090,14 @@ public:
 	 */
 	void SetMatchingBaseUrlConfig(bool bValue);
 
+        /**
+         *   @brief to configure URI parameters for fragment downloads
+         *
+         *   @param[in] bValue - default value: true
+         *   @return void
+         */
+	void SetPropagateUriParameters(bool bValue);
+
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled

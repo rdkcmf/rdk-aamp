@@ -2261,6 +2261,14 @@ public:
 	void SetMatchingBaseUrlConfig(bool bValue);
 
 	/**
+	 *	 @brief Configure URI  parameters
+	 *	 @param[in] bValue - true to enable, false to disable.
+	 *
+	 *	 @return void
+	 */
+	void SetPropagateUriParameters(bool bValue);
+
+	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
 	 *

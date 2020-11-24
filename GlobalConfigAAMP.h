@@ -139,6 +139,7 @@ public:
 	TriState useRetuneForGSTInternalError;	/**< Retune mitigation for GST Internal data stream error*/
 	TriState mAsyncTuneConfig;		/**< Enalbe Async tune from application */
 	TriState mWesterosSinkConfig;		/**< Enalbe Westeros sink from application */
+	TriState mPropagateUriParameters;       /**< Enable URI parameters from appliation*/
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */

@@ -1179,6 +1179,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
 			logprintf("useWesterosSink=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "propagateUriParameters=", value) == 1)
+                {
+			gpGlobalConfig->mPropagateUriParameters = (TriState)(value);
+			logprintf("PropagateUriParameters = %d", (TriState) gpGlobalConfig->mPropagateUriParameters);
+		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
 			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
@@ -3579,13 +3584,12 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		pthread_mutex_unlock(&mLock);
 
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST)
+		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST )
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
 				gpGlobalConfig->uriParameter[0] = '?';
 			}
-
 			remoteUrl.append(gpGlobalConfig->uriParameter);
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
@@ -6000,6 +6004,18 @@ void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 	}
 }
 
+/**
+ *   @brief to configure propagate URI parameters for fragment download
+ *
+ *   @param[in] bValue - true to enable
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
+{
+	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
+	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
+}
 
 /**
  *   @brief Configure New ABR Enable/Disable
