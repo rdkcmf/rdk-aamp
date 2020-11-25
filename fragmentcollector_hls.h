@@ -491,6 +491,7 @@ private:
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 	int mMediaCount;						/**< Number of media in the stream */
 	bool mUseAvgBandwidthForABR;
+	std::set<std::string> mLangList; /**< Available language list */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H
