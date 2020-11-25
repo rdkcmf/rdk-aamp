@@ -49,11 +49,9 @@
 #include "manager.hpp"
 #include "libIBus.h"
 #include "libIBusDaemon.h"
-
 #include <hostIf_tr69ReqHandler.h>
 #include <sstream>
 #endif
-
 #include <sys/time.h>
 #include <cmath>
 #include <regex>
@@ -134,6 +132,8 @@ static int PLAYERID_CNTR = 0;
 
 static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
+static bool activeInterfaceWifi = false;
+
 GlobalConfigAAMP *gpGlobalConfig;
 
 /**
@@ -190,6 +190,29 @@ struct CurlProgressCbContext
 	double downloadSize;
 	CurlAbortReason abortReason;
 };
+
+/**
+ * @brief Enumeration for net_srv_mgr active interface event callback
+ */
+typedef enum _NetworkManager_EventId_t {
+        IARM_BUS_NETWORK_MANAGER_EVENT_SET_INTERFACE_ENABLED=50,
+        IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS=55,
+        IARM_BUS_NETWORK_MANAGER_MAX
+} IARM_Bus_NetworkManager_EventId_t;
+
+/**
+ * @struct _IARM_BUS_NetSrvMgr_Iface_EventData_t
+ * @brief IARM Bus struct contains active streaming interface, origional definition present in homenetworkingservice.h
+ */
+typedef struct _IARM_BUS_NetSrvMgr_Iface_EventData_t {
+	union{
+		char activeIface[10];
+		char allNetworkInterfaces[50];
+		char enableInterface[10];
+	};
+	char interfaceCount;
+	bool isInterfaceEnabled;
+} IARM_BUS_NetSrvMgr_Iface_EventData_t;
 
 static TuneFailureMap tuneFailureMap[] =
 {
@@ -637,7 +660,60 @@ char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
 	}
 	return strConfig;
 }
+/**
+ * @brief Active interface state change from netsrvmgr
+ * @param owner reference to net_srv_mgr
+ * @param IARM eventId received
+ * @data pointer reference to interface struct
+ */
+void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+{
+
+	if (strcmp (owner, "NET_SRV_MGR") != 0)
+		return;
+
+	IARM_BUS_NetSrvMgr_Iface_EventData_t *param = (IARM_BUS_NetSrvMgr_Iface_EventData_t *) data;
+
+	AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+
+	if (NULL != strstr (param->activeIface, "wlan"))
+	{
+		 activeInterfaceWifi = true;
+	}
+	else if (NULL != strstr (param->activeIface, "eth"))
+	{
+		 activeInterfaceWifi = false;
+	}
+}
 #endif
+
+/**
+ * @brief Active streaming interface is wifi
+ *
+ * @return bool - true if wifi interface connected
+ */
+static bool IsActiveStreamingInterfaceWifi (void)
+{
+        bool wifiStatus = false;
+#ifdef IARM_MGR
+        IARM_Result_t ret = IARM_RESULT_SUCCESS;
+        IARM_BUS_NetSrvMgr_Iface_EventData_t param;
+
+        ret = IARM_Bus_Call("NET_SRV_MGR", "getActiveInterface", (void*)&param, sizeof(param));
+        if (ret != IARM_RESULT_SUCCESS) {
+                AAMPLOG_ERR("NET_SRV_MGR getActiveInterface read failed : %d", ret);
+        }
+        else
+        {
+                logprintf("NET_SRV_MGR getActiveInterface = %s", param.activeIface);
+                if (!strcmp(param.activeIface, "WIFI")){
+                        wifiStatus = true;
+                }
+        }
+        IARM_Bus_RegisterEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
+#endif
+        return wifiStatus;
+}
 
 /**
 * @brief helper function to avoid dependency on unsafe sscanf while reading strings
@@ -760,17 +836,20 @@ static void ProcessConfigEntry(std::string cfg)
                         logprintf("harvestpath=%s\n", gpGlobalConfig->harvestpath);
                 }
 #endif
-		else if (ReadConfigNumericHelper(cfg, "forceEC3=", gpGlobalConfig->forceEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "forceEC3=", value) == 1)
 		{
-			logprintf("forceEC3=%d", gpGlobalConfig->forceEC3);
+			gpGlobalConfig->forceEC3 = (TriState)(value != 0);
+			logprintf("forceEC3=%d", value);
 		}
-		else if (ReadConfigNumericHelper(cfg, "disableEC3=", gpGlobalConfig->disableEC3) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableEC3=", value) == 1)
 		{
-			logprintf("disableEC3=%d", gpGlobalConfig->disableEC3);
+			gpGlobalConfig->disableEC3 = (TriState)(value != 0);
+			logprintf("disableEC3=%d", value);
 		}
-		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", gpGlobalConfig->disableATMOS) == 1)
+		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", value) == 1)
 		{
-			logprintf("disableATMOS=%d", gpGlobalConfig->disableATMOS);
+			gpGlobalConfig->disableATMOS = (TriState)(value != 0);
+			logprintf("disableATMOS=%d", value);
 		}
 		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
 		{
@@ -1378,6 +1457,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bEnableSubtec = false;
 			logprintf("Subtec subtitles disabled");
 		}
+		else if (cfg.compare("webVttNative") == 0)
+		{
+			gpGlobalConfig->bWebVttNative = true;
+			logprintf("Native WebVTT processing enabled");
+		}
 		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
 		{
 			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;
@@ -1389,6 +1473,10 @@ static void ProcessConfigEntry(std::string cfg)
 				gpGlobalConfig->mInitRampdownLimit = value;
 				logprintf("initRampdownLimit=%d", (int)gpGlobalConfig->mInitRampdownLimit);
 			}
+		}
+		else if(ReadConfigNumericHelper(cfg, "maxTimeoutForSourceSetup=", gpGlobalConfig->mTimeoutForSourceSetup) == 1)
+		{
+			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
 		}
 		else if (cfg.at(0) == '*')
 		{
@@ -1411,6 +1499,11 @@ static void ProcessConfigEntry(std::string cfg)
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
+		else if (ReadConfigNumericHelper(cfg, "disableWifiCurlHeader=", value) == 1)
+                {
+                        gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
+                        logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
+                }
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1783,6 +1876,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
+	,mDisableEC3(false),mDisableATMOS(false),mForceEC3(false)
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
 	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
@@ -1798,6 +1892,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
+	, mSessionToken()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -1849,6 +1944,17 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
+	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
+		if (true == IsActiveStreamingInterfaceWifi()) {
+			mCustomHeaders["Wifi:"] = std::vector<std::string> { "1" };
+			activeInterfaceWifi = true;
+		}
+		else
+		{
+			mCustomHeaders["Wifi:"] = std::vector<std::string> { "0" };
+			activeInterfaceWifi = false;
+		}
+	}
 	// Add Connection: Keep-Alive custom header - DELIA-26832
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
@@ -1896,6 +2002,20 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
 	}
+	
+	if(gpGlobalConfig->disableEC3 != eUndefinedState)
+	{
+		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
+	}
+	if(gpGlobalConfig->disableATMOS != eUndefinedState)
+	{
+		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
+	}
+	if(gpGlobalConfig->forceEC3 != eUndefinedState)
+	{
+		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
+	}
+	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -1975,7 +2095,10 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	{
 		curl_share_cleanup(mCurlShared);
 		mCurlShared = NULL;
-	}
+        }
+#ifdef IARM_MGR
+	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
+#endif //IARM_MGR
 }
 
 /**
@@ -2143,7 +2266,11 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 	// Check if we are paused and culled past paused playback position
 	// AAMP internally caches fragments in sw and gst buffer, so we should be good here
-	if (pipeline_paused && mpStreamAbstractionAAMP)
+	// Pipeline will be in Paused state when Lightning trickplay is done. During this state XRE will send the resume position to exit pause state .
+	// Issue observed when culled position reaches the paused position during lightning trickplay and player resumes the playback with paused position as playback position ignoring XRE shown position.
+	// Fix checks if the player is put into paused state with lighting mode(by checking last stored rate). 
+  	// In this state player will not come out of Paused state, even if the culled position reaches paused position.
+	if (pipeline_paused && mpStreamAbstractionAAMP && (rate != AAMP_RATE_FWD_4X) && (rate != AAMP_RATE_REW_4X))
 	{
 		double position = GetPositionMilliseconds() / 1000.0; // in seconds
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
@@ -2667,7 +2794,9 @@ void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
  */
 bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
-	return (mProcessingDiscontinuity[eMEDIATYPE_AUDIO] || mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool vidDiscontinuity = (mVideoFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_VIDEO]);
+	bool audDiscontinuity = (mAudioFormat != FORMAT_INVALID && mProcessingDiscontinuity[eMEDIATYPE_AUDIO]);
+	return (vidDiscontinuity || audDiscontinuity);
 }
 
 /**
@@ -3574,6 +3703,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						}
 						headerValue = buf;
 					}
+					if (it->first.compare("Wifi:") == 0)
+					{
+						if (true == activeInterfaceWifi)
+						{
+							headerValue = "1";
+						}
+						else
+						{
+							 headerValue = "0";
+						}
+					}
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
@@ -3696,8 +3836,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					// curl sometimes exceeds the wait time by few milliseconds.Added buffer of 10msec
 					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
 									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
-									(buffer->len >= 0) &&
-									((downloadTimeMS-10) <= curlDownloadTimeoutMS));
+									((downloadTimeMS-10) <= curlDownloadTimeoutMS));  //CID:100647 - No effect
 					// set flag if download aborted with start/stall timeout.
 					abortReason = progressCtx.abortReason;
 
@@ -4333,8 +4472,8 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		if(env_aamp_force_aac)
 		{
 			logprintf("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
-			gpGlobalConfig->disableEC3 = 1;
-			gpGlobalConfig->disableATMOS = 1;
+			gpGlobalConfig->disableEC3 = eTrueState;
+			gpGlobalConfig->disableATMOS = eTrueState;
 		}
 
 		const char *env_aamp_force_info = getenv("AAMP_FORCE_INFO");
@@ -4894,8 +5033,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		PrivAAMPState state;
 		GetState(state);
-		if(state != eSTATE_ERROR)
+		if((state != eSTATE_ERROR) && (mMediaFormat != eMEDIAFORMAT_OTA))
 		{
+			/*For OTA this event will be generated from StreamAbstractionAAMP_OTA*/
 			SetState(eSTATE_PREPARED);
 		}
 	}
@@ -5092,11 +5232,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			DeFog(mManifestUrl);
 		}
 
-		if (gpGlobalConfig->forceEC3)
+		if (mForceEC3)
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (gpGlobalConfig->disableEC3)
+		if (mDisableEC3)
 		{
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
@@ -6029,13 +6169,8 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 	if (timeInMs > 0)
 	{
 		struct timespec ts;
-		struct timeval tv;
 		int ret;
-		gettimeofday(&tv, NULL);
-		ts.tv_sec = time(NULL) + timeInMs / 1000;
-		ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-		ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-		ts.tv_nsec %= (1000 * 1000 * 1000);
+		ts = aamp_GetTimespec(timeInMs);
 		pthread_mutex_lock(&mLock);
 		if (mDownloadsEnabled)
 		{
@@ -6219,6 +6354,12 @@ void PrivateInstanceAAMP::Stop()
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
 	{
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		if (mDRMSessionManager)
+		{
+			mDRMSessionManager->setCurlAbort(true);
+		}
+#endif
 		mpStreamAbstractionAAMP->Stop(true);
 	}
 
@@ -6301,6 +6442,12 @@ void PrivateInstanceAAMP::Stop()
 		delete mCdaiObject;
 		mCdaiObject = NULL;
 	}
+
+	/* Clear the session data*/
+	if(!mSessionToken.empty()){
+		mSessionToken.clear();
+	}
+
 	EnableDownloads();
 }
 
@@ -7482,16 +7629,20 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 /**
  * @brief Update audio language selection
  * @param lang string corresponding to language
+ * @param overwriteLangFlag - flag to check for overwriting user setting
  */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang)
+void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag)
 {
-	strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	if(overwriteLangFlag)
+	{
+		strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
+		language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	}
 	noExplicitUserLanguageSelection = false;
 
 	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
 	{
-		if(strncmp(mLanguageList[cnt],language,MAX_LANGUAGE_TAG_LENGTH) == 0)
+		if(strncmp(mLanguageList[cnt],lang,MAX_LANGUAGE_TAG_LENGTH) == 0)
 		{
 			mCurrentLanguageIndex = cnt; // needed?
 			break;
@@ -8084,9 +8235,16 @@ DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
 	// If Stereo Only Mode is true, then disable DD+ and ATMOS (or) make if enable
-	gpGlobalConfig->disableEC3 = bValue;
-	gpGlobalConfig->disableATMOS = bValue;
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS and EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	if(gpGlobalConfig->disableEC3 == eUndefinedState)
+	{
+		mDisableEC3 = bValue;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	}
+	if(gpGlobalConfig->disableATMOS == eUndefinedState)
+	{
+		mDisableATMOS = bValue;
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
+	}
 }
 
 /**
@@ -9110,14 +9268,20 @@ void PrivateInstanceAAMP::SetAudioTrack(int trackId)
 			SetPreferredAudioTrack(tracks[trackId]);
 			// TODO: Confirm if required
 			languageSetByUser = true;
+			if (mMediaFormat == eMEDIAFORMAT_OTA)
+			{
+				mpStreamAbstractionAAMP->SetAudioTrack(trackId);
+			}
+                        else
+                        {
+				discardEnteringLiveEvt = true;
 
-			discardEnteringLiveEvt = true;
+				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				TeardownStream(false);
+				TuneHelper(eTUNETYPE_SEEK);
 
-			seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-			TeardownStream(false);
-			TuneHelper(eTUNETYPE_SEEK);
-
-			discardEnteringLiveEvt = false;
+				discardEnteringLiveEvt = false;
+                        }
 		}
 	}
 }
@@ -9210,15 +9374,24 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				//TODO: Effective handling between subtitle and CC tracks
 				// SetPreferredTextTrack will not have any impact on CC rendering if already active
 				SetPreferredTextTrack(track);
-				discardEnteringLiveEvt = true;
-
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-				TeardownStream(false);
-				TuneHelper(eTUNETYPE_SEEK);
-
-				discardEnteringLiveEvt = false;
+				RefreshSubtitles();
 			}
 		}
+	}
+}
+
+/**
+ *   @brief Switch the subtitle track following a change to the 
+ * 			preferredTextTrack
+ *
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::RefreshSubtitles()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->RefreshSubtitles();
 	}
 }
 
@@ -9355,6 +9528,74 @@ void PrivateInstanceAAMP::SetInitRampdownLimit(int limit)
 		{
 			AAMPLOG_WARN("%s:%d Invalid Init Rampdown limit value %d", __FUNCTION__,__LINE__, limit);
 		}
+	}
+}
+
+/**
+ *   @brief Set the session Token for player
+ *
+ *   @param[in] string - sessionToken
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
+{
+	if (sessionToken.empty())
+	{
+		AAMPLOG_ERR("%s:%d Failed to set session Token : empty", __FUNCTION__, __LINE__);
+	}
+	else
+	{
+		AAMPLOG_INFO("%s:%d Setting Session Token", __FUNCTION__, __LINE__);	
+		mSessionToken = sessionToken;
+	}
+	return;
+}
+
+/**
+ *   @brief Set stream format for audio/video tracks
+ *
+ *   @param[in] videoFormat - video stream format
+ *   @param[in] audioFormat - audio stream format
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
+{
+	bool reconfigure = false;
+	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
+
+	// We need to make some hardcore decisions here. What we know already -
+	// 1. We know GStreamer can identify caps using typefind element
+	// 2. Everytime Configure() is called, it "recreates" all playbins if there is a change in even one track's format(even unknown to known)
+	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
+	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
+	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
+	//
+	// Truth table
+	// mVideFormat   videoFormat  reconfigure
+	// *              INVALID       false
+	// INVALID        UNKNOWN       true
+	// UNKNOWN        UNKNOWN       false
+	// KNOWN          UNKNWON       false // this maybe an unknown format for tsprocessor but specified in manifest
+	// INVALID        KNOWN         true
+	// UNKNOWN        KNOWN         false // as described in TODO
+	// KNOWN          KNWON         true if format changes, false if same
+	//
+	if (mVideoFormat != videoFormat && (mVideoFormat == FORMAT_INVALID || (mVideoFormat != FORMAT_UNKNOWN && videoFormat != FORMAT_UNKNOWN)) && videoFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mVideoFormat = videoFormat;
+	}
+	if (audioFormat != mAudioFormat && (mAudioFormat == FORMAT_INVALID || (mAudioFormat != FORMAT_UNKNOWN && audioFormat != FORMAT_UNKNOWN)) && audioFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mAudioFormat = audioFormat;
+	}
+
+	if (reconfigure)
+	{
+		// Configure pipeline as TSProcessor might have detected the actual stream type
+		// or even presence of audio
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
 	}
 }
 

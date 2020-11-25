@@ -306,6 +306,13 @@ public:
 	*/
 	void OnSinkBufferFull();
 
+	/**
+	 * @brief Flushes all cached fragments
+	 *
+	 * @return void
+	 */
+	void FlushFragments();
+
 protected:
 
 	/**
@@ -339,6 +346,7 @@ protected:
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 
+
 	static int GetDeferTimeMs(long maxTimeSeconds);
 
 
@@ -362,6 +370,7 @@ public:
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
 	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
+	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
@@ -732,7 +741,7 @@ public:
 	 *
 	 *   @return number of profiles.
 	 */
-	int GetProfileCount() {
+	virtual int GetProfileCount() {
 		return mAbrManager.getProfileCount();
 	}
 
@@ -836,7 +845,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void AbortWaitForAudioTrackCatchup(void);
+	void AbortWaitForAudioTrackCatchup(bool force);
 
 	/**
 	 *   @brief Set Client Side DAI object instance
@@ -857,7 +866,7 @@ public:
 	 *
 	 *   @return std::vector<AudioTrackInfo> list of audio tracks
 	 */
-	std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
+	virtual std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
 
 	/**
 	 *   @brief Get available text tracks.
@@ -919,7 +928,7 @@ public:
 	 *
 	 *   @return int - index of current audio track
 	 */
-	int GetAudioTrack();
+	virtual int GetAudioTrack();
 
 	/**
 	 *   @brief Get current text track
@@ -929,6 +938,13 @@ public:
 	int GetTextTrack();
 
 	/**
+	 *   @brief Refresh subtitle track
+	 *
+	 *   @return void
+	 */
+	void RefreshSubtitles();
+
+	/**
 	 * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h) for OTA streams only
 	 *
 	 * @param[in] x,y - position coordinates of video rectangle
@@ -936,6 +952,22 @@ public:
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
 	
+        /**
+          * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
+          *
+          * @param[in]
+          * @param[in]
+          */
+        virtual void SetAudioTrack (int index) {}
+
+        /**
+          * @brief SetAudioTrackByLanguage set the audio language. [currently for OTA]
+          *
+          * @param[in] lang Language to be set
+          * @param[in]
+          */
+        virtual void SetAudioTrackByLanguage(const char* lang) {}
+
 	void MuteSubtitles(bool mute);
 
 protected:

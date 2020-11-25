@@ -37,6 +37,8 @@
 #define NOW_SYSTEM_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count()     /**< Getting current system clock in milliseconds */
 #define NOW_STEADY_TS_MS std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()     /**< Getting current steady clock in milliseconds */
 
+#define ARRAY_SIZE(A) (sizeof(A)/sizeof(A[0]))
+
 /**
  * @brief Get current time from epoch is milliseconds
  *
@@ -127,7 +129,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem);
  * @param[out] outStr - Encoded URL
  * @return Encoding status
  */
-bool UrlEncode(std::string inStr, std::string &outStr);
+void UrlEncode(std::string inStr, std::string &outStr);
 
 /**
  * @brief Trim a string
@@ -141,5 +143,12 @@ void trim(std::string& src);
  * @retval[out] preferred iso639 mapped language.
  */
 std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
+
+/**
+ * @brief To get the timespec
+ * @param[in] timeInMs 
+ * @retval[out] timespec.
+ */
+struct timespec aamp_GetTimespec(int timeInMs);
 
 #endif  /* __AAMP_UTILS_H__ */

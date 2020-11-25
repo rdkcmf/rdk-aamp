@@ -27,6 +27,9 @@
 #include "AampUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
+#if defined(REALTEKCE)
+#include <gst/app/gstappsink.h>
+#endif
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -105,6 +108,7 @@ struct media_stream
 	bool resetPosition;
 	bool bufferUnderrun;
 	bool eosReached;
+	bool sourceConfigured;
 };
 
 /**
@@ -171,7 +175,8 @@ struct AAMPGstPlayerPriv
 	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
 	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
 #if defined(REALTEKCE)
-	bool firstTuneWithWesterosSinkOff; // DELIA-33640: track if first tune was done for Realtekce build
+	bool firstTuneWithWesterosSinkOff; 	// DELIA-33640: track if first tune was done for Realtekce build
+	gboolean audioSinkAsyncEnabled; 	// XIONE-1279: track if AudioSink Async Mode is enabled for Realtekce build
 #endif
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
@@ -244,18 +249,25 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
-	memset(privateContext, 0, sizeof(*privateContext));
-	privateContext->audioVolume = 1.0;
-	privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
-	privateContext->pipelineState = GST_STATE_NULL;
-	this->aamp = aamp;
+	if(privateContext)
+	{
+		memset(privateContext, 0, sizeof(*privateContext));
+		privateContext->audioVolume = 1.0;
+		privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
+		privateContext->pipelineState = GST_STATE_NULL;
+		this->aamp = aamp;
 
-	pthread_mutex_init(&mBufferingLock, NULL);
-	pthread_mutex_init(&mProtectionLock, NULL);
+		pthread_mutex_init(&mBufferingLock, NULL);
+		pthread_mutex_init(&mProtectionLock, NULL);
 
-	CreatePipeline();
-	privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-	strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+		CreatePipeline();
+		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
+		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  privateContext  is null", __FUNCTION__, __LINE__);  //CID:85372 - Null Returns
+	}
 }
 
 
@@ -361,45 +373,12 @@ static void enough_data(GstElement *source, AAMPGstPlayer * _this)
  * @param[in] offset seek position offset
  * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
  */
-static gboolean  appsrc_seek  (GstAppSrc *src, guint64 offset, AAMPGstPlayer * _this)
+static gboolean appsrc_seek(GstAppSrc *src, guint64 offset, AAMPGstPlayer * _this)
 {
 #ifdef TRACE
 	logprintf("appsrc %p seek-signal - offset %" G_GUINT64_FORMAT, src, offset);
 #endif
 	return TRUE;
-}
-
-
-/**
- * @brief Initialize properties/callback of appsrc
- * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
- * @param[in] source pointer to appsrc instance to be initialized
- * @param[in] mediaType stream type
- */
-static void InitializeSource( AAMPGstPlayer *_this,GObject *source, MediaType mediaType = eMEDIATYPE_VIDEO )
-{
-	g_signal_connect(source, "need-data", G_CALLBACK(need_data), _this);
-	g_signal_connect(source, "enough-data", G_CALLBACK(enough_data), _this);
-	g_signal_connect(source, "seek-data", G_CALLBACK(appsrc_seek), _this);
-	gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_SEEKABLE);
-	if (eMEDIATYPE_VIDEO == mediaType )
-	{
-#ifdef CONTENT_4K_SUPPORTED
-		g_object_set(source, "max-bytes", 4194304 * 3, NULL); // 4096k * 3
-#else
-		g_object_set(source, "max-bytes", (guint64)4194304, NULL); // 4096k
-#endif
-	}
-	else
-	{
-#ifdef CONTENT_4K_SUPPORTED
-		g_object_set(source, "max-bytes", 512000 * 3, NULL); // 512k * 3 for audio
-#else
-		g_object_set(source, "max-bytes", (guint64)512000, NULL); // 512k for audio
-#endif
-	}
-	g_object_set(source, "min-percent", 50, NULL);
-	g_object_set(source, "format", GST_FORMAT_TIME, NULL);
 }
 
 
@@ -427,7 +406,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 					"stream-format", G_TYPE_STRING, "adts", NULL);
 			break;
 		case FORMAT_AUDIO_ES_AC3:
-			caps = gst_caps_new_simple ("audio/ac3", NULL, NULL);
+			caps = gst_caps_new_simple ("audio/x-ac3", NULL, NULL);
 			break;
 		case FORMAT_AUDIO_ES_ATMOS:
 			// Todo :: a) Test with all platforms if atmos works 
@@ -462,13 +441,62 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 					"mpegversion", G_TYPE_INT, 2,
 					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
 			break;  //CID:81305 - Using break statement
+		case FORMAT_UNKNOWN:
+			AAMPLOG_WARN("%s:%d Unknown format %d", __FUNCTION__, __LINE__, format);
+			break;
 		case FORMAT_INVALID:
-		case FORMAT_NONE:
 		default:
-			logprintf("Unsupported format %d", format);
+			AAMPLOG_WARN("%s:%d Unsupported format %d", __FUNCTION__, __LINE__, format);
 			break;
 	}
 	return caps;
+}
+
+
+/**
+ * @brief Initialize properties/callback of appsrc
+ * @param[in] _this pointer to AAMPGstPlayer instance associated with the playback
+ * @param[in] source pointer to appsrc instance to be initialized
+ * @param[in] mediaType stream type
+ */
+static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType mediaType = eMEDIATYPE_VIDEO)
+{
+	media_stream *stream = &_this->privateContext->stream[mediaType];
+	GstCaps * caps = NULL;
+	g_signal_connect(source, "need-data", G_CALLBACK(need_data), _this);
+	g_signal_connect(source, "enough-data", G_CALLBACK(enough_data), _this);
+	g_signal_connect(source, "seek-data", G_CALLBACK(appsrc_seek), _this);
+	gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_SEEKABLE);
+	if (eMEDIATYPE_VIDEO == mediaType )
+	{
+#ifdef CONTENT_4K_SUPPORTED
+		g_object_set(source, "max-bytes", 4194304 * 3, NULL); // 4096k * 3
+#else
+		g_object_set(source, "max-bytes", (guint64)4194304, NULL); // 4096k
+#endif
+	}
+	else if (eMEDIATYPE_AUDIO == mediaType)
+	{
+#ifdef CONTENT_4K_SUPPORTED
+		g_object_set(source, "max-bytes", 512000 * 3, NULL); // 512k * 3 for audio
+#else
+		g_object_set(source, "max-bytes", (guint64)512000, NULL); // 512k for audio
+#endif
+	}
+	g_object_set(source, "min-percent", 50, NULL);
+	g_object_set(source, "format", GST_FORMAT_TIME, NULL);
+
+	caps = GetGstCaps(stream->format);
+	if (caps != NULL)
+	{
+		gst_app_src_set_caps(GST_APP_SRC(source), caps);
+		gst_caps_unref(caps);
+	}
+	else
+	{
+		g_object_set(source, "typefind", TRUE, NULL);
+	}
+	stream->sourceConfigured = true;
 }
 
 
@@ -483,7 +511,6 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 {
 	MediaType mediaType;
 	media_stream *stream;
-	GstCaps * caps;
 	if (object == G_OBJECT(_this->privateContext->stream[eMEDIATYPE_VIDEO].sinkbin))
 	{
 		logprintf("Found source for video");
@@ -502,9 +529,6 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	stream = &_this->privateContext->stream[mediaType];
 	g_object_get(orig, pspec->name, &stream->source, NULL);
 	InitializeSource(_this, G_OBJECT(stream->source), mediaType);
-	caps = GetGstCaps(stream->format);
-	gst_app_src_set_caps(GST_APP_SRC(stream->source), caps);
-	gst_caps_unref(caps);
 }
 
 static void httpsoup_source_setup (GstElement * element, GstElement * source, gpointer data)
@@ -751,13 +775,19 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
  * @brief Check if gstreamer element is audio decoder
  * @param[in] name Name of the element
  * @param[in] _this pointer to AAMPGstPlayer instance
- * @retval TRUE if element name is that of audio decoder
+ * @retval TRUE if element name is that of audio or video decoder
  */
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return	(!_this->privateContext->using_westerossink && !_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
-			(aamp_StartsWith(name, "brcmvideodecoder") == true || aamp_StartsWith(name, "brcmaudiodecoder") == true)) ||
-			(_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+
+  // The idea is to identify video or audio decoder plugin created at runtime by playbin and register to its first-frame/pts-error callbacks
+  // This support is available in BCOM plugins in RDK builds and hence checking only for such plugin instances here
+  // While using playersinkbin, these callbacks are supported via "event-callback" signal and hence not requried to do explicitly
+       // For platforms that doesnt support callback, we use GST_STATE_PLAYING state change of playbin to notify first frame to app
+       return  (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin && 
+               (!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
+               (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true) ||
+               (aamp_StartsWith(name, "brcmaudiodecoder") == true));
 }
 
 /**
@@ -1101,10 +1131,16 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
 					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
 				}
+#if defined (REALTEKCE)
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink") == true)
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+				}
+#endif
 
 				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
 
-				if ((audFormat == FORMAT_NONE || _this->privateContext->audio_sink != NULL) &&
+				if ((audFormat == FORMAT_INVALID || _this->privateContext->audio_sink != NULL) &&
 					(_this->privateContext->video_sink != NULL))
 				{
 					_this->privateContext->gstPropsDirty = false;
@@ -1379,6 +1415,9 @@ bool AAMPGstPlayer::CreatePipeline()
 #else
 			logprintf("%s buffering_enabled %u", GST_ELEMENT_NAME(privateContext->pipeline), privateContext->buffering_enabled);
 #endif
+#if defined(REALTEKCE)
+			privateContext->audioSinkAsyncEnabled = FALSE;
+#endif
 			if (privateContext->positionQuery == NULL)
 			{
 				privateContext->positionQuery = gst_query_new_position(GST_FORMAT_TIME);
@@ -1572,24 +1611,19 @@ static void AAMPGstPlayer_PlayersinkbinCB(GstElement * playersinkbin, gint statu
 /**
  * @brief Create an appsrc element for a particular format
  * @param[in] _this pointer to AAMPGstPlayer instance
- * @param[in] format data format for setting src pad caps
+ * @param[in] mediaType media type
  * @retval pointer to appsrc instance
  */
-static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, StreamOutputFormat format)
+static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, MediaType mediaType)
 {
 	GstElement *source;
-	GstCaps * caps;
 	source = gst_element_factory_make("appsrc", NULL);
 	if (NULL == source)
 	{
 		logprintf("AAMPGstPlayer_GetAppSrc Cannot create source");
 		return NULL;
 	}
-	InitializeSource( _this, G_OBJECT(source) );
-
-	caps = GetGstCaps(format);
-	gst_app_src_set_caps(GST_APP_SRC(source), caps);
-	gst_caps_unref(caps);
+	InitializeSource(_this, G_OBJECT(source), mediaType);
 	return source;
 }
 
@@ -1604,7 +1638,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	stream->bufferUnderrun = false;
 	stream->eosReached = false;
 	stream->flush = false;
-	if ((stream->format != FORMAT_INVALID) && (stream->format != FORMAT_NONE))
+	if (stream->format != FORMAT_INVALID)
 	{
 		if (privateContext->pipeline)
 		{
@@ -1646,6 +1680,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		stream->format = FORMAT_INVALID;
 		stream->sinkbin = NULL;
 		stream->source = NULL;
+		stream->sourceConfigured = false;
 	}
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
@@ -1673,7 +1708,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
  * @param[in] streamId stream type
  * @retval 0, if setup successfully. -1, for failure
  */
-static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
+static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 {
 	media_stream* stream = &_this->privateContext->stream[streamId];
 
@@ -1742,7 +1777,8 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
-		}else
+		}
+		else
 		{
 			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
 			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
@@ -1752,7 +1788,9 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 	}
 	else
 	{
-		stream->source = AAMPGstPlayer_GetAppSrc(_this,stream->format);
+		//TODO: For auxiliary audio playback, when using playersinbin, we might have to set some additional
+		// properties, need to check
+		stream->source = AAMPGstPlayer_GetAppSrc(_this, streamId);
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->source);
 		gst_element_sync_state_with_parent(stream->source);
 		stream->sinkbin = gst_element_factory_make("playersinkbin", NULL);
@@ -1764,6 +1802,10 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, int streamId)
 		g_signal_connect(stream->sinkbin, "event-callback", G_CALLBACK(AAMPGstPlayer_PlayersinkbinCB), _this);
 		gst_bin_add(GST_BIN(_this->privateContext->pipeline), stream->sinkbin);
 		gst_element_link(stream->source, stream->sinkbin);
+		if(!gst_element_link(stream->source, stream->sinkbin))
+		{
+			AAMPLOG_WARN("%s:%d: gst_element_link  is error", __FUNCTION__, __LINE__);  //CID:90331- checked return
+		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
 
 		logprintf("AAMPGstPlayer_SetupStream:  Created playersinkbin. Setting rectangle");
@@ -2005,10 +2047,45 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		return;
 	}
 
+	// Make sure source element is present before data is injected
+	media_stream *stream = &privateContext->stream[mediaType];
+	//If format is FORMAT_INVALID, we don't know what we are doing here
+	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
+	{
+		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
+		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int waitInterval = 100; //ms
+		while(timeRemaining >= 0)
+		{
+			aamp->InterruptableMsSleep(waitInterval);
+			if (aamp->DownloadsAreEnabled())
+			{
+				if (stream->sourceConfigured)
+				{
+					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
+					break;
+				}
+			}
+			else
+			{
+				//Playback stopped by application
+				break;
+			}
+			timeRemaining -= waitInterval;
+		}
+		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
+		{
+			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
+			// What do we with the data buffer
+			// This flavour of Send() copies from data buffer so no need to free buffer
+			return;
+		}
+	}
+
 	gboolean discontinuity = FALSE;
 	size_t maxBytes;
 	GstFlowReturn ret;
-	bool isFirstBuffer = privateContext->stream[mediaType].resetPosition;
+	bool isFirstBuffer = stream->resetPosition;
 
 	if (privateContext->stream[eMEDIATYPE_VIDEO].format == FORMAT_ISO_BMFF)
 	{
@@ -2056,39 +2133,47 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			len = maxBytes;
 		}
 		GstBuffer *buffer = gst_buffer_new_and_alloc((guint)len);
-		if (discontinuity )
+		if(buffer != NULL)
 		{
-			GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DISCONT);
-			discontinuity = FALSE;
-		}
-#ifdef USE_GST1
-		GstMapInfo map;
-		gst_buffer_map(buffer, &map, GST_MAP_WRITE);
-		memcpy(map.data, ptr, len);
-		gst_buffer_unmap(buffer, &map);
-		GST_BUFFER_PTS(buffer) = pts;
-		GST_BUFFER_DTS(buffer) = dts;
+			if (discontinuity )
+			{
+				GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DISCONT);
+				discontinuity = FALSE;
+			}
+	#ifdef USE_GST1
+			GstMapInfo map;
+			gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+			memcpy(map.data, ptr, len);
+			gst_buffer_unmap(buffer, &map);
+			GST_BUFFER_PTS(buffer) = pts;
+			GST_BUFFER_DTS(buffer) = dts;
 		//GST_BUFFER_DURATION(buffer) = duration;
-#else
-		memcpy(GST_BUFFER_DATA(buffer), ptr, len);
-		GST_BUFFER_TIMESTAMP(buffer) = pts;
-		GST_BUFFER_DURATION(buffer) = duration;
-#endif
-		ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
-		if (ret != GST_FLOW_OK)
-		{
-			logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
-			assert(false);
+	#else
+			memcpy(GST_BUFFER_DATA(buffer), ptr, len);
+			GST_BUFFER_TIMESTAMP(buffer) = pts;
+			GST_BUFFER_DURATION(buffer) = duration;
+	#endif
+		
+			ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
+			if (ret != GST_FLOW_OK)
+			{
+				logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
+				assert(false);
+			}
+			else if (stream->bufferUnderrun)
+			{
+				stream->bufferUnderrun = false;
+			}
+			ptr = len + (unsigned char *)ptr;
+			len0 -= len;
+			if (len0 == 0)
+			{
+				break;
+			}
 		}
-		else if (privateContext->stream[mediaType].bufferUnderrun)
+		else
 		{
-			privateContext->stream[mediaType].bufferUnderrun = false;
-		}
-		ptr = len + (unsigned char *)ptr;
-		len0 -= len;
-		if (len0 == 0)
-		{
-			break;
+			AAMPLOG_WARN("%s:%d :  buffer is null", __FUNCTION__, __LINE__);  //CID:86190 - Null Returns
 		}
 	}
 	if (eMEDIATYPE_VIDEO == mediaType)
@@ -2119,7 +2204,8 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
 	gboolean discontinuity = FALSE;
-	bool isFirstBuffer = privateContext->stream[mediaType].resetPosition;
+	media_stream *stream = &privateContext->stream[mediaType];
+	bool isFirstBuffer = stream->resetPosition;
 
 #ifdef TRACE_VID_PTS
 	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
@@ -2135,6 +2221,41 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 		logprintf("");
 	}
 #endif
+	// Make sure source element is present before data is injected
+	//If format is FORMAT_INVALID, we don't know what we are doing here
+	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
+	{
+		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
+		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int waitInterval = 100; //ms
+		while(timeRemaining >= 0)
+		{
+			aamp->InterruptableMsSleep(waitInterval);
+			if (aamp->DownloadsAreEnabled())
+			{
+				if (stream->sourceConfigured)
+				{
+					AAMPLOG_WARN("%s:%d Source element[%p] setup completed!", __FUNCTION__, __LINE__, stream->source);
+					break;
+				}
+			}
+			else
+			{
+				//Playback stopped by application
+				break;
+			}
+			timeRemaining -= waitInterval;
+		}
+		if (!aamp->DownloadsAreEnabled() || timeRemaining < 0)
+		{
+			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
+			// What do we with the data buffer
+			// This flavour of Send() sends the data buffer as such so free data buffer to avoid memory leak and reset pBuffer
+			aamp_Free(&pBuffer->ptr);
+			memset(pBuffer, 0x00, sizeof(GrowableBuffer));
+			return;
+		}
+	}
 
 #ifdef DUMP_STREAM
 	static FILE* fp = NULL;
@@ -2163,15 +2284,15 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	GST_BUFFER_DURATION(buffer) = duration;
 #endif
 
-	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(privateContext->stream[mediaType].source), buffer);
+	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 	if (ret != GST_FLOW_OK)
 	{
 		logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
 		assert(false);
 	}
-	else if (privateContext->stream[mediaType].bufferUnderrun)
+	else if (stream->bufferUnderrun)
 	{
-		privateContext->stream[mediaType].bufferUnderrun = false;
+		stream->bufferUnderrun = false;
 	}
 
 	/*Since ownership of buffer is given to gstreamer, reset pBuffer */
@@ -2212,7 +2333,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
-	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_NONE;
+	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_INVALID;
 
 	if (!aamp->mWesterosSinkEnabled)
 	{
@@ -2242,7 +2363,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		media_stream *stream = &privateContext->stream[i];
 		if (stream->format != newFormat[i])
 		{
-			if ((newFormat[i] != FORMAT_INVALID) && (newFormat[i] != FORMAT_NONE))
+			if (newFormat[i] != FORMAT_INVALID)
 			{
 				logprintf("AAMPGstPlayer::%s %d > Closing stream %d old format = %d, new format = %d",
 								__FUNCTION__, __LINE__, i, stream->format, newFormat[i]);
@@ -2264,7 +2385,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		media_stream *stream = &privateContext->stream[i];
-		if (configureStream && (newFormat[i] != FORMAT_INVALID) && (newFormat[i] != FORMAT_NONE))
+		if (configureStream && (newFormat[i] != FORMAT_INVALID))
 		{
 			TearDownStream((MediaType) i);
 			stream->format = newFormat[i];
@@ -2287,7 +2408,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		}
 	}
 
-	if (this->privateContext->buffering_enabled && format != FORMAT_NONE && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
+	if (this->privateContext->buffering_enabled && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
 		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
 		this->privateContext->buffering_in_progress = true;
@@ -2343,7 +2464,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 
 	media_stream *stream = &privateContext->stream[type];
 	stream->eosReached = true;
-	if ((stream->format != FORMAT_NONE && stream->format != FORMAT_INVALID) && stream->resetPosition == true)
+	if ((stream->format != FORMAT_INVALID) && stream->resetPosition == true)
 	{
 		logprintf("%s(): EOS received as first buffer ", __FUNCTION__);
 		NotifyEOS();
@@ -3111,7 +3232,30 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			logprintf("AAMPGstPlayer::%s:%d Pipeline is NULL", __FUNCTION__, __LINE__);
 			return;
 		}
+#if defined (REALTEKCE)
+		if (privateContext->audio_sink)
+		{
+			if (privateContext->rate > 1 || privateContext->rate < 0)
+			{
+				//aamp won't feed audio bitstreame to gstreamer at trickplay.
+				//It needs to disable async of audio base sink to prevent audio sink never sends ASYNC_DONE to pipeline.
+				logprintf("%s:%d: Disable async for audio stream at trickplay", __FUNCTION__, __LINE__);
+				privateContext->audioSinkAsyncEnabled =
+						gst_base_sink_is_async_enabled(GST_BASE_SINK(privateContext->audio_sink));
 
+				if(privateContext->audioSinkAsyncEnabled == TRUE)
+				{
+					privateContext->audioSinkAsyncEnabled = FALSE;
+					gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), FALSE);
+				}
+			}
+			else if(privateContext->audioSinkAsyncEnabled == FALSE)
+			{
+				privateContext->audioSinkAsyncEnabled = TRUE;
+				gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), TRUE);
+			}
+		}
+#endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		bool bPauseNeeded = false;
@@ -3213,7 +3357,7 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	logprintf("Entering AAMPGstPlayer::%s type %d", __FUNCTION__, (int)type);
 	media_stream *stream = &privateContext->stream[type];
 	/*Handle discontinuity only if atleast one buffer is pushed*/
-	if (stream->format != FORMAT_NONE && stream->resetPosition == true)
+	if (stream->format != FORMAT_INVALID && stream->resetPosition == true)
 	{
 		logprintf("%s(): Discontinuity received before first buffer - ignoring", __FUNCTION__);
 	}

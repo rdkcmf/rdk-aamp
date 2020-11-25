@@ -183,8 +183,6 @@ void WebVTTSubtecDevParser::pause(bool pause)
 	PacketSender::Instance()->SendPackets();
 }
 
-#define FIRST_PTS_OFFSET_MS (10000)
-
 /**
  * @}
  */
@@ -207,7 +205,7 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 			VTTCue *cue = mVttQueue.front();
 			mVttQueue.pop();
 			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld\n", cue->mStart, mStartPos, mPtsOffset);
-			int start = cue->mStart - mStartPos + (mStartPTS / 90) - FIRST_PTS_OFFSET_MS;
+			int start = cue->mStart;
 			if (start > 0)
 			{	
 				ss << convertCueToTtmlString(counter++, cue, start);

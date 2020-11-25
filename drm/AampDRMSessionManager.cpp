@@ -202,9 +202,12 @@ void AampDRMSessionManager::clearFailedKeyIds()
 	pthread_mutex_lock(&cachedKeyMutex);
 	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if((!cachedKeyIDs[i].data.empty()) && cachedKeyIDs[i].isFailedKeyId)
+		if(cachedKeyIDs[i].isFailedKeyId)
 		{
-			cachedKeyIDs[i].data.clear();
+			if(!cachedKeyIDs[i].data.empty())
+			{
+				cachedKeyIDs[i].data.clear();
+			}
 			cachedKeyIDs[i].isFailedKeyId = false;
 			cachedKeyIDs[i].creationTime = 0;
 		}
@@ -368,12 +371,21 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 				if(tokenStatusCode.length() == 1 && tokenStatusCode.c_str()[0] == '0')
 				{
 					string token = _extractSubstring(tokenReplyStr, "token\":\"", "\"");
-					if(token.length() != 0)
+					size_t len = token.length();
+					if(len > 0)
 					{
-						accessToken = (char*)calloc(token.length()+1, sizeof(char));
-						accessTokenLen = token.length();
-						strncpy(accessToken,token.c_str(),token.length());
-						logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+						accessToken = (char*)malloc(len+1);
+						if(accessToken)
+						{
+							accessTokenLen = len;
+							memcpy( accessToken, token.c_str(), len );
+							accessToken[len] = 0x00;
+							logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+						}
+						else
+						{
+							AAMPLOG_WARN("%s:%d :  accessToken is null", __FUNCTION__, __LINE__);  //CID:83536 - Null Returns
+						}
 					}
 					else
 					{
@@ -631,7 +643,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	}
 	unsigned int attemptCount = 0;
 	bool requestFailed = true;
-	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+	/* Check whether stopped or not before looping - download will be disabled */
+	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && aamp->DownloadsAreEnabled())
 	{
 		bool loopAgain = false;
 		attemptCount++;
@@ -639,6 +652,12 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		res = curl_easy_perform(curl);
 		long long tEndTime = NOW_STEADY_TS_MS;
 		long long downloadTimeMS = tEndTime - tStartTime;
+		/** Restrict further processing license if stop called in between  */
+		if(!aamp->DownloadsAreEnabled())
+		{
+			logprintf("%s:%d Aborting License acquisition", __FUNCTION__, __LINE__);
+			break;
+		}
 		if (res != CURLE_OK)
 		{
 			// To avoid scary logging
@@ -828,7 +847,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	int selectedSlot = INVALID_SESSION_SLOT;
 
-	AAMPLOG_INFO("%s:%d keySystem is %s", __FUNCTION__, __LINE__, drmHelper->ocdmSystemId().c_str());
+	AAMPLOG_INFO("%s:%d StreamType :%d keySystem is %s", __FUNCTION__, __LINE__,streamType, drmHelper->ocdmSystemId().c_str());
 
 	/**
 	 * Create drm session without primaryKeyId markup OR retrieve old DRM session.
@@ -943,6 +962,16 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			}
 			logprintf("%s:%d  Selected slot %d for keyId %s",__FUNCTION__, __LINE__, sessionSlot, keyIdDebugStr.c_str());
 		}
+		else
+		{
+			// Already same session Slot is marked failed , not to proceed again .
+			if(cachedKeyIDs[sessionSlot].isFailedKeyId)
+			{
+				logprintf("%s:%d Found FailedKeyId at sesssionSlot :%d, return key error",__FUNCTION__, __LINE__,sessionSlot);
+				return KEY_ERROR;
+			}
+		}
+		
 
 		if (!isCachedKeyId)
 		{
@@ -1078,7 +1107,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 	else
 	{
 		AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
-
+		
 		/**
 		 * Generate a License challenge from the CDM
 		 */
@@ -1096,6 +1125,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 		}
 		else
 		{
+			/** flag for authToken set externally by app **/
+			bool usingAppDefinedAuthToken = !aampInstance->mSessionToken.empty();
 			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 
 			if (!(drmHelper->getDrmMetaData().empty() || gpGlobalConfig->licenseAnonymousRequest))
@@ -1104,8 +1135,18 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 
 				int tokenLen = 0;
 				long tokenError = 0;
-				const char *sessionToken = getAccessToken(tokenLen, tokenError);
-
+				char *sessionToken = NULL;
+				if(!usingAppDefinedAuthToken)
+				{ /* authToken not set externally by app */
+					sessionToken = (char *)getAccessToken(tokenLen, tokenError);
+					AAMPLOG_WARN("%s:%d Access Token from AuthServer", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					sessionToken = (char *)aampInstance->mSessionToken.c_str();
+					tokenLen = aampInstance->mSessionToken.size();
+					AAMPLOG_WARN("%s:%d Got Access Token from External App", __FUNCTION__, __LINE__);
+				}
 				if (NULL == sessionToken)
 				{
 					// Failed to get access token, but will still try without it
@@ -1145,11 +1186,11 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
 #ifdef USE_SECCLIENT
-				if (isComcastStream)
+				if (isComcastStream || usingAppDefinedAuthToken)
 				{
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 					// Reload Expired access token only on http error code 412 with status code 401
-					if (412 == httpResponseCode && 401 == httpExtendedStatusCode)
+					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
 					{
 						AAMPLOG_INFO("%s:%d License Req failure by Expired access token httpResCode %d statusCode %d", __FUNCTION__, __LINE__, httpResponseCode, httpExtendedStatusCode);
 						if(accessToken)
@@ -1241,6 +1282,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				{
 					eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
 				}
+				AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
 				AAMPLOG_WARN("%s:%d deleting existing DRM session for %s, Authorisation failed", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
 				delete drmSessionContexts[sessionSlot].drmSession;
 				drmSessionContexts[sessionSlot].drmSession = nullptr;
@@ -1254,6 +1296,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
 				eventHandle->setResponseCode(httpResponseCode);
 			}
+			AampMutexHold keymutex(cachedKeyMutex);
 			cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 
 			return KEY_ERROR;
@@ -1317,13 +1360,9 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 	if (!contentMetaData.empty())
 	{
-		string externLicenseServerURL;
+		string externLicenseServerURL = licenseRequest.url;
 
-		if (gpGlobalConfig->licenseServerLocalOverride)
-		{
-			externLicenseServerURL = licenseRequest.url;
-		}
-		else
+		if (!gpGlobalConfig->licenseServerLocalOverride)
 		{
 			if (string::npos != licenseRequest.url.find("rogers.ccp.xcal.tv"))
 			{

@@ -75,7 +75,6 @@
 static const int DEFAULT_STREAM_WIDTH = 720;
 static const int DEFAULT_STREAM_HEIGHT = 576;
 static const double DEFAULT_STREAM_FRAMERATE = 25.0;
-static const std::string DEFAULT_STREAM_CODECS = "avc1.66.30,mp4a.40.5";
 
 
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
@@ -99,7 +98,7 @@ struct FormatMap
 };
 
 /// Variable initialization for various audio formats
-static const FormatMap mAudioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
+static const FormatMap mAudioFormatMap[] =
 {
 	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
 	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
@@ -109,6 +108,7 @@ static const FormatMap mAudioFormatMap[AAMP_AUDIO_FORMAT_MAP_LEN] =
 	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
 };
+#define AAMP_AUDIO_FORMAT_MAP_LEN ARRAY_SIZE(mAudioFormatMap)
 
 /// Variable initialization for various video formats 
 static const FormatMap * GetAudioFormatForCodec( const char *codecs )
@@ -127,12 +127,14 @@ static const FormatMap * GetAudioFormatForCodec( const char *codecs )
 }
 
 /// Variable initialization for various video formats
-static const FormatMap mVideoFormatMap[AAMP_VIDEO_FORMAT_MAP_LEN] =
+static const FormatMap mVideoFormatMap[] =
 {
 	{ "avc1.", FORMAT_VIDEO_ES_H264 },
 	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
+	{ "hev1.", FORMAT_VIDEO_ES_HEVC },
 	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
 };
+#define AAMP_VIDEO_FORMAT_MAP_LEN ARRAY_SIZE(mVideoFormatMap)
 
 static const FormatMap * GetVideoFormatForCodec( const char *codecs )
 {
@@ -618,6 +620,7 @@ static char *mystrpbrk(char *ptr)
 ***************************************************************************/
 static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim, char *fin, void *context), void *context)
 {
+	char *origParseStr = attrName;
 	while (*attrName)
 	{
 		while (*attrName == ' ')
@@ -631,7 +634,13 @@ static void ParseAttrList(char *attrName, void(*cb)(char *attrName, char *delim,
 		}
 		while (*delimEqual != '=')
 		{ // An AttributeName is an unquoted string containing characters from the set [A..Z], [0..9] and '-'
-			delimEqual++;
+			char c = *delimEqual++;
+			if(c < ' ')
+			{
+				// if 0x00, newline, or other unprintable characters, bail out
+				AAMPLOG_WARN("%s:%d Missing equal delimiter %s", __FUNCTION__, __LINE__,origParseStr);
+				return;
+			}
 		}
 		char *fin = delimEqual;
 		bool inQuote = false;
@@ -758,7 +767,7 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	int width = gpGlobalConfig->getUnknownValue(keyName + ".width", DEFAULT_STREAM_WIDTH);
 	int height = gpGlobalConfig->getUnknownValue(keyName + ".height", DEFAULT_STREAM_HEIGHT);
 	double framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", DEFAULT_STREAM_FRAMERATE);
-	const std::string& codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs", DEFAULT_STREAM_CODECS);
+	const std::string& codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs");
 
 	keyName = "stream.";
 	char itoaBuf[12] = {0};
@@ -809,10 +818,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	char* ptr = mainManifest.ptr;
 	bool secondPass = false;
 	// Get the initial configuration to filter the profiles
-	bool bDisableEC3 = gpGlobalConfig->disableEC3;
-	bool bDisableAC3 = gpGlobalConfig->disableEC3;
+	bool bDisableEC3 = aamp->mDisableEC3;
+	bool bDisableAC3 = aamp->mDisableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (gpGlobalConfig->disableEC3) ? true : gpGlobalConfig->disableATMOS;
+	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
 	bool bDisableAAC = false;
 
 	bool ignoreProfile = false, clearProfiles = false;
@@ -1286,6 +1295,15 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 	}
 	if (idxNode)
 	{
+		// For Fragmented MP4 check if initFragment injection is required
+		if ( idxNode->initFragmentPtr
+				&& ( (!mInitFragmentInfo) || strcmp(mInitFragmentInfo, idxNode->initFragmentPtr) != 0))
+		{
+			AAMPLOG_TRACE( "%s init fragment injection required (%s)\n", __FUNCTION__, idxNode->initFragmentPtr );
+			mInitFragmentInfo = idxNode->initFragmentPtr;
+			mInjectInitFragment = true;
+		}
+
 		currentIdx = idx;
 		byteRangeOffset = 0;
 		byteRangeLength = 0;
@@ -1348,6 +1366,14 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 			mFragmentURIFromIndex.assign(fragmentInfo, urlLen);
 			if(!mFragmentURIFromIndex.empty()){
 				uri = (char *)mFragmentURIFromIndex.c_str();
+			}
+			
+			//The EXT-X-TARGETDURATION tag specifies the maximum Media Segment   duration.  
+			//The EXTINF duration of each Media Segment in the Playlist   file, when rounded to the nearest integer, 
+			//MUST be less than or equal   to the target duration
+			if(uri && std::round(fragmentDurationSeconds) > targetDurationSeconds) 
+			{
+				AAMPLOG_WARN("%s WARN - Fragment duration[%f] > TargetDuration[%f] for URI:%s",__FUNCTION__,fragmentDurationSeconds ,targetDurationSeconds,uri);
 			}
 		}
 		else
@@ -1716,6 +1742,14 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					mSyncAfterDiscontinuityInProgress = false;
 					traceprintf("%s:%d [%s] Discontinuity - %d", __FUNCTION__, __LINE__, name, (int)this->discontinuity);
 					rc = ptr;
+					//The EXT-X-TARGETDURATION tag specifies the maximum Media Segment   duration.  
+					//The EXTINF duration of each Media Segment in the Playlist   file, 
+					//when rounded to the nearest integer, 
+					//MUST be less than or equal   to the target duration
+					if(rc && std::round(fragmentDurationSeconds) > targetDurationSeconds) 
+					{
+						AAMPLOG_WARN("%s WARN - Fragment duration[%f] > TargetDuration[%f] for URI:%s",__FUNCTION__,fragmentDurationSeconds ,targetDurationSeconds,rc);
+					}
 					break;
 				}
 				else
@@ -2122,13 +2156,14 @@ void TrackState::FetchFragment()
 							context->mCheckForRampdown = true;
 							// Rampdown attempt success, download same segment from lower profile.
 							mSkipSegmentOnError = false;
+						
+							AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 						}
 						else
 						{
 							AAMPLOG_WARN("%s:%d %s Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__,name);
 							context->mRampDownCount = 0;
 						}
-						AAMPLOG_WARN("%s:%d: Error while fetching fragment:%s, failedCount:%d. decrementing profile", __FUNCTION__, __LINE__, name, segDLFailCount);
 					}
 				}
 				else if (decryption_error)
@@ -2633,6 +2668,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
+	const char *initFragmentPtr = NULL;
 	
 	if(IsRefresh && !UseProgramDateTimeIfAvailable())
 	{
@@ -2698,6 +2734,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					totalDuration += atof(ptr);
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
+					node.initFragmentPtr = initFragmentPtr;
 					aamp_AppendBytes(&index, &node, sizeof(node));
 				}
 				else if(startswith(&ptr,"-X-MEDIA-SEQUENCE:"))
@@ -2845,6 +2882,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				}
 				else if(startswith(&ptr,"-X-MAP:"))
 				{
+					initFragmentPtr = ptr;
 					if (mCheckForInitialFragEnc)
 					{
 						AAMPLOG_TRACE("%s:%d fragmentEncrypted-%d drmMethod-%d and ptr - %s", __FUNCTION__, __LINE__, fragmentEncrypted, mDrmMethod, ptr);
@@ -3050,17 +3088,26 @@ void TrackState::ABRProfileChanged()
 {
 	// If not live, reset play position since sequence number doesn't ensure the fragments
 	// from multiple streams are in sync
-	traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
-	aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
-	pthread_mutex_lock(&mutex);
-	//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
-	//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
-	//Video profile change will definitely require new init headers
-	mInjectInitFragment = true;
-	refreshPlaylist = true;
-	/*For some VOD assets, different video profiles have different DRM meta-data.*/
-	mForceProcessDrmMetadata = true;
+	const char* pcontext = context->GetPlaylistURI(type);
+	if(pcontext != NULL)
+	{
+		traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext);
+		pthread_mutex_lock(&mutex);
+		//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
+		//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
+		//Video profile change will definitely require new init headers
+		mInjectInitFragment = true;
+		refreshPlaylist = true;
+		/*For some VOD assets, different video profiles have different DRM meta-data.*/
+		mForceProcessDrmMetadata = true;
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d :  GetPlaylistURI  is null", __FUNCTION__, __LINE__);  //CID:83060 - Null Returns
+	}
 	pthread_mutex_unlock(&mutex);
+
 }
 /***************************************************************************
 * @fn RefreshPlaylist
@@ -3116,11 +3163,15 @@ void TrackState::RefreshPlaylist(void)
 		{
 			actualType = eMEDIATYPE_PLAYLIST_AUDIO ;
 		}
+		else if (type == eTRACK_SUBTITLE)
+		{
+			actualType = eMEDIATYPE_PLAYLIST_SUBTITLE;
+		}
 
 		double downloadTime;
 		AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(actualType, false);
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
-		aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);
+		(void) aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);  //CID:89271 - checked return
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
 		if(!aamp->mParallelFetchPlaylistRefresh)
@@ -3348,25 +3399,12 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			if (index >= 0)
 			{
 				aamp->UpdateAudioLanguageSelection( GetLanguageCode(index).c_str() );
-				logprintf("GetPlaylistURI : AudioTrack: Audio selected name is %s", GetLanguageCode(index).c_str());
+				logprintf("GetPlaylistURI : AudioTrack: language selected is %s", GetLanguageCode(index).c_str());
 				playlistURI = this->mediaInfo[index].uri;
 				mAudioTrackIndex = std::to_string(index);
 				if( format )
 				{
-					*format = FORMAT_NONE;
-					HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
-					const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
-					if( map )
-					{ // video profile specifies audio format
-						*format = map->format;
-						logprintf("GetPlaylistURI : AudioTrack: Audio format is %d [%s]",
-								  map->format, map->codec );
-					}
-					else
-					{ // HACK
-						logprintf("GetPlaylistURI : AudioTrack: assuming stereo" );
-						*format = FORMAT_AUDIO_ES_AAC;
-					}
+					*format = GetStreamOutputFormatForTrack(trackType);
 				}
 			}
 		}
@@ -3409,13 +3447,13 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 				playlistURI = mediaInfo[mediaInfoIndex].uri;
 				mTextTrackIndex = std::to_string(mediaInfoIndex);
 				aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
-				*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_NONE;
-				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s and format %d", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI, *format);
+				if (format) *format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_UNKNOWN;
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI);
 			}
 			else
 			{
 				logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage);
-				*format = FORMAT_NONE;
+				*format = FORMAT_INVALID;
 			}
 		}
 		break;
@@ -4079,7 +4117,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		double downloadTime;
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
-		aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);
+		(void) aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);  //CID:82578 - checked return
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), downloadTime);
@@ -4205,14 +4243,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d subtitles disabled by application", __FUNCTION__, __LINE__);
 				ts->enabled = false;
-				ts->streamOutputFormat = FORMAT_NONE;
+				ts->streamOutputFormat = FORMAT_INVALID;
 				continue;
 			}
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)
 			{
 				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri);
-				if(ts->streamOutputFormat != FORMAT_NONE)
+				if(ts->streamOutputFormat != FORMAT_INVALID)
 				{
 					ts->enabled = true;
 					mNumberOfTracks++;
@@ -4239,14 +4277,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if(audio->enabled)
 			{
 				video->enabled = false;
-				video->streamOutputFormat = FORMAT_NONE;
+				video->streamOutputFormat = FORMAT_INVALID;
 			}
 			else
 			{
 				trackState[eTRACK_VIDEO]->type = eTRACK_AUDIO;
 			}
 			subtitle->enabled = false;
-			subtitle->streamOutputFormat = FORMAT_NONE;
+			subtitle->streamOutputFormat = FORMAT_INVALID;
+
 		}
 		aamp->profiler.SetBandwidthBitsPerSecondAudio(audio->GetCurrentBandWidth());
 
@@ -4425,7 +4464,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						//Subtitle is optional and not critical to playback
 						ts->enabled = false;
-						AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d Subtitle playlist duration is zero!!", __FUNCTION__, __LINE__);
+						ts->streamOutputFormat = FORMAT_INVALID;
+						AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s:%d %s playlist duration is zero!!",
+								__FUNCTION__, __LINE__, ts->name);
 					}
 					else
 					{
@@ -4493,7 +4534,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					if (eMEDIATYPE_SUBTITLE == iTrack)
 					{
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported subtitle format from fragment extension:%d", __FUNCTION__, __LINE__, format);
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4512,7 +4553,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						if (subtitle->enabled)
 						{
 							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported media format for audio or video - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__);
-							subtitle->streamOutputFormat = FORMAT_NONE;
+							subtitle->streamOutputFormat = FORMAT_INVALID;
 							subtitle->fragmentURI = NULL;
 							//mSubtitleParser will be deleted in destructor, so unhandled here
 							subtitle->enabled = false;
@@ -4523,6 +4564,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Not ISOBMFF, no need for encrypted header check and associated logic
 				// But header identification might have been already done, if EXT-X-MAP is present in playlist
 				ts->mCheckForInitialFragEnc = false;
+				// Elementary stream, we can skip playContext creation
 				if (FORMAT_AUDIO_ES_AAC == format)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC", ts->name);
@@ -4552,7 +4594,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 					else
 					{
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4562,18 +4604,20 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					if (this->rate == AAMP_NORMAL_PLAY_RATE)
 					{
+						// Creation of playContext is required only for TS fragments
 						if (format == FORMAT_MPEGTS)
 						{
 							if (gpGlobalConfig->gAampDemuxHLSAudioTsTrack)
 							{
-								logprintf("Configure audio TS track demuxing");
-								ts->playContext = new TSProcessor(aamp,eStreamOp_DEMUX_AUDIO);
+								logprintf("StreamAbstractionAAMP_HLS::%s : Configure audio TS track demuxing", __FUNCTION__);
+								ts->playContext = new TSProcessor(aamp, eStreamOp_DEMUX_AUDIO);
 							}
 							else if (gpGlobalConfig->gAampMergeAudioTrack)
 							{
 								logprintf("Configure audio TS track to queue");
-								ts->playContext = new TSProcessor(aamp,eStreamOp_QUEUE_AUDIO);
-								ts->streamOutputFormat = FORMAT_NONE;
+								ts->playContext = new TSProcessor(aamp, eStreamOp_QUEUE_AUDIO);
+								// Audio is muxed with video, no need to configure pipeline for the same
+								ts->streamOutputFormat = FORMAT_INVALID;
 								audioQueuedPC = static_cast<TSProcessor*> (ts->playContext);
 							}
 							if (ts->playContext)
@@ -4600,7 +4644,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					else
 					{
 						logprintf("Disable audio format - trick play");
-						ts->streamOutputFormat = FORMAT_NONE;
+						ts->streamOutputFormat = FORMAT_INVALID;
 						ts->fragmentURI = NULL;
 						ts->enabled = false;
 					}
@@ -4608,19 +4652,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == AAMP_NORMAL_PLAY_RATE))
 						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != AAMP_NORMAL_PLAY_RATE)))
 				{
-					HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
 					/*Populate format from codec data*/
-					format = FORMAT_INVALID;
-					if (streamInfo->codecs)
-					{
-						const FormatMap *map = GetVideoFormatForCodec(streamInfo->codecs);
-						if( map )
-						{
-							format = map->format;
-							AAMPLOG_INFO("StreamAbstractionAAMP_HLS::Init : VideoTrack: format is %d [%s]",
-								map->format, map->codec);
-						}
-					}
+					format = GetStreamOutputFormatForTrack(eTRACK_VIDEO);
+
 					if (FORMAT_INVALID != format)
 					{
 						StreamOperation demuxOp;
@@ -4631,32 +4665,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 						else
 						{
-							if (streamInfo->codecs)
+							// In case of muxed, where there is no X-MEDIA tag but CODECS show presence of audio
+							// This could be changed later, once we let TSProcessor configure tracks based on demux status
+							StreamOutputFormat audioFormat = GetStreamOutputFormatForTrack(eTRACK_AUDIO);
+							if (audioFormat != FORMAT_UNKNOWN)
 							{
-								const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
-								if( map )
-								{
-									trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = map->format;
-									logprintf("StreamAbstractionAAMP_HLS::Init : Audio format is %d [%s]",
-										map->format, map->codec);
-								}
+								trackState[eMEDIATYPE_AUDIO]->streamOutputFormat = audioFormat;
 							}
-							if(FORMAT_NONE != trackState[eMEDIATYPE_AUDIO]->streamOutputFormat)
+
+							// Even if audio info is not present in manifest, we let TSProcessor run a full sweep
+							// If audio is found, then TSProcessor will configure stream sink accordingly
+							if(!gpGlobalConfig->bAudioOnlyPlayback)
 							{
-								if(!gpGlobalConfig->bAudioOnlyPlayback)
-								{
-									demuxOp = eStreamOp_DEMUX_ALL;
-								}
-								else
-								{
-									demuxOp = eStreamOp_DEMUX_AUDIO;
-									video->streamOutputFormat = FORMAT_NONE;
-								}
+								// For muxed tracks, demux audio and video
+								demuxOp = eStreamOp_DEMUX_ALL;
 							}
 							else
 							{
-								logprintf("StreamAbstractionAAMP_HLS::%s:%d Demux only video. codecs %s", __FUNCTION__, __LINE__, streamInfo[currentProfileIndex].codecs);
-								demuxOp = eStreamOp_DEMUX_VIDEO;
+								// Audio only playback, disable video
+								demuxOp = eStreamOp_DEMUX_AUDIO;
+								video->streamOutputFormat = FORMAT_INVALID;
 							}
 						}
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d", demuxOp);
@@ -5076,7 +5104,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else
 				{
 					logprintf("StreamAbstractionAAMP_HLS::%s:%d : Error Download iframe playlist. http_error %ld",
-					        __FUNCTION__, __LINE__, http_error);
+					       __FUNCTION__, __LINE__, http_error);
 				}
 			}
 		}
@@ -5203,6 +5231,34 @@ double TrackState::GetBufferedDuration()
 	return (playTargetBufferCalc - (aamp->GetPositionMs() / 1000));
 }
 
+/***************************************************************************
+* @fn SwitchSubtitleTrack
+* @brief Flushes out all old segments and sets up new playlist
+*        Used to switch subtitle tracks without restarting the pipeline
+*
+* @return void
+***************************************************************************/
+void TrackState::SwitchSubtitleTrack()
+{
+	if (eTRACK_SUBTITLE == type && mSubtitleParser)
+	{
+		pthread_mutex_lock(&mutex);
+		
+		AAMPLOG_INFO("%s:%d Preparing to flush fragments and switch playlist", __FUNCTION__, __LINE__);
+		// Flush all counters, reset the playlist URL and refresh the playlist
+		FlushFragments();
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
+		RefreshPlaylist();
+
+		playTarget = 0.0;
+		fragmentURI = GetNextFragmentUriFromPlaylist();
+		context->AbortWaitForAudioTrackCatchup(true);
+
+		mSubtitleParser->init(aamp->GetPositionMilliseconds() / 1000.0, aamp->GetBasePTS());
+
+		pthread_mutex_unlock(&mutex);		
+	}
+}
 
 /***************************************************************************
 * @fn RunFetchLoop
@@ -5213,7 +5269,8 @@ double TrackState::GetBufferedDuration()
 void TrackState::RunFetchLoop()
 {
 	bool skipFetchFragment = false;
-        bool abortedDownload = false;
+	bool abortedDownload = false;
+
 	for (;;)
 	{
 		while (!abortedDownload && fragmentURI && aamp->DownloadsAreEnabled())
@@ -5293,6 +5350,17 @@ void TrackState::RunFetchLoop()
 				}
 #endif
 			}
+			
+			// This will switch the subtitle track without restarting AV
+			// Should be a smooth transition to new language
+			if (refreshSubtitles)
+			{
+				// Reset abort flag (this was set to exit the fetch loop)
+				abort = false;
+				refreshSubtitles = false;
+				SwitchSubtitleTrack();
+			}
+			
 			pthread_mutex_lock(&mutex);
 			if(refreshPlaylist)
 			{
@@ -5470,7 +5538,7 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 		MediaTrack(type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
 		byteRangeLength(0), byteRangeOffset(0), nextMediaSequenceNumber(0), playlistPosition(0), playTarget(0),playTargetBufferCalc(0),lastDownloadedIFrameTarget(-1),
-		streamOutputFormat(FORMAT_NONE), playContext(NULL),
+		streamOutputFormat(FORMAT_INVALID), playContext(NULL),
 		playTargetOffset(0),
 		discontinuity(false),
 		refreshPlaylist(false), fragmentCollectorThreadID(0),
@@ -5659,7 +5727,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
 	ReassessAndResumeAudioTrack(true);
-	AbortWaitForAudioTrackCatchup();
+	AbortWaitForAudioTrackCatchup(false);
 
 	//This is purposefully kept in a separate loop to avoid being hung
 	//on pthread_join of fragmentCollectorThread
@@ -5975,8 +6043,15 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 			printf("\n");
 		}
 		mCMSha1Hash = (char*)malloc(DRM_SHA1_HASH_LEN);
-		memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
-		drmDataChanged = true;
+		if(!mCMSha1Hash)
+		{
+			AAMPLOG_WARN("%s:%d :  mCMSha1Hash  is null", __FUNCTION__, __LINE__);  //CID:84607 - Null Returns
+		}
+		else
+		{
+			memcpy(mCMSha1Hash, ptr, DRM_SHA1_HASH_LEN);
+			drmDataChanged = true;
+		}
 	}
 	if(drmDataChanged)
 	{
@@ -6086,7 +6161,7 @@ void TrackState::FetchPlaylist()
 	aamp->profiler.ProfileBegin(bucketId);
 	do
 	{
-		aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
+		(void) aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		main_error = getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
@@ -6310,9 +6385,16 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 						// No PDT , now compare the position based on culled delta 
 						// Additional fragmentDuration is considered as rounding with decimal is missing the position when culled delta is same 
 						// Ignore milli second accuracy 
-						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds);
-						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds);
-						int roundedPosn = (int)position;
+						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds - 1.0);
+						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds + 1.0);
+						// DELIA-46385 
+						// Due to increase in fragment duration and mismatch between audio and video,
+						// Discontinuity pairing is missed 
+						// Example : input posn:2290 index[12] position:2293 deltaCulled:0.000000 limit1:2291 limit2:2295
+						// As a workaround , adding a buffer of +/- 1sec around the limit check .
+						// Also instead of int conversion ,round is called for better 
+						int roundedPosn = std::round(position);
+						
 						AAMPLOG_INFO("%s Comparing position input posn:%d index[%d] position:%d deltaCulled:%f limit1:%d limit2:%d  ",__FUNCTION__,roundedPosn,i,(int)(discontinuityIndex[i].position),deltaCulledSec,
 										limit1, limit2);
 						if(roundedPosn >= limit1 && roundedPosn <= limit2 )
@@ -6977,6 +7059,36 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 {
 	seekPosition = secondsRelativeToTuneTime;
+}
+
+
+/***************************************************************************
+* @fn GetStreamOutputFormatForAudio
+* @brief Function to get output format for audio track
+*
+* @param[in] type track type
+* @return StreamOutputFormat for the audio codec selected
+***************************************************************************/
+StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(TrackType type)
+{
+	StreamOutputFormat format = FORMAT_UNKNOWN;
+
+	HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
+	const FormatMap *map = NULL;
+	if (type == eTRACK_VIDEO)
+	{
+		map = GetVideoFormatForCodec(streamInfo->codecs);
+	}
+	else if (type == eTRACK_AUDIO )
+	{
+		map = GetAudioFormatForCodec(streamInfo->codecs);
+	}
+	if (map)
+	{ // video profile specifies audio format
+		format = map->format;
+		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Track[%d] format is %d [%s]", __FUNCTION__, __LINE__, type, map->format, map->codec);
+	}
+	return format;
 }
 
 /**

@@ -311,14 +311,8 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 		pthread_cond_wait(&mCondVar, &mCondVarMutex);
 		if(!mCacheActive)
 		{
-			int timeInMs = 10000;
 			struct timespec ts;
-			struct timeval tv;
-			gettimeofday(&tv, NULL);
-			ts.tv_sec = time(NULL) + timeInMs / 1000;
-			ts.tv_nsec = (long)(tv.tv_usec * 1000 + 1000 * 1000 * (timeInMs % 1000));
-			ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-			ts.tv_nsec %= (1000 * 1000 * 1000);
+			ts = aamp_GetTimespec(10000);
 
 			if(ETIMEDOUT == pthread_cond_timedwait(&mCondVar, &mCondVarMutex, &ts))
 			{

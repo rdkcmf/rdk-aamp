@@ -23,6 +23,7 @@
  */
 
 #include <stdio.h>
+#include <errno.h>
 #include <list>
 #include <string.h>
 #include <string>
@@ -253,24 +254,30 @@ static void ShowHelp(void)
 	int i = 0;
 	if (!mVirtualChannelMap.empty())
 	{
-		logprintf("\nChannel Map from aampcli.cfg\n*************************");
+		logprintf("aampcli.cfg virtual channel map:");
 
 		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
 		{
 			VirtualChannelInfo &pChannelInfo = *it;
-			printf("%4d: %s", pChannelInfo.channelNumber, pChannelInfo.name.c_str());
-			if ((i % 4) == 3)
-			{
+			const char *channelName = pChannelInfo.name.c_str();
+			printf("%4d: %s", pChannelInfo.channelNumber, channelName );
+			if ((i % 4) == 3 )
+			{ // four virtual channels per row
 				printf("\n");
 			}
 			else
 			{
-				printf("\t");
+				size_t len = strlen(channelName);
+				while( len<20 )
+				{ // pad each column to 20 characters, for clean layout
+					printf( " " );
+					len++;
+				}
 			}
 		}
-		printf("\n");
+		printf("\n\n");
 	}
-	logprintf( "Commands:\n" );
+	logprintf( "Commands:" );
 	logprintf( "<channelNumber>               // Play selected channel from guide");
 	logprintf( "<url>                         // Play arbitrary stream");
 	logprintf( "pause play stop status flush  // Playback options");
@@ -444,6 +451,9 @@ public:
 		case AAMP_EVENT_BITRATE_CHANGED:
 			logprintf("AAMP_EVENT_BITRATE_CHANGED");
 			break;
+		case AAMP_EVENT_AUDIO_TRACKS_CHANGED:
+			logprintf("AAMP_EVENT_AUDIO_TRACKS_CHANGED");
+			break;
 		case AAMP_EVENT_ID3_METADATA:
 			{
 				logprintf("AAMP_EVENT_ID3_METADATA");
@@ -513,7 +523,24 @@ static void ProcessCLIConfEntry(char *cfg)
 					{
 						channelInfo.name = "CH" + std::to_string(channelInfo.channelNumber);
 					}
-					mVirtualChannelMap.push_back(channelInfo);
+					bool duplicate = false;
+					for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+					{
+						VirtualChannelInfo &existingChannelInfo = *it;
+						if(channelInfo.channelNumber == existingChannelInfo.channelNumber )
+						{
+							duplicate = true;
+							break;
+						}
+					}
+					if( duplicate )
+					{
+						//printf( "duplicate entry for channel %d\n", channelInfo.channelNumber );
+					}
+					else
+					{
+						mVirtualChannelMap.push_back(channelInfo);
+					}
 				}
 				else
 				{
@@ -1470,7 +1497,11 @@ int main(int argc, char **argv)
 
 #ifdef __APPLE__
     pthread_t cmdThreadId;
-    pthread_create(&cmdThreadId,NULL,run_command,NULL);
+    if(pthread_create(&cmdThreadId,NULL,run_command,&startUrl) != 0)
+	{
+		logprintf("Failed at create pthread errno = %d", errno);  //CID:83593 - checked return
+	}
+
     createAndRunCocoaWindow();
 	if(mBackgroundPlayer)
 	{

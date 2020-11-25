@@ -89,12 +89,10 @@ static const char *mMediaFormatName[] =
 // VSS Service Zone identifier in url
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
-#define VSS_MARKER_FOG		"\%3Fsz\%3D"
+#define VSS_MARKER_FOG			"%3Fsz%3D" // URI-encoded ?sz=
 #define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
-
-//Upper and lower limit for dash drm sessions
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
@@ -571,6 +569,9 @@ public:
 	bool mEnableRectPropertyEnabled;
 	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
+	bool mDisableEC3;
+	bool mDisableATMOS;
+	bool mForceEC3;
 	bool mUseRetuneForUnpairedDiscontinuity;
 	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
@@ -649,6 +650,7 @@ public:
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
+	std::string mSessionToken; /**< Field to set session token for player */
 
 	/**
 	 * @brief Curl initialization function
@@ -1753,9 +1755,10 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
+	 *   @param[in] overwriteLangFlag - flag to enable overwrite language
 	 *   @return void
 	 */
-	void UpdateAudioLanguageSelection(const char *lang);
+	void UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag=true );
 
 	/**
 	 *   @brief Update subtitle language selection
@@ -2519,6 +2522,14 @@ public:
 	void SetCCStatus(bool enabled);
 
 	/**
+	 *   @brief Switch the subtitle track following a change to the 
+	 * 			preferredTextTrack
+	 *
+	 *   @return void
+	 */
+	void RefreshSubtitles();
+
+	/**
 	 *   @brief Function to notify available audio tracks changed
 	 *
 	 *   @return void
@@ -2585,6 +2596,31 @@ public:
 	 *   @return bool true if available
 	 */
 	static bool IsActiveInstancePresent();
+
+	/**
+	 *   @brief Return BasePTS - for non-HLS/TS streams this will be zero
+	 *
+	 *   @return unsigned long long mVideoBasePTS
+	 */
+	unsigned long long GetBasePTS() { return mVideoBasePTS; }
+
+	/**
+	 *   @brief Set the session Token for player
+	 *
+	 *   @param[in] string - sessionToken
+	 *   @return void
+	 */
+	void SetSessionToken(std::string &sessionToken);
+
+	/**
+	 *   @brief Set stream format for audio/video tracks
+	 *
+	 *   @param[in] videoFormat - video stream format
+	 *   @param[in] audioFormat - audio stream format
+	 *   @return void
+	 */
+	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+
 private:
 
 	/**

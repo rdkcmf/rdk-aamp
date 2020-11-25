@@ -37,6 +37,18 @@ pkg_check_modules(LIBDASH REQUIRED libdash)
 pkg_check_modules(OPENSSL REQUIRED openssl)
 pkg_check_modules(LIBCJSON REQUIRED libcjson)
 
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+    message("CMAKE_WPEFRAMEWORK_REQUIRED set")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
+find_package(WPEFramework REQUIRED)
+if (WPEFRAMEWORK_FOUND)
+    message("WPEFRAMEWORK_FOUND = ${WPEFRAMEWORK_FOUND}")
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR} PRIVATE ${WPEFRAMEWORK_INCLUDE_DIRS})
+else()
+    message(FATAL_ERROR "WPEFrameworkProtocols not found")
+endif()
+endif()
+
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
 	message("CMAKE_QT5WEBKIT_JSBINDINGS set, require Qt5WebKit")
 	pkg_check_modules(Qt5WebKit REQUIRED Qt5WebKit)
@@ -65,6 +77,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     link_directories(${OPENSSL_LIBRARY_DIRS})
     set(CMAKE_THREAD_LIBS_INIT "-lpthread")
     set(CMAKE_HAVE_THREADS_LIBRARY 1)
+    pkg_check_modules(GLIB REQUIRED GLib-2.0)
+    include_directories(${GLIB_INCLUDE_DIRS})
 else()
     set(LIB_SHARED SHARED)
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
@@ -86,6 +100,7 @@ include_directories(${OPENSSL_INCLUDE_DIRS})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${LIBCJSON_INCLUDE_DIRS})
+
 
 set(LIBAAMP_SOURCES iso639map.cpp
                     base16.cpp
@@ -118,6 +133,9 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
 )
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp)
+endif()
 
 if(CMAKE_CONTENT_METADATA_IPDVR_ENABLED)
 	message("CMAKE_CONTENT_METADATA_IPDVR_ENABLED set")
@@ -178,7 +196,7 @@ else()
 	install(TARGETS subtectest DESTINATION bin)
 endif()
 
-set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebvttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
 include_directories(subtec)
 
@@ -403,6 +421,10 @@ endif()
 message("LIB_AAMP_DEPENDS is ${LIBAAMP_DEPENDS}")
 
 target_link_libraries(aamp ${LIBAAMP_DEPENDS})
+if (CMAKE_WPEFRAMEWORK_REQUIRED)
+set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CPP_THUNDER_PLUGIN_ACCESS")
+target_link_libraries(aamp ${WPEFRAMEWORK_LIBRARIES})
+endif()
 target_link_libraries(aamp-cli aamp ${AAMP_CLI_LD_FLAGS})
 
 set_target_properties(aamp PROPERTIES COMPILE_FLAGS "${LIBAAMP_DEFINES} ${OS_CXX_FLAGS}")

@@ -536,21 +536,27 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		uint8_t *decryptedDataBuf = (uint8_t *)malloc(payloadDataSize);
 		uint32_t decryptedDataLen = 0;
 		uint8_t *ivBuff = NULL;
-		memset(decryptedDataBuf, 0, payloadDataSize);
-		if(f_cbIV == 8)//8 byte IV need to pad with 0 before decrypt
+		if(!decryptedDataBuf)
 		{
-			ivBuff = (uint8_t *)malloc(sizeof(uint8_t) * AES_CTR_IV_LEN);
-			memset(ivBuff + 8, 0, 8);
-			memcpy(ivBuff, f_pbIV, 8);
-		}
-		else if(f_cbIV == AES_CTR_IV_LEN)
-		{
-			ivBuff = (uint8_t *)malloc(sizeof(uint8_t) * AES_CTR_IV_LEN);
-			memcpy(ivBuff, f_pbIV, AES_CTR_IV_LEN);
-		}
-		else
-		{
-			AAMPLOG_TRACE("ClearKeySession::%s:%d: invalid IV size %u",  __FUNCTION__, __LINE__, f_cbIV);
+			memset(decryptedDataBuf, 0, payloadDataSize);
+			if(f_cbIV == 8)//8 byte IV need to pad with 0 before decrypt
+			{
+				ivBuff = (uint8_t *)malloc(sizeof(uint8_t) * AES_CTR_IV_LEN);
+				if(ivBuff != NULL)
+				{
+					memset(ivBuff + 8, 0, 8);
+					memcpy(ivBuff, f_pbIV, 8);
+				}
+			}
+			else if(f_cbIV == AES_CTR_IV_LEN)
+			{
+				ivBuff = (uint8_t *)malloc(sizeof(uint8_t) * AES_CTR_IV_LEN);
+				memcpy(ivBuff, f_pbIV, AES_CTR_IV_LEN);
+			}
+			else
+			{
+				AAMPLOG_TRACE("ClearKeySession::%s:%d: invalid IV size %u",  __FUNCTION__, __LINE__, f_cbIV);
+			}
 		}
 
 		if (decryptedDataBuf && ivBuff)
@@ -587,8 +593,16 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			}
 
 			memcpy((void *)payloadData, decryptedDataBuf, payloadDataSize);
+		}
+		if(ivBuff)
+		{
+			free(ivBuff);  //CID:108053 - Resource leak
+			ivBuff = NULL;
+		}
+		if(decryptedDataBuf)
+		{
 			free(decryptedDataBuf);
-			free(ivBuff);
+			decryptedDataBuf = NULL;
 		}
 	}
 	else

@@ -73,12 +73,14 @@
 #define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
 #define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
-#define MIN_DASH_DRM_SESSIONS 2
+#define MIN_DASH_DRM_SESSIONS 3
 #define MAX_DASH_DRM_SESSIONS 30
 
 // HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
 #define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
+
+#define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 
 /**
  * @brief Enumeration for TUNED Event Configuration
@@ -141,9 +143,9 @@ public:
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
-	int forceEC3;                           /**< Forcefully enable DDPlus*/
-	int disableEC3;                         /**< Disable DDPlus*/
-	int disableATMOS;                       /**< Disable Dolby ATMOS*/
+	TriState forceEC3;                           /**< Forcefully enable DDPlus*/
+	TriState disableEC3;                         /**< Disable DDPlus*/
+	TriState disableATMOS;                       /**< Disable Dolby ATMOS*/
 	int liveOffset;                         /**< Current LIVE offset*/
 	int cdvrliveOffset;                     /**< CDVR LIVE offset*/
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
@@ -229,9 +231,12 @@ public:
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
 	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
+	bool bWebVttNative; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
+	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
+	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 public:
 
 	/**

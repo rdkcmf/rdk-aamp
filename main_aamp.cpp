@@ -897,14 +897,20 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 		if (aamp->mpStreamAbstractionAAMP)
 		{
 			logprintf("aamp_SetLanguage(%s) retuning", language);
+			if(aamp->mMediaFormat == eMEDIAFORMAT_OTA)
+			{
+				aamp->mpStreamAbstractionAAMP->SetAudioTrackByLanguage(language);
+			}
+			else
+			{
+				aamp->discardEnteringLiveEvt = true;
 
-			aamp->discardEnteringLiveEvt = true;
+				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
+				aamp->TeardownStream(false);
+				aamp->TuneHelper(eTUNETYPE_SEEK);
 
-			aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
-			aamp->TeardownStream(false);
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-
-			aamp->discardEnteringLiveEvt = false;
+				aamp->discardEnteringLiveEvt = false;
+			}
 		}
 	}
 	else
@@ -1026,7 +1032,7 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 	{
 		return helper->friendlyName().c_str();
 	}
-	return "";
+	return "NONE";
 }
 
 /**
@@ -1811,6 +1817,19 @@ void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
 		gpGlobalConfig->preferredCEA708 = eTrueState;
 	}
 #endif
+}
+
+/**
+ *   @brief Set the session Token for player
+ *
+ *   @param[in] string - sessionToken
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetSessionToken(sessionToken);
+	return;
 }
 
 /**
