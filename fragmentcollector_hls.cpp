@@ -1062,6 +1062,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					{ // handle non-compliant manifest missing language attribute
 						mediaInfo[mMediaCount].language =  mediaInfo[mMediaCount].name;
 					}
+					if (mediaInfo[mMediaCount].type == eMEDIATYPE_AUDIO && mediaInfo[mMediaCount].language)
+					{
+						mLangList.insert(GetLanguageCode(mMediaCount));
+					}
 					mMediaCount++;
 				}
 				else if (startswith(&ptr, "-X-VERSION:"))
@@ -1225,6 +1229,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				UpdateIframeTracks();
 			}
 		}
+		aamp->StoreLanguageList(mLangList); // For playlist playback, there will be no languages available
 	}
 	return retval;
 } // ParseMainManifest
@@ -4495,17 +4500,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				if (newTune && needMetadata)
 				{
 					needMetadata = false;
-					std::set<std::string> langList;
 					std::vector<long> bitrateList;
-					//To avoid duplicate entries in audioLanguage list
-					for (int iMedia = 0; iMedia < mMediaCount; iMedia++)
-					{
-						if (this->mediaInfo[iMedia].type == eMEDIATYPE_AUDIO && this->mediaInfo[iMedia].language)
-						{
-							langList.insert(GetLanguageCode(iMedia));
-						}
-					}
-
 					bitrateList.reserve(GetProfileCount());
 					for (int i = 0; i < GetProfileCount(); i++)
 					{
@@ -4518,7 +4513,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							aamp->mIsIframeTrackPresent = true;
 						}
 					}
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 					bSetStatePreparing = true;
@@ -5509,7 +5504,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
-	,mUseAvgBandwidthForABR(false)
+	,mUseAvgBandwidthForABR(false), mLangList()
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");

@@ -5002,6 +5002,7 @@ void PrivateStreamAbstractionMPD::UpdateLanguageList()
 			AAMPLOG_WARN("%s:%d :  period is null", __FUNCTION__, __LINE__);  //CID:83754 - Null Returns
 		}
 	}
+	aamp->StoreLanguageList(mLangList);
 }
 
 #ifdef AAMP_MPD_DRM
@@ -5315,7 +5316,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 		if( audioAdaptationSet )
 		{
 			std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
-			aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
+			aamp->UpdateAudioLanguageSelection( lang.c_str(), true);
 			if(desiredRepIdx != -1 )
 			{
 				audioRepresentationIndex = desiredRepIdx;

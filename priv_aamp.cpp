@@ -3289,7 +3289,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
  * @brief Store language list of stream
  * @param langlist Array of languges
  */
-void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &langlist)
+void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlist)
 {
 	// store the language list
 	int langCount = langlist.size();
@@ -3298,14 +3298,15 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &lang
 		langCount = MAX_LANGUAGE_COUNT; //boundary check
 	}
 	mMaxLanguageCount = langCount;
-	for (int cnt=0; cnt < langCount; cnt ++)
+	std::set<std::string>::const_iterator iter = langlist.begin();
+	for (int cnt = 0; cnt < langCount; cnt++, iter++)
 	{
-		strncpy(mLanguageList[cnt], langlist[cnt].c_str(), MAX_LANGUAGE_TAG_LENGTH);
+		strncpy(mLanguageList[cnt], iter->c_str(), MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
 #ifdef SESSION_STATS
 		if( this->mVideoEnd )
 		{
-			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, langlist[cnt], cnt+1);
+			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, (*iter), cnt+1);
 		}
 #endif
 	}
@@ -4829,8 +4830,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		durationSeconds = 60 * 60; // 1 hour
 		rate = AAMP_NORMAL_PLAY_RATE;
 		playStartUTCMS = aamp_GetCurrentTimeMS();
-		std::vector<std::string> emptyLanglist;
-		StoreLanguageList(emptyLanglist);
+		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
 	}
 
@@ -7653,14 +7653,34 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 /**
  * @brief Update audio language selection
  * @param lang string corresponding to language
- * @param overwriteLangFlag - flag to check for overwriting user setting
+ * @param checkBeforeOverwrite - if set will do additional checks before overwriting user setting
  */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag)
+void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite)
 {
-	if(overwriteLangFlag)
+	bool overwriteSetting = true;
+	if (checkBeforeOverwrite)
 	{
-		strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-		language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		// Check if the user provided language is present in the available language list
+		// in which case this is just temporary and no need to overwrite user settings
+		for (int cnt = 0; cnt < mMaxLanguageCount; cnt++)
+		{
+			if(strncmp(mLanguageList[cnt], language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+			{
+				overwriteSetting = false;
+				break;
+			}
+		}
+
+	}
+
+	if (overwriteSetting)
+	{
+		if (strncmp(language, lang, MAX_LANGUAGE_TAG_LENGTH) != 0)
+		{
+			AAMPLOG_WARN("%s:%d Update audio language from (%s) -> (%s)", __FUNCTION__, __LINE__, language, lang);
+			strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
+			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		}
 	}
 	noExplicitUserLanguageSelection = false;
 
@@ -7863,15 +7883,12 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
-		const char *src = (*iter).c_str();
-		size_t len = strlen(src);
-		if (len > 0)
+		if (!iter->empty())
 		{
-			assert(len < MAX_LANGUAGE_TAG_LENGTH - 1);
-			event->addLanguage(std::string(src));
+			assert(iter->size() < MAX_LANGUAGE_TAG_LENGTH - 1);
+			event->addLanguage((*iter));
 		}
 	}
-	StoreLanguageList(event->getLanguages());
 
 	for (int i = 0; i < bitrateList.size(); i++)
 	{
