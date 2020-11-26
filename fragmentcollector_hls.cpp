@@ -1658,6 +1658,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				else if (startswith(&ptr, "-X-SCTE35"))
 				{ // placeholder for DAI tag processing
 				}
+				else if (startswith(&ptr, "-X-ASSET") || startswith(&ptr, "-X-CUE-OUT") || startswith(&ptr, "-X-CUE-IN") ||
+						startswith(&ptr, "-X-DATERANGE") || startswith(&ptr, "-X-SPLICEPOINT-SCTE35"))
+				{ // placeholder for HLS ad markers used by MediaTailor
+				}
 				else
 				{
 					std::string unknowTag= ptr;
