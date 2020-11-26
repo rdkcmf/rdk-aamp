@@ -713,6 +713,7 @@ public:
 	double GetPeriodStartTime(IMPD *mpd, int periodIndex);
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
 	int GetProfileCount();
+	int GetProfileIndexForBandwidth(long mTsbBandwidth);
 	StreamInfo* GetStreamInfo(int idx);
 	MediaTrack* GetMediaTrack(TrackType type);
 	double GetFirstPTS();
@@ -8058,6 +8059,45 @@ int StreamAbstractionAAMP_MPD::GetProfileCount()
 {
 	return mPriv->GetProfileCount();
 }
+
+
+/**
+ * @brief Get profile index for TsbBandwidth
+ * @param bandwidth - bandwidth to identify profile index from list
+ * @retval profile index of the current bandwidth
+ */
+int PrivateStreamAbstractionMPD::GetProfileIndexForBandwidth(long mTsbBandwidth)
+{
+       int profileIndex = 0;
+       bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;
+
+       if(isFogTsb)
+       {
+               std::vector<long>::iterator it = std::find(mBitrateIndexVector.begin(), mBitrateIndexVector.end(), mTsbBandwidth);
+
+               if (it != mBitrateIndexVector.end())
+               {
+                       // Get index of element from iterator
+                       profileIndex = std::distance(mBitrateIndexVector.begin(), it);
+               }
+       }
+       else
+       {
+               profileIndex = mContext->GetABRManager().getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+       }
+       return profileIndex;
+}
+
+/**
+ * @brief Get profile index for TsbBandwidth
+ * @param bandwidth - bandwidth to identify profile index from list
+ * @retval profile index of the current bandwidth
+ */
+int StreamAbstractionAAMP_MPD::GetProfileIndexForBandwidth(long mTsbBandwidth)
+{
+       return mPriv->GetProfileIndexForBandwidth(mTsbBandwidth);
+}
+
 
 /**
  *   @brief Get stream information of a profile from subclass.
