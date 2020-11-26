@@ -62,4 +62,6 @@ bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double posi
 	
 	PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
 	PacketSender::Instance()->SendPackets();
+
+	return true;
 }

@@ -1368,10 +1368,10 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
  */
 int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 {
+	int desiredProfileIndex = currentProfileIndex;
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	if(video != NULL)
 	{
-		int desiredProfileIndex = currentProfileIndex;
 		if (this->trickplayMode)
 		{
 			int tmpIframeProfile = GetIframeTrack();
@@ -1421,12 +1421,12 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 		}
 		// only for first call, consistency check is ignored
 		mNwConsistencyBypass = false;
-		return desiredProfileIndex;
 	}
 	else
 	{
 		AAMPLOG_WARN("%s:%d : video is null", __FUNCTION__, __LINE__);  //CID:84160 - Null Returns
 	}
+	return desiredProfileIndex;
 }
 
 
