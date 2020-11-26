@@ -422,7 +422,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 					"width", G_TYPE_INT, 1920,
 					"height", G_TYPE_INT, 1080,
 					NULL);
-#elif (defined(RPI) || defined(__APPLE__))
+#elif (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
 			caps = gst_caps_new_simple ("video/x-h264",
                                        "alignment", G_TYPE_STRING, "au",
                                        "stream-format", G_TYPE_STRING, "avc",
@@ -432,7 +432,14 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 #endif
 			break;
 		case FORMAT_VIDEO_ES_HEVC:
+#if (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
+			caps = gst_caps_new_simple ("video/x-h265",
+					"alignment", G_TYPE_STRING, "au",
+					"stream-format", G_TYPE_STRING, "hev1",
+					NULL);
+#else
 			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
+#endif
 			break;
 		case FORMAT_VIDEO_ES_MPEG2:
 			caps = gst_caps_new_simple ("video/mpeg",
@@ -1041,7 +1048,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 				}
 #endif
-#if defined(INTELCE) || defined(RPI) || (defined(__APPLE__))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
 				if(!_this->privateContext->firstFrameReceived)
 				{
 					_this->privateContext->firstFrameReceived = true;
@@ -1049,9 +1056,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->aamp->LogTuneComplete();
 				}
 				_this->aamp->NotifyFirstFrameReceived();
-#endif
-
-#if defined(INTELCE) || defined(RPI) || defined(__APPLE__)
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
@@ -1843,7 +1847,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE) || defined(UBUNTU))
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
