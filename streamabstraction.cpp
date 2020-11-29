@@ -137,7 +137,7 @@ void MediaTrack::MonitorBufferHealth()
 			if (aamp->IsLive() && !aamp->pipeline_paused && !aamp->IsFirstFrameReceived())
 			{
 				// Added logic to identify the playback stall which is observed even before the pipeline moving to PLAYING state (or) receiving the first frame.
-				GetContext()->CheckForPlaybackStall(false);
+				GetContext()->CheckForPlaybackStall(false, true);
 			}
 
 			// We use another lock inside CheckForMediaTrackInjectionStall for synchronization
@@ -1770,7 +1770,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
  *
  *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
  */
-void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
+void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isStalledBeforePlay)
 {
 	if (fragmentParsed)
 	{
@@ -1796,7 +1796,7 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 				if (CheckIfPlayerRunningDry())
 				{
 					logprintf("StreamAbstractionAAMP::%s() Stall detected!. Time elapsed since fragment parsed(%f), caches are all empty!", __FUNCTION__, timeElapsedSinceLastFragment);
-					aamp->SendStalledErrorEvent();
+					aamp->SendStalledErrorEvent(isStalledBeforePlay);
 				}
 			}
 		}
