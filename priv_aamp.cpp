@@ -1911,6 +1911,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mSessionToken(), mCacheMaxSize(0)
 	, midFragmentSeekCache(false)
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
+	, mPreviousAudioType (FORMAT_INVALID)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
