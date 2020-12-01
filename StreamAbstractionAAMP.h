@@ -61,6 +61,7 @@ struct StreamResolution
  */
 struct StreamInfo
 {
+	bool enabled;					/**< indicates if the streamInfo profile is enabled */
 	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
 	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
 	StreamResolution resolution;    /**< Resolution of the stream*/
@@ -717,7 +718,9 @@ public:
 	bool CheckForRampDownLimitReached();
 
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
-	int currentProfileIndex;                /**< current profile index of the track*/
+	int currentProfileIndex;                /**< current Video profile index of the track*/
+	int currentAudioProfileIndex;           /**< current Audio profile index of the track*/
+	int currentTextTrackProfileIndex;        /**< current SubTitle profile index of the track*/
 	int profileIdxForBandwidthNotification; /**< internal - profile index for bandwidth change notification*/
 	bool hasDrm;                            /**< denotes if the current asset is DRM protected*/
 

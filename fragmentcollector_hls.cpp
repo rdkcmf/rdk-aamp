@@ -125,6 +125,31 @@ static const FormatMap * GetAudioFormatForCodec( const char *codecs )
 	return NULL;
 }
 
+/***************************************************************************
+* @fn GetAudioFormatStringForCodec
+* @brief Function to get audio codec string from the map.
+*
+* @param[in] input Audio codec type
+* @return Audio codec string
+***************************************************************************/
+static const char * GetAudioFormatStringForCodec ( StreamOutputFormat input)
+{
+	const char *codec = "UNKNOWN";
+	if(input < FORMAT_UNKNOWN)
+	{
+		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
+		{
+			if(mAudioFormatMap[i].format == input )
+			{
+				codec =  mAudioFormatMap[i].codec;
+				break;
+			}
+		}
+	}
+	return codec;
+}
+
+
 /// Variable initialization for various video formats
 static const FormatMap mVideoFormatMap[] =
 {
@@ -438,7 +463,7 @@ static void ParseStreamInfCallback(char *attrName, char *delimEqual, char *fin, 
 {
 	StreamAbstractionAAMP_HLS *context = (StreamAbstractionAAMP_HLS *) arg;
 	char *valuePtr = delimEqual + 1;
-	HlsStreamInfo *streamInfo = &context->streamInfo[context->GetProfileCount()];
+	HlsStreamInfo *streamInfo = &context->streamInfo[context->GetTotalProfileCount()];
 	if (AttributeNameMatch(attrName, "URI"))
 	{
 		streamInfo->uri = GetAttributeValueString(valuePtr, fin);
@@ -813,37 +838,13 @@ static long getOriginalCurlError(long http_error)
 ***************************************************************************/
 AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 {
+	int vProfileCount, iFrameCount , lineNum;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	char* ptr = mainManifest.ptr;
-	bool secondPass = false;
-	// Get the initial configuration to filter the profiles
-	bool bDisableEC3 = aamp->mDisableEC3;
-	bool bDisableAC3 = aamp->mDisableEC3;
-	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
-	bool bDisableAAC = false;
-
-	bool ignoreProfile = false, clearProfiles = false;
-	int vProfileCount, iFrameCount, lineNum ;
-	long minBitrate = aamp->GetMinimumBitrate();
-	long maxBitrate = aamp->GetMaximumBitrate();
-	// Main manifest contents
-	// Case 1: Handled
-	//	Media , Stream Profile (Single Codec) , IFrame Profiles ( In Order)
-	// Case 2: Handled
-	//	Media , Stream Profile (Multi Codec) , IFrame Profiles (In Order)
-	// Case 3: Handled
-	//	Media , Stream(Single Codec) and IFrame profiles mixed up ( not in order)
-	// Case 4. Handled
-	//	Media , Stream(Multi Codec) and IFrame profiles mixed up( not in order)
-
-	// Priority of Profile selection if no filter set : ATMOS , EAC3 , AAC .
-	do {
-	int aacProfiles = 0, ac3Profiles = 0, ec3Profiles = 0, atmosProfiles = 0;
 	mMediaCount = 0;
+	mProfileCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
-	secondPass = false;
 #ifdef AVE_DRM
 	//clear previouse data
 	setCustomLicensePayLoad(NULL);
@@ -857,7 +858,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 			{
 				if (startswith(&ptr, "-X-I-FRAME-STREAM-INF:"))
 				{
-					HlsStreamInfo *streamInfo = &this->streamInfo[GetProfileCount()];
+					HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
 					memset(streamInfo, 0, sizeof(*streamInfo));
 					ParseAttrList(ptr, ParseStreamInfCallback, this);
 					if (streamInfo->uri == NULL)
@@ -872,29 +873,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					}
 
 					streamInfo->isIframeTrack = true;
-					// Check that the profile is in between max and min bitrate values.
-					if ((streamInfo->bandwidthBitsPerSecond > minBitrate) && (streamInfo->bandwidthBitsPerSecond < maxBitrate))
-					{
-						//Update profile resolution with VideoEnd Metrics object.
-						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
-													streamInfo->bandwidthBitsPerSecond,
-													streamInfo->resolution.width,
-													streamInfo->resolution.height );
-
-						mAbrManager.addProfile({
-							streamInfo->isIframeTrack,
-							streamInfo->bandwidthBitsPerSecond,
-							streamInfo->resolution.width,
-							streamInfo->resolution.height,
-						});
-						iFrameCount++;
-					}
+					streamInfo->enabled = false;
+					iFrameCount++;
+					mProfileCount++;
+					mIframeAvailable = true;
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
-					ignoreProfile = false;
-					struct HlsStreamInfo *streamInfo = &this->streamInfo[GetProfileCount()];
-					setupStreamInfo(streamInfo, GetProfileCount());
+					struct HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
+					setupStreamInfo(streamInfo, mProfileCount);
 					ParseAttrList(ptr, ParseStreamInfCallback, this);
 					if (streamInfo->uri == NULL)
 					{ // uri on following line
@@ -908,150 +895,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					const FormatMap *map = GetAudioFormatForCodec(streamInfo->codecs);
 					if( map )
 					{
-						switch( map->format )
-						{
-							case FORMAT_AUDIO_ES_AAC:
-								if(bDisableAAC)
-								{
-									AAMPLOG_WARN("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-									ignoreProfile = true;
-								}
-								else
-								{
-									aacProfiles++;
-								}
-								break;
-
-							case FORMAT_AUDIO_ES_AC3:
-								if(bDisableAC3)
-								{
-									AAMPLOG_WARN("%s:%d: AC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-									ignoreProfile = true;
-								}
-								else
-								{
-									// found AC3 profile , disable AAC profiles from adding
-									ac3Profiles++;
-									bDisableAAC = true;
-									if(aacProfiles)
-									{
-										// if already aac profiles added , clear it from local table and ABR table
-										aacProfiles = 0;
-										clearProfiles = true;
-									}
-								}
-								break;
-
-							case FORMAT_AUDIO_ES_EC3:
-								if(bDisableEC3)
-								{
-									AAMPLOG_WARN("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-									ignoreProfile = true;
-								}
-								else
-								{ // found EC3 profile , disable AAC and AC3 profiles from adding
-									ec3Profiles++;
-									bDisableAAC = true;
-									bDisableAC3 = true;
-									if(aacProfiles || ac3Profiles)
-									{
-										// if already aac or ac3 profiles added , clear it from local table and ABR table
-										aacProfiles = ac3Profiles = 0;
-										clearProfiles = true;
-									}
-								}
-								break;
-
-							case FORMAT_AUDIO_ES_ATMOS:
-								if(bDisableATMOS)
-								{
-									AAMPLOG_WARN("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-									ignoreProfile = true;
-								}
-								else
-								{ // found ATMOS Profile , disable AC3, EC3 and AAC profile from adding
-									atmosProfiles++;
-									bDisableAAC = true;
-									bDisableAC3 = true;
-									bDisableEC3 = true;
-									if(aacProfiles || ac3Profiles || ec3Profiles)
-									{
-										// if already aac or ac3 or ec3 profiles added , clear it from local table and ABR table
-										aacProfiles = ac3Profiles = ec3Profiles = 0;
-										clearProfiles = true;
-									}
-								}
-								break;
-
-							default:
-								AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
-								break;
-						}
-
-					if(clearProfiles)
-					{
-						vProfileCount = 0;
-						clearProfiles = false;
-						// some profiles which was already added to abr need to be cleared
-						// if stream only profiles were parsed , its easy to flush them out and continue with parsing
-						// but if iframes are mixed along with video profile, then its tricky to remove the interleaved entries from StreamInfo
-						// Easiest way is to clearAllProfiles and reparse again
-						// SecondParse happens rarely in some streams , no impact on regular MSO specific streams
-						if(iFrameCount)
-						{
-							// IFrame and Stream Profile mixed, only way is reparse from beginning
-							// Retrieve the MainManifest content from cache .
-							aamp_Free(&(mainManifest.ptr));
-							memset(&mainManifest, 0, sizeof(GrowableBuffer));
-							std::string url;
-							aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(aamp->GetManifestUrl(), &mainManifest, url);
-							if (mainManifest.len)
-							{
-								aamp_AppendNulTerminator(&mainManifest); // make safe for cstring operations
-								ptr = mainManifest.ptr;
-								secondPass = true;
-							}
-							else
-							{
-								mAbrManager.clearProfiles();
-							}
-							break;
-						}
-						else
-						{
-							if(GetProfileCount() > 0)
-							{
-								// copy currently parsed streamInfo into streamInfo[0] before clearing abr
-								// since it will be added later to abr at position 0
-								memcpy(&this->streamInfo[0], streamInfo, sizeof(HlsStreamInfo));
-								memset(streamInfo, 0, sizeof(HlsStreamInfo));
-								streamInfo = &this->streamInfo[0];
-							}
-
-							mAbrManager.clearProfiles();
-						}
+						streamInfo->audioFormat = map->format;
 					}
-					}// end of if for codec checking
-
-					// add profile only if ignore is not set
-					if(!ignoreProfile)
+					else
 					{
-						if ((streamInfo->bandwidthBitsPerSecond > minBitrate) && (streamInfo->bandwidthBitsPerSecond < maxBitrate))
-						{
-							//Update profile resolution with VideoEnd Metrics object
-							aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_VIDEO,
-													streamInfo->bandwidthBitsPerSecond,
-													streamInfo->resolution.width,
-													streamInfo->resolution.height );
-							mAbrManager.addProfile({
-								streamInfo->isIframeTrack,
-								streamInfo->bandwidthBitsPerSecond,
-								streamInfo->resolution.width,
-								streamInfo->resolution.height
-							});
-							vProfileCount++;
-						}
+						streamInfo->audioFormat = FORMAT_UNKNOWN;
 					}
+					streamInfo->enabled = false;
+					mProfileCount++;
+					vProfileCount++;
 				}
 				else if (startswith(&ptr, "-X-MEDIA:"))
 				{
@@ -1062,7 +914,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						mediaInfo[mMediaCount].language =  mediaInfo[mMediaCount].name;
 					}
 					if (mediaInfo[mMediaCount].type == eMEDIATYPE_AUDIO && mediaInfo[mMediaCount].language)
-					{
+					{	
 						mLangList.insert(GetLanguageCode(mMediaCount));
 					}
 					mMediaCount++;
@@ -1135,30 +987,30 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				else if (startswith(&ptr, "-UPLYNK-LIVE"))
 				{ // related to uplynk streaming service
 				}
-				else if (startswith(&ptr, "-X-START:"))					
+				else if (startswith(&ptr, "-X-START:"))
 				{ // i.e. "TIME-OFFSET=2.336, PRECISE=YES" - specifies the preferred point in the video to start playback; not yet supported
 
-                                       // check if App has not configured any liveoffset
-                                        if(!aamp->mNewLiveOffsetflag)
-                                        {
-                                                double offsetval = ParseXStartTimeOffset(ptr);
+					// check if App has not configured any liveoffset
+					if(!aamp->mNewLiveOffsetflag)
+					{
+						double offsetval = ParseXStartTimeOffset(ptr);
 						if (offsetval != 0)
 						{
-                                                	if(!aamp->IsLiveAdjustRequired())
-                                                	{
-                                                        	// if aamp cfg offset is not set or App has not set the value  , then configure
-                                                        	if(gpGlobalConfig->cdvrliveOffset == -1)
-                                                                	aamp->mLiveOffset = abs(offsetval);
-                                                	}
-                                               		else
-                                                	{
-                                                        	// if aamp cfg offset is not set or App has not set the value , then configure
-                                                        	if(gpGlobalConfig->liveOffset == -1)
-									aamp->mLiveOffset = abs(offsetval);
-                                                	}
+							if(!aamp->IsLiveAdjustRequired())
+							{
+								// if aamp cfg offset is not set or App has not set the value  , then configure
+								if(gpGlobalConfig->cdvrliveOffset == -1)
+								aamp->mLiveOffset = abs(offsetval);
+							}
+							else
+							{
+								// if aamp cfg offset is not set or App has not set the value , then configure
+								if(gpGlobalConfig->liveOffset == -1)
+								aamp->mLiveOffset = abs(offsetval);
+							}
 							logprintf("%s WARNING:found EXT-X-START in MainManifest Offset:%f  liveOffset:%f",__FUNCTION__,offsetval,aamp->mLiveOffset);
 						}
-                                        }
+					}
 				}
 				else if (startswith(&ptr, "INF:"))
 				{
@@ -1167,8 +1019,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					retval = eAAMPSTATUS_PLAYLIST_PLAYBACK;
 					break;
 				}
-#ifdef AAMP_HLS_DRM				
-				else if (startswith(&ptr, "-X-SESSION-KEY:"))	
+#ifdef AAMP_HLS_DRM
+				else if (startswith(&ptr, "-X-SESSION-KEY:"))
 				{
 						if (gpGlobalConfig->fragmp4LicensePrefetch)
 						{
@@ -1177,8 +1029,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 							std::string KeyTagStr(ptr,len);
 
 							pthread_mutex_lock(&aamp->drmParserMutex);
-							attrNameData* aesCtrAttrData = new attrNameData(KeyTagStr); 
-							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
+							attrNameData* aesCtrAttrData = new attrNameData(KeyTagStr);
+							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(),
 									*aesCtrAttrData) == aamp->aesCtrAttrDataList.end()) {
 								AAMPLOG_INFO("%s:%d Adding License data from Main Manifest %s",
 								__FUNCTION__, __LINE__, KeyTagStr.c_str());
@@ -1190,8 +1042,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 							InitiateDrmProcess(this->aamp);
 						}
 				}
-#endif						
-				else 
+#endif
+				else
 				{
 					std::string unknowTag= ptr;
 					AAMPLOG_INFO("***unknown tag:%s", unknowTag.substr(0,24).c_str());
@@ -1201,37 +1053,56 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 		}
 		ptr = next;
 	}// while till end of file
-	} while (secondPass);
 
 	if(retval == eAAMPSTATUS_OK)
 	{
 		// Check if there are are valid profiles to do playback
 		if(vProfileCount == 0)
 		{
-			AAMPLOG_WARN("%s:%d ERROR No video profiles available in manifest for playback, minBitrate:%ld maxBitrate:%ld",__FUNCTION__,__LINE__, minBitrate, maxBitrate);
+			AAMPLOG_WARN("%s:%d ERROR No video profiles available in manifest for playback",__FUNCTION__,__LINE__);
 			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 		else
 		{	// If valid video profiles , check for Media and iframe and report warnings only
 			if(mMediaCount == 0)
 			{
-				// just a warning .Play the muxed content with default audio 
-				logprintf("%s:%d WARNING !!! No media definitions in manifest for playback",__FUNCTION__,__LINE__);
+				// just a warning .Play the muxed content with default audio
+				AAMPLOG_WARN("%s:%d WARNING !!! No media definitions in manifest for playback",__FUNCTION__,__LINE__);
 			}
 			if(iFrameCount == 0)
 			{
-				// just a warning 
-				logprintf("%s:%d WARNING !!! No iframe definitions .Trickplay not supported",__FUNCTION__,__LINE__);
+				// just a warning
+				AAMPLOG_WARN("%s:%d WARNING !!! No iframe definitions .Trickplay not supported",__FUNCTION__,__LINE__);
 			}
-			else
+
+			// if separate Media exists then find the codec for the audio type
+			for (int i = 0; i < mMediaCount; i++)
 			{
-				UpdateIframeTracks();
+				struct MediaInfo *media = &(mediaInfo[i]);
+				if (media->type == eMEDIATYPE_AUDIO)
+				{
+					std::string codec;
+					//Find audio codec from X-STREAM-INF: or streamInfo
+					for (int j = 0; j < mProfileCount; j++)
+					{
+						struct HlsStreamInfo *stream = &this->streamInfo[j];
+
+						//Find the X-STREAM_INF having same group id as audio track to parse codec info
+						if (!stream->isIframeTrack && stream->audio != NULL && media->group_id != NULL &&
+							strcmp(stream->audio, media->group_id) == 0)
+						{
+								// assign the audioformat from streamInfo to mediaInfo
+								media->audioFormat = stream->audioFormat;
+								break;
+						}
+					}
+				}
 			}
 		}
 		aamp->StoreLanguageList(mLangList); // For playlist playback, there will be no languages available
 	}
 	return retval;
-} // ParseMainManifest
+}
 
 
 /***************************************************************************
@@ -3288,6 +3159,54 @@ void TrackState::RefreshPlaylist(void)
 	}
 }
 
+/***************************************************************************
+* @fn FilterAudioCodecBasedOnConfig
+* @brief Function to filter the audio codec based on the configuration
+*
+* @param[in] audioFormat Audio codec type
+* @return bool false if the audio codec type is allowed to process
+***************************************************************************/
+bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat)
+{
+	bool ignoreProfile = false;
+	bool bDisableEC3 = aamp->mDisableEC3;
+	bool bDisableAC3 = aamp->mDisableEC3;
+	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
+	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+
+	switch (audioFormat)
+	{
+		case FORMAT_AUDIO_ES_AC3:
+			if (bDisableAC3)
+			{
+				ignoreProfile = true;
+			}
+			break;
+
+		case FORMAT_AUDIO_ES_ATMOS:
+			if (bDisableATMOS)
+			{
+				ignoreProfile = true;
+			}
+			break;
+
+		case FORMAT_AUDIO_ES_EC3:
+			if (bDisableEC3)
+			{
+				ignoreProfile = true;
+			}
+			break;
+	}
+
+	return ignoreProfile;
+}
+
+/***************************************************************************
+* @fn GetBestAudioTrackByLanguage
+* @brief Function to get best audio track based on the profile availability and language setting.
+*
+* @return int index of the audio track selected
+***************************************************************************/
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
 	// Priority in choosing best audio track:
@@ -3298,64 +3217,94 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 	// 5. First audio track
 	int first_audio_track = -1;
 	int first_audio_track_matching_language = -1;
+	StreamOutputFormat first_audio_track_matching_language_codec = FORMAT_INVALID;
 	int default_audio_track = -1;
 	int not_explicit_user_lang_track = -1;
 	int preferred_audio_track = -1;
+	int preferred_audio_track_index = -1;
+	int explicitUserLangSelection = -1;
+	StreamOutputFormat explicitSelectionCodec = FORMAT_INVALID;
+	StreamOutputFormat preferred_audio_track_codec = FORMAT_INVALID;
 	int current_preferred_lang_index = aamp->preferredLanguagesList.size();
 	const char *delim = strchr(aamp->language,'-');
 	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
 
-	HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
-	const char* group = streamInfo->audio;
-	if (group)
-	{
-		logprintf("GetPlaylistURI : AudioTrack: group %s, aamp->language %s, aamp->noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
-				group, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
+	AAMPLOG_WARN("%s:%d MediaCount:%d current_preferred_lang_index:%d AudioTrack: language %s, noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
+			__FUNCTION__, __LINE__, mMediaCount, current_preferred_lang_index, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
 
-		for( int i=0; i<mMediaCount; i++ )
+	for( int i=0; i<mMediaCount; i++ )
+	{
+		if(this->mediaInfo[i].type == eMEDIATYPE_AUDIO)
 		{
-			if( this->mediaInfo[i].group_id && !strcmp(group, this->mediaInfo[i].group_id))
+			if( first_audio_track < 0 )
+			{ // remember first track as a lowest-priority fallback (or) if there is only one audio track, choose the index irrespective of the config.
+				first_audio_track = i;
+			}
+
+			if (!FilterAudioCodecBasedOnConfig(this->mediaInfo[i].audioFormat))
 			{
 				std::string lang = GetLanguageCode(i);
 				const char *track_language = lang.c_str();
-				if(not_explicit_user_lang_track < 0
-						&& strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-				{   // exact match, i.e. to eng-commentary
+				if (strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+				{
+					// exact match, i.e. to eng-commentary
 					if(!aamp->noExplicitUserLanguageSelection)
-					{ // not the default aamp language, we are done
-						return i;
+					{
+						// now if multi media is available , pick the media based on the codec priority
+						if((this->mediaInfo[i].audioFormat > explicitSelectionCodec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ) || explicitUserLangSelection < 0)
+						{
+							explicitUserLangSelection = i;
+							explicitSelectionCodec = this->mediaInfo[i].audioFormat;
+							AAMPLOG_TRACE("%s:%d Found the explicit audio selection for lang:%s selected-index:%d codec:%d", __FUNCTION__, __LINE__, aamp->language, explicitUserLangSelection, explicitSelectionCodec);
+						}
 					}
 					// remember track from default aamp language
-					not_explicit_user_lang_track = i;
-				}
-				if(current_preferred_lang_index > 0)
-				{
-					// has not found the most preferred lang yet
-					// find language part in preferred language list
-					// but not further than current index
-					std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
-					auto iter = std::find(aamp->preferredLanguagesList.begin(),
-							(aamp->preferredLanguagesList.begin() + current_preferred_lang_index), langPart);
-					if(iter != (aamp->preferredLanguagesList.begin() + current_preferred_lang_index) )
+					if(not_explicit_user_lang_track < 0)
 					{
-						current_preferred_lang_index = std::distance(aamp->preferredLanguagesList.begin(),
-								iter);
-						preferred_audio_track = i;
+						not_explicit_user_lang_track = i;
+						AAMPLOG_TRACE("%s:%d Default track language:%d", __FUNCTION__, __LINE__, not_explicit_user_lang_track);
+					}
+
+					// TODO - Pick the best audio codec type if there are multiple PreferredAudio Entries for same codec ?
+					if(aamp->preferredLanguagesList.size() > 0)
+					{
+						// has not found the most preferred lang yet
+						// find language part in preferred language list
+						// but not further than current index
+						std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
+						auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), langPart);
+						if(iter != aamp->preferredLanguagesList.end())
+						{
+							current_preferred_lang_index  = std::distance(aamp->preferredLanguagesList.begin(),iter);
+							if( preferred_audio_track_index < current_preferred_lang_index )
+							{
+								preferred_audio_track_index = current_preferred_lang_index;
+								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
+								preferred_audio_track = i;
+								AAMPLOG_TRACE("%s:%d 1st preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
+							}
+							else if( preferred_audio_track_index == current_preferred_lang_index && (this->mediaInfo[i].audioFormat > preferred_audio_track_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ))
+							{
+								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
+								preferred_audio_track = i;
+								AAMPLOG_TRACE("%s:%d 2nd preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
+							}
+						}
 					}
 				}
 
-				if( first_audio_track < 0 )
-				{ // remember first track as lowest-priority fallback
-					first_audio_track = i;
-				}
-				if(first_audio_track_matching_language < 0 )
+				if(first_audio_track_matching_language < 0 || (first_audio_track_matching_language && (this->mediaInfo[i].audioFormat > first_audio_track_matching_language_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN )))
 				{
 					int len = 0;
 					const char *delim = strchr(track_language,'-');
 					len = delim? (delim - track_language):strlen(track_language);
+					AAMPLOG_TRACE("%s:%d Inside first_audio_track_matching_language:%d audioFormat:%d len:%d aamp_language_length:%d",
+							__FUNCTION__, __LINE__, first_audio_track_matching_language, this->mediaInfo[i].audioFormat, len, aamp_language_length);
 					if( len && len == aamp_language_length && memcmp(aamp->language,track_language,len)==0 )
 					{ // remember matching language (but not role) as next-best fallback
 						first_audio_track_matching_language = i;
+						first_audio_track_matching_language_codec = this->mediaInfo[i].audioFormat;
+						AAMPLOG_TRACE("%s:%d Storing first audio :%d codec:%d", __FUNCTION__, __LINE__, first_audio_track_matching_language, first_audio_track_matching_language_codec);
 					}
 				}
 				if( default_audio_track < 0 )
@@ -3368,11 +3317,36 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 			}
 		}
 	}
-	if( !( aamp->noExplicitUserLanguageSelection && preferred_audio_track>=0 )
-			&& first_audio_track_matching_language>=0 ) return first_audio_track_matching_language;
-	if( preferred_audio_track>=0 ) return preferred_audio_track;
-	if( not_explicit_user_lang_track>= 0) return not_explicit_user_lang_track;
-	if( default_audio_track>=0 ) return default_audio_track;
+
+	AAMPLOG_WARN("%s:%d noExplicitUserLangSel:%d explicitUserLangSel:%d pref_audio_track:%d first_audio_match_lang:%d not_explicit_user_lang_track:%d default_audio_track:%d first_audio_track:%d",
+			__FUNCTION__, __LINE__, aamp->noExplicitUserLanguageSelection, explicitUserLangSelection, preferred_audio_track,
+			first_audio_track_matching_language, not_explicit_user_lang_track, default_audio_track, first_audio_track);
+
+	if(!aamp->noExplicitUserLanguageSelection && explicitUserLangSelection >=0)
+	{
+		return explicitUserLangSelection;
+	}
+
+	if( !( aamp->noExplicitUserLanguageSelection && preferred_audio_track>=0 ) && first_audio_track_matching_language>=0 )
+	{
+		return first_audio_track_matching_language;
+	}
+
+	if( preferred_audio_track>=0 )
+	{
+		return preferred_audio_track;
+	}
+
+	if( not_explicit_user_lang_track>= 0)
+	{
+		return not_explicit_user_lang_track;
+	}
+
+	if( default_audio_track>=0 )
+	{
+		return default_audio_track;
+	}
+
 	return first_audio_track;
 }
 
@@ -3391,70 +3365,39 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 	switch (trackType)
 	{
 	case eTRACK_VIDEO:
-		playlistURI = this->streamInfo[this->currentProfileIndex].uri;
-		if (format)
 		{
-			*format = FORMAT_MPEGTS;
+			HlsStreamInfo *streamInfo  = (HlsStreamInfo *)GetStreamInfo(currentProfileIndex);
+			playlistURI = streamInfo->uri;		
+			if (format)
+			{
+				*format = FORMAT_MPEGTS;
+			}
 		}
 		break;
-
 	case eTRACK_AUDIO:
-		if(GetProfileCount() > this->currentProfileIndex)
 		{
-			AudioTrackInfo track = aamp->GetPreferredAudioTrack();
-			int index = -1;
-			if (!track.index.empty())
+			if (currentAudioProfileIndex >= 0)
 			{
-				index = std::stoi(track.index);
-			}
-			else
-			{
-				index = GetBestAudioTrackByLanguage();
-			}
-			if (index >= 0)
-			{
-				aamp->UpdateAudioLanguageSelection( GetLanguageCode(index).c_str() );
-				logprintf("GetPlaylistURI : AudioTrack: language selected is %s", GetLanguageCode(index).c_str());
-				playlistURI = this->mediaInfo[index].uri;
-				mAudioTrackIndex = std::to_string(index);
+				aamp->UpdateAudioLanguageSelection( GetLanguageCode(currentAudioProfileIndex).c_str() );
+				logprintf("GetPlaylistURI : AudioTrack: language selected is %s", GetLanguageCode(currentAudioProfileIndex).c_str());
+				playlistURI = this->mediaInfo[currentAudioProfileIndex].uri;
+				mAudioTrackIndex = std::to_string(currentAudioProfileIndex);
 				if (format)
 				{
 					*format = GetStreamOutputFormatForTrack(trackType);
 				}
 			}
 		}
-		break;
-            
+		break;  
 	case eTRACK_SUBTITLE:
 		{
-			TextTrackInfo track = aamp->GetPreferredTextTrack();
-			int mediaInfoIndex = -1;
-			if (!track.index.empty())
+			if (currentTextTrackProfileIndex != -1)
 			{
-				mediaInfoIndex = std::stoi(track.index);
-			}
-			else
-			{
-				// First check for preferred language
-				if (aamp->mSubLanguage[0])
-				{
-					mediaInfoIndex = GetMediaIndexForLanguage(aamp->mSubLanguage, trackType);
-				}
-
-				// Then check for the playlist DEFAULT language
-				if (mediaInfoIndex == -1)
-				{
-					mediaInfoIndex = GetMediaIndexForDefaultLanguage(trackType);
-				}
-			}
-			if (mediaInfoIndex >= 0)
-			{
-				playlistURI = mediaInfo[mediaInfoIndex].uri;
-				mTextTrackIndex = std::to_string(mediaInfoIndex);
-				aamp->UpdateSubtitleLanguageSelection(mediaInfo[mediaInfoIndex].language);
-				if (format)
-					*format = (mediaInfo[mediaInfoIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_UNKNOWN;
-				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[mediaInfoIndex].language, playlistURI);
+				playlistURI = mediaInfo[currentTextTrackProfileIndex].uri;
+				mTextTrackIndex = std::to_string(currentTextTrackProfileIndex);
+				aamp->UpdateSubtitleLanguageSelection(mediaInfo[currentTextTrackProfileIndex].language);
+				if (format) *format = (mediaInfo[currentTextTrackProfileIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_UNKNOWN;
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[currentTextTrackProfileIndex].language, playlistURI);
 			}
 			else
 			{
@@ -4245,11 +4188,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		{
 			if(mainManifestResult == eAAMPSTATUS_PLAYLIST_PLAYBACK)
 			{ // RDK-28245 - support tune to playlist, without main manifest
-				int profileCount = GetProfileCount();
-				if(profileCount == 0)
+				if(mProfileCount == 0)
 				{
-					struct HlsStreamInfo *streamInfo = &this->streamInfo[profileCount];
-					setupStreamInfo(streamInfo, profileCount);
+					struct HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
+					setupStreamInfo(streamInfo, mProfileCount);
 					streamInfo->uri = aamp->GetManifestUrl().c_str();
 					aamp->SetVideoBitrate(-1);
 					mainManifestResult = eAAMPSTATUS_OK;
@@ -4275,7 +4217,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
-		if(GetProfileCount())
+		if(mProfileCount)
 		{
 			if (!newTune)
 			{
@@ -4287,15 +4229,34 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
 			}
-			// Generate audio and text track structures
-			PopulateAudioAndTextTracks();
+
+			if(rate == AAMP_NORMAL_PLAY_RATE)
+			{
+				// Step 1: Configure the Audio for the playback .Get the audio index/group
+				ConfigureAudioTrack();
+			}
+
+			// Step 3: Based on the audio selection done , configure the profiles required
+			ConfigureVideoProfiles();
+
+			if(rate == AAMP_NORMAL_PLAY_RATE)
+			{
+				// Step 2: Configure Subtitle track for the playback
+				ConfigureTextTrack();
+				// Generate audio and text track structures
+				PopulateAudioAndTextTracks();
+			}
+
+
 
 			currentProfileIndex = GetDesiredProfile(false);
+			HlsStreamInfo *streamInfo = (HlsStreamInfo*)GetStreamInfo(currentProfileIndex);
+			long bandwidthBitsPerSecond = streamInfo->bandwidthBitsPerSecond;
 			lastSelectedProfileIndex = currentProfileIndex;
-			aamp->ResetCurrentlyAvailableBandwidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond, trickplayMode, this->currentProfileIndex);
-			aamp->profiler.SetBandwidthBitsPerSecondVideo(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+			aamp->ResetCurrentlyAvailableBandwidth(bandwidthBitsPerSecond, trickplayMode, currentProfileIndex);
+			aamp->profiler.SetBandwidthBitsPerSecondVideo(bandwidthBitsPerSecond);
 			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-			AAMPLOG_INFO("Selected BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
+			AAMPLOG_INFO("Selected BitRate: %ld, Max BitRate: %ld", bandwidthBitsPerSecond, GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 			/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 		}
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
@@ -4378,7 +4339,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		//Store Bitrate info to Video Track
 		if(video)
 		{
-			video->SetCurrentBandWidth(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+			video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
 		}
 
 		if(gpGlobalConfig->bAudioOnlyPlayback)
@@ -4453,13 +4414,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						__FUNCTION__, __LINE__, limitCount, numberOfLimit );
 						/** Choose rampdown profile for next retry */
 						currentProfileIndex = mAbrManager.getRampedDownProfileIndex(currentProfileIndex);
+						long bandwidthBitsPerSecond = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 						if(lastSelectedProfileIndex == currentProfileIndex){
-							AAMPLOG_INFO("Failed to rampdown from bandwidth : %ld", this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+							AAMPLOG_INFO("Failed to rampdown from bandwidth : %ld", bandwidthBitsPerSecond);
 							break;
 						}
 
 						lastSelectedProfileIndex = currentProfileIndex;
-						AAMPLOG_INFO("Trying BitRate: %ld, Max BitRate: %ld", streamInfo[currentProfileIndex].bandwidthBitsPerSecond, 
+						AAMPLOG_INFO("Trying BitRate: %ld, Max BitRate: %ld", bandwidthBitsPerSecond,
 						GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 						const char *uri = GetPlaylistURI(eTRACK_VIDEO, &video->streamOutputFormat);
 						if (uri){
@@ -4472,13 +4434,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 
 					}else if (video->playlist.len){
+						long bandwidthBitsPerSecond = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 						aamp->ResetCurrentlyAvailableBandwidth(
-							this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
-							trickplayMode,this->currentProfileIndex);
+							bandwidthBitsPerSecond,
+							trickplayMode,currentProfileIndex);
 						aamp->profiler.SetBandwidthBitsPerSecondVideo(
-							this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond);
+							bandwidthBitsPerSecond);
 						AAMPLOG_INFO("Selected BitRate: %ld, Max BitRate: %ld", 
-							streamInfo[currentProfileIndex].bandwidthBitsPerSecond, 
+							bandwidthBitsPerSecond,
 							GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 						break;
 					}
@@ -4619,18 +4582,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					needMetadata = false;
 					std::vector<long> bitrateList;
-					bitrateList.reserve(GetProfileCount());
-					for (int i = 0; i < GetProfileCount(); i++)
-					{
-						if (!streamInfo[i].isIframeTrack)
-						{
-							bitrateList.push_back(streamInfo[i].bandwidthBitsPerSecond);
-						}
-						else
-						{
-							aamp->mIsIframeTrackPresent = true;
-						}
-					}
+					bitrateList = GetVideoBitrates();
+					aamp->mIsIframeTrackPresent = mIframeAvailable;
 					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
@@ -5294,14 +5247,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				std::string defaultIframePlaylistUrl;
 				std::string defaultIframePlaylistEffectiveUrl;
 				GrowableBuffer defaultIframePlaylist;
-				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo[iframeStreamIdx].uri);
+				HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(iframeStreamIdx);
+				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri);
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
 				if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					double downloadTime;
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error, &downloadTime, NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);
 					//update videoend info
-					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo[iframeStreamIdx].bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime);
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo->bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -5363,9 +5317,9 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 	// Run thru all the streamInfo and get uri for download , push to a download list
 	// Start a thread and return back . This thread will wake up after Tune completion
 	// and start downloading the uri in the list
-	int szUrlList = mMediaCount + GetProfileCount();
+	int szUrlList = mMediaCount + mProfileCount;
 	PreCacheUrlList dnldList ;
-	for (int idx=0;idx < GetProfileCount(); idx++)
+	for (int idx=0;idx < mProfileCount; idx++)
 	{
 		// Add Video and IFrame Profiles
 		PreCacheUrlStruct newelem;
@@ -5710,8 +5664,8 @@ static void *FragmentCollector(void *arg)
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
-	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
-	,mUseAvgBandwidthForABR(false), mLangList()
+	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
+	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -6000,7 +5954,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 {
-	int profileCount = GetProfileCount();
+	int profileCount = mProfileCount;
 	if (profileCount)
 	{
 		for (int i = 0; i < profileCount; i++)
@@ -6073,14 +6027,14 @@ void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutpu
 std::vector<long> StreamAbstractionAAMP_HLS::GetVideoBitrates(void)
 {
 	std::vector<long> bitrates;
-	int profileCount = GetProfileCount();
-	if (profileCount)
+	bitrates.reserve(GetProfileCount());
+	if (mProfileCount)
 	{
-		for (int i = 0; i < profileCount; i++)
+		for (int i = 0; i < mProfileCount; i++)
 		{
 			struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
 			//Not send iframe bw info, since AAMP has ABR disabled for trickmode
-			if (!streamInfo->isIframeTrack)
+			if (!streamInfo->isIframeTrack && streamInfo->enabled)
 			{
 				bitrates.push_back(streamInfo->bandwidthBitsPerSecond);
 			}
@@ -6421,13 +6375,12 @@ void TrackState::FetchPlaylist()
 int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
 {
 	int topBWIndex = 0;
-	int profileCount = GetProfileCount();
-	if (profileCount)
+	if (mProfileCount)
 	{
-		for (int i = 0; i < profileCount; i++)
+		for (int i = 0; i < mProfileCount; i++)
 		{
 			struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
-			if (!streamInfo->isIframeTrack && streamInfo->bandwidthBitsPerSecond > bitrate)
+			if (!streamInfo->isIframeTrack && streamInfo->enabled && streamInfo->bandwidthBitsPerSecond > bitrate)
 			{
 				--topBWIndex;
 			}
@@ -7221,6 +7174,367 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 }
 
 /***************************************************************************
+* @fn ConfigureAudioTrack
+* @brief Function to select the audio track and update AudioProfileIndex
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::ConfigureAudioTrack()
+{
+	AudioTrackInfo track = aamp->GetPreferredAudioTrack();
+	currentAudioProfileIndex = -1;
+	if (!track.index.empty())
+	{
+		currentAudioProfileIndex = std::stoi(track.index);
+	}
+	else if(mMediaCount)
+	{
+		currentAudioProfileIndex = GetBestAudioTrackByLanguage();
+	}
+	AAMPLOG_WARN("%s:%d Audio profileIndex selected :%d", __FUNCTION__, __LINE__, currentAudioProfileIndex);
+}
+
+/***************************************************************************
+* @fn ConfigureVideoProfiles
+* @brief Function to select the best match video profiles based on audio and filters
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
+{
+	std::string audiogroupId ;
+	long minBitrate = aamp->GetMinimumBitrate();
+	long maxBitrate = aamp->GetMaximumBitrate();
+
+	if(rate != AAMP_NORMAL_PLAY_RATE && mIframeAvailable)
+	{
+		// Add all the iframe tracks
+		int iFrameSelectedCount = 0;
+		int iFrameAvailableCount = 0;
+		for (int j = 0; j < mProfileCount; j++)
+		{
+			struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
+			streamInfo->enabled = false;
+			if(streamInfo->isIframeTrack)
+			{
+				iFrameAvailableCount++;
+				if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
+				{
+						//Update profile resolution with VideoEnd Metrics object.
+					aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
+							streamInfo->bandwidthBitsPerSecond,
+							streamInfo->resolution.width,
+							streamInfo->resolution.height );
+
+					mAbrManager.addProfile({
+							streamInfo->isIframeTrack,
+							streamInfo->bandwidthBitsPerSecond,
+							streamInfo->resolution.width,
+							streamInfo->resolution.height,
+							"",
+							j});
+
+					streamInfo->enabled = true;
+					iFrameSelectedCount++;
+
+					AAMPLOG_INFO("%s:%d Added to ABR for Iframe, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+				}
+			}
+		}
+		if(iFrameSelectedCount == 0 && iFrameAvailableCount !=0)
+		{
+			// Something wrong , though iframe available , but not selected due to bitrate restriction
+			AAMPLOG_WARN("%s:%d No Iframe available matching bitrate criteria Low[%ld] High[%ld]. Total Iframe available:%d",__FUNCTION__,__LINE__,minBitrate,maxBitrate,iFrameAvailableCount);
+		}
+		else if(iFrameSelectedCount)
+		{
+			// this is to sort the iframe tracks
+			mAbrManager.updateProfile();
+		}
+	}
+	else if(rate == AAMP_NORMAL_PLAY_RATE)
+	{
+		// Filters to add a video track
+		// 1. It should match the audio groupId selected
+		// 2. Last filter for min and max bitrate
+		// 3. Make sure filters for disableATMOS/disableEC3/disableAAC is applied
+
+		// Get the initial configuration to filter the profiles
+		bool bDisableEC3 = aamp->mDisableEC3;
+		bool bDisableAC3 = aamp->mDisableEC3;
+		// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
+		bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+		bool bDisableAAC = false;
+
+		// Check if any demuxed audio exists , if muxed it will be -1
+		if (currentAudioProfileIndex >= 0 )
+		{
+			// Check if audio group id exists
+			audiogroupId = mediaInfo[currentAudioProfileIndex].group_id;
+			AAMPLOG_WARN("%s:%d Audio groupId selected:%s", __FUNCTION__, __LINE__, audiogroupId.c_str());
+		}
+
+		int vProfileCountSelected = 0;
+		do{
+			int aacProfiles = 0, ac3Profiles = 0, ec3Profiles = 0, atmosProfiles = 0;
+			vProfileCountSelected = 0;
+			int vProfileCountAvailable = 0;
+			int audioProfileMatchedCount = 0;
+			int bitrateMatchedCount = 0;
+			bool ignoreBitRateRangeCheck = false;
+			int availableCountATMOS = 0, availableCountEC3 = 0, availableCountAC3 = 0;
+			StreamOutputFormat selectedAudioType = FORMAT_INVALID;
+
+			for (int j = 0; j < mProfileCount; j++)
+			{
+				struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
+				streamInfo->enabled = false;
+				bool ignoreProfile = false;
+				bool clearProfiles = false;
+				if(!streamInfo->isIframeTrack)
+				{
+					vProfileCountAvailable++;
+
+					// complex criteria
+					// 1. First check if same audio group available
+					//		1.1 If available , pick the profiles for the bw range
+					//		1.2 Pick the best audio type
+
+					if((!audiogroupId.empty() && !audiogroupId.compare(streamInfo->audio)) || audiogroupId.empty())
+					{
+						audioProfileMatchedCount++;
+
+						if (((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate)) || ignoreBitRateRangeCheck)
+						{
+							bitrateMatchedCount++;
+
+							switch( streamInfo->audioFormat)
+							{
+								case FORMAT_AUDIO_ES_AAC:
+									if(bDisableAAC)
+									{
+										AAMPLOG_INFO("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+										ignoreProfile = true;
+									}
+									else
+									{
+										aacProfiles++;
+									}
+									break;
+
+								case FORMAT_AUDIO_ES_AC3:
+									availableCountAC3++;
+									if(bDisableAC3)
+									{
+										AAMPLOG_INFO("%s:%d: AC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+										ignoreProfile = true;
+									}
+									else
+									{
+										// found AC3 profile , disable AAC profiles from adding
+										ac3Profiles++;
+										bDisableAAC = true;
+										if(aacProfiles)
+										{
+											// if already aac profiles added , clear it from local table and ABR table
+											aacProfiles = 0;
+											clearProfiles = true;
+										}
+									}
+									break;
+
+								case FORMAT_AUDIO_ES_EC3:
+									availableCountEC3++;
+									if(bDisableEC3)
+									{
+										AAMPLOG_INFO("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+										ignoreProfile = true;
+									}
+									else
+									{ // found EC3 profile , disable AAC and AC3 profiles from adding
+										ec3Profiles++;
+										bDisableAAC = true;
+										bDisableAC3 = true;
+										if(aacProfiles || ac3Profiles)
+										{
+											// if already aac or ac3 profiles added , clear it from local table and ABR table
+											aacProfiles = ac3Profiles = 0;
+											clearProfiles = true;
+										}
+									}
+									break;
+
+								case FORMAT_AUDIO_ES_ATMOS:
+									availableCountATMOS++;
+									if(bDisableATMOS)
+									{
+										AAMPLOG_INFO("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+										ignoreProfile = true;
+									}
+									else
+									{ // found ATMOS Profile , disable AC3, EC3 and AAC profile from adding
+										atmosProfiles++;
+										bDisableAAC = true;
+										bDisableAC3 = true;
+										bDisableEC3 = true;
+										if(aacProfiles || ac3Profiles || ec3Profiles)
+										{
+											// if already aac or ac3 or ec3 profiles added , clear it from local table and ABR table
+											aacProfiles = ac3Profiles = ec3Profiles = 0;
+											clearProfiles = true;
+										}
+									}
+									break;
+
+								default:
+									AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
+									break;
+							}
+
+							if(clearProfiles)
+							{
+								j = 0;
+								vProfileCountAvailable = 0;
+								audioProfileMatchedCount = 0;
+								bitrateMatchedCount = 0;
+								vProfileCountSelected = 0;
+								availableCountEC3 = 0;
+								availableCountAC3 = 0;
+								availableCountATMOS = 0;
+								// Continue the loop from start of profile
+								continue;
+							}
+
+							if(!ignoreProfile)
+							{
+								streamInfo->enabled = true;
+								vProfileCountSelected ++;
+								selectedAudioType = streamInfo->audioFormat;
+								//AAMPLOG_INFO("%s:%d Found  video profile , enabled count:%d", __FUNCTION__, __LINE__, vProfileCountSelected);
+							}
+						}
+					}
+				}
+			}
+
+			if (aamp->mPreviousAudioType != selectedAudioType)
+			{
+				AAMPLOG_WARN("%s %d AudioType Changed %d -> %d",
+						__FUNCTION__, __LINE__, aamp->mPreviousAudioType, selectedAudioType);
+				aamp->mPreviousAudioType = selectedAudioType;
+				SetESChangeStatus();
+			}
+
+			// Now comes next set of complex checks for bad streams
+			if(vProfileCountSelected)
+			{
+				for (int j = 0; j < mProfileCount; j++)
+				{
+					struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
+					if(streamInfo->enabled)
+					{
+						//Update profile resolution with VideoEnd Metrics object.
+						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_VIDEO,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height );
+
+						mAbrManager.addProfile({
+								streamInfo->isIframeTrack,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height,
+								"",
+								j});
+
+						AAMPLOG_INFO("%s:%d Added to ABR, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+					}
+				}
+				break;
+			}
+			else
+			{
+				if(vProfileCountAvailable && audioProfileMatchedCount==0)
+				{
+					// Video Profiles available , but not finding anything with audio group .
+					// As fallback recovery ,lets play with any other available video profiles
+					AAMPLOG_WARN("%s:%d: ERROR No Video Profile found for matching audio group [%s]", __FUNCTION__, __LINE__, audiogroupId.c_str());
+					audiogroupId.clear();
+					continue;
+				}
+				else if(vProfileCountAvailable && audioProfileMatchedCount && bitrateMatchedCount==0)
+				{
+					// Video Profiles available , but not finding anything within bitrate range configured
+					// As fallback recovery ,lets ignore bitrate limit check and add available video profiles for playback to happen
+					AAMPLOG_WARN("%s:%d ERROR No video profiles available in manifest for playback, minBitrate:%ld maxBitrate:%ld",__FUNCTION__,__LINE__, minBitrate, maxBitrate);
+					ignoreBitRateRangeCheck = true;
+					continue;
+				}
+				else if(vProfileCountAvailable && bitrateMatchedCount)
+				{
+					// No profiles selected due to disable config added
+					if(bDisableATMOS && availableCountATMOS)
+					{
+						AAMPLOG_WARN("%s:%d: Resetting DisableATMOS flag as no Video Profile could be selected. ATMOS Count[%d]", __FUNCTION__, __LINE__, availableCountATMOS);
+						bDisableATMOS = false;
+						continue;
+					}
+					else if(bDisableEC3 && availableCountEC3)
+					{
+						AAMPLOG_WARN("%s:%d: Resetting DisableEC3 flag as no Video Profile could be selected. EC3 Count[%d]", __FUNCTION__, __LINE__, availableCountEC3);
+						bDisableEC3 = false;
+						continue;
+					}
+					else if(bDisableAC3 && availableCountAC3)
+					{
+						AAMPLOG_WARN("%s:%d: Resetting DisableAC3 flag as no Video Profile could be selected. AC3 Count[%d]", __FUNCTION__, __LINE__, availableCountAC3);
+						bDisableAC3 = false;
+						continue;
+					}
+					else
+					{
+						AAMPLOG_WARN("%s:%d: Unable to select any video profiles due to unknown codec selection , mProfileCount : %d vProfileCountAvailable:%d", __FUNCTION__, __LINE__, mProfileCount,vProfileCountAvailable);
+						break;
+					}
+
+				}
+				else
+				{
+					AAMPLOG_WARN("%s:%d: Unable to select any video profiles , mProfileCount : %d vProfileCountAvailable:%d", __FUNCTION__, __LINE__, mProfileCount,vProfileCountAvailable);
+					break;
+				}
+			}
+		}while(vProfileCountSelected == 0);
+	}
+}
+
+
+
+
+/***************************************************************************
+* @fn ConfigureTextTrack
+* @brief Function to select the text track and update TextTrackProfileIndex
+*
+* @return void
+***************************************************************************/
+void StreamAbstractionAAMP_HLS::ConfigureTextTrack()
+{
+	TextTrackInfo track = aamp->GetPreferredTextTrack();
+	currentTextTrackProfileIndex = -1;
+	if (!track.index.empty())
+	{
+		currentTextTrackProfileIndex = std::stoi(track.index);
+	}
+	else
+	{
+		if (aamp->mSubLanguage[0])
+		{
+			currentTextTrackProfileIndex = GetMediaIndexForLanguage(aamp->mSubLanguage, eTRACK_SUBTITLE);
+		}
+	}
+	AAMPLOG_WARN("%s:%d TextTrack Selected :%d", __FUNCTION__, __LINE__, currentTextTrackProfileIndex);
+}
+/***************************************************************************
 * @fn PopulateAudioAndTextTracks
 * @brief Function to populate available audio and text tracks info from manifest
 *
@@ -7228,8 +7542,7 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 {
-	int profileCount = GetProfileCount();
-	if (mMediaCount > 0 && profileCount > 0)
+	if (mMediaCount > 0 && mProfileCount > 0)
 	{
 		for (int i = 0; i < mMediaCount; i++)
 		{
@@ -7241,24 +7554,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 				std::string group_id = (media->group_id != NULL) ? std::string(media->group_id) : std::string();
 				std::string name = (media->name != NULL) ? std::string(media->name) : std::string();
 				std::string characteristics = (media->characteristics != NULL) ? std::string(media->characteristics) : std::string();
-				std::string codec;
-				//Find audio codec from X-STREAM-INF: or streamInfo
-				for (int j = 0; j < profileCount; j++)
-				{
-					struct HlsStreamInfo *stream = &this->streamInfo[j];
-					//Find the X-STREAM_INF having same group id as audio track to parse codec info
-					if (!stream->isIframeTrack && stream->audio != NULL && media->group_id != NULL &&
-						strcmp(stream->audio, media->group_id) == 0)
-					{
-						const FormatMap *map = GetAudioFormatForCodec(stream->codecs);
-						if( map )
-						{
-							AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s() %d Found matching codec:%s", __FUNCTION__, __LINE__, map->codec);
-							codec = map->codec;
-							break;
-						}
-					}
-				}
+				std::string codec = GetAudioFormatStringForCodec(media->audioFormat) ;
 				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s() %d Audio Track - lang:%s, group_id:%s, name:%s, codec:%s, characteristics:%s, channels:%d",
 						__FUNCTION__, __LINE__,	language.c_str(), group_id.c_str(), name.c_str(), codec.c_str(), characteristics.c_str(), media->channels);
 				mAudioTracks.push_back(AudioTrackInfo(index, language, group_id, name, codec, characteristics, media->channels));
@@ -7279,7 +7575,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 	}
 	else
 	{
-		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, profileCount);
+		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, mProfileCount);
 	}
 
 }
@@ -7307,7 +7603,7 @@ int StreamAbstractionAAMP_HLS::GetMediaIndexForLanguage(std::string lang, TrackT
 {
 	int index = -1;
 	const char* group = NULL;
-	HlsStreamInfo* streamInfo = &this->streamInfo[this->currentProfileIndex];
+	HlsStreamInfo* streamInfo = (HlsStreamInfo*)GetStreamInfo(this->currentProfileIndex);
 
 	if (type == eTRACK_AUX_AUDIO)
 	{
@@ -7403,7 +7699,7 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 {
 	StreamOutputFormat format = FORMAT_UNKNOWN;
 
-	HlsStreamInfo *streamInfo = &this->streamInfo[this->currentProfileIndex];
+	HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(this->currentProfileIndex);
 	const FormatMap *map = NULL;
 	if (type == eTRACK_VIDEO)
 	{
@@ -7419,6 +7715,19 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Track[%d] format is %d [%s]", __FUNCTION__, __LINE__, type, map->format, map->codec);
 	}
 	return format;
+}
+
+/***************************************************************************
+* @fn GetStreamInfo
+* @brief Function to get streamInfo for the profileIndex
+*
+* @param[in] int profileIndex
+* @return StreamInfo for the index
+***************************************************************************/
+StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
+{
+	int userData = mAbrManager.getUserDataOfProfile(idx);
+	return &streamInfo[userData];
 }
 
 /**

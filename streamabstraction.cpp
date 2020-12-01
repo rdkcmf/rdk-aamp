@@ -1005,7 +1005,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with stream
  */
 StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
-		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),
+		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),currentAudioProfileIndex(-1),currentTextTrackProfileIndex(-1),
 		mTsbBandwidth(0),mNwConsistencyBypass(true), profileIdxForBandwidthNotification(0),
 		hasDrm(false), mIsAtLivePoint(false), mESChangeStatus(false),
 		mNetworkDownDetected(false), mTotalPausedDurationMS(0), mIsPaused(false),

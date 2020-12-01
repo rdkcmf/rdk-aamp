@@ -557,6 +557,7 @@ public:
 	StreamOutputFormat mVideoFormat;
 	StreamOutputFormat mAudioFormat;
 	StreamOutputFormat mAuxFormat;
+	StreamOutputFormat mPreviousAudioType; /* Used to maintain previous audio type of HLS playback */
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
 	StreamSink* mStreamSink;
