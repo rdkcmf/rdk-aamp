@@ -83,6 +83,9 @@ select:focus {
 	var isPlaying;
 	var serviceTable;
 	var fromPC = false;
+	var hdmiin1 = "hdmiin://localhost/deviceid/0";
+	var hdmiin2 = "hdmiin://localhost/deviceid/1";
+	var hdmiin3 = "hdmiin://localhost/deviceid/2";
 	
 	var en_spaInitConfig = {
 		preferredAudioLanguage: "eng,spa"
@@ -528,9 +531,8 @@ function playChannel()
 	isPlaying = true;
 }
 
-function playHdmiin()
+function playHdmiin(url)
 {
-    var strLocator = "hdmiin://localhost/deviceid/0"
         if(fromPC)
         {
                 //no option for hdmiin
@@ -544,8 +546,9 @@ function playHdmiin()
                 else
                 {
                         aampPlayer = new AAMPMediaPlayer();
+                        aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
                 }
-                aampPlayer.load(strLocator);
+                aampPlayer.load(url);
         }
 }
 
@@ -730,7 +733,9 @@ function playbackStateChanged(event) {
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
 		<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"/>
 
-		<input type="button" value="hdmiin" onclick="playHdmiin();"/>
+		<input type="button" value="hdmiin1" onclick="playHdmiin(hdmiin1);"/>
+		<input type="button" value="hdmiin2" onclick="playHdmiin(hdmiin2);"/>
+		<input type="button" value="hdmiin3" onclick="playHdmiin(hdmiin3);"/>
 		<input type="button" value="full" onclick="SetRectangle(0,0,1,1);"/>
 		<input type="button" value="TR" onclick="SetRectangle(0.5,0,0.5,0.5);"/>
 		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>
