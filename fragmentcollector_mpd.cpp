@@ -4859,27 +4859,33 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 	AudioType selectedCodecType = eAUDIO_UNKNOWN;
 	int audioRepresentationIndex = -1;
  	int desiredRepIdx = -1;	
-	int audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
-	IAdaptationSet *audioAdaptationSet = NULL;
-	if ( audioAdaptationSetIndex >= 0 )
-	{
-		audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
-	}
+	int audioAdaptationSetIndex = -1;
 
-	if( audioAdaptationSet )
+	// No need to check audio representation for trick play cases, it only needs for normal playback.
+	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
-		std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
-		aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
-		if(desiredRepIdx != -1 )
+		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+		IAdaptationSet *audioAdaptationSet = NULL;
+		if ( audioAdaptationSetIndex >= 0 )
 		{
-			audioRepresentationIndex = desiredRepIdx;
-			mAudioType = selectedCodecType;
+			audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
 		}
-		logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
-	}
-	else
-	{
-		logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
+
+		if( audioAdaptationSet )
+		{
+			std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
+			aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
+			if(desiredRepIdx != -1 )
+			{
+				audioRepresentationIndex = desiredRepIdx;
+				mAudioType = selectedCodecType;
+			}
+			logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
+		}
+		else
+		{
+			logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
+		}
 	}
 
 	for (int i = 0; i < numTracks; i++)
