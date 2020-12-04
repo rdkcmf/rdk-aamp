@@ -4912,50 +4912,54 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 	int audioRepresentationIndex = -1;
  	int desiredRepIdx = -1;	
 	int audioAdaptationSetIndex = -1;
-	AudioTrackInfo preferredAudioTrack = aamp->GetPreferredAudioTrack();
-	if (!preferredAudioTrack.index.empty())
+
+	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
-		if (newTune)
+		AudioTrackInfo preferredAudioTrack = aamp->GetPreferredAudioTrack();
+		if (!preferredAudioTrack.index.empty())
 		{
-			//TODO: Need to check if a better logic is available
-			std::string index = preferredAudioTrack.index;
-			size_t delim = index.find('-');
-			logprintf("%s: delim - %zu, substr: %s", __FUNCTION__, delim, index.substr(0, delim).c_str());
-			audioAdaptationSetIndex = atoi(index.substr(0, delim).c_str());
-			desiredRepIdx = std::stoi(index.substr(delim + 1));
+			if (newTune)
+			{
+				//TODO: Need to check if a better logic is available
+				std::string index = preferredAudioTrack.index;
+				size_t delim = index.find('-');
+				logprintf("%s: delim - %zu, substr: %s", __FUNCTION__, delim, index.substr(0, delim).c_str());
+				audioAdaptationSetIndex = atoi(index.substr(0, delim).c_str());
+				desiredRepIdx = std::stoi(index.substr(delim + 1));
+			}
+			// This is a period change, tread carefully here
+			else
+			{
+				//TODO: Dummy code, test
+				aamp->UpdateAudioLanguageSelection(preferredAudioTrack.language.c_str());
+				audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+			}
 		}
-		// This is a period change, tread carefully here
 		else
 		{
-			//TODO: Dummy code, test
-			aamp->UpdateAudioLanguageSelection(preferredAudioTrack.language.c_str());
 			audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
 		}
-	}
-	else
-	{
-		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
-	}
-	IAdaptationSet *audioAdaptationSet = NULL;
-	if ( audioAdaptationSetIndex >= 0 )
-	{
-		audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
-	}
-
-	if( audioAdaptationSet )
-	{
-		std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
-		aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
-		if(desiredRepIdx != -1 )
+		IAdaptationSet *audioAdaptationSet = NULL;
+		if ( audioAdaptationSetIndex >= 0 )
 		{
-			audioRepresentationIndex = desiredRepIdx;
-			mAudioType = selectedCodecType;
+			audioAdaptationSet = period->GetAdaptationSets().at(audioAdaptationSetIndex);
 		}
-		logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
-	}
-	else
-	{
-		logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
+		
+		if( audioAdaptationSet )
+		{
+			std::string lang = GetLanguageForAdaptationSet(audioAdaptationSet);
+			aamp->UpdateAudioLanguageSelection( lang.c_str() , false );
+			if(desiredRepIdx != -1 )
+			{
+				audioRepresentationIndex = desiredRepIdx;
+				mAudioType = selectedCodecType;
+			}
+			logprintf("PrivateStreamAbstractionMPD::%s %d > lang[%s] AudioType[%d]", __FUNCTION__, __LINE__, lang.c_str(), selectedCodecType);
+		}
+		else
+		{
+			logprintf("PrivateStreamAbstractionMPD::%s %d Unable to get audioAdaptationSet.", __FUNCTION__, __LINE__);
+		}
 	}
 
 	for (int i = 0; i < mMaxTracks; i++)
@@ -5251,6 +5255,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 	mContext->SetAudioTrackInfo(aTracks, aTrackIdx);
 	mContext->SetTextTrackInfo(tTracks, tTrackIdx);
 }
+
 
 /**
  * @brief Extract bitrate info from custom mpd
