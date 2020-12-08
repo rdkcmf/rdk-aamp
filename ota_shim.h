@@ -139,6 +139,7 @@ public:
     void SetAudioTrackByLanguage(const char* lang) override;
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
+    std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
     void ApplyContentRestrictions(std::vector<std::string> restrictions) override;
     std::vector<std::string> GetContentRestrictions() override;
     void DisableContentRestrictions(long secondsRelativeToCurrentTime) override;
@@ -175,6 +176,7 @@ private:
     void SetPreferredAudioLanguage();
     int GetAudioTrackInternal();
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
+    void GetTextTracks();
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 

@@ -899,7 +899,7 @@ public:
 	 *
 	 *   @return std::vector<TextTrackInfo> list of text tracks
 	 */
-	std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
+	virtual std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
 
 	/**
 	*   @brief Update seek position when player is initialized
