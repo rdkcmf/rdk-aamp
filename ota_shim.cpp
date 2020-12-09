@@ -674,6 +674,7 @@ void StreamAbstractionAAMP_OTA::ApplyContentRestrictions(std::vector<std::string
 std::vector<std::string> StreamAbstractionAAMP_OTA::GetContentRestrictions()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+	return std::vector<std::string>();
 #else
 	//AAMPLOG_INFO( "[OTA_SHIM]%s: Content Restrictions from platform:", __FUNCTION__);
 	/*[PC API platform integration]Needs to fill a vector using ratings from plugin and sent as return value*/
