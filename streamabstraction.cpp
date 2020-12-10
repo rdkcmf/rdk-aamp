@@ -1115,13 +1115,30 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		// find the profile for the newbandwidth
 		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
-		profileIdxForBandwidthNotification = desiredProfileIndex;
-		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
-		GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond);
-		mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
+		StreamInfo* streamInfo = GetStreamInfo(profileIdxForBandwidthNotification);
+		if (profileIdxForBandwidthNotification != desiredProfileIndex)
+		{
+			if(streamInfo != NULL)
+			{
+				profileIdxForBandwidthNotification = desiredProfileIndex;
+				GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
+				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+			}
+		}
 	}
 }
 
+/**
+ * @brief Update ramp down profile reason on fragments download failure
+ */
+void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
+{
+	mBitrateReason = eAAMP_BITRATE_CHANGE_BY_RAMPDOWN;
+}
 
 /**
  * @brief GetDesiredProfileOnBuffer - Get the new profile corrected based on buffer availability
