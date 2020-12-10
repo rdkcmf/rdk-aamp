@@ -4333,12 +4333,23 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				ts->streamOutputFormat = FORMAT_INVALID;
 				continue;
 			}
-			if (iTrack == eTRACK_AUX_AUDIO && !aamp->IsAuxiliaryAudioEnabled())
+			if (iTrack == eTRACK_AUX_AUDIO)
 			{
-				AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d auxiliary audio disabled", __FUNCTION__, __LINE__);
-				ts->enabled = false;
-				ts->streamOutputFormat = FORMAT_INVALID;
-				continue;
+				if (!aamp->IsAuxiliaryAudioEnabled())
+				{
+					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d auxiliary audio disabled", __FUNCTION__, __LINE__);
+					ts->enabled = false;
+					ts->streamOutputFormat = FORMAT_INVALID;
+					continue;
+				}
+				else if (aamp->GetAuxiliaryAudioLanguage() == aamp->language)
+				{
+					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d auxiliary audio same as primary audio, set forward audio flag", __FUNCTION__, __LINE__);
+					ts->enabled = false;
+					ts->streamOutputFormat = FORMAT_INVALID;
+					SetAudioFwdToAuxStatus(true);
+					continue;
+				}
 			}
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)

@@ -2846,7 +2846,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stop(true);
 #endif
 			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
@@ -4976,7 +4976,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		mStreamSink->SetAudioVolume(audio_volume);
 		if (mbPlayEnabled)
 		{
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus());
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
@@ -9669,10 +9669,10 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
  *
  *   @param[in] videoFormat - video stream format
  *   @param[in] audioFormat - audio stream format
+ *   @param[in] auxFormat - aux stream format
  *   @return void
  */
-
-void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
+void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat)
 {
 	bool reconfigure = false;
 	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
@@ -9703,12 +9703,17 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		reconfigure = true;
 		mAudioFormat = audioFormat;
 	}
+	if (auxFormat != mAuxFormat && (mAuxFormat == FORMAT_INVALID || (mAuxFormat != FORMAT_UNKNOWN && auxFormat != FORMAT_UNKNOWN)) && auxFormat != FORMAT_INVALID)
+	{
+		reconfigure = true;
+		mAuxFormat = auxFormat;
+	}
 
 	if (reconfigure)
 	{
 		// Configure pipeline as TSProcessor might have detected the actual stream type
 		// or even presence of audio
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, false);
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, false, mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 	}
 }
 

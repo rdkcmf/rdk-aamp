@@ -5754,7 +5754,13 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 					}
 					else if (eMEDIATYPE_AUX_AUDIO == i && aamp->IsAuxiliaryAudioEnabled())
 					{
-						if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->GetAuxiliaryAudioLanguage(), adaptationSet, selRepresentationIndex) == true)
+						if (aamp->GetAuxiliaryAudioLanguage() == aamp->language)
+						{
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d > auxiliary audio same as primary audio, set forward audio flag", __FUNCTION__, __LINE__);
+							mContext->SetAudioFwdToAuxStatus(true);
+							break;
+						}
+						else if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->GetAuxiliaryAudioLanguage(), adaptationSet, selRepresentationIndex) == true)
 						{
 							selAdaptationSetIndex = iAdaptationSet;
 						}

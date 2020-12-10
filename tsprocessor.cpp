@@ -778,7 +778,7 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	m_demux(false), m_peerTSProcessor(peerTSProcessor), m_packetStartAfterFirstPTS(-1), m_queuedSegment(NULL),
 	m_queuedSegmentPos(0), m_queuedSegmentDuration(0), m_queuedSegmentLen(0), m_queuedSegmentDiscontinuous(false), m_startPosition(-1.0),
 	m_track(track), m_last_frame_time(0), m_demuxInitialized(false), m_basePTSFromPeer(-1), m_dsmccComponentFound(false), m_dsmccComponent(),
-	m_auxTSProcessor(auxTSProcessor)
+	m_auxTSProcessor(auxTSProcessor), m_auxiliaryAudio(false)
 {
 	INFO("constructor - %p", this);
 
@@ -805,6 +805,7 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	}
 	else if ((m_streamOperation == eStreamOp_DEMUX_AUX) || m_streamOperation == eStreamOp_DEMUX_VIDEO_AND_AUX)
 	{
+		m_auxiliaryAudio = true;
 		m_audDemuxer = new Demuxer(aamp, eMEDIATYPE_AUX_AUDIO);
 		// Map auxiliary specific streamOperation back to generic streamOperation used by TSProcessor
 		if (m_streamOperation == eStreamOp_DEMUX_AUX)
@@ -1186,7 +1187,14 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		audioFormat = getStreamFormatForCodecType(audioComponents[0].elemStreamType);
 	}
 	// Notify the format to StreamSink
-	aamp->SetStreamFormat(videoFormat, audioFormat);
+	if (!m_auxiliaryAudio)
+	{
+		aamp->SetStreamFormat(videoFormat, audioFormat, FORMAT_INVALID);
+	}
+	else
+	{
+		aamp->SetStreamFormat(videoFormat, FORMAT_INVALID, audioFormat);
+	}
 
 	if (m_dsmccComponentFound)
 	{

@@ -452,7 +452,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
 			aamp->LogPlayerPreBuffered();
-			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus());
+			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 			aamp->mpStreamAbstractionAAMP->StartInjection();
 			aamp->mStreamSink->Stream();
 			aamp->pipeline_paused = false;
@@ -1880,25 +1880,7 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 	std::string currentLanguage = aamp->GetAuxiliaryAudioLanguage();
 	AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s)->(%s)", currentLanguage.c_str(), language.c_str());
 
-	//TODO: Decide if this logic is acceptable
-	// Auxiliary language is same as audio language. Do we need to play same stream on both tracks??
-	// This will cause major synchronisation problems in streamer if its muxed
-	if (aamp->language == language)
-	{
-		AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s) is same as primary audio language(%s), stop auxiliary playback for now", aamp->language, language.c_str());
-		aamp->SetAuxiliaryLanguage(""); // set empty to turn off
-		if (aamp->mpStreamAbstractionAAMP)
-		{
-			AAMPLOG_WARN("aamp_SetAuxiliaryLanguage(%s) retuning", language.c_str());
-			aamp->discardEnteringLiveEvt = true;
-			aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
-			aamp->TeardownStream(false);
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-
-			aamp->discardEnteringLiveEvt = false;
-		}
-	}
-	else if(language != currentLanguage)
+	if(language != currentLanguage)
 	{
 		// There is no active playback session, save the language for later
 		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)

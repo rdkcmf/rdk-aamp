@@ -997,11 +997,11 @@ public:
 	void MuteSubtitles(bool mute);
 
 	/**
-	 *   @brief Waits aux track injection until caught up with video track.
-	 *          Used internally by injection logic
+	 * @brief Blocks aux track injection until caught up with video track.
+	 *        Used internally by injection logic
 	 *
-	 *   @param None
-	 *   @return void
+	 * @param None
+	 * @return void
 	 */
 	void WaitForVideoTrackCatchupForAux();
 
@@ -1041,6 +1041,21 @@ public:
          *       @return void
          */
         virtual void EnableContentRestrictions(){};
+
+	/**
+	 * @brief Get audio forward to aux pipeline status
+	 *
+	 * @return bool true if audio buffers are to be forwarded
+	 */
+	bool GetAudioFwdToAuxStatus() { return mFwdAudioToAux; }
+
+	/**
+	 * @brief Set audio forward to aux pipeline status
+	 *
+	 * @param[in] status - enabled/disabled
+	 * @return void
+	 */
+	void SetAudioFwdToAuxStatus(bool status) { mFwdAudioToAux = status; }
 
 protected:
 	/**
@@ -1105,6 +1120,7 @@ protected:
 	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
 	std::string mAudioTrackIndex; /**< Current audio track index in track list */
 	std::string mTextTrackIndex; /**< Current text track index in track list */
+	bool mFwdAudioToAux;  /**< If audio buffers are to be forwarded to auxiliary pipeline, happens if both are playing same language */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H
