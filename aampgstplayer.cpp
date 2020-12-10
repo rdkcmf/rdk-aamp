@@ -1228,7 +1228,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
 				}
 #if defined (REALTEKCE)
-				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink") == true)
+				else if ( aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink")
+						|| aamp_StartsWith(GST_OBJECT_NAME(msg->src), "alsasink")
+						|| aamp_StartsWith(GST_OBJECT_NAME(msg->src), "fakesink") )
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
 				}
