@@ -48,12 +48,13 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 				// If new Manifest is inserted which is not present in the cache , flush out other playlist files related with old manifest,
 				ClearPlaylistCache();
 			}
-			if(buffer->len < mMaxPlaylistCacheSize)
+			// Dont check for CacheSize if Max is configured as unlimited 
+			if(mMaxPlaylistCacheSize == PLAYLIST_CACHE_SIZE_UNLIMITED || (mMaxPlaylistCacheSize != PLAYLIST_CACHE_SIZE_UNLIMITED  && buffer->len < mMaxPlaylistCacheSize))
 			{
 				// Before inserting into cache, need to check if max cache size will exceed or not on adding new data
 				// if more , need to pop out some from same type of playlist
 				bool cacheStoreReady = true;
-				if(mCacheStoredSize + buffer->len > mMaxPlaylistCacheSize)
+				if(mMaxPlaylistCacheSize != PLAYLIST_CACHE_SIZE_UNLIMITED  && ((mCacheStoredSize + buffer->len) > mMaxPlaylistCacheSize))
 				{
 					AAMPLOG_WARN("[%s][%d] Count[%d]Avail[%d]Needed[%d] Reached max cache size ",__FUNCTION__,__LINE__,mPlaylistCache.size(),mCacheStoredSize,buffer->len);
 					cacheStoreReady = AllocatePlaylistCacheSlot(fileType,buffer->len);
