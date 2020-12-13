@@ -251,6 +251,7 @@ enum ConfigParamType
 	ePARAM_RELOCKONTIMEOUT,
 	ePARAM_RELOCKONPROGRAMCHANGE,
 	ePARAM_PROPAGATE_URI_PARAMETERS,
+	ePARAM_MAX_PLAYLIST_CACHE_SIZE,
 	ePARAM_MAX_COUNT
 };
 
@@ -316,7 +317,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
 	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
-	{ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
+	{ ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
+	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -792,6 +794,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_CEA_FORMAT:
 			case ePARAM_TUNE_EVENT_CONFIG:
 			case ePARAM_LANG_CODE_PREFERENCE:
+			case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -980,6 +983,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PROPAGATE_URI_PARAMETERS:
 					privObj->_aamp->SetPropagateUriParameters(valueAsBoolean);
+					break;	
+				case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
+					privObj->_aamp->SetMaxPlaylistCacheSize((int) valueAsNumber);
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}

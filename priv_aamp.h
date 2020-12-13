@@ -2719,7 +2719,11 @@ public:
          *       @return void
          */
         void EnableContentRestrictions();
-
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist 
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
 
 private:
 
@@ -2867,5 +2871,6 @@ private:
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
 	bool mEnableSeekableRange;
 	bool mReportVideoPTS;
+	int mCacheMaxSize;
 };
 #endif // PRIVAAMP_H

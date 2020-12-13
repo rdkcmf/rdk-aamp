@@ -1370,6 +1370,11 @@ public:
 	 *	 @return void
 	 */
 	void EnableContentRestrictions();
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

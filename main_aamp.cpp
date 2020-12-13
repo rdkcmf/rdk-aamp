@@ -315,6 +315,17 @@ void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 	}
 }
 
+/**
+ * @brief Set Maximum Cache Size for playlist store 
+ *
+ */
+void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
+{
+        if(gpGlobalConfig->gMaxPlaylistCacheSize == 0)
+        {
+                aamp->SetMaxPlaylistCacheSize(cacheSize);
+        }
+}
 
 /**
  * @brief Set profile ramp down limit.
