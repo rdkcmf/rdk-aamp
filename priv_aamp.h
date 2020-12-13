@@ -2620,6 +2620,11 @@ public:
 	 *   @return void
 	 */
 	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist 
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
 
 private:
 
@@ -2735,5 +2740,6 @@ private:
 	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
+	int mCacheMaxSize;
 };
 #endif // PRIVAAMP_H
