@@ -3618,6 +3618,11 @@ public:
 	 *   @return void
 	 */
 	void SetSessionToken(std::string &sessionToken);
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist 
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
 
 private:
 
@@ -3728,6 +3733,7 @@ private:
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	int m_minInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::map<DRMSystems, std::string> mLicenseServerUrls;
+	int mCacheMaxSize;
 };
 
 #endif // PRIVAAMP_H

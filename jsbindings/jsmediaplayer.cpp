@@ -238,6 +238,7 @@ enum ConfigParamType
 	ePARAM_USE_MATCHING_BASEURL,
 	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
 	ePARAM_AUTHTOKEN,
+	ePARAM_MAX_PLAYLIST_CACHE_SIZE,
 	ePARAM_MAX_COUNT
 };
 
@@ -295,6 +296,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_AUTHTOKEN, "authToken"},
+	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -703,6 +705,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+			case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -861,7 +864,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetSessionToken(valueAsString);
 					delete[] valueAsString;
 					break;
-					
+				case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
+					privObj->_aamp->SetMaxPlaylistCacheSize((int) valueAsNumber);
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}

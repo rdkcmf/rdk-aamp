@@ -5397,9 +5397,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 #endif
 	}
 
-	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
+	if(mCacheMaxSize != 0)
 	{
-		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(mCacheMaxSize);
+	}
+	else if(mPreCacheDnldTimeWindow > 0)
+	{
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
 
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
@@ -8502,6 +8507,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, m_minInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	, mLicenseServerUrls()
 	, mSessionToken()
+	, mCacheMaxSize(0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -8596,6 +8602,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	if (gpGlobalConfig->licenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
+	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	{
+		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
 	}
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
@@ -10855,12 +10865,6 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE,1,GetNetworkProxy());
 			SetCurlTimeout(mPlaylistTimeoutMs,eCURLINSTANCE_PLAYLISTPRECACHE);
-			// calculate the cache size, consider 1 MB/playlist
-			int maxCacheSz = szPlaylistCount * 1024*1024;
-			// get the current cache max size , to restore later 
-			int currMaxCacheSz = getAampCacheHandler()->GetMaxPlaylistCacheSize();
-			// set new playlistCacheSize; 
-			getAampCacheHandler()->SetMaxPlaylistCacheSize(maxCacheSz);
 			int sleepTimeBetweenDnld = (maxWindowforDownload/szPlaylistCount)*1000; // time in milliSec 
 			int idx=0;
 			do
@@ -10900,8 +10904,6 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 				}
 				GetState(state);
 			}while(idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
-			// restore old cache size
-			getAampCacheHandler()->SetMaxPlaylistCacheSize(currMaxCacheSz);
 			mPreCacheDnldList.clear();
 			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
 		}
@@ -11204,6 +11206,27 @@ void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
 		mSessionToken = sessionToken;
 	}
 	return;
+}
+
+/**
+ * @brief Set Maximum Cache Size for playlist store 
+ *
+ */
+void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
+{
+	if(gpGlobalConfig->gMaxPlaylistCacheSize == 0)
+	{
+		aamp->SetMaxPlaylistCacheSize(cacheSize);
+	}
+}
+
+/**
+ * @brief Set Maximum Cache Size for playlist store
+ *
+ */
+void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
+{
+	mCacheMaxSize = cacheSize * 1024 ;
 }
 
 /**

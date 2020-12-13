@@ -25,6 +25,8 @@
 #include <unordered_map>
 #include "priv_aamp.h"
 
+#define PLAYLIST_CACHE_SIZE_UNLIMITED -1 
+
 /**
  * @brief PlayListCachedData structure to store playlist data
  */
