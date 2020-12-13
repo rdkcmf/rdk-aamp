@@ -3516,6 +3516,12 @@ public:
 	 */
 	long GetMinimumBitrate();
 
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist 
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
+
 private:
 
 	/**
@@ -3615,6 +3621,7 @@ private:
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 
 	AampCacheHandler *mAampCacheHandler;
+	int mCacheMaxSize;
 };
 
 #endif // PRIVAAMP_H
