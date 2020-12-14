@@ -524,6 +524,33 @@ static class myAAMPEventListener *myEventListener;
 #endif // LOG_CLI_EVENTS
 
 /**
+* @brief Decide if input command consists of supported URI scheme to be tuned.
+* @param cmd cmd to parse
+*/
+static bool IsTuneScheme(const char *cmd)
+{
+	bool isTuneScheme = false;
+    
+	if (memcmp(cmd, "http", 4) == 0)
+	{
+		isTuneScheme = true;
+	}
+	else if (memcmp(cmd, "live", 4) == 0)
+	{
+		isTuneScheme = true;
+	}
+	else if (memcmp(cmd, "hdmiin", 6) == 0)
+ 	{
+		isTuneScheme = true;
+ 	}
+	else if (memcmp(cmd, "file", 4) == 0)
+	{
+		isTuneScheme = true;
+	}
+	return isTuneScheme;
+}
+
+/**
  * @brief Parse config entries for aamp-cli, and update gpGlobalConfig params
  *        based on the config.
  * @param cfg config to process
@@ -544,18 +571,17 @@ static void ProcessCLIConfEntry(char *cfg)
 				while (token != NULL)
 				{
 					if (isNumber(token))
+					{
 						channelInfo.channelNumber = atoi(token);
-					else if (
-							 memcmp(token, "udp:", 4)==0 ||
-							 memcmp(token, "http:", 5) == 0 ||
-							 memcmp(token, "https:", 6) == 0 ||
-							 memcmp(token, "hdmiin:", 7) == 0 ||
-							 memcmp(token, "live:", 5) == 0)
+					}
+					else if (IsTuneScheme(token))
 					{
 						channelInfo.uri = token;
 					}
 					else
+					{
 						channelInfo.name = token;
+					}
 					token = strtok(NULL, " ");
 				}
 				if (!channelInfo.uri.empty())
@@ -643,15 +669,7 @@ static void ProcessCliCommand(char *cmd)
 	{
 		ShowHelp();
 	}
-	else if (memcmp(cmd, "http", 4) == 0)
-	{
-		mSingleton->Tune(cmd);
-	}
-	else if (memcmp(cmd, "live", 4) == 0)
-	{
-		mSingleton->Tune(cmd);
-	}
-	else if (memcmp(cmd, "hdmiin", 6) == 0)
+	else if (IsTuneScheme(cmd))
 	{
 		mSingleton->Tune(cmd);
 	}

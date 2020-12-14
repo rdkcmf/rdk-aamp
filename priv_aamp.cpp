@@ -94,8 +94,11 @@
 
 #define FOG_REASON_STRING			"Fog-Reason:"
 #define CURLHEADER_X_REASON			"X-Reason:"
-#define BITRATE_HEADER_STRING			"X-Bitrate:"
-#define CONTENTLENGTH_STRING 			"Content-Length:"
+#define BITRATE_HEADER_STRING		"X-Bitrate:"
+#define CONTENTLENGTH_STRING		"Content-Length:"
+#define SET_COOKIE_HEADER_STRING	"Set-Cookie:"
+#define LOCATION_HEADER_STRING		"Location:"
+#define CONTENT_ENCODING_STRING		"Content-Encoding:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -1595,26 +1598,26 @@ static void print_headerResponse(std::vector<std::string> &allResponseHeadersFor
  * @param user_data  CurlCallbackContext pointer
  * @retval
  */
-static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_data)
+static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *user_data)
 {
-	//std::string *httpHeaders = static_cast<std::string *>(user_data);
 	CurlCallbackContext *context = static_cast<CurlCallbackContext *>(user_data);
 	httpRespHeaderData *httpHeader = context->responseHeaderData;
 	size_t len = nmemb * size;
-	int startPos = 0;
+	size_t startPos = 0;
+	size_t endPos = len-2; // strip CRLF
+
 	bool isBitrateHeader = false;
 
-	if( len<2 || ptr[len-2] != '\r' || ptr[len-1] != '\n' )
+	if( len<2 || ptr[endPos] != '\r' || ptr[endPos+1] != '\n' )
 	{ // only proceed if this is a CRLF terminated curl header, as expected
 		return len;
 	}
 
-	ptr[len-2] = 0x00; // replace the unprintable \r, and convert to NUL-terminated C-String
-
 	if (gpGlobalConfig->logging.curlHeader && ptr[0] &&
 			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
 	{
-		context->allResponseHeadersForErrorLogging.push_back(ptr);
+		std::string temp = std::string(ptr,endPos);
+		context->allResponseHeadersForErrorLogging.push_back(temp);
 	}
 
 	// As per Hypertext Transfer Protocol ==> Field names are case-insensitive
@@ -1634,17 +1637,17 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 		startPos = STRLEN_LITERAL(BITRATE_HEADER_STRING);
 		isBitrateHeader = true;
 	}
-	else if (STARTS_WITH_IGNORE_CASE(ptr, "Set-Cookie:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, SET_COOKIE_HEADER_STRING))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_COOKIE;
-		startPos = STRLEN_LITERAL("Set-Cookie:");
+		startPos = STRLEN_LITERAL(SET_COOKIE_HEADER_STRING);
 	}
-	else if (STARTS_WITH_IGNORE_CASE(ptr, "Location:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, LOCATION_HEADER_STRING))
 	{
 		httpHeader->type = eHTTPHEADERTYPE_EFF_LOCATION;
-		startPos = STRLEN_LITERAL("Location:");
+		startPos = STRLEN_LITERAL(LOCATION_HEADER_STRING);
 	}
-	else if (STARTS_WITH_IGNORE_CASE(ptr, "Content-Encoding:"))
+	else if (STARTS_WITH_IGNORE_CASE(ptr, CONTENT_ENCODING_STRING ))
 	{
 		// Enabled IsEncoded as Content-Encoding header is present
 		// The Content-Encoding entity header incidcates media is compressed
@@ -1655,13 +1658,8 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 		if (STARTS_WITH_IGNORE_CASE(ptr, CONTENTLENGTH_STRING))
 		{
 			int contentLengthStartPosition = STRLEN_LITERAL(CONTENTLENGTH_STRING);
-			char* contentLengthStr = ptr + contentLengthStartPosition;
+			const char * contentLengthStr = ptr + contentLengthStartPosition;
 			int contentLength = atoi(contentLengthStr);
-
-			if(gpGlobalConfig->logging.trace)
-			{
-				traceprintf("%s:%d header %s contentLengthStr %s  contentLength %d",__FUNCTION__,__LINE__, ptr, contentLengthStr, contentLength);
-			}
 
 			/*contentLength can be zero for redirects*/
 			if (contentLength > 0)
@@ -1674,29 +1672,26 @@ static size_t header_callback(char *ptr, size_t size, size_t nmemb, void *user_d
 	
 	if(startPos > 0)
 	{
-		//Find the first character after the http header name
-		int endPos = strlen(ptr) - 1;
-		while ((ptr[endPos] == ' ') && (endPos >= startPos))
-		{
+		while( endPos>startPos && ptr[endPos-1] == ' ' )
+		{ // strip trailing whitespace
 			endPos--;
 		}
-		while ((ptr[startPos] == ' ') && (startPos <= endPos))
-		{
+		while( startPos < endPos && ptr[startPos] == ' ')
+		{ // strip leading whitespace
 			startPos++;
 		}
 
 		if(isBitrateHeader)
 		{
-			char* strBitrate = ptr + startPos;
+			const char * strBitrate = ptr + startPos;
 			context->bitrate = atol(strBitrate);
 			traceprintf("Parsed HTTP %s: %ld\n", isBitrateHeader? "Bitrate": "False", context->bitrate);
 		}
 		else
 		{
-			httpHeader->data = string((ptr + startPos), (endPos - startPos +1));
+			httpHeader->data = string( ptr + startPos, endPos - startPos );
 			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
-			{
-				//Append a delimiter ";"
+			{ //Append delimiter ";"
 			 	httpHeader->data += ';';
 			}
 		}
@@ -3610,6 +3605,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
 			context.fileType = simType;
+			
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
 			if(gpGlobalConfig->disableSslVerifyPeer)
@@ -3747,7 +3743,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				bool loopAgain = false;
 				if (res == CURLE_OK)
 				{ // all data collected
-					curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+					if( memcmp(remoteUrl.c_str(), "file:", 5) == 0 )
+					{ // file uri scheme
+						// libCurl does not provide CURLINFO_RESPONSE_CODE for 'file:' protocol.
+						// Handle CURL_OK to http_code mapping here, other values handled below (see http_code = res).
+						http_code = 200;
+					}
+					else
+					{
+						curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+					}
 					char *effectiveUrlPtr = NULL;
 					if (http_code != 200 && http_code != 204 && http_code != 206)
 					{
@@ -3876,10 +3881,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					* Assigning curl error to http_code, for sending the error code as
 					* part of error event if required
 					* We can distinguish curl error and http error based on value
-					*curl errors are below 100 and http error starts from 100
+					* curl errors are below 100 and http error starts from 100
 					*/
-					http_code = res;
-
+					if( res == CURLE_FILE_COULDNT_READ_FILE )
+					{
+						http_code = 404; // translate file not found to URL not found
+					}
+					else
+					{
+						http_code = res;
+					}
 					#if 0
 					if (isDownloadStalled)
 					{
