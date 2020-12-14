@@ -797,6 +797,16 @@ void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 }
 
 /**
+ * @brief Get profile index for TsbBandwidth
+ * @param bandwidth - bandwidth to identify profile index from list
+ * @retval profile index of the current bandwidth
+ */
+int MediaTrack::GetProfileIndexForBW(long mTsbBandwidth)
+{
+       return GetContext()->GetProfileIndexForBandwidth(mTsbBandwidth);
+}
+
+/**
  * @brief Get current bandwidth of track
  * @return bandwidth in bytes per second
  */
@@ -1155,7 +1165,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		// a) Check if network bandwidth changed from starting bw
 		// b) Check if netwwork bandwidth is different from persisted bandwidth( needed for first time reporting)
 		// find the profile for the newbandwidth
-		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+		desiredProfileIndex = GetMediaTrack(eTRACK_VIDEO)->GetProfileIndexForBW(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
 		StreamInfo* streamInfo = GetStreamInfo(profileIdxForBandwidthNotification);
 		if (profileIdxForBandwidthNotification != desiredProfileIndex)
