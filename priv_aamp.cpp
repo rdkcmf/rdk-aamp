@@ -99,6 +99,7 @@
 #define SET_COOKIE_HEADER_STRING	"Set-Cookie:"
 #define LOCATION_HEADER_STRING		"Location:"
 #define CONTENT_ENCODING_STRING		"Content-Encoding:"
+#define FOG_RECORDING_ID_STRING		"Fog-Recording-Id:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -171,6 +172,7 @@ struct CurlCallbackContext
 	{
 
 	}
+	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}{}
 
 	~CurlCallbackContext() {}
 
@@ -185,6 +187,8 @@ struct CurlCallbackContext
 struct CurlProgressCbContext
 {
 	PrivateInstanceAAMP *aamp;
+	CurlProgressCbContext() : aamp(NULL), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
+	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
 	long long downloadStartTime;
 	long long downloadUpdatedTime;
 	long startTimeout;
@@ -1618,6 +1622,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 	size_t endPos = len-2; // strip CRLF
 
 	bool isBitrateHeader = false;
+	bool isFogRecordingIdHeader = false;
 
 	if( len<2 || ptr[endPos] != '\r' || ptr[endPos+1] != '\n' )
 	{ // only proceed if this is a CRLF terminated curl header, as expected
@@ -1658,6 +1663,11 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		httpHeader->type = eHTTPHEADERTYPE_EFF_LOCATION;
 		startPos = STRLEN_LITERAL(LOCATION_HEADER_STRING);
 	}
+	else if (STARTS_WITH_IGNORE_CASE(ptr, FOG_RECORDING_ID_STRING))
+	{
+		startPos = STRLEN_LITERAL(FOG_RECORDING_ID_STRING);
+		isFogRecordingIdHeader = true;
+	}
 	else if (STARTS_WITH_IGNORE_CASE(ptr, CONTENT_ENCODING_STRING ))
 	{
 		// Enabled IsEncoded as Content-Encoding header is present
@@ -1697,6 +1707,11 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			const char * strBitrate = ptr + startPos;
 			context->bitrate = atol(strBitrate);
 			traceprintf("Parsed HTTP %s: %ld\n", isBitrateHeader? "Bitrate": "False", context->bitrate);
+		}
+		else if(isFogRecordingIdHeader)
+		{
+			context->aamp->mTsbRecordingId = string( ptr + startPos, endPos - startPos );
+			AAMPLOG_TRACE("Parsed Fog-Id : %s", context->aamp->mTsbRecordingId.c_str());
 		}
 		else
 		{
@@ -1885,7 +1900,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mVideoEnd(NULL),
 #endif
 	mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
-	mIsFirstRequestToFOG(false), mIsLocalPlayback(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
+	mIsFirstRequestToFOG(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
@@ -1916,6 +1931,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage(), mRestrictions()
 	, mEnableSeekableRange(false), mReportVideoPTS(false),mCacheMaxSize(0)
 	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
+	, mTsbRecordingId()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2535,6 +2551,14 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	pthread_mutex_lock(&mLock);
 	if(mState != eSTATE_ERROR)
 	{
+		if(IsTSBSupported() && mState <= eSTATE_PREPARED)
+		{
+			// Send a TSB delete request when player is not tuned successfully.
+			// If player is once tuned, retune happens with same content and player can reuse same TSB.
+			std::string remoteUrl = "127.0.0.1:9080/tsb";
+			long http_error = -1;
+			ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_DELETE);
+		}
 		sendErrorEvent = true;
 		mState = eSTATE_ERROR;
 	}
@@ -3693,7 +3717,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					headerValue = it->second.at(0);
 					if (it->first.compare("X-MoneyTrace:") == 0)
 					{
-						if (mIsLocalPlayback && !mIsFirstRequestToFOG)
+						if (mTSBEnabled && !mIsFirstRequestToFOG)
 						{
 							continue;
 						}
@@ -3821,15 +3845,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					// check if redirected url is pointing to fog / local ip
 					if(mIsFirstRequestToFOG)
 					{
-					    if( effectiveUrl.find(LOCAL_HOST_IP) == std::string::npos )
-					    {
-					        // oops, TSB is not working, we got redirected away from fog
-					        mIsLocalPlayback = false;
-					        mTSBEnabled = false;
-					        logprintf("NO_TSB_AVAILABLE playing from:%s ", effectiveUrl.c_str());
-					    }
-					    // updating here because, tune request can be for fog but fog may redirect to cdn in some cases
-					    this->UpdateVideoEndTsbStatus(mTSBEnabled);
+						if(mTsbRecordingId.empty())
+						{
+							AAMPLOG_INFO("TSB not avaialble from fog, playing from:%s ", effectiveUrl.c_str());
+							mTSBEnabled = false;
+						}
+						// updating here because, tune request can be for fog but fog may redirect to cdn in some cases
+						this->UpdateVideoEndTsbStatus(mTSBEnabled);
 					}
 
 					/*
@@ -3871,7 +3893,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mIsLocalPlayback) || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
+					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mTSBEnabled) || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
 					{
 						if(mpStreamAbstractionAAMP)
 						{
@@ -4246,153 +4268,107 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 {
 	std::string remoteUrl = "127.0.0.1:9080/sessionstat";
-	std::string sessionID;
-	GrowableBuffer data;
 	long http_error = -1;
 	char* ret = NULL;
-
-	// Get current recording ID
-	if(ProcessCustomGetCurlRequest(remoteUrl, &data, &http_error))
+	if(!mTsbRecordingId.empty())
 	{
-		/* Parse recording ID from session statistics JSON format
+		/* Request session statistics for current recording ID
 		 *
-		 * example : {"current-recording-ID":true,
-		 * "previous-recording-ID":false}
+		 * example request: 127.0.0.1:9080/sessionstat/<recordingID>
 		 *
 		 */
-		cJSON *monitor_json = cJSON_Parse(data.ptr);
-		if (monitor_json == NULL)
+		remoteUrl.append("/");
+		remoteUrl.append(mTsbRecordingId);
+		GrowableBuffer data;
+		if(ProcessCustomCurlRequest(remoteUrl, &data, &http_error))
 		{
-			const char *error_ptr = cJSON_GetErrorPtr();
-			if (error_ptr != NULL)
+			// succesfully requested
+			AAMPLOG_INFO("%s:%d curl request %s success", __FUNCTION__, __LINE__, remoteUrl.c_str());
+			cJSON *root = cJSON_Parse(data.ptr);
+			if (root == NULL)
 			{
-				AAMPLOG_ERR("%s:%d Invalid Json format: %s\n", __FUNCTION__, __LINE__, error_ptr);
-			}
-		}
-		else
-		{
-			cJSON *recordingID = monitor_json->child;
-			// iterate on childs
-			while(recordingID)
-			{
-				// Get value and check whether it is good
-				cJSON *status = cJSON_GetObjectItemCaseSensitive(monitor_json, recordingID->string);
-				if(cJSON_IsFalse(status) == 0)
+				const char *error_ptr = cJSON_GetErrorPtr();
+				if (error_ptr != NULL)
 				{
-					// Store session ID and break the iteration
-					sessionID = recordingID->string;
-					break;
+					AAMPLOG_ERR("%s:%d Invalid Json format: %s\n", __FUNCTION__, __LINE__, error_ptr);
 				}
-				recordingID = recordingID->next;
-			}
-		}
-
-		if(!sessionID.empty())
-		{
-			/* Request session statistics for current recording ID
-			 *
-			 * example request: 127.0.0.1:9080/sessionstat/<recordingID>
-			 *
-			 */
-			remoteUrl.append("/");
-			remoteUrl.append(sessionID);
-			GrowableBuffer finalData;
-			if(ProcessCustomGetCurlRequest(remoteUrl, &finalData, &http_error))
-			{
-				// succesfully requested
-				AAMPLOG_INFO("%s:%d curl request %s success", __FUNCTION__, __LINE__, remoteUrl.c_str());
-				cJSON *root = cJSON_Parse(finalData.ptr);
-				if (root == NULL)
-				{
-					const char *error_ptr = cJSON_GetErrorPtr();
-					if (error_ptr != NULL)
-					{
-						AAMPLOG_ERR("%s:%d Invalid Json format: %s\n", __FUNCTION__, __LINE__, error_ptr);
-					}
-				}
-				else
-				{
-					ret = cJSON_PrintUnformatted(root);
-					cJSON_Delete(root);
-				}
-
 			}
 			else
 			{
-				// Failure in request
-				AAMPLOG_ERR("%s:%d curl request %s failed[%d]", __FUNCTION__, __LINE__, remoteUrl.c_str(), http_error);
+				ret = cJSON_PrintUnformatted(root);
+				cJSON_Delete(root);
 			}
 
-			if(finalData.ptr)
-			{
-				aamp_Free(&finalData.ptr);
-			}
 		}
-
-		if(monitor_json)
+		else
 		{
-			cJSON_Delete(monitor_json);
+			// Failure in request
+			AAMPLOG_ERR("%s:%d curl request %s failed[%d]", __FUNCTION__, __LINE__, remoteUrl.c_str(), http_error);
+		}
+
+		if(data.ptr)
+		{
+			aamp_Free(&data.ptr);
 		}
 	}
-	if(data.ptr)
-	{
-		aamp_Free(&data.ptr);
-	}
+
 	return ret;
 }
 
 
 /**
- * @brief Perform custom get curl request
+ * @brief Perform custom curl request
  *
  * @param[in] remoteUrl - File URL
  * @param[out] buffer - Pointer to the output buffer
  * @param[out] http_error - HTTP error code
+ * @param[in] CurlRequest - request type
  * @return bool status
  */
-bool PrivateInstanceAAMP::ProcessCustomGetCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error)
+bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error, CurlRequest request)
 {
 	bool ret = false;
-	CurlCallbackContext context;
-	context.aamp = this;
-	context.buffer = buffer;
-	memset(buffer, 0x00, sizeof(*buffer));
-	CurlProgressCbContext progressCtx;
-	progressCtx.aamp = this;
-	progressCtx.downloadStartTime = NOW_STEADY_TS_MS;
-	progressCtx.downloadUpdatedTime = -1;
-	progressCtx.downloadSize = -1;
-	progressCtx.abortReason = eCURL_ABORT_REASON_NONE;
 	CURLcode res;
 	long httpCode = -1;
-
-	CURL *curl = curl_easy_init();;
+	CURL *curl = curl_easy_init();
 	if(curl)
 	{
-		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progressCtx);
+		AAMPLOG_INFO("%s: %s, %d", __FUNCTION__, remoteUrl.c_str(), request);
+		if(eCURL_GET == request)
+		{
+			CurlCallbackContext context(this, buffer);
+			memset(buffer, 0x00, sizeof(*buffer));
+			CurlProgressCbContext progressCtx(this, NOW_STEADY_TS_MS);
+
+			curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+			curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+			curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progressCtx);
+			curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
+			curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+		}
+		else if(eCURL_DELETE == request)
+		{
+			curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+		}
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
 		res = curl_easy_perform(curl);
 		if (res == CURLE_OK)
 		{
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-			if (httpCode == 200)
+			if ((httpCode == 204) || (httpCode == 200))
 			{
 				ret = true;
 			}
 			else
 			{
-				AAMPLOG_ERR("%s:%d Error[%d] while requesting session statistics", __FUNCTION__, __LINE__, httpCode);
+				AAMPLOG_ERR("%s:%d Returned [%d]", __FUNCTION__, __LINE__, httpCode);
 			}
 		}
 		else
@@ -4853,6 +4829,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			SendVideoEndEvent();
 		}
 
+		mTsbRecordingId.clear();
 		// initialize defaults
 		SetState(eSTATE_INITIALIZING);
 		culledSeconds = 0;
@@ -5188,8 +5165,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
-	mTSBEnabled	=	false;
-	mIsLocalPlayback = (aamp_getHostFromURL(mManifestUrl).find(LOCAL_HOST_IP) != std::string::npos);
+	mTSBEnabled	= (mManifestUrl.find("tsb?") != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
@@ -5252,7 +5228,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mIsLocalPlayback && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
+			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
 			{
 				replace(mManifestUrl, ".m3u8", ".mpd");
 				mMediaFormat = eMEDIAFORMAT_DASH;
@@ -5261,7 +5237,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		else if (gpGlobalConfig->mapM3U8 && mMediaFormat == eMEDIAFORMAT_DASH)
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapM3U8) != std::string::npos) || (mIsLocalPlayback && mManifestUrl.find(gpGlobalConfig->mapM3U8) != std::string::npos))
+			if((hostName.find(gpGlobalConfig->mapM3U8) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapM3U8) != std::string::npos))
 			{
 				replace(mManifestUrl, ".mpd" , ".m3u8");
 				mMediaFormat = eMEDIAFORMAT_HLS;
@@ -5293,11 +5269,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		} // mpd
 	} // !remap_url
  
-	if (mManifestUrl.find("tsb?")!= std::string::npos)
-	{
-		mTSBEnabled = true;
-	}
-	mIsFirstRequestToFOG = (mIsLocalPlayback == true);
+	mIsFirstRequestToFOG = (mTSBEnabled == true);
 
 	{
 		char tuneStrPrefix[64];
