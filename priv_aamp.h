@@ -253,6 +253,18 @@ enum AudioType
 };
 
 /**
+ *
+ * @enum Curl Request
+ *
+ */
+enum CurlRequest
+{
+	eCURL_GET,
+	eCURL_POST,
+	eCURL_DELETE
+};
+
+/**
  * @struct AsyncEventDescriptor
  * @brief Used in asynchronous event notification logic
  */
@@ -654,6 +666,7 @@ public:
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 
+	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -752,14 +765,15 @@ public:
 	char* GetOnVideoEndSessionStatData();
 
 	/**
-	 * @brief Perform custom get curl request
+	 * @brief Perform custom curl request
 	 *
 	 * @param[in] remoteUrl - File URL
 	 * @param[out] buffer - Pointer to the output buffer
 	 * @param[out] http_error - HTTP error code
+	 * @param[in] CurlRequest - request type
 	 * @return bool status
 	 */
-	bool ProcessCustomGetCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error);
+	bool ProcessCustomCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error, CurlRequest request = eCURL_GET);
 
 	/**
 	 * @brief get Media Type in string
@@ -1820,13 +1834,6 @@ public:
 	 */
 	void setCurrentDrm(std::shared_ptr<AampDrmHelper> drm) { mCurrentDrm = drm; }
 
-	/**
-	 *   @brief Check if current  playback is from local TSB
-	 *
-	 *   @return true: yes, false: no
-	 */
-	bool IsLocalPlayback() { return mIsLocalPlayback; }
-
 #ifdef USE_SECCLIENT
 	/**
 	 * @brief Extracts / Generates MoneyTrace string
@@ -2794,7 +2801,6 @@ private:
 	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
-	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
 	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
