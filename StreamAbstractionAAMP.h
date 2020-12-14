@@ -643,6 +643,14 @@ public:
 	int GetDesiredProfile(bool getMidProfile);
 
 	/**
+	 *   @brief Update rampdown profile on network failure
+	 *
+	 *   @param None
+	 *   @return void
+	 */
+	void UpdateRampdownProfileReason(void);
+
+	/**
 	 *   @brief Notify bitrate updates to application.
 	 *   Used internally by injection logic
 	 *
