@@ -930,6 +930,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->logging.curlHeader = true;
 			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
 		}
+		else if (cfg.compare("curlLicense") == 0)
+                {
+                        gpGlobalConfig->logging.curlLicense = true;
+                        logprintf("curlLicense logging %s", gpGlobalConfig->logging.curlLicense ? "on" : "off");
+                }
 		else if(cfg.compare("logMetadata") == 0)
 		{
 			gpGlobalConfig->logging.logMetadata = true;

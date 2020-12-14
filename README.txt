@@ -31,7 +31,8 @@ info		enable logging of requested urls
 gst		enable gstreamer logging including pipeline dump
 progress	enable periodic logging of position
 trace		enable dumps of manifests
-curl		enable verbose curl logging
+curl		enable verbose curl logging for manifest/playlist/segment downloads 
+curlLicense     enable verbose curl logging for license request (non-secclient)
 debug		enable debul level logs
 logMetadata	enable timed metadata logging
 abr		disable abr mode (defaults on)
