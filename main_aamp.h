@@ -92,6 +92,7 @@ struct TuneFailureMap
 #define AAMP_RATE_FWD_2X		16
 #define AAMP_RATE_FWD_3X		32
 #define AAMP_RATE_FWD_4X		64
+#define AAMP_RATE_INVALID		-1
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))

@@ -160,7 +160,8 @@ typedef enum{
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_ContentRestrictions,
-	eAAMP_SET_PropagateUriParam
+	eAAMP_SET_PropagateUriParam,
+	eAAMP_SET_RateOnTune
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -409,6 +410,7 @@ void ShowHelpSet(){
 	logprintf("45 - Set auxiliary audio language (string lang)" );
 	logprintf("46 - Set Content Restrictions (string array ratings to be restricted)" );
 	logprintf("47 - Set propagateUriParameters: (0-disable)" );
+	logprintf("48 - Set PreTuneRate");
 }
 
 #define LOG_CLI_EVENTS
@@ -1411,6 +1413,13 @@ static void ProcessCliCommand(char *cmd)
                                         }
                                         break;
                                 }
+				case eAAMP_SET_RateOnTune:
+				{
+					logprintf("Matched Command eAAMP_SET_RateOnTune - %s",cmd);
+					sscanf(cmd, "set %d %d", &opt, &rate);
+					mSingleton->SetRate(rate);
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
