@@ -1866,18 +1866,6 @@ long StreamAbstractionAAMP::GetAudioBitrate(void)
 }
 
 /**
-*   @brief Get Content Restrictions
-*
-*   @return std::vector<std::string> list of restrictions
-*/
-std::vector<std::string> StreamAbstractionAAMP::GetContentRestrictions()
-{
-        /*Returning empty list as currently supported only for OTA*/
-	std::vector<std::string> restrictions;
-	return restrictions;
-}
-
-/**
  *   @brief Check if a preferred bitrate is set and change profile accordingly.
  */
 void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)

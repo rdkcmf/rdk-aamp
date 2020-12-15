@@ -889,6 +889,34 @@ function setTextStyleOptions() {
 	}
 }
 
+function disableContentRestrictionsTimeout() {
+	var until = {"time":120};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions with timeout: " + JSON.stringify(until));
+}
+
+function disableContentRestrictionsProgramChange() {
+	var until = {"programChange":true};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions until program change");
+}
+
+function disableContentRestrictionsBoth() {
+	var until = {"programChange":true, "time":30};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions with both");
+}
+
+function disableContentRestrictions() {
+	aampPlayer.disableContentRestrictions();
+	console.log("Invoked disableContentRestrictions until reboot");
+}
+
+function enableContentRestrictions() {
+	aampPlayer.enableContentRestrictions();
+	console.log("Invoked enableContentRestrictions");
+}
+
 var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12, "blocked":14};
 function playbackStateChanged(event) {
     log("Playback state changed event: " + JSON.stringify(event));
@@ -996,6 +1024,13 @@ function blockedEventHandler(event) {
 		</select>
 		<input type="button" value="SetTextStyleOptions" onclick="setTextStyleOptions();"/>
 		<input type="button" value="GetTextStyleOptions" onclick="getTextStyleOptions();"/>
+
+		<br/>
+		<input type="button" value="disableContentRestrictions-120s" onclick="disableContentRestrictionsTimeout();"/>
+		<input type="button" value="disableContentRestrictions-pc" onclick="disableContentRestrictionsProgramChange();"/>
+		<input type="button" value="both" onclick="disableContentRestrictionsBoth();"/>
+		<input type="button" value="disableContentRestrictions-reboot" onclick="disableContentRestrictions();"/>
+		<input type="button" value="enableContentRestrictions" onclick="enableContentRestrictions();"/>
 		<br/>
 
 		<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>

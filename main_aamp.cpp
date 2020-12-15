@@ -2021,48 +2021,17 @@ void PlayerInstanceAAMP::SetReportVideoPTS(bool enabled)
 }
 
 /**
-*   @brief Set Content Restrictions
-*   @param[in] restrictions - restrictions to be applied
-*
-*   @return void
-*/
-void PlayerInstanceAAMP::SetContentRestrictions(std::vector<std::string> restrictions)
-{
-	aamp->SetContentRestrictions(restrictions);
-}
-
-/**
-*   @brief Get Content Restrictions
-*
-*   @return std::vector<std::string> list of restrictions
-*/
-std::vector<std::string> PlayerInstanceAAMP::GetContentRestrictions()
-{
-	return aamp->GetContentRestrictions();
-}
-
-/**
 *   @brief Disable Content Restrictions - unlock
-*   @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+*   @param[in] eventChange - disable restriction handling till next program event boundary
 *
 *   @return void
 */
-void PlayerInstanceAAMP::DisableContentRestrictions(long secondsRelativeToCurrentTime)
+void PlayerInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
-	ERROR_OR_IDLE_STATE_CHECK_VAL();
-	aamp->DisableContentRestrictions(secondsRelativeToCurrentTime);
-}
-
-/**
-*   @brief Disable Content Restrictions - unlock
-*   @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
-*
-*   @return void
-*/
-void PlayerInstanceAAMP::DisableContentRestrictions(bool untilProgramChange)
-{
-	ERROR_OR_IDLE_STATE_CHECK_VAL();
-	aamp->DisableContentRestrictions(untilProgramChange);
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+	aamp->DisableContentRestrictions(grace, time, eventChange);
 }
 
 /**
@@ -2071,7 +2040,7 @@ void PlayerInstanceAAMP::DisableContentRestrictions(bool untilProgramChange)
 */
 void PlayerInstanceAAMP::EnableContentRestrictions()
 {
-	ERROR_OR_IDLE_STATE_CHECK_VAL();
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->EnableContentRestrictions();
 }
 

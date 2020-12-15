@@ -2832,93 +2832,6 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 }
 
 /**
- * @brief API invoked from JS when executing AAMPMediaPlayer.setContentRestrictions()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval JSValue that is the function's return value
- */
-
-JSValueRef AAMPMediaPlayerJS_setContentRestrictions (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
-{
-	TRACELOG("Enter %s()", __FUNCTION__);
-	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
-	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setContentRestrictions() on instances of AAMPPlayer");
-		return JSValueMakeUndefined(ctx);
-	}
-
-	if (argumentCount != 1)
-	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setContentRestrictions() - 1 argument required");
-	}
-	else if (!aamp_JSValueIsArray(ctx, arguments[0]))
-	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(ctx, arguments[0]));
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setContentRestrictions() - parameter 1 is not an array");
-	}
-	else
-	{
-		std::vector<std::string> restrictions = aamp_StringArrayToCStringArray(ctx, arguments[0]);
-		privObj->_aamp->SetContentRestrictions(restrictions);
-		ERROR("%s(): Invoked setContentRestrictions", __FUNCTION__);
-	}
-	TRACELOG("Exit %s()", __FUNCTION__);
-	return JSValueMakeUndefined(ctx);
-}
-/**
- * @brief API invoked from JS when executing AAMPMediaPlayer.getContentRestrictions()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval JSValue that is the function's return value
- */
-
-static JSValueRef AAMPMediaPlayerJS_getContentRestrictions(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
-{
-	TRACELOG("Enter %s()", __FUNCTION__);
-	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
-	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getContentRestrictions() on instances of AAMPPlayer");
-		return JSValueMakeUndefined(ctx);
-	}
-
-	std::vector<std::string> restrictions = privObj->_aamp->GetContentRestrictions();
-	if (!restrictions.empty())
-	{
-		unsigned int length = restrictions.size();
-		JSValueRef* array = new JSValueRef[length];
-		for (int i = 0; i < length; i++)
-		{
-			JSStringRef str = JSStringCreateWithUTF8CString(restrictions[i].c_str());
-			array[i] = JSValueMakeString(ctx, str);
-			JSStringRelease(str);
-		}
-
-		JSValueRef retVal = JSObjectMakeArray(ctx, length, array, NULL);
-		delete [] array;
-		TRACELOG("Exit %s()", __FUNCTION__);
-		return retVal;
-	}
-	else
-	{
-		TRACELOG("Exit %s()", __FUNCTION__);
-		return JSValueMakeUndefined(ctx);
-	}
-}
-
-/**
  * @brief API invoked from JS when executing AAMPMediaPlayer.disableContentRestrictions()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
@@ -2939,6 +2852,10 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 		return JSValueMakeUndefined(ctx);
 	}
 
+	long grace = 0;
+	long time = -1;
+	bool eventChange=false;
+	bool updateStatus = false;
 	if (argumentCount == 1 && JSValueIsObject(ctx, arguments[0]))
 	{
 		JSValueRef _exception = NULL;
@@ -2974,31 +2891,37 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 
 			if(ret)
 			{
+				updateStatus = true;
 				switch(relockConditionParamNames[iter].paramType)
 				{
 				case ePARAM_RELOCKONTIMEOUT:
-					privObj->_aamp->DisableContentRestrictions((long) valueAsNumber);
+					time = (long) valueAsNumber;
 					break;
 				case ePARAM_RELOCKONPROGRAMCHANGE:
-				        privObj->_aamp->DisableContentRestrictions(valueAsBoolean);
-                                        break;
+					eventChange = valueAsBoolean;
+					break;
 
-                                default: //ePARAM_MAX_COUNT
-                                        break;
-                                }
-                        }
-                }
-        }
-        else if(argumentCount > 1)
-        {
-                ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or no argument", __FUNCTION__, argumentCount);
-                *exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - 1 argument of type IConfig required");
-        }
-        else
-        {
+				default: //ePARAM_MAX_COUNT
+					break;
+				}
+			}
+		}
+		if(updateStatus)
+		{
+			privObj->_aamp->DisableContentRestrictions(grace, time, eventChange);
+		}
+	}
+	else if(argumentCount > 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or no argument", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - 1 argument of type IConfig required");
+	}
+	else
+	{
 		//No parameter:parental control locking will be disabled until settop reboot, or explicit call to enableContentRestrictions
-		privObj->_aamp->DisableContentRestrictions((long)-1);
-        }
+		grace = -1;
+		privObj->_aamp->DisableContentRestrictions(grace, time, eventChange);
+	}
 
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -3082,8 +3005,6 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setTextStyleOptions", AAMPMediaPlayerJS_setTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getTextStyleOptions", AAMPMediaPlayerJS_getTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAuxiliaryLanguage", AAMPMediaPlayerJS_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "setContentRestrictions", AAMPMediaPlayerJS_setContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "getContentRestrictions", AAMPMediaPlayerJS_getContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "disableContentRestrictions", AAMPMediaPlayerJS_disableContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "enableContentRestrictions", AAMPMediaPlayerJS_enableContentRestrictions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getThumbnail", AAMPMediaPlayerJS_getThumbnails, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },

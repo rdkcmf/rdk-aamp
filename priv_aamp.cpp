@@ -1935,7 +1935,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredAudioTrack(), mPreferredTextTrack(), midFragmentSeekCache(false), mFirstVideoFrameDisplayedEnabled(false)
-	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage(), mRestrictions()
+	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mEnableSeekableRange(false), mReportVideoPTS(false),mCacheMaxSize(0)
 	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 	, mTsbRecordingId()
@@ -8165,30 +8165,6 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 }
 
 /**
- *   @brief  Generate Content Restricted event based on args passed.
- *
- *   @param[in] reason          - Reason for restriction
- *   @param[in] locked          - Current lock status
- *   @param[in] restrictionList - Restriction List
- */
-void PrivateInstanceAAMP::SendContentRestrictedEvent(std::string reason, bool locked, std::vector<std::string> restrictionList)
-{
-	ContentRestrictedEventPtr event = std::make_shared<ContentRestrictedEvent>(reason, locked);
-
-	for (auto iter = restrictionList.begin(); iter != restrictionList.end(); iter++)
-	{
-		const char *src = (*iter).c_str();
-		size_t len = strlen(src);
-		if (len > 0)
-		{
-			event->addRestriction(std::string(src));
-		}
-	}
-
-	SendEventAsync(event);
-}
-
-/**
  *   @brief To set the initial bitrate value.
  *
  *   @param[in] initial bitrate to be selected
@@ -10000,60 +9976,18 @@ void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
 }
 
 /**
-*   @brief Set Content Restrictions
-*   @param[in] restrictions - restrictions to be applied
-*
-*   @return void
-*/
-void PrivateInstanceAAMP::SetContentRestrictions(std::vector<std::string> restrictions)
-{
-	mRestrictions = restrictions;
-	if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->ApplyContentRestrictions(restrictions);
-	}
-}
-
-/**
-*   @brief Get Content Restrictions
-*
-*   @return std::vector<std::string> list of restrictions
-*/
-std::vector<std::string> PrivateInstanceAAMP::GetContentRestrictions()
-{
-	std::vector<std::string> restrictions;
-	if (mpStreamAbstractionAAMP)
-	{
-		restrictions = mpStreamAbstractionAAMP->GetContentRestrictions();
-	}
-	return restrictions;
-}
-
-/**
 *   @brief Disable Content Restrictions - unlock
-*   @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+*   @param[in] eventChange - disable restriction handling till next program event boundary
 *
 *   @return void
 */
-void PrivateInstanceAAMP::DisableContentRestrictions(long secondsRelativeToCurrentTime)
+void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
 	if (mpStreamAbstractionAAMP)
 	{
-		mpStreamAbstractionAAMP->DisableContentRestrictions(secondsRelativeToCurrentTime);
-	}
-}
-
-/**
-*   @brief Disable Content Restrictions - unlock
-*   @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
-*
-*   @return void
-*/
-void PrivateInstanceAAMP::DisableContentRestrictions(bool untilProgramChange)
-{
-	if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->DisableContentRestrictions(untilProgramChange);
+		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
 	}
 }
 

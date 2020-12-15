@@ -95,7 +95,6 @@ typedef enum {
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
 	eAAMP_GET_TextTrack,
-	eAAMP_GET_ContentRestrictions,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData
 }AAMPGetTypes;
@@ -150,7 +149,6 @@ typedef enum{
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_AuxiliaryAudio,
-	eAAMP_SET_ContentRestrictions,
 	eAAMP_SET_PropagateUriParam,
 	eAAMP_SET_RateOnTune,
 	eAAMP_SET_ThumbnailTrack
@@ -516,7 +514,7 @@ static void ShowHelp(void)
 	printf("underflow             // Simulate underflow\n");
 	printf("retune                // schedule retune\n");
 	printf("reset                 // delete player instance and create new one\n");
-	printf("unlock <cond>         // unlock a channel <long int - time in seconds>\n");
+	printf("unlock <cond>         // unlock a channel <until> - time in seconds/-1 till reboot/ no param - till programChange\n");
 	printf("lock                  // lock the current channel\n");
 	printf("next                  // Play next virtual channel\n");
 	printf("prev                  // Play previous virtual channel\n");
@@ -549,9 +547,8 @@ void ShowHelpGet(){
 	printf("get 13                // Get Available Text Tracks\n");
 	printf("get 14                // Get Audio Track\n");
 	printf("get 15                // Get Text Track\n");
-	printf("get 16                // Get Content Restrictions\n");
-	printf("get 17                // Get Available ThumbnailTracks\n");
-	printf("get 18                // Get Thumbnail timerange data(int startpos, int endpos)\n");
+	printf("get 16                // Get Available ThumbnailTracks\n");
+	printf("get 17                // Get Thumbnail timerange data(int startpos, int endpos)\n");
 	printf("****************************************************************************\n");
 }
 
@@ -609,10 +606,9 @@ void ShowHelpSet(){
 	printf("set 43 <x>            // Set CC status (x = 0/1)\n");
 	printf("set 44 <x>            // Set a predefined CC style option (x = 1/2/3)\n");
 	printf("set 45 <x>            // Set auxiliary audio language (x = string lang)\n");
-	printf("set 46 <x>            // Set Content Restrictions (x = string array)\n");
-	printf("set 47 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
-	printf("set 48 <x>            // Set Pre-tune rate (x= PreTuneRate)\n");
-	printf("set 49 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
+	printf("set 46 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
+	printf("set 47 <x>            // Set Pre-tune rate (x= PreTuneRate)\n");
+	printf("set 48 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -711,22 +707,6 @@ public:
 			{
 				BlockedEventPtr ev = std::dynamic_pointer_cast<BlockedEvent>(e);
 				printf("[AAMPCLI] AAMP_EVENT_BLOCKED Reason:%s\n" ,ev->getReason().c_str());
-				break;
-			}
-		case AAMP_EVENT_CONTENT_RESTRICTED:
-			{
-				printf("[AAMPCLI] AAMP_EVENT_CONTENT_RESTRICTED\n");
-				ContentRestrictedEventPtr ev = std::dynamic_pointer_cast<ContentRestrictedEvent>(e);
-				std::string reason = ev->getReason();
-				printf("[AAMPCLI] restriction reason = \"%s\" \n", reason.c_str());
-				bool locked = ev->getLockStatus();
-				printf("[AAMPCLI] lock status = \"%s\" \n", locked? "yes" : "no");
-				std::vector<std::string> restrictions = ev->getRestrictions();
-				int restrictionCount = ev->getRestrictionsCount();
-				for (int i = 0; i < restrictionCount; i++)
-				{
-					printf("[AAMPCLI] restriction : %s\n", restrictions[i].c_str());
-				}
 				break;
 			}
 		default:
@@ -839,6 +819,9 @@ static void ProcessCliCommand( char *cmd )
 	char cacheUrl[200];
 	int keepPaused = 0;
 	long unlockSeconds = 0;
+	long grace = 0;
+	long time = -1;
+	bool eventChange=false;
 	trim(&cmd);
 	while( *cmd==' ' ) cmd++;
 	if (cmd[0] == 0)
@@ -1121,12 +1104,18 @@ static void ProcessCliCommand( char *cmd )
 	else if (sscanf(cmd, "unlock %ld", &unlockSeconds) >= 1)
 	{
 		printf("[AAMPCLI] unlocking for %ld seconds\n" , unlockSeconds);
-		mSingleton->DisableContentRestrictions(unlockSeconds);
+		if(-1 == unlockSeconds)
+			grace = -1;
+		else
+			time = unlockSeconds;
+
+		mSingleton->DisableContentRestrictions(grace, time, eventChange);
 	}
 	else if (memcmp(cmd, "unlock", 6) == 0 )
 	{
 		printf("[AAMPCLI] unlocking till next program change\n");
-		mSingleton->DisableContentRestrictions(true);
+		eventChange = true;
+		mSingleton->DisableContentRestrictions(grace, time, eventChange);
 	}
 	else if (memcmp(cmd, "lock", 4) == 0 )
 	{
@@ -1637,37 +1626,6 @@ static void ProcessCliCommand( char *cmd )
 					break;
 				}
 					
-				case eAAMP_SET_ContentRestrictions:
-				{
-					printf("[AAMPCLI] Matched Command eAAMP_SET_ContentRestrictions - %s \n", cmd);
-					const char* listStart = NULL;
-					const char* listEnd = NULL;
-					if((listStart = strchr(cmd, '"')) == NULL
-							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) == NULL) )
-					{
-						printf("[AAMPCLI] ratings to be restricted has to be wrapped with \" \" ie \"TV-PG,TV-14\"\n");
-						break;
-					}
-
-					std::string restrictionList (listStart+1, listEnd-listStart-1);
-										std::string delimiter = ",";
-										std::vector<std::string> contentRestrictions;
-
-					size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-					std::string token;
-
-					while ((pos_end = restrictionList.find (delimiter, pos_start)) != std::string::npos) {
-						token = restrictionList.substr (pos_start, pos_end - pos_start);
-						pos_start = pos_end + delim_len;
-						contentRestrictions.push_back (token);
-					}
-
-					contentRestrictions.push_back (restrictionList.substr (pos_start));
-
-					mSingleton->SetContentRestrictions(contentRestrictions);
-					break;
-				}
-				
 				case eAAMP_SET_PropagateUriParam:
 				{
 					int propagateUriParam;
@@ -1807,17 +1765,6 @@ static void ProcessCliCommand( char *cmd )
 				{
 					const char *prefferedLanguages = mSingleton->GetPreferredLanguages();
 					printf("[AAMPCLI] PREFERRED LANGUAGES = \"%s\" \n", prefferedLanguages? prefferedLanguages : "<NULL>");
-					break;
-				}
-				case eAAMP_GET_ContentRestrictions:
-				{
-					std::vector<std::string> restrictions = mSingleton->GetContentRestrictions();
-					int restrictionCount = restrictions.size();
-					printf("[AAMPCLI] CURRENT CONTENT RESTRICTIONS : \n");
-					for (int i = 0; i < restrictionCount; i++)
-					{
-						printf("%s\n", restrictions[i].c_str());
-					}
 					break;
 				}
 

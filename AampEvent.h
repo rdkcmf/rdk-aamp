@@ -79,7 +79,6 @@ typedef enum
 	AAMP_EVENT_REPORT_METRICS_DATA,		/**< 35, AAMP VideoEnd info reporting */
 	AAMP_EVENT_ID3_METADATA,		/**< 36, ID3 metadata from audio stream */
 	AAMP_EVENT_DRM_MESSAGE,         	/**< 37, Message from the DRM system */
-	AAMP_EVENT_CONTENT_RESTRICTED,         	/**< 38, Content Restriction status */
 	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
@@ -1653,70 +1652,6 @@ public:
 	const std::string &getReason() const { return mReason; }
 };
 
-/**
- * @brief Class for content restriction events
- */
-class ContentRestrictedEvent: public AAMPEventObject
-{
-	std::string mReason;    /**<Reason for restriction */
-	bool mLocked;	  	/**<Lock status */
-	std::vector<std::string> mRestrictions;	/**<Restriction list */
-
-public:
-	ContentRestrictedEvent() = delete;
-	ContentRestrictedEvent(const ContentRestrictedEvent&) = delete;
-	ContentRestrictedEvent& operator=(const ContentRestrictedEvent&) = delete;
-
-	/*
-	 * @brief ContentRestrictedEvent Constructor
-	 *
-	 * @param[in] reason    - Reason for restriction
-	 * @param[in] locked   - Current lock status
-	 */
-	ContentRestrictedEvent(const std::string &reason, bool locked);
-
-	/**
-	 * @brief ContentRestrictedEvent Destructor
-	 */
-	virtual ~ContentRestrictedEvent() { }
-
-	/**
-	 * @brief Get the reason for restriction
-	 *
-	 * @return Reason for restriction
-	 */
-	const std::string &getReason() const;
-
-	/**
-	 * @brief Add a restriction listed for current content
-	 *
-	 * @param[in] restriction - reported restriction
-	 * @return void
-	 */
-	void addRestriction(const std::string &restriction);
-
-	/**
-	 * @brief Get the list of restrictions
-	 *
-	 * @return List of restrictions
-	 */
-	const std::vector<std::string> &getRestrictions() const;
-
-	/**
-	 * @brief Get the restrictions count
-	 *
-	 * @return count of restrictions
-	 */
-	int getRestrictionsCount() const;
-
-	/**
-	 * @brief Get the lock status
-	 *
-	 * @return true if locked, false if unlocked
-	 */
-	bool getLockStatus() const;
-};
-
 using AAMPEventPtr = std::shared_ptr<AAMPEventObject>;
 using MediaErrorEventPtr = std::shared_ptr<MediaErrorEvent>;
 using SpeedChangedEventPtr = std::shared_ptr<SpeedChangedEvent>;
@@ -1741,7 +1676,6 @@ using MetricsDataEventPtr = std::shared_ptr<MetricsDataEvent>;
 using ID3MetadataEventPtr = std::shared_ptr<ID3MetadataEvent>;
 using DrmMessageEventPtr = std::shared_ptr<DrmMessageEvent>;
 using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
-using ContentRestrictedEventPtr = std::shared_ptr<ContentRestrictedEvent>;
 
 #endif /* __AAMP_EVENTS_H__ */
 

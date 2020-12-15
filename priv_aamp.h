@@ -691,7 +691,6 @@ public:
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool mAutoResumeTaskPending;
 
-        std::vector<std::string> mRestrictions; /**< Parental Control Restrictions set by user */
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
 	/**
@@ -1897,15 +1896,6 @@ public:
 	void SendBlockedEvent(const std::string & reason);
 
 	/**
-	 *   @brief  Generate Content Restricted event based on args passed.
-	 *
-	 *   @param[in] reason          - Reason for restriction
-	 *   @param[in] locked          - Current lock status
-	 *   @param[in] restrictionList - Restriction List
-	 */
-	void SendContentRestrictedEvent(std::string reason, bool locked, std::vector<std::string> restrictionList);
-
-	/**
 	 *   @brief To set the initial bitrate value.
 	 *
 	 *   @param[in] initial bitrate to be selected
@@ -2742,42 +2732,21 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
-        /**
-         *       @brief Set Content Restrictions
-         *       @param[in] restrictions - restrictions to be applied
-         *
-         *       @return void
-         */
-        void SetContentRestrictions(std::vector<std::string> restrictions);
+	/**
+	 *       @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *       @return void
+	 */
+	void DisableContentRestrictions(long grace=0, long time=-1, bool eventChange=false);
 
-        /**
-         *   @brief Get Content Restrictions
-         *
-         *   @return std::vector<std::string> list of restrictions
-         */
-        std::vector<std::string> GetContentRestrictions();
-
-        /**
-         *       @brief Disable Content Restrictions - unlock
-         *       @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
-         *
-         *       @return void
-         */
-        void DisableContentRestrictions(long secondsRelativeToCurrentTime);
-
-        /**
-         *       @brief Disable Content Restrictions - unlock
-         *       @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
-         *
-         *       @return void
-         */
-        void DisableContentRestrictions(bool untilProgramChange);
-
-        /**
-         *       @brief Enable Content Restrictions - lock
-         *       @return void
-         */
-        void EnableContentRestrictions();
+	/**
+	 *       @brief Enable Content Restrictions - lock
+	 *       @return void
+	 */
+	void EnableContentRestrictions();
 
 	/**
 	 *       @brief Set Maximum Cache Size for storing playlist 
