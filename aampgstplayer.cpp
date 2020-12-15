@@ -93,6 +93,7 @@ typedef enum {
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 #define BUFFERING_TIMEOUT_PRIORITY -70
+#define AAMP_MIN_DECODE_ERROR_INTERVAL 10000
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -179,6 +180,8 @@ struct AAMPGstPlayerPriv
 	gboolean audioSinkAsyncEnabled; // XIONE-1279: track if AudioSink Async Mode is enabled for Realtekce build
 #endif
 	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
+	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
+	int decodeErrorCBCount; //Total decode error cb received within thresold time
 };
 
 /**
@@ -995,6 +998,27 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 	}
 }
 
+/**
+ * @brief Callback invoked a Decode error is encountered
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ */
+static void AAMPGstPlayer_OnGstDecodeErrorCb(GstElement* object, guint arg0, gpointer arg1,
+        AAMPGstPlayer * _this)
+{
+	long long deltaMS = NOW_STEADY_TS_MS - _this->privateContext->decodeErrorMsgTimeMS;
+	_this->privateContext->decodeErrorCBCount += 1;
+	if (deltaMS >= AAMP_MIN_DECODE_ERROR_INTERVAL)
+	{
+		_this->aamp->SendAnomalyEvent(ANOMALY_WARNING, "Decode Error Message Callback=%d time=%d",_this->privateContext->decodeErrorCBCount, AAMP_MIN_DECODE_ERROR_INTERVAL);
+		_this->privateContext->decodeErrorMsgTimeMS = NOW_STEADY_TS_MS;
+		logprintf("## %s() : Got Decode Error message from %s ## total_cb=%d timeMs=%d", __FUNCTION__, GST_ELEMENT_NAME(object),  _this->privateContext->decodeErrorCBCount, AAMP_MIN_DECODE_ERROR_INTERVAL);
+		_this->privateContext->decodeErrorCBCount = 0;
+	}
+}
+
 static gboolean buffering_timeout (gpointer data)
 {
 	AAMPGstPlayer * _this = (AAMPGstPlayer *) data;
@@ -1199,6 +1223,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					G_CALLBACK(AAMPGstPlayer_OnGstBufferUnderflowCb), _this);
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
+				// To register decode-error-callback for video decoder source alone
+				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
+				{
+					g_signal_connect(msg->src, "decode-error-callback",
+						G_CALLBACK(AAMPGstPlayer_OnGstDecodeErrorCb), _this);
+				}
 			}
 		}
 		break;
@@ -1348,6 +1378,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					type_check_instance("bus_sync_handle: video_dec ", _this->privateContext->video_dec);
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+                                        g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
 				}
 				else
 				{
@@ -2543,6 +2574,8 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
 	privateContext->paused = false;
+	privateContext->decodeErrorMsgTimeMS = 0;
+	privateContext->decodeErrorCBCount = 0;
 #ifdef TRACE
 	logprintf("exiting AAMPGstPlayer::%s", __FUNCTION__);
 #endif
