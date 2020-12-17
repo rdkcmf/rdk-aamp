@@ -1780,30 +1780,23 @@ static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data,
 {
 	(void)handle;
 	(void)userp;
-	(void)size;
-
 	if(type == CURLINFO_TEXT || type == CURLINFO_HEADER_IN)
-	{
-	//remove unwanted trailing line feeds from log
-	for(int i = (int)size-1; i >= 0; i--)
-	{
-	    if(data[i] == '\n' || data[i] == '\r')
-		data[i] = '\0';
-	    else
-		break;
-	}
-
-	//limit log spam to only TEXT and HEADER_IN
-	switch (type) {
+	{ 
+		//limit log spam to only TEXT and HEADER_IN
+		size_t len = size;
+		while( len>0 && data[len-1]<' ' ) len--;
+		std::string printable(data,len);
+		switch (type)
+		{
 		case CURLINFO_TEXT:
-		logprintf("curl: %s", data);
-		break;
+			logprintf("curl: %s", printable.c_str() );
+			break;
 		case CURLINFO_HEADER_IN:
-		logprintf("curl header: %s", data);
-		break;
+			logprintf("curl header: %s", printable.c_str() );
+			break;
 		default:
-		break;  //CID:94999 - Resolve deadcode
-	}
+			break; //CID:94999 - Resolve deadcode
+		}
 	}
 	return 0;
 }
