@@ -64,6 +64,9 @@
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 #define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
 #define CC_OPTION_3 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"large\",\"windowFillColor\":\"blue\",\"fontStyle\":\"default\",\"textForegroundColor\":\"red\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"white\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
+
+#define VIRTUAL_CHANNEL_VALID(x) ((x) > 0)
+
 static PlayerInstanceAAMP *mSingleton = NULL;
 static PlayerInstanceAAMP *mBackgroundPlayer = NULL;
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
@@ -71,20 +74,6 @@ static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 static void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
 std::mutex appsinkData_mutex;
 #endif
-
-/**
- * @struct VirtualChannelInfo
- * @brief Holds information of a virtual channel
- */
-struct VirtualChannelInfo
-{
-	VirtualChannelInfo() : channelNumber(0), name(), uri()
-	{
-	}
-	int channelNumber;
-	std::string name;
-	std::string uri;
-};
 
 /**
  * @enum AAMPGetTypes
@@ -164,7 +153,230 @@ typedef enum{
 	eAAMP_SET_RateOnTune
 }AAMPSetTypes;
 
-static std::list<VirtualChannelInfo> mVirtualChannelMap;
+/**
+ * @struct VirtualChannelInfo
+ * @brief Holds information of a virtual channel
+ */
+struct VirtualChannelInfo
+{
+	VirtualChannelInfo() : channelNumber(0), name(), uri()
+	{
+	}
+	int channelNumber;
+	std::string name;
+	std::string uri;
+};
+
+/**
+ * @class VirtualChannelMap
+ * @brief Holds all of the virtual channels
+ */
+class VirtualChannelMap
+{
+public:
+	VirtualChannelMap() : mVirtualChannelMap(),mCurrentlyTunedChannel(0),mAutoChannelNumber(0) {}
+	~VirtualChannelMap()
+	{
+		mVirtualChannelMap.clear();
+	}
+	void Add(VirtualChannelInfo& channelInfo)
+	{
+		if( !channelInfo.name.empty() )
+		{
+			if( !channelInfo.uri.empty() )
+			{
+				if( !VIRTUAL_CHANNEL_VALID(channelInfo.channelNumber) )
+				{ // No channel set, use an auto. This could conflict with a later add, we can't check for that here
+					channelInfo.channelNumber = mAutoChannelNumber+1;
+				}
+			
+				if (IsPresent(channelInfo) == true)
+				{
+					return;  // duplicate
+				}
+				mAutoChannelNumber = channelInfo.channelNumber;
+			}
+		}
+		mVirtualChannelMap.push_back(channelInfo);
+	}
+	
+	VirtualChannelInfo* Find(const int channelNumber)
+	{
+		VirtualChannelInfo *found = NULL;
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+		{
+			VirtualChannelInfo &existingChannelInfo = *it;
+			if (channelNumber == existingChannelInfo.channelNumber)
+			{
+				found = &existingChannelInfo;
+				break;
+			}
+		}
+		return found;
+	}
+	
+	bool IsPresent(const VirtualChannelInfo& channelInfo)
+	{
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+		{
+			VirtualChannelInfo &existingChannelInfo = *it;
+			if(channelInfo.channelNumber == existingChannelInfo.channelNumber)
+			{
+				logprintf( "duplicate channel number: %d: '%s'\n", channelInfo.channelNumber, channelInfo.uri.c_str() );
+				return true;
+			}
+			if(channelInfo.uri == existingChannelInfo.uri )
+			{
+				logprintf( "duplicate URL: %d: '%s'\n", channelInfo.channelNumber, channelInfo.uri.c_str() );
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	// NOTE: prev() and next() are IDENTICAL other than the direction of the iterator. They could be collapsed using a template,
+	// but will all target compilers support this, it wouldn't save much code space, and may make the code harder to understand.
+	// Can not simply use different runtime iterators, as the types of each in C++ are not compatible (really).
+	VirtualChannelInfo* prev()
+	{
+		VirtualChannelInfo *pPrevChannel = NULL;
+		VirtualChannelInfo *pLastChannel = NULL;
+		bool prevFound = false;
+		
+		// mCurrentlyTunedChannel is 0 for manually entered urls, not having used mVirtualChannelMap yet or empty
+		if (mCurrentlyTunedChannel == 0 && mVirtualChannelMap.size() > 0)
+		{
+			prevFound = true;  // return the last valid channel
+		}
+		
+		for(std::list<VirtualChannelInfo>::reverse_iterator it = mVirtualChannelMap.rbegin(); it != mVirtualChannelMap.rend(); ++it)
+		{
+			VirtualChannelInfo &existingChannelInfo = *it;
+			if (VIRTUAL_CHANNEL_VALID(existingChannelInfo.channelNumber) ) // skip group headings
+			{
+				if ( pLastChannel == NULL )
+				{ // remember this channel for wrap case
+					pLastChannel = &existingChannelInfo;
+				}
+				if ( prevFound )
+				{
+					pPrevChannel = &existingChannelInfo;
+					break;
+				}
+				else if ( existingChannelInfo.channelNumber == mCurrentlyTunedChannel )
+				{
+					prevFound = true;
+				}
+			}
+		}
+		if (prevFound && pPrevChannel == NULL)
+		{
+			pPrevChannel = pLastChannel;  // if we end up here we are probably at the first channel -- wrap to back
+		}
+		return pPrevChannel;
+	}
+	
+	VirtualChannelInfo* next()
+	{
+		VirtualChannelInfo *pNextChannel = NULL;
+		VirtualChannelInfo *pFirstChannel = NULL;
+		bool nextFound = false;
+		
+		// mCurrentlyTunedChannel is 0 for manually entered urls, not using mVirtualChannelMap
+		if (mCurrentlyTunedChannel == 0 && mVirtualChannelMap.size() > 0)
+		{
+			nextFound = true; // return the first valid channel
+		}
+		
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+		{
+			VirtualChannelInfo &existingChannelInfo = *it;
+			if (VIRTUAL_CHANNEL_VALID(existingChannelInfo.channelNumber) ) // skip group headings
+			{
+				if ( pFirstChannel == NULL )
+				{ // remember this channel for wrap case
+					pFirstChannel = &existingChannelInfo;
+				}
+				if ( nextFound )
+				{
+					pNextChannel = &existingChannelInfo;
+					break;
+				}
+				else if ( existingChannelInfo.channelNumber == mCurrentlyTunedChannel )
+				{
+					nextFound = true;
+				}
+			}
+		}
+		if (nextFound && pNextChannel == NULL)
+		{
+			pNextChannel = pFirstChannel;  // if we end up here we are probably at the last channel -- wrap to front
+		}
+		return pNextChannel;
+	}
+	 
+	void Print()
+	{
+		if (mVirtualChannelMap.empty())
+		{
+			  return;
+		}
+			 
+		// logprintf formatting makes this hard to read, using printf
+		printf("aampcli.cfg virtual channel map:");
+
+		int numCols = 0;
+		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it )
+		{
+			VirtualChannelInfo &pChannelInfo = *it;
+			const char *channelName = pChannelInfo.name.c_str();
+			if( pChannelInfo.uri.empty() )
+			{
+				if( numCols!=0 )
+				{
+					printf( "\n" );
+				}
+				printf( "%s\n", channelName );
+				numCols = 0;
+				continue;
+			}
+			printf("%4d: %s", pChannelInfo.channelNumber, channelName );
+			if( numCols>=4 )
+			{ // four virtual channels per row
+				printf("\n");
+				numCols = 0;
+			}
+			else
+			{
+				size_t len = strlen(channelName);
+				while( len<20 )
+				{ // pad each column to 20 characters, for clean layout
+					printf( " " );
+					len++;
+				}
+				numCols++;
+			}
+		}
+		printf("\n\n");
+	}
+	
+	void SetCurrentlyTunedChannel(int value)
+	{
+		mCurrentlyTunedChannel = value;
+	}
+
+	// CSV export
+	//	for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it )
+	//	{
+	//		fprintf( fOut, "%d,%s,%s\n", it->channelNumber, it->name.c_str(), it->uri.c_str() );
+	//	}
+protected:
+	std::list<VirtualChannelInfo> mVirtualChannelMap;
+	int mAutoChannelNumber;
+	int mCurrentlyTunedChannel;
+};
+
+static VirtualChannelMap mVirtualChannelMap;
 
 /**
  * @brief Thread to run mainloop (for standalone mode)
@@ -174,24 +386,6 @@ static std::list<VirtualChannelInfo> mVirtualChannelMap;
 static void* AAMPGstPlayer_StreamThread(void *arg);
 static bool initialized = false;
 GThread *aampMainLoopThread = NULL;
-
-
-/**
- * @brief trim a string
- * @param[in][out] cmd Buffer containing string
- */
-static void trim(char **cmd)
-{
-    std::string src = *cmd;
-    size_t first = src.find_first_not_of(' ');
-    if (first != std::string::npos)
-    {
-        size_t last = src.find_last_not_of(" \r\n");
-        std::string dst = src.substr(first, (last - first + 1));
-        strncpy(*cmd, (char*)dst.c_str(), dst.size());
-        (*cmd)[dst.size()] = '\0';
-    }
-}
 
 /**
  * @brief check if the char array is having numbers only
@@ -278,31 +472,9 @@ void TermPlayerLoop()
 static void ShowHelp(void)
 {
 	int i = 0;
-	if (!mVirtualChannelMap.empty())
-	{
-		logprintf("aampcli.cfg virtual channel map:");
+			  
+	mVirtualChannelMap.Print();
 
-		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it, ++i)
-		{
-			VirtualChannelInfo &pChannelInfo = *it;
-			const char *channelName = pChannelInfo.name.c_str();
-			printf("%4d: %s", pChannelInfo.channelNumber, channelName );
-			if ((i % 4) == 3 )
-			{ // four virtual channels per row
-				printf("\n");
-			}
-			else
-			{
-				size_t len = strlen(channelName);
-				while( len<20 )
-				{ // pad each column to 20 characters, for clean layout
-					printf( " " );
-					len++;
-				}
-			}
-		}
-		printf("\n\n");
-	}
 	logprintf( "Commands:" );
 	logprintf( "<channelNumber>               // Play selected channel from guide");
 	logprintf( "<url>                         // Play arbitrary stream");
@@ -311,7 +483,7 @@ static void ShowHelp(void)
 	logprintf( "cache <url>/<channel>         // Cache a channel in the background");
 	logprintf( "toggle                        // Toggle the background channel & foreground channel");
 	logprintf( "stopb                         // Stop background channel.");
-	logprintf( "+ -                           // Change profile");
+	//logprintf( "+ -                           // Change profile");
 	logprintf( "bps <x>                       // set bitrate ");
 	logprintf( "sap                           // Use SAP track (if avail)");
 	logprintf( "seek <seconds>                // Specify start time within manifest");
@@ -321,6 +493,7 @@ static void ShowHelp(void)
 	logprintf( "reset                         // delete player instance and create a new one" );
 	logprintf( "unlock <cond>                 // unlock a channel <until - time in seconds/programChange" );
 	logprintf( "lock                          // lock the current channel" );
+	logprintf( "next prev                     // Play next/previous virtual channel" );
 	logprintf( "get help                      // Show help of get command" );
 	logprintf( "set help                      // Show help of set command" );
 	logprintf( "exit                          // Exit from application" );
@@ -552,76 +725,6 @@ static bool IsTuneScheme(const char *cmd)
 	return isTuneScheme;
 }
 
-/**
- * @brief Parse config entries for aamp-cli, and update gpGlobalConfig params
- *        based on the config.
- * @param cfg config to process
- */
-static void ProcessCLIConfEntry(char *cfg)
-{
-	trim(&cfg);
-	if (cfg[0] == '*')
-	{
-			char *delim = strchr(cfg, ' ');
-			if (delim)
-			{
-				//Populate channel map from aampcli.cfg
-				VirtualChannelInfo channelInfo;
-				channelInfo.channelNumber = INT_MIN;
-				char *channelStr = &cfg[1];
-				char *token = strtok(channelStr, " ");
-				while (token != NULL)
-				{
-					if (isNumber(token))
-					{
-						channelInfo.channelNumber = atoi(token);
-					}
-					else if (IsTuneScheme(token))
-					{
-						channelInfo.uri = token;
-					}
-					else
-					{
-						channelInfo.name = token;
-					}
-					token = strtok(NULL, " ");
-				}
-				if (!channelInfo.uri.empty())
-				{
-					if (INT_MIN == channelInfo.channelNumber)
-					{
-						channelInfo.channelNumber = mVirtualChannelMap.size() + 1;
-					}
-					if (channelInfo.name.empty())
-					{
-						channelInfo.name = "CH" + std::to_string(channelInfo.channelNumber);
-					}
-					bool duplicate = false;
-					for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
-					{
-						VirtualChannelInfo &existingChannelInfo = *it;
-						if(channelInfo.channelNumber == existingChannelInfo.channelNumber )
-						{
-							duplicate = true;
-							break;
-						}
-					}
-					if( duplicate )
-					{
-						//printf( "duplicate entry for channel %d\n", channelInfo.channelNumber );
-					}
-					else
-					{
-						mVirtualChannelMap.push_back(channelInfo);
-					}
-				}
-				else
-				{
-					logprintf("%s(): Could not parse uri of %s", __FUNCTION__, cfg);
-				}
-			}
-	}
-}
 
 inline void StopCachedChannel()
 {
@@ -646,11 +749,37 @@ void CacheChannel(const char *url)
 	mBackgroundPlayer->Tune(url, false);
 }
 
+static void TuneToChannel( VirtualChannelInfo &channel )
+{
+	mVirtualChannelMap.SetCurrentlyTunedChannel(channel.channelNumber);
+	const char *name = channel.name.c_str();
+	const char *locator = channel.uri.c_str();
+	printf( "TUNING to '%s' %s\n", name, locator );
+	mSingleton->Tune(locator);
+}
+
+/**
+ * @brief trim a string
+ * @param[in][out] cmd Buffer containing string
+ */
+static void trim(char **cmd)
+{
+	std::string src = *cmd;
+	size_t first = src.find_first_not_of(' ');
+	if (first != std::string::npos)
+	{
+		size_t last = src.find_last_not_of(" \r\n");
+		std::string dst = src.substr(first, (last - first + 1));
+		strncpy(*cmd, (char*)dst.c_str(), dst.size());
+		(*cmd)[dst.size()] = '\0';
+	}
+}
+
 /**
  * @brief Process command
  * @param cmd command
  */
-static void ProcessCliCommand(char *cmd)
+static void ProcessCliCommand( char *cmd )
 {
 	double seconds = 0;
 	int rate = 0;
@@ -659,6 +788,7 @@ static void ProcessCliCommand(char *cmd)
 	int keepPaused = 0;
 	long unlockSeconds = 0;
 	trim(&cmd);
+	while( *cmd==' ' ) cmd++;
 	if (cmd[0] == 0)
 	{
 		if (mSingleton->aamp->mpStreamAbstractionAAMP)
@@ -675,19 +805,45 @@ static void ProcessCliCommand(char *cmd)
 	{
 		mSingleton->Tune(cmd);
 	}
+	else if( memcmp(cmd, "next", 4) == 0 )
+	{
+		VirtualChannelInfo *pNextChannel = mVirtualChannelMap.next();
+		if (pNextChannel)
+		{
+			logprintf("next %d: %s", pNextChannel->channelNumber, pNextChannel->name.c_str());
+			TuneToChannel( *pNextChannel );
+		}
+		else
+		{
+			logprintf("can not fetch 'next' channel, empty virtual channel map");
+		}
+	}
+	else if( memcmp(cmd, "prev", 4) == 0 )
+	{
+		VirtualChannelInfo *pPrevChannel = mVirtualChannelMap.prev();
+		if (pPrevChannel)
+		{
+			logprintf("next %d: %s", pPrevChannel->channelNumber, pPrevChannel->name.c_str());
+			TuneToChannel( *pPrevChannel );
+		}
+		else
+		{
+			logprintf("can not fetch 'prev' channel, empty virtual channel map");
+		}
+	}
 	else if (isNumber(cmd))
 	{
-		int channelNumber = atoi(cmd);
-		logprintf("channel number: %d", channelNumber);
-		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+		int channelNumber = atoi(cmd);  // invalid input results in 0 -- will not be found
+		
+		VirtualChannelInfo *pChannelInfo = mVirtualChannelMap.Find(channelNumber);
+		if (pChannelInfo != NULL)
 		{
-			VirtualChannelInfo &channelInfo = *it;
-			if(channelInfo.channelNumber == channelNumber)
-			{
-			//	logprintf("Found %d tuning to %s",channelInfo.channelNumber, channelInfo.uri.c_str());
-				mSingleton->Tune(channelInfo.uri.c_str());
-				break;
-			}
+			logprintf("channel number: %d", channelNumber);
+			TuneToChannel( *pChannelInfo );
+		}
+		else
+		{
+			logprintf("channel number: %d was not found", channelNumber);
 		}
 	}
 	else if (sscanf(cmd, "cache %s", cacheUrl) == 1)
@@ -699,15 +855,16 @@ static void ProcessCliCommand(char *cmd)
 		else
 		{
 			int channelNumber = atoi(cacheUrl);
-			logprintf("channel number: %d", channelNumber);
-			for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it)
+			
+			VirtualChannelInfo *pChannelInfo = mVirtualChannelMap.Find(channelNumber);
+			if (pChannelInfo != NULL)
 			{
-				VirtualChannelInfo &channelInfo = *it;
-				if(channelInfo.channelNumber == channelNumber)
-				{
-					CacheChannel(channelInfo.uri.c_str());
-					break;
-				}
+				logprintf("channel number: %d", channelNumber);
+				CacheChannel(pChannelInfo->uri.c_str());
+			}
+			else
+			{
+				logprintf("channel number: %d was not found", channelNumber);
 			}
 		}
 	}
@@ -802,7 +959,6 @@ static void ProcessCliCommand(char *cmd)
 		delete mSingleton;
 		if (mBackgroundPlayer)
 			delete mBackgroundPlayer;
-		mVirtualChannelMap.clear();
 		TermPlayerLoop();
 		exit(0);
 	}
@@ -906,7 +1062,7 @@ static void ProcessCliCommand(char *cmd)
                                 {
 					int rate;
 					double ralatineTuneTime;
-					logprintf("Matchde Command eAAMP_SET_RateAndSeek - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_RateAndSeek - %s ", cmd);
 					if (sscanf(cmd, "set %d %d %lf", &opt, &rate, &ralatineTuneTime ) == 3){
 						mSingleton->SetRateAndSeek(rate, ralatineTuneTime);
 					}
@@ -915,7 +1071,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_VideoRectangle:
                                 {
                                         int x,y,w,h;
-					logprintf("Matchde Command eAAMP_SET_VideoRectangle - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_VideoRectangle - %s ", cmd);
 					if (sscanf(cmd, "set %d %d %d %d %d", &opt, &x, &y, &w, &h) == 5){
 						mSingleton->SetVideoRectangle(x,y,w,h);
 					}
@@ -924,7 +1080,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_VideoZoom:
                                 {
 					int videoZoom;
-					logprintf("Matchde Command eAAMP_SET_VideoZoom - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_VideoZoom - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoZoom) == 2){
 						mSingleton->SetVideoZoom((videoZoom > 0 )? VIDEO_ZOOM_FULL : VIDEO_ZOOM_NONE );
 					}
@@ -934,7 +1090,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_VideoMute:
                                 {
 					int videoMute;
-					logprintf("Matchde Command eAAMP_SET_VideoMute - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_VideoMute - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoMute) == 2){
 						mSingleton->SetVideoMute((videoMute == 1 )? true : false );
 					}
@@ -944,7 +1100,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_AudioVolume:
                                 {
                                         int vol;
-					logprintf("Matchde Command eAAMP_SET_AudioVolume - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_AudioVolume - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vol) == 2){
 						mSingleton->SetAudioVolume(vol);
 					}
@@ -954,7 +1110,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_Language:
                                 {
 					char lang[12];
-					logprintf("Matchde Command eAAMP_SET_Language - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_Language - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2){
 						mSingleton->SetLanguage(lang);
 					}
@@ -964,7 +1120,7 @@ static void ProcessCliCommand(char *cmd)
 			        {
                                         //Dummy implimentation
 					std::vector<std::string> subscribedTags;
-					logprintf("Matchde Command eAAMP_SET_SubscribedTags - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_SubscribedTags - %s ", cmd);
 					mSingleton->SetSubscribedTags(subscribedTags);
 					break;
                                 }
@@ -972,7 +1128,7 @@ static void ProcessCliCommand(char *cmd)
                                 {
                                         char lisenceUrl[1024];
 					int drmType;
-					logprintf("Matchde Command eAAMP_SET_LicenseServerUrl - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_LicenseServerUrl - %s ", cmd);
 					if (sscanf(cmd, "set %d %s %d", &opt, lisenceUrl, &drmType) == 3){
 						mSingleton->SetLicenseServerURL(lisenceUrl, 
 						(drmType == eDRM_PlayReady)?eDRM_PlayReady:eDRM_WideVine);
@@ -982,7 +1138,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_AnonymouseRequest:
                                 {
                                         int isAnonym;
-					logprintf("Matchde Command eAAMP_SET_AnonymouseRequest - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_AnonymouseRequest - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &isAnonym) == 2){
 						mSingleton->SetAnonymousRequest((isAnonym == 1)?true:false);
 					}
@@ -991,7 +1147,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_VodTrickplayFps:
                                 {
                                         int vodTFps;
-					logprintf("Matchde Command eAAMP_SET_VodTrickplayFps - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_VodTrickplayFps - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vodTFps) == 2){
 						mSingleton->SetVODTrickplayFPS(vodTFps);
 					}
@@ -1000,7 +1156,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_LinearTrickplayFps:
                                 {
                                         int linearTFps;
-					logprintf("Matchde Command eAAMP_SET_LinearTrickplayFps - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_LinearTrickplayFps - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &linearTFps) == 2){
 						mSingleton->SetLinearTrickplayFPS(linearTFps);
 					}
@@ -1009,7 +1165,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_LiveOffset:
                                 {
                                         int liveOffset;
-					logprintf("Matchde Command eAAMP_SET_LiveOffset - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_LiveOffset - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &liveOffset) == 2){
 						mSingleton->SetLiveOffset(liveOffset);
 					}
@@ -1018,7 +1174,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_StallErrorCode:
                                 {
                                         int stallErrorCode;
-					logprintf("Matchde Command eAAMP_SET_StallErrorCode - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_StallErrorCode - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallErrorCode) == 2){
 						mSingleton->SetStallErrorCode(stallErrorCode);
 					}
@@ -1027,7 +1183,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_StallTimeout:
                                 {
                                         int stallTimeout;
-					logprintf("Matchde Command eAAMP_SET_StallTimeout - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_StallTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallTimeout) == 2){
 						mSingleton->SetStallTimeout(stallTimeout);
 					}
@@ -1037,7 +1193,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_ReportInterval:
                                 {
                                         int reportInterval;
-					logprintf("Matchde Command eAAMP_SET_ReportInterval - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_ReportInterval - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &reportInterval) == 2){
 						mSingleton->SetReportInterval(reportInterval);
 					}
@@ -1046,7 +1202,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_VideoBitarate:
                                 {
                                         long videoBitarate;
-					logprintf("Matchde Command eAAMP_SET_VideoBitarate - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_VideoBitarate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &videoBitarate) == 2){
 						mSingleton->SetVideoBitrate(videoBitarate);
 					}
@@ -1055,7 +1211,7 @@ static void ProcessCliCommand(char *cmd)
                                 case eAAMP_SET_InitialBitrate:
                                 {
                                         long initialBitrate;
-					logprintf("Matchde Command eAAMP_SET_InitialBitrate - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_InitialBitrate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate) == 2){
 						mSingleton->SetInitialBitrate(initialBitrate);
 					}
@@ -1064,7 +1220,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_InitialBitrate4k:
                                 {
                                         long initialBitrate4k;
-					logprintf("Matchde Command eAAMP_SET_InitialBitrate4k - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_InitialBitrate4k - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate4k) == 2){
 						mSingleton->SetInitialBitrate4K(initialBitrate4k);
 					}
@@ -1074,7 +1230,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_NetworkTimeout:
                                 {
                                         double networkTimeout;
-					logprintf("Matchde Command eAAMP_SET_NetworkTimeout - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_NetworkTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
@@ -1083,7 +1239,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_ManifestTimeout:
                                 {
                                         double manifestTimeout;
-					logprintf("Matchde Command eAAMP_SET_ManifestTimeout - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_ManifestTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &manifestTimeout) == 2){
 						mSingleton->SetManifestTimeout(manifestTimeout);
 					}
@@ -1093,7 +1249,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_DownloadBufferSize:
                                 {
                                         int downloadBufferSize;
-					logprintf("Matchde Command eAAMP_SET_DownloadBufferSize - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_DownloadBufferSize - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &downloadBufferSize) == 2){
 						mSingleton->SetDownloadBufferSize(downloadBufferSize);
 					}
@@ -1103,7 +1259,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_PreferredDrm:
                                 {
                                         int preferredDrm;
-					logprintf("Matchde Command eAAMP_SET_PreferredDrm - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_PreferredDrm - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &preferredDrm) == 2){
 						mSingleton->SetPreferredDRM((DRMSystems)preferredDrm);
 					}
@@ -1113,7 +1269,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_StereoOnlyPlayback:
                                 {
                                         int stereoOnlyPlayback;
-					logprintf("Matchde Command eAAMP_SET_StereoOnlyPlayback - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_StereoOnlyPlayback - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stereoOnlyPlayback) == 2){
 						mSingleton->SetStereoOnlyPlayback(
 							(stereoOnlyPlayback == 1 )? true:false);
@@ -1127,7 +1283,7 @@ static void ProcessCliCommand(char *cmd)
 					std::string adBrkId = "";
 					std::string adId = "";
 					std::string url = "";
-					logprintf("Matchde Command eAAMP_SET_AlternateContent - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_AlternateContent - %s ", cmd);
 					mSingleton->SetAlternateContents(adBrkId, adId, url);
 					break;
                                 }
@@ -1135,7 +1291,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_NetworkProxy:
                                 {
                                         char networkProxy[128];
-					logprintf("Matchde Command eAAMP_SET_NetworkProxy - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_NetworkProxy - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, networkProxy) == 2){
 						mSingleton->SetNetworkProxy(networkProxy);
 					}
@@ -1144,7 +1300,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_LicenseReqProxy:
                                 {
                                         char licenseReqProxy[128];
-					logprintf("Matchde Command eAAMP_SET_LicenseReqProxy - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_LicenseReqProxy - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, licenseReqProxy) == 2){
 						mSingleton->SetLicenseReqProxy(licenseReqProxy);
 					}
@@ -1153,7 +1309,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_DownloadStallTimeout:
                                 {
                                         long downloadStallTimeout;
-					logprintf("Matchde Command eAAMP_SET_DownloadStallTimeout - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_DownloadStallTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStallTimeout) == 2){
 						mSingleton->SetDownloadStallTimeout(downloadStallTimeout);
 					}
@@ -1162,7 +1318,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_DownloadStartTimeout:
                                 {
                                         long downloadStartTimeout;
-					logprintf("Matchde Command eAAMP_SET_DownloadStartTimeout - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_DownloadStartTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStartTimeout) == 2){
 						mSingleton->SetDownloadStartTimeout(downloadStartTimeout);
 					}
@@ -1172,7 +1328,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_PreferredSubtitleLang:
                                 {
 					char preferredSubtitleLang[12];
-                                        logprintf("Matchde Command eAAMP_SET_PreferredSubtitleLang - %s ", cmd);
+                                        logprintf("Matched Command eAAMP_SET_PreferredSubtitleLang - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, preferredSubtitleLang) == 2){
 						mSingleton->SetPreferredSubtitleLanguage(preferredSubtitleLang);
 					}
@@ -1182,7 +1338,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_ParallelPlaylistDL:
                                 {
 					int parallelPlaylistDL;
-					logprintf("Matchde Command eAAMP_SET_ParallelPlaylistDL - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_ParallelPlaylistDL - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &parallelPlaylistDL) == 2){
 						mSingleton->SetParallelPlaylistDL( (parallelPlaylistDL == 1)? true:false );
 					}
@@ -1367,7 +1523,7 @@ static void ProcessCliCommand(char *cmd)
 				case eAAMP_SET_AuxiliaryAudio:
                                 {
 					char lang[12];
-					logprintf("Matchde Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
+					logprintf("Matchedhelp Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2)
 					{
 						mSingleton->SetAuxiliaryLanguage(lang);
@@ -1561,23 +1717,30 @@ static void ProcessCliCommand(char *cmd)
 	}
 }
 
-static void * run_command(void* param)
+static void * run_command( void* startUrl )
 {
     char cmd[MAX_BUFFER_LENGTH];
+	
     ShowHelp();
-    char *ret = NULL;
-    std::string* startUrl = (std::string*) param;
-    if ((startUrl != nullptr) && (startUrl->size() > 0)) {
-	    strncpy(cmd, startUrl->c_str(), MAX_BUFFER_LENGTH-1);
-	    ProcessCliCommand(cmd);
+	
+	if( startUrl )
+	{
+		strcpy( cmd, (const char *)startUrl );
+		ProcessCliCommand( cmd );
     }
-    do
+    
+	for(;;)
     {
         printf("[AAMP-PLAYER] aamp-cli> ");
-        if((ret = fgets(cmd, sizeof(cmd), stdin))!=NULL)
-            ProcessCliCommand(cmd);
-    } while (ret != NULL);
-    return NULL;
+		char *ret = fgets(cmd, sizeof(cmd), stdin);
+		if( ret==NULL)
+		{
+			break;
+		}
+		ProcessCliCommand(cmd);
+    }
+	
+	return NULL;
 }
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
@@ -1850,6 +2013,130 @@ void timer(int v) {
 }
 #endif
 
+static void LoadVirtualChannelMapFromCSV( FILE *f )
+{
+	char buf[MAX_BUFFER_LENGTH];
+	while (fgets(buf, sizeof(buf), f))
+	{
+		VirtualChannelInfo channelInfo;
+		const char *ptr = buf;
+		channelInfo.channelNumber = atoi(buf); // invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID
+		ptr = strchr(ptr,',');
+		if( ptr )
+		{
+			ptr++;
+			const char *delim = strchr(ptr,',');
+			if( delim )
+			{
+				channelInfo.name = std::string(ptr,delim-ptr);
+				ptr = delim+1;
+				delim = strchr(ptr,',');
+				if( delim )
+				{
+					channelInfo.uri = std::string(ptr,delim-ptr);
+					mVirtualChannelMap.Add( channelInfo );
+				}
+			}
+		}
+	}
+} // LoadVirtualChannelMapFromCSV
+
+static const char *skipwhitespace( const char *ptr )
+{
+	while( *ptr==' ' ) ptr++;
+	return ptr;
+}
+
+/**
+* @brief Parse config entries for aamp-cli, and update mVirtualChannelMap
+*        based on the config.
+* @param f File pointer to config to process
+*/
+static void LoadVirtualChannelMapLegacyFormat( FILE *f )
+{
+	char buf[MAX_BUFFER_LENGTH];
+	while (fgets(buf, sizeof(buf), f))
+	{
+		const char *ptr = buf;
+		ptr = skipwhitespace(ptr);
+		if( *ptr=='#' )
+		{ // comment line
+			continue;
+		}
+		
+		if( *ptr=='*' )
+		{ // skip "*" character, if present
+			ptr = skipwhitespace(ptr+1);
+		}
+		else
+		{ // not a virtual channel
+			continue;
+		}
+		
+		VirtualChannelInfo channelInfo;		// extract channel number
+		channelInfo.channelNumber = atoi(ptr);  // invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID
+		while( *ptr>='0' && *ptr<='9' ) ptr++;
+		ptr = skipwhitespace(ptr);
+		
+		// extract name
+		const char *delim = ptr;
+		while( *delim>' ' )
+		{
+			delim++;
+		}
+		channelInfo.name = std::string(ptr,delim-ptr);
+	
+		// extract locator
+		ptr = skipwhitespace(delim);
+		delim = ptr;
+		while( *delim>' ' )
+		{
+			delim++;
+		}
+		channelInfo.uri = std::string(ptr,delim-ptr);
+		
+		mVirtualChannelMap.Add( channelInfo );
+	}
+} // LoadVirtualChannelMapLegacyFormat
+
+static FILE *GetConfigFile(const std::string& cfgFile)
+{
+	if (cfgFile.empty())
+	{
+		return NULL;
+	}
+#ifdef WIN32
+	// Take "c:/tmp/aampcli.cfg" and replace the filename portion with the desired one.
+	// NOTE: Will fail if the search pattern changes in getAampCliCfgPath(). It would be
+	// better if mLogManager had another method to return the path without filename or
+	// perhaps to use .NET Path.GetDirectoryName(String) here.
+	std::string cfgPath = mLogManager.getAampCliCfgPath();
+	const std::string cfgBase("/aampcli.cfg");
+	size_t start_pos = cfgPath.find(cfgBase);
+	
+	FILE *f = NULL;
+	if (start_pos != std::string::npos)
+	{
+		cfgPath.erase(start_pos, cfgBase.length());
+		cfgPath = cfgPath + cfgFile;
+		f = fopen(cfgPath.c_str(), "rb");
+	}
+	else
+	{
+		logprintf("Failed to open '%s', could not extract CLI config path from '%s'", cfgFile.c_str(), cfgPath.c_str());
+	}
+#elif defined(__APPLE__)
+	std::string cfgBasePath(getenv("HOME"));
+	std::string cfgPath = cfgBasePath + cfgFile;
+	FILE *f = fopen(cfgPath.c_str(), "rb");
+#else
+	std::string cfgPath = "/opt" + cfgFile;
+	FILE *f = fopen(cfgPath.c_str(), "rb");
+#endif
+	
+	return f;
+}
+
 /**
  * @brief
  * @param argc
@@ -1878,10 +2165,7 @@ int main(int argc, char **argv)
 	AampLogManager mLogManager;
 	AampLogManager::disableLogRedirection = true;
 	ABRManager mAbrManager;
-	std::string startUrl;
-	if (argc > 1) {
-		startUrl = argv[1];
-	}
+
 	/* Set log directory path for AAMP and ABR Manager */
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
@@ -1905,29 +2189,28 @@ int main(int argc, char **argv)
 #endif
 	//std::string name = "testApp";
 	//mSingleton->SetAppName(name);
-
-#ifdef WIN32
-	FILE *f = fopen(mLogManager.getAampCliCfgPath(), "rb");
-#elif defined(__APPLE__)
-	std::string cfgPath(getenv("HOME"));
-	cfgPath += "/aampcli.cfg";
-	FILE *f = fopen(cfgPath.c_str(), "rb");
-#else
-	FILE *f = fopen("/opt/aampcli.cfg", "rb");
-#endif
-	if (f)
-	{
+	
+	// Read/create virtual channel map
+	const std::string cfgCSV("/aampcli.csv");
+	const std::string cfgLegacy("/aampcli.cfg");
+	FILE *f;
+	if ( (f = GetConfigFile(cfgCSV)) != NULL)
+	{ // open virtual map from csv file
+		logprintf("opened aampcli.csv");
+		LoadVirtualChannelMapFromCSV( f );
+		fclose( f );
+		f = NULL;
+	}
+	else if ( (f = GetConfigFile(cfgLegacy)) != NULL)
+	{  // open virtual map from legacy cfg file
 		logprintf("opened aampcli.cfg");
-		char buf[MAX_BUFFER_LENGTH];
-		while (fgets(buf, sizeof(buf), f))
-		{
-			ProcessCLIConfEntry(buf);
-		}
+		LoadVirtualChannelMapLegacyFormat(f);
 		fclose(f);
+		f = NULL;
 	}
 
 	pthread_t cmdThreadId;
-	if(pthread_create(&cmdThreadId,NULL,run_command,&startUrl) != 0)
+	if(pthread_create(&cmdThreadId,NULL,run_command, argv[1]) != 0)
 	{
 		logprintf("Failed at create pthread errno = %d", errno);  //CID:83593 - checked return
 	}
