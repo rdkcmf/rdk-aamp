@@ -5291,7 +5291,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	{
 		rc = eMEDIAFORMAT_HDMI;
 	}
-	else if( urlStr.rfind("live:",0)==0 )
+	else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0)) 
 	{
 		rc = eMEDIAFORMAT_OTA;
 	}
