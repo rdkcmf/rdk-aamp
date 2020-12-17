@@ -521,6 +521,12 @@ public:
          * @return void
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
+	/**
+	 *   @brief Set playback rate before tune.
+	 *
+	 *   @param  rate - Rate of playback.
+	 */
+	void SetOnTuneRate(const int rate);
 
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
@@ -553,6 +559,8 @@ public:
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
 
+	int mSetOnTuneRateRequested;
+	int mOnTuneRate;
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
 	int mReportProgressInterval;					// To store the refresh interval in millisec
 	int mInitFragmentRetryCount;		// max attempts for init frag curl timeout failures

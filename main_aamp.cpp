@@ -608,7 +608,8 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d aamp_SetRate not changed, remains in same rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+		aamp->mSetOnTuneRateRequested = rate;
+		AAMPLOG_WARN("%s:%d aamp_SetRate rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 

@@ -1857,7 +1857,7 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
  */
 PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexAttr(),
 	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mVideoFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
-	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),
+	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN), mSetOnTuneRateRequested(AAMP_RATE_INVALID), mOnTuneRate(AAMP_RATE_INVALID),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
 	fragmentCollectorThreadID(0), seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
 	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
@@ -4763,6 +4763,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
+	if(tuneType == eTUNETYPE_NEW_NORMAL && mSetOnTuneRateRequested != AAMP_RATE_INVALID)
+	{
+		mOnTuneRate = mSetOnTuneRateRequested;
+		mSetOnTuneRateRequested = AAMP_RATE_INVALID;
+	}
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
@@ -4804,7 +4809,16 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		SetState(eSTATE_INITIALIZING);
 		culledSeconds = 0;
 		durationSeconds = 60 * 60; // 1 hour
-		rate = AAMP_NORMAL_PLAY_RATE;
+		if(mOnTuneRate == AAMP_RATE_INVALID
+				//For AAMP_RATE_PAUSE: Force NORMAL rate as initial rate and pause on first video displayed
+				|| mOnTuneRate == AAMP_RATE_PAUSE)
+		{
+			rate = AAMP_NORMAL_PLAY_RATE;
+		}
+		else
+		{
+			rate = mOnTuneRate;
+		}
 		playStartUTCMS = aamp_GetCurrentTimeMS();
 		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
@@ -4946,7 +4960,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		}
 
 		// Set Pause on First Video frame if seeking and requested
-		if( mSeekOperationInProgress && seekWhilePaused )
+		if( (mSeekOperationInProgress && seekWhilePaused)
+			|| mOnTuneRate == AAMP_RATE_PAUSE )
 		{
 			mFirstVideoFrameDisplayedEnabled = true;
 			mPauseOnFirstVideoFrameDisp = true;
@@ -9181,7 +9196,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 		mPauseOnFirstVideoFrameDisp = false;
 		PrivAAMPState state;
 		GetState(state);
-		if(state != eSTATE_SEEKING)
+		if(state != eSTATE_SEEKING && mOnTuneRate != AAMP_RATE_PAUSE)
 		{
 			return;
 		}
@@ -9669,7 +9684,6 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] = false;
 }
-
 /**
  *   @brief Set stream format for audio/video tracks
  *

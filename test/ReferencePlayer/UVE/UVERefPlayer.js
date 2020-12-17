@@ -139,6 +139,11 @@ var defaultInitConfig = {
     preferredSubtitleLanguage: "en",
 
     /**
+     * on tune rate
+     */
+    //onTuneRate: 1,
+
+    /**
      *  network proxy to use (Format <SCHEME>://<PROXY IP:PROXY PORT>)
      */
     //networkProxy: string;
