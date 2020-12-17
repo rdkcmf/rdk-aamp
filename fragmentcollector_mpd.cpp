@@ -4460,6 +4460,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 	else
 	{
 		gotManifest = true;
+		aamp->mManifestUrl = manifestUrl;
 	}
 
 	if (gotManifest)
