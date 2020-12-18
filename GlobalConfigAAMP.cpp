@@ -87,7 +87,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
         // considering round trip delay to remove overlay
         // onStreamPlaying is sent optimistically in advance
 	setBaseUserAgentString(AAMP_USERAGENT_BASE_STRING);
-	mSubtitleLanguage = std::string("en");
+	//mSubtitleLanguage = std::string("en");
 }
 
 

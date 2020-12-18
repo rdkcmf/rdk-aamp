@@ -1903,7 +1903,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
-	strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
+	if (!gpGlobalConfig->mSubtitleLanguage.empty())
+	{
+		strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
+	}
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -5561,6 +5564,11 @@ std::string PrivateInstanceAAMP::GetContentTypString()
             strRet =  "OTT"; //ott
             break;
         }
+        case ContentType_OTA :
+        {
+            strRet =  "OTA"; //ota
+            break;
+        }
         default:
         {
             strRet =  "Unknown";
@@ -5639,6 +5647,10 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 		else if(playbackMode == "OTT")
 		{
 			mContentType = ContentType_OTT; //ott
+		}
+		else if(playbackMode == "OTA")
+		{
+			mContentType = ContentType_OTA; //ota
 		}
 	}
 }
@@ -6093,7 +6105,7 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	if (mMediaFormat == eMEDIAFORMAT_OTA && mpStreamAbstractionAAMP)
+	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI)))
 		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
 	else
 		mStreamSink->SetVideoRectangle(x, y, w, h);
@@ -9272,16 +9284,16 @@ void PrivateInstanceAAMP::SetAudioTrack(int trackId)
 			{
 				mpStreamAbstractionAAMP->SetAudioTrack(trackId);
 			}
-                        else
-                        {
+			else
+			{
 				discardEnteringLiveEvt = true;
 
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
 				TeardownStream(false);
 				TuneHelper(eTUNETYPE_SEEK);
 
 				discardEnteringLiveEvt = false;
-                        }
+			}
 		}
 	}
 }
@@ -9370,11 +9382,25 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			{
 				//Unmute subtitles
 				SetCCStatus(true);
-				
+
 				//TODO: Effective handling between subtitle and CC tracks
-				// SetPreferredTextTrack will not have any impact on CC rendering if already active
-				SetPreferredTextTrack(track);
-				RefreshSubtitles();
+				int textTrack = mpStreamAbstractionAAMP->GetTextTrack();
+				AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
+				if (trackId != textTrack)
+				{
+					SetPreferredTextTrack(track);
+					discardEnteringLiveEvt = true;
+
+					//Performs a full retune (seek to current position)
+					//This ensures that the subtitles are correctly synced
+					//for both VOD and LIVE but is quite clunky
+					//Smooth switching without pipeline restart is to follow
+					seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
+					TeardownStream(false);
+					TuneHelper(eTUNETYPE_SEEK);
+
+					discardEnteringLiveEvt = false;
+				}
 			}
 		}
 	}
@@ -9420,7 +9446,7 @@ int PrivateInstanceAAMP::GetTextTrack()
 		}
 	}
 #endif
-	if (mpStreamAbstractionAAMP && idx == -1)
+	if (mpStreamAbstractionAAMP && idx == -1 && !subtitles_muted)
 	{
 		idx = mpStreamAbstractionAAMP->GetTextTrack();
 	}
