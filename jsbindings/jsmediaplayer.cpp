@@ -23,12 +23,11 @@
  */
 
 
+#include "jsbindings-version.h"
 #include "jsbindings.h"
 #include "jsutils.h"
 #include "jseventlistener.h"
 #include <vector>
-
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.10"
 
 extern "C"
 {
