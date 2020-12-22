@@ -383,6 +383,12 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
         set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
 endif()
 
+if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
+    include_directories(closedcaptions)
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_CC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/AampCCManager.cpp)
+endif()
+
 if (CMAKE_RDK_CC_ENABLED)
 	message("CMAKE_RDK_CC_ENABLED set")
 	include_directories(${DIRECTFB_INCLUDE_DIRS})
@@ -393,6 +399,30 @@ if (CMAKE_RDK_CC_ENABLED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/rdk/AampRDKCCManager.cpp)
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
 endif()
+
+
+if (CMAKE_SUBTEC_CC_ENABLED)
+    message("CMAKE_SUBTEC_CC_ENABLED set")
+
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_SUBTEC_CC_ENABLED")
+
+    set(LIBSUBTECCONNECTOR_DEFINES "${LIBAAMP_DEFINES}")
+    set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader)
+    set(LIBSUBTECCONNECTOR_SOURCES  ${AAMP_SUBTEC_SOURCES}
+        closedcaptions/subtec/SubtecConnector.cpp
+        closedcaptions/subtec/CCDataController.cpp
+        aamplogging.cpp)
+
+    add_library(subtec_connector SHARED ${LIBSUBTECCONNECTOR_SOURCES})
+    target_link_libraries(subtec_connector ${LIBSUBTECCONNECTOR_DEPENDS})
+    install(TARGETS subtec_connector DESTINATION lib)
+
+    link_directories("${CMAKE_BINARY_DIR}")
+
+    set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/subtec/AampSubtecCCManager.cpp)
+    set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsubtec_connector")
+endif()
+
 
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 
@@ -462,7 +492,7 @@ install(TARGETS playbintest DESTINATION bin)
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
 install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
-  drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
+  drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h
   DESTINATION include)

@@ -18,22 +18,22 @@
 */
 
 /**
- * @file AampRDKCCManager.h
+ * @file AampSubtecCCManager.h
  *
- * @brief Integration layer of RDK ClosedCaption in AAMP
+ * @brief Integration layer of Subtec ClosedCaption in AAMP
  *
  */
 
-#ifndef __AAMP_RDK_CC_MANAGER_H__
-#define __AAMP_RDK_CC_MANAGER_H__
+#ifndef __AAMP_SUBTEC_CC_MANAGER_H__
+#define __AAMP_SUBTEC_CC_MANAGER_H__
 
 #include <closedcaptions/AampCCManager.h>
 
 #include <string>
-#include "vlCCConstants.h"
+#include <closedcaptions/subtec/SubtecConnector.h>
 
 
-class AampRDKCCManager : public AampCCManagerBase
+class AampSubtecCCManager : public AampCCManagerBase
 {
 public:
 
@@ -45,15 +45,15 @@ public:
 	/**
 	 * @brief Constructor
 	 */
-	AampRDKCCManager() = default;
+	AampSubtecCCManager() = default;
 
 	/**
 	 * @brief Destructor
 	 */
-	~AampRDKCCManager() =default;
+	~AampSubtecCCManager() = default;
 
-	AampRDKCCManager(const AampRDKCCManager&) = delete;
-	AampRDKCCManager& operator=(const AampRDKCCManager&) = delete;
+	AampSubtecCCManager(const AampSubtecCCManager&) = delete;
+	AampSubtecCCManager& operator=(const AampSubtecCCManager&) = delete;
 
 private:
 	/**
@@ -71,11 +71,10 @@ private:
 	void StopRendering() override;
 
 	/**
-	 * @brief Impl specific initialization code called once in Init() function
-	 *
-	 * @return 0 - success, -1 - failure
+	 * @brief Impl specific initialization code called before each public interface call
+	 * @return void
 	 */
-	int Initialize(void *handle) override;
+	void EnsureInitialized() override;
 
 	/**
 	 * @brief set digital channel with specified id
@@ -83,7 +82,6 @@ private:
 	 * @return CC_VL_OS_API_RESULT
 	 */
 	int SetDigitalChannel(unsigned int id) override;
-
 	/**
 	 * @brief set analog channel with specified id
 	 *
@@ -91,16 +89,8 @@ private:
 	 */
 	int SetAnalogChannel(unsigned int id) override;
 
-	/**
-	 * @brief validate mCCHandle
-	 *
-	 * @return bool
-	 */
-	bool CheckCCHandle() const override{return mCCHandle!=NULL;}
-
-
-	void *mCCHandle{nullptr}; /**< Decoder handle for intializing CC resources */
-
+private:
+	bool mInitialized{false};
 };
 
-#endif /* __AAMP_RDK_CC_MANAGER_H__ */
+#endif /* __AAMP_SUBTEC_CC_MANAGER_H__ */
