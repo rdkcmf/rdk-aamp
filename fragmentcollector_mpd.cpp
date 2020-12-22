@@ -5901,10 +5901,25 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					int representationCount = 0;
 					for (const auto &adaptationSet: period->GetAdaptationSets())
 					{
-							if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
+						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
+						{
+							if (IsIframeTrack(adaptationSet))
 							{
+								if (trickplayMode)
+								{
+									// count iframe representations for allocating streamInfo.
 									representationCount += adaptationSet->GetRepresentation().size();
+								}
 							}
+							else
+							{
+								if (!trickplayMode)
+								{
+									// count normal video representations for allocating streamInfo.
+									representationCount += adaptationSet->GetRepresentation().size();
+								}
+							}
+						}
 					}
                                         const std::vector<IAdaptationSet *> adaptationSets= period->GetAdaptationSets();
                                         if(adaptationSets.size() > 0)
@@ -5941,6 +5956,21 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						IAdaptationSet* adaptationSet = adaptationSets.at(adaptIdx);
 						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
 						{
+							if( IsIframeTrack(adaptationSet) )
+							{
+								if( !trickplayMode )
+								{ // avoid using iframe profiles during normal playback
+									continue;
+								}
+							}
+							else
+							{
+								if( trickplayMode )
+								{ // avoid using normal video tracks during trickplay
+									continue;
+								}
+							}
+
 							size_t numRepresentations = adaptationSet->GetRepresentation().size();
 							for (size_t reprIdx = 0; reprIdx < numRepresentations; reprIdx++)
 							{
