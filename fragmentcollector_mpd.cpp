@@ -6045,10 +6045,25 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					int representationCount = 0;
 					for (const auto &adaptationSet: period->GetAdaptationSets())
 					{
-							if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
+						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
+						{
+							if (IsIframeTrack(adaptationSet))
 							{
+								if (trickplayMode)
+								{
+									// count iframe representations for allocating streamInfo.
 									representationCount += adaptationSet->GetRepresentation().size();
+								}
 							}
+							else
+							{
+								if (!trickplayMode)
+								{
+									// count normal video representations for allocating streamInfo.
+									representationCount += adaptationSet->GetRepresentation().size();
+								}
+							}
+						}
 					}
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
 					{
@@ -6065,13 +6080,28 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					GetABRManager().clearProfiles();
 					mBitrateIndexVector.clear();
 					int addedProfiles = 0;
-										size_t idx = 0;
-										const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
-										for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
+					size_t idx = 0;
+					const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+					for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
 					{
 						IAdaptationSet* adaptationSet = adaptationSets.at(adaptIdx);
 						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
 						{
+							if( IsIframeTrack(adaptationSet) )
+							{
+								if( !trickplayMode )
+								{ // avoid using iframe profiles during normal playback
+									continue;
+								}
+							}
+							else
+							{
+								if( trickplayMode )
+								{ // avoid using normal video tracks during trickplay
+									continue;
+								}
+							}
+
 							size_t numRepresentations = adaptationSet->GetRepresentation().size();
 							for (size_t reprIdx = 0; reprIdx < numRepresentations; reprIdx++)
 							{
