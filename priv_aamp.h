@@ -563,6 +563,7 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
+	bool mDashParallelFragDownload;
 	bool mParallelFetchPlaylist;
 	bool mParallelFetchPlaylistRefresh;
 	bool mWesterosSinkEnabled;
@@ -1895,6 +1896,12 @@ public:
 	*
 	*/
 	void ConfigurePlaylistTimeout();
+
+	/**
+	 *	 @brief To set DASH Parallel Download configuration for fragments
+	 *
+	 */
+	void ConfigureDashParallelFragmentDownload();
 
 	/**
 	*   @brief To set the parallel playlist fetch configuration
