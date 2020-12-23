@@ -23,64 +23,39 @@
  */
 
 #include <string>
-#include <cstdio>
 #include "tr181api.h"
 #include "AampRfc.h"
 #include "GlobalConfigAAMP.h"
 
+#ifdef AAMP_RFC_ENABLED
 namespace RFCSettings
 {
 
 #define AAMP_RFC_CALLERID        "aamp"
 #define AAMP_LRH_AcceptValue_RFC_PARAM           "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.LRHAcceptValue" /*LRH stand for License Request Header */
 #define AAMP_LRH_ContentType_RFC_PARAM           "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.LRHContentType"
-#define AAMP_ZERO_DRM_HOST_URL_RFC_PARAM         "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.ZeroDrmHostUrl"
-#define AAMP_QA_DRM_LicenseServer_RFC_PARAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.QADrmLicenseServer"
-#define AAMP_PROD_DRM_LicenseServer_RFC_PARAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.ProdDrmLicenseServer"
-#define AAMP_Rogers_DRM_LicenseServer_RFC_PARAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.RogersDrmLicenseServer"
-
-#ifndef USE_SECCLIENT
-#define AAMP_FORMATED_HEADER_BYTES (18) /** Size of https:// + /license + \0 */
-    /**
-     * @brief   Format URL 
-     * @param   Data to be formatted
-     * @retval  std::string host value
-     */
-    std::string formatLicensedUrl(const std::string& input){
-        char formated[input.size() + AAMP_FORMATED_HEADER_BYTES];
-        sprintf (formated, "https://%s/license", input.c_str());
-        return std::string(formated);
-    }
-#endif
+#define AAMP_SCHEME_ID_URI_VSS_STREAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.SchemeIdUriVssStream"
+#define AAMP_SCHEME_ID_URI_DAI_STREAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.SchemeIdUriDaiStream"
 
     /**
      * @brief   Fetch data from RFC
      * @param   CallerId and Parameter to be fetched
      * @retval  std::string host value
      */
-    std::string getRFCValue(const std::string& parameter){
+    std::string getRFCValue(const char* parameter){
         TR181_ParamData_t param = {0};
         std::string strhost ;
-        tr181ErrorCode_t status = getParam((char*)AAMP_RFC_CALLERID, parameter.c_str(), &param);
+        tr181ErrorCode_t status = getParam((char*)AAMP_RFC_CALLERID, parameter, &param);
         if (tr181Success == status)
         {
-            AAMPLOG_INFO("RFC Parameter for %s is %s type = %d", parameter.c_str(), param.value, param.type);
+            AAMPLOG_TRACE("RFC Parameter for %s is %s type = %d", parameter, param.value, param.type);
             strhost = std::string(param.value);
         }
         else
         {
-            AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter.c_str(), getTR181ErrorString(status), param.type);
+            AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter, getTR181ErrorString(status), param.type);
         }    
         return strhost;
-    }
-
-    /**
-     * @brief   Fetch Zero Drm Host URL  from RFC
-     * @param   None
-     * @retval  std::string host value
-     */
-    std::string getZeroDrmHostUrl(){
-        return getRFCValue(AAMP_ZERO_DRM_HOST_URL_RFC_PARAM);
     }
 
     /**
@@ -102,48 +77,25 @@ namespace RFCSettings
     }
 
     /**
-     * @brief   Fetch QA DRM License Server from RFC
+     * @brief   get the scheme id uri for dai streams
      * @param   None
-     * @retval  std::string host value
+     * @retval  std::string scheme id uri
      */
-    std::string getQADrmLicenseServer(){
-        std::string licenseServer = getRFCValue(AAMP_QA_DRM_LicenseServer_RFC_PARAM);
-#ifndef USE_SECCLIENT 
-        return formatLicensedUrl(licenseServer);
-#else        
-        return licenseServer;
-#endif
+    std::string getSchemeIdUriDaiStream(){
+        return getRFCValue(AAMP_SCHEME_ID_URI_DAI_STREAM);
     }
 
     /**
-     * @brief   Fetch DRM License Server from RFC
+     * @brief   get the scheme id uri for vss streams
      * @param   None
-     * @retval  std::string host value
+     * @retval  std::string scheme id uri
      */
-    std::string getProdDrmLicenseServer(){
-        std::string licenseServer = getRFCValue(AAMP_PROD_DRM_LicenseServer_RFC_PARAM);
-#ifndef USE_SECCLIENT 
-        return formatLicensedUrl(licenseServer);
-#else      
-        return licenseServer;
-#endif
-    }
-
-    /**
-     * @brief   Fetch Rogers DRM License Server from RFC
-     * @param   None
-     * @retval  std::string host value
-     */
-    std::string getRogersDrmLicenseServer(){
-        std::string licenseServer = getRFCValue(AAMP_Rogers_DRM_LicenseServer_RFC_PARAM);
-#ifndef USE_SECCLIENT 
-        return formatLicensedUrl(licenseServer);
-#else        
-        return licenseServer;
-#endif
+    std::string getSchemeIdUriVssStream(){
+        return getRFCValue(AAMP_SCHEME_ID_URI_VSS_STREAM);
     }
 }
 
+#endif
 /**
  * EOF
  */

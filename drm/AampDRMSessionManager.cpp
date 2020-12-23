@@ -1380,6 +1380,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 		if (isContentMetadataAvailable)
 		{
+#ifdef AAMP_RFC_ENABLED
 			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
 			std::string lhrContentType = RFCSettings::getLRHContentType();
 			// Content metadata is available, Add corresponding headers 
@@ -1391,6 +1392,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {lhrAcceptValue.c_str()}});
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
+#endif
 		}
 
 		licenseServerProxy = aampInstance->GetLicenseReqProxy();
