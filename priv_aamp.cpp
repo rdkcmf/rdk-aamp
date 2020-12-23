@@ -588,31 +588,34 @@ static void DeFog(std::string& url)
 }
 
 /**
- * @brief substitute given substring in str with the given string
- * @param str String to be modified
- * @param existingSubStringToReplace Substring to be replaced
- * @param replacementString String to be substituted
- * @retval
+ * @brief replace all occurrences of existingSubStringToReplace in str with replacementString
+ * @param str string to be scanned/modified
+ * @param existingSubStringToReplace substring to be replaced
+ * @param replacementString string to be substituted
+ * @retval true iff str was modified
  */
-static int replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
+static bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
 {
-	//TODO: See if the replace in fragmentcollector_mpd can be replaced with this function
-	//CID:99836 - Removing the done variable wich is initialized but not used
-	int rc = 0;
-	std::size_t pos;
-
-	do
+	bool rc = false;
+	std::size_t fromPos = 0;
+	size_t existingSubStringToReplaceLen = 0;
+	size_t replacementStringLen = 0;
+	for(;;)
 	{
-		pos = str.find(existingSubStringToReplace);
-
-		if (pos != std::string::npos)
-		{
-			size_t charsToRemove = strlen(existingSubStringToReplace);
-			str.replace(pos, charsToRemove, replacementString);
-			rc = 1;
+		std::size_t pos = str.find(existingSubStringToReplace,fromPos);
+		if( pos == std::string::npos )
+		{ // done - pattern not found
+			break;
 		}
-	} while (pos != std::string::npos);
-
+		if( !rc )
+		{ // lazily meaasure input strings - no need to measure unless match found
+			rc = true;
+			existingSubStringToReplaceLen = strlen(existingSubStringToReplace);
+			replacementStringLen = strlen(replacementString);
+		}
+		str.replace( pos, existingSubStringToReplaceLen, replacementString );
+		fromPos  = pos + replacementStringLen;
+	}
 	return rc;
 }
 
