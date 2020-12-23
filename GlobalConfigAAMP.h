@@ -132,6 +132,7 @@ public:
 	TunedEventConfig tunedEventConfigVOD;   /**< When to send TUNED event for VOD*/
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
+	TriState dashParallelFragDownload;        	/**< Enabled DASH parallel download of audio & video fragments*/
 	TriState playlistsParallelFetch;        /**< Enabled parallel fetching of audio & video playlists*/
 	TriState parallelPlaylistRefresh ;	/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	TriState enableBulkTimedMetaReport;	/**< Enabled Bulk event reporting for TimedMetadata*/
