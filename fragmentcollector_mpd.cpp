@@ -289,8 +289,9 @@ public:
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
 			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
-			lastSegmentTime(0), lastSegmentNumber(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
-			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""), mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
+			lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
+			adaptationSetId(0), fragmentDescriptor(), mContext(context), initialization(""),
+                        mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
 	{
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
@@ -616,6 +617,7 @@ public:
 	size_t index_len;
 	uint64_t lastSegmentTime;
 	uint64_t lastSegmentNumber;
+	uint64_t lastSegmentDuration;
 	int adaptationSetIdx;
 	int representationIndex;
 	StreamAbstractionAAMP_MPD* mContext;
@@ -1572,7 +1574,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						{ // DELIA-35059
 							startTime = pMediaStreamContext->fragmentDescriptor.Time;
 						}
-						if(startTime && mIsLiveStream)
+						if(mIsLiveStream)
 						{
 							// After mpd refresh , Time will be 0. Need to traverse to the right fragment for playback
 							if(0 == pMediaStreamContext->fragmentDescriptor.Time)
@@ -1582,6 +1584,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								uint64_t nextStartTime = 0;
 								int index = pMediaStreamContext->timeLineIndex;
 								// This for loop is to go to the right index based on LastSegmentTime
+			
 								for(;index<timelines.size();index++)
 								{
 									timeline = timelines.at(index);
@@ -1601,6 +1604,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 									pMediaStreamContext->fragmentDescriptor.Number += (repeatCount+1);
 								}// end of for
 
+								
 								/*
 								*  Boundary check added to handle the edge case leading to crash,
 								*  reported in DELIA-30316.
@@ -1621,8 +1625,11 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 #endif
 								pMediaStreamContext->timeLineIndex = index;
 								// Now we reached the right row , need to traverse the repeat index to reach right node
-								while(startTime < pMediaStreamContext->lastSegmentTime &&
-									pMediaStreamContext->fragmentRepeatCount < repeatCount )
+								// Whenever new fragments arrive inside the same timeline update fragment number,repeat count and startNumber.
+								// If first fragment start Number is zero, check lastSegmentDuration of period timeline for update.
+								while(pMediaStreamContext->fragmentRepeatCount < repeatCount &&
+									(startTime < pMediaStreamContext->lastSegmentTime) ||
+									((startTime == 0) && (pMediaStreamContext->lastSegmentTime == 0) && (pMediaStreamContext->lastSegmentDuration != 0)))
 								{
 									startTime += duration;
 									pMediaStreamContext->fragmentDescriptor.Number++;
@@ -1665,6 +1672,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						if(retval)
 						{
 							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+							pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
 						}
 						else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
 						{
@@ -1692,6 +1700,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 						logprintf("%s:%d Type[%d] presenting %f" , __FUNCTION__, __LINE__,pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time);
 #endif
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+						pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
 						double fragmentDuration = ComputeFragmentDuration(duration,timeScale);
 						retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						if (!retval && ((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr))
@@ -2268,6 +2277,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 								pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
 							}
 						}
+
 						continue;  /* continue to next fragment */
 					}
 					if (abs(skipTime) < fragmentDuration)
@@ -3019,26 +3029,31 @@ uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumb
 	uint64_t durationMs = 0;
 
 	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
-	if (adaptationSets.size() > 0)
+	const ISegmentTemplate *representation = NULL;
+	const ISegmentTemplate *adaptationSet = NULL;
+	if( adaptationSets.size() > 0 )
 	{
 		IAdaptationSet * firstAdaptation = adaptationSets.at(0);
-		ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
-		if (!segmentTemplate)
+		if(firstAdaptation != NULL)
 		{
+			adaptationSet = firstAdaptation->GetSegmentTemplate();
 			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
 			if (representations.size() > 0)
 			{
-				segmentTemplate = representations.at(0)->GetSegmentTemplate();
+				representation = representations.at(0)->GetSegmentTemplate();
 			}
 		}
-		if (segmentTemplate)
+		
+		SegmentTemplates segmentTemplates(representation,adaptationSet);
+
+		if (segmentTemplates.HasSegmentTemplate())
 		{
-			const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
 			if (segmentTimeline)
 			{
-				uint32_t timeScale = segmentTemplate->GetTimescale();
+				uint32_t timeScale = segmentTemplates.GetTimescale();
 				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-				uint64_t startNumber = segmentTemplate->GetStartNumber();
+				uint64_t startNumber = segmentTemplates.GetStartNumber();
 				int timeLineIndex = 0;
 				while (timeLineIndex < timelines.size())
 				{
@@ -3218,24 +3233,26 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 	if(0 == durationMs)
 	{
 		const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+		const ISegmentTemplate *representation = NULL;
+		const ISegmentTemplate *adaptationSet = NULL;
 		if (adaptationSets.size() > 0)
 		{
 			IAdaptationSet * firstAdaptation = adaptationSets.at(0);
 			if(firstAdaptation != NULL)
 			{
-				ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
-				if (!segmentTemplate)
+				adaptationSet = firstAdaptation->GetSegmentTemplate();
+				const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+				if (representations.size() > 0)
 				{
-					const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
-					if (representations.size() > 0)
-					{
-						segmentTemplate = representations.at(0)->GetSegmentTemplate();
-					}
+					representation = representations.at(0)->GetSegmentTemplate();
 				}
-				if (segmentTemplate)
+			
+				SegmentTemplates segmentTemplates(representation,adaptationSet);
+	
+				if( segmentTemplates.HasSegmentTemplate() )
 				{
-					const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
-					uint32_t timeScale = segmentTemplate->GetTimescale();
+					const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+					uint32_t timeScale = segmentTemplates.GetTimescale();
 					//Calculate period duration by adding up the segment durations in timeline
 					if (segmentTimeline)
 					{
@@ -3937,25 +3954,28 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 			if (adaptationSets.size() > 0)
 			{
 				IAdaptationSet * firstAdaptation = adaptationSets.at(0);
-				ISegmentTemplate *segmentTemplate = firstAdaptation->GetSegmentTemplate();
-				if (!segmentTemplate)
+				ISegmentTemplate *AdapSegmentTemplate = NULL;
+				ISegmentTemplate *RepSegmentTemplate = NULL;
+				if (firstAdaptation)
 				{
+					AdapSegmentTemplate = firstAdaptation->GetSegmentTemplate();
 					const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
 					if (representations.size() > 0)
 					{
-						segmentTemplate = representations.at(0)->GetSegmentTemplate();
+						RepSegmentTemplate  = representations.at(0)->GetSegmentTemplate();
 					}
 				}
-				if (segmentTemplate)
+				SegmentTemplates segmentTemplates(RepSegmentTemplate,AdapSegmentTemplate);
+				if (segmentTemplates.HasSegmentTemplate())
 				{
-					std::string media = segmentTemplate->Getmedia();
+					std::string media = segmentTemplates.Getmedia();
 					if(!media.empty())
 					{
-						const ISegmentTimeline *segmentTimeline = segmentTemplate->GetSegmentTimeline();
+						const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
 						if (segmentTimeline)
 						{
 							std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-							uint32_t timeScale = segmentTemplate->GetTimescale();
+							uint32_t timeScale = segmentTemplates.GetTimescale();
 							int timeLineIndex = 0;
 							while (timeLineIndex < timelines.size())
 							{
@@ -5929,8 +5949,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
 
 			pMediaStreamContext->fragmentIndex = 0;
+
 			if(resetTimeLineIndex)
+			{
 				pMediaStreamContext->timeLineIndex = 0;
+			}
 			pMediaStreamContext->fragmentRepeatCount = 0;
 			pMediaStreamContext->fragmentOffset = 0;
 			pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
@@ -5941,22 +5964,22 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 			}
 			pMediaStreamContext->fragmentDescriptor.RepresentationID.assign(pMediaStreamContext->representation->GetId());
 			pMediaStreamContext->fragmentDescriptor.Time = 0;
+			
 			if(periodChanged)
 			{
 				//update period start and endtimes as period has changed.
 				mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 			}
-			ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
-			if(!segmentTemplate)
+
+			SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
+			if( segmentTemplates.HasSegmentTemplate())
 			{
-				segmentTemplate = pMediaStreamContext->representation->GetSegmentTemplate();
-			}
-			if(segmentTemplate)
-			{
-				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplate->GetStartNumber();
+				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
 				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %lu", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
 			}
+
+				
 		}
 	}
 	return ret;
@@ -5975,21 +5998,17 @@ double PrivateStreamAbstractionMPD::GetCulledSeconds()
 	MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 	if (pMediaStreamContext->adaptationSet)
 	{
-		ISegmentTemplate *segmentTemplate = pMediaStreamContext->adaptationSet->GetSegmentTemplate();
+		SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
+					pMediaStreamContext->adaptationSet->GetSegmentTemplate());
 		const ISegmentTimeline *segmentTimeline = NULL;
-		if (!segmentTemplate && pMediaStreamContext->representation)
+		if(segmentTemplates.HasSegmentTemplate())
 		{
-			segmentTemplate = pMediaStreamContext->representation->GetSegmentTemplate();
-		}
-
-		if (segmentTemplate)
-		{
-			segmentTimeline = segmentTemplate->GetSegmentTimeline();
+			segmentTimeline = segmentTemplates.GetSegmentTimeline();
 			if (segmentTimeline)
 			{
 				auto periods = mpd->GetPeriods();
 				vector<PeriodInfo> currMPDPeriodDetails;
-				uint32_t timescale = segmentTemplate->GetTimescale();
+				uint32_t timescale = segmentTemplates.GetTimescale();
 				for (int iter = 0; iter < periods.size(); iter++)
 				{
 					auto period = periods.at(iter);
@@ -6031,7 +6050,7 @@ double PrivateStreamAbstractionMPD::GetCulledSeconds()
 				AAMPLOG_INFO("PrivateStreamAbstractionMPD::%s:%d NULL segmentTimeline. Hence modifying culling logic based on MPD availabilityStartTime, periodStartTime, fragment number and current time", __FUNCTION__, __LINE__);
 				double newStartSegment = 0;
 				ISegmentTemplate *firstSegTempate = NULL;
-
+				
 				// Recalculate the new start fragment after periodic manifest updates
 				auto periods = mpd->GetPeriods();
 				for (auto period : periods)
@@ -6060,7 +6079,7 @@ double PrivateStreamAbstractionMPD::GetCulledSeconds()
 				if(firstSegTempate)
 				{
 					newStartSegment = (double)firstSegTempate->GetStartNumber();
-					double fragmentDuration = ((double)segmentTemplate->GetDuration()) / segmentTemplate->GetTimescale();
+					double fragmentDuration = ((double)segmentTemplates.GetDuration()) / segmentTemplates.GetTimescale();
 					if (newStartSegment && mPrevStartTimeSeconds)
 					{
 						culled = (newStartSegment - mPrevStartTimeSeconds) * fragmentDuration;
@@ -6467,42 +6486,43 @@ void PrivateStreamAbstractionMPD::PushEncryptedHeaders()
 							}
 							else
 							{
-								ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
-								if (segmentTemplate)
+								IRepresentation *representation = NULL;
+								size_t representionIndex = 0;
+								if(MediaType(i) == eMEDIATYPE_VIDEO)
 								{
-									std::string initialization = segmentTemplate->Getinitialization();
+									size_t representationCount = adaptationSet->GetRepresentation().size();
+									if(adaptationSet->GetRepresentation().at(representionIndex)->GetBandwidth() > adaptationSet->GetRepresentation().at(representationCount - 1)->GetBandwidth())
+									{
+										representionIndex = representationCount - 1;
+									}
+								}
+								else if (mAudioType != eAUDIO_UNKNOWN)
+								{
+									AudioType selectedAudioType = eAUDIO_UNKNOWN;
+									uint32_t selectedRepBandwidth = 0;
+									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
+									if(selectedAudioType != mAudioType)
+									{
+										continue;
+									}
+									logprintf("%s %d Audio type %d", __FUNCTION__, __LINE__, selectedAudioType);
+								}
+								else
+								{
+									logprintf("%s %d Audio type eAUDIO_UNKNOWN", __FUNCTION__, __LINE__);
+								}
+								representation = adaptationSet->GetRepresentation().at(representionIndex);
+
+								SegmentTemplates segmentTemplates(representation->GetSegmentTemplate(), adaptationSet->GetSegmentTemplate());
+								if(segmentTemplates.HasSegmentTemplate())
+								{
+									std::string initialization = segmentTemplates.Getinitialization();
 									if (!initialization.empty())
 									{
 										std::string fragmentUrl;
 										FragmentDescriptor *fragmentDescriptor = new FragmentDescriptor();
 										fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;
-										IRepresentation *representation = NULL;
-										size_t representionIndex = 0;
-										if(MediaType(i) == eMEDIATYPE_VIDEO)
-										{
-											size_t representationCount = adaptationSet->GetRepresentation().size();
-											if(adaptationSet->GetRepresentation().at(representionIndex)->GetBandwidth() > adaptationSet->GetRepresentation().at(representationCount - 1)->GetBandwidth())
-											{
-												representionIndex = representationCount - 1;
-											}
-										}
-										else if (mAudioType != eAUDIO_UNKNOWN)
-										{
-											AudioType selectedAudioType = eAUDIO_UNKNOWN;
-											uint32_t selectedRepBandwidth = 0;
-											representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
-											if(selectedAudioType != mAudioType)
-											{
-												continue;
-											}
-											logprintf("%s %d Audio type %d", __FUNCTION__, __LINE__, selectedAudioType);
-										}
-										else
-										{
-											logprintf("%s %d Audio type eAUDIO_UNKNOWN", __FUNCTION__, __LINE__);
-										}
 										ProcessContentProtection(adaptationSet, (MediaType)i);
-										representation = adaptationSet->GetRepresentation().at(representionIndex);
 										fragmentDescriptor->Bandwidth = representation->GetBandwidth();
 										const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
 										if (baseUrls->size() == 0)
@@ -6826,6 +6846,7 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						for (int i = 0; i < mNumberOfTracks; i++)
 						{
 							mMediaStreamContext[i]->lastSegmentTime = 0;
+							mMediaStreamContext[i]->lastSegmentDuration = 0;
 						}
 						requireStreamSelection = true;
 						periodChanged = true;
