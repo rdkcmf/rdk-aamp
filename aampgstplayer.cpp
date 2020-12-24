@@ -3509,8 +3509,8 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 bool AAMPGstPlayer::Discontinuity(MediaType type)
 {
 	bool ret = false;
-	logprintf("Entering AAMPGstPlayer::%s type %d", __FUNCTION__, (int)type);
 	media_stream *stream = &privateContext->stream[type];
+	logprintf("Entering AAMPGstPlayer::%s type(%d) format(%d) resetPosition(%d)", __FUNCTION__, (int)type, stream->format, stream->resetPosition);
 	/*Handle discontinuity only if atleast one buffer is pushed*/
 	if (stream->format != FORMAT_INVALID && stream->resetPosition == true)
 	{

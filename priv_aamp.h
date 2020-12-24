@@ -1456,6 +1456,27 @@ public:
 	bool Discontinuity(MediaType track, bool setDiscontinuityFlag = false);
 
 	/**
+	 *	 @brief Set discontinuity ignored flag for given track
+	 *
+	 *	 @return void
+	 */
+	void SetTrackDiscontinuityIgnoredStatus(MediaType track);
+
+	/**
+	 *	 @brief Check whether the given track discontinuity ignored earlier.
+	 *
+	 *	 @return true - if the discontinuity already ignored.
+	 */
+	bool IsDiscontinuityIgnoredForOtherTrack(MediaType track);
+
+	/**
+	 *	 @brief Reset discontinuity ignored flag for audio and video tracks
+	 *
+	 *	 @return void
+	 */
+	void ResetTrackDiscontinuityIgnoredStatus(void);
+
+	/**
 	 *   @brief Set video zoom mode
 	 *
 	 *   @param[in] zoom - Video zoom mode
@@ -2924,6 +2945,7 @@ private:
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;
 	bool mProcessingDiscontinuity[AAMP_TRACK_COUNT];
+	bool mIsDiscontinuityIgnored[AAMP_TRACK_COUNT];
 	bool mDiscontinuityTuneOperationInProgress;
 	ContentType mContentType;
 	bool mTunedEventPending;

@@ -1982,6 +1982,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 		mTrackInjectionBlocked[i] = false;
 		lastUnderFlowTimeMs[i] = 0;
 		mProcessingDiscontinuity[i] = false;
+		mIsDiscontinuityIgnored[i] = false;
 	}
 
 	pthread_mutex_lock(&gMutex);
@@ -2876,6 +2877,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		// DELIA-46559, there is a chance that synchronous progress event sent will take some time to return back to AAMP
 		// This can lead to discontinuity stall detection kicking in. So once we start discontinuity processing, reset the flags
 		ResetDiscontinuityInTracks();
+		ResetTrackDiscontinuityIgnoredStatus();
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
 
@@ -4622,6 +4624,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 
 	//reset discontinuity related flags
 	ResetDiscontinuityInTracks();
+	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
 
 	if (mpStreamAbstractionAAMP)
@@ -5493,6 +5496,7 @@ void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 	{
 		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, gpGlobalConfig->discontinuityTimeout);
 		ResetDiscontinuityInTracks();
+		ResetTrackDiscontinuityIgnoredStatus();
 		ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, mediaType);
 	}
 	AAMPLOG_TRACE("%s:%d : Exit mediaType %d\n", __FUNCTION__, __LINE__, mediaType);
@@ -9893,6 +9897,38 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
 	mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] = false;
 }
+
+/**
+ *   @brief Set discontinuity ignored flag for given track
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetTrackDiscontinuityIgnoredStatus(MediaType track)
+{
+	mIsDiscontinuityIgnored[track] = true;
+}
+
+/**
+ *   @brief Check whether the given track discontinuity ignored earlier.
+ *
+ *   @return true - if the discontinuity already ignored.
+ */
+bool PrivateInstanceAAMP::IsDiscontinuityIgnoredForOtherTrack(MediaType track)
+{
+	return (mIsDiscontinuityIgnored[track]);
+}
+
+/**
+ *   @brief Reset discontinuity ignored flag for audio and video tracks
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::ResetTrackDiscontinuityIgnoredStatus(void)
+{
+	mIsDiscontinuityIgnored[eTRACK_VIDEO] = false;
+	mIsDiscontinuityIgnored[eTRACK_AUDIO] = false;
+}
+
 /**
  *   @brief Set stream format for audio/video tracks
  *
