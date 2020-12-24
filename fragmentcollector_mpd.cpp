@@ -6927,6 +6927,102 @@ static bool IsEmptyPeriod(IPeriod *period)
 	return isEmptyPeriod;
 }
 
+/**
+ * @brief Fetches and caches audio fragment parallelly for video fragment.
+ */
+void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState)
+{
+	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
+	bool isAllowNextFrag = true;
+
+	if (waitForFreeFrag && *waitForFreeFrag && !trickPlay)
+	{
+		PrivAAMPState state;
+		aamp->GetState(state);
+
+		if(state == eSTATE_PLAYING)
+		{
+			*waitForFreeFrag = false;
+		}
+		else
+		{
+			isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable();
+		}
+	}
+
+	if (isAllowNextFrag)
+	{
+		if (pMediaStreamContext->adaptationSet )
+		{
+			if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
+			{	// profile not changed and Cache not full scenario
+				if (!pMediaStreamContext->eos)
+				{
+					if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
+					{
+						if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
+						{
+							delta = rate / gpGlobalConfig->vodTrickplayFPS;
+						}
+						double currFragTime = pMediaStreamContext->fragmentTime;
+						delta = SkipFragments(pMediaStreamContext, delta);
+						mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
+					}
+					if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx))))
+					{
+						if (mIsLiveManifest)
+						{
+							CheckForPlaybackStall(true);
+						}
+						if((!pMediaStreamContext->context->trickplayMode) && (eMEDIATYPE_VIDEO == trackIdx))
+						{
+							if (aamp->CheckABREnabled())
+							{
+								pMediaStreamContext->context->CheckForProfileChange();
+							}
+							else
+							{
+								pMediaStreamContext->context->CheckUserProfileChangeReq();
+							}
+						}
+					}
+					else if (pMediaStreamContext->eos == true && mIsLiveManifest && trackIdx == eMEDIATYPE_VIDEO)
+					{
+						CheckForPlaybackStall(false);
+					}
+
+					if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
+							&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
+					{
+						//Ensuring that Ad playback doesn't go beyond Adbreak
+						AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
+											__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
+						pMediaStreamContext->eos = true;
+					}
+				}
+			}
+			// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
+			// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
+			// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
+			// DELIA-32017
+			else if(pMediaStreamContext->profileChanged)
+			{	// Profile changed case
+				FetchAndInjectInitialization();
+			}
+
+			if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack && bCacheFullState)
+			{
+				*bCacheFullState = false;
+			}
+
+		}
+	}
+	if (!aamp->DownloadsAreEnabled() && exitFetchLoop && bCacheFullState)
+	{
+		*exitFetchLoop = true;
+		*bCacheFullState = false;
+	}
+}
 
 /**
  * @brief Fetches and caches fragments in a loop
@@ -7282,100 +7378,41 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
 					bool bCacheFullState = true;
-					for (int i = mNumberOfTracks-1; i >= 0; i--)
+					std::thread *parallelDownload[AAMP_TRACK_COUNT];
+
+					for (int trackIdx = (mNumberOfTracks - 1); trackIdx >= 0; trackIdx--)
 					{
-						class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
-						bool isAllowNextFrag = true;
-
-						if (waitForFreeFrag && !trickPlay)
+						if (aamp->mDashParallelFragDownload && trackIdx > 0) // (trackIdx > 0) indicates video/iframe/audio-only has to be downloaded in sync mode from this FetcherLoop().
 						{
-							PrivAAMPState state;
-							aamp->GetState(state);
-
-							if(state == eSTATE_PLAYING)
-							{
-								waitForFreeFrag = false;
-							}
-							else
-							{
-								isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable();
-							}
+							// Download the audio & subtitle fragments in a separate parallel thread.
+							parallelDownload[trackIdx] = new std::thread(
+												&StreamAbstractionAAMP_MPD::AdvanceTrack,
+												this,
+												trackIdx,
+												trickPlay,
+												delta,
+												&waitForFreeFrag,
+												&exitFetchLoop,
+												&bCacheFullState);
 						}
-
-						if (isAllowNextFrag)
+						else
 						{
-							if (pMediaStreamContext->adaptationSet )
-							{
-								if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
-								{	// profile not changed and Cache not full scenario
-									if (!pMediaStreamContext->eos)
-									{
-										if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
-										{
-											if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
-											{
-												delta = rate / gpGlobalConfig->vodTrickplayFPS;
-											}
-											double currFragTime = pMediaStreamContext->fragmentTime;
-											delta = SkipFragments(pMediaStreamContext, delta);
-											mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
-										}
-										if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(i))))
-										{
-											if (mIsLiveManifest)
-											{
-												CheckForPlaybackStall(true);
-											}
-											if((!pMediaStreamContext->context->trickplayMode) && (eMEDIATYPE_VIDEO == i))
-											{
-												if (aamp->CheckABREnabled())
-												{
-													pMediaStreamContext->context->CheckForProfileChange();
-												}
-												else
-												{
-													pMediaStreamContext->context->CheckUserProfileChangeReq();
-												}
-											}
-										}
-										else if (pMediaStreamContext->eos == true && mIsLiveManifest && i == eMEDIATYPE_VIDEO)
-										{
-											CheckForPlaybackStall(false);
-										}
-
-										if (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && rate > 0 && !(pMediaStreamContext->eos)
-												&& mCdaiObject->CheckForAdTerminate(pMediaStreamContext->fragmentTime - pMediaStreamContext->periodStartOffset))
-										{
-											//Ensuring that Ad playback doesn't go beyond Adbreak
-											AAMPLOG_WARN("%s:%d: [CDAI] Adbreak ended early. Terminating Ad playback. fragmentTime[%lf] periodStartOffset[%lf]",
-																__FUNCTION__, __LINE__, pMediaStreamContext->fragmentTime, pMediaStreamContext->periodStartOffset);
-											pMediaStreamContext->eos = true;
-										}
-									}
-								}
-								// Fetch init header for both audio and video ,after mpd refresh(stream selection) , profileChanged = true for both tracks .
-								// Need to reset profileChanged flag which is done inside FetchAndInjectInitialization
-								// Without resetting profileChanged flag , fetch of audio was stopped causing audio drop
-								// DELIA-32017
-								else if(pMediaStreamContext->profileChanged)
-								{	// Profile changed case
-									FetchAndInjectInitialization();
-								}
-
-								if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack)
-								{
-									bCacheFullState = false;
-								}
-
-							}
+							AdvanceTrack(trackIdx, trickPlay, delta, &waitForFreeFrag, &exitFetchLoop, &bCacheFullState);
+							parallelDownload[trackIdx] = NULL;
 						}
-						if (!aamp->DownloadsAreEnabled())
+					}
+
+					for (int trackIdx = (mNumberOfTracks - 1); (aamp->mDashParallelFragDownload && trackIdx >= 0); trackIdx--)
+					{
+						// Join the parallel threads.
+						if (parallelDownload[trackIdx])
 						{
-							exitFetchLoop = true;
-							bCacheFullState = false;
-							break;
+							parallelDownload[trackIdx]->join();
+							delete parallelDownload[trackIdx];
+							parallelDownload[trackIdx] = NULL;
 						}
-					}// end of for loop
+					}
+
 					// BCOM-2959  -- Exit from fetch loop for period to be done only after audio and video fetch
 					// While playing CDVR with EAC3 audio , durations doesnt match and only video downloads are seen leaving audio behind
 					// Audio cache is always full and need for data is not received for more fetch.

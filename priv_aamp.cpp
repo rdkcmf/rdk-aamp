@@ -1160,6 +1160,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
 			logprintf("playlists-parallel-fetch=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useDashParallelFragDownload=", value) == 1)
+		{
+			gpGlobalConfig->dashParallelFragDownload = (TriState)(value != 0);
+			logprintf("useDashParallelFragDownload=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "parallelPlaylistRefresh=", value) == 1)
 		{
 			gpGlobalConfig->parallelPlaylistRefresh  = (TriState)(value != 0);
@@ -1884,7 +1889,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
-	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
+	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
@@ -5048,6 +5053,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
 	ConfigureParallelFetch();
+	ConfigureDashParallelFragmentDownload();
 	ConfigureBulkTimedMetadata();
 	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureRetuneForGSTInternalError();
@@ -8117,6 +8123,20 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
 }
 
 /**
+ *   @brief To set DASH Parallel Download configuration for fragments
+ *
+ */
+void PrivateInstanceAAMP::ConfigureDashParallelFragmentDownload()
+{
+	if(gpGlobalConfig->dashParallelFragDownload != eUndefinedState)
+	{
+		mDashParallelFragDownload = (bool)gpGlobalConfig->dashParallelFragDownload;
+	}
+
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d DASH Paraller Frag DL Config [%d]", __FUNCTION__, __LINE__, mDashParallelFragDownload);
+}
+
+/**
  *   @brief To set Parallel Download configuration
  *
  */
@@ -8169,7 +8189,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
     {
             mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
     }
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For GST Internal Stream Error [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d GST Internal Stream Error Retune Config [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
 }
 
 /**

@@ -40,7 +40,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #endif
 	gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(eUndefinedState),
 	gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
-	playlistsParallelFetch(eUndefinedState), prefetchIframePlaylist(false),
+	playlistsParallelFetch(eUndefinedState), prefetchIframePlaylist(false), dashParallelFragDownload(eUndefinedState),
 	disableEC3(eUndefinedState), disableATMOS(eUndefinedState), abrOutlierDiffBytes(DEFAULT_ABR_OUTLIER), abrSkipDuration(DEFAULT_ABR_SKIP_DURATION),
 	liveOffset(-1),cdvrliveOffset(-1), abrNwConsistency(DEFAULT_ABR_NW_CONSISTENCY_CNT),
 	disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),

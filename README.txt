@@ -153,6 +153,7 @@ enableSeekableRange=1 Enable seekable range reporting via progress events (start
 reportvideopts if present, current video pts is reported via progress events
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion
 maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer appsource setup to complete
+useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
