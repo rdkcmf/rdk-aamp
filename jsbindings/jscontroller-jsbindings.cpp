@@ -469,9 +469,6 @@ void aamp_LoadJSController(JSGlobalContextRef context)
 
 	_globalController = aampObj;
 
-	// DELIA-47534: For this ticket we have repurposed AAMP.version to return the UVE bindings version
-	// When at some point in future we deprecate legacy bindings or aamp_LoadJS() please don't forget
-	// to retain this support to avoid backward compatibility issues.
 	aamp_LoadJS(context, NULL);
 	AAMPPlayer_LoadJS(context);
 
