@@ -1849,7 +1849,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
+#if (defined(INTELCE) || defined(RPI))
 		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
