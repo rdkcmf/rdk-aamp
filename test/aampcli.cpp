@@ -323,24 +323,31 @@ public:
 		}
 			 
 		// logprintf formatting makes this hard to read, using printf
-		printf("aampcli.cfg virtual channel map:");
+		printf("aampcli.cfg virtual channel map:\n");
 
 		int numCols = 0;
 		for (std::list<VirtualChannelInfo>::iterator it = mVirtualChannelMap.begin(); it != mVirtualChannelMap.end(); ++it )
 		{
 			VirtualChannelInfo &pChannelInfo = *it;
-			const char *channelName = pChannelInfo.name.c_str();
+			std::string channelName = pChannelInfo.name.c_str();
+			size_t len = channelName.length();
+			int maxNameLen = 20;
+			if( len>maxNameLen )
+			{
+				len = maxNameLen;
+				channelName = channelName.substr(0,len);
+			}
 			if( pChannelInfo.uri.empty() )
 			{
 				if( numCols!=0 )
 				{
 					printf( "\n" );
 				}
-				printf( "%s\n", channelName );
+				printf( "%s\n", channelName.c_str() );
 				numCols = 0;
 				continue;
 			}
-			printf("%4d: %s", pChannelInfo.channelNumber, channelName );
+			printf("%4d: %s", pChannelInfo.channelNumber, channelName.c_str() );
 			if( numCols>=4 )
 			{ // four virtual channels per row
 				printf("\n");
@@ -348,8 +355,7 @@ public:
 			}
 			else
 			{
-				size_t len = strlen(channelName);
-				while( len<20 )
+				while( len<maxNameLen )
 				{ // pad each column to 20 characters, for clean layout
 					printf( " " );
 					len++;
@@ -377,6 +383,8 @@ protected:
 };
 
 static VirtualChannelMap mVirtualChannelMap;
+
+static std::string mTuneFailureDescription;
 
 /**
  * @brief Thread to run mainloop (for standalone mode)
@@ -586,8 +594,6 @@ void ShowHelpSet(){
 	logprintf("48 - Set PreTuneRate");
 }
 
-#define LOG_CLI_EVENTS
-#ifdef LOG_CLI_EVENTS
 /**
  * @class myAAMPEventListener
  * @brief
@@ -631,9 +637,15 @@ public:
 		case AAMP_EVENT_TUNED:
 			logprintf("AAMP_EVENT_TUNED");
 			break;
+				
 		case AAMP_EVENT_TUNE_FAILED:
-			logprintf("AAMP_EVENT_TUNE_FAILED");
-			break;
+			{
+				MediaErrorEventPtr ev = std::dynamic_pointer_cast<MediaErrorEvent>(e);
+				logprintf("AAMP_EVENT_TUNE_FAILED");
+				mTuneFailureDescription = ev->getDescription();
+				break;
+			}
+				
 		case AAMP_EVENT_SPEED_CHANGED:
 			logprintf("AAMP_EVENT_SPEED_CHANGED");
 			break;
@@ -696,7 +708,6 @@ public:
 }; // myAAMPEventListener
 
 static class myAAMPEventListener *myEventListener;
-#endif // LOG_CLI_EVENTS
 
 /**
 * @brief Decide if input command consists of supported URI scheme to be tuned.
@@ -1031,10 +1042,8 @@ static void ProcessCliCommand( char *cmd )
 #endif
 				);
 
-#ifdef LOG_CLI_EVENTS
 		myEventListener = new myAAMPEventListener();
 		mSingleton->RegisterEvents(myEventListener);
-#endif
 		logprintf(" New mSingleton instance %p ", mSingleton);
 
 	}
@@ -1059,7 +1068,7 @@ static void ProcessCliCommand( char *cmd )
 		if (sscanf(cmd, "set %d", &opt) == 1){
 			switch(opt){
 				case eAAMP_SET_RateAndSeek:
-                                {
+				{
 					int rate;
 					double ralatineTuneTime;
 					logprintf("Matched Command eAAMP_SET_RateAndSeek - %s ", cmd);
@@ -1067,66 +1076,70 @@ static void ProcessCliCommand( char *cmd )
 						mSingleton->SetRateAndSeek(rate, ralatineTuneTime);
 					}
 					break;
-                                }
+				}
+					
 				case eAAMP_SET_VideoRectangle:
-                                {
-                                        int x,y,w,h;
+				{
+					int x,y,w,h;
 					logprintf("Matched Command eAAMP_SET_VideoRectangle - %s ", cmd);
 					if (sscanf(cmd, "set %d %d %d %d %d", &opt, &x, &y, &w, &h) == 5){
 						mSingleton->SetVideoRectangle(x,y,w,h);
 					}
 					break;
-                                }
+				}
+					
 				case eAAMP_SET_VideoZoom:
-                                {
+				{
 					int videoZoom;
 					logprintf("Matched Command eAAMP_SET_VideoZoom - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoZoom) == 2){
 						mSingleton->SetVideoZoom((videoZoom > 0 )? VIDEO_ZOOM_FULL : VIDEO_ZOOM_NONE );
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_VideoMute:
-                                {
+				{
 					int videoMute;
 					logprintf("Matched Command eAAMP_SET_VideoMute - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoMute) == 2){
 						mSingleton->SetVideoMute((videoMute == 1 )? true : false );
 					}
 					break;	
-                                }
+				}
 
 				case eAAMP_SET_AudioVolume:
-                                {
-                                        int vol;
+				{
+					int vol;
 					logprintf("Matched Command eAAMP_SET_AudioVolume - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vol) == 2){
 						mSingleton->SetAudioVolume(vol);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_Language:
-                                {
+				{
 					char lang[12];
 					logprintf("Matched Command eAAMP_SET_Language - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2){
 						mSingleton->SetLanguage(lang);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_SubscribedTags:
-			        {
-                                        //Dummy implimentation
+				{
+					//Dummy implimentation
 					std::vector<std::string> subscribedTags;
 					logprintf("Matched Command eAAMP_SET_SubscribedTags - %s ", cmd);
 					mSingleton->SetSubscribedTags(subscribedTags);
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_LicenseServerUrl:
-                                {
-                                        char lisenceUrl[1024];
+				{
+					char lisenceUrl[1024];
 					int drmType;
 					logprintf("Matched Command eAAMP_SET_LicenseServerUrl - %s ", cmd);
 					if (sscanf(cmd, "set %d %s %d", &opt, lisenceUrl, &drmType) == 3){
@@ -1134,216 +1147,230 @@ static void ProcessCliCommand( char *cmd )
 						(drmType == eDRM_PlayReady)?eDRM_PlayReady:eDRM_WideVine);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_AnonymouseRequest:
-                                {
-                                        int isAnonym;
+				{
+					int isAnonym;
 					logprintf("Matched Command eAAMP_SET_AnonymouseRequest - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &isAnonym) == 2){
 						mSingleton->SetAnonymousRequest((isAnonym == 1)?true:false);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_VodTrickplayFps:
-                                {
-                                        int vodTFps;
+				{
+					int vodTFps;
 					logprintf("Matched Command eAAMP_SET_VodTrickplayFps - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vodTFps) == 2){
 						mSingleton->SetVODTrickplayFPS(vodTFps);
 					}
 					break;
-                                }
+				}
+					
 				case eAAMP_SET_LinearTrickplayFps:
-                                {
-                                        int linearTFps;
+				{
+					int linearTFps;
 					logprintf("Matched Command eAAMP_SET_LinearTrickplayFps - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &linearTFps) == 2){
 						mSingleton->SetLinearTrickplayFPS(linearTFps);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_LiveOffset:
-                                {
-                                        int liveOffset;
+				{
+					int liveOffset;
 					logprintf("Matched Command eAAMP_SET_LiveOffset - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &liveOffset) == 2){
 						mSingleton->SetLiveOffset(liveOffset);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_StallErrorCode:
-                                {
-                                        int stallErrorCode;
+				{
+					int stallErrorCode;
 					logprintf("Matched Command eAAMP_SET_StallErrorCode - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallErrorCode) == 2){
 						mSingleton->SetStallErrorCode(stallErrorCode);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_StallTimeout:
-                                {
-                                        int stallTimeout;
+				{
+					int stallTimeout;
 					logprintf("Matched Command eAAMP_SET_StallTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallTimeout) == 2){
 						mSingleton->SetStallTimeout(stallTimeout);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_ReportInterval:
-                                {
-                                        int reportInterval;
+				{
+					int reportInterval;
 					logprintf("Matched Command eAAMP_SET_ReportInterval - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &reportInterval) == 2){
 						mSingleton->SetReportInterval(reportInterval);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_VideoBitarate:
-                                {
-                                        long videoBitarate;
+				{
+					long videoBitarate;
 					logprintf("Matched Command eAAMP_SET_VideoBitarate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &videoBitarate) == 2){
 						mSingleton->SetVideoBitrate(videoBitarate);
 					}
 					break;
-                                }
-                                case eAAMP_SET_InitialBitrate:
-                                {
-                                        long initialBitrate;
+				}
+				
+				case eAAMP_SET_InitialBitrate:
+				{
+					long initialBitrate;
 					logprintf("Matched Command eAAMP_SET_InitialBitrate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate) == 2){
 						mSingleton->SetInitialBitrate(initialBitrate);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_InitialBitrate4k:
-                                {
-                                        long initialBitrate4k;
+				{
+					long initialBitrate4k;
 					logprintf("Matched Command eAAMP_SET_InitialBitrate4k - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate4k) == 2){
 						mSingleton->SetInitialBitrate4K(initialBitrate4k);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_NetworkTimeout:
-                                {
-                                        double networkTimeout;
+				{
+					double networkTimeout;
 					logprintf("Matched Command eAAMP_SET_NetworkTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_ManifestTimeout:
-                                {
-                                        double manifestTimeout;
+				{
+					double manifestTimeout;
 					logprintf("Matched Command eAAMP_SET_ManifestTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &manifestTimeout) == 2){
 						mSingleton->SetManifestTimeout(manifestTimeout);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_DownloadBufferSize:
-                                {
-                                        int downloadBufferSize;
+				{
+					int downloadBufferSize;
 					logprintf("Matched Command eAAMP_SET_DownloadBufferSize - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &downloadBufferSize) == 2){
 						mSingleton->SetDownloadBufferSize(downloadBufferSize);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_PreferredDrm:
-                                {
-                                        int preferredDrm;
+				{
+					int preferredDrm;
 					logprintf("Matched Command eAAMP_SET_PreferredDrm - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &preferredDrm) == 2){
 						mSingleton->SetPreferredDRM((DRMSystems)preferredDrm);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_StereoOnlyPlayback:
-                                {
-                                        int stereoOnlyPlayback;
+				{
+					int stereoOnlyPlayback;
 					logprintf("Matched Command eAAMP_SET_StereoOnlyPlayback - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stereoOnlyPlayback) == 2){
 						mSingleton->SetStereoOnlyPlayback(
 							(stereoOnlyPlayback == 1 )? true:false);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_AlternateContent:
-                                {
-                                        //Dummy implimentation
+				{
+					//Dummy implementation
 					std::string adBrkId = "";
 					std::string adId = "";
 					std::string url = "";
 					logprintf("Matched Command eAAMP_SET_AlternateContent - %s ", cmd);
 					mSingleton->SetAlternateContents(adBrkId, adId, url);
 					break;
-                                }
+				}
 
 				case eAAMP_SET_NetworkProxy:
-                                {
-                                        char networkProxy[128];
+				{
+					char networkProxy[128];
 					logprintf("Matched Command eAAMP_SET_NetworkProxy - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, networkProxy) == 2){
 						mSingleton->SetNetworkProxy(networkProxy);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_LicenseReqProxy:
-                                {
-                                        char licenseReqProxy[128];
+				{
+					char licenseReqProxy[128];
 					logprintf("Matched Command eAAMP_SET_LicenseReqProxy - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, licenseReqProxy) == 2){
 						mSingleton->SetLicenseReqProxy(licenseReqProxy);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_DownloadStallTimeout:
-                                {
-                                        long downloadStallTimeout;
+				{
+					long downloadStallTimeout;
 					logprintf("Matched Command eAAMP_SET_DownloadStallTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStallTimeout) == 2){
 						mSingleton->SetDownloadStallTimeout(downloadStallTimeout);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_DownloadStartTimeout:
-                                {
-                                        long downloadStartTimeout;
+				{
+					long downloadStartTimeout;
 					logprintf("Matched Command eAAMP_SET_DownloadStartTimeout - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStartTimeout) == 2){
 						mSingleton->SetDownloadStartTimeout(downloadStartTimeout);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_PreferredSubtitleLang:
-                                {
+				{
 					char preferredSubtitleLang[12];
-                                        logprintf("Matched Command eAAMP_SET_PreferredSubtitleLang - %s ", cmd);
+					logprintf("Matched Command eAAMP_SET_PreferredSubtitleLang - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, preferredSubtitleLang) == 2){
 						mSingleton->SetPreferredSubtitleLanguage(preferredSubtitleLang);
 					}
 					break;
-                                }
+				}
 				
 				case eAAMP_SET_ParallelPlaylistDL:
-                                {
+				{
 					int parallelPlaylistDL;
 					logprintf("Matched Command eAAMP_SET_ParallelPlaylistDL - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &parallelPlaylistDL) == 2){
 						mSingleton->SetParallelPlaylistDL( (parallelPlaylistDL == 1)? true:false );
 					}
 					break;
-                                }
+                }
+				
 				case eAAMP_SET_PreferredLanguages:
 				{
 					logprintf("Matched Command eAAMP_SET_PreferredLanguages - %s ", cmd);
@@ -1363,67 +1390,69 @@ static void ProcessCliCommand( char *cmd )
 						mSingleton->SetPreferredLanguages(NULL);
 					break;
 				}
+				
 				case eAAMP_SET_InitRampdownLimit:
-                                {
+				{
 					int rampDownLimit;
 					logprintf("Matched Command eAAMP_SET_InitRampdownLimit - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetInitRampdownLimit(rampDownLimit);
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_RampDownLimit:
-                                {
+				{
 					int rampDownLimit;
 					logprintf("Matched Command eAAMP_SET_RampDownLimit - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetRampDownLimit(rampDownLimit);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_MinimumBitrate:
-                                {
+				{
 					long minBitrate;
 					logprintf("Matched Command eAAMP_SET_MinimumBitrate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &minBitrate) == 2){
 						mSingleton->SetMinimumBitrate(minBitrate);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_MaximumBitrate:
-                                {
+				{
 					long maxBitrate;
 					logprintf("Matched Command eAAMP_SET_MaximumBitrate - %s ", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &maxBitrate) == 2){
 						mSingleton->SetMaximumBitrate(maxBitrate);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_MaximumSegmentInjFailCount:
-                                {
+				{
 					int failCount;
 					logprintf("Matched Command eAAMP_SET_MaximumSegmentInjFailCount - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentInjectFailCount(failCount);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_MaximumDrmDecryptFailCount:
-                                {
+				{
 					int failCount;
 					logprintf("Matched Command eAAMP_SET_MaximumDrmDecryptFailCount - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentDecryptFailCount(failCount);
 					}
 					break;
-                                }
+				}
 
 				case eAAMP_SET_RegisterForID3MetadataEvents:
-                                {
+				{
 					int id3MetadataEventsEnabled;
 					logprintf("Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s ", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &id3MetadataEventsEnabled) == 2){
@@ -1438,7 +1467,8 @@ static void ProcessCliCommand( char *cmd )
 
 					}
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_LanguageFormat:
 				{
 					LangCodePreference preference;
@@ -1450,6 +1480,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+				
 				case eAAMP_SET_InitialBufferDuration:
 				{
 					int duration;
@@ -1460,6 +1491,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+				
 				case eAAMP_SET_AudioTrack:
 				{
 					int track;
@@ -1470,6 +1502,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+				
 				case eAAMP_SET_TextTrack:
 				{
 					int track;
@@ -1480,6 +1513,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+				
 				case eAAMP_SET_CCStatus:
 				{
 					int status;
@@ -1490,6 +1524,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+				
 				case eAAMP_SET_CCStyle:
 				{
 					int value;
@@ -1521,7 +1556,7 @@ static void ProcessCliCommand( char *cmd )
 				}
 
 				case eAAMP_SET_AuxiliaryAudio:
-                                {
+				{
 					char lang[12];
 					logprintf("Matchedhelp Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2)
@@ -1529,7 +1564,8 @@ static void ProcessCliCommand( char *cmd )
 						mSingleton->SetAuxiliaryLanguage(lang);
 					}
 					break;
-                                }
+				}
+					
 				case eAAMP_SET_ContentRestrictions:
 				{
 					logprintf("Matched Command eAAMP_SET_ContentRestrictions - %s ", cmd);
@@ -1559,16 +1595,18 @@ static void ProcessCliCommand( char *cmd )
 
 					mSingleton->SetContentRestrictions(contentRestrictions);
 					break;
-                                }
+				}
+				
 				case eAAMP_SET_PropagateUriParam:
-                                {
-                                        int propagateUriParam;
-                                        logprintf("Matched Command eAAMP_SET_PropogateUriParam - %s ", cmd);
-                                        if (sscanf(cmd, "set %d %d", &opt, &propagateUriParam) == 2){
-                                                mSingleton->SetPropagateUriParameters((bool) propagateUriParam);
-                                        }
-                                        break;
-                                }
+				{
+					int propagateUriParam;
+					logprintf("Matched Command eAAMP_SET_PropogateUriParam - %s ", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &propagateUriParam) == 2){
+						mSingleton->SetPropagateUriParameters((bool) propagateUriParam);
+					}
+					break;
+				}
+				
 				case eAAMP_SET_RateOnTune:
 				{
 					logprintf("Matched Command eAAMP_SET_RateOnTune - %s",cmd);
@@ -1576,8 +1614,10 @@ static void ProcessCliCommand( char *cmd )
 					mSingleton->SetRate(rate);
 					break;
 				}
+				
 				default:
 					logprintf("Invalid set command %d\n", opt);
+					break;
 			}
 
 		}
@@ -1717,6 +1757,81 @@ static void ProcessCliCommand( char *cmd )
 	}
 }
 
+static void DoAutomation(const int startChannel=500, const int stopChannel=1000)
+{
+#ifdef WIN32
+	std::string outPath(getenv("HOMEDRIVE"));
+	outPath.append(getenv("HOMEPATH"));
+#elif defined(__APPLE__)
+	std::string outPath(getenv("HOME"));
+#else
+	std::string outPath("/opt");
+#endif
+	outPath += "/test-results.csv";
+	const char *mod = "wb"; // initially clear file
+	
+	if (mVirtualChannelMap.next() == NULL)
+	{
+		logprintf("Can not auto channels, empty virtual channel map.");
+		return;
+	}
+	
+	for( int chan=startChannel; chan<=stopChannel; chan++ )
+	{
+		VirtualChannelInfo *info = mVirtualChannelMap.Find(chan);
+		if( info )
+		{
+			if( strstr(info->name.c_str(),"ClearKey") ||
+			    strstr(info->name.c_str(),"MultiDRM") ||
+			    strstr(info->name.c_str(),"DTS Audio") ||
+				strstr(info->name.c_str(),"AC-4") )
+			{
+#ifdef __APPLE__
+				continue; // skip unsupported DRM AND Audio formats
+#endif
+			}
+			printf( "%d,\"%s\",%s,%s\n",
+				info->channelNumber, info->name.c_str(), info->uri.c_str(), "TUNING..." );
+
+			char cmd[32];
+			sprintf( cmd, "%d", chan );
+			mTuneFailureDescription.clear();
+			ProcessCliCommand( cmd );
+			PrivAAMPState state = eSTATE_IDLE;
+			for(int i=0; i<5; i++ )
+			{
+				sleep(1);
+				state = mSingleton->GetState();
+				if( state == eSTATE_PLAYING || state == eSTATE_ERROR )
+				{
+					break;
+				}
+			}
+			const char *stateName;
+			switch( state )
+			{
+				case eSTATE_PLAYING:
+					sleep(4); // let play for a bit longer, as visibility sanity check
+					stateName = "OK";
+					break;
+				case eSTATE_ERROR:
+					stateName = "FAIL";
+					break;
+				default:
+					stateName = "TIMEOUT";
+					break;
+			}
+			printf( "***%s\n", stateName );
+			FILE *f = fopen( outPath.c_str(), mod );
+			assert( f );
+			fprintf( f, "%d,\"%s\",%s,%s,%s\n",
+				info->channelNumber, info->name.c_str(), info->uri.c_str(), stateName, mTuneFailureDescription.c_str() );
+			mod = "a";
+			fclose( f );
+		}
+	}
+}
+
 static void * run_command( void* startUrl )
 {
     char cmd[MAX_BUFFER_LENGTH];
@@ -1737,7 +1852,27 @@ static void * run_command( void* startUrl )
 		{
 			break;
 		}
-		ProcessCliCommand(cmd);
+		if( memcmp(cmd,"auto",4)==0 )
+		{
+			int start=0, end=0;
+			int matched = sscanf(cmd, "auto %d %d", &start, &end);
+			switch (matched)
+			{
+				case 1:
+					DoAutomation(start);
+					break;
+				case 2:
+					DoAutomation(start, end);
+					break;
+				default:
+					DoAutomation();
+					break;
+			}
+		}
+		else
+		{
+			ProcessCliCommand(cmd);
+		}
     }
 	
 	return NULL;
@@ -2025,13 +2160,31 @@ static void LoadVirtualChannelMapFromCSV( FILE *f )
 		if( ptr )
 		{
 			ptr++;
-			const char *delim = strchr(ptr,',');
+			const char *delim;
+			bool quotedName = (*ptr=='\"');
+			if( quotedName )
+			{
+				ptr++;
+				delim  = strchr(ptr,'\"');
+			}
+			else
+			{
+				delim = strchr(ptr,',');
+			}
 			if( delim )
 			{
 				channelInfo.name = std::string(ptr,delim-ptr);
+				if( quotedName )
+				{ // skip end-quote
+					delim++;
+				}
 				ptr = delim+1;
-				delim = strchr(ptr,',');
-				if( delim )
+				delim = ptr;
+				while( *delim>=' ' && *delim!=',' )
+				{
+					delim++;
+				}
+				if( delim>ptr )
 				{
 					channelInfo.uri = std::string(ptr,delim-ptr);
 					mVirtualChannelMap.Add( channelInfo );
@@ -2183,10 +2336,8 @@ int main(int argc, char **argv)
 #endif
 			);
 
-#ifdef LOG_CLI_EVENTS
 	myEventListener = new myAAMPEventListener();
 	mSingleton->RegisterEvents(myEventListener);
-#endif
 	//std::string name = "testApp";
 	//mSingleton->SetAppName(name);
 	
