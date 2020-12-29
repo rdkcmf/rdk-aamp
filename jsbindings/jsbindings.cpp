@@ -29,11 +29,10 @@
 #include <string.h>
 #include <pthread.h>
 
+#include "jsbindings-version.h"
 #include "jsutils.h"
 #include "main_aamp.h"
 #include "priv_aamp.h"
-
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.7"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -291,7 +290,7 @@ static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thi
 		return JSValueMakeUndefined(context);
 	}
 
-	return aamp_CStringToJSValue(context, GLOBAL_AAMP_NATIVEBINDING_VERSION);
+	return aamp_CStringToJSValue(context, AAMP_UNIFIED_VIDEO_ENGINE_VERSION);
 }
 
 
