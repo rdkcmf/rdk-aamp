@@ -37,8 +37,8 @@
 #include "base16.h"
 #include "aampgstplayer.h"
 #include "AampDRMSessionManager.h"
-#ifdef AAMP_RDK_CC_ENABLED
-#include "AampRDKCCManager.h"
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
 #endif
 #ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
@@ -2725,16 +2725,16 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		}
 	}
 
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	if (gpGlobalConfig->nativeCCRendering)
 	{
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
-			AampRDKCCManager::GetInstance()->SetTrickplayStatus(false);
+			AampCCManager::GetInstance()->SetTrickplayStatus(false);
 		}
 		else
 		{
-			AampRDKCCManager::GetInstance()->SetTrickplayStatus(true);
+			AampCCManager::GetInstance()->SetTrickplayStatus(true);
 		}
 	}
 #endif
@@ -4619,11 +4619,11 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		else
 		{
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 			// Stop CC when pipeline is stopped/destroyed and if foreground instance
 			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
 			{
-				AampRDKCCManager::GetInstance()->Release();
+				AampCCManager::GetInstance()->Release();
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -5721,11 +5721,11 @@ void PrivateInstanceAAMP::detach()
 		AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s and soft release.", __FUNCTION__, __LINE__, mPlayerId, STRFGPLAYER, STRBGPLAYER );
 		pipeline_paused = true;
 		mpStreamAbstractionAAMP->StopInjection();
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 		// Stop CC when pipeline is stopped
 		if (gpGlobalConfig->nativeCCRendering)
 		{
-			AampRDKCCManager::GetInstance()->Release();
+			AampCCManager::GetInstance()->Release();
 		}
 #endif
 		mStreamSink->Stop(true);
@@ -6667,10 +6667,10 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #endif
 	if (mStreamSink != NULL)
 	{
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 		if (gpGlobalConfig->nativeCCRendering)
 		{
-			AampRDKCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
+			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
 		}
 		else
 #endif
@@ -9421,11 +9421,11 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			// Check if CC / Subtitle track
 			if (track.isCC)
 			{
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 				if (!track.instreamId.empty())
 				{
 					CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT;
-					// AampRDKCCManager expects the CC type, ie 608 or 708
+					// AampCCManager expects the CC type, ie 608 or 708
 					// For DASH, there is a possibility that instreamId is just an integer so we infer rendition
 					if (mMediaFormat == eMEDIAFORMAT_DASH && (std::isdigit(static_cast<unsigned char>(track.instreamId[0])) == 0) && !track.rendition.empty())
 					{
@@ -9452,7 +9452,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 						}
 						AAMPLOG_WARN("PrivateInstanceAAMP::%s %d CC format override present, override format to: %d", __FUNCTION__, __LINE__, format);
 					}
-					AampRDKCCManager::GetInstance()->SetTrack(track.instreamId, format);
+					AampCCManager::GetInstance()->SetTrack(track.instreamId, format);
 				}
 				else
 				{
@@ -9507,10 +9507,10 @@ void PrivateInstanceAAMP::RefreshSubtitles()
 int PrivateInstanceAAMP::GetTextTrack()
 {
 	int idx = -1;
-#ifdef AAMP_RDK_CC_ENABLED
-	if (AampRDKCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
+#ifdef AAMP_CC_ENABLED
+	if (AampCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
 	{
-		std::string trackId = AampRDKCCManager::GetInstance()->GetTrack();
+		std::string trackId = AampCCManager::GetInstance()->GetTrack();
 		if (!trackId.empty())
 		{
 			std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
@@ -9539,8 +9539,8 @@ int PrivateInstanceAAMP::GetTextTrack()
  */
 void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 {
-#ifdef AAMP_RDK_CC_ENABLED
-	AampRDKCCManager::GetInstance()->SetStatus(enabled);
+#ifdef AAMP_CC_ENABLED
+	AampCCManager::GetInstance()->SetStatus(enabled);
 #endif
 
 	if (mpStreamAbstractionAAMP)
@@ -9580,8 +9580,8 @@ void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
 {
 	//TODO: This can be later extended to subtitle rendering
 	// Right now, API is not available for subtitle
-#ifdef AAMP_RDK_CC_ENABLED
-	AampRDKCCManager::GetInstance()->SetStyle(options);
+#ifdef AAMP_CC_ENABLED
+	AampCCManager::GetInstance()->SetStyle(options);
 #endif
 }
 
@@ -9594,8 +9594,8 @@ std::string PrivateInstanceAAMP::GetTextStyle()
 {
 	//TODO: This can be later extended to subtitle rendering
 	// Right now, API is not available for subtitle
-#ifdef AAMP_RDK_CC_ENABLED
-	return AampRDKCCManager::GetInstance()->GetStyle();
+#ifdef AAMP_CC_ENABLED
+	return AampCCManager::GetInstance()->GetStyle();
 #else
 	return std::string();
 #endif
