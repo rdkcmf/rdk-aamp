@@ -7542,13 +7542,16 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  */
 void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
+	// Local aamp.cfg config trumps JS PP config
+	if (gpGlobalConfig->licenseServerLocalOverride)
+	{
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s - aamp cfg overrides, so license url - %s for type - %d is ignored", __FUNCTION__, url, type);
+		return;
+	}
+
 	if (type == eDRM_MAX_DRMSystems)
 	{
-		// Local aamp.cfg config trumps JS PP config
-		if (gpGlobalConfig->licenseServerLocalOverride)
-		{
-			return;
-		}
+
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(url);
 	}
 	else if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey)

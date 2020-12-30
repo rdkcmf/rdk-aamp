@@ -459,7 +459,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());
 	char *encodedChallengeData = base64_Encode(challengeInfo.data->getData(), challengeInfo.data->getDataLength());
 	const char *keySystem = drmHelper->ocdmSystemId().c_str();
-	const char *secclientSessionToken = challengeInfo.accessToken.c_str();
+	const char *secclientSessionToken = challengeInfo.accessToken.empty() ? NULL : challengeInfo.accessToken.c_str();
 
 	int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
 	char *licenseResponseStr = NULL;
