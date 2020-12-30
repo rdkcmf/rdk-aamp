@@ -4213,6 +4213,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		else
 		{
 			logprintf("Manifest download failed : http response : %d", (int) http_error);
+			retval = eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
@@ -4958,7 +4959,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
-				if (aamp->SendTunedEvent())
+				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{
 					logprintf("aamp: hls - sent tune event after indexing playlist");
 				}

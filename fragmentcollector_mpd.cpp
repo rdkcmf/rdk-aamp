@@ -4051,7 +4051,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
 			{
-				if (aamp->SendTunedEvent())
+				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{
 					logprintf("aamp: mpd - sent tune event after indexing playlist");
 				}
@@ -4296,6 +4296,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 				logprintf("StreamAbstractionAAMP_MPD::%s - manifest download failed", __FUNCTION__);
 				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 			}
+		}
+		else // if downloads disabled
+		{
+			AAMPLOG_ERR("PrivateStreamAbstractionMPD::%s - manifest download failed", __FUNCTION__);
+			ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 	}
 	else

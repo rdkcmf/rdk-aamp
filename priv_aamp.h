@@ -123,6 +123,8 @@ static const char *mMediaFormatName[] =
 #define STRBGPLAYER "BACKGROUND"
 #define STRFGPLAYER "FOREGROUND"
 
+#define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
+
 /**
  * @brief Structure of X-Start HLS Tag
  */
@@ -662,6 +664,7 @@ public:
 	                                in gst brcmaudiodecoder, default: True */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	std::string mSessionToken; /**< Field to set session token for player */
+	bool mAutoResumeTaskPending;
 
         std::vector<std::string> mRestrictions; /**< Parental Control Restrictions set by user */
 	/**
@@ -1032,7 +1035,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReportProgress(void);
+	void ReportProgress(bool sync = true);
 
 	/**
 	 *   @brief Report Ad progress event
@@ -1464,14 +1467,6 @@ public:
 	 */
 	void GetState(PrivAAMPState &state);
 
-	/**
-	 *   @brief Add idle task to the gstreamer
-	 *
-	 *   @param[in] task - Task
-	 *   @param[in] arg - Arguments
-	 *   @return void
-	 */
-	static void AddIdleTask(IdleTask task, void* arg);
 	/**
 	*   @brief Add high priority idle task to the gstreamer
 	*
@@ -2734,11 +2729,36 @@ public:
          *       @return void
          */
         void EnableContentRestrictions();
+
 	/**
 	 *       @brief Set Maximum Cache Size for storing playlist 
 	 *       @return void
 	*/
 	void SetMaxPlaylistCacheSize(int cacheSize);
+
+	/**
+	 *   @brief Set the scheduler instance to schedule tasks
+	 *
+	 *   @param[in] instance - schedule instance
+	 */
+	void SetScheduler(AampScheduler *instance) { mScheduler = instance; }
+
+	/**
+	 *   @brief Add async task to scheduler
+	 *
+	 *   @param[in] task - Task
+	 *   @param[in] arg - Arguments
+	 *   @return int - task id
+	 */
+	int ScheduleAsyncTask(IdleTask task, void *arg);
+
+	/**
+	 *   @brief Remove async task scheduled earlier
+	 *
+	 *   @param[in] id - task id
+	 *   @return bool - true if removed, false otherwise
+	 */
+	bool RemoveAsyncTask(int taskId);
 
 private:
 
@@ -2887,5 +2907,10 @@ private:
 	bool mEnableSeekableRange;
 	bool mReportVideoPTS;
 	int mCacheMaxSize;
+
+	guint mAutoResumeTaskId; /**< handler id for auto resume idle callback */
+	AampScheduler *mScheduler; /**< instance to schedule async tasks */
+	pthread_mutex_t mEventLock; /**< lock for operation on mPendingAsyncEvents */
+	int mEventPriority; /**< priority for async events */
 };
 #endif // PRIVAAMP_H
