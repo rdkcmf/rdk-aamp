@@ -606,6 +606,8 @@ function playChannel()
 		{
 			aampPlayer = new AAMPMediaPlayer();
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		}
 		if(enableNativeCC === true) {
 			aampPlayer.initConfig(ccInitConfigParam);
@@ -676,6 +678,8 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer = new AAMPMediaPlayer();
 		aampPlayer.initConfig(languageListInitConfig);
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		aampPlayer.load(strLocator);
 	
 	isPlaying = true;
@@ -878,7 +882,7 @@ function setTextStyleOptions() {
 	}
 }
 
-var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12 };
+var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12, "blocked":14};
 function playbackStateChanged(event) {
     console.log("Playback state changed event: " + JSON.stringify(event));
     switch (event.state) {
@@ -906,6 +910,9 @@ function playbackStateChanged(event) {
         case playerStatesEnum.error:
             playerState = playerStatesEnum.error;
             break;
+        case playerStatesEnum.blocked:
+            playerState = playerStatesEnum.blocked;
+            break;
         default:
             playerState = event.state;
             console.log("State not expected");
@@ -916,6 +923,15 @@ function playbackStateChanged(event) {
 
         setGuideText(evetStr);
 }
+
+function playbackStarted() {
+    console.log("Playback started event received");
+}
+
+function blockedEventHandler(event) {
+    console.log("Blocked event: " + JSON.stringify(event));
+}
+
 </script>
 </head>
 	

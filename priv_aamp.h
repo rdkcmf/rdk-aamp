@@ -1879,6 +1879,13 @@ public:
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 
 	/**
+	 *   @brief  Generate Blocked  event based on args passed.
+	 *
+	 *   @param[in] reason          - Blocked Reason
+	 */
+	void SendBlockedEvent(const std::string & reason);
+
+	/**
 	 *   @brief  Generate Content Restricted event based on args passed.
 	 *
 	 *   @param[in] reason          - Reason for restriction

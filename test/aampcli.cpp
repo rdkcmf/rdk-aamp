@@ -701,6 +701,12 @@ public:
 				printf("\n");
 				break;
 			}
+		case AAMP_EVENT_BLOCKED :
+			{
+				BlockedEventPtr ev = std::dynamic_pointer_cast<BlockedEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_BLOCKED Reason:%s\n" ,ev->getReason().c_str());
+				break;
+			}
 		case AAMP_EVENT_CONTENT_RESTRICTED:
 			{
 				printf("[AAMPCLI] AAMP_EVENT_CONTENT_RESTRICTED\n");

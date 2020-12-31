@@ -1089,6 +1089,40 @@ public:
 };
 
 /**
+ * @class AAMP_Listener_Blocked
+ * @brief Event listener impl for AAMP_EVENT_BLOCKED event.
+ */
+class AAMP_Listener_Blocked: public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_Blocked Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_Blocked(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[out] eventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		BlockedEventPtr evt = std::dynamic_pointer_cast<BlockedEvent>(ev);
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("reason");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getReason().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
+/**
  * @class AAMP_Listener_ContentRestricted
  * @brief Event listener impl for AAMP_EVENT_CONTENT_RESTRICTED event.
  */
@@ -1306,6 +1340,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_ID3_METADATA:
 			pListener = new AAMP_Listener_Id3Metadata(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_BLOCKED:
+			pListener = new AAMP_Listener_Blocked(obj, type, jsCallback);
 			break;
 		case AAMP_EVENT_CONTENT_RESTRICTED:
 			pListener = new AAMP_Listener_ContentRestricted(obj, type, jsCallback);

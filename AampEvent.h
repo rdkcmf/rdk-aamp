@@ -80,6 +80,7 @@ typedef enum
 	AAMP_EVENT_ID3_METADATA,		/**< 36, ID3 metadata from audio stream */
 	AAMP_EVENT_DRM_MESSAGE,         	/**< 37, Message from the DRM system */
 	AAMP_EVENT_CONTENT_RESTRICTED,         	/**< 38, Content Restriction status */
+	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -147,7 +148,8 @@ typedef enum
 	eSTATE_STOPPED,      /**< 10 - Player has stopped playback successfully */
 	eSTATE_COMPLETE,     /**< 11 - Playback completed */
 	eSTATE_ERROR,        /**< 12 - Error encountered and playback stopped */
-	eSTATE_RELEASED      /**< 13 - Player has released all resources for playback */
+	eSTATE_RELEASED,     /**< 13 - Player has released all resources for playback */
+	eSTATE_BLOCKED       /**< 14 - Player has blocked and cant play content*/
 } PrivAAMPState;
 
 /**
@@ -1620,6 +1622,38 @@ public:
 };
 
 /**
+ * @brief Class for the BlockedEvent   event
+ */
+class BlockedEvent: public AAMPEventObject
+{
+	std::string mReason;	/**< Blocked Reason  */
+
+public:
+	BlockedEvent() = delete;
+	BlockedEvent(const BlockedEvent&) = delete;
+	BlockedEvent& operator=(const BlockedEvent&) = delete;
+
+	/*
+	 * @brief BlockedEvent Constructor
+	 * @param[in] reason     - Blocked Reason
+	 */
+	BlockedEvent(const std::string &reason) : AAMPEventObject(AAMP_EVENT_BLOCKED) , mReason(reason)
+	{}
+
+	/**
+	 * @brief BlockedEvent Destructor
+	 */
+	virtual ~BlockedEvent() { }
+
+	/**
+	 * @brief Get Description
+	 *
+	 * @return Blocked Reason
+	 */
+	const std::string &getReason() const { return mReason; }
+};
+
+/**
  * @brief Class for content restriction events
  */
 class ContentRestrictedEvent: public AAMPEventObject
@@ -1706,6 +1740,7 @@ using AdPlacementEventPtr = std::shared_ptr<AdPlacementEvent>;
 using MetricsDataEventPtr = std::shared_ptr<MetricsDataEvent>;
 using ID3MetadataEventPtr = std::shared_ptr<ID3MetadataEvent>;
 using DrmMessageEventPtr = std::shared_ptr<DrmMessageEvent>;
+using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
 using ContentRestrictedEventPtr = std::shared_ptr<ContentRestrictedEvent>;
 
 #endif /* __AAMP_EVENTS_H__ */
