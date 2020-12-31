@@ -1854,6 +1854,13 @@ public:
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 
 	/**
+	 *   @brief  Generate Blocked  event based on args passed.
+	 *
+	 *   @param[in] reason          - Blocked Reason
+	 */
+	void SendBlockedEvent(const std::string & reason);
+
+	/**
 	 *   @brief To set the initial bitrate value.
 	 *
 	 *   @param[in] initial bitrate to be selected

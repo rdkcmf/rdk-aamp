@@ -7942,6 +7942,17 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 }
 
 /**
+ *   @brief  Generate Blocked  event based on args passed.
+ *
+ *   @param[in] reason          - Blocked Reason
+ */
+void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
+{
+	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
+	SendEventAsync(event);
+}
+
+/**
  *   @brief To set the initial bitrate value.
  *
  *   @param[in] initial bitrate to be selected
