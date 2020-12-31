@@ -525,6 +525,8 @@ function playChannel()
 		{
 			aampPlayer = new AAMPMediaPlayer();
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		}
 		aampPlayer.load(strLocator);
 	}
@@ -591,6 +593,8 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer = new AAMPMediaPlayer();
 		aampPlayer.initConfig(languageListInitConfig);
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		aampPlayer.load(strLocator);
 	
 	isPlaying = true;
@@ -677,7 +681,123 @@ function setAudioTrack() {
 	aampPlayer.setAudioTrack(track);
 }
 
-var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12 };
+/**
+ * Toggle CC ON-OFF status
+ */
+function toggleCC() {
+	if (ccStatus === false) {
+		// CC ON
+		if(enableNativeCC) {
+			console.log("Invoking setClosedCaptionStatus-true");
+			aampPlayer.setClosedCaptionStatus(true);
+			setGuideText("setClosedCaptionStatus==> true ");
+		}
+		ccStatus = true;
+		console.log("Invoked setClosedCaptionStatus-true");
+	} else {
+		// CC OFF
+		if(enableNativeCC) {
+			console.log("Invoking setClosedCaptionStatus-false");
+						setGuideText("setClosedCaptionStatus==> False ");
+			aampPlayer.setClosedCaptionStatus(false);
+		}
+		ccStatus = false;
+		console.log("Invoked setClosedCaptionStatus-false");
+	}
+};
+
+function clearTextList() {
+	var textListElement = document.getElementById("TextList");
+	// when length is 0, the evaluation will return false.
+	while (textListElement.options.length)
+	{
+		// continue to remove the first option until no options remain.
+		textListElement.remove(0);
+	}
+}
+/**
+ * Get available text track info
+ */
+function getAvailableTextTracks() {
+	var textListBox = document.getElementById("TextList");
+	console.log("Invoking getAvailableTextTracks ");
+	var avlTextTracks = aampPlayer.getAvailableTextTracks();
+	if(avlTextTracks != undefined)
+	{
+		var textTrackList = JSON.parse(avlTextTracks);
+		console.log("Invoked getAvailableTextTracks " +avlTextTracks);
+		setGuideText("Invoked getAvailableTextTracks " +avlTextTracks);
+		clearTextList();
+		for (var i in textTrackList) {
+			var strData = textTrackList[i].language;
+			var opt = document.createElement('option');
+			opt.text = strData + ":" + textTrackList[i].instreamId;
+			opt.lang = strData;
+			opt.value = i;
+			console.log("Invoked getAvailableTextTracks loop: " +opt.text);
+
+			textListBox.add(opt,null);
+		}
+	}
+}
+
+/**
+ * Sets the Text Track
+ */
+function setTextTrack() {
+	var textListElement = document.getElementById("TextList");
+	console.log("Identifying user option for text track ");
+	var track = textListElement.options[textListElement.selectedIndex].value;
+	aampPlayer.setTextTrack(track);
+	console.log("Invoked setTextTrack with track " +track);
+}
+
+/**
+ * Gets the current Text Track
+ */
+function getTextTrack() {
+	var textTrack = aampPlayer.getTextTrack();
+	console.log("Invoked getTextTrack " +textTrack);
+	setGuideText("Invoked getAudioTrack " +textTrack);
+}
+
+/**
+ * Gets the current Text Style Options
+ */
+function getTextStyleOptions() {
+	if ((enableNativeCC) && (ccStatus === true)) {
+		var currentTextStyle = aampPlayer.getTextStyleOptions();
+		console.log("Invoked getTextStyleOptions, current options :" + currentTextStyle);
+		setGuideText("Invoked getTextStyleOptions, current options :" + currentTextStyle);
+	}
+}
+
+/**
+ * Change the Text Style Options
+ */
+function setTextStyleOptions() {
+	var styleOption =  document.getElementById("ccStyles").selectedIndex; // get selected cc track
+	if ((enableNativeCC) && (ccStatus === true)) {
+		//if CC is enabled
+		switch(styleOption) {
+			case 0:
+				aampPlayer.setTextStyleOptions(JSON.stringify(ccOption1));
+				console.log("Invoked setTextStyleOptions with options " +JSON.stringify(ccOption1));
+				break;
+			case 1:
+				aampPlayer.setTextStyleOptions(JSON.stringify(ccOption2));
+				console.log("Invoked setTextStyleOptions with options " +JSON.stringify(ccOption2));
+					break;
+			case 2:
+				aampPlayer.setTextStyleOptions(JSON.stringify(ccOption3));
+				console.log("Invoked setTextStyleOptions with options " +JSON.stringify(ccOption3));
+				break;
+		}
+		console.log("Current closed caption style is :" + aampPlayer.getTextStyleOptions());
+	}
+}
+
+var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12, "blocked":14};
 function playbackStateChanged(event) {
     console.log("Playback state changed event: " + JSON.stringify(event));
     switch (event.state) {
@@ -705,6 +825,9 @@ function playbackStateChanged(event) {
         case playerStatesEnum.error:
             playerState = playerStatesEnum.error;
             break;
+        case playerStatesEnum.blocked:
+            playerState = playerStatesEnum.blocked;
+            break;
         default:
             playerState = event.state;
             console.log("State not expected");
@@ -715,6 +838,15 @@ function playbackStateChanged(event) {
 
         setGuideText(evetStr);
 }
+
+function playbackStarted() {
+    console.log("Playback started event received");
+}
+
+function blockedEventHandler(event) {
+    console.log("Blocked event: " + JSON.stringify(event));
+}
+
 </script>
 </head>
 	
