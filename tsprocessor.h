@@ -317,6 +317,7 @@ class TSProcessor : public MediaProcessor
       long long m_last_frame_time;
       bool m_demuxInitialized;
       long long m_basePTSFromPeer;
+      unsigned char m_AudioTrackIndexToPlay;
 };
 
 #endif
