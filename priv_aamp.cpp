@@ -8826,7 +8826,8 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 		// May be Stop is called to release all resources .
 		// Before download , check the state 
 		GetState(state);
-		if(state != eSTATE_RELEASED)
+		// Check for state not IDLE also to avoid DELIA-46092
+		if(state != eSTATE_RELEASED || state != eSTATE_IDLE)
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE, 1, GetNetworkProxy());
 			SetCurlTimeout(mPlaylistTimeoutMs, eCURLINSTANCE_PLAYLISTPRECACHE);
