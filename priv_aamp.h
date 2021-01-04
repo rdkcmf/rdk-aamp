@@ -697,7 +697,7 @@ public:
 	 * @param[in] langlist - Vector of languages
 	 * @return void
 	 */
-	void StoreLanguageList(const std::vector<std::string> &langlist);
+	void StoreLanguageList(const std::set<std::string> &langlist);
 
 	/**
 	 * @brief Checking whether audio language supported
@@ -1755,10 +1755,10 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
-	 *   @param[in] overwriteLangFlag - flag to enable overwrite language
+	 *   @param[in] checkBeforeOverwrite - flag to enable additional check before overwriting language
 	 *   @return void
 	 */
-	void UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag=true );
+	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
 
 	/**
 	 *   @brief Update subtitle language selection
