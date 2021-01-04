@@ -1923,6 +1923,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mProgramDateTime (0)
+	, mthumbIndexValue(0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -5942,6 +5943,106 @@ void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
 long PrivateInstanceAAMP::GetVideoBitrate()
 {
 	return mUserRequestedBandwidth;
+}
+
+/**
+ *   @brief Get available thumbnail tracks.
+ *
+ *   @return string of available thumbnail tracks.
+ */
+std::string PrivateInstanceAAMP::GetThumbnailTracks()
+{
+	std::string op;
+	if(mpStreamAbstractionAAMP)
+	{
+		traceprintf("Entering PrivateInstanceAAMP::%s.",__FUNCTION__);
+		std::vector<StreamInfo*> data = mpStreamAbstractionAAMP->GetAvailableThumbnailTracks();
+		cJSON *root;
+		cJSON *item;
+		if(!data.empty())
+		{
+			root = cJSON_CreateArray();
+			if(root)
+			{
+				for( int i = 0; i < data.size(); i++)
+				{
+					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+					if(data[i]->bandwidthBitsPerSecond >= 0)
+					{
+						char buf[32];
+						sprintf(buf,"%dx%d",data[i]->resolution.width,data[i]->resolution.height);
+						cJSON_AddStringToObject(item,"RESOLUTION",buf);
+						cJSON_AddNumberToObject(item,"BANDWIDTH",data[i]->bandwidthBitsPerSecond);
+					}
+				}
+				char *jsonStr = cJSON_Print(root);
+				if (jsonStr)
+				{
+					op.assign(jsonStr);
+					free(jsonStr);
+				}
+				cJSON_Delete(root);
+			}
+		}
+		traceprintf("In PrivateInstanceAAMP::%s, Json string:%s",__FUNCTION__,op.c_str());
+	}
+	return op;
+}
+
+/**
+ *   @brief Get thumbnail data.
+ *
+ *   @return string thumbnail tile information.
+ */
+std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
+{
+	std::string rc;
+	if(mpStreamAbstractionAAMP)
+	{
+		std::string baseurl;
+		int raw_w, raw_h, width, height;
+		std::vector<ThumbnailData> datavec = mpStreamAbstractionAAMP->GetThumbnailRangeData(tStart, tEnd, &baseurl, &raw_w, &raw_h, &width, &height);
+		if( !datavec.empty() )
+		{
+			cJSON *root = cJSON_CreateObject();
+			if(!baseurl.empty())
+			{
+				cJSON_AddStringToObject(root,"baseUrl",baseurl.c_str());
+			}
+			if(raw_w > 0)
+			{
+				cJSON_AddNumberToObject(root,"raw_w",raw_w);
+			}
+			if(raw_h > 0)
+			{
+				cJSON_AddNumberToObject(root,"raw_h",raw_h);
+			}
+			cJSON_AddNumberToObject(root,"width",width);
+			cJSON_AddNumberToObject(root,"height",height);
+
+			cJSON *tile = cJSON_AddArrayToObject(root,"tile");
+			for( const ThumbnailData &iter : datavec )
+			{
+				cJSON *item;
+				cJSON_AddItemToArray(tile, item = cJSON_CreateObject() );
+				if(!iter.url.empty())
+				{
+					cJSON_AddStringToObject(item,"url",iter.url.c_str());
+				}
+				cJSON_AddNumberToObject(item,"t",iter.t);
+				cJSON_AddNumberToObject(item,"d",iter.d);
+				cJSON_AddNumberToObject(item,"x",iter.x);
+				cJSON_AddNumberToObject(item,"y",iter.y);
+			}
+			char *jsonStr = cJSON_Print(root);
+			if( jsonStr )
+			{
+				rc.assign( jsonStr );
+			}
+			cJSON_Delete(root);
+		}
+	}
+	return rc;
 }
 
 /**

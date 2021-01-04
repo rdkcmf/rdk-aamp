@@ -73,6 +73,10 @@ public:
     void SetAudioTrackByLanguage(const char* lang) override;
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
+
+    std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    bool SetThumbnailTrack(int) override;
+    std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS

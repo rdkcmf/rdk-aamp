@@ -354,3 +354,33 @@ void StreamAbstractionAAMP_HDMIIN::StartInjection(void)
 { // STUB - discontinuity related
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
 }
+
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableThumbnailTracks(void)
+{ // STUB
+	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+	return std::vector<StreamInfo*>();
+}
+
+/**
+ * @brief To set the thumbnail track by index.
+ * @ret True or False indicating success failure.
+ */
+bool StreamAbstractionAAMP_HDMIIN::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void)thumbnailIndex;	/* unused */
+	return false;
+}
+
+/**
+ * @brief To get thumbnail range data.
+ * @ret vector containg multiple thumbnail tile info.
+ */
+std::vector<ThumbnailData> StreamAbstractionAAMP_HDMIIN::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+        return std::vector<ThumbnailData>();
+}
+

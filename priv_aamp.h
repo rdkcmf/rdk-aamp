@@ -335,6 +335,16 @@ struct httpRespHeaderData {
 	std::string data;     /**< Header value */
 };
 
+struct ThumbnailData {
+	ThumbnailData() : url(""), x(0), y(0), t(0.0), d(0.0)
+	{
+	}
+	std::string url; /**<  url of tile image (may be relative or absolute path) */
+	double t; /**<  presentation time for this thumbnail */
+	double d; /**< time duration of this tile */
+	int x;    /**< x coordinate of thumbnail within tile */
+	int y;    /**< y coordinate of Thumbnail within tile */
+};
 
 /**
  * @brief  Structure of the event listener list
@@ -655,6 +665,7 @@ public:
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 
+	int mthumbIndexValue;
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1999,7 +2010,18 @@ public:
 	 *   @param[in] preferred bitrate.
 	 */
 	void SetVideoBitrate(long bitrate);
-
+	/**
+	*    @brief Get the Thumbnail Tile data.
+	*
+	*    @return string with Thumbnail information.
+	*/
+	std::string GetThumbnails(double start, double end);
+	/**
+	*    @brief Get available thumbnail tracks.
+	*
+	*    @return string with thumbnail track information.
+	*/
+	std::string GetThumbnailTracks();
 	/**
 	 *   @brief Get preferred bitrate for video.
 	 *

@@ -423,6 +423,32 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 	}
 }
 
+/***************************************************************************
+* @fn ParseTileInfCallback
+* @brief Callback function to decode Key and attribute
+*
+* @param attrName[in] input string
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] Updated TileInfo structure instance
+* @return void
+***************************************************************************/
+static void ParseTileInfCallback(char *attrName, char *delimEqual, char *fin, void* arg)
+{
+	// #EXT-X-TILES:RESOLUTION=416x234,LAYOUT=9x17,DURATION=2.002
+	TileInfo *var = (TileInfo *)arg;
+	const char *valuePtr = delimEqual + 1;
+	if (AttributeNameMatch(attrName, "LAYOUT"))
+	{
+		sscanf(valuePtr, "%dx%d", &var->numCols, &var->numRows);
+		traceprintf("In %s rows:%d cols:%d",__FUNCTION__,var->numRows, var->numCols);
+	}
+	else if (AttributeNameMatch(attrName, "DURATION"))
+	{
+		var->posterDuration = atof(valuePtr);
+		traceprintf("In %s duration:%f",__FUNCTION__,var->duration);
+	}
+}
 
 /***************************************************************************
 * @fn ParseXStartAttributeCallback
@@ -877,6 +903,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					iFrameCount++;
 					mProfileCount++;
 					mIframeAvailable = true;
+				}
+				else if (startswith(&ptr, "-X-IMAGE-STREAM-INF:"))
+				{
+					HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
+					memset(streamInfo, 0, sizeof(*streamInfo));
+					ParseAttrList(ptr, ParseStreamInfCallback, this);
+					if (streamInfo->uri == NULL)
+					{ // uri on following line
+						streamInfo->uri = next;
+						next = mystrpbrk(next);
+					}
+
+					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					{
+						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
+					}
+
+					streamInfo->isIframeTrack = true;
+					streamInfo->enabled = false;
+					mProfileCount++;
 				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
@@ -3934,7 +3980,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 					else
 					{
 						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, video->mDuration);
+							diffBetweenStartTimes, ts->playTarget, video->mDuration);
 						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
 					}
 				}
@@ -5517,7 +5563,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
-	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false)
+	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo()
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -5684,6 +5730,7 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	}
 
 	aamp->SyncBegin();
+	aamp_Free(&this->thumbnailManifest.ptr);
 	aamp_Free(&this->mainManifest.ptr);
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	aamp->SyncEnd();
@@ -5907,6 +5954,218 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 {
 	//TODO: Impl audio bitrate getter
 	return std::vector<long>();
+}
+
+/***************************************************************************
+* @fn isThumbnailStream
+* @brief Function to check if the provided stream is a thumbnail stream
+*
+* @return bool true on success
+***************************************************************************/
+static bool isThumbnailStream( const struct HlsStreamInfo *streamInfo )
+{
+	bool ret = false;
+	if (streamInfo->codecs)
+	{
+		ret = SubStringMatch(streamInfo->codecs, streamInfo->codecs+4, "jpeg");
+	}
+	return ret;
+}
+
+/***************************************************************************
+* @fn GetAvailableThumbnailTracks
+* @brief Function to get available thumbnail tracks
+*
+* @return vector of available thumbnail tracks.
+***************************************************************************/
+std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableThumbnailTracks(void)
+{
+	std::vector<StreamInfo*> thumbnailTracks;
+	for( int i = 0; i < mProfileCount; i++ )
+	{
+		struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
+		if( streamInfo->isIframeTrack && isThumbnailStream(streamInfo) )
+		{
+			struct StreamInfo *sptr = streamInfo;
+			thumbnailTracks.push_back(sptr);
+		}
+
+	}
+	return thumbnailTracks;
+}
+
+/***************************************************************************
+* @fn IndexThumbnails
+* @brief Function to index thumbnail manifest.
+*
+* @param *ptr pointer to thumbnail manifest
+* @return Updated vector of available thumbnail tracks.
+***************************************************************************/
+static std::vector<TileInfo> IndexThumbnails( char *ptr )
+{ // TODO: do we need to append nul pointer to downloaded playlist here?
+	std::vector<TileInfo> rc;
+
+	double startTime = 0;
+	TileInfo tileInfo;
+	memset( &tileInfo,0,sizeof(tileInfo) );
+
+	while(ptr)
+	{
+		char *next = mystrpbrk(ptr);
+		if(*ptr)
+		{
+			if (startswith(&ptr, "#EXT"))
+			{
+				if (startswith(&ptr, "INF:"))
+				{
+					tileInfo.tileSetDuration = atof(ptr);
+				}
+				else if (startswith(&ptr, "-X-TILES:"))
+				{
+					ParseAttrList(ptr, ParseTileInfCallback, &tileInfo);
+				}
+			}
+			else
+			{
+				tileInfo.url = ptr;
+				tileInfo.startTime = startTime;
+				startTime += tileInfo.tileSetDuration;
+				rc.push_back( tileInfo );
+			}
+		}
+		ptr = next;
+	}
+	return rc;
+}
+
+/***************************************************************************
+* @fn SetThumbnailTrack
+* @brief Function to set thumbnail track for processing
+*
+* @param thumbnail index value indicating the track to select
+* @return bool true on success.
+***************************************************************************/
+bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
+{
+	bool rc = false;
+	indexedTileInfo.clear();
+	aamp_Free( &thumbnailManifest.ptr );
+	thumbnailManifest.len = 0;
+
+	for( int iProfile=0; iProfile<mProfileCount; iProfile++ )
+	{
+		const HlsStreamInfo *streamInfo = &this->streamInfo[iProfile];
+		if( streamInfo->isIframeTrack && isThumbnailStream(streamInfo) )
+		{
+			if( thumbIndex>0 )
+			{
+				thumbIndex--;
+			}
+			else
+			{
+				aamp->mthumbIndexValue = iProfile;
+
+				std::string url;
+				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri);
+				long http_error = 0;
+				double downloadTime = 0;
+				std::string tempEffectiveUrl;
+				if( aamp->GetFile(url, &thumbnailManifest, tempEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST,true,eMEDIATYPE_PLAYLIST_IFRAME) )
+				{
+					logprintf("In StreamAbstractionAAMP_HLS::%s Configured Thumbnail",__FUNCTION__);
+					aamp_AppendNulTerminator( &thumbnailManifest );
+					aamp->getAampCacheHandler()->InsertToPlaylistCache(streamInfo->uri, &thumbnailManifest, tempEffectiveUrl,false,eMEDIATYPE_PLAYLIST_IFRAME);
+					indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
+					rc = true;
+				}
+				else
+				{
+					logprintf("In StreamAbstractionAAMP_HLS::%s Unable to fetch the Thumbnail Manifest",__FUNCTION__);
+				}
+				break;
+			}
+		}
+	}
+	return rc;
+}
+
+/***************************************************************************
+* @fn GetThumbnailRangeData
+* @brief Function to fetch the thumbnail data.
+*
+* @param tStart start duration of thumbnail data.
+* @param tEnd end duration of thumbnail data.
+* @param *baseurl base url of thumbnail images.
+* @param *raw_w absolute width of the thumbnail spritesheet.
+* @param *raw_h absolute height of the thumbnail spritesheet.
+* @param *width width of each thumbnail tile.
+* @param *height height of each thumbnail tile.
+* @return Updated vector of available thumbnail data.
+***************************************************************************/
+std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(double tStart, double tEnd, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+	std::vector<ThumbnailData> data;
+	HlsStreamInfo *streaminfo = &this->streamInfo[aamp->mthumbIndexValue];
+	if(!thumbnailManifest.ptr)
+	{
+		std::string tmpurl;
+		if(aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(streaminfo->uri, &thumbnailManifest, tmpurl))
+		{
+			indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
+		}
+		else
+		{
+			logprintf("StreamAbstractionAAMP_HLS::%s Failed to retrieve the thumbnail playlist from cache.",__FUNCTION__);
+		}
+	}
+
+	ThumbnailData tmpdata;
+	double totalSetDuration = 0;
+	for( TileInfo &tileInfo : indexedTileInfo )
+	{
+		tmpdata.t = tileInfo.startTime;
+		if( tmpdata.t > tEnd )
+		{ // done
+			break;
+		}
+		double tileSetEndTime = tmpdata.t + tileInfo.tileSetDuration;
+		totalSetDuration += tileInfo.tileSetDuration;
+		if( tileSetEndTime < tStart )
+		{ // skip over
+			continue;
+		}
+		tmpdata.url = tileInfo.url;
+		*raw_w = streaminfo->resolution.width * tileInfo.numCols;
+		*raw_h = streaminfo->resolution.height * tileInfo.numRows;
+		tmpdata.d = tileInfo.posterDuration;
+		bool done = false;
+		for( int row=0; row<tileInfo.numRows && !done; row++ )
+		{
+			for( int col=0; col<tileInfo.numCols && !done; col++ )
+			{
+				double tNext = tmpdata.t+tileInfo.posterDuration;
+				if( tNext >= tileSetEndTime )
+				{ // clamp & bail
+					tmpdata.d = tileSetEndTime - tmpdata.t;
+					done = true;
+				}
+				if( tEnd >= tmpdata.t && tStart < tNext  )
+				{
+					tmpdata.x = col * streaminfo->resolution.width;
+					tmpdata.y = row * streaminfo->resolution.height;
+					data.push_back(tmpdata);
+				}
+				tmpdata.t = tNext;
+			}
+		}
+
+		std::string url;
+		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri);
+		*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+		*width = streaminfo->resolution.width;
+		*height = streaminfo->resolution.height;
+	}
+	return data;
 }
 
 /***************************************************************************
@@ -7045,7 +7304,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		{
 			struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
 			streamInfo->enabled = false;
-			if(streamInfo->isIframeTrack)
+			if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
 			{
 				iFrameAvailableCount++;
 				if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
@@ -7245,6 +7504,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						}
 					}
 				}
+				else if( isThumbnailStream(streamInfo) )
+				{
+					vProfileCountSelected ++;
+				}
 			}
 
 			if (aamp->mPreviousAudioType != selectedAudioType)
@@ -7278,6 +7541,23 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								j});
 
 						AAMPLOG_INFO("%s:%d Added to ABR, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+					}
+					else if( isThumbnailStream(streamInfo) )
+					{
+						//Updating Thumbnail profiles along with Video profiles.
+						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height );
+
+						mAbrManager.addProfile({
+								streamInfo->isIframeTrack,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height,
+								"",
+								j});
+						AAMPLOG_INFO("%s:%d Adding image track, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
 					}
 				}
 				break;

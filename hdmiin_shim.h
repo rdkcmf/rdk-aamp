@@ -63,7 +63,12 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
+    void NotifyFirstVideoPTS(unsigned long long pts) { };
+
+    std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    bool SetThumbnailTrack(int) override;
+    std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
+
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 private:
@@ -72,7 +77,7 @@ private:
     ThunderAccessAAMP thunderRDKShellObj;
 #endif
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
-	int hdmiInputPort;
+    int hdmiInputPort;
 };
 
 #endif // HDMIIN_SHIM_H_
