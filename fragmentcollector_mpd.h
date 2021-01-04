@@ -95,6 +95,9 @@ public:
 	int64_t GetMinUpdateDuration() { return mMinUpdateDurationMs;}
 	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false );
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
+	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+	bool SetThumbnailTrack(int) override;
+	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 
 private:
 	friend class MediaStreamContext;

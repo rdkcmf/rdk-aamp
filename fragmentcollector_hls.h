@@ -151,6 +151,21 @@ struct DiscontinuityIndexNode
 };
 
 /**
+*	\struct	TileInfo
+* 	\brief	TileInfo structure for Thumbnail data
+*/
+struct TileInfo
+{
+	int numRows; /**< Number of Rows from Tile Inf */
+	int numCols; /**< Number of Cols from Tile Inf */
+	double posterDuration; /**< Duration of each Tile in Spritesheet */
+
+	double tileSetDuration; /**<Duration of whole Tile set */
+	double startTime;
+	const char *url;
+};
+
+/**
 *	\enum DrmKeyMethod
 * 	\brief	Enum for various EXT-X-KEY:METHOD= values
 */
@@ -431,6 +446,16 @@ public:
 	// Function to update seek position
 	void SeekPosUpdate(double secondsRelativeToTuneTime);
 	double GetBufferedDuration();
+	/// Function to get the thumbnail rates.
+	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void);
+	// Function to set the thumbnail resolution.
+	bool SetThumbnailTrack(int);
+	// Function to get the Thumbnail Information.
+	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*);
+	// Function to parse the Thumbnail Manifest and extract Tile information.
+	std::map<std::string,double> GetImageRangeString(double*, std::string, TileInfo*, double);
+	GrowableBuffer thumbnailManifest;	/**< Thumbnail manifest buffer holder */
+	std::vector<TileInfo> indexedTileInfo;	/**< Indexed Thumbnail information */
 	
 	void NotifyPlaybackPaused(bool pause) override;
 

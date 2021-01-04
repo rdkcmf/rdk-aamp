@@ -1907,6 +1907,39 @@ void PlayerInstanceAAMP::SetCEAFormat(int format)
 }
 
 /**
+*   @brief To get the bitrate of thumbnail profile.
+*
+*   @ret bitrate of thumbnail tracks profile
+*/
+std::string PlayerInstanceAAMP::GetAvailableThumbnailTracks(void)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+	return aamp->GetThumbnailTracks();
+}
+
+/**
+ *   @brief To set a preferred bitrate for thumbnail profile.
+ *
+ *   @param[in] preferred bitrate for thumbnail profile
+ */
+bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
+	return aamp->mpStreamAbstractionAAMP->SetThumbnailTrack(thumbIndex);
+}
+
+/**
+ *   @brief To get preferred thumbnails for the duration.
+ *
+ *   @param[in] duration  for thumbnails
+ */
+std::string PlayerInstanceAAMP::GetThumbnails(double tStart, double tEnd)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+	return aamp->GetThumbnails(tStart, tEnd);
+}
+
+/**
  *   @brief Set the session Token for player
  *
  *   @param[in] string - sessionToken

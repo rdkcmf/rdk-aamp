@@ -975,6 +975,37 @@ std::vector<long> StreamAbstractionAAMP_OTA::GetAudioBitrates(void)
 }
 
 /**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableThumbnailTracks(void)
+{ // STUB
+	return std::vector<StreamInfo*>();
+}
+
+/**
+ * @fn SetThumbnailTrack
+ * @brief Function to set thumbnail track for processing
+ *
+ * @param thumbnail index value indicating the track to select
+ * @return bool true on success.
+ */
+bool StreamAbstractionAAMP_OTA::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void) thumbnailIndex;	/* unused */
+	return false;
+}
+
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks
+ */
+std::vector<ThumbnailData> StreamAbstractionAAMP_OTA::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+	return std::vector<ThumbnailData>();
+}
+
+/**
 *   @brief  Stops injecting fragments to StreamSink.
 */
 void StreamAbstractionAAMP_OTA::StopInjection(void)

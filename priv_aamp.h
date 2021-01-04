@@ -352,6 +352,15 @@ struct httpRespHeaderData {
 	std::string data;     /**< Header value */
 };
 
+struct ThumbnailData {
+	ThumbnailData() : url(""), x(0), y(0), t(0.0)
+	{
+	}
+	std::string url; /**<  url of tile image (may be relative or absolute path) */
+	double t; /**<  presentation time for this thumbnail */
+	int x;    /**< x coordinate of thumbnail within tile */
+	int y;    /**< y coordinate of Thumbnail within tile */
+};
 
 /**
  * @brief  Structure of the event listener list
@@ -684,6 +693,7 @@ public:
 
         std::vector<std::string> mRestrictions; /**< Parental Control Restrictions set by user */
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
+	int mthumbIndexValue;
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -2017,7 +2027,18 @@ public:
 	 *   @param[in] preferred bitrate.
 	 */
 	void SetVideoBitrate(long bitrate);
-
+	/**
+	*    @brief Get the Thumbnail Tile data.
+	*
+	*    @return string with Thumbnail information.
+	*/
+	std::string GetThumbnails(double start, double end);
+	/**
+	*    @brief Get available thumbnail tracks.
+	*
+	*    @return string with thumbnail track information.
+	*/
+	std::string GetThumbnailTracks();
 	/**
 	 *   @brief Get preferred bitrate for video.
 	 *

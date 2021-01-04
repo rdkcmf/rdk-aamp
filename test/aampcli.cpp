@@ -95,7 +95,9 @@ typedef enum {
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
 	eAAMP_GET_TextTrack,
-	eAAMP_GET_ContentRestrictions
+	eAAMP_GET_ContentRestrictions,
+	eAAMP_GET_ThumbnailConfig,
+	eAAMP_GET_ThumbnailData
 }AAMPGetTypes;
 
 /**
@@ -150,7 +152,8 @@ typedef enum{
 	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_ContentRestrictions,
 	eAAMP_SET_PropagateUriParam,
-	eAAMP_SET_RateOnTune
+	eAAMP_SET_RateOnTune,
+	eAAMP_SET_ThumbnailTrack
 }AAMPSetTypes;
 
 /**
@@ -547,6 +550,8 @@ void ShowHelpGet(){
 	printf("get 14                // Get Audio Track\n");
 	printf("get 15                // Get Text Track\n");
 	printf("get 16                // Get Content Restrictions\n");
+	printf("get 17                // Get Available ThumbnailTracks\n");
+	printf("get 18                // Get Thumbnail timerange data(int startpos, int endpos)\n");
 	printf("****************************************************************************\n");
 }
 
@@ -607,6 +612,7 @@ void ShowHelpSet(){
 	printf("set 46 <x>            // Set Content Restrictions (x = string array)\n");
 	printf("set 47 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
 	printf("set 48 <x>            // Set Pre-tune rate (x= PreTuneRate)\n");
+	printf("set 49 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -1679,6 +1685,13 @@ static void ProcessCliCommand( char *cmd )
 					mSingleton->SetRate(rate);
 					break;
 				}
+				case eAAMP_SET_ThumbnailTrack:
+				{
+					printf("[AAMPCLI] Matched Command eAAMP_SET_ThumbnailTrack - %s\n",cmd);
+					sscanf(cmd, "set %d %d", &opt, &rate);
+					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");;
+					break;
+				}
 				
 				default:
 					printf("[AAMPCLI] Invalid set command %d\n", opt);
@@ -1704,9 +1717,16 @@ static void ProcessCliCommand( char *cmd )
 	else if (memcmp(cmd, "get", 3) == 0 )
 	{
 		char help[8];
-		int opt;
+		int opt, value1, value2;
 		if (sscanf(cmd, "get %d", &opt) == 1){
 			switch(opt){
+				case eAAMP_GET_ThumbnailConfig:
+					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
+					break;
+				case eAAMP_GET_ThumbnailData:
+					sscanf(cmd, "get %d %d %d",&opt, &value1, &value2);
+					printf("[AAMPCLI] GETTING THUMBNAIL TIME RANGE DATA for duration(%d,%d): %s\n",value1,value2,mSingleton->GetThumbnails(value1, value2).c_str());
+					break;
 				case eAAMP_GET_AudioTrack:
 					printf("[AAMPCLI] CURRENT AUDIO TRACK: %d\n", mSingleton->GetAudioTrack() );
 					break;

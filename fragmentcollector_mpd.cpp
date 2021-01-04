@@ -8185,6 +8185,45 @@ std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 	return audioBitrate;
 }
 
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks.
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableThumbnailTracks(void)
+{
+        return std::vector<StreamInfo*>();
+}
+
+/**
+ * @fn SetThumbnailTrack
+ * @brief Function to set thumbnail track for processing
+ *
+ * @param thumbnail index value indicating the track to select
+ * @return bool true on success.
+ */
+bool StreamAbstractionAAMP_MPD::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void)thumbnailIndex;	/* unused */
+	return false;
+}
+
+/**
+ * @fn GetThumbnailRangeData
+ * @brief Function to fetch the thumbnail data.
+ *
+ * @param tStart start duration of thumbnail data.
+ * @param tEnd end duration of thumbnail data.
+ * @param *baseurl base url of thumbnail images.
+ * @param *raw_w absolute width of the thumbnail spritesheet.
+ * @param *raw_h absolute height of the thumbnail spritesheet.
+ * @param *width width of each thumbnail tile.
+ * @param *height height of each thumbnail tile.
+ * @return Updated vector of available thumbnail data.
+ */
+std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+        return std::vector<ThumbnailData>();
+}
 
 /**
 *   @brief  Stops injecting fragments to StreamSink.
