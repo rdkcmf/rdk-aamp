@@ -76,6 +76,9 @@ public:
     std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;
     void EnableContentRestrictions() override;
+    std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    bool SetThumbnailTrack(int) override;
+    std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS

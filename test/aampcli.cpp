@@ -90,7 +90,9 @@ typedef enum {
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
-	eAAMP_GET_TextTrack
+	eAAMP_GET_TextTrack,
+	eAAMP_GET_ThumbnailConfig,
+	eAAMP_GET_ThumbnailData
 }AAMPGetTypes;
 
 /**
@@ -142,7 +144,8 @@ typedef enum{
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_LanguageFormat,
-	eAAMP_SET_PropagateUriParam
+	eAAMP_SET_PropagateUriParam,
+	eAAMP_SET_ThumbnailTrack
 }AAMPSetTypes;
 
 /**
@@ -497,25 +500,28 @@ static void ShowHelp(void)
  * @param none
  */
 void ShowHelpGet(){
-	logprintf("*******************************************************************");
-	logprintf("*   get <command> <arguments> ");
-	logprintf("*   List of Commands, arguemnts expected in ()");
-	logprintf("*******************************************************************");
-	logprintf(" 1 - Print Current audio language ()");
-	logprintf(" 2 - Print Current DRM ()");
-	logprintf(" 3 - Print Current Playback position ()");
-	logprintf(" 4 - Print Playback Duration ()");
-	logprintf(" 5 - Print current video bitrate ()");
-	logprintf(" 6 - Print current Audio bitrate ()");
-	logprintf(" 7 - Print current Audio voulume ()");
-	logprintf(" 8 - Print Current Playback rate ()");
-	logprintf(" 9 - Print Video bitrates supported ()");
-	logprintf("10 - Print Audio bitrates supported ()");
-	logprintf("11 - Print Current preferred languages ()");
-	logprintf("12 - Get Available Audio Tracks ()");
-	logprintf("13 - Get Available Text Tracks ()");
-	logprintf("14 - Get Audio Track ()");
-	logprintf("15 - Get Text Track ()");
+	printf("******************************************************************************************\n");
+	printf("*   get <command> [<arguments>]\n");
+	printf("*   Usage of Commands, and arguments expected\n");
+	printf("******************************************************************************************\n");
+	printf("get 1                 // Get Current audio language\n");
+	printf("get 2                 // Get Current DRM\n");
+	printf("get 3                 // Get Current Playback position\n");
+	printf("get 4                 // Get Playback Duration\n");
+	printf("get 5                 // Get current video bitrate\n");
+	printf("get 6                 // Get current Audio bitrate\n");
+	printf("get 7                 // Get current Audio volume\n");
+	printf("get 8                 // Get Current Playback rate\n");
+	printf("get 9                 // Get Video bitrates supported\n");
+	printf("get 10                // Get Audio bitrates supported\n");
+	printf("get 11                // Get Current preferred languages\n");
+	printf("get 12                // Get Available Audio Tracks\n");
+	printf("get 13                // Get Available Text Tracks\n");
+	printf("get 14                // Get Audio Track\n");
+	printf("get 15                // Get Text Track\n");
+	printf("get 16                // Get Available ThumbnailTracks\n");
+	printf("get 17                // Get Thumbnail timerange data(int startpos, int endpos)\n");
+	printf("****************************************************************************\n");
 }
 
 /**
@@ -523,55 +529,57 @@ void ShowHelpGet(){
  * @param none
  */
 void ShowHelpSet(){
-	logprintf("*******************************************************************");
-	logprintf("*   set <command> <arguments> ");
-	logprintf("*   List of Commands, arguemnts expected in ()");
-	logprintf("*******************************************************************");
-	logprintf(" 1 - Set Rate and Seek (int rate, double secondsRelativeToTuneTime)");
-	logprintf(" 2 - Set Video Rectangle (int x,y,w,h)");
-	logprintf(" 3 - Set Video zoom  ( 1 - full, 0 - normal)");
-	logprintf(" 4 - Set Video Mute ( 1 - Mute , 0 - Unmute)");
-	logprintf(" 5 - Set Audio Voulume (int volume)");
-	logprintf(" 6 - Set Language (string lang)");
-	logprintf(" 7 - Set Subscribed Tag () - dummy");
-	logprintf(" 8 - Set License Server URL (String url)");
-	logprintf(" 9 - Set Anonymouse Request  (0/1)");
-	logprintf("10 - Set VOD Trickplay FPS (int trickPlayFPS)");
-	logprintf("11 - Set Linear Trickplay FPS (int trickPlayFPS)");
-	logprintf("12 - Set Live offset (int offset)");
-	logprintf("13 - Set Stall error code (int errorCode)");
-	logprintf("14 - Set Stall timeout (int timeout)");
-	logprintf("15 - Set Report Interval (int interval)");
-	logprintf("16 - Set Video Bitrate (long bitrate)");
-	logprintf("17 - Set Initial Bitrate (long bitrate)");
-	logprintf("18 - Set Initial Bitrate 4K (long bitrate4k)");
-	logprintf("19 - Set Network Timeout (long timeout in ms)");
-	logprintf("20 - Set Manifest Timeout (long timeout in ms)");
-	logprintf("21 - Set Download Buffer Size (int bufferSize)");
-	logprintf("22 - Set Preferred DRM (1 - Widevine, 2 - Playready)"); // 4- Adobe_Access, 5 - Vanila AES, 6 - Clear Key)");
-	logprintf("23 - Set Stereo only playback (1/0)");
-	logprintf("24 - Set Alternate Contents - dummy ()");
-	logprintf("25 - Set Set Network Proxy (string url)");
-	logprintf("26 - Set License Request Proxy (string url)");
-	logprintf("27 - Set Download Stall timeout (long timeout)");
-	logprintf("28 - Set Download Start timeout (long timeout)");
-	logprintf("29 - Set Preferred Subtitle language (string lang)");
-	logprintf("30 - Set Parallel Playlist download (0/1)");
-	logprintf("31 - Set Preferred languages (string \"lang1, lang2, ...\")");
-	logprintf("32 - Set Ramp Down limit");
-	logprintf("33 - Set Init Ramp Down limit");
-	logprintf("34 - Set Minimum bitrate");
-	logprintf("35 - Set Maximum bitrate");
-	logprintf("36 - Set Maximum segment injection fail count");
-	logprintf("37 - Set Maximum DRM Decryption fail count");
-	logprintf("38 - Set Listen for ID3_METADATA events (1 - add listener, 0 - remove listener) ");
-	logprintf("39 - Set Language Format (preferredFormat(0-3), useRole(0/1))");
-	logprintf("40 - Set Initial Buffer Duration (int in sec)");
-	logprintf("41 - Set AudioTrack (int track index)" );
-	logprintf("42 - Set TextTrack (int track index)" );
-	logprintf("43 - Set CC status (0/1)" );
-	logprintf("44 - Set a predefined CC style option (1/2/3)" );
-	logprintf("45 - Set propagateUriParameters: (0-disable)" );
+	printf("******************************************************************************************\n");
+	printf("*   set <command> [<arguments>] \n");
+	printf("*   Usage of Commands with arguemnts expected in ()\n");
+	printf("******************************************************************************************\n");
+	printf("set 1 <x> <y>         // Set Rate and Seek (int x=rate, double y=seconds)\n");
+	printf("set 2 <x> <y> <w> <h> // Set Video Rectangle (int x,y,w,h)\n");
+	printf("set 3 <x>             // Set Video zoom  ( x = 1 fo full, x = 0 for normal)\n");
+	printf("set 4 <x>             // Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)\n");
+	printf("set 5 <x>             // Set Audio Volume (int x=volume)\n");
+	printf("set 6 <x>             // Set Language (string x=lang)\n");
+	printf("set 7                 // Set Subscribed Tag - dummy\n");
+	printf("set 8 <x>             // Set License Server URL (String x=url)\n");
+	printf("set 9 <x>             // Set Anonymous Request  (int x=0/1)\n");
+	printf("set 10 <x>            // Set VOD Trickplay FPS (int x=trickPlayFPS)\n");
+	printf("set 11 <x>            // Set Linear Trickplay FPS (int x=trickPlayFPS)\n");
+	printf("set 12 <x>            // Set Live offset (int x=offset)\n");
+	printf("set 13 <x>            // Set Stall error code (int x=errorCode)\n");
+	printf("set 14 <x>            // Set Stall timeout (int x=timeout)\n");
+	printf("set 15 <x>            // Set Report Interval (int x=interval)\n");
+	printf("set 16 <x>            // Set Video Bitrate (long x=bitrate)\n");
+	printf("set 17 <x>            // Set Initial Bitrate (long x = bitrate)\n");
+	printf("set 18 <x>            // Set Initial Bitrate 4K (long x = bitrate4k)\n");
+	printf("set 19 <x>            // Set Network Timeout (long x = timeout in ms)\n");
+	printf("set 20 <x>            // Set Manifest Timeout (long x = timeout in ms)\n");
+	printf("set 21 <x>            // Set Download Buffer Size (int x = bufferSize)\n");
+	printf("set 22 <x>            // Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)\n");
+	printf("set 23 <x>            // Set Stereo only playback (x=1/0)\n");
+	printf("set 24                // Set Alternate Contents - dummy ()\n");
+	printf("set 25 <x>            // Set Set Network Proxy (string x = url)\n");
+	printf("set 26 <x>            // Set License Request Proxy (string x=url)\n");
+	printf("set 27 <x>            // Set Download Stall timeout (long x=timeout)\n");
+	printf("set 28 <x>            // Set Download Start timeout (long x=timeout)\n");
+	printf("set 29 <x>            // Set Preferred Subtitle language (string x = lang)\n");
+	printf("set 30 <x>            // Set Parallel Playlist download (x=0/1)\n");
+	printf("set 31 <x>            // Set Preferred languages (string \"lang1, lang2, ...\")\n");
+	printf("set 32 <x>            // Set number of Ramp Down limit during the playback (x = number)\n");
+	printf("set 33 <x>            // Set number of Initial Ramp Down limit prior to the playback (x = number)\n");
+	printf("set 34 <x>            // Set Minimum bitrate (x = bitrate)\n");
+	printf("set 35 <x>            // Set Maximum bitrate (x = bitrate)\n");
+	printf("set 36 <x>            // Set Maximum segment injection fail count (int x = count)\n");
+	printf("set 37 <x>            // Set Maximum DRM Decryption fail count(int x = count)\n");
+	printf("set 38 <x>            // Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)\n");
+	printf("set 39 <y> <y>        // Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))\n");
+	printf("set 40 <x>            // Set Initial Buffer Duration (int x = Duration in sec)\n");
+	printf("set 41 <x>            // Set Audio track (int x = track index)\n");
+	printf("set 42 <x>            // Set Text track (int x = track index)\n");
+	printf("set 43 <x>            // Set CC status (x = 0/1)\n");
+	printf("set 44 <x>            // Set a predefined CC style option (x = 1/2/3)\n");
+	printf("set 45 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
+	printf("set 46 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
+	printf("******************************************************************************************\n");
 }
 
 #define LOG_CLI_EVENTS
@@ -1518,6 +1526,14 @@ static void ProcessCliCommand( char *cmd )
                                         }
                                         break;
                                 }
+				case eAAMP_SET_ThumbnailTrack:
+				{
+					printf("[AAMPCLI] Matched Command eAAMP_SET_ThumbnailTrack - %s\n",cmd);
+					sscanf(cmd, "set %d %d", &opt, &rate);
+					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");;
+					break;
+				}
+				
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}
@@ -1541,9 +1557,16 @@ static void ProcessCliCommand( char *cmd )
 	else if (memcmp(cmd, "get", 3) == 0 )
 	{
 		char help[8];
-		int opt;
+		int opt, value1, value2;
 		if (sscanf(cmd, "get %d", &opt) == 1){
 			switch(opt){
+				case eAAMP_GET_ThumbnailConfig:
+					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
+					break;
+				case eAAMP_GET_ThumbnailData:
+					sscanf(cmd, "get %d %d %d",&opt, &value1, &value2);
+					printf("[AAMPCLI] GETTING THUMBNAIL TIME RANGE DATA for duration(%d,%d): %s\n",value1,value2,mSingleton->GetThumbnails(value1, value2).c_str());
+					break;
 				case eAAMP_GET_AudioTrack:
 					logprintf( "CURRENT AUDIO TRACK: %d", mSingleton->GetAudioTrack() );
 					break;

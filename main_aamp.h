@@ -1363,6 +1363,27 @@ public:
 	 */
 	void PersistBitRateOverSeek(bool value);
 
+	/**
+	 *   @brief To get the available bitrates for thumbnails.
+	 *
+	 *   @ret bitrate of thumbnail track.
+	 */
+	std::string GetAvailableThumbnailTracks(void);
+
+	/**
+	 *   @brief To set a preferred bitrate for thumbnail profile.
+	 *
+	 *   @param[in] preferred bitrate for thumbnail profile
+	 */
+	bool SetThumbnailTrack(int thumbIndex);
+
+	/**
+	 *   @brief To get preferred thumbnails for the duration.
+	 *
+	 *   @param[in] duration  for thumbnails
+	 */
+	std::string GetThumbnails(double sduration, double eduration);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 

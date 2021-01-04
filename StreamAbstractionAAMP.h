@@ -979,6 +979,27 @@ public:
 	 * @param[in] wxh - width & height of video rectangle
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
+
+        /**
+         *   @brief Get available thumbnail bitrates.
+         *
+         *   @return available thumbnail bitrates.
+         */
+        virtual std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) = 0;
+
+        /**
+         *   @brief Set thumbnail bitrate.
+         *
+         *   @return none.
+         */
+	virtual bool SetThumbnailTrack(int) = 0;
+
+        /**
+         *   @brief Get thumbnail data for duration value.
+         *
+         *   @return thumbnail data.
+         */
+	virtual std::vector<ThumbnailData> GetThumbnailRangeData(double, double, std::string*, int*, int*, int*, int*) = 0;
 	
         /**
           * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
