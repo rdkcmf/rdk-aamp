@@ -2058,6 +2058,7 @@ void PlayerInstanceAAMP::EnableAsyncOperation()
 		mAsyncRunning = true;
 		StartScheduler();
 		aamp->SetAsyncTuneConfig(true);
+		aamp->SetScheduler(this);
 	}
 }
 

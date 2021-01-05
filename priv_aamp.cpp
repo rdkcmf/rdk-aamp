@@ -333,11 +333,6 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	return G_SOURCE_REMOVE;
 }
 
-static void ResumeAsyncTask(void *data)
-{
-	PrivateInstanceAAMP_Resume((gpointer)data);
-}
-
 /**
  * @brief Idle task to process discontinuity
  * @param ptr pointer to PrivateInstanceAAMP object
@@ -361,11 +356,6 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 		}
 	}
 	return G_SOURCE_REMOVE;
-}
-
-static void ProcessDiscontinuityAsyncTask(void *data)
-{
-	PrivateInstanceAAMP_ProcessDiscontinuity((gpointer)data);
 }
 
 /**
@@ -10034,12 +10024,6 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 	{
 		if (mScheduler)
 		{
-#if 0
-			taskId = mScheduler->ScheduleTask(AsyncTaskObj([task](void *data)
-									{
-										task(gpointer(data));
-									}), arg);
-#endif
 			taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg));
 		}
 		else
