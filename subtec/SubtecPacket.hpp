@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <array>
 
 template<typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&& ...args)
