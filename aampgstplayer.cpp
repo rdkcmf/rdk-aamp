@@ -1847,7 +1847,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		gint flags;
 		g_object_get(stream->sinkbin, "flags", &flags, NULL);
 		logprintf("playbin flags1: 0x%x", flags); // 0x617 on settop
-#if (defined(__APPLE__) || defined(UBUNTU))
+#if (defined(__APPLE__) || defined(NO_NATIVE_AV)) 
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO;
 #elif defined (REALTEKCE)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO | GST_PLAY_FLAG_SOFT_VOLUME;
