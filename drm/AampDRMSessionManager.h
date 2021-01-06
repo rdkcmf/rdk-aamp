@@ -190,6 +190,8 @@ public:
 	void clearFailedKeyIds();
 
 	void setSessionMgrState(SessionMgrState state);
+
+	SessionMgrState getSessionMgrState();
 	
 	void setCurlAbort(bool isAbort);
 
