@@ -9429,6 +9429,15 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
 	}
 
+	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)	
+	{
+		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;
+	}
+
+	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
+	{
+		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
+	}
 }
 
 /**
