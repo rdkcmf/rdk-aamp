@@ -89,6 +89,14 @@ private:
 	 */
 	int SetAnalogChannel(unsigned int id) override;
 
+	/**
+	 * @brief ensure mRendering is consistent with renderer state
+	 *
+	 * @return void
+	 */
+	void EnsureRendererStateConsistency();
+
+
 private:
 	bool mInitialized{false};
 };

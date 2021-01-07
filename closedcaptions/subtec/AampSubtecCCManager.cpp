@@ -87,7 +87,9 @@ void AampSubtecCCManager::StopRendering()
  */
 int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
 {
-	return subtecConnector::ccMgrAPI::ccSetDigitalChannel(id);
+	const auto ret =  subtecConnector::ccMgrAPI::ccSetDigitalChannel(id);
+	EnsureRendererStateConsistency();
+	return ret;
 }
 
 /**
@@ -97,5 +99,24 @@ int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
  */
 int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 {
-	return subtecConnector::ccMgrAPI::ccSetAnalogChannel(id);
+	const auto ret =  subtecConnector::ccMgrAPI::ccSetAnalogChannel(id);
+	EnsureRendererStateConsistency();
+	return ret;
+}
+
+/**
+ * @brief ensure mRendering is consistent with renderer state
+ *
+ * @return void
+ */
+void AampSubtecCCManager::EnsureRendererStateConsistency()
+{
+	if(mRendering)
+	{
+		StartRendering();
+	}
+	else
+	{
+		StopRendering();
+	}
 }
