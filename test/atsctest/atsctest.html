@@ -39,6 +39,7 @@ select:focus {
 		console.log(text);
 		document.getElementById("console").value += text+"\n";
 	}
+
 	function clearConsole()
 	{
 		document.getElementById("console").value = "";
@@ -50,6 +51,7 @@ select:focus {
 		console.log(text);
 		document.getElementById("console").value += text+"\n";
 	}
+
 	function setGuideText(text)
 	{
 	document.getElementById("guideText").value = text;
@@ -127,6 +129,7 @@ select:focus {
 		log( "Thunder Configuration: " + JSON.stringify(config) );
 		tc = ThunderJS(config);
 	}
+
 	function Activate( callsign )
 	{
 		tc.call( "Controller","activate", {"callsign":callsign} ).then( result => {
@@ -135,6 +138,55 @@ select:focus {
 			log( callsign + " activation error" );
 		});
 	}
+
+	function directTune()
+	{
+		tc.call("org.rdk.MediaServices","getServices",{}).then(result => {
+			isPlaying = false;
+			clearChannelMapList();
+
+			var chMapElement = document.getElementById("chMap");
+			var resultTable = result.table;
+			// create url list from the results
+			for (service in resultTable) {
+				tuneUrl = "tune://atsc?frequency=" + bandNameFrequencyMapper(Number(resultTable[service].bandName)) + "&serviceid=" + resultTable[service].serviceId;
+				var opt = document.createElement('option');
+				opt.text = tuneUrl;
+				opt.value = tuneUrl;
+				if( service==0 )
+				{
+					opt.selected = true;
+				}
+				chMapElement.add(opt,null);
+			}
+		}).catch(err => {
+			log('getServices Error '+ err);
+		});
+	}
+
+	/**
+	 * Convert the band name to frequency
+	 */
+	var freqTable = [
+		5700000,6300000,6900000,7900000,8500000,17700000,18300000,18900000,
+		19500000,20100000,20700000,21300000,47300000,47900000,48500000,49100000,
+		49700000,50300000,50900000,51500000,52100000,52700000,53300000,53900000,
+		54500000,55100000,55700000,56300000,56900000,57500000,58100000,58700000,
+		59300000,59900000,60500000,61100000,61700000,62300000,62900000,63500000,
+		64100000,64700000,65300000,65900000,66500000,67100000,67700000,68300000,
+		68900000,69500000,70100000,70700000,71300000,71900000,72500000,73100000,
+		73700000,74300000,74900000,75500000,76100000,76700000,77300000,77900000,
+		78500000,79100000,79700000,80300000 ];
+	function bandNameFrequencyMapper(bandName)
+	{
+		var idx = bandName-2;
+		if( idx>=0 && idx<freqTable.length )
+		{
+			return freqTable[bandName-2];
+		}
+		return 0;
+	}
+
 	function startScan()
 	{
 		tc.call("org.rdk.MediaServices","startScan", { "type": "ATSC", "onlyFree": true} ).then(result => {
@@ -146,7 +198,7 @@ select:focus {
 		});
 	}
 	
-		function abortScan()
+	function abortScan()
 	{
 		tc.call("org.rdk.MediaServices","abortScan", {} ).then(result => {
 		getAllServices();
@@ -157,7 +209,7 @@ select:focus {
 		});
 	}
 	
-			function registerOnPlayerStatus ()
+	function registerOnPlayerStatus ()
 	{
 		listenerOnPlayerStatus = tc.on('org.rdk.MediaPlayer','onPlayerStatus', (notification) => {
 			//var data = 'sts:' + notification.playerStatus + ' p:' + notification.position  + ' l:' + notification.length + ' loc:' + notification.locator + ' loff:' +  notification.liveOffset + ' spd:' + notification.speed ;
@@ -171,7 +223,7 @@ select:focus {
 	}
 	
 	
-		function registerOnScanProgress()
+	function registerOnScanProgress()
 	{
 		listener = tc.on("org.rdk.MediaServices",'onScanProgress', (notification) => {
 				var value = notification.progress * 100;
@@ -191,7 +243,7 @@ select:focus {
 		});
 	}
 	
-			function registerOnScanAction ()
+	function registerOnScanAction ()
 	{
 		listener = tc.on("org.rdk.MediaServices",'onScanAction ', (notification) => {
 				
@@ -200,7 +252,7 @@ select:focus {
 		});
 	}
 	
-		function getService()
+	function getService()
 	{
 		tc.call("org.rdk.MediaServices","getService",{"servicePk":1, "attributes": [ "pk","name","signalStrength" ]}).then(result => {
 			clog('getService Success '+ JSON.stringify(result))
@@ -727,7 +779,8 @@ function playbackStateChanged(event) {
 	
 	<div id="content">
 		<select id = "chMap" size="28" onchange="onChannelMapNav();" onclick="playChannel();"></select>
-				
+		
+		<input type="button" value="directTune" onclick="directTune();"/>
 		<input type="button" value="startScan" onclick="startScan();"/>
 		<input type="button" value="abortScan" onclick="abortScan();"/>
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
