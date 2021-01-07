@@ -480,8 +480,8 @@ static bool AAMP_setProperty_enableNativeCC(JSContextRef context, JSObjectRef th
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
 		return false;
 	}
-
-	pAAMP->_aamp->SetNativeCCRendering(JSValueToBoolean(context, value));
+	ERROR("[AAMP_JS] %s() Native CC rendering disabled for now!", __FUNCTION__);
+	//pAAMP->_aamp->SetNativeCCRendering(JSValueToBoolean(context, value));
 	return true;
 }
 
