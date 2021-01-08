@@ -2767,6 +2767,21 @@ public:
 	 */
 	bool RemoveAsyncTask(int taskId);
 
+	/**
+	 *   @brief Enable/disable configuration to persist ABR profile over Seek/SAP
+	 *
+	 *   @param[in] value - To enable/disable configuration
+	 *   @return void
+	 */
+	void PersistBitRateOverSeek(bool value);
+
+	/**
+	 *   @brief Get config for ABR profile persitenace over Seek/Audio Chg
+	 *
+	 *   @return bool - true if enabled
+	 */
+	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+
 private:
 
 	/**
@@ -2918,5 +2933,6 @@ private:
 	AampScheduler *mScheduler; /**< instance to schedule async tasks */
 	pthread_mutex_t mEventLock; /**< lock for operation on mPendingAsyncEvents */
 	int mEventPriority; /**< priority for async events */
+	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 };
 #endif // PRIVAAMP_H

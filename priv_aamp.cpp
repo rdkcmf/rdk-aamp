@@ -1544,6 +1544,11 @@ static void ProcessConfigEntry(std::string cfg)
                         gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
                         logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
                 }
+		else if (ReadConfigNumericHelper(cfg, "persistBitRateOverSeek=", value))
+		{
+			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
+			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1932,6 +1937,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mEnableSeekableRange(false), mReportVideoPTS(false),mCacheMaxSize(0)
 	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 	, mTsbRecordingId()
+	, mPersistBitRateOverSeek(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -9970,6 +9976,10 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
 	}
+	if(gpGlobalConfig->mPersistBitRateOverSeek != eUndefinedState)
+	{
+		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
+	}
 
 }
 
@@ -10028,6 +10038,24 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 		ret = g_source_remove(taskId);
 	}
 	return ret;
+}
+
+/**
+ *   @brief Enable/disable configuration to persist ABR profile over SAP/Seek
+ *
+ *   @param[in] value - To enable/disable configuration
+ *   @return void
+ */
+void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
+{
+	if(gpGlobalConfig->mPersistBitRateOverSeek == eUndefinedState)
+	{
+		mPersistBitRateOverSeek = value;
+	}
+	else
+	{
+		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
+	}
 }
 
 /**

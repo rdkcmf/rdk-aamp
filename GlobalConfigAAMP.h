@@ -241,6 +241,7 @@ public:
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
+	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 
 public:
 

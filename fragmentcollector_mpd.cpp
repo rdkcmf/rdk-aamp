@@ -6173,7 +6173,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					if (modifyDefaultBW)
 					{
 						long persistedBandwidth = aamp->GetPersistedBandwidth();
-						if(persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate))
+						// XIONE-2039 If Bitrate persisted over trickplay is true, set persisted BW as default init BW
+						if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
 						{
 							defaultBitrate = persistedBandwidth;
 						}
