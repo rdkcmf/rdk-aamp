@@ -2715,6 +2715,21 @@ public:
 	void EnableContentRestrictions();
 
 
+	/**
+	 *   @brief Enable/disable configuration to persist ABR profile over Seek/SAP
+	 *
+	 *   @param[in] value - To enable/disable configuration
+	 *   @return void
+	 */
+	void PersistBitRateOverSeek(bool value);
+
+	/**
+	 *   @brief Get config for ABR profile persitenace over Seek/Audio Chg
+	 *
+	 *   @return bool - true if enabled
+	 */
+	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+
 private:
 
 	/**
@@ -2838,5 +2853,6 @@ private:
 	int mCacheMaxSize;
 	bool mEnableSeekableRange;
 	bool mReportVideoPTS;
+	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 };
 #endif // PRIVAAMP_H

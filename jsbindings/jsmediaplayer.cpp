@@ -251,6 +251,7 @@ enum ConfigParamType
 	ePARAM_PROPAGATE_URI_PARAMETERS,
 	ePARAM_RELOCKONTIMEOUT,
 	ePARAM_RELOCKONPROGRAMCHANGE,
+	ePARAM_PERSIST_BITRATE_OVER_SEEK,
 	ePARAM_MAX_COUNT
 };
 
@@ -318,7 +319,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
 	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
 	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
-	{ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
+	{ ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
+	{ ePARAM_PERSIST_BITRATE_OVER_SEEK, "persistBitrateOverSeek"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -826,6 +828,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_ENABLE_SEEKABLE_RANGE:
 			case ePARAM_REPORT_VIDEO_PTS:
 			case ePARAM_PROPAGATE_URI_PARAMETERS:
+			case ePARAM_PERSIST_BITRATE_OVER_SEEK:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -991,6 +994,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PROPAGATE_URI_PARAMETERS:
 					privObj->_aamp->SetPropagateUriParameters(valueAsBoolean);
+					break;	
+				case ePARAM_PERSIST_BITRATE_OVER_SEEK:
+					privObj->_aamp->PersistBitRateOverSeek(valueAsBoolean);
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
