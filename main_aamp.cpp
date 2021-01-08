@@ -1937,5 +1937,17 @@ void PlayerInstanceAAMP::EnableContentRestrictions()
 }
 
 /**
+ *   @brief Enable/disable configuration to persist ABR profile over SAP/seek
+ *
+ *   @param[in] value - To enable/disable configuration
+ *   @return void
+ */
+void PlayerInstanceAAMP::PersistBitRateOverSeek(bool value)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->PersistBitRateOverSeek(value);
+}
+
+/**
  * @}
  */

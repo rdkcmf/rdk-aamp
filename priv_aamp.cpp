@@ -1541,6 +1541,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->midFragmentSeekEnabled = (value!=1);
 			logprintf("%s Mid-Fragment Seek",gpGlobalConfig->midFragmentSeekEnabled?"Enabled":"Disabled");
 		}
+		else if (ReadConfigNumericHelper(cfg, "persistBitRateOverSeek=", value))
+		{
+			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
+			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1936,6 +1941,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mTsbRecordingId()
+	, mPersistBitRateOverSeek(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -9867,6 +9873,11 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
 	}
+	if(gpGlobalConfig->mPersistBitRateOverSeek != eUndefinedState)
+	{
+		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
+	}
+
 }
 /**
  * @brief Set Maximum Cache Size for playlist store
@@ -9875,6 +9886,24 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 {
 	mCacheMaxSize = cacheSize * 1024 ;
+}
+
+/**
+ *   @brief Enable/disable configuration to persist ABR profile over SAP/Seek
+ *
+ *   @param[in] value - To enable/disable configuration
+ *   @return void
+ */
+void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
+{
+	if(gpGlobalConfig->mPersistBitRateOverSeek == eUndefinedState)
+	{
+		mPersistBitRateOverSeek = value;
+	}
+	else
+	{
+		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
+	}
 }
 
 /**

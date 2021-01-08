@@ -155,6 +155,7 @@ maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
+persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

@@ -1348,6 +1348,14 @@ public:
 	 */
 	void EnableContentRestrictions();
 
+	/**
+	 *   @brief Enable/disable configuration to persist ABR profile over seek/SAP
+	 *
+	 *   @param[in] value - To enable/disable configuration
+	 *   @return void
+	 */
+	void PersistBitRateOverSeek(bool value);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
