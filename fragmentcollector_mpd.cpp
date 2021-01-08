@@ -6676,7 +6676,18 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 						ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
 						if (segmentList)
 						{
-							std::string initialization = segmentList->GetInitialization()->GetSourceURL();
+							const IURLType *urlType = segmentList->GetInitialization();
+							if( !urlType )
+							{
+								segmentList = pMediaStreamContext->adaptationSet->GetSegmentList();
+								urlType = segmentList->GetInitialization();
+								if( !urlType )
+								{
+									AAMPLOG_WARN("%s:%d : initialization is null", __FUNCTION__, __LINE__);
+									continue;
+								}
+							}
+							std::string initialization = urlType->GetSourceURL();
 							if (!initialization.empty())
 							{
 								double fragmentDuration = 0.0;
