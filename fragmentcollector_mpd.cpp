@@ -7294,18 +7294,32 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					int adaptationSetCount = adapatationSets.size();
 					if(currentPeriodId != mCurrentPeriod->GetId())
 					{
-						logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
-						currentPeriodId = mCurrentPeriod->GetId();
-						mPrevAdaptationSetCount = adaptationSetCount;
-						logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
+						/*DELIA-47914:  If next period is empty, period ID change is  not processing.
+						Will check the period change for the same period in the next iteration.*/
+						if(adaptationSetCount > 0 || !IsEmptyPeriod(mCurrentPeriod))
+						{
+							logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
+							currentPeriodId = mCurrentPeriod->GetId();
+							mPrevAdaptationSetCount = adaptationSetCount;
+							periodChanged = true;
+							requireStreamSelection = true;
+							logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
+						}
+						else
+						{
+							for (int i = 0; i < mNumberOfTracks; i++)
+							{
+								mMediaStreamContext[i]->enabled = false;
+							}
+							logprintf("Period ID not changed from \'%s\' to \'%s\',since period is empty [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
+						}
+
 						//We are moving to new period so reset the lastsegment time
 						for (int i = 0; i < mNumberOfTracks; i++)
 						{
 							mMediaStreamContext[i]->lastSegmentTime = 0;
 							mMediaStreamContext[i]->lastSegmentDuration = 0;
 						}
-						requireStreamSelection = true;
-						periodChanged = true;
 					}
 					else if(mPrevAdaptationSetCount != adaptationSetCount)
 					{
