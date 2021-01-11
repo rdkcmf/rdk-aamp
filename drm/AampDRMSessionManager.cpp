@@ -165,6 +165,16 @@ void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 }
 
 /**
+ * @brief	Get Session manager state
+ * @param	void
+ * @return	state.
+ */
+SessionMgrState AampDRMSessionManager::getSessionMgrState()
+{
+	return sessionMgrState;
+}
+
+/**
  * @brief	Set Session abort flag
  * @param	bool flag
  * @return	void.
