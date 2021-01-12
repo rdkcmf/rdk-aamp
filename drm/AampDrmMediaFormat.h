@@ -15,7 +15,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+*/	
 
 #ifndef AAMPDRMMEDIAFORMAT_H
 #define AAMPDRMMEDIAFORMAT_H
@@ -29,8 +29,9 @@ typedef enum
 	eMEDIAFORMAT_DASH,
 	eMEDIAFORMAT_PROGRESSIVE,
 	eMEDIAFORMAT_HLS_MP4,
-        eMEDIAFORMAT_OTA,
-        eMEDIAFORMAT_HDMI,
+	eMEDIAFORMAT_OTA,
+	eMEDIAFORMAT_HDMI,
+	eMEDIAFORMAT_COMPOSITE,
 	eMEDIAFORMAT_UNKNOWN
 } MediaFormat;
 

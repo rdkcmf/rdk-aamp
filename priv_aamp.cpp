@@ -32,6 +32,7 @@
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
 #include "hdmiin_shim.h"
+#include "compositein_shim.h"
 #include "ota_shim.h"
 #include "_base64.h"
 #include "base16.h"
@@ -4909,7 +4910,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	case eMEDIAFORMAT_HDMI:
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HDMIIN(this, playlistSeekPos, rate);
 		break;
- 
+	case eMEDIAFORMAT_COMPOSITE:
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_COMPOSITEIN(this, playlistSeekPos, rate);
+		break;
 	case eMEDIAFORMAT_OTA:
 		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
 		break;
@@ -5353,6 +5356,10 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
         {
                 rc = eMEDIAFORMAT_HDMI;
         }
+        else if( urlStr.rfind("cvbsin:",0)==0 )
+        {
+                rc = eMEDIAFORMAT_COMPOSITE;
+        }
         else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0))
         {
                 rc = eMEDIAFORMAT_OTA;
@@ -5666,6 +5673,14 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 		else if(playbackMode == "OTA")
 		{
 			mContentType = ContentType_OTA; //ota
+		}
+		else if(playbackMode == "HDMI_IN")
+		{
+			mContentType = ContentType_HDMIIN; //ota
+		}
+		else if(playbackMode == "COMPOSITE_IN")
+		{
+			mContentType = ContentType_COMPOSITEIN; //ota
 		}
 	}
 }
@@ -6127,7 +6142,7 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI)))
+	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE)))
 		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
 	else
 		mStreamSink->SetVideoRectangle(x, y, w, h);
