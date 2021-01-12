@@ -104,8 +104,6 @@ include_directories(${LIBCJSON_INCLUDE_DIRS})
 
 set(LIBAAMP_SOURCES iso639map.cpp
                     base16.cpp
-                    ota_shim.cpp
-                    hdmiin_shim.cpp
                     _base64.cpp
                     AampMemoryUtils.cpp
                     AampCacheHandler.cpp
@@ -115,6 +113,10 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     GlobalConfigAAMP.cpp
                     AampEvent.cpp
                     AampEventListener.cpp
+                    ota_shim.cpp
+                    hdmiin_shim.cpp
+                    videoin_shim.cpp
+                    compositein_shim.cpp
                     fragmentcollector_progressive.cpp
                     fragmentcollector_hls.cpp
                     fragmentcollector_mpd.cpp

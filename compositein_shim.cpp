@@ -18,61 +18,55 @@
  */
 
 /**
- * @file fragmentcollector_HDMIIN.cpp
- * @brief shim for dispatching UVE HDMI input playback
+ * @file fragmentcollector_COMPOSITEIN.cpp
+ * @brief shim for dispatching UVE Composite input playback
  */
-#include "hdmiin_shim.h"
-#include "priv_aamp.h"
+#include "compositein_shim.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <signal.h>
 #include <assert.h>
-#include "AampUtils.h"
+
+
+#define COMPOSITEINPUT_CALLSIGN "org.rdk.CompositeInput.1"
 
 /**
-HdmiInput thunder plugin reference: https://wiki.rdkcentral.com/display/RDK/HDMI++Input
-*/
-
-#define HDMIINPUT_CALLSIGN "org.rdk.HdmiInput.1"
-
-/**
- * @brief StreamAbstractionAAMP_HDMIIN Constructor
+ * @brief StreamAbstractionAAMP_COMPOSITEIN Constructor
  * @param aamp pointer to PrivateInstanceAAMP object associated with player
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-                             : StreamAbstractionAAMP_VIDEOIN("HDMIIN", HDMIINPUT_CALLSIGN,aamp,seek_pos,rate)
+StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                             : StreamAbstractionAAMP_VIDEOIN("COMPOSITEIN", COMPOSITEINPUT_CALLSIGN,aamp,seek_pos,rate)
 {
-	aamp->SetContentType("HDMI_IN");
-}
-		   
-/**
- * @brief StreamAbstractionAAMP_HDMIIN Destructor
- */
-StreamAbstractionAAMP_HDMIIN::~StreamAbstractionAAMP_HDMIIN()
-{
-	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
+	aamp->SetContentType("COMPOSITE_IN");
 }
 
 /**
+ * @brief StreamAbstractionAAMP_COMPOSITEIN Destructor
+ */
+StreamAbstractionAAMP_COMPOSITEIN::~StreamAbstractionAAMP_COMPOSITEIN()
+{
+	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
+}
+/**
  *   @brief  Starts streaming.
  */
-void StreamAbstractionAAMP_HDMIIN::Start(void)
+void StreamAbstractionAAMP_COMPOSITEIN::Start(void)
 {
 	const char *url = aamp->GetManifestUrl().c_str();
-	int hdmiInputPort = -1;
-	if( sscanf(url, "hdmiin://localhost/deviceid/%d", &hdmiInputPort ) == 1 )
+	int compositeInputPort = -1;
+	if( sscanf(url, "cvbsin://localhost/deviceid/%d", &compositeInputPort ) == 1 )
 	{
-		StartHelper(hdmiInputPort,"startHdmiInput");
+		StartHelper(compositeInputPort,"startCompositeInput");
 	}
 }
 
 /**
 *   @brief  Stops streaming.
 */
-void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
+void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
 {
-	StopHelper("stopHdmiInput");
+	StopHelper("stopCompositeInput");
 }
