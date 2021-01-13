@@ -97,6 +97,7 @@ public:
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 
 private:
+	friend class MediaStreamContext;
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
@@ -124,7 +125,7 @@ private:
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
 	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
-	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
+	AAMPStatusType GetMpdFromManifest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	int GetDrmPrefs(const std::string& uuid);
 	bool IsEmptyPeriod(IPeriod *period);
 	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
@@ -207,7 +208,9 @@ private:
 	
 	void SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex);
 	void SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex);
-	
+	std::string GetMatchedMpdBaseUrl();
+	void SetFragmentBaseUrl(class MediaStreamContext *pMediaStreamContext );
+
 #ifdef AAMP_MPD_DRM
 	void ProcessEAPLicenseRequest(void);
 	void StartDeferredDRMRequestThread(MediaType mediaType);
