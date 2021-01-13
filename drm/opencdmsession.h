@@ -17,7 +17,7 @@
  * limitations under the License.
 */
 
-/* Comcast DRM Session management for Aamp
+/* DRM Session management for Aamp
  *
  */
 

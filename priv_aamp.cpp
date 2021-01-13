@@ -1012,7 +1012,7 @@ static void ProcessConfigEntry(std::string cfg)
 		}
 		else if (cfg.compare("reportvideopts") == 0)
 		{
-			gpGlobalConfig->bReportVideoPTS = true;
+			gpGlobalConfig->bReportVideoPTS = eTrueState;
 			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
 		}
 		else if (cfg.compare("decoderunavailablestrict") == 0)
@@ -1176,6 +1176,11 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
 			logprintf("useWesterosSink=%d", value);
+		}
+		else if (ReadConfigNumericHelper(cfg, "propagateUriParameters=", value) == 1)
+                {
+			gpGlobalConfig->mPropagateUriParameters = (TriState)(value);
+			logprintf("PropagateUriParameters = %d", (TriState) gpGlobalConfig->mPropagateUriParameters);
 		}
 		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
 		{
@@ -1478,6 +1483,11 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
 		}
+		else if(ReadConfigNumericHelper(cfg, "enableSeekableRange=", value))
+		{
+			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
+			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -1504,6 +1514,11 @@ static void ProcessConfigEntry(std::string cfg)
                         gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
                         logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
                 }
+		else if (ReadConfigNumericHelper(cfg, "disableMidFragmentSeek=", value) == 1)
+		{
+			gpGlobalConfig->midFragmentSeekEnabled = (value!=1);
+			logprintf("%s Mid-Fragment Seek",gpGlobalConfig->midFragmentSeekEnabled?"Enabled":"Disabled");
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1870,7 +1885,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
-	,mTuneEventConfigLive(eTUNED_EVENT_ON_PLAYLIST_INDEXED), mTuneEventConfigVod(eTUNED_EVENT_ON_PLAYLIST_INDEXED)
+	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
 	,mCurlShared(NULL)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
@@ -1884,7 +1899,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
-	, mPlayermode(PLAYERMODE_JSPLAYER), mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
+	,  mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mReportProgressInterval(DEFAULT_REPORT_PROGRESS_INTERVAL), mParallelPlaylistFetchLock(), mAppName()
 	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
@@ -1892,7 +1907,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
-	, mSessionToken()
+	, mSessionToken(), mCacheMaxSize(0)
+	, midFragmentSeekCache(false)
+	, mEnableSeekableRange(false), mReportVideoPTS(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -1942,9 +1959,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	gActivePrivAAMP_t gAAMPInstance = { this, false, 0 };
 	gActivePrivAAMPs.push_back(gAAMPInstance);
 	pthread_mutex_unlock(&gMutex);
-	discardEnteringLiveEvt = false;
-	licenceFromManifest = false;
-	mTunedEventPending = false;
 	mPendingAsyncEvents.clear();
 
 	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
@@ -1963,62 +1977,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
 	pthread_mutex_init(&mMutexPlaystart, NULL);
-	mNetworkProxy = NULL;
-	mLicenseProxy = NULL;
-	mCdaiObject = NULL;
-	mAdPrevProgressTime = 0;
-	mAdProgressId = "";
 	SetAsyncTuneConfig(false);
-	if(gpGlobalConfig->rampdownLimit >= 0)
-	{
-		mRampDownLimit = gpGlobalConfig->rampdownLimit;
-	}
-	if(gpGlobalConfig->minBitrate > 0)
-	{
-		mMinBitrate = gpGlobalConfig->minBitrate;
-	}
-	if(gpGlobalConfig->maxBitrate > 0)
-	{
-		mMaxBitrate = gpGlobalConfig->maxBitrate;
-	}
-	if(gpGlobalConfig->segInjectFailCount > 0)
-	{
-		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
-	}
-	if(gpGlobalConfig->drmDecryptFailCount > 0)
-	{
-		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
-	}
-	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
-	{
-		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
-	}
-	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
-	{
-		mNewAdBreakerEnabled	= (bool)gpGlobalConfig->useNewDiscontinuity;
-	}
-	if (gpGlobalConfig->ckLicenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
-	}
-	if (gpGlobalConfig->licenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
-	}
-	
-	if(gpGlobalConfig->disableEC3 != eUndefinedState)
-	{
-		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
-	}
-	if(gpGlobalConfig->disableATMOS != eUndefinedState)
-	{
-		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
-	}
-	if(gpGlobalConfig->forceEC3 != eUndefinedState)
-	{
-		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
-	}
-	preferredLanguagesList.push_back("en");
+	ConfigureWithLocalOptions();
+        preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
@@ -2137,9 +2098,10 @@ void PrivateInstanceAAMP::ReportProgress(void)
 		long long videoPTS = -1;
 		double bufferedDuration = 0.0;
 
-		//If tsb is not available for linear send -1  for start and end
+		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
-		if( mContentType == ContentType_LINEAR && !mTSBEnabled)
+		// Override above logic if mEnableSeekableRange is set, used by third-party apps
+		if (!mEnableSeekableRange && (mContentType == ContentType_LINEAR && !mTSBEnabled))
 		{
 			start = -1;
 			end = -1;
@@ -2160,7 +2122,7 @@ void PrivateInstanceAAMP::ReportProgress(void)
 			}
 		}
 
-		if(gpGlobalConfig->bReportVideoPTS)
+		if(mReportVideoPTS)
 		{
 				/*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
 				**In order to report PTS of video currently being played out, we add the base PTS
@@ -2741,6 +2703,8 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	}
+
+	logprintf("BitrateChanged:%d", reason);
 }
 
 
@@ -2988,16 +2952,15 @@ void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
  */
 void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 {
-	std::stringstream eventsJSON;
+	std::string eventsJSON;
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
-	std::string jsonStr = eventsJSON.str();
-	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,jsonStr.c_str());
+	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.c_str());
 
 	//for now, avoid use of logprintf, to avoid potential truncation when URI in tune profiling or
 	//extra events push us over limit
-	AAMPLOG_WARN("tune-profiling: %s", jsonStr.c_str());
+	AAMPLOG_WARN("tune-profiling: %s", eventsJSON.c_str());
 
-	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(jsonStr);
+	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(eventsJSON);
 	SendEventAsync(e);
 }
 
@@ -3210,7 +3173,9 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
+        long curlIPResolve;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
+        curlIPResolve = aamp_GetIPResolveValue();
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (!curl[i])
@@ -3227,7 +3192,8 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
 			curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 			curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
-			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+                        //Depending on ip mode supported by box, force curl to use that particular ip mode (DELIA-46626)
+                        curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, curlIPResolve);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
 			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
@@ -3283,7 +3249,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
  * @brief Store language list of stream
  * @param langlist Array of languges
  */
-void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &langlist)
+void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlist)
 {
 	// store the language list
 	int langCount = langlist.size();
@@ -3292,14 +3258,15 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::vector<std::string> &lang
 		langCount = MAX_LANGUAGE_COUNT; //boundary check
 	}
 	mMaxLanguageCount = langCount;
-	for (int cnt=0; cnt < langCount; cnt ++)
+	std::set<std::string>::const_iterator iter = langlist.begin();
+	for (int cnt = 0; cnt < langCount; cnt++, iter++)
 	{
-		strncpy(mLanguageList[cnt], langlist[cnt].c_str(), MAX_LANGUAGE_TAG_LENGTH);
+		strncpy(mLanguageList[cnt], iter->c_str(), MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
 #ifdef SESSION_STATS
 		if( this->mVideoEnd )
 		{
-			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, langlist[cnt], cnt+1);
+			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, (*iter), cnt+1);
 		}
 #endif
 	}
@@ -3610,18 +3577,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		pthread_mutex_unlock(&mLock);
 
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST)
+		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST )
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
 				gpGlobalConfig->uriParameter[0] = '?';
 			}
-
 			remoteUrl.append(gpGlobalConfig->uriParameter);
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
-		AAMPLOG_INFO("aamp url:%d,%d,%s",mediaType, simType, remoteUrl.c_str());
+		AAMPLOG_INFO("aamp url:%d,%d,%d,%s", mediaType, simType, curlInstance, remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
 		{
@@ -4443,7 +4409,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		cfgPath += "/aamp.cfg";
 #else
 
-#ifdef AAMP_CPC // Comcast builds
+#ifdef AAMP_CPC
         // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
         const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
 #else
@@ -4823,8 +4789,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		durationSeconds = 60 * 60; // 1 hour
 		rate = AAMP_NORMAL_PLAY_RATE;
 		playStartUTCMS = aamp_GetCurrentTimeMS();
-		std::vector<std::string> emptyLanglist;
-		StoreLanguageList(emptyLanglist);
+		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
 	}
 
@@ -5089,9 +5054,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 #endif
 	}
 
-	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
+	if(mCacheMaxSize != 0)
+        {
+                getAampCacheHandler()->SetMaxPlaylistCacheSize(mCacheMaxSize);
+        }
+	else if(mPreCacheDnldTimeWindow > 0)
 	{
-		getAampCacheHandler()->SetMaxPlaylistCacheSize(gpGlobalConfig->gMaxPlaylistCacheSize);
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
 
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
@@ -5321,7 +5291,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	{
 		rc = eMEDIAFORMAT_HDMI;
 	}
-	else if( urlStr.rfind("live:",0)==0 )
+	else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0)) 
 	{
 		rc = eMEDIAFORMAT_OTA;
 	}
@@ -5675,11 +5645,11 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 	std::string drmInitDataStr;
 
 	const size_t queryPos = urlStr.find("?");
+	std::string modUrl;
 	if (queryPos != std::string::npos)
 	{
 		// URL contains a query string. Strip off & decode the drmInitData (if present)
-		std::stringstream modifiedUrl;
-		modifiedUrl << urlStr.substr(0, queryPos);
+		modUrl = urlStr.substr(0, queryPos);
 		const std::string parameterDefinition("drmInitData=");
 		std::string parameter;
 		std::stringstream querySs(urlStr.substr(queryPos + 1, std::string::npos));
@@ -5692,10 +5662,11 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 			}
 			else
 			{ // filter out drmInitData; reintroduce all other URI parameters
-				modifiedUrl << ((modifiedUrl.tellp() == queryPos) ? "?" : "&") << parameter;
+				modUrl.append((queryPos == modUrl.length()) ? "?" : "&");
+				modUrl.append(parameter);
 			}
 		}
-		urlStr = modifiedUrl.str();
+		urlStr = modUrl;
 	}
 	return std::tuple<std::string, std::string>(urlStr, drmInitDataStr);
 }
@@ -6043,6 +6014,18 @@ void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 	}
 }
 
+/**
+ *   @brief to configure propagate URI parameters for fragment download
+ *
+ *   @param[in] bValue - true to enable
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
+{
+	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
+	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
+}
 
 /**
  *   @brief Configure New ABR Enable/Disable
@@ -7452,13 +7435,16 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
  */
 void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
+	// Local aamp.cfg config trumps JS PP config
+	if (gpGlobalConfig->licenseServerLocalOverride)
+	{
+		AAMPLOG_INFO("PrivateInstanceAAMP::%s - aamp cfg overrides, so license url - %s for type - %d is ignored", __FUNCTION__, url, type);
+		return;
+	}
+
 	if (type == eDRM_MAX_DRMSystems)
 	{
-		// Local aamp.cfg config trumps JS PP config
-		if (gpGlobalConfig->licenseServerLocalOverride)
-		{
-			return;
-		}
+
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(url);
 	}
 	else if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey)
@@ -7641,14 +7627,34 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 /**
  * @brief Update audio language selection
  * @param lang string corresponding to language
- * @param overwriteLangFlag - flag to check for overwriting user setting
+ * @param checkBeforeOverwrite - if set will do additional checks before overwriting user setting
  */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag)
+void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite)
 {
-	if(overwriteLangFlag)
+	bool overwriteSetting = true;
+	if (checkBeforeOverwrite)
 	{
-		strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-		language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		// Check if the user provided language is present in the available language list
+		// in which case this is just temporary and no need to overwrite user settings
+		for (int cnt = 0; cnt < mMaxLanguageCount; cnt++)
+		{
+			if(strncmp(mLanguageList[cnt], language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+			{
+				overwriteSetting = false;
+				break;
+			}
+		}
+
+	}
+
+	if (overwriteSetting)
+	{
+		if (strncmp(language, lang, MAX_LANGUAGE_TAG_LENGTH) != 0)
+		{
+			AAMPLOG_WARN("%s:%d Update audio language from (%s) -> (%s)", __FUNCTION__, __LINE__, language, lang);
+			strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
+			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+		}
 	}
 	noExplicitUserLanguageSelection = false;
 
@@ -7847,19 +7853,23 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 
 	GetPlayerVideoSize(width, height);
 
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm);
+	std::string drmType = "NONE";
+	std::shared_ptr<AampDrmHelper> helper = GetCurrentDRM();
+	if (helper)
+	{
+		drmType = helper->friendlyName();
+	}
+
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType);
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
-		const char *src = (*iter).c_str();
-		size_t len = strlen(src);
-		if (len > 0)
+		if (!iter->empty())
 		{
-			assert(len < MAX_LANGUAGE_TAG_LENGTH - 1);
-			event->addLanguage(std::string(src));
+			assert(iter->size() < MAX_LANGUAGE_TAG_LENGTH - 1);
+			event->addLanguage((*iter));
 		}
 	}
-	StoreLanguageList(event->getLanguages());
 
 	for (int i = 0; i < bitrateList.size(); i++)
 	{
@@ -8152,40 +8162,7 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
 		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
 
-	if (PLAYERMODE_MEDIAPLAYER == mPlayermode)
-	{
-		mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : true);
-	}
-	else
-	{
-		mEnableRectPropertyEnabled = ((gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState) ? ((bool)gpGlobalConfig->mEnableRectPropertyCfg) : (!mWesterosSinkEnabled));
-	}
-
 	AAMPLOG_WARN("%s Westeros Sink", mWesterosSinkEnabled ? "Enabling" : "Disabling");
-}
-
-/**
- * @brief Set Playermode config for JSPP / Mediaplayer.
- *
- * @param[in] playermode - either JSPP and Mediaplayer.
- *
- */
-void PrivateInstanceAAMP::ConfigurePlayerModeSettings()
-{
-	switch (mPlayermode)
-	{
-		case PLAYERMODE_MEDIAPLAYER:
-		{
-			SetTuneEventConfig(eTUNED_EVENT_ON_GST_PLAYING);
-		}
-			break; /* PLAYERMODE_MEDIAPLAYER */
-
-		case PLAYERMODE_JSPLAYER:
-		{
-			SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
-		}
-			break; /* PLAYERMODE_JSPLAYER */
-	}
 }
 
 /**
@@ -8803,7 +8780,16 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		mStreamSink->SeekStreamSink(position, rate);
+		if(gpGlobalConfig->midFragmentSeekEnabled && position != 0 )
+		{
+			//RDK-26957 Adding midSeekPtsOffset to position value.
+			//Enables us to seek to the desired position in the mp4 fragment.
+			mStreamSink->SeekStreamSink(position + GetFirstPTS(), rate);
+		}
+		else
+		{
+			mStreamSink->SeekStreamSink(position, rate);
+		}
 	}
 #endif
 }
@@ -8829,16 +8815,11 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 		// May be Stop is called to release all resources .
 		// Before download , check the state 
 		GetState(state);
-		if(state != eSTATE_RELEASED)
+		// Check for state not IDLE also to avoid DELIA-46092
+		if(state != eSTATE_RELEASED || state != eSTATE_IDLE)
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE, 1, GetNetworkProxy());
 			SetCurlTimeout(mPlaylistTimeoutMs, eCURLINSTANCE_PLAYLISTPRECACHE);
-			// calculate the cache size, consider 1 MB/playlist
-			int maxCacheSz = szPlaylistCount * 1024 * 1024;
-			// get the current cache max size , to restore later 
-			int currMaxCacheSz =getAampCacheHandler()->GetMaxPlaylistCacheSize();
-			// set new playlistCacheSize; 
-			getAampCacheHandler()->SetMaxPlaylistCacheSize(maxCacheSz);
 			int sleepTimeBetweenDnld = (maxWindowforDownload / szPlaylistCount) * 1000; // time in milliSec 
 			int idx = 0;
 			do
@@ -8879,8 +8860,6 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 				}
 				GetState(state);
 			}while (idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
-			// restore old cache size
-			getAampCacheHandler()->SetMaxPlaylistCacheSize(currMaxCacheSz);
 			mPreCacheDnldList.clear();
 			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
 		}
@@ -9584,34 +9563,34 @@ void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
  *   @param[in] audioFormat - audio stream format
  *   @return void
  */
+
 void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat)
 {
 	bool reconfigure = false;
 	AAMPLOG_WARN("%s:%d Got format - videoFormat %d and audioFormat %d", __FUNCTION__, __LINE__, videoFormat, audioFormat);
 
-	// We need to make some hardcore decisions here. What we know already -
-	// 1. We know GStreamer can identify caps using typefind element
-	// 2. Everytime Configure() is called, it "recreates" all playbins if there is a change in even one track's format(even unknown to known)
-	// 3. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble
-	// So, lets call Configure() only if the format was INVALID previously to ease the aforementioned overhead
-	// TODO: Update Configure() to be able to handle simple CAPS changes rather than recreating playbins
-	//
+	// 1. Modified Configure() not to recreate all playbins if there is a change in track's format.
+	// 2. For a demuxed scenario, this function will be called twice for each audio and video, so double the trouble.
+	// Hence call Configure() only for following scenarios to reduce the overhead,
+	// i.e FORMAT_INVALID to any KNOWN/FORMAT_UNKNOWN, FORMAT_UNKNOWN to any KNOWN and any FORMAT_KNOWN to FORMAT_KNOWN if it's not same.
 	// Truth table
 	// mVideFormat   videoFormat  reconfigure
-	// *              INVALID       false
+	// *		  INVALID	false
+	// INVALID        INVALID       false
 	// INVALID        UNKNOWN       true
+	// INVALID	  KNOWN         true
+	// UNKNOWN	  INVALID	false
 	// UNKNOWN        UNKNOWN       false
-	// KNOWN          UNKNWON       false // this maybe an unknown format for tsprocessor but specified in manifest
-	// INVALID        KNOWN         true
-	// UNKNOWN        KNOWN         false // as described in TODO
-	// KNOWN          KNWON         true if format changes, false if same
-	//
-	if (mVideoFormat != videoFormat && (mVideoFormat == FORMAT_INVALID || (mVideoFormat != FORMAT_UNKNOWN && videoFormat != FORMAT_UNKNOWN)) && videoFormat != FORMAT_INVALID)
+	// UNKNOWN	  KNOWN		true
+	// KNOWN	  INVALID	false
+	// KNOWN          UNKNOWN	false
+	// KNOWN          KNOWN         true if format changes, false if same
+	if (videoFormat != FORMAT_INVALID && mVideoFormat != videoFormat && (videoFormat != FORMAT_UNKNOWN || mVideoFormat == FORMAT_INVALID))
 	{
 		reconfigure = true;
 		mVideoFormat = videoFormat;
 	}
-	if (audioFormat != mAudioFormat && (mAudioFormat == FORMAT_INVALID || (mAudioFormat != FORMAT_UNKNOWN && audioFormat != FORMAT_UNKNOWN)) && audioFormat != FORMAT_INVALID)
+	if (audioFormat != FORMAT_INVALID && mAudioFormat != audioFormat && (audioFormat != FORMAT_UNKNOWN || mAudioFormat == FORMAT_INVALID))
 	{
 		reconfigure = true;
 		mAudioFormat = audioFormat;
@@ -9623,6 +9602,142 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		// or even presence of audio
 		mStreamSink->Configure(mVideoFormat, mAudioFormat, false);
 	}
+}
+
+/**
+ *   @brief Set video rectangle property
+ *
+ *   @param[in] video rectangle property
+ */
+void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
+{
+	//  Value can be set only if local override is not available.Local setting takes preference
+	if(gpGlobalConfig->mEnableRectPropertyCfg == eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = rectProperty;
+	}
+	else
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+}
+
+/**
+ *   @brief Enable seekable range values in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
+{
+	if(gpGlobalConfig->mEnableSeekableRange == eUndefinedState)
+	{
+		mEnableSeekableRange = enabled;
+	}
+	else
+	{
+		mEnableSeekableRange = (bool)gpGlobalConfig->mEnableSeekableRange;
+	}
+}
+
+/**
+ *   @brief Enable video PTS reporting in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
+{
+	if(gpGlobalConfig->bReportVideoPTS == eUndefinedState)
+	{
+		mReportVideoPTS = enabled;
+	}
+	else
+	{
+		mReportVideoPTS = (bool)gpGlobalConfig->bReportVideoPTS;
+	}
+}
+
+void PrivateInstanceAAMP::ConfigureWithLocalOptions()
+{
+	if(gpGlobalConfig->rampdownLimit >= 0)
+	{
+		mRampDownLimit = gpGlobalConfig->rampdownLimit;
+	}
+	if(gpGlobalConfig->minBitrate > 0)
+	{
+		mMinBitrate = gpGlobalConfig->minBitrate;
+	}
+	if(gpGlobalConfig->maxBitrate > 0)
+	{
+		mMaxBitrate = gpGlobalConfig->maxBitrate;
+	}
+	if(gpGlobalConfig->segInjectFailCount > 0)
+	{
+		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
+	}
+	if(gpGlobalConfig->drmDecryptFailCount > 0)
+	{
+		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
+	}
+	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
+	{
+		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
+	}
+	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
+	{
+		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
+	}
+	if (gpGlobalConfig->ckLicenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
+	}
+	if (gpGlobalConfig->licenseServerURL != NULL)
+	{
+		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
+	}
+	if(gpGlobalConfig->disableEC3 != eUndefinedState)
+	{
+		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
+	}
+	if(gpGlobalConfig->disableATMOS != eUndefinedState)
+	{
+		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
+	}
+	if(gpGlobalConfig->forceEC3 != eUndefinedState)
+	{
+		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
+	}
+	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
+	{
+		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
+	}
+	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
+	{
+		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
+	}
+	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+	}
+	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
+	{
+		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
+	}
+	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)
+	{
+		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;
+	}
+	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
+	{
+		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
+	}
+}
+/**
+ * @brief Set Maximum Cache Size for playlist store
+ *
+ */
+void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
+{
+	mCacheMaxSize = cacheSize * 1024 ;
 }
 
 /**

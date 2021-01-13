@@ -28,7 +28,7 @@
 #include "jseventlistener.h"
 #include <vector>
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.9"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "2.10"
 
 extern "C"
 {
@@ -236,12 +236,19 @@ enum ConfigParamType
 	ePARAM_RAMPDOWN_LIMIT,
 	ePARAM_SEGMENTINJECTLIMIT,
 	ePARAM_DRMDECRYPTLIMIT,
+	ePARAM_CEA_FORMAT,
 	ePARAM_USE_MATCHING_BASEURL,
 	ePARAM_USE_NATIVE_CC,
+	ePARAM_ENABLE_VIDEO_RECTANGLE,
+	ePARAM_TUNE_EVENT_CONFIG,
 	ePARAM_LANG_CODE_PREFERENCE,
 	ePARAM_USE_DESCRIPTIVE_TRACK_NAME,
 	ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR,
 	ePARAM_AUTHTOKEN,
+	ePARAM_MAX_PLAYLIST_CACHE_SIZE,
+	ePARAM_ENABLE_SEEKABLE_RANGE,
+	ePARAM_REPORT_VIDEO_PTS,
+	ePARAM_PROPAGATE_URI_PARAMETERS,
 	ePARAM_MAX_COUNT
 };
 
@@ -296,12 +303,19 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_RAMPDOWN_LIMIT, "fragmentRetryLimit" },
 	{ ePARAM_SEGMENTINJECTLIMIT, "segmentInjectFailThreshold" },
 	{ ePARAM_DRMDECRYPTLIMIT, "drmDecryptFailThreshold" },
+	{ ePARAM_CEA_FORMAT, "ceaFormat" },
 	{ ePARAM_USE_MATCHING_BASEURL, "useMatchingBaseUrl" },
 	{ ePARAM_USE_NATIVE_CC, "nativeCCRendering" },
+	{ ePARAM_ENABLE_VIDEO_RECTANGLE, "enableVideoRectangle" },
+	{ ePARAM_TUNE_EVENT_CONFIG, "tuneEventConfig" },
 	{ ePARAM_LANG_CODE_PREFERENCE, "langCodePreference" },
 	{ ePARAM_USE_DESCRIPTIVE_TRACK_NAME, "descriptiveTrackName" },
 	{ ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR, "useRetuneForGstInternalError" },
 	{ ePARAM_AUTHTOKEN, "authToken"},
+	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
+	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
+	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
+	{ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -585,10 +599,49 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 		return JSValueMakeUndefined(ctx);
 	}
 	bool autoPlay = true;
+	bool bFinalAttempt = false;
+	bool bFirstAttempt = true;
 	char* url = NULL;
+	char* contentType = NULL;
+	char* strTraceId = NULL;
 
 	switch(argumentCount)
 	{
+		case 3:
+		{
+			JSObjectRef argument = JSValueToObject(ctx, arguments[2], NULL);
+			JSStringRef paramName = JSStringCreateWithUTF8CString("contentType");
+			JSValueRef paramValue = JSObjectGetProperty(ctx, argument, paramName, NULL);
+			if (JSValueIsString(ctx, paramValue))
+			{
+				contentType = aamp_JSValueToCString(ctx, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("traceId");
+			paramValue = JSObjectGetProperty(ctx, argument, paramName, NULL);
+			if (JSValueIsString(ctx, paramValue))
+			{
+				strTraceId = aamp_JSValueToCString(ctx, paramValue, NULL);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("isInitialAttempt");
+			paramValue = JSObjectGetProperty(ctx, argument, paramName, NULL);
+			if (JSValueIsBoolean(ctx, paramValue))
+			{
+				bFirstAttempt = JSValueToBoolean(ctx, paramValue);
+			}
+			JSStringRelease(paramName);
+
+			paramName = JSStringCreateWithUTF8CString("isFinalAttempt");
+			paramValue = JSObjectGetProperty(ctx, argument, paramName, NULL);
+			if (JSValueIsBoolean(ctx, paramValue))
+			{
+				bFinalAttempt = JSValueToBoolean(ctx, paramValue);
+			}
+			JSStringRelease(paramName);
+		}
 		case 2:
 			autoPlay = JSValueToBoolean(ctx, arguments[1]);
 		case 1:
@@ -629,16 +682,26 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	                                tuneThreadIdIsValid = false;
 				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
-				privObj->_aamp->Tune(url,autoPlay);
+				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
+
 				delete [] url;
+				if (contentType)
+				{
+					delete[] contentType;
+				}
+
+				if (strTraceId)
+				{
+					delete[] strTraceId;
+				}
 			}
 
 			break;
 		}
 
 		default:
-			ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute load() >= 1 argument required");
+			ERROR("%s(): InvalidArgument - argumentCount=%d, expected atmost 3 arguments", __FUNCTION__, argumentCount);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute load() <= 3 arguments required");
 	}
 
 	TRACELOG("Exit %s()", __FUNCTION__);
@@ -666,6 +729,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call initConfig() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+
 
 	if (argumentCount == 1 && JSValueIsObject(ctx, arguments[0]))
 	{
@@ -714,7 +778,10 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_SEGMENTINJECTLIMIT:
 			case ePARAM_DRMDECRYPTLIMIT:
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
+			case ePARAM_CEA_FORMAT:
+			case ePARAM_TUNE_EVENT_CONFIG:
 			case ePARAM_LANG_CODE_PREFERENCE:
+			case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -738,8 +805,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_USE_RETUNE_UNPARIED_DISCONTINUITY:
 			case ePARAM_USE_MATCHING_BASEURL:
 			case ePARAM_USE_NATIVE_CC:
+			case ePARAM_ENABLE_VIDEO_RECTANGLE:
 			case ePARAM_USE_DESCRIPTIVE_TRACK_NAME:
 			case ePARAM_USE_RETUNE_FOR_GST_INTERNAL_ERROR:
+			case ePARAM_ENABLE_SEEKABLE_RANGE:
+			case ePARAM_REPORT_VIDEO_PTS:
+			case ePARAM_PROPAGATE_URI_PARAMETERS:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -774,6 +845,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 					privObj->_aamp->SetInitFragTimeoutRetryCount(valueAsNumber);
+					break;
+				case ePARAM_CEA_FORMAT:
+					privObj->_aamp->SetCEAFormat((int) valueAsNumber);
 					break;
 				case ePARAM_DOWNLOADBUFFER:
 					privObj->_aamp->SetDownloadBufferSize((int) valueAsNumber);
@@ -872,6 +946,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_USE_NATIVE_CC:
 					privObj->_aamp->SetNativeCCRendering(valueAsBoolean);
 					break;
+				case ePARAM_ENABLE_VIDEO_RECTANGLE:
+					privObj->_aamp->EnableVideoRectangle(valueAsBoolean);
+					break;
+				case ePARAM_TUNE_EVENT_CONFIG:
+					privObj->_aamp->SetTuneEventConfig((int) valueAsNumber);
+					break;
 				case ePARAM_LANG_CODE_PREFERENCE:
 					langCodePreference = (int) valueAsNumber;
 					break;
@@ -882,7 +962,17 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetSessionToken(valueAsString);
 					delete[] valueAsString;
 					break;
-					
+				case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
+					privObj->_aamp->SetMaxPlaylistCacheSize((int) valueAsNumber);
+					break;
+				case ePARAM_ENABLE_SEEKABLE_RANGE:
+					privObj->_aamp->EnableSeekableRange(valueAsBoolean);
+					break;
+				case ePARAM_REPORT_VIDEO_PTS:
+					privObj->_aamp->SetReportVideoPTS(valueAsBoolean);
+					break;
+				case ePARAM_PROPAGATE_URI_PARAMETERS:
+					privObj->_aamp->SetPropagateUriParameters(valueAsBoolean);
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
@@ -2716,7 +2806,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	AAMPMediaPlayer_JS* privObj = new AAMPMediaPlayer_JS();
 
 	privObj->_ctx = JSContextGetGlobalContext(ctx);
-	privObj->_aamp = new PlayerInstanceAAMP(NULL, NULL, PLAYERMODE_MEDIAPLAYER);
+	privObj->_aamp = new PlayerInstanceAAMP(NULL, NULL);
 	if (!appName.empty())
 	{
 		privObj->_aamp->SetAppName(appName);

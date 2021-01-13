@@ -86,7 +86,7 @@ static const char *mMediaFormatName[] =
 
 #define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
 
-// VSS Service Zone identifier in url
+// MSO-specific VSS Service Zone identifier in URL
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
 #define VSS_MARKER_FOG			"%3Fsz%3D" // URI-encoded ?sz=
@@ -636,7 +636,6 @@ public:
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */
 	bool fragmentCdmEncrypted; /**< Indicates CDM protection added in fragments **/
 #endif
-	Playermode mPlayermode;
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
 	bool mABRBufferCheckEnabled;
@@ -651,6 +650,7 @@ public:
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
 	std::string mSessionToken; /**< Field to set session token for player */
+	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 
 	/**
 	 * @brief Curl initialization function
@@ -697,7 +697,7 @@ public:
 	 * @param[in] langlist - Vector of languages
 	 * @return void
 	 */
-	void StoreLanguageList(const std::vector<std::string> &langlist);
+	void StoreLanguageList(const std::set<std::string> &langlist);
 
 	/**
 	 * @brief Checking whether audio language supported
@@ -1755,10 +1755,10 @@ public:
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
-	 *   @param[in] overwriteLangFlag - flag to enable overwrite language
+	 *   @param[in] checkBeforeOverwrite - flag to enable additional check before overwriting language
 	 *   @return void
 	 */
-	void UpdateAudioLanguageSelection(const char *lang, bool overwriteLangFlag=true );
+	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
 
 	/**
 	 *   @brief Update subtitle language selection
@@ -1929,14 +1929,6 @@ public:
 	 *
 	 */
 	void ConfigureWesterosSink();
-
-	/**
-	 *   @brief Set Playermode config for JSPP / Mediaplayer.
-	 *   @param[in] playermode - either JSPP and Mediaplayer.
-	 *
-	 *   @return void
-	 */
-	void ConfigurePlayerModeSettings();
 
 	/**
 	 *   @brief To set the manifest download timeout value.
@@ -2247,6 +2239,14 @@ public:
 	 *   @return void
 	 */
 	void SetMatchingBaseUrlConfig(bool bValue);
+
+	/**
+	 *	 @brief Configure URI  parameters
+	 *	 @param[in] bValue - true to enable, false to disable.
+	 *
+	 *	 @return void
+	 */
+	void SetPropagateUriParameters(bool bValue);
 
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
@@ -2620,6 +2620,32 @@ public:
 	 *   @return void
 	 */
 	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat);
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist 
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
+
+	/**
+	 *   @brief Set video rectangle property
+	 *
+	 *   @param[in] video rectangle property
+	 */
+	void EnableVideoRectangle(bool rectProperty);
+
+	/**
+	 *   @brief Enable seekable range values in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void EnableSeekableRange(bool enabled);
+
+	/**
+	 *   @brief Enable video PTS reporting in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void SetReportVideoPTS(bool enabled);
 
 private:
 
@@ -2675,6 +2701,13 @@ private:
 	 *   @return tuple containing the modified URL and DRM init data
 	 */
 	const std::tuple<std::string, std::string> ExtractDrmInitData(const char *url);
+
+	/**
+	 *   @brief Set local configurations to variables
+	 *
+	 *   @return void
+	 */
+	void ConfigureWithLocalOptions();
 
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
@@ -2735,5 +2768,8 @@ private:
 	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
+	int mCacheMaxSize;
+	bool mEnableSeekableRange;
+	bool mReportVideoPTS;
 };
 #endif // PRIVAAMP_H

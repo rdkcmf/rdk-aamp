@@ -91,7 +91,7 @@
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	, Playermode playermode) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -109,8 +109,6 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
-	aamp->mPlayermode = playermode;
-	aamp->ConfigurePlayerModeSettings();
 }
 
 /**
@@ -313,6 +311,17 @@ void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 	}
 }
 
+/**
+ * @brief Set Maximum Cache Size for playlist store 
+ *
+ */
+void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
+{
+        if(gpGlobalConfig->gMaxPlaylistCacheSize == 0)
+        {
+                aamp->SetMaxPlaylistCacheSize(cacheSize);
+        }
+}
 
 /**
  * @brief Set profile ramp down limit.
@@ -1570,6 +1579,17 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 }
 
 /**
+ *   @brief Configure URI  parameters
+ *   @param[in] bValue -true to enable
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
+{
+        aamp->SetPropagateUriParameters(bValue);
+}
+
+/**
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
  *             from most to least preferred. Set NULL to clear current list.
@@ -1703,6 +1723,26 @@ void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 }
 
 /**
+ *   @brief To set the vod-tune-event according to the player.
+ *
+ *   @param[in] preferred tune event type
+ */
+void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
+{
+	aamp->SetTuneEventConfig(static_cast<TunedEventConfig> (tuneEventType));
+}
+
+/**
+ *   @brief Set video rectangle property
+ *
+ *   @param[in] video rectangle property
+ */
+void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
+{
+	aamp->EnableVideoRectangle(rectProperty);
+}
+
+/**
  *   @brief Set audio track
  *
  *   @param[in] trackId index of audio track in available track list
@@ -1805,7 +1845,7 @@ void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
  *   @param[in] format - 0 for 608, 1 for 708
  *   @return void
  */
-void PlayerInstanceAAMP::SetPreferredCEAFormat(int format)
+void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
 #ifdef AAMP_RDK_CC_ENABLED
 	if (format == eCLOSEDCAPTION_FORMAT_608)
@@ -1830,6 +1870,28 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 	ERROR_STATE_CHECK_VOID();
 	aamp->SetSessionToken(sessionToken);
 	return;
+}
+
+/**
+ *   @brief Enable seekable range values in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PlayerInstanceAAMP::EnableSeekableRange(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->EnableSeekableRange(enabled);
+}
+
+/**
+ *   @brief Enable video PTS reporting in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
+void PlayerInstanceAAMP::SetReportVideoPTS(bool enabled)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetReportVideoPTS(enabled);
 }
 
 /**

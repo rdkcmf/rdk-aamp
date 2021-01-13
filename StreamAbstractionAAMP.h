@@ -240,6 +240,13 @@ public:
 	 */
 	void SetCurrentBandWidth(int bandwidthBps);
 
+       /**
+       * @brief Get profile index for TsbBandwidth
+       * @param bandwidth - bandwidth to identify profile index from list
+       * @retval profile index of the current bandwidth
+       */
+       int GetProfileIndexForBW(long mTsbBandwidth);
+
 	/**
 	 * @brief Get current bandwidth in bps
 	 *
@@ -643,6 +650,14 @@ public:
 	int GetDesiredProfile(bool getMidProfile);
 
 	/**
+	 *   @brief Update rampdown profile on network failure
+	 *
+	 *   @param None
+	 *   @return void
+	 */
+	void UpdateRampdownProfileReason(void);
+
+	/**
 	 *   @brief Notify bitrate updates to application.
 	 *   Used internally by injection logic
 	 *
@@ -744,6 +759,15 @@ public:
 	virtual int GetProfileCount() {
 		return mAbrManager.getProfileCount();
 	}
+
+       /**
+       * @brief Get profile index for TsbBandwidth
+       * @param bandwidth - bandwidth to identify profile index from list
+       * @retval profile index of the current bandwidth
+       */
+       virtual int GetProfileIndexForBandwidth(long mTsbBandwidth) {
+	       return mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+       }
 
 	long GetCurProfIdxBW(){
 		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);

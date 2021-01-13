@@ -117,7 +117,6 @@ struct media_stream
  */
 struct AAMPGstPlayerPriv
 {
-	bool gstPropsDirty; //Flag used to check if gst props need to be set at start.
 	media_stream stream[AAMP_TRACK_COUNT];
 	GstElement *pipeline; //GstPipeline used for playback.
 	GstBus *bus; //Bus for receiving GstEvents from pipeline.
@@ -253,7 +252,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	{
 		memset(privateContext, 0, sizeof(*privateContext));
 		privateContext->audioVolume = 1.0;
-		privateContext->gstPropsDirty = true; //Have to set audioVolume on gst startup
 		privateContext->pipelineState = GST_STATE_NULL;
 		this->aamp = aamp;
 
@@ -1084,70 +1082,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				}
 			}
 		}
-		if ((!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin) && (_this->privateContext->gstPropsDirty))
-		{
-#ifndef INTELCE
-			if (new_state == GST_STATE_PAUSED && old_state == GST_STATE_READY)
-			{
-				if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
-				{ // video scaling patch
-					/*
-					brcmvideosink doesn't sets the rectangle property correct by default
-					gst-inspect-1.0 brcmvideosink
-					g_object_get(_this->privateContext->pipeline, "video-sink", &videoSink, NULL); - reports NULL
-					note: alternate "window-set" works as well
-					*/
-					_this->privateContext->video_sink = (GstElement *) msg->src;
-					if (_this->privateContext->using_westerossink && !_this->aamp->mEnableRectPropertyEnabled)
-					{
-						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom");
-						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
-						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
-					}
-					else
-					{
-						logprintf("AAMPGstPlayer setting cached rectangle, video mute and zoom");
-						g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
-						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
-						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
-					}
-				}
-				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
-				{
-					_this->privateContext->audio_sink = (GstElement *) msg->src;
-
-					_this->setVolumeOrMuteUnMute();
-				}
-				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
-				{
-					GstElement * audio_dec = (GstElement *) msg->src;
-
-					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
-					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
-					g_object_set(msg->src, "limit_buffering", 1, NULL);
-					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
-
-					/* if aamp->mAudioDecoderStreamSync==false, tell decoder not to look for 2nd/next frame sync, decode if it finds a single frame sync */
-					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
-					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
-				}
-#if defined (REALTEKCE)
-				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink") == true)
-				{
-					_this->privateContext->audio_sink = (GstElement *) msg->src;
-				}
-#endif
-
-				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
-
-				if ((audFormat == FORMAT_INVALID || _this->privateContext->audio_sink != NULL) &&
-					(_this->privateContext->video_sink != NULL))
-				{
-					_this->privateContext->gstPropsDirty = false;
-				}
-			}
-#endif
-		}
 		if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 		{
 #ifdef AAMP_MPD_DRM
@@ -1243,6 +1177,68 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		if (GST_MESSAGE_SRC(msg) == GST_OBJECT(_this->privateContext->pipeline))
 		{
 			_this->privateContext->pipelineState = new_state;
+		}
+
+		/* Moved the below code block from bus_message() async handler to bus_sync_handler()
+		 * to avoid a timing case crash when accessing wrong video_sink element after it got deleted during pipeline reconfigure on codec change in mid of playback.
+		 */
+		if (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin)
+		{
+#ifndef INTELCE
+			if (new_state == GST_STATE_PAUSED && old_state == GST_STATE_READY)
+			{
+				if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
+				{ // video scaling patch
+					/*
+					brcmvideosink doesn't sets the rectangle property correct by default
+					gst-inspect-1.0 brcmvideosink
+					g_object_get(_this->privateContext->pipeline, "video-sink", &videoSink, NULL); - reports NULL
+					note: alternate "window-set" works as well
+					*/
+					_this->privateContext->video_sink = (GstElement *) msg->src;
+					if (_this->privateContext->using_westerossink && !_this->aamp->mEnableRectPropertyEnabled)
+					{
+						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom");
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
+					else
+					{
+						logprintf("AAMPGstPlayer setting cached rectangle, video mute and zoom");
+						g_object_set(msg->src, "rectangle", _this->privateContext->videoRectangle, NULL);
+						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
+						g_object_set(msg->src, "show-video-window", !_this->privateContext->videoMuted, NULL);
+					}
+				}
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+
+					_this->setVolumeOrMuteUnMute();
+				}
+				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
+				{
+					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
+					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
+					g_object_set(msg->src, "limit_buffering", 1, NULL);
+					logprintf("Found brcmaudiodecoder, limiting audio decoder buffering");
+
+					/* if aamp->mAudioDecoderStreamSync==false, tell decoder not to look for 2nd/next frame sync, decode if it finds a single frame sync */
+					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
+					logprintf("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
+				}
+#if defined (REALTEKCE)
+				else if ( aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink")
+						|| aamp_StartsWith(GST_OBJECT_NAME(msg->src), "alsasink")
+						|| aamp_StartsWith(GST_OBJECT_NAME(msg->src), "fakesink") )
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+				}
+#endif
+
+				StreamOutputFormat audFormat = _this->privateContext->stream[eMEDIATYPE_AUDIO].format;
+			}
+#endif
 		}
 
 		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
@@ -1784,7 +1780,6 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
 		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
-		_this->privateContext->gstPropsDirty = true;
 	}
 	else
 	{
@@ -1813,7 +1808,6 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		g_object_set(stream->sinkbin, "zoom", _this->privateContext->zoom, NULL);
 		g_object_set(stream->sinkbin, "video-mute", _this->privateContext->videoMuted, NULL);
 		g_object_set(stream->sinkbin, "volume", _this->privateContext->audioVolume, NULL);
-		_this->privateContext->gstPropsDirty = false;
 	}
 	return 0;
 }
@@ -3025,8 +3019,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 #endif	
 		else
 		{
-			AAMPLOG_WARN("[%s] Scaling not possible at this time\n",__FUNCTION__);
-			privateContext->gstPropsDirty = true;
+			AAMPLOG_WARN("[%s] Scaling not possible at this time",__FUNCTION__);
 		}
 	}
 	else
@@ -3067,10 +3060,6 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 		g_object_set(privateContext->video_sink, "scale-mode", VIDEO_ZOOM_FULL == zoom ? 0 : 3, NULL);
 	}
 #endif
-	else
-	{
-		privateContext->gstPropsDirty = true;
-	}
 }
 
 
@@ -3095,10 +3084,6 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
 #else
 		g_object_set(privateContext->video_sink, "mute", privateContext->videoMuted, NULL);
 #endif
-	}
-	else
-	{
-		privateContext->gstPropsDirty = true;
 	}
 }
 
@@ -3140,7 +3125,6 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 	}
 	else
 	{
-		privateContext->gstPropsDirty = true;
 		return; /* Return here if the sinkbin or audio_sink is not valid, no need to proceed further */
 	}
 

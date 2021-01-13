@@ -224,7 +224,7 @@ void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes)
 }
 
 /**
- *  @brief		Extract WideVine content meta data from Comcast DRM
+ *  @brief		Extract WideVine content meta data from DRM
  *  			Agnostic PSSH header. Might not work with WideVine PSSH header
  *
  *  @param[in]	Pointer to PSSH data.

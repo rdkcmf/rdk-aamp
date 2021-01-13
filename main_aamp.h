@@ -59,16 +59,6 @@
  */
 
 /**
- * @brief Play mode : media player/JS platyer.
-	set the vod-tune-event according to the play mode.
- */
-enum Playermode
-{
-	PLAYERMODE_MEDIAPLAYER,
-	PLAYERMODE_JSPLAYER
-};
-
-/**
  * @brief AAMP anomaly message types
  */
 typedef enum
@@ -522,8 +512,7 @@ public:
 	 */
 	PlayerInstanceAAMP(StreamSink* streamSink = NULL
 			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
-                        , Playermode playermode = PLAYERMODE_JSPLAYER
-			);
+            );
 
 	/**
 	 *   @brief PlayerInstanceAAMP Destructor.
@@ -1092,6 +1081,14 @@ public:
 	 */
 	void SetMatchingBaseUrlConfig(bool bValue);
 
+        /**
+         *   @brief to configure URI parameters for fragment downloads
+         *
+         *   @param[in] bValue - default value: true
+         *   @return void
+         */
+	void SetPropagateUriParameters(bool bValue);
+
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
 	 *	 @param[in] bValue - true if new ABR enabled
@@ -1152,13 +1149,28 @@ public:
 	 *
 	 */
 	 const char* GetPreferredLanguages();
+
+	/**
+	 *   @brief To set the vod-tune-event according to the player.
+	 *
+	 *   @param[in] preferred tune event type
+	 */
+	void SetTuneEventConfig(int tuneEventType);
+
+	/**
+	 *   @brief Set video rectangle property
+	 *
+	 *   @param[in] video rectangle property
+	 */
+	void EnableVideoRectangle(bool rectProperty);
+
 	/*
 	 * @brief Set profile ramp down limit.
 	 *
 	 */
 	void SetRampDownLimit(int limit);
 
-		/*
+	/*
 	 * @brief Set Initial profile ramp down limit.
 	 *
 	 */
@@ -1270,7 +1282,7 @@ public:
 	 *   @param[in] format - 0 for 608, 1 for 708
 	 *   @return void
 	 */
-	void SetPreferredCEAFormat(int format);
+	void SetCEAFormat(int format);
 
 	/**
 	 *   @brief Set the session token for player
@@ -1279,6 +1291,26 @@ public:
 	 *   @return void
 	 */
 	void SetSessionToken(std::string sessionToken);
+
+	/**
+	 *       @brief Set Maximum Cache Size for storing playlist
+	 *       @return void
+	*/
+	void SetMaxPlaylistCacheSize(int cacheSize);
+
+	/**
+	 *   @brief Enable seekable range values in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void EnableSeekableRange(bool enabled);
+
+	/**
+	 *   @brief Enable video PTS reporting in progress event
+	 *
+	 *   @param[in] enabled - true if enabled
+	 */
+	void SetReportVideoPTS(bool enabled);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

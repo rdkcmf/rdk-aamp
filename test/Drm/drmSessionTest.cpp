@@ -547,7 +547,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionWithMdsServer)
 	setupChallengeCallbacks();
 
 	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format.
-	// Here we add ckm:policy, which should cause this stream to be identified as a Comcast stream.
+	// Here we add ckm:policy, which should cause this stream to be identified as an MSO specific stream.
 	// This in turn should lead to
 	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
 
@@ -562,7 +562,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionWithMdsServer)
 	const TestCurlResponse *licenseResponse = getCurlPerformResponse(prLicenseServerURL);
 	CHECK_EQUAL(1, licenseResponse->callCount);
 
-	// Expecting MDS headers
+	// Expecting MSO-specific MDS headers
 	std::vector<std::string> expectedHeaders = {
 			"Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1",
 			"Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"

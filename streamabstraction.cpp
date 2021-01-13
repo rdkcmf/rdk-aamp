@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <cmath>
 
-#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for Comcast linear streams.
+#define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for MSO specific linear streams.
 
 using namespace std;
 
@@ -797,6 +797,16 @@ void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 }
 
 /**
+ * @brief Get profile index for TsbBandwidth
+ * @param bandwidth - bandwidth to identify profile index from list
+ * @retval profile index of the current bandwidth
+ */
+int MediaTrack::GetProfileIndexForBW(long mTsbBandwidth)
+{
+       return GetContext()->GetProfileIndexForBandwidth(mTsbBandwidth);
+}
+
+/**
  * @brief Get current bandwidth of track
  * @return bandwidth in bytes per second
  */
@@ -1092,7 +1102,6 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 		StreamInfo* streamInfo = GetStreamInfo(GetMaxBWProfile());
 		if(streamInfo != NULL)
 		{
-
 			bool lGetBWIndex = false;
 			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 			if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (streamInfo->bandwidthBitsPerSecond))
@@ -1156,23 +1165,32 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 		// a) Check if network bandwidth changed from starting bw
 		// b) Check if netwwork bandwidth is different from persisted bandwidth( needed for first time reporting)
 		// find the profile for the newbandwidth
-		desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+		desiredProfileIndex = GetMediaTrack(eTRACK_VIDEO)->GetProfileIndexForBW(mTsbBandwidth);
 		mCurrentBandwidth = mTsbBandwidth;
 		StreamInfo* streamInfo = GetStreamInfo(profileIdxForBandwidthNotification);
-		if(streamInfo != NULL)
+		if (profileIdxForBandwidthNotification != desiredProfileIndex)
 		{
-			profileIdxForBandwidthNotification = desiredProfileIndex;
-			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
-			GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
-			mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+			if(streamInfo != NULL)
+			{
+				profileIdxForBandwidthNotification = desiredProfileIndex;
+				GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
+				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+			}
 		}
 	}
 }
 
+/**
+ * @brief Update ramp down profile reason on fragments download failure
+ */
+void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
+{
+	mBitrateReason = eAAMP_BITRATE_CHANGE_BY_RAMPDOWN;
+}
 
 /**
  * @brief GetDesiredProfileOnBuffer - Get the new profile corrected based on buffer availability

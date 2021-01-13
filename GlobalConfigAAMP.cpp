@@ -57,11 +57,11 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
 	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), disableSslVerifyPeer(true),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true),
-	discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT), bReportVideoPTS(false), mEnableRectPropertyCfg(eUndefinedState),
+	discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
 	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE),
 	langCodePreference(0), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), reportBufferEvent(true),
 	manifestTimeoutMs(-1), fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
-	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
+	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),
 	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState),
 #ifdef INTELCE
@@ -81,6 +81,8 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	wifiCurlHeaderEnabled(false)
 #endif
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP)
+	, midFragmentSeekEnabled(false)
+	,mEnableSeekableRange(eUndefinedState)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.

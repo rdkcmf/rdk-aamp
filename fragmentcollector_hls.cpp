@@ -76,7 +76,6 @@ static const int DEFAULT_STREAM_WIDTH = 720;
 static const int DEFAULT_STREAM_HEIGHT = 576;
 static const double DEFAULT_STREAM_FRAMERATE = 25.0;
 
-
 // checks if current state is going to use IFRAME ( Fragment/Playlist )
 #define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
 
@@ -745,7 +744,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
 					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
 					if (NULL != drmData){
-/* This needs effort from Comcast as to what they want to do viz-a-viz preferred DRM, */						
+/* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
 							drmDataToUse = drmData;
 						}
 					}
@@ -997,7 +996,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						// if stream only profiles were parsed , its easy to flush them out and continue with parsing
 						// but if iframes are mixed along with video profile, then its tricky to remove the interleaved entries from StreamInfo
 						// Easiest way is to clearAllProfiles and reparse again
-						// SecondParse happens rarely in some streams , no impact on regular Comcast streams
+						// SecondParse happens rarely in some streams , no impact on regular MSO specific streams
 						if(iFrameCount)
 						{
 							// IFrame and Stream Profile mixed, only way is reparse from beginning
@@ -1061,6 +1060,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					if(!mediaInfo[mMediaCount].language)
 					{ // handle non-compliant manifest missing language attribute
 						mediaInfo[mMediaCount].language =  mediaInfo[mMediaCount].name;
+					}
+					if (mediaInfo[mMediaCount].type == eMEDIATYPE_AUDIO && mediaInfo[mMediaCount].language)
+					{
+						mLangList.insert(GetLanguageCode(mMediaCount));
 					}
 					mMediaCount++;
 				}
@@ -1225,6 +1228,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				UpdateIframeTracks();
 			}
 		}
+		aamp->StoreLanguageList(mLangList); // For playlist playback, there will be no languages available
 	}
 	return retval;
 } // ParseMainManifest
@@ -1653,6 +1657,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				}
 				else if (startswith(&ptr, "-X-SCTE35"))
 				{ // placeholder for DAI tag processing
+				}
+				else if (startswith(&ptr, "-X-ASSET") || startswith(&ptr, "-X-CUE-OUT") || startswith(&ptr, "-X-CUE-IN") ||
+						startswith(&ptr, "-X-DATERANGE") || startswith(&ptr, "-X-SPLICEPOINT-SCTE35"))
+				{ // placeholder for HLS ad markers used by MediaTailor
 				}
 				else
 				{
@@ -4495,17 +4503,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				if (newTune && needMetadata)
 				{
 					needMetadata = false;
-					std::set<std::string> langList;
 					std::vector<long> bitrateList;
-					//To avoid duplicate entries in audioLanguage list
-					for (int iMedia = 0; iMedia < mMediaCount; iMedia++)
-					{
-						if (this->mediaInfo[iMedia].type == eMEDIATYPE_AUDIO && this->mediaInfo[iMedia].language)
-						{
-							langList.insert(GetLanguageCode(iMedia));
-						}
-					}
-
 					bitrateList.reserve(GetProfileCount());
 					for (int i = 0; i < GetProfileCount(); i++)
 					{
@@ -4518,7 +4516,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							aamp->mIsIframeTrackPresent = true;
 						}
 					}
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), langList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
 					// Delay "preparing" state until all tracks have been processed.
 					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 					bSetStatePreparing = true;
@@ -4952,7 +4950,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			//Set live adusted position to seekPosition
 			SeekPosUpdate(video->playTarget);
-			
+
 		}
 		/*Adjust for discontinuity*/
 		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
@@ -5069,9 +5067,43 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 			//Set live adusted position to seekPosition
-			SeekPosUpdate(video->playTarget);
+			if(gpGlobalConfig->midFragmentSeekEnabled)
+			{
+				midSeekPtsOffset = seekPosition - video->playTarget;
+				if(midSeekPtsOffset > video->fragmentDurationSeconds/2)
+				{
+					if(aamp->GetInitialBufferDuration() == 0)
+					{
+						PrivAAMPState state;
+						aamp->GetState(state);
+						if(state == eSTATE_SEEKING)
+						{
+							// To prevent underflow when seeked to end of fragment.
+							// Added +1 to ensure next fragment is fetched.
+							aamp->SetInitialBufferDuration((int)video->fragmentDurationSeconds + 1);
+							aamp->midFragmentSeekCache = true;
+						}
+					}
+				}
+				else if(aamp->midFragmentSeekCache)
+				{
+					// Resetting fragment cache when seeked to first half of the fragment duration.
+					aamp->SetInitialBufferDuration(0);
+					aamp->midFragmentSeekCache = false;
+				}
+
+				if(midSeekPtsOffset > 0.0)
+				{
+					midSeekPtsOffset += 0.5 ;  // Adding 0.5 to neutralize PTS-500ms in BasePTS calculation.
+				}
+				SeekPosUpdate(seekPosition);
+			}
+			else
+			{
+				SeekPosUpdate(video->playTarget);
+			}
 			
-			logprintf("%s seekPosition updated with corrected playtarget : %f",__FUNCTION__,seekPosition);
+			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
 		if (video->enabled && GetProfileCount())
@@ -5211,10 +5243,13 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 ***************************************************************************/
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
-	double pts;
+	double pts = 0.0;
 	if( mStartTimestampZero)
 	{
-		pts = 0;
+		if(gpGlobalConfig->midFragmentSeekEnabled)
+		{
+			pts = midSeekPtsOffset;
+		}
 	}
 	else
 	{
@@ -5507,9 +5542,9 @@ static void *FragmentCollector(void *arg)
 ***************************************************************************/
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
-	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0),
+	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0)
-	,mUseAvgBandwidthForABR(false)
+	,mUseAvgBandwidthForABR(false), mLangList()
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
