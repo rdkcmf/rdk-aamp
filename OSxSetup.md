@@ -38,6 +38,36 @@ brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugin
 You can find help [here](https://wesleyli.co/2016/10/running-gstreamer-on-mac-os-x).
 More details about packages available at [freedesktop.org](https://gstreamer.freedesktop.org/documentation/installing/on-mac-osx.html)
 
+**3.1 Build and install patched gst-plugins-good**
+Optional, but fixes some playback issues.
+
+Dependencies:
+```brew install meson ninja```
+
+Download https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-1.18.2.tar.xz
+```tar -xvzf gst-plugins-good-1.18.2.tar.xz```
+
+Download the following patches  from RDK Central to gst-plugins-good-1.18.2 directory. Note that the patches are valid for 1.16 or 1.18, but the 1.16 build directions are different and have not been included here.
+```https://gerrit.teamccp.com/plugins/gitiles/rdk/yocto_oe/layers/meta-rdk-ext/+/2101_sprint/recipes-multimedia/gstreamer/files/```
+```
+0009-qtdemux-aamp-tm_gst-1.16.patch
+0013-qtdemux-remove-override-segment-event_gst-1.16.patch
+0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
+0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
+```
+Apply patches
+```
+cd gst-plugins-good-1.18.2
+patch -p1 < file.patch```
+```
+**Build & Install**
+```
+meson build
+ninja -C build
+cd build
+ninja test [Should all pass but one.]
+sudo ninja install
+```
 **4. Install [Cmake](https://cmake.org/download/)**
 
 like cmake-3.18.0-Darwin-x86_64.dmg or latest
@@ -113,7 +143,7 @@ echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \
 brew install ossp-uuid
 ```
 
-**9. Install cjson
+**9. Install cjson**
 
 ```
 brew install cjson
