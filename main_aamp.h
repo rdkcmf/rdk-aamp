@@ -1365,6 +1365,14 @@ public:
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
+
+	/**
+	 *   @brief Stop playback and release resources.
+	 *
+	 *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+	 *   @return void
+	 */
+	void StopInternal(bool sendStateChangeEvent);
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 };
