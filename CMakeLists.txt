@@ -213,7 +213,8 @@ set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-	# avoid compilation failure on OSX
+	# avoid cmake failure on OSX
+        set(CMAKE_MACOSX_RPATH 1)
 else()
 	set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
 	add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)

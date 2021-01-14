@@ -170,15 +170,16 @@ git clone "https://code.rdkcentral.com/r/rdk/components/generic/aamp" -b dev_spr
 **2. Build the code**
 
 ```
+	osxbuild.sh
+	Start XCode open aamp.xcodeproj project file
 	Product -> Build
 ```
 
 **3. Select target to execute**
 
 ```
-	Product -> Scheme -> Edit scheme
-	Run page-> Info
-	Select Executable -> Other and open the ‘aamp-cli’ image name from {AAMP_PATH}/build/aamp_cli
+	Product -> Scheme -> Choose Scheme
+	aamp-cli
 ```
 **4. Execute**
 
