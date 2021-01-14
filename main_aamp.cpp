@@ -180,20 +180,8 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 			return;
 		}
 
-		logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
-		if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
-		{
-			/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
-			aamp->sendTuneMetrics(false);
-		}
+		StopInternal(sendStateChangeEvent);
 
-		if (sendStateChangeEvent)
-		{
-			aamp->SetState(eSTATE_IDLE);
-		}
-
-		AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
-		aamp->Stop();
 	}
 }
 
@@ -223,9 +211,10 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 	PrivAAMPState state;
 	aamp->GetState(state);
 
-	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
+	{
 		//Calling tune without closing previous tune
-		Stop(false);
+		StopInternal(false);
 	}
 
 	aamp->getAampCacheHandler()->StartPlaylistCache();
@@ -1948,6 +1937,33 @@ void PlayerInstanceAAMP::PersistBitRateOverSeek(bool value)
 	aamp->PersistBitRateOverSeek(value);
 }
 
+/**
+ *   @brief Stop playback and release resources.
+ *
+ *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+ *   @return void
+ */
+void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
+{
+	PrivAAMPState state;
+	aamp->GetState(state);
+
+	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
+	{
+		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
+		aamp->sendTuneMetrics(false);
+	}
+
+	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
+
+	if (sendStateChangeEvent)
+	{
+		aamp->SetState(eSTATE_IDLE);
+	}
+
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
+	aamp->Stop();
+}
 /**
  * @}
  */
