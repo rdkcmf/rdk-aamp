@@ -626,7 +626,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	}
 	else
 	{
-		logprintf("%s:%d - aamp: error on manifest fetch", __FUNCTION__, __LINE__);
+		logprintf("%s:%d [CDAI]: Error on manifest fetch", __FUNCTION__, __LINE__);
 	}
 	return adMpd;
 }
@@ -682,7 +682,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 				ad = NULL;
 			}
 			adBreakAssets->emplace_back(AdNode{false, false, mAdFulfillObj.adId, mAdFulfillObj.url, durationMs, bPeriodId, bOffset, ad});
-			AAMPLOG_WARN("%s:%d: New Ad[Id=%s, url=%s] successfully added.", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
+			AAMPLOG_WARN("%s:%d: New Ad successfully added[Id=%s, url=%s].", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
 
 			adStatus = true;
 		}
