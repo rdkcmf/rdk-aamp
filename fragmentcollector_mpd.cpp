@@ -3586,6 +3586,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	sessionMgr->setLicenseRequestAbort(false);
   #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();

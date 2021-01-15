@@ -115,7 +115,7 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 		,curlSessionAbort(false), mEnableAccessAtrributes(true)
-		,mDrmSessionLock()
+		,mDrmSessionLock(), licenseRequestAbort(false)
 {
 	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
 	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
@@ -202,6 +202,18 @@ void AampDRMSessionManager::setCurlAbort(bool isAbort){
 bool AampDRMSessionManager::getCurlAbort(){
 	return curlSessionAbort;
 }
+
+/**
+ * @brief	Get Session abort flag
+ * @param	void
+ * @return	bool flag.
+ */
+void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
+{
+	setCurlAbort(isAbort);
+	licenseRequestAbort = isAbort;
+}
+
 /**
  * @brief	Clean up the failed keyIds.
  *
@@ -1164,6 +1176,16 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				}
 			}
 
+			if(licenseRequestAbort)
+			{
+				AAMPLOG_ERR("%s:%d Error!! License request was aborted. Resetting session slot %d", __FUNCTION__, __LINE__, sessionSlot);
+				delete drmSessionContexts[sessionSlot].drmSession;
+				drmSessionContexts[sessionSlot].drmSession = nullptr;
+				AampMutexHold keymutex(cachedKeyMutex);
+				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
+				return KEY_ERROR;
+			}
+
 			AampLicenseRequest licenseRequest;
 			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
 			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
@@ -1502,7 +1524,6 @@ void *CreateDRMSession(void *arg)
 	bool isSecClientError = false;
 #endif
 
-        sessionManger->setCurlAbort(false);
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 
 	DrmMetaDataEventPtr e = std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, isSecClientError);

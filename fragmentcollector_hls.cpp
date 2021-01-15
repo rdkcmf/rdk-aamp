@@ -4066,6 +4066,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 		sessionMgr->clearFailedKeyIds();
 		sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+		sessionMgr->setLicenseRequestAbort(false);
 #endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
 		AAMPStatusType mainManifestResult = ParseMainManifest();
