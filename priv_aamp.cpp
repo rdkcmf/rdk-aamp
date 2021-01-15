@@ -6376,7 +6376,7 @@ void PrivateInstanceAAMP::Stop()
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 		if (mDRMSessionManager)
 		{
-			mDRMSessionManager->setCurlAbort(true);
+			mDRMSessionManager->setLicenseRequestAbort(true);
 		}
 #endif
 		mpStreamAbstractionAAMP->Stop(true);
