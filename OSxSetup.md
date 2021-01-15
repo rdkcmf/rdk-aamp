@@ -171,9 +171,11 @@ git clone "https://code.rdkcentral.com/r/rdk/components/generic/aamp" -b dev_spr
 
 ```
 	osxbuild.sh
-	Start XCode open aamp.xcodeproj project file
+	Start XCode, open build/AAMP.xcodeproj project file
 	Product -> Build
 ```
+If you see the error 'No CMAKE_C_COMPILER could be found.' when running osxbuild.sh, check that your installed cmake version matches the minimum required version shown earlier.
+
 
 **3. Select target to execute**
 
