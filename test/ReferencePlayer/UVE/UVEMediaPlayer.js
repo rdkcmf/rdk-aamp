@@ -53,8 +53,8 @@ class AAMPMediaPlayer {
         console.log("Invoked getCurrentState");
     }
 
-    getDurationSec() {
-        console.log("Invoked getDurationSec");
+    getDuration() {
+        console.log("Invoked getDuration");
     }
 
     getCurrentPosition() {
@@ -263,8 +263,8 @@ class AAMPPlayer {
     /**
      * Gets the duration of the content in seconds.
      */
-    getDurationSec() {
-        return this.player.getDurationSec();
+    getDuration() {
+        return this.player.getDuration();
     }
 
     /**
