@@ -102,6 +102,7 @@ select:focus {
 	var isPlaying;
 	var serviceTable;
 	var fromPC = false;
+        var compositein = "cvbsin://localhost/deviceid/0";
 	var hdmiin1 = "hdmiin://localhost/deviceid/0";
 	var hdmiin2 = "hdmiin://localhost/deviceid/1";
 	var hdmiin3 = "hdmiin://localhost/deviceid/2";
@@ -950,6 +951,7 @@ function blockedEventHandler(event) {
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
 		<input type="button" value="getAllGuideEvents" onclick="getAllGuideEvents();"/>
 
+		<input type="button" value="composite_in" onclick="playHdmiin(compositein);"/>
 		<input type="button" value="hdmiin1" onclick="playHdmiin(hdmiin1);"/>
 		<input type="button" value="hdmiin2" onclick="playHdmiin(hdmiin2);"/>
 		<input type="button" value="hdmiin3" onclick="playHdmiin(hdmiin3);"/>
