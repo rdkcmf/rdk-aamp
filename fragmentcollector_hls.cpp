@@ -5286,19 +5286,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
-		if (video->enabled && GetProfileCount())
-		{
-			BitrateChangeReason bitrateReason = (newTune) ? eAAMP_BITRATE_CHANGE_BY_TUNE : (trickplayMode ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK);
-			aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
-						bitrateReason,
-						this->streamInfo[this->currentProfileIndex].resolution.width,
-						this->streamInfo[this->currentProfileIndex].resolution.height,
-						this->streamInfo[this->currentProfileIndex].resolution.framerate,
-						video->playTarget, true);
-			aamp->SetPersistedProfileIndex(currentProfileIndex);
-		}
-
-		
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
