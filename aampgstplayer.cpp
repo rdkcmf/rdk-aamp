@@ -1765,6 +1765,8 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		logprintf("playbin flags1: 0x%x", flags); // 0x617 on settop
 #if defined NO_NATIVE_AV || (defined(__APPLE__))
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO;
+#elif defined (REALTEKCE)
+		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO | GST_PLAY_FLAG_SOFT_VOLUME;
 #else
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
@@ -3109,7 +3111,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 {
 	GstElement *gSource = NULL;
 	char *propertyName = NULL;
-	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
+	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUDIO];
 
 	AAMPLOG_INFO("AAMPGstPlayer::%s() %d > volume = %f, using_playersinkbin = %d, audio_sink = %p", __FUNCTION__, __LINE__, privateContext->audioVolume, stream->using_playersinkbin, privateContext->audio_sink);
 
@@ -3118,6 +3120,13 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		gSource = stream->sinkbin;
 		propertyName = (char*)"audio-mute";
 	}
+#if defined (REALTEKCE)
+	else if (stream->sinkbin)
+	{
+		gSource = stream->sinkbin;
+		propertyName = (char*)"mute";
+	}
+#endif
 	else if (privateContext->audio_sink)
 	{
 		gSource = privateContext->audio_sink;
