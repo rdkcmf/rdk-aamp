@@ -3875,7 +3875,26 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
 			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
 #endif
-			if( true != aamp->PausePipeline(false, false) )
+			GstState current, pending;
+			bool sendEndEvent = false;
+
+			if(GST_STATE_CHANGE_FAILURE != gst_element_get_state(privateContext->pipeline, &current, &pending, 0 * GST_MSECOND))
+			{
+				if (current == GST_STATE_PLAYING)
+				{
+					sendEndEvent = true;
+				}
+				else
+				{
+					sendEndEvent = aamp->PausePipeline(false, false);
+				}
+			}
+			else
+			{
+				sendEndEvent = false;
+			}
+
+			if( !sendEndEvent )
 			{
 				AAMPLOG_ERR("%s(): Failed to un-pause pipeline for stop buffering!", __FUNCTION__);
 			}
