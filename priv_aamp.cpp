@@ -824,11 +824,6 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->fragmp4LicensePrefetch = (value != 0);
 			logprintf("fragmp4-license-prefetch=%d", gpGlobalConfig->fragmp4LicensePrefetch);
 		}
-		else if (ReadConfigNumericHelper(cfg, "fog-dash=", value) == 1)
-		{
-			gpGlobalConfig->fogSupportsDash = (value != 0);
-			logprintf("fog-dash=%d", value);
-		}
 		else if (ReadConfigNumericHelper(cfg, "enable_videoend_event=", value) == 1)
 		{
 			gpGlobalConfig->mEnableVideoEndEvent = (value==1);
@@ -5235,8 +5230,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 				mMediaFormat = eMEDIAFORMAT_HLS;
 			}
 		}
-		
-		if ((mMediaFormat == eMEDIAFORMAT_DASH && !gpGlobalConfig->fogSupportsDash) || gpGlobalConfig->noFog)
+		//DELIA-47890 Fog can be disable by  having option fog=0 option in aamp.cfg,based on  that gpGlobalConfig->noFog is updated
+		//Removed variable gpGlobalConfig->fogSupportsDash as it has similar usage
+		if (gpGlobalConfig->noFog)
 		{
 			DeFog(mManifestUrl);
 		}
