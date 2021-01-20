@@ -33,7 +33,7 @@
  */
 GlobalConfigAAMP::GlobalConfigAAMP():
 	defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL),mapM3U8(NULL),
-	fogSupportsDash(true), abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
+	abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
 	maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 #ifdef AAMP_HARVEST_SUPPORT_ENABLED
 	harvest(0), harvestpath(0),
