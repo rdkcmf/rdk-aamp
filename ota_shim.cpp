@@ -130,7 +130,8 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     mediaSettingsObj.ActivatePlugin();
     std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
 
-    thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
+    //mEventSubscribed flag updated for tracking event subscribtion
+    mEventSubscribed = thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
     AAMPStatusType retval = eAAMPSTATUS_OK;
 
@@ -150,7 +151,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                            , tuned(false),
+                            , tuned(false),mEventSubscribed(false),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
@@ -178,7 +179,17 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 	param["tag"] = "MyApp";
         thunderAccessObj.InvokeJSONRPC("release", param, result);
 
-	thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+	// unsubscribing only if subscribed
+	if (mEventSubscribed)
+	{
+		thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+		mEventSubscribed = false;
+	}
+	else
+	{
+		AAMPLOG_WARN("[OTA_SHIM]OTA Destructor finds Player Status Event not Subscribed !! ");
+	}
+
 	AAMPLOG_INFO("[OTA_SHIM]StreamAbstractionAAMP_OTA Destructor called !! ");
 #endif
 }
@@ -589,7 +600,7 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
  */
 void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
-    primaryOutputFormat = FORMAT_ISO_BMFF;
+    primaryOutputFormat = FORMAT_INVALID;
     audioOutputFormat = FORMAT_INVALID;
 }
 
