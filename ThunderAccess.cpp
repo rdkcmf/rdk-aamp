@@ -153,6 +153,7 @@ bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(con
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s : Subscribed to : %s", __FUNCTION__, eventName.c_str());
         } else {
             AAMPLOG_WARN( "[ThunderAccessAAMP] %s : Failed to Subscribe notification handler for : %s", __FUNCTION__, eventName.c_str());
+            ret = false;
         }
     } else {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : remoteObject not created for the plugin!", __FUNCTION__ );
