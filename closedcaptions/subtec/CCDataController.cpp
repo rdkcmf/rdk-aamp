@@ -104,7 +104,8 @@ void CCDataController::sendResume()
 
 
 CCDataController::CCDataController()
-    : currentAttributes{createDefaultAttributes()}
+    : channel{}
+    , currentAttributes{createDefaultAttributes()}
 {
 }
 

@@ -111,6 +111,7 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
  */
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
+	AAMPLOG_INFO("AampSubtecCCManager::%s %d rendering", __FUNCTION__, __LINE__);
 	if(mRendering)
 	{
 		StartRendering();
@@ -119,4 +120,6 @@ void AampSubtecCCManager::EnsureRendererStateConsistency()
 	{
 		StopRendering();
 	}
+	AAMPLOG_INFO("AampSubtecCCManager::%s %d style", __FUNCTION__, __LINE__);
+	SetStyle(mOptions);
 }
