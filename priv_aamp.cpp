@@ -775,7 +775,7 @@ static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& va
 
 	try
 	{
-		std::size_t pos = buf.find(prefixPtr);
+		std::size_t pos = buf.rfind(prefixPtr,0); // starts with check
 		if (pos != std::string::npos)
 		{
 			pos += strlen(prefixPtr);
