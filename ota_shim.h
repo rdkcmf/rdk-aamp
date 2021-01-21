@@ -152,6 +152,7 @@ private:
     ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
     bool tuned;
+    bool mEventSubscribed;
 
     ThunderAccessAAMP thunderRDKShellObj;
     bool GetScreenResolution(int & screenWidth, int & screenHeight);

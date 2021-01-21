@@ -72,7 +72,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	if(0 != prevState.compare(currState))
 	{
 		PrivAAMPState state = eSTATE_IDLE;
-		AAMPLOG_INFO( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
 		prevState = currState;
 		if(0 == currState.compare("PENDING"))
 		{
@@ -80,6 +80,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		}else if(0 == currState.compare("BLOCKED"))
 		{
 			std::string reason = playerData["blockedReasonText"].String();
+			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
@@ -153,7 +154,8 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     mediaSettingsObj.ActivatePlugin();
     std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
 
-    thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
+    //mEventSubscribed flag updated for tracking event subscribtion
+    mEventSubscribed = thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
     /*[PC API platform integration]Subscribe for Content Restricted Event*/
 
@@ -175,7 +177,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                            , tuned(false),restrictionsOta(),
+                            , tuned(false),mEventSubscribed(false),restrictionsOta(),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
@@ -234,7 +236,16 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 	param["tag"] = "MyApp";
         thunderAccessObj.InvokeJSONRPC("release", param, result);
 
-	thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+	// unsubscribing only if subscribed
+	if (mEventSubscribed)
+	{
+		thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+		mEventSubscribed = false;
+	}
+	else
+	{
+		AAMPLOG_WARN("[OTA_SHIM]OTA Destructor finds Player Status Event not Subscribed !! ");
+	}
 
 //moc parental control
 	m_pcTimer.stop();
@@ -869,7 +880,7 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
  */
 void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 {
-    primaryOutputFormat = FORMAT_ISO_BMFF;
+    primaryOutputFormat = FORMAT_INVALID;
     audioOutputFormat = FORMAT_INVALID;
     auxAudioOutputFormat = FORMAT_INVALID;
 }
