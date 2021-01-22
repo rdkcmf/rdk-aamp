@@ -4133,6 +4133,8 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 
 	// DELIA-48250 Set tuned event configuration to playlist indexed
 	pAAMP->_aamp->SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
+	// DELIA-48278 Set EnableVideoRectangle to false, this is tied to westeros config
+	pAAMP->_aamp->EnableVideoRectangle(false);
 
 	pAAMP->_eventType = AAMP_JS_AddEventTypeClass(jsContext);
 	JSValueProtect(jsContext, pAAMP->_eventType);

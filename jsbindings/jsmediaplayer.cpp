@@ -671,6 +671,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		JSValueRef valueAsObject = NULL;
 		int langCodePreference = -1; // value not passed
 		bool useRole = false; //default value in func arg
+		int enableVideoRectangle = -1; //-1: value not passed, 0: false, 1:true
 		int numConfigParams = sizeof(initialConfigParamNames)/sizeof(initialConfigParamNames[0]);
 
 		JSObjectRef initConfigObj = JSValueToObject(ctx, arguments[0], &_exception);
@@ -886,7 +887,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetNativeCCRendering(valueAsBoolean);
 					break;
 				case ePARAM_ENABLE_VIDEO_RECTANGLE:
-					privObj->_aamp->EnableVideoRectangle(valueAsBoolean);
+					enableVideoRectangle = (int)valueAsBoolean;
 					break;
 				case ePARAM_TUNE_EVENT_CONFIG:
 					privObj->_aamp->SetTuneEventConfig((int) valueAsNumber);
@@ -928,6 +929,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		if (langCodePreference != -1)
 		{
 			privObj->_aamp->SetLanguageFormat((LangCodePreference) langCodePreference, useRole);
+		}
+		// This is kept outside because this config is tied to the westerossink configuration.
+		// In the input JSON, the order of configs might not be correct, so to avoid any errors set it at the end
+		if (enableVideoRectangle != -1)
+		{
+			privObj->_aamp->EnableVideoRectangle(enableVideoRectangle == 1);
 		}
 	}
 	else
