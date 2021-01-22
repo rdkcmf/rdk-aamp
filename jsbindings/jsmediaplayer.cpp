@@ -158,6 +158,7 @@ enum ConfigParamType
 	ePARAM_PLAYLISTTIMEOUT,
 	ePARAM_PARALLELPLAYLISTDL,
 	ePARAM_ASYNCTUNE,
+	ePARAM_USE_WESTEROS_SINK,
 	ePARAM_AVGBWFORABR,
 	ePARAM_PRECACHEPLAYLISTTIME,
 	ePARAM_PROGRESSREPORTINTERVAL,
@@ -230,6 +231,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_SUBTITLELANGUAGE, "preferredSubtitleLanguage" },
 	{ ePARAM_PARALLELPLAYLISTDL, "parallelPlaylistDownload" },
 	{ ePARAM_ASYNCTUNE, "asyncTune" },
+	{ ePARAM_USE_WESTEROS_SINK, "useWesterosSink" },
 	{ ePARAM_AVGBWFORABR, "useAverageBandwidth" },
 	{ ePARAM_PRECACHEPLAYLISTTIME, "preCachePlaylistTime" },
 	{ ePARAM_PROGRESSREPORTINTERVAL, "progressReportingInterval" },
@@ -728,6 +730,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_ASYNCTUNE:
 			case ePARAM_PARALLELPLAYLISTDL:
 			case ePARAM_PARALLELPLAYLISTREFRESH:
+			case ePARAM_USE_WESTEROS_SINK:
 			case ePARAM_USE_NEWABR:
 			case ePARAM_USE_NEW_ADBREAKER:
 			case ePARAM_AVGBWFORABR:
@@ -827,6 +830,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					{
 						privObj->_aamp->EnableAsyncOperation();
 					}
+					break;
+				case ePARAM_USE_WESTEROS_SINK:
+					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
 					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);

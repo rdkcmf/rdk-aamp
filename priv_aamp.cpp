@@ -1912,7 +1912,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
-	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(false), mEnableRectPropertyEnabled(true), waitforplaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
@@ -4548,16 +4548,14 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		if(env_enable_westoros_sink)
 		{
-			bool bValue = 0;
-			bValue = ((strcasecmp(env_enable_westoros_sink,"false") == 0 || strcasecmp(env_enable_westoros_sink,"0") == 0));
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d",  !bValue );
-			/* Enabling westeros by default as part of DELIA-43202. Export   */
-			/* AAMP_ENABLE_WESTEROS_SINK as false to enable broadcom encoder */
-			/* via setenv.                                                   */
-	
-			if(bValue)
+			int iValue = atoi(env_enable_westoros_sink);
+			bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
+
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
+
+			if(iValue || bValue)
 			{
-				mWesterosSinkEnabled = false;
+				mWesterosSinkEnabled = true;
 			}
 		}
 
@@ -6075,6 +6073,25 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 {
 	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
 	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
+}
+
+/**
+ *   @brief Set Westeros sink Configuration
+ *   @param[in] bValue - true if westeros sink enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
+{
+	if(gpGlobalConfig->mWesterosSinkConfig == eUndefinedState)
+	{
+		mWesterosSinkEnabled = bValue;
+	}
+	else
+	{
+		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
+	}
+	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
 }
 
 /**
