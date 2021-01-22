@@ -400,7 +400,7 @@ var HTML5PlayerControls = function() {
 
         this.seekBar.addEventListener("change", function() {
             // Calculate the new time
-            var duration = playerObj.getDuration();
+            var duration = playerObj.getDurationSec();
             var time = duration * (seekBar.value / 100);
             console.log("seek cursor time: " + time);
             playerObj.seek(time);
