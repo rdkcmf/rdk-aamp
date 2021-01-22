@@ -9684,7 +9684,25 @@ void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 	//  Value can be set only if local override is not available.Local setting takes preference
 	if(gpGlobalConfig->mEnableRectPropertyCfg == eUndefinedState)
 	{
-		mEnableRectPropertyEnabled = rectProperty;
+		// Ideally video rectangle property should be enabled.
+		// There exists a scenario with westeros where the compositor handles scaling in parallel
+		// and scaling via rectangle property again messes up the co-ordinates.
+		// So disable video rectangle property only for those use-case.
+		if (rectProperty == false)
+		{
+			if (mWesterosSinkEnabled)
+			{
+				mEnableRectPropertyEnabled = rectProperty;
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Skipping the configuration value[%d], since westerossink is disabled", __FUNCTION__, __LINE__, rectProperty);
+			}
+		}
+		else
+		{
+			mEnableRectPropertyEnabled = rectProperty;
+		}
 	}
 	else
 	{
@@ -9779,6 +9797,10 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
+	}
+	if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
+	{
+		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
 	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
 	{
