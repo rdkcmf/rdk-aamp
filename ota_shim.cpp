@@ -79,7 +79,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			state = eSTATE_PREPARING;
 		}else if(0 == currState.compare("BLOCKED"))
 		{
-			std::string reason = playerData["blockedReasonText"].String();
+			std::string reason = playerData["blockedReason"].String(); 
 			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
