@@ -81,9 +81,6 @@ typedef enum {
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
-#define DEFAULT_VIDEO_RECTANGLE "0,0,0,0"
-#else
-#define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
 #define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
@@ -272,7 +269,19 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 
 		CreatePipeline();
 		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+#ifdef INTELCE
+                strcpy(privateContext->videoRectangle, "0,0,0,0");
+#else
+                /* DELIA-45366-default video scaling should take into account actual graphics
+                 * resolution instead of assuming 1280x720.
+                 * By default we where setting the resolution has 0,0,1280,720.
+                 * For Full HD this default resolution will not scale to full size.
+                 * So, we no need to set any default rectangle size here,
+                 * since the video will display full screen, if a gstreamer pipeline is started
+                 * using the westerossink connected using westeros compositor.
+                 */
+                strcpy(privateContext->videoRectangle, "");
+#endif
 	}
 	else
 	{
