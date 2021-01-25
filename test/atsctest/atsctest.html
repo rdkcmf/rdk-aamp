@@ -399,7 +399,7 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 		Activate('org.rdk.MediaGuide');
 		registerOnScanProgress();
 		registerOnScanAction();
-		registerOnPlayerStatus();
+		//registerOnPlayerStatus();
 		getAllServices();
 	}
 
@@ -529,6 +529,7 @@ function playChannel()
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		}
+		clog("playChannel:"+strLocator);
 		aampPlayer.load(strLocator);
 	}
 	isPlaying = true;
@@ -550,7 +551,11 @@ function playHdmiin(url)
                 {
                         aampPlayer = new AAMPMediaPlayer();
                         aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
+                        aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+                        aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+	
                 }
+				clog("VideoIN:"+url);
                 aampPlayer.load(url);
         }
 }
@@ -596,6 +601,7 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+		clog("Tuning:"+strLocator);
 		aampPlayer.load(strLocator);
 	
 	isPlaying = true;
@@ -800,7 +806,7 @@ function setTextStyleOptions() {
 
 var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12, "blocked":14};
 function playbackStateChanged(event) {
-    console.log("Playback state changed event: " + JSON.stringify(event));
+    log("Playback state changed event: " + JSON.stringify(event));
     switch (event.state) {
         case playerStatesEnum.idle:
             playerState = playerStatesEnum.idle;
@@ -837,15 +843,17 @@ function playbackStateChanged(event) {
         var evetStr = "Player state is: " + playerState;
         console.log(evetStr);
 
-        setGuideText(evetStr);
+       // log(evetStr);
 }
 
 function playbackStarted() {
     console.log("Playback started event received");
+	log("Playback started event received");
 }
 
 function blockedEventHandler(event) {
     console.log("Blocked event: " + JSON.stringify(event));
+	log("Blocked event: " + JSON.stringify(event));
 }
 
 </script>

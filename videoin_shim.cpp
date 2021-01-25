@@ -39,7 +39,6 @@
 using namespace std;
 using namespace WPEFramework;
 
-#define HDMIINPUT_CALLSIGN "org.rdk.HdmiInput.1"
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
 
 #define UHD_4K_WIDTH 3840
@@ -49,8 +48,7 @@ using namespace WPEFramework;
  *   @brief  Initialize a newly created object.
  *   @note   To be implemented by sub classes
  *   @param  tuneType to set type of object.
- *   @retval true on success
- *   @retval false on failure
+ *   @retval eAAMPSTATUS_OK
  */
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
 {
@@ -65,8 +63,10 @@ AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
  * @param rate playback rate
  */
 StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string name, const std::string callSign, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-                             : mName(name),
-							   StreamAbstractionAAMP(aamp),
+                               : mName(name),
+                               mRegisteredEvents(),
+                               StreamAbstractionAAMP(aamp),
+                               mTuned(false),
                                videoInputPort(-1)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
                                ,thunderAccessObj(callSign),
@@ -85,6 +85,12 @@ StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string 
 StreamAbstractionAAMP_VIDEOIN::~StreamAbstractionAAMP_VIDEOIN()
 {
 	AAMPLOG_WARN("%s:%d %s destructor",__FUNCTION__,__LINE__,mName.c_str());
+	for (auto const& evtName : mRegisteredEvents) {
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+		thunderAccessObj.UnSubscribeEvent(_T(evtName));
+#endif
+	}
+	mRegisteredEvents.clear();
 }
 
 /**
@@ -330,3 +336,103 @@ void StreamAbstractionAAMP_VIDEOIN::StartInjection(void)
 { // STUB - discontinuity related
 	AAMPLOG_WARN("%s:%d %s ",__FUNCTION__,__LINE__,mName.c_str());
 }
+
+
+
+/**
+ *   @brief  Registers  Event to input plugin and to mRegisteredEvents list for later use.
+ *   @param[in] eventName : Event name
+ *  @param[in] functionHandler : Event funciton pointer
+ */
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+void StreamAbstractionAAMP_VIDEOIN::RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler)
+{
+	bool bSubscribed;
+	bSubscribed = thunderAccessObj.SubscribeEvent(_T(eventName), functionHandler);
+	if(bSubscribed)
+	{
+		mRegisteredEvents.push_back(eventName);
+	}
+}
+
+/**
+ *   @brief  Registers all Events to input plugin
+ */
+void StreamAbstractionAAMP_VIDEOIN::RegisterAllEvents ()
+{
+	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> inputStatusChangedMethod = std::bind(&StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged, this, std::placeholders::_1);
+
+	RegisterEvent("onInputStatusChanged",inputStatusChangedMethod);
+
+	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> signalChangedMethod = std::bind(&StreamAbstractionAAMP_VIDEOIN::OnSignalChanged, this, std::placeholders::_1);
+
+	RegisterEvent("onSignalChanged",signalChangedMethod);
+}
+
+/**
+ *   @brief  Gets  onSignalChanged and translates into aamp events
+ */
+void StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged(const JsonObject& parameters)
+{
+	std::string message;
+	parameters.ToString(message);
+	AAMPLOG_WARN("%s:%d :%s",__FUNCTION__,__LINE__,message.c_str());
+
+	std::string strStatus = parameters["status"].String();
+
+	if(0 == strStatus.compare("started"))
+	{
+		if(!mTuned){
+			aamp->SendTunedEvent(false);
+			mTuned = true;
+			aamp->LogFirstFrame();
+			aamp->LogTuneComplete();
+		}
+		aamp->SetState(eSTATE_PLAYING);
+	}
+	else if(0 == strStatus.compare("stopped"))
+	{
+		aamp->SetState(eSTATE_STOPPED);
+	}
+}
+
+/**
+ *   @brief  Gets  onSignalChanged and translates into aamp events
+ */
+void StreamAbstractionAAMP_VIDEOIN::OnSignalChanged (const JsonObject& parameters)
+{
+	std::string message;
+	parameters.ToString(message);
+	AAMPLOG_WARN("%s:%d :%s",__FUNCTION__,__LINE__,message.c_str());
+
+	std::string strReason;
+	std::string strStatus = parameters["signalStatus"].String();
+
+	if(0 == strStatus.compare("noSignal"))
+	{
+		strReason = "NO_SIGNAL";
+	}
+	else if (0 == strStatus.compare("unstableSignal"))
+	{
+		strReason = "UNSTABLE_SIGNAL";
+	}
+	else if (0 == strStatus.compare("notSupportedSignal"))
+	{
+		strReason = "NOT_SUPPORTED_SIGNAL";
+	}
+	else if (0 == strStatus.compare("stableSignal"))
+	{
+		// Only Generate after started event, this can come after temp loss of signal.
+		if(mTuned){
+			aamp->SetState(eSTATE_PLAYING);
+		}
+	}
+
+	if(!strReason.empty())
+	{
+		AAMPLOG_WARN("%s:%d GENERATING BLOCKED EVNET :%s",__FUNCTION__,__LINE__,strReason.c_str());
+		aamp->SendBlockedEvent(strReason);
+	}
+}
+#endif
+
