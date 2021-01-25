@@ -47,6 +47,7 @@ public:
     StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
     void Start() override;
     void Stop(bool clearChannelData) override;
+    AAMPStatusType Init(TuneType tuneType) override;
 };
 
 #endif // HDMIIN_SHIM_H_

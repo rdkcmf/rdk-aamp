@@ -68,14 +68,25 @@ protected:
     StreamInfo* GetStreamInfo(int idx) override;
     void StartHelper(int port, const std::string & methodName);
     void StopHelper(const std::string & methodName) ;
+    bool mTuned;
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    void RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
+    void RegisterAllEvents ();
+#endif
+
 private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;
     ThunderAccessAAMP thunderRDKShellObj;
+    /*Event Handler*/
+    void OnInputStatusChanged(const JsonObject& parameters);
+    void OnSignalChanged(const JsonObject& parameters);
 #endif
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
-	int videoInputPort;
-	std::string mName; // Used for logging
+    int videoInputPort;
+    std::string mName; // Used for logging
+    std::list<std::string> mRegisteredEvents;
 };
 
 #endif // VIDEOIN_SHIM_H_
