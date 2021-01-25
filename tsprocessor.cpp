@@ -416,8 +416,16 @@ public:
 										}
 										else if (delta < 0 )
 										{
-											WARNING("Type[%d] delta[%lld] < 0, base_pts[%llu]->[%llu]", type, delta, base_pts, current_pts);
-											base_pts = current_pts;
+											unsigned long long orig_base_pts = base_pts;
+											if (current_pts > MAX_FIRST_PTS_OFFSET)
+											{
+												base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+											}
+											else
+											{
+												base_pts = current_pts;
+											}
+											WARNING("Type[%d] delta[%lld] < 0, base_pts[%llu]->[%llu]", type, delta, orig_base_pts, base_pts);
 										}
 										else
 										{
@@ -494,7 +502,6 @@ public:
 						isPacketIgnored = true;
 						return;
 					}
-
 				}
 				DEBUG(" PES_PAYLOAD_LENGTH %d", PES_PAYLOAD_LENGTH(pesStart));
 			}
@@ -502,7 +509,7 @@ public:
 			{
 				if (finalized_base_pts && !allowPtsRewind) 
 				{
-					WARNING("current_pts[%llu] < base_pts[%llu], ptsError", current_pts, base_pts);
+					WARNING("Type[%d] current_pts[%llu] < base_pts[%llu], ptsError", (int)type, current_pts, base_pts);
 					ptsError = true;
 					return;
 				}
