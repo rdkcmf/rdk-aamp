@@ -806,15 +806,25 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
-
-  // The idea is to identify video or audio decoder plugin created at runtime by playbin and register to its first-frame/pts-error callbacks
-  // This support is available in BCOM plugins in RDK builds and hence checking only for such plugin instances here
-  // While using playersinkbin, these callbacks are supported via "event-callback" signal and hence not requried to do explicitly
-       // For platforms that doesnt support callback, we use GST_STATE_PLAYING state change of playbin to notify first frame to app
-       return  (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin && 
-               (!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
-               (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true) ||
-               (aamp_StartsWith(name, "brcmaudiodecoder") == true));
+	// The idea is to identify video or audio decoder plugin created at runtime by playbin and register to its first-frame/pts-error callbacks
+	// This support is available in BCOM plugins in RDK builds and hence checking only for such plugin instances here
+	// While using playersinkbin, these callbacks are supported via "event-callback" signal and hence not requried to do explicitly
+	// For platforms that doesnt support callback, we use GST_STATE_PLAYING state change of playbin to notify first frame to app
+	bool isAudioOrVideoDecoder = false;
+	if (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
+	    !_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+	else if (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+	else if (aamp_StartsWith(name, "brcmaudiodecoder"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+	return isAudioOrVideoDecoder;
 }
 
 /**

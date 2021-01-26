@@ -1791,9 +1791,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								// Now we reached the right row , need to traverse the repeat index to reach right node
 								// Whenever new fragments arrive inside the same timeline update fragment number,repeat count and startNumber.
 								// If first fragment start Number is zero, check lastSegmentDuration of period timeline for update.
-								while(pMediaStreamContext->fragmentRepeatCount < repeatCount &&
-									(startTime < pMediaStreamContext->lastSegmentTime) ||
-									((startTime == 0) && (pMediaStreamContext->lastSegmentTime == 0) && (pMediaStreamContext->lastSegmentDuration != 0)))
+								while((pMediaStreamContext->fragmentRepeatCount < repeatCount && startTime < pMediaStreamContext->lastSegmentTime) ||
+									(startTime == 0 && pMediaStreamContext->lastSegmentTime == 0 && pMediaStreamContext->lastSegmentDuration != 0))
 								{
 									startTime += duration;
 									pMediaStreamContext->fragmentDescriptor.Number++;
@@ -5544,7 +5543,8 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 				// For (a) GetDesiredCodecIndex will handle appropriate codec type 
 				// For (b) This code loop will take care ,but need to check for condition of disableEC3/disableATMOS 
 				//	as added below
-				if(selectedCodecType == eAUDIO_ATMOS && aamp->mDisableATMOS || selectedCodecType == eAUDIO_DDPLUS && aamp->mDisableEC3)
+				if((selectedCodecType == eAUDIO_ATMOS && aamp->mDisableATMOS) ||
+				   (selectedCodecType == eAUDIO_DDPLUS && aamp->mDisableEC3))
 				{
 					selectedCodecType = eAUDIO_UNKNOWN;
 				}	
