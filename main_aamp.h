@@ -1101,6 +1101,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *	 @brief Set license caching
+	 *	 @param[in] bValue - true/false to enable/disable license caching
+	 *
+	 *	 @return void
+	 */
+	void SetLicenseCaching(bool bValue);
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled

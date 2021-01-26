@@ -253,6 +253,7 @@ enum ConfigParamType
 	ePARAM_RELOCKONPROGRAMCHANGE,
 	ePARAM_PERSIST_BITRATE_OVER_SEEK,
 	ePARAM_SSL_VERIFY_PEER,
+	ePARAM_LICENSE_CACHING,
 	ePARAM_MAX_COUNT
 };
 
@@ -323,6 +324,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
 	{ ePARAM_PERSIST_BITRATE_OVER_SEEK, "persistBitrateOverSeek"},
 	{ ePARAM_SSL_VERIFY_PEER, "sslVerifyPeer"},
+	{ ePARAM_LICENSE_CACHING, "setLicenseCaching"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -832,6 +834,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PROPAGATE_URI_PARAMETERS:
 			case ePARAM_PERSIST_BITRATE_OVER_SEEK:
 			case ePARAM_SSL_VERIFY_PEER:
+			case ePARAM_LICENSE_CACHING:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -915,6 +918,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_WESTEROS_SINK:
 					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
+					break;
+				case ePARAM_LICENSE_CACHING:
+					privObj->_aamp->SetLicenseCaching(valueAsBoolean);
 					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);
