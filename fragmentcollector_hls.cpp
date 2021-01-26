@@ -3242,6 +3242,9 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 				ignoreProfile = true;
 			}
 			break;
+			
+		default:
+			break;
 	}
 
 	return ignoreProfile;
