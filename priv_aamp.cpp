@@ -1202,6 +1202,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
 			logprintf("useWesterosSink=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "setLicenseCaching=", value) == 1)
+		{
+			gpGlobalConfig->licenseCaching = (TriState)(value != 0);
+			logprintf("setLicenseCaching=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "propagateUriParameters=", value) == 1)
                 {
 			gpGlobalConfig->mPropagateUriParameters = (TriState)(value);
@@ -1921,7 +1926,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 #else
 	mWesterosSinkEnabled(false)
 #endif
-	,mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mEnableRectPropertyEnabled(true), waitforplaystart(), mLicenseCaching(true)
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
 	,mCurlShared(NULL)
@@ -5094,6 +5099,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureRetuneForGSTInternalError();
 	ConfigureWesterosSink();
+	ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
@@ -6231,6 +6237,26 @@ void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
 	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
+}
+
+/**
+ *   @brief Set license caching
+ *   @param[in] bValue - true/false to enable/disable license caching
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetLicenseCaching(bool bValue)
+{
+	if(gpGlobalConfig->licenseCaching == eUndefinedState)
+	{
+		mLicenseCaching = bValue;
+	}
+	else
+	{
+		mLicenseCaching = (bool)gpGlobalConfig->licenseCaching;
+	}
+
+	AAMPLOG_INFO("%s:%d License Caching is : %s ",__FUNCTION__, __LINE__, (mLicenseCaching ? "True" : "False"));
 }
 
 /**
@@ -8394,6 +8420,24 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
 	}
 
 	AAMPLOG_WARN("%s Westeros Sink", mWesterosSinkEnabled ? "Enabling" : "Disabling");
+}
+
+/**
+ *   @brief To set license caching config
+ *
+ */
+void PrivateInstanceAAMP::ConfigureLicenseCaching()
+{
+	if (gpGlobalConfig->licenseCaching != eUndefinedState)
+	{
+		mLicenseCaching = (bool)gpGlobalConfig->licenseCaching;
+	}
+
+	if (!mLicenseCaching)
+	{
+		gpGlobalConfig->dash_MaxDRMSessions = 1; // By configuring 1 to max session will request a license every time when a new tune will be initiated.
+		AAMPLOG_WARN("%s License Caching, MaxDRMSessions: %d", mLicenseCaching ? "Enabling" : "Disabling", gpGlobalConfig->dash_MaxDRMSessions);
+	}
 }
 
 /**
