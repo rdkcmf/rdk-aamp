@@ -140,6 +140,7 @@ public:
 	TriState mPropagateUriParameters;       /**< Enable URI parameters from appliation*/
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
+	TriState licenseCaching;           		/** Enable/Disable license caching */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	TriState forceEC3;                           /**< Forcefully enable DDPlus*/

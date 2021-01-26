@@ -243,15 +243,17 @@ void AampDRMSessionManager::clearAccessToken()
 }
 
 /**
- * @brief	Clean up the failed slot Session Data.
+ * @brief	Clean up the Session Data if license key acquisition failed or if LicenseCaching is false.
  *
+ * @param forceClearSession clear the drm session irrespective of failed keys if LicenseCaching is false.
  * @return	void.
  */
-void AampDRMSessionManager::clearFailedSessionData()
+void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 {
 	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
 	{
-		if(cachedKeyIDs[i].isFailedKeyId && drmSessionContexts != NULL)
+		// Clear the session data if license key acquisition failed or if forceClearSession is true in the case of LicenseCaching is false.
+		if((cachedKeyIDs[i].isFailedKeyId || forceClearSession) && drmSessionContexts != NULL)
 		{
 			AampMutexHold sessionMutex(drmSessionContexts[i].sessionMutex);
 			if (drmSessionContexts[i].drmSession != NULL)

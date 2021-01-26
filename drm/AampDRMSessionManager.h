@@ -190,7 +190,7 @@ public:
 
 	void clearFailedKeyIds();
 
-	void clearFailedSessionData();
+	void clearDrmSession(bool forceClearSession = false);
 
 	void setSessionMgrState(SessionMgrState state);
 

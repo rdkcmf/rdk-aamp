@@ -227,7 +227,12 @@ var defaultInitConfig = {
      * max attempts for init frag curl timeout failures
      */
     //initFragmentRetryCount: 3
-    
+
+    /**
+     * used to enable/disable license caching
+     */
+    //setLicenseCaching: false,
+
     /**
      * Enabling use of matching base url, whenever there are multiple base urls are available, 
      * with this option base url for which host of main tune url if matching is selected, 

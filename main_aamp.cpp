@@ -1594,7 +1594,7 @@ void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
  */
 bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 {
-        return aamp->GetAsyncTuneConfig();
+	return aamp->GetAsyncTuneConfig();
 }
 
 /**
@@ -1606,6 +1606,18 @@ bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
 	aamp->SetWesterosSinkConfig(bValue);
+}
+
+/**
+ *   @brief Set license caching
+ *   @param[in] bValue - true/false to enable/disable license caching
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetLicenseCaching(bValue);
 }
 
 /**

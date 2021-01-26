@@ -691,6 +691,7 @@ public:
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool mAutoResumeTaskPending;
+	bool mLicenseCaching;	/**< Enable/Disable license caching */
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
@@ -1991,6 +1992,12 @@ public:
 	void ConfigureWesterosSink();
 
 	/**
+	 *	 @brief To set license caching config
+	 *
+	 */
+	void ConfigureLicenseCaching();
+
+	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
 	 *   @param[in] preferred timeout value
@@ -2319,6 +2326,14 @@ public:
 	 *   @return void
 	 */
 	void SetWesterosSinkConfig(bool bValue);
+
+	/**
+	 *	 @brief Set license caching
+	 *	 @param[in] bValue - true/false to enable/disable license caching
+	 *
+	 *	 @return void
+	 */
+	void SetLicenseCaching(bool bValue);
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
