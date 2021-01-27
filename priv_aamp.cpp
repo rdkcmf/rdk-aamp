@@ -2117,7 +2117,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 {
 	if (mDownloadsEnabled)
 	{
-		ReportAdProgress();
+		ReportAdProgress(sync);
 
 		double position = GetPositionMilliseconds();
 		double duration = durationSeconds * 1000.0;
@@ -2199,7 +2199,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
  *
  * Sending Ad progress percentage to JSPP
  */
-void PrivateInstanceAAMP::ReportAdProgress(void)
+void PrivateInstanceAAMP::ReportAdProgress(bool sync)
 {
 	if (mDownloadsEnabled && !mAdProgressId.empty())
 	{
@@ -2213,7 +2213,14 @@ void PrivateInstanceAAMP::ReportAdProgress(void)
 		mAdPrevProgressTime = curTime;
 
 		AdPlacementEventPtr evt = std::make_shared<AdPlacementEvent>(AAMP_EVENT_AD_PLACEMENT_PROGRESS, mAdProgressId, (uint32_t)(mAdCurOffset * 100) / mAdDuration);
-		SendEventSync(evt);
+		if(sync)
+		{
+			SendEventSync(evt);
+		}
+		else
+		{
+			SendEventAsync(evt);
+		}
 	}
 }
 
