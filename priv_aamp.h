@@ -1047,7 +1047,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReportAdProgress(void);
+	void ReportAdProgress(bool sync = true);
 
 	/**
 	 *   @brief Get asset duration in milliseconds
