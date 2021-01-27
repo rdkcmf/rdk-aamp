@@ -7278,8 +7278,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						}
 						else
 						{
-							mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled = false;
-							mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
+							for (int i = 0; i < mNumberOfTracks; i++)
+							{
+								mMediaStreamContext[i]->enabled = false;
+							}
 							logprintf("Period ID not changed from \'%s\' to \'%s\',since period is empty [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
 						}
 
