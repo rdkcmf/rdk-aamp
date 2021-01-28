@@ -856,8 +856,9 @@ public:
 	 *   @brief Receives first video PTS for the current playback
 	 *
 	 *   @param[in] pts - pts value
+	 *   @param[in] timeScale - time scale value 
 	 */
-	virtual void NotifyFirstVideoPTS(unsigned long long pts) = 0;
+	virtual void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale) { };
 	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.

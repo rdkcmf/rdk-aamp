@@ -75,7 +75,6 @@ public:
 	void StartInjection(void) override;
 	double GetBufferedDuration();
 	void SeekPosUpdate(double secondsRelativeToTuneTime) { };
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);

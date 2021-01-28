@@ -497,7 +497,7 @@ public:
 	bool IsLive();
 
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
@@ -532,6 +532,7 @@ private:
 	bool mIframeAvailable;					/**< True if iframe available in the stream */
 	bool mUseAvgBandwidthForABR;
 	std::set<std::string> mLangList; /**< Available language list */
+	double mFirstPTS; /**< First video PTS in seconds */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H
