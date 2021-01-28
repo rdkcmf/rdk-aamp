@@ -8842,12 +8842,13 @@ void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
  *   @brief Receives first video PTS of the current playback
  *
  *   @param[in]  pts - pts value
+ *   @param[in]  timeScale - time scale (default 90000)
  */
-void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts)
+void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	if (mpStreamAbstractionAAMP)
 	{
-		mpStreamAbstractionAAMP->NotifyFirstVideoPTS(pts);
+		mpStreamAbstractionAAMP->NotifyFirstVideoPTS(pts, timeScale);
 	}
 }
 
