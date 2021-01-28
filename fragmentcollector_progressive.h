@@ -58,7 +58,6 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
 
     void FetcherLoop();
 protected:

@@ -466,7 +466,7 @@ public:
 	bool IsLive();
 
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
 	/// Function to get output format for track type
 	StreamOutputFormat GetStreamOutputFormatForTrack(TrackType type);
@@ -487,6 +487,7 @@ private:
 	int segDrmDecryptFailCount;				/**< Segment Decrypt fail count */
 	int mMediaCount;						/**< Number of media in the stream */
 	bool mUseAvgBandwidthForABR;
+	double mFirstPTS; /**< First video PTS in seconds */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H
