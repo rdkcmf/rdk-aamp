@@ -2156,8 +2156,9 @@ public:
 	 *   @brief Receives first video PTS of the current playback
 	 *
 	 *   @param[in]  pts - pts value
+	 *   @param[in]  timeScale - time scale (default 90000)
 	 */
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale = 90000);
 
 	/**
 	 *   @brief To send webvtt cue as an event

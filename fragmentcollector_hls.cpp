@@ -5414,11 +5414,18 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
 	double pts = 0.0;
-	if( mStartTimestampZero)
+	if(mStartTimestampZero)
 	{
+		// For CMAF assets, we employ isobmffprocessor to get the PTS value since its not
+		// known from manifest. mFirstPTS will be populated only if platform has qtdemux override enabled.
+		// We check for only video, since mFirstPTS is first video frame's PTS.
+		if (trackState[eMEDIATYPE_VIDEO]->streamOutputFormat == FORMAT_ISO_BMFF && mFirstPTS != 0)
+		{
+			pts += mFirstPTS;
+		}
 		if(gpGlobalConfig->midFragmentSeekEnabled)
 		{
-			pts = midSeekPtsOffset;
+			pts += midSeekPtsOffset;
 		}
 	}
 	else
@@ -5714,7 +5721,8 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
-	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo()
+	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),
+	mFirstPTS(0)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -6308,13 +6316,15 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 * @brief Function to notify first video pts value from tsprocessor
 *
 * @param pts[in] base pts
+* @param timeScale[in] time scale
 * @return none
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
+void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
+	mFirstPTS = ((double)pts / (double)timeScale);
+
 	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-
 	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
 	{
 		//position within playlist and pts in ms

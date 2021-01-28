@@ -133,7 +133,6 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-    void NotifyFirstVideoPTS(unsigned long long pts) { };
     void SetVideoRectangle(int x, int y, int w, int h) override;
     void SetAudioTrack(int index) override;
     void SetAudioTrackByLanguage(const char* lang) override;
