@@ -48,8 +48,6 @@
 #include "AampUtils.h"
 #include "AampRfc.h"
 //#define DEBUG_TIMELINE
-//#define AAMP_HARVEST_SUPPORT_ENABLED
-//#define HARVEST_MPD
 
 
 
@@ -234,17 +232,6 @@ public:
 
 static const char *mMediaTypeName[] = { "video", "audio", "text", "aux-audio" };
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-#ifdef USE_PLAYERSINKBIN
-#define HARVEST_BASE_PATH "/media/tsb/aamp-harvest/" // SD card friendly path
-#else
-#define HARVEST_BASE_PATH "aamp-harvest/"
-#endif
-static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media);
-static void WriteFile(std::string fileName, const char* data, int len);
-#endif // AAMP_HARVEST_SUPPORT_ENABLED
-
-
 /**
  * @brief Check if the given period is empty
  */
@@ -334,9 +321,6 @@ public:
 	 * @retval true on success
 	 */
 	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		, std::string media = 0
-#endif
 		, bool playingAd = false
 	)
 	{
@@ -482,16 +466,6 @@ public:
 		}
 		else
 		{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			if (aamp->HarvestFragments())
-			{
-				std::string fileName;
-				fileName.assign(fragmentUrl);
-				GetFilePath(fileName, &fragmentDescriptor, media);
-				logprintf("%s:%d filePath %s", __FUNCTION__, __LINE__, fileName.c_str());
-				WriteFile(fileName, cachedFragment->fragment.ptr, cachedFragment->fragment.len);
-			}
-#endif
 			cachedFragment->position = position;
 			cachedFragment->duration = duration;
 			cachedFragment->discontinuity = discontinuity;
@@ -1255,68 +1229,6 @@ static AampCurlInstance getCurlInstanceByMediaType(MediaType type)
 	return instance;
 }
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-
-#include <sys/stat.h>
-
-/**
- * @brief Gets file path to havest
- * @param[out] filePath path of file
- * @param fragmentDescriptor fragment descriptor
- * @param media string containing media info
- */
-static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media)
-{
-	std::string constructedUri;
-	if(gpGlobalConfig->harvestpath)
-	{
-		constructedUri = gpGlobalConfig->harvestpath;
-	}
-	else
-	{
-		constructedUri = HARVEST_BASE_PATH;
-	}
-	constructedUri += media;
-	replace(constructedUri, "Bandwidth", fragmentDescriptor->Bandwidth);
-	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
-	replace(constructedUri, "Number", fragmentDescriptor->Number);
-	replace(constructedUri, "Time", fragmentDescriptor->Time);
-	filePath = constructedUri;
-}
-
-
-/**
- * @brief Write file to storage
- * @param fileName out file name
- * @param data buffer
- * @param len length of buffer
- */
-static void WriteFile(std::string fileName, const char* data, int len)
-{
-	std::size_t pos = fileName.rfind('/');
-	std::string dirpath = fileName.substr(0, pos);
-	DIR *d = opendir(dirpath.c_str());
-	if (!d)
-	{
-		mkdir(dirpath.c_str(), 0777);
-	}
-	else
-		closedir(d);
-
-	std::ofstream f(fileName, std::ofstream::binary);
-	if (f.good())
-	{
-		f.write(data, len);
-		f.close();
-	}
-	else
-	{
-		logprintf("File open failed. outfile = %s ", fileName.c_str());
-	}
-}
-#endif // AAMP_HARVEST_SUPPORT_ENABLED
-
-
 /**
  * @brief Fetch and cache a fragment
  *
@@ -1361,9 +1273,6 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 //	logprintf("%s:%d [%s] mFirstFragPTS %f  position %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstFragPTS[pMediaStreamContext->mediaType], position, mFirstFragPTS[pMediaStreamContext->mediaType]+position);
 	position += mFirstFragPTS[pMediaStreamContext->mediaType];
 	bool fragmentCached = pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		, media
-#endif
 		,(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING));
 	// Check if we have downloaded the fragment and waiting for init fragment download on
 	// bitrate switching before caching it.
@@ -4360,31 +4269,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 
 	if (gotManifest)
 	{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		std::string fileName;
-				if(gpGlobalConfig->harvestpath)
-						fileName = gpGlobalConfig->harvestpath;
-				else
-						fileName = HARVEST_BASE_PATH;
-
-		fileName.append("manifest.mpd");
-		WriteFile( fileName, manifest.ptr, manifest.len);
-#endif
-
-//Enable to harvest MPD file
-//Save the last 3 MPDs
-#ifdef HARVEST_MPD
-		static int counter = 0;
-		string fileSuffix = to_string(counter % 999);
-		counter++;
-		string fullPath = "/tmp/data/fog/vssmanifest-" + fileSuffix + ".mpd";
-		logprintf("Saving manifest to %s",fullPath.c_str());
-		FILE *outputFile = fopen(fullPath.c_str(), "w");
-		fwrite(manifest.ptr, manifest.len, 1, outputFile);
-		fprintf(outputFile,"EndofManifest");
-		fclose(outputFile);
-#endif
-
 		MPD* mpd = nullptr;
 		vector<std::string> locationUrl;
 		ret = GetMpdFromManifest(manifest, mpd, manifestUrl, init);

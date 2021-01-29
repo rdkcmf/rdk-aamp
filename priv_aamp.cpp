@@ -838,16 +838,18 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->noFog = (value==0);
 			logprintf("fog=%d", value);
 		}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		else if (ReadConfigNumericHelper(cfg, "harvest=", gpGlobalConfig->harvest) == 1)
+		else if (ReadConfigNumericHelper(cfg, "harvest-count-limit=", gpGlobalConfig->harvestCountLimit) == 1)
 		{
-			logprintf("harvest=%d", gpGlobalConfig->harvest);
+			logprintf("harvest-count-limit=%d", gpGlobalConfig->harvestCountLimit);
 		}
-                else if (ReadConfigStringHelper(cfg, "harvestpath=", (const char**)&gpGlobalConfig->harvestpath))
-                {
-                        logprintf("harvestpath=%s\n", gpGlobalConfig->harvestpath);
-                }
-#endif
+		else if (ReadConfigNumericHelper(cfg, "harvest-config=", gpGlobalConfig->harvestConfig) == 1)
+		{
+			logprintf("harvest-config=%d", gpGlobalConfig->harvestConfig);
+		}
+		else if (ReadConfigStringHelper(cfg, "harvest-path=", (const char**)&gpGlobalConfig->harvestPath))
+		{
+				logprintf("harvest-path=%s\n", gpGlobalConfig->harvestPath);
+		}
 		else if (ReadConfigNumericHelper(cfg, "forceEC3=", value) == 1)
 		{
 			gpGlobalConfig->forceEC3 = (TriState)(value != 0);
@@ -1942,6 +1944,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPersistBitRateOverSeek(false)
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mthumbIndexValue(0)
+	, mManifestRefreshCount (0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -4069,6 +4072,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
+			if( gpGlobalConfig->harvestCountLimit > 0 )
+			{
+				logprintf("aamp harvestCountLimit: %d", gpGlobalConfig->harvestCountLimit);
+				/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
+				if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO || fileType == eMEDIATYPE_PLAYLIST_AUX_AUDIO
+				|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
+				{
+					mManifestRefreshCount++;
+				}
+				aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount);
+			}
 			double expectedContentLength = 0;
 			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
 			{
@@ -5131,6 +5145,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 #endif
 	}
 
+	/* Reset counter in new tune */
+	mManifestRefreshCount = 0;
+	
 	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
 	if(mCacheMaxSize != 0)
         {
@@ -6778,31 +6795,6 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 	}
 }
-
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-/**
- * @brief Check if harvest is required
- * @param modifyCount true to decrement harvest value
- * @retval true if harvest is required
- */
-bool PrivateInstanceAAMP::HarvestFragments(bool modifyCount)
-{
-	if (gpGlobalConfig->harvest)
-	{
-		logprintf("aamp harvest: %d", gpGlobalConfig->harvest);
-		if(modifyCount)
-		{
-			gpGlobalConfig->harvest--;
-			if(!gpGlobalConfig->harvest)
-			{
-				logprintf("gpGlobalConfig->harvest zero, no more harvesting");
-			}
-		}
-		return true;
-	}
-	return false;
-}
-#endif
 
 /**
  * @brief Notify first frame is displayed. Sends CC handle event to listeners.

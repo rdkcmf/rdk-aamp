@@ -1985,9 +1985,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 #endif
 					segDrmDecryptFailCount = 0; /* Resetting the retry count in the case of decryption success */
 				}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-				context->HarvestFile(fragmentUrl, &cachedFragment->fragment, true);
-#endif
 				if (!context->firstFragmentDecrypted)
 				{
 					aamp->NotifyFirstFragmentDecrypted();
@@ -1998,12 +1995,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				logprintf("fragment. len zero for %s", fragmentURI);
 			}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			else
-			{
-				context->HarvestFile(fragmentUrl, &cachedFragment->fragment, true);
-			}
-#endif
 		}
 		else
 		{
@@ -2964,49 +2955,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-/***************************************************************************
-* @fn HarvestFile
-* @brief Function to harvest stream contents locally for debugging
-*
-* @param url[in] url string
-* @param buffer[in] data content
-* @param isFragment[in] flag indicating fragment or not
-* @param prefix[in] prefix string to add to file name
-* @return void
-***************************************************************************/
-void StreamAbstractionAAMP_HLS::HarvestFile(std::string url, GrowableBuffer* buffer, bool isFragment, const char* prefix)
-{
-	if (aamp->HarvestFragments(isFragment))
-	{
-		std::string path;
-                logprintf("aamp: hls Harvest %s len %d", url.c_str(), (int)buffer->len);
-                if(gpGlobalConfig->harvestpath)
-                         path = gpGlobalConfig->harvestpath;
-                else
-                         path = "/media/tsb/"; // SD card on xi3v2
-
-		std::size_t pos = url.rfind('/');
-		if (pos != std::string::npos)
-		{
-			std::string prefix = url.substr(pos+1);
-			path += prefix;
-
-			std::ofstream f(path, std::ofstream::binary);
-			if (f.good())
-			{
-				f.write(buffer->ptr, buffer->len);
-				logprintf("aamp: hls -harvest written %s buffer.len %d", path.c_str(), (int)buffer->len);
-				f.close();
-			}
-			else
-			{
-				logprintf("aamp: hls -harvest file open failed %s len %d", path.c_str(), (int)buffer->len);
-			}
-		}
-	}
-}
-#endif
 /***************************************************************************
 * @fn ABRProfileChanged
 * @brief Function to handle Profile change after ABR
@@ -3154,10 +3102,6 @@ void TrackState::RefreshPlaylist(void)
 	
 		if( mDuration > 0.0f )
 		{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			const char* prefix = (type == eTRACK_SUBTITLE)?"sub-":(type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
-			context->HarvestFile(mPlaylistUrl, &playlist, false, prefix);
-#endif
 			if (IsLive())
 			{
 				fragmentURI = FindMediaForSequenceNumber();
@@ -4221,9 +4165,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			printf("***Main Manifest***:\n\n%s\n************\n", this->mainManifest.ptr);
 		}
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
-#endif
 #ifdef AAMP_HLS_DRM
 		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
 		sessionMgr->clearFailedSessionData();
@@ -4586,10 +4527,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					printf("***Initial Playlist:******\n\n%s\n*****************\n", ts->playlist.ptr);
 				}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-				const char* prefix = (iTrack == eTRACK_SUBTITLE)?"sub-":((iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-");
-				HarvestFile(ts->mPlaylistUrl, &ts->playlist, false, prefix);
-#endif
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
 				ts->IndexPlaylist(false,dummy);

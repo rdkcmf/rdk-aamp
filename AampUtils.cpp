@@ -35,6 +35,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <fstream>
+#include <dirent.h>
+#include <algorithm>
 
 #ifdef USE_MAC_FOR_RANDOM_GEN
 #include <fcntl.h>
@@ -720,3 +723,200 @@ struct timespec aamp_GetTimespec(int timeInMs)
 
 	return tspec;
 }
+
+/* In case of linux and mac simulator use home directory to dump the data as default */
+#if defined( __APPLE__ ) || defined ( __linux__ )
+	static std::string defaultDumpPath(std::string(getenv("HOME"))+"/aamp/");
+#else
+	static std::string defaultDumpPath("/opt/aamp/");
+#endif
+
+/** Harvest Configuration type */
+enum HarvestConfigType
+{
+	eHARVEST_DISABLE_DEFAULT = 0x00000000,      /**< Desable harversting for unknown type */
+	eHARVEST_ENAABLE_VIDEO = 0x00000001,       /**< Enable Harvest Video fragments - set 1st bit*/
+	eHARVEST_ENAABLE_AUDIO = 0x00000002,       /**< Enable Harvest audio - set 2nd bit*/
+	eHARVEST_ENAABLE_SUBTITLE = 0x00000004,    /**< Enable Harvest subtitle - set 3rd bit */
+	eHARVEST_ENAABLE_AUX_AUDIO = 0x00000008,   /**< Enable Harvest auxiliary audio - set 4th bit*/
+	eHARVEST_ENAABLE_MANIFEST = 0x00000010,    /**< Enable Harvest manifest - set 5th bit */
+	eHARVEST_ENAABLE_LICENCE = 0x00000020,     /**< Enable Harvest license - set 6th bit  */
+	eHARVEST_ENAABLE_IFRAME = 0x00000040,      /**< Enable Harvest iframe - set 7th bit  */
+	eHARVEST_ENAABLE_INIT_VIDEO = 0x00000080,   /**< Enable Harvest video init fragment - set 8th bit*/
+	eHARVEST_ENAABLE_INIT_AUDIO = 0x00000100,               /**< Enable Harvest audio init fragment - set 9th bit*/
+	eHARVEST_ENAABLE_INIT_SUBTITLE = 0x00000200,            /**< Enable Harvest subtitle init fragment - set 10th bit*/
+	eHARVEST_ENAABLE_INIT_AUX_AUDIO = 0x00000400,      /**< Enable Harvest auxiliary audio init fragment - set 11th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_VIDEO = 0x00000800,      /**< Enable Harvest video playlist - set 12th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_AUDIO = 0x00001000,      /**< Enable Harvest audio playlist - set 13th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_SUBTITLE = 0x00002000 ,	/**< Enable Harvest subtitle playlist - set 14th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_AUX_AUDIO = 0x00004000,	/**< Enable Harvest auxiliary audio playlist - set 15th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_IFRAME = 0x00008000,     /**< Enable Harvest Iframe playlist - set 16th bit*/
+	eHARVEST_ENAABLE_INIT_IFRAME = 0x00010000,         /**< Enable Harvest IFRAME init fragment - set 17th bit*/
+	eHARVEST_ENAABLE_DSM_CC = 0x00020000,              /**< Enable Harvest digital storage media command and control (DSM-CC)- set 18th bit */
+	eHARVEST_ENAABLE_DEFAULT = 0xFFFFFFFF             /**< Harvest unknown - Enable all by default */
+};
+
+/**
+ * @brief Inline function to create directory
+ * @param direpath - path name
+ */
+static inline void createdir(const char *dirpath)
+{
+	DIR *d = opendir(dirpath);
+	if (!d)
+	{
+		mkdir(dirpath, 0777);
+	}
+	else
+	{
+		closedir(d);
+	}
+}
+
+/**
+ * @brief Get harvest config corresponds to Media type
+ * @param fileType meida file type
+ * @return HarvestConfigType harvestType
+ */
+static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
+{
+	enum HarvestConfigType harvestType = eHARVEST_ENAABLE_DEFAULT;
+	switch(fileType)
+	{
+		case eMEDIATYPE_VIDEO:
+			harvestType = eHARVEST_ENAABLE_VIDEO;
+			break; 
+
+		case eMEDIATYPE_INIT_VIDEO:
+			harvestType = eHARVEST_ENAABLE_INIT_VIDEO;
+			break;
+
+		case eMEDIATYPE_AUDIO:
+			harvestType = eHARVEST_ENAABLE_AUDIO;
+			break; 
+		
+		case eMEDIATYPE_INIT_AUDIO:
+			harvestType = eHARVEST_ENAABLE_INIT_AUDIO;
+			break; 
+		
+		case eMEDIATYPE_SUBTITLE:
+			harvestType = eHARVEST_ENAABLE_SUBTITLE;
+			break; 
+
+		case eMEDIATYPE_INIT_SUBTITLE:
+			harvestType = eHARVEST_ENAABLE_INIT_SUBTITLE;
+			break; 
+
+		case eMEDIATYPE_AUX_AUDIO:
+			harvestType = eHARVEST_ENAABLE_AUX_AUDIO;
+			break; 
+
+		case eMEDIATYPE_INIT_AUX_AUDIO:
+			harvestType = eHARVEST_ENAABLE_INIT_AUX_AUDIO;
+			break; 
+
+		case eMEDIATYPE_MANIFEST:
+			harvestType = eHARVEST_ENAABLE_MANIFEST;
+			break; 
+
+		case eMEDIATYPE_LICENCE:
+			harvestType = eHARVEST_ENAABLE_LICENCE;
+			break; 
+
+		case eMEDIATYPE_IFRAME:
+			harvestType = eHARVEST_ENAABLE_IFRAME;
+			break; 
+		
+		case eMEDIATYPE_INIT_IFRAME:
+			harvestType = eHARVEST_ENAABLE_INIT_IFRAME;
+			break;
+
+		case eMEDIATYPE_PLAYLIST_VIDEO:
+			harvestType = eHARVEST_ENAABLE_PLAYLIST_VIDEO;
+			break; 
+
+		case eMEDIATYPE_PLAYLIST_AUDIO:
+			harvestType = eHARVEST_ENAABLE_PLAYLIST_AUDIO;
+			break; 
+
+		case eMEDIATYPE_PLAYLIST_SUBTITLE:
+			harvestType = eHARVEST_ENAABLE_PLAYLIST_SUBTITLE;
+			break; 
+
+		case eMEDIATYPE_PLAYLIST_AUX_AUDIO:
+			harvestType = eHARVEST_ENAABLE_PLAYLIST_AUX_AUDIO;
+			break; 
+		
+		case eMEDIATYPE_PLAYLIST_IFRAME:
+			harvestType = eHARVEST_ENAABLE_PLAYLIST_IFRAME;
+			break;  
+
+		case eMEDIATYPE_DSM_CC: 
+			harvestType = eHARVEST_ENAABLE_DSM_CC;
+			break; 
+
+		default:
+			harvestType = eHARVEST_DISABLE_DEFAULT;
+			break; 
+	}
+	return harvestType;
+}
+
+/**
+ * @brief Write file to storage
+ * @param fileName out file name
+ * @param data buffer
+ * @param len length of buffer
+ * @param media type of file
+ */
+void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count)
+{
+	char * prefix = gpGlobalConfig->harvestPath;
+	if( !prefix )
+	{
+		AAMPLOG_WARN("Harvest path has not configured, taking default path %s", defaultDumpPath.c_str());
+		prefix = (char *)defaultDumpPath.c_str();
+	}
+	unsigned int harvestConfig = gpGlobalConfig->harvestConfig;
+
+	/*Check harvesting of this file type has enabled by user */
+	if(getHarvestConfigForMedia(fileType) & harvestConfig)
+	{
+		/** Harvest enabled so decrease the harvest count */
+		gpGlobalConfig->harvestCountLimit--;
+		std::size_t pos = fileName.find("://");
+		if( pos != std::string::npos )
+		{
+			fileName = fileName.substr(pos+3); // strip off leading http://
+			pos = fileName.rfind('/');
+			std::string dirpath = fileName.substr(0, pos);
+			fileName = fileName.substr(pos);
+			/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
+			if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO || fileType == eMEDIATYPE_PLAYLIST_AUX_AUDIO
+			|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
+			{
+				fileName = fileName + "." + std::to_string(count);
+			}
+			/* Check prefix path exist or not , if not create it  */
+			createdir(prefix);
+			std::replace( dirpath.begin(), dirpath.end(), '/', '_');
+			dirpath = std::string(prefix)+"/"+dirpath;
+			/** Create directory within the prefix */
+			createdir(dirpath.c_str());
+			std::ofstream f(dirpath+fileName, std::ofstream::binary);
+			if (f.good())
+			{
+				f.write(data, len);
+				f.close();
+			}
+			else
+			{
+				logprintf("File open failed. outfile = %s ", (dirpath + fileName).c_str());
+			}
+		}
+	}
+}
+
+/**
+ * EOF
+ */
