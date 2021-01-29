@@ -7996,7 +7996,13 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 ***************************************************************************/
 StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
 {
-	int userData = mAbrManager.getUserDataOfProfile(idx);
+	int userData = 0;
+
+	if (mProfileCount) // avoid calling getUserDataOfProfile() for playlist only URL playback.
+	{
+		userData = mAbrManager.getUserDataOfProfile(idx);
+	}
+
 	return &streamInfo[userData];
 }
 
