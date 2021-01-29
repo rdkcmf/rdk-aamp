@@ -1190,16 +1190,6 @@ public:
 	 */
 	void InterruptableMsSleep(int timeInMs);
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	/**
-	 * @brief Collect decrypted fragments
-	 *
-	 * @param[in] modifyCount - Collect only the configured number of fragments
-	 * @return void
-	 */
-	bool HarvestFragments(bool modifyCount = true);
-#endif
-
 	/**
 	 * @brief Get download disable status
 	 *
@@ -2889,5 +2879,6 @@ private:
 	bool mEnableSeekableRange;
 	bool mReportVideoPTS;
 	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
+	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
 };
 #endif // PRIVAAMP_H

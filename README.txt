@@ -131,6 +131,29 @@ Note: To add multiple customHeader, add one more line in aamp.cfg and add the da
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+harvest-count-limit=<X> Specify the limit of number of files to be harvested
+harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
+harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits
+    By default aamp will dump all the type of data, set 0 for desabling harvest
+	0x00000001 (1)      - Enable Harvest Video fragments - set 1st bit 
+	0x00000002 (2)      - Enable Harvest audio - set 2nd bit 
+	0x00000004 (4)      - Enable Harvest subtitle - set 3rd bit 
+	0x00000008 (8)      - Enable Harvest auxiliary audio - set 4th bit 
+	0x00000010 (16)     - Enable Harvest manifest - set 5th bit 
+	0x00000020 (32)     - Enable Harvest license - set 6th bit , TODO: not yet supported license dumping
+	0x00000040 (64)     - Enable Harvest iframe - set 7th bit 
+	0x00000080 (128)    - Enable Harvest video init fragment - set 8th bit 
+	0x00000100 (256)    - Enable Harvest audio init fragment - set 9th bit 
+	0x00000200 (512)    - Enable Harvest subtitle init fragment - set 10th bit 
+	0x00000400 (1024)   - Enable Harvest auxiliary audio init fragment - set 11th bit 
+	0x00000800 (2048)   - Enable Harvest video playlist - set 12th bit 
+	0x00001000 (4096)   - Enable Harvest audio playlist - set 13th bit 
+	0x00002000 (8192)   - Enable Harvest subtitle playlist - set 14th bit 
+	0x00004000 (16384)  - Enable Harvest auxiliary audio playlist - set 15th bit 
+	0x00008000 (32768)  - Enable Harvest Iframe playlist - set 16th bit 
+	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
+	example :- if you want harvest only manifest and vide0 fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
+	harvest-config=17
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
 disableMidFragmentSeek=1       Disables the Mid-Fragment seek functionality in aamp.
 

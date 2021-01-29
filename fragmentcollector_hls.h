@@ -483,10 +483,6 @@ public:
 	AAMPStatusType ParseMainManifest();
 	/// Function to get playlist URI for the track type 
 	const char *GetPlaylistURI(TrackType trackType, StreamOutputFormat* format = NULL);
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	/// Function to locally store the download files for debug purpose 
-	void HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix = NULL);
-#endif
 	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */
 
 	/// Stop injection of fragments.
