@@ -323,6 +323,7 @@ class TSProcessor : public MediaProcessor
       long long m_basePTSFromPeer;
       TSProcessor* m_auxTSProcessor;
       bool m_auxiliaryAudio;
+      unsigned char m_AudioTrackIndexToPlay;
 };
 
 #endif

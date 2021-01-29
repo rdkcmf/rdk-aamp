@@ -356,7 +356,7 @@ public:
 	 * @param[out] basePtsUpdated true if base PTS is updated
 	 * @param[in] ptsError true if encountered PTS error.
 	 */
-	void processPacket(unsigned char * packetStart, bool &basePtsUpdated, bool &ptsError)
+	void processPacket(unsigned char * packetStart, bool &basePtsUpdated, bool &ptsError, bool &isPacketIgnored)
 	{
 		int adaptation_fieldlen = 0;
 		basePtsUpdated = false;
@@ -499,6 +499,7 @@ public:
 					if( current_pts == 0 )
 					{
 						WARNING("Avoiding PTS check when new audio or video TS packet is received without proper PES data");
+						isPacketIgnored = true;
 						return;
 					}
 				}
@@ -806,7 +807,7 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	m_demux(false), m_peerTSProcessor(peerTSProcessor), m_packetStartAfterFirstPTS(-1), m_queuedSegment(NULL),
 	m_queuedSegmentPos(0), m_queuedSegmentDuration(0), m_queuedSegmentLen(0), m_queuedSegmentDiscontinuous(false), m_startPosition(-1.0),
 	m_track(track), m_last_frame_time(0), m_demuxInitialized(false), m_basePTSFromPeer(-1), m_dsmccComponentFound(false), m_dsmccComponent(),
-	m_auxTSProcessor(auxTSProcessor), m_auxiliaryAudio(false)
+	m_auxTSProcessor(auxTSProcessor), m_auxiliaryAudio(false), m_AudioTrackIndexToPlay(0)
 {
 	INFO("constructor - %p", this);
 
@@ -2066,7 +2067,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 	{
 		if (audioComponentCount > 0)
 		{
-			audioPid = audioComponents[0].pid;
+			audioPid = audioComponents[m_AudioTrackIndexToPlay].pid;
 		}
 		if (discontinuous || !m_demuxInitialized )
 		{
@@ -2145,7 +2146,25 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 		{
 			bool ptsError = false;  //CID:87386 , 86687 - Initialization
 			bool  basePTSUpdated = false;
-			demuxer->processPacket(packetStart, basePTSUpdated, ptsError);
+			bool isPacketIgnored = false;
+			demuxer->processPacket(packetStart, basePTSUpdated, ptsError, isPacketIgnored);
+
+			/* DELIA 47453 Audio is not playing in particular hls file.
+			 * We always choose the first audio pid to play the audio data, even if we
+			 * have multiple audio tracks in the PMT Table.
+			 * But in one particular hls file, we dont have PES data in the first audio pid.
+			 * So, we have now modifeied to choose the next available audio pid index,
+			 * when there is no PES data available in the current audio pid.
+			 */
+			if( ( demuxer == m_audDemuxer ) && isPacketIgnored )
+			{
+				if( (audioComponentCount > 0) && (m_AudioTrackIndexToPlay < audioComponentCount-1) )
+				{
+					m_AudioTrackIndexToPlay++;
+					WARNING("Switched to next audio pid, since no PES data in current pid");
+				}
+			}
+
 			// Process PTS updates and errors only for audio and video demuxers
 			if(!m_demuxInitialized && !dsmccDemuxerUsed)
 			{
@@ -2228,6 +2247,7 @@ void TSProcessor::reset()
 	m_basePTSFromPeer = -1;
 	m_havePAT = false;
 	m_havePMT = false;
+	m_AudioTrackIndexToPlay = 0;
 	pthread_mutex_unlock(&m_mutex);
 }
 
