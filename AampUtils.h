@@ -158,4 +158,14 @@ std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
  */
 struct timespec aamp_GetTimespec(int timeInMs);
 
+/**
+ * @brief Write file to storage
+ * @param fileName out file name
+ * @param data buffer
+ * @param len length of buffer
+ * @param media type of file
+ * @param count for manifest or playlist update
+ */
+void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count);
+
 #endif  /* __AAMP_UTILS_H__ */

@@ -116,11 +116,9 @@ public:
 	bool noFog;                 /**< Disable FOG*/
 	char *mapMPD;               /**< Mapping of HLS to MPD url for matching string */
 	char *mapM3U8;		    /**< Mapping of MPD to HLS url for matching string */
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	int harvest;                /**< Save decrypted fragments for debugging*/
-	char* harvestpath;
-#endif
-
+	unsigned int harvestConfig;  /**< Variable to configure the harvest support , bit masking technique **/
+	int harvestCountLimit;                /**< Limit of number of files to be harvested*/
+	char* harvestPath;					  /**< Custom path for saving harvested files*/
 	AampLogManager logging;             	/**< Aamp log manager class*/
 	int gPreservePipeline;                  /**< Flush instead of teardown*/
 	int gAampDemuxHLSAudioTsTrack;          /**< Demux Audio track from HLS transport stream*/
