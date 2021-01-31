@@ -4848,7 +4848,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 	else if (mMediaFormat == eMEDIAFORMAT_OTA)
 	{
-		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_COMPOSITEIN(this, playlistSeekPos, rate);
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
 		if (NULL == mCdaiObject)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
@@ -4856,7 +4856,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
         else if (mMediaFormat == eMEDIAFORMAT_COMPOSITE)
         {
-                mpStreamAbstractionAAMP = new StreamAbstractionAAMP_OTA(this, playlistSeekPos, rate);
+                mpStreamAbstractionAAMP = new StreamAbstractionAAMP_COMPOSITEIN(this, playlistSeekPos, rate);
                 if (NULL == mCdaiObject)
                 {
                         mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
