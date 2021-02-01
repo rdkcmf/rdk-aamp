@@ -6587,6 +6587,13 @@ void PrivateInstanceAAMP::Stop()
 		pipeline_paused = false;
 	}
 
+#if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+        if (mDRMSessionManager)
+        {
+                mDRMSessionManager->clearFailedSessionData();
+        }
+#endif
+
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{
@@ -6603,6 +6610,7 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 	}
+
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
