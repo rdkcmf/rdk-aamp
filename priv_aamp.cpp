@@ -5166,6 +5166,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
+	mCurrentDrm = nullptr;
 
 	// DELIA-47965: Calling SetContentType without checking contentType != NULL, so that
 	// mContentType will be reset to ContentType_UNKNOWN at the start of tune by default
