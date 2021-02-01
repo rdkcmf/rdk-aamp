@@ -190,6 +190,8 @@ public:
 
 	void clearFailedKeyIds();
 
+	void clearFailedSessionData();
+
 	void setSessionMgrState(SessionMgrState state);
 
 	SessionMgrState getSessionMgrState();

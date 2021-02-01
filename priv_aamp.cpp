@@ -6296,6 +6296,7 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 	}
+
 	if(NULL != mCdaiObject)
 	{
 		delete mCdaiObject;
