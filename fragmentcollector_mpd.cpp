@@ -5912,6 +5912,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									representationCount += adaptationSet->GetRepresentation().size();
 							}
 					}
+                                        const std::vector<IAdaptationSet *> adaptationSets= period->GetAdaptationSets();
+                                        if(adaptationSets.size() > 0)
+					{
+                                             IAdaptationSet* adaptationSet = adaptationSets.at(0);
+                			     if ((mNumberOfTracks == 1) && (IsContentType(adaptationSet, eMEDIATYPE_AUDIO)))
+             				     {
+                                                 representationCount += adaptationSet->GetRepresentation().size();
+	                        	     }
+                                       	}	
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
 					{
 						delete[] mStreamInfo;
@@ -5927,7 +5936,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					GetABRManager().clearProfiles();
 					mBitrateIndexVector.clear();
 					int addedProfiles = 0;
-					const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
 					size_t idx = 0;
 					std::map<int, struct ProfileInfo> iProfileMaps;
 					bool resolutionCheckEnabled = false;
@@ -6071,7 +6079,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					if (0 == addedProfiles)
 					{
 						ret = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
-						AAMPLOG_WARN("%s:%d No video profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
+						AAMPLOG_WARN("%s:%d No profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
 						return ret;
 					}
 					if (modifyDefaultBW)
