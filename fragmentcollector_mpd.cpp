@@ -3752,6 +3752,7 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
 	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
+	sessionMgr->clearFailedSessionData();
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 	sessionMgr->setLicenseRequestAbort(false);
