@@ -32,6 +32,7 @@
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
 #include "hdmiin_shim.h"
+#include "compositein_shim.h"
 #include "ota_shim.h"
 #include "_base64.h"
 #include "base16.h"
@@ -1147,6 +1148,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
 			logprintf("playlists-parallel-fetch=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "useDashParallelFragDownload=", value) == 1)
+		{
+			gpGlobalConfig->dashParallelFragDownload = (TriState)(value != 0);
+			logprintf("useDashParallelFragDownload=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "parallelPlaylistRefresh=", value) == 1)
 		{
 			gpGlobalConfig->parallelPlaylistRefresh  = (TriState)(value != 0);
@@ -1884,9 +1890,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mLastDiscontinuityTimeMs(0), mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
-	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(true), mEnableRectPropertyEnabled(true), waitforplaystart()
+	,mAsyncTuneEnabled(false), mWesterosSinkEnabled(false), mEnableRectPropertyEnabled(true), waitforplaystart()
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
-	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false)
+	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
 	,mCurlShared(NULL)
 	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
@@ -1910,6 +1916,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mSessionToken(), mCacheMaxSize(0)
 	, midFragmentSeekCache(false)
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
+	, mPreviousAudioType (FORMAT_INVALID)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -4494,16 +4501,14 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 
 		if(env_enable_westoros_sink)
 		{
-			bool bValue = 0;
-			bValue = ((strcasecmp(env_enable_westoros_sink,"false") == 0 || strcasecmp(env_enable_westoros_sink,"0") == 0));
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d",  !bValue );
-			/* Enabling westeros by default as part of DELIA-43202. Export   */
-			/* AAMP_ENABLE_WESTEROS_SINK as false to enable broadcom encoder */
-			/* via setenv.                                                   */
-	
-			if(bValue)
+			int iValue = atoi(env_enable_westoros_sink);
+			bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
+
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
+
+			if(iValue || bValue)
 			{
-				mWesterosSinkEnabled = false;
+				mWesterosSinkEnabled = true;
 			}
 		}
 
@@ -4855,6 +4860,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
+        else if (mMediaFormat == eMEDIAFORMAT_COMPOSITE)
+        {
+                mpStreamAbstractionAAMP = new StreamAbstractionAAMP_COMPOSITEIN(this, playlistSeekPos, rate);
+                if (NULL == mCdaiObject)
+                {
+                        mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
+                }
+        }
 
 	mInitSuccess = true;
 	AAMPStatusType retVal;
@@ -5025,6 +5038,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
 	ConfigureParallelFetch();
+	ConfigureDashParallelFragmentDownload();
 	ConfigureBulkTimedMetadata();
 	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureRetuneForGSTInternalError();
@@ -5291,6 +5305,10 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	{
 		rc = eMEDIAFORMAT_HDMI;
 	}
+        else if( urlStr.rfind("cvbsin:",0)==0 )
+        {
+                rc = eMEDIAFORMAT_COMPOSITE;
+        }
 	else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0)) 
 	{
 		rc = eMEDIAFORMAT_OTA;
@@ -5621,6 +5639,14 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 		else if(playbackMode == "OTA")
 		{
 			mContentType = ContentType_OTA; //ota
+		}
+		else if(playbackMode == "HDMI_IN")
+		{
+			mContentType = ContentType_HDMIIN; //ota
+		}
+		else if(playbackMode == "COMPOSITE_IN")
+		{
+			mContentType = ContentType_COMPOSITEIN; //ota
 		}
 	}
 }
@@ -6028,6 +6054,25 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 }
 
 /**
+ *   @brief Set Westeros sink Configuration
+ *   @param[in] bValue - true if westeros sink enabled
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
+{
+	if(gpGlobalConfig->mWesterosSinkConfig == eUndefinedState)
+	{
+		mWesterosSinkEnabled = bValue;
+	}
+	else
+	{
+		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
+	}
+	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
+}
+
+/**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
  *
@@ -6088,7 +6133,7 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI)))
+	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE)))
 		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
 	else
 		mStreamSink->SetVideoRectangle(x, y, w, h);
@@ -7925,6 +7970,17 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 }
 
 /**
+ *   @brief  Generate Blocked  event based on args passed.
+ *
+ *   @param[in] reason          - Blocked Reason
+ */
+void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
+{
+	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
+	SendEventAsync(event);
+}
+
+/**
  *   @brief To set the initial bitrate value.
  *
  *   @param[in] initial bitrate to be selected
@@ -8043,6 +8099,20 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
 }
 
 /**
+ *   @brief To set DASH Parallel Download configuration for fragments
+ *
+ */
+void PrivateInstanceAAMP::ConfigureDashParallelFragmentDownload()
+{
+	if(gpGlobalConfig->dashParallelFragDownload != eUndefinedState)
+	{
+		mDashParallelFragDownload = (bool)gpGlobalConfig->dashParallelFragDownload;
+	}
+
+	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d DASH Paraller Frag DL Config [%d]", __FUNCTION__, __LINE__, mDashParallelFragDownload);
+}
+
+/**
  *   @brief To set Parallel Download configuration
  *
  */
@@ -8095,7 +8165,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
     {
             mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
     }
-    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Retune For GST Internal Stream Error [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
+    AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d GST Internal Stream Error Retune Config [%d]", __FUNCTION__, __LINE__, mUseRetuneForGSTInternalError);
 }
 
 /**

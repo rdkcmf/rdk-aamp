@@ -55,7 +55,7 @@
 
 static const char *mMediaFormatName[] =
 {
-    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI","UNKNOWN"
+    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI_IN","COMPOSITE_IN","UNKNOWN"
 };
 
 #ifdef __APPLE__
@@ -534,6 +534,7 @@ public:
 	bool mInitSuccess;	//TODO: Need to replace with player state
 	StreamOutputFormat mVideoFormat;
 	StreamOutputFormat mAudioFormat;
+	StreamOutputFormat mPreviousAudioType; /* Used to maintain previous audio type of HLS playback */
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
 	StreamSink* mStreamSink;
@@ -563,6 +564,7 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
+	bool mDashParallelFragDownload;
 	bool mParallelFetchPlaylist;
 	bool mParallelFetchPlaylistRefresh;
 	bool mWesterosSinkEnabled;
@@ -1854,6 +1856,13 @@ public:
 	void SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent);
 
 	/**
+	 *   @brief  Generate Blocked  event based on args passed.
+	 *
+	 *   @param[in] reason          - Blocked Reason
+	 */
+	void SendBlockedEvent(const std::string & reason);
+
+	/**
 	 *   @brief To set the initial bitrate value.
 	 *
 	 *   @param[in] initial bitrate to be selected
@@ -1888,6 +1897,12 @@ public:
 	*
 	*/
 	void ConfigurePlaylistTimeout();
+
+	/**
+	 *	 @brief To set DASH Parallel Download configuration for fragments
+	 *
+	 */
+	void ConfigureDashParallelFragmentDownload();
 
 	/**
 	*   @brief To set the parallel playlist fetch configuration
@@ -2231,6 +2246,14 @@ public:
 	* @return void
 	*/
 	void SetParallelPlaylistRefresh(bool bValue);
+
+	/**
+	 *   @brief Set Westeros sink Configuration
+	 *
+	 *   @param[in] bValue - true if westeros sink enabled
+	 *   @return void
+	 */
+	void SetWesterosSinkConfig(bool bValue);
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration

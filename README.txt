@@ -139,7 +139,6 @@ langcodepref=<X>
 2: ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE langguage codes normalized to 3-character iso639-2 terminology encoding (i.e. "deu")
 3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
-useWesterosSink=0  Set to 0 to use broadcom based video decoding. Default value is true(westeros enabled).
 propagateUriParameters=0 to disable feature where top-level manifest URI parameters included when downloading fragments.  Default is 1 (enabled).
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.
@@ -154,6 +153,7 @@ disableWifiCurlHeader=1 Disble wifi custom curl header inclusion
 maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer appsource setup to complete
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
+useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
@@ -169,14 +169,13 @@ This can be done for n number of channels.
 
 =================================================================================================================
 
-To disable Westeros
+To enable Westeros
 -------------------
 
-Westeros is default enabled .
-Developers can enable broadcom encoder via SetEnv as below.
-Export  below flag in SetEnv.sh under /opt, then restart the receiver process:
+Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
+flag in SetEnv.sh under /opt, then restart the receiver process:
 
-	export AAMP_ENABLE_WESTEROS_SINK=false
+	export AAMP_ENABLE_WESTEROS_SINK=true
 
 Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
 instead of going through browser rendering.  This allows for smoother video zoom animations

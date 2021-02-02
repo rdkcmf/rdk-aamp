@@ -61,15 +61,18 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	if(0 != prevState.compare(currState))
 	{
 		PrivAAMPState state = eSTATE_IDLE;
-		AAMPLOG_INFO( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
 		prevState = currState;
-		if(0 == currState.compare("PROCESSING"))
+		if(0 == currState.compare("PENDING"))
 		{
 			state = eSTATE_PREPARING;
-		}else if(0 == currState.compare("ERROR"))
+		}else if(0 == currState.compare("BLOCKED"))
 		{
-			aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC Tuner Error");
-			state = eSTATE_BUFFERING;
+			std::string reason = playerData["blockedReason"].String(); 
+			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
+			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
+			aamp->SendBlockedEvent(reason);
+			state = eSTATE_BLOCKED;
 		}else if(0 == currState.compare("PLAYING"))
 		{
 			if(!tuned){

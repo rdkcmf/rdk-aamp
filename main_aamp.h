@@ -1074,6 +1074,14 @@ public:
 	void SetParallelPlaylistRefresh(bool bValue);
 
 	/**
+	 *   @brief Set Westeros sink configuration
+	 *   @param[in] bValue - true if westeros sink enabled
+	 *
+	 *   @return void
+	*/
+	void SetWesterosSinkConfig(bool bValue);
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled

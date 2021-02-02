@@ -103,7 +103,9 @@ enum ContentType
 	ContentType_PPV,            /**< 10 - PPV */
 	ContentType_OTT,            /**< 11 - OTT */
 	ContentType_OTA,            /**< 12 - OTA*/
-	ContentType_MAX             /**< 13 - Type Count*/
+	ContentType_HDMIIN,         /**< 13 - HDMI Input */
+	ContentType_COMPOSITEIN,    /**< 14 - COMPOSITE Input*/
+	ContentType_MAX             /**< 15 - Type Count*/
 };
 
 /**

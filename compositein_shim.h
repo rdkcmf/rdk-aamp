@@ -18,12 +18,12 @@
 */
 
 /**
- * @file hdmiin_shim.h
- * @brief shim for dispatching UVE HDMI input playback
+ * @file compositein_shim.h
+ * @brief shim for dispatching UVE Composite input playback
  */
 
-#ifndef HDMIIN_SHIM_H_
-#define HDMIIN_SHIM_H_
+#ifndef COMPOSITEIN_SHIM_H_
+#define COMPOSITEIN_SHIM_H_
 
 #include "videoin_shim.h"
 #include <string>
@@ -35,23 +35,22 @@
 using namespace std;
 
 /**
- * @class StreamAbstractionAAMP_HDMIIN
+ * @class StreamAbstractionAAMP_COMPOSITEIN
  * @brief Fragment collector for MPEG DASH
  */
-class StreamAbstractionAAMP_HDMIIN : public StreamAbstractionAAMP_VIDEOIN
+class StreamAbstractionAAMP_COMPOSITEIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
-    StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
-    ~StreamAbstractionAAMP_HDMIIN();
-    StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
-    StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    StreamAbstractionAAMP_COMPOSITEIN(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    ~StreamAbstractionAAMP_COMPOSITEIN();
+    StreamAbstractionAAMP_COMPOSITEIN(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
+    StreamAbstractionAAMP_COMPOSITEIN& operator=(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
     void Start() override;
     void Stop(bool clearChannelData) override;
-    AAMPStatusType Init(TuneType tuneType) override;
 };
 
-#endif // HDMIIN_SHIM_H_
+#endif // COMPOSITEIN_SHIM_H_
 /**
  * @}
  */
- 
+
