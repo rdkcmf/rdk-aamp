@@ -745,7 +745,10 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		}
 
 		bool seekWhilePause = false;
-		if (aamp->pipeline_paused)
+		// For autoplay false, pipeline_paused will be true, which denotes a non-playing state
+		// as the GST pipeline is not yet created, avoid setting pipeline_paused to false here
+		// which might mess up future SetRate call for BG->FG
+		if (aamp->mbPlayEnabled && aamp->pipeline_paused)
 		{
 			// resume downloads and clear paused flag. state change will be done
 			// on streamSink configuration.
