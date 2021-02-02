@@ -2013,13 +2013,13 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE) || defined(UBUNTU))
+#ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
-#if (defined(INTELCE) || defined(RPI) || defined(REALTEKCE))
+#ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
 		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
