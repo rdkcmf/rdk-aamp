@@ -6120,7 +6120,12 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 ***************************************************************************/
 static bool isThumbnailStream( const struct HlsStreamInfo *streamInfo )
 {
-	return SubStringMatch(streamInfo->codecs,streamInfo->codecs+4, "jpeg");
+	bool ret = false;
+	if (streamInfo->codecs)
+	{
+		ret = SubStringMatch(streamInfo->codecs, streamInfo->codecs+4, "jpeg");
+	}
+	return ret;
 }
 
 /***************************************************************************
@@ -6259,8 +6264,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 	if(!thumbnailManifest.ptr)
 	{
 		std::string tmpurl;
-		aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(streaminfo->uri, &thumbnailManifest, tmpurl);
-		if(thumbnailManifest.len)
+		if(aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(streaminfo->uri, &thumbnailManifest, tmpurl))
 		{
 			indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
 		}
