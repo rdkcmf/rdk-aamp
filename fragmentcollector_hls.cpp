@@ -7770,6 +7770,10 @@ void StreamAbstractionAAMP_HLS::ConfigureTextTrack()
 		{
 			currentTextTrackProfileIndex = GetMediaIndexForLanguage(aamp->mSubLanguage, eTRACK_SUBTITLE);
 		}
+		if (-1 == currentTextTrackProfileIndex)
+		{
+			currentTextTrackProfileIndex = GetMediaIndexForDefaultLanguage(eTRACK_SUBTITLE);
+		}
 	}
 	AAMPLOG_WARN("%s:%d TextTrack Selected :%d", __FUNCTION__, __LINE__, currentTextTrackProfileIndex);
 }

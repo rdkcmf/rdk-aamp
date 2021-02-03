@@ -389,7 +389,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 				double duration = (end - start);
 				double mpegTimeOffset = cueStartInMpegTime - (mStartPTS / 90);
 				double relativeStartPos = mStartPos + mpegTimeOffset; //w.r.t to position in reportProgress
-				AAMPLOG_INFO("So found cue with startPTS:%.3f and duration:%.3f, and mpegTimeOffset:%.3f and relative time being:%.3f\n", cueStartInMpegTime/1000.0, duration/1000.0, mpegTimeOffset/1000.0, relativeStartPos/1000.0);
+				AAMPLOG_INFO("So found cue with startPTS:%.3f and duration:%.3f, and mpegTimeOffset:%.3f and relative time being:%.3f", cueStartInMpegTime/1000.0, duration/1000.0, mpegTimeOffset/1000.0, relativeStartPos/1000.0);
 				addCueData(new VTTCue(relativeStartPos, duration, std::string(text), std::string()));
 			}
 

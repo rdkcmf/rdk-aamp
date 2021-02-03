@@ -28,8 +28,7 @@ WebVTTSubtecParser::WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeTy
 
 void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
 {
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(positionMs));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(positionMs));
 }
 
 bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
@@ -43,10 +42,9 @@ bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
 	int width = 1280, height = 720;
 	
 	mAamp->GetPlayerVideoSize(width, height);
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->AddPacket(m_channel->generateSelectionPacket(width, height));
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos)));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateResetAllPacket());
+	PacketSender::Instance()->SendPacket(m_channel->generateSelectionPacket(width, height));
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos)));
 	
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	
@@ -60,8 +58,7 @@ bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double posi
 	for (size_t i = 0; i < bufferLen; i++)
 		data.push_back(buffer[i]);
 	
-	PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateDataPacket(data));
 
 	return true;
 }

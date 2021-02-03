@@ -36,7 +36,7 @@ public:
      * @param height
      *      Display height.
      */
-    TtmlSelectionPacket(uint32_t channelId, uint32_t counter, uint32_t width, uint32_t height)
+    TtmlSelectionPacket(uint32_t channelId, uint32_t counter, uint32_t width, uint32_t height) : Packet(counter)
     {
         appendType(Packet::PacketType::TTML_SELECTION);
         append32(counter);
@@ -69,11 +69,11 @@ public:
     TtmlDataPacket(std::uint32_t channelId,
                    std::uint32_t counter,
                    std::int64_t dataOffset,
-                   std::vector<std::uint8_t>& dataBuffer)
+                   std::vector<std::uint8_t> &dataBuffer) : Packet(counter)
     {
         auto& buffer = getBuffer();
         uint32_t size = 8 + 4 + dataBuffer.size();
-        
+
         appendType(PacketType::TTML_DATA);
         append32(counter);
         append32(size);
@@ -98,7 +98,7 @@ public:
      */
     TimestampPacket(std::uint32_t channelId,
                     std::uint32_t counter,
-                    std::uint64_t timestamp)
+                    std::uint64_t timestamp) : Packet(counter)
     {
         appendType(PacketType::TTML_TIMESTAMP);
         append32(counter);

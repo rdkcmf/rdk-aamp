@@ -38,8 +38,7 @@ namespace
     template<typename Packet>
     void sendSinglePacket(Packet && p)
     {
-        PacketSender::Instance()->AddPacket(std::forward<Packet>(p));
-        PacketSender::Instance()->SendPackets();
+        PacketSender::Instance()->SendPacket(std::forward<Packet>(p));
     }
 
     gsw_CcAttributes createDefaultAttributes()

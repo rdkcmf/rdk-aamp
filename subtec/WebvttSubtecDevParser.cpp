@@ -31,7 +31,7 @@ std::string getTtmlHeader()
     str << "  <!-- s1 specifies default color, font, and text alignment -->" << std::endl;
     str << "  <style xml:id=\"s1\"" << std::endl;
     str << "    tts:color=\"white\"" << std::endl;
-    str << "    tts:fontFamily=\"DroidSansMonoPro monospace type\"" << std::endl;
+    str << "    tts:fontFamily=\"XFINITY Sans Med\"" << std::endl;
     str << "    tts:fontSize=\"100%\"" << std::endl;
     str << "    tts:textAlign=\"start\"" << std::endl;
     str << "  />" << std::endl;
@@ -94,7 +94,7 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 		ss << "</p>";
 	}
 	
-	AAMPLOG_INFO("%s: %s\n", __FUNCTION__, ss.str().c_str());
+	AAMPLOG_TRACE("%s: %s\n", __FUNCTION__, ss.str().c_str());
 	
 	return ss.str();
 }
@@ -102,11 +102,15 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 WebVTTSubtecDevParser::WebVTTSubtecDevParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : WebVTTParser(aamp, type), m_channel(nullptr)
 {
 	m_channel = make_unique<TtmlChannel>();
+	PacketSender::Instance()->SendPacket(m_channel->generateResetAllPacket());
 }
 
 bool WebVTTSubtecDevParser::processData(char *buffer, size_t bufferLen, double position, double duration)
 {	
-	bool ret = WebVTTParser::processData(buffer, bufferLen, position, duration);
+	bool ret;
+	
+	if (mReset) mReset = false;
+	ret = WebVTTParser::processData(buffer, bufferLen, position, duration);
 	
 	if (ret) sendCueData();
 	
@@ -121,29 +125,29 @@ void WebVTTSubtecDevParser::sendCueData()
 	for(const uint8_t &ch : ttml)
 		data.push_back(ch);
 	
-	PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateDataPacket(data));
 }
 
 void WebVTTSubtecDevParser::reset()
 {
+	if (!mReset)
+	{
+		PacketSender::Instance()->SendPacket(m_channel->generateResetChannelPacket());
+	}
 	WebVTTParser::reset();
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->SendPackets();
 }
 
 void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_INFO("%s: timestamp: %lldms\n", __FUNCTION__, positionMs );
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(positionMs));
-	PacketSender::Instance()->SendPackets();
+	AAMPLOG_TRACE("%s: timestamp: %lldms\n", __FUNCTION__, positionMs );
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(positionMs));
 }
 
 bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 {	
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
+		AAMPLOG_WARN("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
 		return false;
 	}
 	
@@ -151,13 +155,20 @@ bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 	bool ret = true;
 	
 	mAamp->GetPlayerVideoSize(width, height);
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->AddPacket(m_channel->generateSelectionPacket(width, height));
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos * 1000)));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateSelectionPacket(width, height));
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos * 1000)));
 	
 	mVttQueueIdleTaskId = -1;
-	ret = WebVTTParser::init(startPos, basePTS);
+
+	uint64_t adjustedPts = 0;
+	uint64_t startPosPts = static_cast<uint64_t>(startPos * 90000.0);
+
+	if (basePTS > startPosPts)
+	{
+		adjustedPts = basePTS - startPosPts;
+	}
+
+	ret = WebVTTParser::init(startPos, adjustedPts);
 	mVttQueueIdleTaskId = 0;
 	
 	return ret;
@@ -166,21 +177,17 @@ bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 void WebVTTSubtecDevParser::mute(bool mute)
 {
 	if (mute)
-		PacketSender::Instance()->AddPacket(m_channel->generateMutePacket());
+		PacketSender::Instance()->SendPacket(m_channel->generateMutePacket());
 	else
-		PacketSender::Instance()->AddPacket(m_channel->generateUnmutePacket());
-		
-	PacketSender::Instance()->SendPackets();
+		PacketSender::Instance()->SendPacket(m_channel->generateUnmutePacket());
 }
 
 void WebVTTSubtecDevParser::pause(bool pause)
 {
 	if (pause)
-		PacketSender::Instance()->AddPacket(m_channel->generatePausePacket());
+		PacketSender::Instance()->SendPacket(m_channel->generatePausePacket());
 	else
-		PacketSender::Instance()->AddPacket(m_channel->generateResumePacket());
-		
-	PacketSender::Instance()->SendPackets();
+		PacketSender::Instance()->SendPacket(m_channel->generateResumePacket());
 }
 
 /**
@@ -204,7 +211,7 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 		{
 			VTTCue *cue = mVttQueue.front();
 			mVttQueue.pop();
-			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld\n", cue->mStart, mStartPos, mPtsOffset);
+			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld", cue->mStart, mStartPos, mPtsOffset);
 			int start = cue->mStart;
 			if (start > 0)
 			{	
@@ -212,16 +219,17 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 			}
 			else
 			{
-				AAMPLOG_INFO("%s: queue size %zu cue start %.3f\n", __FUNCTION__, mVttQueue.size(), cue->mStart);
+				AAMPLOG_TRACE("%s: queue size %zu cue start %.3f", __FUNCTION__, mVttQueue.size(), cue->mStart);
 			}
 			delete cue;
 		}
 	}
 	else
 	{
-		AAMPLOG_INFO("%s: queue empty\n", __FUNCTION__);
+		AAMPLOG_TRACE("%s: cue queue empty", __FUNCTION__);
+		AAMPLOG_INFO("Outgoing WebVTT file with start pos %.3fs is EMPTY", __FUNCTION__, mStartPos / 1000.0);
 	}
-	
+
 	ss << "</div>";
 	ss << "</body>" << std::endl;
 	ss << "</tt>" << std::endl;

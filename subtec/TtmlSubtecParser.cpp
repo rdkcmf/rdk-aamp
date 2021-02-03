@@ -37,10 +37,9 @@ bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
 	int width = 1280, height = 720;
 	
 	mAamp->GetPlayerVideoSize(width, height);
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->AddPacket(m_channel->generateSelectionPacket(width, height));
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos)));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateResetAllPacket());
+	PacketSender::Instance()->SendPacket(m_channel->generateSelectionPacket(width, height));
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos)));
 	
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 
@@ -49,8 +48,7 @@ bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
 
 void TtmlSubtecParser::updateTimestamp(unsigned long long positionMs)
 {
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(positionMs));
-	PacketSender::Instance()->SendPackets();
+	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(positionMs));
 }
 
 bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
@@ -73,8 +71,7 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		isobuf.parseMdatBox(mdat, mdatLen);
 		for (int i = 0; i < mdatLen; i++)
 			data.push_back(static_cast<uint8_t>(mdat[i]));
-		PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
-		PacketSender::Instance()->SendPackets();
+		PacketSender::Instance()->SendPacket(m_channel->generateDataPacket(data));
 		free(mdat);
 		AAMPLOG_INFO("Sent buffer with size %zu position %.3f\n", bufferLen, position);
 	}

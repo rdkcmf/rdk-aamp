@@ -2056,6 +2056,17 @@ void StreamAbstractionAAMP::MuteSubtitles(bool mute)
 	}
 }
 
+void StreamAbstractionAAMP::UpdateSubtitleTimestamp()
+{
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+	
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		uint64_t positionms = static_cast<uint64_t>(GetStreamPosition() * 1000.0);
+		logprintf("%s:%d : positionms %ld", __FUNCTION__, __LINE__, positionms);
+		subtitle->mSubtitleParser->updateTimestamp(positionms);
+	}
+}
 
 /**
  *   @brief Checks if streamer reached end of stream

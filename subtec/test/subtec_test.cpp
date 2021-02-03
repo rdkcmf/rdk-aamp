@@ -115,16 +115,13 @@ int main(int argc, char *argv[])
     ret = sender->Init();
 	if (ret)
 	{
-		sender->AddPacket(channel->generateResetAllPacket());
-		sender->SendPackets();
+		sender->SendPacket(channel->generateResetAllPacket());
         if (!send_reset)
         {
-            sender->AddPacket(channel->generateResetChannelPacket());
-            sender->AddPacket(channel->generateSelectionPacket(1280, 720));
-            sender->AddPacket(channel->generateDataPacket(data));
+            sender->SendPacket(channel->generateResetChannelPacket());
+            sender->SendPacket(channel->generateSelectionPacket(1280, 720));
+            sender->SendPacket(channel->generateDataPacket(data));
             sleep(1);
-            sender->SendPackets();
-            sleep(5);            
         }
 	}
     
