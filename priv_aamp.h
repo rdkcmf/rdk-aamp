@@ -353,11 +353,12 @@ struct httpRespHeaderData {
 };
 
 struct ThumbnailData {
-	ThumbnailData() : url(""), x(0), y(0), t(0.0)
+	ThumbnailData() : url(""), x(0), y(0), t(0.0), d(0.0)
 	{
 	}
 	std::string url; /**<  url of tile image (may be relative or absolute path) */
 	double t; /**<  presentation time for this thumbnail */
+	double d; /**< time duration of this tile */
 	int x;    /**< x coordinate of thumbnail within tile */
 	int y;    /**< y coordinate of Thumbnail within tile */
 };

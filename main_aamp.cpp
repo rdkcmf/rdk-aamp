@@ -1928,6 +1928,10 @@ std::string PlayerInstanceAAMP::GetAvailableThumbnailTracks(void)
 bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
+	if(thumbIndex < 0 || !aamp->mpStreamAbstractionAAMP)
+	{
+		return false;
+	}
 	return aamp->mpStreamAbstractionAAMP->SetThumbnailTrack(thumbIndex);
 }
 

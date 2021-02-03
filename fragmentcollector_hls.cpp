@@ -6238,6 +6238,7 @@ bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 				if( aamp->GetFile(url, &thumbnailManifest, tempEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST,true,eMEDIATYPE_PLAYLIST_IFRAME) )
 				{
 					logprintf("In StreamAbstractionAAMP_HLS::%s Configured Thumbnail",__FUNCTION__);
+					aamp_AppendNulTerminator( &thumbnailManifest );
 					aamp->getAampCacheHandler()->InsertToPlaylistCache(streamInfo->uri, &thumbnailManifest, tempEffectiveUrl,false,eMEDIATYPE_PLAYLIST_IFRAME);
 					indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
 					rc = true;
@@ -6284,6 +6285,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 	}
 
 	ThumbnailData tmpdata;
+	double totalSetDuration = 0;
 	for( TileInfo &tileInfo : indexedTileInfo )
 	{
 		tmpdata.t = tileInfo.startTime;
@@ -6292,6 +6294,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 			break;
 		}
 		double tileSetEndTime = tmpdata.t + tileInfo.tileSetDuration;
+		totalSetDuration += tileInfo.tileSetDuration;
 		if( tileSetEndTime < tStart )
 		{ // skip over
 			continue;
@@ -6299,12 +6302,18 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 		tmpdata.url = tileInfo.url;
 		*raw_w = streaminfo->resolution.width * tileInfo.numCols;
 		*raw_h = streaminfo->resolution.height * tileInfo.numRows;
-
-		for( int row=0; row<tileInfo.numRows; row++ )
+		tmpdata.d = tileInfo.posterDuration;
+		bool done = false;
+		for( int row=0; row<tileInfo.numRows && !done; row++ )
 		{
-			for( int col=0; col<tileInfo.numCols; col++ )
+			for( int col=0; col<tileInfo.numCols && !done; col++ )
 			{
 				double tNext = tmpdata.t+tileInfo.posterDuration;
+				if( tNext >= tileSetEndTime )
+				{ // clamp & bail
+					tmpdata.d = tileSetEndTime - tmpdata.t;
+					done = true;
+				}
 				if( tEnd >= tmpdata.t && tStart < tNext  )
 				{
 					tmpdata.x = col * streaminfo->resolution.width;
