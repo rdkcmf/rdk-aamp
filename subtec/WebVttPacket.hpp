@@ -20,6 +20,7 @@
 #pragma once
 
 #include "SubtecPacket.hpp"
+#include "SubtecChannel.hpp"
 
 class WebVttSelectionPacket : public Packet
 {
@@ -69,7 +70,7 @@ public:
     WebVttDataPacket(std::uint32_t channelId,
                    std::uint32_t counter,
                    std::int64_t dataOffset,
-                   std::vector<std::uint8_t>& dataBuffer)
+                   std::vector<std::uint8_t> &&dataBuffer)
     {
         auto& buffer = getBuffer();
         uint32_t size = 8 + 4 + dataBuffer.size();
@@ -117,19 +118,14 @@ class WebVttChannel : public SubtecChannel
 {
 public:
     WebVttChannel() : SubtecChannel() {}
-    
-    PacketPtr generateSelectionPacket(uint32_t width, uint32_t height) 
-    { 
-        return make_unique<WebVttSelectionPacket>(m_channelId, m_counter++, width, height); 
+
+    void SendSelectionPacket(uint32_t width, uint32_t height) {
+        sendPacket<WebVttSelectionPacket>(width, height);
     }
-    
-    PacketPtr generateDataPacket(std::vector<uint8_t> data)
-    { 
-        return make_unique<WebVttDataPacket>(m_channelId, m_counter++, 0, data); 
+    void SendDataPacket(std::vector<uint8_t> &&data) {
+        sendPacket<WebVttDataPacket>(0, std::move(data));
     }
-   
-    PacketPtr generateTimestampPacket(uint64_t timestampMs)
-    { 
-        return make_unique<WebVttTimestampPacket>(m_channelId, m_counter++, timestampMs); 
+    void SendTimestampPacket(uint64_t timestampMs) {
+        sendPacket<WebVttTimestampPacket>(timestampMs);
     }
 };

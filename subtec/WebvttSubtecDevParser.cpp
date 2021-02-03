@@ -18,36 +18,33 @@
 */
 
 #include "WebvttSubtecDevParser.hpp"
-#include "PacketSender.hpp"
 
 std::string getTtmlHeader()
 {
-	std::ostringstream str; 
-	str << "<head>" << std::endl;
-    str << "<metadata xmlns:ttm=\"http://www.w3.org/ns/ttml#metadata\">" << std::endl;
-    str << "  <ttm:title>WebVTT to TTML template</ttm:title>" << std::endl;
-    str << "</metadata>" << std::endl;
-    str << "<styling xmlns:tts=\"http://www.w3.org/ns/ttml#styling\">" << std::endl;
-    str << "  <!-- s1 specifies default color, font, and text alignment -->" << std::endl;
-    str << "  <style xml:id=\"s1\"" << std::endl;
-    str << "    tts:color=\"white\"" << std::endl;
-    str << "    tts:fontFamily=\"DroidSansMonoPro monospace type\"" << std::endl;
-    str << "    tts:fontSize=\"100%\"" << std::endl;
-    str << "    tts:textAlign=\"start\"" << std::endl;
-    str << "  />" << std::endl;
-    str << "</styling>" << std::endl;
-    str << "<layout xmlns:tts=\"http://www.w3.org/ns/ttml#styling\">" << std::endl;
-    str << "  <region xml:id=\"subtitleArea\"" << std::endl;
-    str << "    style=\"s1\"" << std::endl;
-    str << "    tts:origin=\"10% 70%\"" << std::endl;
-    str << "    tts:extent=\"80% 30%\"" << std::endl;
-    str << "    tts:backgroundColor=\"#000000FF\"" << std::endl;
-    str << "    tts:displayAlign=\"after\"" << std::endl;
-    str << "  />" << std::endl;
-    str << "</layout> " << std::endl;
-    str << "</head>" << std::endl;
-	
-	return str.str();
+	return R"str(
+	<head>
+    <metadata xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+      <ttm:title>WebVTT to TTML template</ttm:title>
+    </metadata>
+    <styling xmlns:tts="http://www.w3.org/ns/ttml#styling">
+      <!-- s1 specifies default color, font, and text alignment -->
+      <style xml:id="s1"
+        tts:color="white"
+        tts:fontFamily="XFINITY Sans Med"
+        tts:fontSize="100%"
+        tts:textAlign="start"
+      />
+    </styling>
+    <layout xmlns:tts="http://www.w3.org/ns/ttml#styling">
+      <region xml:id="subtitleArea"
+        style="s1"
+        tts:origin="10% 70%"
+        tts:extent="80% 30%"
+        tts:backgroundColor="#000000FF"
+        tts:displayAlign="after"
+      />
+    </layout> 
+    </head>)str";
 }
 
 void stripHtmlTags(std::string& str)
@@ -85,28 +82,33 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 			if (!text.empty())
 			{
 				if (!first)
-					ss << std::endl;
+					ss << "\n";
 				stripHtmlTags(text);
 				ss << text;
 				first = false;
 			}
 		}
-		ss << "</p>";
+		ss << "</p>\n";
 	}
 	
-	AAMPLOG_INFO("%s: %s\n", __FUNCTION__, ss.str().c_str());
+	AAMPLOG_TRACE("%s: %s\n", __FUNCTION__, ss.str().c_str());
 	
 	return ss.str();
 }
 
+
 WebVTTSubtecDevParser::WebVTTSubtecDevParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : WebVTTParser(aamp, type), m_channel(nullptr)
 {
 	m_channel = make_unique<TtmlChannel>();
+	m_channel->SendResetAllPacket();
 }
 
 bool WebVTTSubtecDevParser::processData(char *buffer, size_t bufferLen, double position, double duration)
 {	
-	bool ret = WebVTTParser::processData(buffer, bufferLen, position, duration);
+	bool ret;
+	
+	if (mReset) mReset = false;
+	ret = WebVTTParser::processData(buffer, bufferLen, position, duration);
 	
 	if (ret) sendCueData();
 	
@@ -116,34 +118,31 @@ bool WebVTTSubtecDevParser::processData(char *buffer, size_t bufferLen, double p
 void WebVTTSubtecDevParser::sendCueData()
 {
 	std::string ttml = getVttAsTtml();
-	std::vector<uint8_t> data;
+	std::vector<uint8_t> data(ttml.begin(), ttml.end());
 	
-	for(const uint8_t &ch : ttml)
-		data.push_back(ch);
-	
-	PacketSender::Instance()->AddPacket(m_channel->generateDataPacket(data));
-	PacketSender::Instance()->SendPackets();
+	m_channel->SendDataPacket(std::move(data));
 }
 
 void WebVTTSubtecDevParser::reset()
 {
+	if (!mReset)
+	{
+		m_channel->SendResetChannelPacket();
+	}
 	WebVTTParser::reset();
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->SendPackets();
 }
 
 void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_INFO("%s: timestamp: %lldms\n", __FUNCTION__, positionMs );
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(positionMs));
-	PacketSender::Instance()->SendPackets();
+	AAMPLOG_TRACE("%s: timestamp: %lldms\n", __FUNCTION__, positionMs );
+	m_channel->SendTimestampPacket(positionMs);
 }
 
 bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 {	
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
+		AAMPLOG_WARN("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
 		return false;
 	}
 	
@@ -151,13 +150,20 @@ bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 	bool ret = true;
 	
 	mAamp->GetPlayerVideoSize(width, height);
-	PacketSender::Instance()->AddPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->AddPacket(m_channel->generateSelectionPacket(width, height));
-	PacketSender::Instance()->AddPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos * 1000)));
-	PacketSender::Instance()->SendPackets();
+	m_channel->SendSelectionPacket(width, height);
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos * 1000));
 	
 	mVttQueueIdleTaskId = -1;
-	ret = WebVTTParser::init(startPos, basePTS);
+
+	uint64_t adjustedPts = 0;
+	uint64_t startPosPts = static_cast<uint64_t>(startPos * 90000.0);
+
+	if (basePTS > startPosPts)
+	{
+		adjustedPts = basePTS - startPosPts;
+	}
+
+	ret = WebVTTParser::init(startPos, adjustedPts);
 	mVttQueueIdleTaskId = 0;
 	
 	return ret;
@@ -166,21 +172,17 @@ bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
 void WebVTTSubtecDevParser::mute(bool mute)
 {
 	if (mute)
-		PacketSender::Instance()->AddPacket(m_channel->generateMutePacket());
+		m_channel->SendMutePacket();
 	else
-		PacketSender::Instance()->AddPacket(m_channel->generateUnmutePacket());
-		
-	PacketSender::Instance()->SendPackets();
+		m_channel->SendUnmutePacket();
 }
 
 void WebVTTSubtecDevParser::pause(bool pause)
 {
 	if (pause)
-		PacketSender::Instance()->AddPacket(m_channel->generatePausePacket());
+		m_channel->SendPausePacket();
 	else
-		PacketSender::Instance()->AddPacket(m_channel->generateResumePacket());
-		
-	PacketSender::Instance()->SendPackets();
+		m_channel->SendResumePacket();
 }
 
 /**
@@ -189,14 +191,14 @@ void WebVTTSubtecDevParser::pause(bool pause)
 std::string WebVTTSubtecDevParser::getVttAsTtml()
 {	
 	pthread_mutex_lock(&mVttQueueMutex);
-	std::ostringstream ss;
+	std::string ss;
 	int counter = 0;
 	
-	ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
-	ss << "<tt xmlns=\"http://www.w3.org/ns/ttml\">" << std::endl;
-	ss << getTtmlHeader();
-	ss << "<body region=\"subtitleArea\">";
-	ss << "<div>";
+	ss += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+	ss += "<tt xmlns=\"http://www.w3.org/ns/ttml\">\n";
+	ss += getTtmlHeader();
+	ss += "<body region=\"subtitleArea\">\n";
+	ss += "<div>\n";
 	
 	if (!mVttQueue.empty())
 	{
@@ -204,30 +206,31 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 		{
 			VTTCue *cue = mVttQueue.front();
 			mVttQueue.pop();
-			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld\n", cue->mStart, mStartPos, mPtsOffset);
+			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld", cue->mStart, mStartPos, mPtsOffset);
 			int start = cue->mStart;
 			if (start > 0)
 			{	
-				ss << convertCueToTtmlString(counter++, cue, start);
+				ss += convertCueToTtmlString(counter++, cue, start);
 			}
 			else
 			{
-				AAMPLOG_INFO("%s: queue size %zu cue start %.3f\n", __FUNCTION__, mVttQueue.size(), cue->mStart);
+				AAMPLOG_TRACE("%s: queue size %zu cue start %.3f", __FUNCTION__, mVttQueue.size(), cue->mStart);
 			}
 			delete cue;
 		}
 	}
 	else
 	{
-		AAMPLOG_INFO("%s: queue empty\n", __FUNCTION__);
+		AAMPLOG_TRACE("%s: cue queue empty", __FUNCTION__);
+		AAMPLOG_INFO("Outgoing WebVTT file with start pos %.3fs is EMPTY", __FUNCTION__, mStartPos / 1000.0);
 	}
-	
-	ss << "</div>";
-	ss << "</body>" << std::endl;
-	ss << "</tt>" << std::endl;
+
+	ss += "</div>\n";
+	ss += "</body>\n";
+	ss += "</tt>\n";
 
 
 	pthread_mutex_unlock(&mVttQueueMutex);
 
-	return ss.str();
+	return ss;
 }

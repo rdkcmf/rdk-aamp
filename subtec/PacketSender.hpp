@@ -32,7 +32,10 @@
 #include <atomic>
 
 #ifdef SUBTEC_PACKET_DEBUG
-#define logprintf printf
+#define AAMPLOG_WARN printf
+#define AAMPLOG_INFO printf
+#define AAMPLOG_TRACE printf
+#define AAMPLOG_ERR printf
 #else
 #include "priv_aamp.h"
 #endif
@@ -53,15 +56,14 @@ public:
     void Flush();
     bool Init();
     bool Init(const char *socket_path);
-    void AddPacket(PacketPtr packet);
+    void SendPacket(PacketPtr && packet);
     void senderTask();
-    void SendPackets();
     bool IsRunning();
     static PacketSender *Instance();
 private:
     void closeSenderTask();
     void flushPacketQueue();
-    void sendPacket(PacketPtr pkt);
+    void sendPacket(PacketPtr && pkt);
     bool initSenderTask();
     bool initSocket(const char *socket_path);
 
@@ -73,7 +75,6 @@ private:
     std::condition_variable mCv;
     std::mutex mStartMutex;
     std::condition_variable mStartCv;
-    static PacketSender *mInstance;
 protected:
     PacketSender() : 
         mSendThread(), 
