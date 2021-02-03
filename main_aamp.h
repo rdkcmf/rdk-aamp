@@ -241,6 +241,15 @@ struct TextTrackInfo
 	}
 };
 
+struct RestrictionInfo
+{
+	std::string system;
+	std::vector<std::string> restrictions;
+	RestrictionInfo(std::string brSystem, std::vector<std::string> restrictionList):system(brSystem),restrictions(restrictionList)
+	{
+	}
+};
+
 
 typedef struct PreCacheUrlData
 {
@@ -1339,35 +1348,14 @@ public:
 	void SetReportVideoPTS(bool enabled);
 
 	/**
-	 *	 @brief Set Content Restrictions
-	 *	 @param[in] restrictions - restrictions to be applied
-	 *
-	 *	 @return void
-	 */
-	void SetContentRestrictions(std::vector<std::string> restrictions);
-
-	/**
-	 *   @brief Get Content Restrictions
-	 *
-	 *   @return std::vector<std::string> list of restrictions
-	 */
-	std::vector<std::string> GetContentRestrictions();
-
-	/**
 	 *	 @brief Disable Content Restrictions - unlock
-	 *	 @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
 	 *
 	 *	 @return void
 	 */
-	void DisableContentRestrictions(long secondsRelativeToCurrentTime);
-
-	/**
-	 *	 @brief Disable Content Restrictions - unlock
-	 *	 @param[in] untilProgramChange - channel need to be kept unlocked till the next program change
-	 *
-	 *	 @return void
-	 */
-	void DisableContentRestrictions(bool untilProgramChange);
+	void DisableContentRestrictions(long grace, long time, bool eventChange);
 
 	/**
 	 *	 @brief Enable Content Restrictions - lock

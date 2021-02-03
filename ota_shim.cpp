@@ -42,17 +42,6 @@ using namespace WPEFramework;
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
 
-//moc parental control
-#include <fstream>
-StreamAbstractionAAMP_OTA* StreamAbstractionAAMP_OTA::_instance = nullptr;
-cTimer StreamAbstractionAAMP_OTA::m_pcTimer;
-cTimer StreamAbstractionAAMP_OTA::m_lockTimer;
-bool StreamAbstractionAAMP_OTA::m_isPcConfigRead = false;
-std::vector<pcConfigItem> StreamAbstractionAAMP_OTA::m_pcProgramList;
-int StreamAbstractionAAMP_OTA::m_pcProgramCount = 0;
-std::vector<std::string> StreamAbstractionAAMP_OTA::currentPgmRestrictions;
-
-
 #define MEDIAPLAYER_CALLSIGN "org.rdk.MediaPlayer.1"
 #define MEDIASETTINGS_CALLSIGN "org.rdk.MediaSettings.1"
 #define APP_ID "MainPlayer"
@@ -119,18 +108,6 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	}
 }
 
-/*[PC API platform integration]Needs to rewrite handler to process PC JsonObject input*/
-void StreamAbstractionAAMP_OTA::onContentRestrictedHandler(bool locked) {
-	std::vector<std::string> restrictionList;
-	/*Default values set for testing purpose*/
-	//restrictionList.push_back("TV-14");
-	//restrictionList.push_back("TV-MA");
-
-	if(locked)
-		aamp->SendContentRestrictedEvent("locked", true, StreamAbstractionAAMP_OTA::_instance->currentPgmRestrictions);
-	else
-		aamp->SendContentRestrictedEvent("unlocked", false, StreamAbstractionAAMP_OTA::_instance->currentPgmRestrictions);
-}
 #endif
 
 /**
@@ -157,8 +134,6 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     //mEventSubscribed flag updated for tracking event subscribtion
     mEventSubscribed = thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
-    /*[PC API platform integration]Subscribe for Content Restricted Event*/
-
     AAMPStatusType retval = eAAMPSTATUS_OK;
 
     //activate RDK Shell - not required as this plugin is already activated
@@ -177,43 +152,12 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                            , tuned(false),mEventSubscribed(false),restrictionsOta(),
+                            , tuned(false),mEventSubscribed(false),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
 #endif
 { // STUB
-#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-#else
-//moc parental control
-	StreamAbstractionAAMP_OTA::_instance = this;
-	m_pcTimer.setCallback(mocProgramChangeCallback);
-	m_lockTimer.setCallback(mocLockCallback);
-	m_pcTimer.setInterval(100);
-	m_unlocktimeout = false;
-	m_unlockpc = false;
-	m_unlockfull = false;
-
-	std::string pcCfgPath = "/opt/pc.cfg";
-
-	if ((!m_isPcConfigRead) && (!pcCfgPath.empty()))
-        {
-		std::ifstream f(pcCfgPath, std::ifstream::in | std::ifstream::binary);
-		if (f.good())
-		{
-			//logprintf("opened pc.cfg");
-			std::string buf;
-			while (f.good())
-			{
-				std::getline(f, buf);
-				ProcessPcConfigEntry(buf);
-			}
-			f.close();
-			m_isPcConfigRead = true;
-			m_pcProgramCount = 0;
-		}
-	}
-#endif
 }
 
 /**
@@ -246,9 +190,6 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 	{
 		AAMPLOG_WARN("[OTA_SHIM]OTA Destructor finds Player Status Event not Subscribed !! ");
 	}
-
-//moc parental control
-	m_pcTimer.stop();
 
 	AAMPLOG_INFO("[OTA_SHIM]StreamAbstractionAAMP_OTA Destructor called !! ");
 #endif
@@ -318,12 +259,6 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	JsonObject result;
 
 	SetPreferredAudioLanguage();
-
-	if(0 != aamp->mRestrictions.size())
-	{
-		//AAMPLOG_INFO( "[OTA_SHIM]Content Restrictions set by user");
-		ApplyContentRestrictions(aamp->mRestrictions);
-	}
 
 	JsonObject createParam;
 	createParam["id"] = APP_ID;
@@ -753,94 +688,38 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 }
 
 /**
- * @brief Set Content Restrictions set by the App
- *
- * @param[in] Restrictions to be applied to plugin
- */
-void StreamAbstractionAAMP_OTA::ApplyContentRestrictions(std::vector<std::string> restrictions)
-{
-#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-#else
-	//AAMPLOG_INFO( "[OTA_SHIM]Content Restrictions set by user:");
-        if(0 != restrictions.size())
-        {
-		/*[PC API platform integration]Needs to set the ratings to plugin*/
-
-		/*Log message can be added if required
-		for (int i = 0; i < restrictions.size(); i++)
-                {
-			AAMPLOG_INFO( "[OTA_SHIM] %s", restrictions[i].c_str());
-		}*/
-
-		/*Temporarily save the Restrictions till PC plugin APIs are ready*/
-		restrictionsOta = restrictions;
-        }
-
-	m_pcTimer.start();
-#endif
-}
-/**
- * @brief Get Content Restrictions
- *
- *   @return std::vector<std::string> list of restrictions
- */
-std::vector<std::string> StreamAbstractionAAMP_OTA::GetContentRestrictions()
-{
-#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-	return std::vector<std::string>();
-#else
-	//AAMPLOG_INFO( "[OTA_SHIM]%s: Content Restrictions from platform:", __FUNCTION__);
-	/*[PC API platform integration]Needs to fill a vector using ratings from plugin and sent as return value*/
-
-	/*Temporarily use the ota saved Restrictions till PC plugin APIs are ready*/
-	return restrictionsOta;
-#endif
-}
-
-/**
  * @brief Disable Restrictions (unlock) till seconds mentioned
  *
- * @param[in] secondsRelativeToCurrentTime Seconds Relative to current time
- * @param[in]
+ * @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+ * @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+ * @param[in] eventChange - disable restriction handling till next program event boundary
  */
-void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long secondsRelativeToCurrentTime)
+void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
-	if(-1 == secondsRelativeToCurrentTime){
-		//pc temporary change
-		m_unlockfull = true;
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	if(-1 == grace){
 
+		param["grace"] = -1;
+		param["time"] = -1;
+		param["eventChange"] = false;
 		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next reboot or explicit enable", __FUNCTION__ );
-		/*[PC API platform integration]Make plugin call to disable restrictions*/
 	}else{
-		//pc temporary change
-		m_unlocktimeout = true;
-		m_lockTimer.setInterval((secondsRelativeToCurrentTime) * 1000);
-		m_lockTimer.start();
+		param["grace"] = 0;
+		param["time"] = time;
+		param["eventChange"] = eventChange;
 
-		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, secondsRelativeToCurrentTime);
-		/*[PC API platform integration]Make plugin call to disable restrictions*/
+		if(-1 != time)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, time);
+
+		if(eventChange)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
 	}
+	thunderAccessObj.InvokeJSONRPC("disableContentRestrictionsUntil", param, result);
 
-#endif
-}
-
-/**
- * @brief Disable Restrictions (unlock) till next program
- *
- * @param[in] untilProgramChange
- * @param[in]
- */
-void StreamAbstractionAAMP_OTA::DisableContentRestrictions(bool untilProgramChange)
-{
-#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-#else
-	AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
-	/*[PC API platform integration]Make plugin call to disable restrictions*/
-
-	//pc temporary change
-	m_unlockpc = true;
 #endif
 }
 
@@ -855,12 +734,11 @@ void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
 	AAMPLOG_WARN( "[OTA_SHIM]%s: locked ", __FUNCTION__);
-	/*[PC API platform integration]Make plugin call to enable restrictions*/
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	thunderAccessObj.InvokeJSONRPC("enableContentRestrictions", param, result);
 
-	//pc temporary change
-	m_unlockpc = false;
-	m_unlocktimeout = false;
-	m_unlockfull = false;
 #endif
 }
 
@@ -1018,241 +896,3 @@ void StreamAbstractionAAMP_OTA::StopInjection(void)
 void StreamAbstractionAAMP_OTA::StartInjection(void)
 { // STUB - discontinuity related
 }
-
-#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-//moc parental control
-
-/**
-* @brief helper function to avoid dependency on unsafe sscanf while reading strings
-* @param bufPtr pointer to CString buffer to scan
-* @param prefixPtr - prefix string to match in bufPtr
-* @param valueCopyPtr receives allocated copy of string following prefix (skipping delimiting whitesace) if prefix found
-* @retval 0 if prefix not present or error
-* @retval 1 if string extracted/copied to valueCopyPtr
-*/
-int StreamAbstractionAAMP_OTA::ReadConfigStringHelper(std::string buf, const char *prefixPtr, const char **valueCopyPtr)
-{
-        int ret = 0;
-        std::size_t pos = buf.find(prefixPtr);
-        if (pos != std::string::npos)
-        {
-                pos += strlen(prefixPtr);
-                if (*valueCopyPtr != NULL)
-                {
-                        free((void *)*valueCopyPtr);
-                        *valueCopyPtr = NULL;
-                }
-                *valueCopyPtr = strdup(buf.substr(pos).c_str());
-                if (*valueCopyPtr)
-                {
-                        ret = 1;
-                }
-        }
-        return ret;
-}
-
-
-/**
-* @brief helper function to extract numeric value from given buf after removing prefix
-* @param buf String buffer to scan
-* @param prefixPtr - prefix string to match in bufPtr
-* @param value - receives numeric value after extraction
-* @retval 0 if prefix not present or error
-* @retval 1 if string converted to numeric value
-*/
-
-int StreamAbstractionAAMP_OTA::ReadConfigNumericHelper(std::string buf, const char* prefixPtr, long& value)
-{
-        int ret = 0;
-
-        try
-        {
-                std::size_t pos = buf.find(prefixPtr);
-                if (pos != std::string::npos)
-                {
-                        pos += strlen(prefixPtr);
-                        std::string valStr = buf.substr(pos);
-                        value = std::stol(valStr);
-                        ret = 1;
-                }
-        }
-        catch(exception& e)
-        {
-                // NOP
-        }
-
-        return ret;
-}
-
-
-/**
- * @brief Process config entries,i and update pc input settings
- *        based on the config setting.
- * @param cfg config to process
- */
-void StreamAbstractionAAMP_OTA::ProcessPcConfigEntry(std::string cfg)
-{
-        if (!cfg.empty() && cfg.at(0) != '#')
-        { // ignore comments
-                //Removing unnecessary spaces and newlines
-                trim(cfg);
-		long value;
-		char * tmpValue = NULL;
-		pcConfigItem tempConfigItem;
-
-                if (ReadConfigNumericHelper(cfg, "programDuration=", value) == 1)
-                {
-                        tempConfigItem.pgmDuration = value;
-                        //logprintf("programDuration=%ld", value);
-                }
-
-                if (ReadConfigStringHelper(cfg, "restrictions=", (const char**)&tmpValue))
-                {
-                        if (tmpValue)
-                        {
-				tempConfigItem.pgmRestrictions = tmpValue;
-                                //logprintf("restrictions = %s", tmpValue);
-                                //logprintf("restrictions saved = %s", tempConfigItem.pgmRestrictions.c_str());
-
-                                free(tmpValue);
-                                tmpValue = NULL;
-                        }
-			m_pcProgramList.push_back(tempConfigItem);
-                }
-        }
-}
-
-
-
-void StreamAbstractionAAMP_OTA::mocProgramChangeCallback()
-{
-	if(true == m_isPcConfigRead)
-	{
-		if(m_pcProgramCount >= m_pcProgramList.size())
-			m_pcProgramCount = 0;
-
-		bool locked = false;
-
-                //logprintf("Current Program restrictions = %s", m_pcProgramList[m_pcProgramCount].pgmRestrictions.c_str());
-
-		int restrictionCount = StreamAbstractionAAMP_OTA::_instance->restrictionsOta.size();
-		std::size_t pos = std::string::npos;
-                for (int i = 0; i < restrictionCount; i++)
-                {
-			pos = m_pcProgramList[m_pcProgramCount].pgmRestrictions.find(StreamAbstractionAAMP_OTA::_instance->restrictionsOta[i]);
-		        if (pos != std::string::npos)
-		        {
-				//logprintf("restriction : %s is present in the current program's restriction list\n", StreamAbstractionAAMP_OTA::_instance->restrictionsOta[i].c_str());
-				locked = true;
-				break;
-		        }
-                }
-		//No need to check StreamAbstractionAAMP_OTA::_instance->m_unlockpc
-		if((StreamAbstractionAAMP_OTA::_instance->m_unlocktimeout) ||
-		   (StreamAbstractionAAMP_OTA::_instance->m_unlockfull))
-		{
-			locked = false;
-			//logprintf("Unlocked by user");
-		}
-
-		std::string delimiter = ",";
-		StreamAbstractionAAMP_OTA::_instance->currentPgmRestrictions.clear();
-		std::string s = m_pcProgramList[m_pcProgramCount].pgmRestrictions;
-		size_t position = 0;
-		std::string token;
-		while ((position = s.find(delimiter)) != std::string::npos) {
-			token = s.substr(0, position);
-			std::cout << token << std::endl;
-			s.erase(0, position + delimiter.length());
-			StreamAbstractionAAMP_OTA::_instance->currentPgmRestrictions.push_back(token);
-		}
-		StreamAbstractionAAMP_OTA::_instance->currentPgmRestrictions.push_back(s);
-
-		StreamAbstractionAAMP_OTA::_instance->onContentRestrictedHandler(locked);
-                //logprintf("Timer set for = %ld", m_pcProgramList[m_pcProgramCount].pgmDuration);
-		m_pcTimer.setInterval((m_pcProgramList[m_pcProgramCount++].pgmDuration) * 1000);
-
-		if(StreamAbstractionAAMP_OTA::_instance->m_unlockpc)
-			StreamAbstractionAAMP_OTA::_instance->m_unlockpc = false;
-	}
-}
-
-void StreamAbstractionAAMP_OTA::mocLockCallback()
-{
-        //logprintf("Reset unlock set with timeout");
-	StreamAbstractionAAMP_OTA::_instance->m_unlocktimeout = false;
-	m_lockTimer.stop();
-}
-
-/***
- * @brief : Constructor.
- * @return   : nil.
- */
-cTimer::cTimer()
-{
-    clear = false;
-    interval = 0;
-}
-
-/***
- * @brief : Destructor.
- * @return   : nil.
- */
-cTimer::~cTimer()
-{
-    this->clear = true;
-}
-
-/***
- * @brief : start timer thread.
- * @return   : <bool> False if timer thread couldn't be started.
- */
-bool cTimer::start()
-{
-    if (interval <= 0 && callBack_function == NULL) {
-        return false;
-    }
-    this->clear = false;
-    std::thread timerThread([=]() {
-            while (true) {
-            if (this->clear) return;
-            std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-            if (this->clear) return;
-            this->callBack_function();
-            }
-            });
-   timerThread.detach();
-    return true;
-}
-
-/***
- * @brief : stop timer thread.
- * @return   : nil
- */
-void cTimer::stop()
-{
-    this->clear = true;
-}
-
-/***
- * @brief     : Set interval in which the given function should be invoked.
- * @param1[in]   : function which has to be invoked on timed intervals
- * @param2[in]  : timer interval val.
- * @return     : nil
- */
-void cTimer::setCallback(void (*function)())
-{
-    this->callBack_function = function;
-}
-
-/***
- * @brief     : Set interval in which the given function should be invoked.
- * @param1[in]   : function which has to be invoked on timed intervals
- * @param2[in]  : timer interval val.
- * @return     : nil
- */
-void cTimer::setInterval(int val)
-{
-    this->interval = val;
-}
-#endif

@@ -76,7 +76,6 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_DRM_MESSAGE, "drmMessage" },
 	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "audioTracksChanged"},
 	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "textTracksChanged"},
-	{ AAMP_EVENT_CONTENT_RESTRICTED, "contentRestricted" },
 	{ (AAMPEventType)0, "" }
 };
 
@@ -126,7 +125,6 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_ID3_METADATA, "id3Metadata"},
 	{ AAMP_EVENT_DRM_MESSAGE, "drmMessage" },
 	{ AAMP_EVENT_BLOCKED, "blocked" },
-	{ AAMP_EVENT_CONTENT_RESTRICTED, "contentRestricted" },
 	{ (AAMPEventType)0, "" }
 };
 
