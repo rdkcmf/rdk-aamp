@@ -5595,7 +5595,7 @@ TrackState::~TrackState()
 *
 * @return void
 ***************************************************************************/
-void TrackState::Stop()
+void TrackState::Stop(bool clearDRM)
 {
 	AbortWaitForCachedAndFreeFragment(true);
 
@@ -5626,6 +5626,14 @@ void TrackState::Stop()
 	{
 		mSubtitleParser->reset();
 		mSubtitleParser->close();
+	}
+
+	// XIONE-2208: While waiting on fragmentCollectorThread to join the mDrm
+	// can get initialized in fragmentCollectorThread.
+	// Clear DRM data after join if this is required.
+	if(mDrm && clearDRM)
+	{
+		mDrm->Release();
 	}
 }
 /***************************************************************************
@@ -5735,7 +5743,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 
 		if(track && track->Enabled())
 		{
-			track->Stop();
+			track->Stop(clearChannelData);
 			if (!clearChannelData)
 			{
 				//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted

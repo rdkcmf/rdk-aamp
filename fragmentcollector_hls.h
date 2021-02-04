@@ -187,7 +187,7 @@ public:
 	/// Start Fragment downloader and Injector thread  
 	void Start();
 	/// Reset and Stop Collector and Injector thread 
-	void Stop();
+	void Stop(bool clearDRM = false);
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
