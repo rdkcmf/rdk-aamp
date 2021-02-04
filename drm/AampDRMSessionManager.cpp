@@ -927,11 +927,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	if (code != KEY_READY)
 	{
 		logprintf("%s:%d Unable to get Ready Status DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
-		if (code == KEY_ERROR)
-		{
-			AampMutexHold keymutex(cachedKeyMutex);
-			cachedKeyIDs[selectedSlot].isFailedKeyId = true;
-		}
+		AampMutexHold keymutex(cachedKeyMutex);
+		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
 	}
 
@@ -1216,10 +1213,6 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			if(licenseRequestAbort)
 			{
 				AAMPLOG_ERR("%s:%d Error!! License request was aborted. Resetting session slot %d", __FUNCTION__, __LINE__, sessionSlot);
-				delete drmSessionContexts[sessionSlot].drmSession;
-				drmSessionContexts[sessionSlot].drmSession = nullptr;
-				AampMutexHold keymutex(cachedKeyMutex);
-				cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 				return KEY_ERROR;
 			}
 
