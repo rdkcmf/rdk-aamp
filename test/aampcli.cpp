@@ -145,7 +145,7 @@ typedef enum{
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_LanguageFormat,
 	eAAMP_SET_PropagateUriParam,
-	eAAMP_SET_ThumbnailTrack
+	eAAMP_SET_ThumbnailTrack,
 	eAAMP_SET_SslVerifyPeer
 }AAMPSetTypes;
 
