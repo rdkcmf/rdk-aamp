@@ -67,6 +67,7 @@ private:
 	typedef std::unordered_map<std::string, PlayListCachedData *>::iterator PlaylistCacheIter;
 	PlaylistCache mPlaylistCache;
 	int mCacheStoredSize;
+	bool mInitialized;
 	bool mCacheActive;
 	bool mAsyncCacheCleanUpThread;
 	bool mAsyncThreadStartedFlag;
@@ -76,6 +77,16 @@ private:
 	pthread_cond_t mCondVar ;
 	pthread_t mAsyncCleanUpTaskThreadId;
 private:
+
+	/**
+	* @brief Initialization Function
+	*/
+	void Init();
+
+	/**
+	* @brief Clear Cache Handler. Exit clean up thread.
+	*/
+	void ClearCacheHandler();
 
 	/**
 	 *	 @brief Async Cache Cleanup task
