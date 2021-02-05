@@ -966,6 +966,8 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
 				aamp->TeardownStream(false);
+				// Before calling TuneHelper, ensure player is not in Error state
+				ERROR_STATE_CHECK_VOID();
 				aamp->TuneHelper(eTUNETYPE_SEEK);
 
 				aamp->discardEnteringLiveEvt = false;
