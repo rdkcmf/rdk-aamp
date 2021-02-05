@@ -794,8 +794,12 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 {
+#if defined (REALTEKCE)
+	return (aamp_StartsWith(name, "westerossink") || aamp_StartsWith(name, "rtkv1sink"));
+#else
 	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
 			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+#endif
 }
 
 /**
@@ -824,6 +828,12 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 	{
 		isAudioOrVideoDecoder = true;
 	}
+#if defined (REALTEKCE)
+	else if (aamp_StartsWith(name, "omx"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+#endif
 	return isAudioOrVideoDecoder;
 }
 
@@ -1606,7 +1616,11 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 	{
 		logprintf("Querying video decoder for handle");
 #ifndef INTELCE
+#if defined (REALTEKCE)
+		dec_handle = this->privateContext->video_dec;
+#else
 		g_object_get(this->privateContext->video_dec, "videodecoder", &dec_handle, NULL);
+#endif
 #else
 		g_object_get(privateContext->video_dec, "decode-handle", &dec_handle, NULL);
 #endif
