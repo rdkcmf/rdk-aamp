@@ -151,7 +151,8 @@ typedef enum{
 	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_PropagateUriParam,
 	eAAMP_SET_RateOnTune,
-	eAAMP_SET_ThumbnailTrack
+	eAAMP_SET_ThumbnailTrack,
+	eAAMP_SET_SslVerifyPeer
 }AAMPSetTypes;
 
 /**
@@ -1501,6 +1502,16 @@ static void ProcessCliCommand( char *cmd )
 					break;
 				}
 
+				case eAAMP_SET_SslVerifyPeer:
+				{
+					int value;
+					printf("[AAMPCLI] Matched Command eAAMP_SET_SslVerifyPeer - %s \n", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &value) == 2){
+						mSingleton->SetSslVerifyPeerConfig(value == 1);
+					}
+					break;
+				}
+				
 				case eAAMP_SET_MaximumDrmDecryptFailCount:
 				{
 					int failCount;
