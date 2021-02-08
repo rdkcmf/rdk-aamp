@@ -562,8 +562,16 @@ public:
 			if( IsAbsoluteUrl(part) )
 			{
 				fragmentDescriptor.baseUrl.clear();
+				fragmentDescriptor.baseUrl.append(part);
+                                if( part.back() != '/' )
+                                {
+                                        fragmentDescriptor.baseUrl += '/';
+                                }
 			}
-			fragmentDescriptor.baseUrl.append(part);
+			else
+			{
+				fragmentDescriptor.baseUrl.append(part);
+			}
 		}
 	}
 
