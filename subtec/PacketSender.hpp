@@ -75,7 +75,6 @@ private:
     std::condition_variable mCv;
     std::mutex mStartMutex;
     std::condition_variable mStartCv;
-    static PacketSender *mInstance;
 protected:
     PacketSender() : 
         mSendThread(), 

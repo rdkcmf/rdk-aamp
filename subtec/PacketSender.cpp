@@ -22,8 +22,6 @@
 #include "SubtecPacket.hpp"
 #include "PacketSender.hpp"
 
-PacketSender *PacketSender::mInstance = nullptr;
-
 void runWorkerTask(void *ctx)
 {
     try {
@@ -37,12 +35,8 @@ void runWorkerTask(void *ctx)
 
 PacketSender *PacketSender::Instance()
 {
-    if (!mInstance)
-    {
-        mInstance = new PacketSender;
-    }
-    
-    return mInstance;
+    static PacketSender instance;
+    return &instance;
 }
 
 PacketSender::~PacketSender()

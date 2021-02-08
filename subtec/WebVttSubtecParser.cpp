@@ -18,17 +18,17 @@
 */
 
 #include "WebVttSubtecParser.hpp"
-#include "PacketSender.hpp"
-
+#include "TtmlPacket.hpp"
 
 WebVTTSubtecParser::WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
 {
 	m_channel = make_unique<WebVttChannel>();
+	m_channel->SendResetAllPacket();
 }
 
 void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
 {
-	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(positionMs));
+	m_channel->SendTimestampPacket(positionMs);
 }
 
 bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
@@ -42,9 +42,8 @@ bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
 	int width = 1280, height = 720;
 	
 	mAamp->GetPlayerVideoSize(width, height);
-	PacketSender::Instance()->SendPacket(m_channel->generateResetAllPacket());
-	PacketSender::Instance()->SendPacket(m_channel->generateSelectionPacket(width, height));
-	PacketSender::Instance()->SendPacket(m_channel->generateTimestampPacket(static_cast<uint64_t>(startPos)));
+	m_channel->SendSelectionPacket(width, height);
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
 	
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	
@@ -53,12 +52,10 @@ bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
 
 bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
 {
-	std::vector<uint8_t> data;
-	
-	for (size_t i = 0; i < bufferLen; i++)
-		data.push_back(buffer[i]);
-	
-	PacketSender::Instance()->SendPacket(m_channel->generateDataPacket(data));
+	std::string str(const_cast<const char*>(buffer), bufferLen);
+	std::vector<uint8_t> data(str.begin(), str.end());
+		
+	m_channel->SendDataPacket(std::move(data));
 
 	return true;
 }

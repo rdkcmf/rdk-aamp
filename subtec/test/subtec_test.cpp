@@ -110,17 +110,16 @@ int main(int argc, char *argv[])
     
     WebVttChannel *channel = new WebVttChannel();
     std::vector<uint8_t> data = {'a', 'b', 'c'};
-    PacketSender *sender = PacketSender::Instance();
 
     ret = sender->Init();
 	if (ret)
 	{
-		sender->SendPacket(channel->generateResetAllPacket());
+		channel->SendResetAllPacket();
         if (!send_reset)
         {
-            sender->SendPacket(channel->generateResetChannelPacket());
-            sender->SendPacket(channel->generateSelectionPacket(1280, 720));
-            sender->SendPacket(channel->generateDataPacket(data));
+            channel->SendResetChannelPacket();
+            channel->SendSelectionPacket(1280, 720);
+            channel->SendDataPacket(data);
             sleep(1);
         }
 	}

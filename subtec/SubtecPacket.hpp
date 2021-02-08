@@ -25,6 +25,7 @@
 #include <vector>
 #include <array>
 #include <limits>
+#include <mutex>
 
 template<typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&& ...args)
@@ -199,7 +200,6 @@ protected:
         append32(static_cast<std::underlying_type<PacketType>::type>(type));
     }
 };
-
 
 using PacketPtr = std::unique_ptr<Packet>;
 
@@ -407,48 +407,3 @@ public:
             append32(value);
     }
 };
-
-
-
-class SubtecChannelManager
-{
-public:
-    static SubtecChannelManager* getInstance()
-    {
-        if (!s_Instance)
-            s_Instance = new SubtecChannelManager;
-
-        return s_Instance;
-    }
-    int getNextChannelId() { return m_nextChannelId++; }
-    PacketPtr generateResetAllPacket() { return make_unique<ResetAllPacket>(); }
-protected:
-    SubtecChannelManager() :  m_nextChannelId(0) {}
-private:
-    static SubtecChannelManager *s_Instance;
-    uint32_t m_nextChannelId;
-};
-
-class SubtecChannel
-{
-public:
-    SubtecChannel() : m_counter(0), m_channelId(0)
-    {
-        m_channelId = SubtecChannelManager::getInstance()->getNextChannelId();
-    }
-
-    PacketPtr generateResetAllPacket() { m_counter = 1; return SubtecChannelManager::getInstance()->generateResetAllPacket(); }
-    PacketPtr generateResetChannelPacket() { return make_unique<ResetChannelPacket>(m_channelId, m_counter++); }
-    PacketPtr generatePausePacket() { return make_unique<PausePacket>(m_channelId, m_counter++); }
-    PacketPtr generateResumePacket() { return make_unique<ResumePacket>(m_channelId, m_counter++); }
-    PacketPtr generateMutePacket() { return make_unique<MutePacket>(m_channelId, m_counter++); }
-    PacketPtr generateUnmutePacket() { return make_unique<UnmutePacket>(m_channelId, m_counter++); }
-    PacketPtr generateCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues) {
-         return make_unique<CCSetAttributePacket>(m_channelId, m_counter++, ccType, attribType, attributesValues);
-    }
-
-protected:
-    uint32_t m_channelId;
-    uint32_t m_counter;
-};
-

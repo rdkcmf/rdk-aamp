@@ -20,6 +20,7 @@
 #pragma once
 
 #include "SubtecPacket.hpp"
+#include "SubtecChannel.hpp"
 
 class TtmlSelectionPacket : public Packet
 {
@@ -69,7 +70,7 @@ public:
     TtmlDataPacket(std::uint32_t channelId,
                    std::uint32_t counter,
                    std::int64_t dataOffset,
-                   std::vector<std::uint8_t> &dataBuffer) : Packet(counter)
+                   std::vector<std::uint8_t> &&dataBuffer) : Packet(counter)
     {
         auto& buffer = getBuffer();
         uint32_t size = 8 + 4 + dataBuffer.size();
@@ -80,13 +81,12 @@ public:
         append32(channelId);
         append64(dataOffset);
 
-        for (auto &byte : dataBuffer)
-            buffer.push_back(byte);
+        buffer.insert(buffer.end(), dataBuffer.begin(), dataBuffer.end());
     }
 };
 
 
-class TimestampPacket : public Packet
+class TtmlTimestampPacket : public Packet
 {
 public:
 
@@ -96,7 +96,7 @@ public:
      * @param counter
      *      Packet counter.
      */
-    TimestampPacket(std::uint32_t channelId,
+    TtmlTimestampPacket(std::uint32_t channelId,
                     std::uint32_t counter,
                     std::uint64_t timestamp) : Packet(counter)
     {
@@ -117,19 +117,14 @@ class TtmlChannel : public SubtecChannel
 {
 public:
     TtmlChannel() : SubtecChannel() {}
-    
-    PacketPtr generateSelectionPacket(uint32_t width, uint32_t height) 
-    { 
-        return make_unique<TtmlSelectionPacket>(m_channelId, m_counter++, width, height); 
+
+    void SendSelectionPacket(uint32_t width, uint32_t height) {
+        sendPacket<TtmlSelectionPacket>(width, height);
     }
-    
-    PacketPtr generateDataPacket(std::vector<uint8_t> data)
-    { 
-        return make_unique<TtmlDataPacket>(m_channelId, m_counter++, 0, data); 
+    void SendDataPacket(std::vector<uint8_t> &&data) {
+        sendPacket<TtmlDataPacket>(0, std::move(data));
     }
-   
-    PacketPtr generateTimestampPacket(uint64_t timestampMs)
-    { 
-        return make_unique<TimestampPacket>(m_channelId, m_counter++, timestampMs); 
+    void SendTimestampPacket(uint64_t timestampMs) {
+        sendPacket<TtmlTimestampPacket>(timestampMs);
     }
 };
