@@ -103,6 +103,32 @@ long aamp_GetIPResolveValue()
     return IPType;
 
 }
+
+/**
+ * @brief to get default path to dump harvested files
+ * @param void
+ * @return character pointer indicating default dump path
+ */
+static const char * getDefaultDumpPath()
+{
+        std::string value = "/aamp/";
+/* In case of linux and mac simulator use home directory to dump the data as default */
+#if defined( __APPLE__ ) || defined ( __linux__ )
+        char *ptr = getenv("HOME");
+        if(ptr)
+        {
+                value.insert(0,ptr);
+        }
+        else
+        {
+                value.insert(0,"/opt");
+        }
+#else
+        value.insert(0,"/opt");
+#endif
+        return value.c_str();
+}
+
 /**
  * @brief parse leading protcocol from uri if present
  * @param[in] uri manifest/ fragment uri
@@ -724,13 +750,6 @@ struct timespec aamp_GetTimespec(int timeInMs)
 	return tspec;
 }
 
-/* In case of linux and mac simulator use home directory to dump the data as default */
-#if defined( __APPLE__ ) || defined ( __linux__ )
-	static std::string defaultDumpPath(std::string(getenv("HOME"))+"/aamp/");
-#else
-	static std::string defaultDumpPath("/opt/aamp/");
-#endif
-
 /** Harvest Configuration type */
 enum HarvestConfigType
 {
@@ -874,8 +893,8 @@ void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 	char * prefix = gpGlobalConfig->harvestPath;
 	if( !prefix )
 	{
-		AAMPLOG_WARN("Harvest path has not configured, taking default path %s", defaultDumpPath.c_str());
-		prefix = (char *)defaultDumpPath.c_str();
+                prefix = (char *)getDefaultDumpPath();
+                AAMPLOG_WARN("Harvest path has not configured, taking default path %s", prefix);
 	}
 	unsigned int harvestConfig = gpGlobalConfig->harvestConfig;
 
