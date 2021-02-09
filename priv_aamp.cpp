@@ -1915,7 +1915,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), 
-#if defined(REALTEKCE)
+#if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
 	mWesterosSinkEnabled(true)
 #else
 	mWesterosSinkEnabled(false)
