@@ -2443,7 +2443,19 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
 		int y = JSValueToNumber(context, arguments[1], exception);
 		int w = JSValueToNumber(context, arguments[2], exception);
 		int h = JSValueToNumber(context, arguments[3], exception);
-		pAAMP->_aamp->SetVideoRectangle(x,y,w,h);
+		if (pAAMP->_aamp->GetAsyncTuneConfig())
+		{
+			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
+						[x, y, w, h](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetVideoRectangle(x, y, w, h);
+						}, (void *) pAAMP->_aamp));
+		}
+		else
+		{
+			pAAMP->_aamp->SetVideoRectangle(x, y, w, h);
+		}
 	}
 	return JSValueMakeUndefined(context);
 }

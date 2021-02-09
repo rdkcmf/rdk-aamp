@@ -2943,12 +2943,26 @@ public:
 	 */
 	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
 
-        /**
-         *   @brief Check if buffer underflow (RED)
-         *
-         *   @return bool
-         */
-        bool CheckIfMediaTrackBufferLow(MediaType type);
+	/**
+	 *	 @brief Check if buffer underflow (RED)
+	 *
+	 *	 @return bool
+	 */
+	bool CheckIfMediaTrackBufferLow(MediaType type);
+	
+	/**
+	 *	 @brief acquire streamsink lock
+	 *
+	 *	 @return void
+	 */
+	void AcquireStreamLock();
+	
+	/**
+	 *	 @brief release streamsink lock
+	 *
+	 *	 @return void
+	 */
+	void ReleaseStreamLock();
 
 private:
 
@@ -3103,5 +3117,6 @@ private:
 	int mEventPriority; /**< priority for async events */
 	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
+	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
 };
 #endif // PRIVAAMP_H

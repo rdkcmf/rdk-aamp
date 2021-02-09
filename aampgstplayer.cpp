@@ -634,7 +634,8 @@ static gboolean IdleCallback(gpointer user_data)
 	AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
 	if (_this)
 	{
-		_this->aamp->ReportProgress();
+		// mAsyncTuneEnabled passed, because this could be called from Scheduler or main loop
+		_this->aamp->ReportProgress(!_this->aamp->mAsyncTuneEnabled);
 		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
 		if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
@@ -706,7 +707,7 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		{
 			privateContext->decoderHandleNotified = true;
 			privateContext->firstFrameCallbackIdleTaskPending = true;
-			privateContext->firstFrameCallbackIdleTaskId = g_idle_add(IdleCallbackOnFirstFrame, this);
+			privateContext->firstFrameCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallbackOnFirstFrame, (void *)this);
 			if (!privateContext->firstFrameCallbackIdleTaskPending)
 			{
 				logprintf("%s:%d firstFrameCallbackIdleTask already finished, reset id", __FUNCTION__, __LINE__);
@@ -716,7 +717,7 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		if (privateContext->firstProgressCallbackIdleTaskId == 0)
 		{
 			privateContext->firstProgressCallbackIdleTaskPending = true;
-			privateContext->firstProgressCallbackIdleTaskId = g_idle_add(IdleCallback, this);
+			privateContext->firstProgressCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallback, (void *)this);
 			if (!privateContext->firstProgressCallbackIdleTaskPending)
 			{
 				logprintf("%s:%d firstProgressCallbackIdleTask already finished, reset id", __FUNCTION__, __LINE__);
@@ -729,7 +730,7 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		{
 			privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
 			privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
-					g_idle_add(IdleCallbackFirstVideoFrameDisplayed, this);
+					aamp->ScheduleAsyncTask(IdleCallbackFirstVideoFrameDisplayed, (void *)this);
 		}
 	}
 }
@@ -1207,7 +1208,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
 				{
-					_this->privateContext->firstProgressCallbackIdleTaskId = g_idle_add(IdleCallback, _this);
+					_this->privateContext->firstProgressCallbackIdleTaskId = _this->aamp->ScheduleAsyncTask(IdleCallback, (void *)_this);
 				}
 #endif
 				analyze_streams(_this);
@@ -1229,7 +1230,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				{
 					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = true;
 					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
-							g_idle_add(IdleCallbackFirstVideoFrameDisplayed, _this);
+							_this->aamp->ScheduleAsyncTask(IdleCallbackFirstVideoFrameDisplayed, (void *)_this);
 				}
 			}
 		}
@@ -2234,7 +2235,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			}
 
 			privateContext->id3MetadataCallbackTaskPending = true;
-			privateContext->id3MetadataCallbackIdleTaskId = g_idle_add(IdleCallbackOnId3Metadata, id3Metadata);
+			privateContext->id3MetadataCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
 			if (!privateContext->id3MetadataCallbackTaskPending)
 			{
 				logprintf("%s:%d id3MetadataCallbackTask already finished, reset id", __FUNCTION__, __LINE__);
@@ -2735,7 +2736,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	if (privateContext->firstProgressCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove firstProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstProgressCallbackIdleTaskId);
-		g_source_remove(privateContext->firstProgressCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->firstProgressCallbackIdleTaskId);
 		privateContext->firstProgressCallbackIdleTaskPending = false;
 		privateContext->firstProgressCallbackIdleTaskId = 0;
 	}
@@ -2760,28 +2761,28 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	if (this->privateContext->eosCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
-		g_source_remove(privateContext->eosCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->eosCallbackIdleTaskId);
 		privateContext->eosCallbackIdleTaskPending = false;
 		privateContext->eosCallbackIdleTaskId = 0;
 	}
 	if (this->privateContext->firstFrameCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove firstFrameCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstFrameCallbackIdleTaskId);
-		g_source_remove(privateContext->firstFrameCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->firstFrameCallbackIdleTaskId);
 		privateContext->firstFrameCallbackIdleTaskPending = false;
 		privateContext->firstFrameCallbackIdleTaskId = 0;
 	}
 	if (this->privateContext->id3MetadataCallbackTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove id3MetadataCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->id3MetadataCallbackIdleTaskId);
-		g_source_remove(privateContext->id3MetadataCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->id3MetadataCallbackIdleTaskId);
 		privateContext->id3MetadataCallbackTaskPending = false;
 		privateContext->id3MetadataCallbackIdleTaskId = 0;
 	}
 	if (this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove firstVideoFrameDisplayedCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
-		g_source_remove(privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
 		privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending = false;
 		privateContext->firstVideoFrameDisplayedCallbackIdleTaskId = 0;
 	}
@@ -3401,7 +3402,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 	if (privateContext->eosCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s:%d Remove eosCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->eosCallbackIdleTaskId);
-		g_source_remove(privateContext->eosCallbackIdleTaskId);
+		aamp->RemoveAsyncTask(privateContext->eosCallbackIdleTaskId);
 		privateContext->eosCallbackIdleTaskId = 0;
 		privateContext->eosCallbackIdleTaskPending = false;
 	}
@@ -3833,7 +3834,7 @@ void AAMPGstPlayer::NotifyEOS()
 		if (!privateContext->eosCallbackIdleTaskPending)
 		{
 			privateContext->eosCallbackIdleTaskPending = true;
-			privateContext->eosCallbackIdleTaskId = g_idle_add(IdleCallbackOnEOS, this);
+			privateContext->eosCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallbackOnEOS, (void *)this);
 			if (!privateContext->eosCallbackIdleTaskPending)
 			{
 				logprintf("%s:%d eosCallbackIdleTask already finished, reset id", __FUNCTION__, __LINE__);

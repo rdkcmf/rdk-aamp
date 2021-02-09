@@ -31,7 +31,7 @@
 AampScheduler::AampScheduler() : mTaskQueue(), mQMutex(), mQCond(),
 	mSchedulerRunning(false), mSchedulerThread(), mExMutex(),
 	mExLock(mExMutex, std::defer_lock), mNextTaskId(AAMP_SCHEDULER_ID_DEFAULT),
-	mCurrentTaskId(AAMP_SCHEDULER_ID_INVALID)
+	mCurrentTaskId(AAMP_SCHEDULER_ID_INVALID), mLockOut(false)
 {
 }
 
@@ -70,15 +70,23 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 	if (mSchedulerRunning)
 	{
 		std::lock_guard<std::mutex>lock(mQMutex);
-		id = mNextTaskId++;
-		// Upper limit check
-		if (mNextTaskId > AAMP_SCHEDULER_ID_MAX_VALUE)
+		if (!mLockOut)
 		{
-			mNextTaskId = AAMP_SCHEDULER_ID_DEFAULT;
+			id = mNextTaskId++;
+			// Upper limit check
+			if (mNextTaskId > AAMP_SCHEDULER_ID_MAX_VALUE)
+			{
+				mNextTaskId = AAMP_SCHEDULER_ID_DEFAULT;
+			}
+			obj.mId = id;
+			mTaskQueue.push_back(obj);
+			mQCond.notify_one();
 		}
-		obj.mId = id;
-		mTaskQueue.push_back(obj);
-		mQCond.notify_one();
+		else
+		{
+			// Operation is skipped here, this might happen due to race conditions during normal operation, hence setting as info log
+			AAMPLOG_INFO("%s:%d Warning: Attempting to schedule a task when scheduler is locked out, skipping operation!!", __FUNCTION__, __LINE__);
+		}
 	}
 	else
 	{
@@ -133,7 +141,7 @@ void AampScheduler::ExecuteAsyncTask()
 }
 
 /**
- * @brief To remove all scheduled tasks
+ * @brief To remove all scheduled tasks and prevent further tasks from scheduling
  *
  * @return void
  */
@@ -145,6 +153,8 @@ void AampScheduler::RemoveAllTasks()
 		AAMPLOG_WARN("%s:%d Clearing up %d entries from mFuncQueue", __FUNCTION__, __LINE__, mTaskQueue.size());
 		mTaskQueue.clear();
 	}
+	// A cleanup process is in progress, we should temporarily disable any new tasks from getting scheduled.
+	mLockOut = true;
 }
 
 /**
@@ -154,8 +164,9 @@ void AampScheduler::RemoveAllTasks()
  */
 void AampScheduler::StopScheduler()
 {
-	//Clean up things in queue
+	// Clean up things in queue
 	mSchedulerRunning = false;
+	// mLockOut will be set to true, preventing anyother tasks from getting scheduled
 	RemoveAllTasks();
 	mQCond.notify_one();
 	mSchedulerThread.join();
@@ -192,7 +203,7 @@ bool AampScheduler::RemoveTask(int id)
 	bool ret = false;
 	std::lock_guard<std::mutex>lock(mQMutex);
 	// Make sure its not currently executing/executed task
-	if (mCurrentTaskId != id)
+	if (id != AAMP_SCHEDULER_ID_INVALID && mCurrentTaskId != id)
 	{
 		for (auto it = mTaskQueue.begin(); it != mTaskQueue.end(); )
 		{
@@ -209,4 +220,15 @@ bool AampScheduler::RemoveTask(int id)
 		}
 	}
 	return ret;
+}
+
+/**
+ * @brief To enable scheduler to queue new tasks
+ *
+ * @return void
+ */
+void AampScheduler::EnableScheduleTask()
+{
+	std::lock_guard<std::mutex>lock(mQMutex);
+	mLockOut = false;
 }

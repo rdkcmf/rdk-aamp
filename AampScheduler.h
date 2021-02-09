@@ -87,7 +87,7 @@ public:
 	int ScheduleTask(AsyncTaskObj obj);
 
 	/**
-	 * @brief To remove all scheduled tasks
+	 * @brief To remove all scheduled tasks and prevent further tasks from scheduling
 	 *
 	 * @return void
 	 */
@@ -124,11 +124,18 @@ protected:
 	void AcquireExLock();
 
 	/**
-	 * @brief To remove all scheduled tasks
+	 * @brief To release execution lock
 	 *
 	 * @return void
 	 */
 	void ReleaseExLock();
+
+	/**
+	 * @brief To enable scheduler to queue new tasks
+	 *
+	 * @return void
+	 */
+	void EnableScheduleTask();
 
 private:
 	/**
@@ -147,6 +154,7 @@ private:
 	std::unique_lock<std::mutex> mExLock;	// Lock to be used by AcquireExLock and ReleaseExLock
 	int mNextTaskId;			// counter that holds ID value of next task to be scheduled
 	int mCurrentTaskId;			// ID of current executed task
+	bool mLockOut;				// flag indicates if the queue is locked out or not
 };
 
 #endif /* __AAMP_SCHEDULER_H__ */

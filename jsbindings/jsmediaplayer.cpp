@@ -1276,7 +1276,6 @@ JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSOb
  */
 JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
@@ -2430,7 +2429,19 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 		int y = (int) JSValueToNumber(ctx, arguments[1], exception);
 		int w = (int) JSValueToNumber(ctx, arguments[2], exception);
 		int h = (int) JSValueToNumber(ctx, arguments[3], exception);
-		privObj->_aamp->SetVideoRectangle(x,y,w,h);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[x, y, w, h](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetVideoRectangle(x, y, w, h);
+						}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetVideoRectangle(x, y, w, h);
+		}
 	}
 	else
 	{

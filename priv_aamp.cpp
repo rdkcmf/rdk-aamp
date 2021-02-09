@@ -336,7 +336,9 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 		aamp->rate = AAMP_NORMAL_PLAY_RATE;
 		aamp->pipeline_paused = false;
 		aamp->mSeekFromPausedState = false;
+		aamp->AcquireStreamLock();
 		aamp->TuneHelper(tuneType);
+		aamp->ReleaseStreamLock();
 	}
 
 	aamp->ResumeDownloads();
@@ -413,7 +415,9 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 		aamp->mIsRetuneInProgress = true;
 		pthread_mutex_unlock(&gMutex);
 
+		aamp->AcquireStreamLock();
 		aamp->TuneHelper(eTUNETYPE_RETUNE);
+		aamp->ReleaseStreamLock();
 
 		pthread_mutex_lock(&gMutex);
 		aamp->mIsRetuneInProgress = false;
@@ -2039,9 +2043,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
-    	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
+   	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
 	, mUseAbsoluteTimeline(false), mProgressReportOffset(0.0)
 	, mMediaDownloadsEnabled()
+	, mStreamLock()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2059,6 +2064,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 	pthread_mutex_init(&mEventLock, &mMutexAttr);
+	pthread_mutex_init(&mStreamLock, &mMutexAttr);
 	mCurlShared = curl_share_init();
 	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
@@ -2169,6 +2175,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 	pthread_mutex_destroy(&mFragmentCachingLock);
 	pthread_mutex_destroy(&mEventLock);
+	pthread_mutex_destroy(&mStreamLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -2269,10 +2276,12 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 				videoPTS = mStreamSink->GetVideoPTS() + mVideoBasePTS;
 		}
 
+		pthread_mutex_lock(&mStreamLock);
 		if (mpStreamAbstractionAAMP)
 		{
 			bufferedDuration = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec() * 1000.0;
 		}
+		pthread_mutex_unlock(&mStreamLock);
 
 		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration);
         
@@ -2895,10 +2904,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-
-		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
+		if(GetBWIndex)
 		{
 			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d",
 				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
@@ -2915,7 +2921,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 	else
 	{
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
+		if(GetBWIndex)
 		{
 			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d",
 				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
@@ -3068,6 +3074,8 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 
 		if (continueDiscontProcessing)
 		{
+			// mStreamLock is not exactly required here, this will be called from Scheduler/GMainLoop based on AAMP config
+			// The same thread will be executing operations involving TeardownStream.
 			mpStreamAbstractionAAMP->StopInjection();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 			if (mMediaFormat != eMEDIAFORMAT_HLS_MP4) // Avoid calling flush for fmp4 playback.
@@ -3131,12 +3139,16 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 			seek_pos_seconds = culledSeconds;
 			logprintf("%s:%d Updated seek_pos_seconds %f ", __FUNCTION__,__LINE__, seek_pos_seconds);
 			rate = AAMP_NORMAL_PLAY_RATE;
+			AcquireStreamLock();
 			TuneHelper(eTUNETYPE_SEEK);
+			ReleaseStreamLock();
 		}
 		else
 		{
 			rate = AAMP_NORMAL_PLAY_RATE;
+			AcquireStreamLock();
 			TuneHelper(eTUNETYPE_SEEKTOLIVE);
+			ReleaseStreamLock();
 		}
 
 		NotifySpeedChanged(rate);
@@ -4209,7 +4221,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			{
 				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
 				{
-					pthread_mutex_lock(&mLock);
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
 					// extra coding to avoid picking lower profile
@@ -4219,6 +4230,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						downloadbps = currentProfilebps;
 					}
 					
+					pthread_mutex_lock(&mLock);
 					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
 					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
 					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
@@ -4766,7 +4778,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		{
 			AAMPLOG_WARN("%s:%d TeardownStream invoked while mProgressReportFromProcessDiscontinuity and mDiscontinuityTuneOperationId[%d] set!", __FUNCTION__, __LINE__, mDiscontinuityTuneOperationId);
 			guint callbackID = aamp_GetSourceID();
-			if (callbackID != 0 && mDiscontinuityTuneOperationId == callbackID)
+			if ((callbackID != 0 && mDiscontinuityTuneOperationId == callbackID) || mAsyncTuneEnabled)
 			{
 				AAMPLOG_WARN("%s:%d TeardownStream idle callback id[%d] and mDiscontinuityTuneOperationId[%d] match. Ignore further discontinuity processing!", __FUNCTION__, __LINE__, callbackID, mDiscontinuityTuneOperationId);
 				waitForDiscontinuityProcessing = false; // to avoid deadlock
@@ -5558,7 +5570,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mfirstTuneFmt = (int)mMediaFormat;
 	}
 	mCdaiObject = NULL;
+	AcquireStreamLock();
 	TuneHelper(tuneType);
+	ReleaseStreamLock();
 	// do not change location of this set, it should be done after sending perviouse VideoEnd data which
 	// is done in TuneHelper->SendVideoEndEvent function.
 	if(pTraceID)
@@ -5844,12 +5858,14 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	if(type != eMEDIATYPE_VIDEO)
 		return;
 
+	pthread_mutex_lock(&mStreamLock);
 	if(mpStreamAbstractionAAMP)
 	{
 		MediaTrack* video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
 		if(video && video->enabled)
 			video->OnSinkBufferFull();
 	}
+	pthread_mutex_unlock(&mStreamLock);
 }
 
 bool PrivateInstanceAAMP::CheckIfMediaTrackBufferLow(MediaType type)
@@ -6264,6 +6280,7 @@ long PrivateInstanceAAMP::GetVideoBitrate()
 std::string PrivateInstanceAAMP::GetThumbnailTracks()
 {
 	std::string op;
+	AcquireStreamLock();
 	if(mpStreamAbstractionAAMP)
 	{
 		traceprintf("Entering PrivateInstanceAAMP::%s.",__FUNCTION__);
@@ -6297,6 +6314,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 		}
 		traceprintf("In PrivateInstanceAAMP::%s, Json string:%s",__FUNCTION__,op.c_str());
 	}
+	ReleaseStreamLock();
 	return op;
 }
 
@@ -6308,6 +6326,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 {
 	std::string rc;
+	AcquireStreamLock();
 	if(mpStreamAbstractionAAMP)
 	{
 		std::string baseurl;
@@ -6353,6 +6372,7 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 			cJSON_Delete(root);
 		}
 	}
+	ReleaseStreamLock();
 	return rc;
 }
 
@@ -6592,10 +6612,23 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	if (mpStreamAbstractionAAMP && ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE)))
-		mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
+	if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
+	{
+		pthread_mutex_lock(&mStreamLock);
+		if (mpStreamAbstractionAAMP)
+		{
+			mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d No mpStreamAbstractionAAMP instance available to set video rectangle co-ordinates. Skip for now!", __FUNCTION__, __LINE__);
+		}
+		pthread_mutex_unlock(&mStreamLock);
+	}
 	else
+	{
 		mStreamSink->SetVideoRectangle(x, y, w, h);
+	}
 }
 
 /**
@@ -6752,7 +6785,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			AAMPLOG_WARN("%s : Correcting positionMiliseconds %lld to zero", __FUNCTION__, positionMiliseconds);
 			positionMiliseconds = 0;
 		}
-		else if (mpStreamAbstractionAAMP)
+		else
 		{
 			if (!mIsLive)
 			{
@@ -7128,7 +7161,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
 	{
 		// This is an idle callback, so we can sent event synchronously
-		if (SendTunedEvent())
+		if (SendTunedEvent(!mAsyncTuneEnabled))
 		{
 			logprintf("aamp: - sent tune event on Tune Completion.");
 		}
@@ -7152,7 +7185,14 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #endif
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
-			SendEventSync(event);
+			if (mAsyncTuneEnabled)
+			{
+				SendEventAsync(event);				
+			}
+			else
+			{
+				SendEventSync(event);
+			}
 		}
 	}
 }
@@ -7225,16 +7265,20 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 		pthread_mutex_unlock(&mLock);
 
+		pthread_mutex_lock(&mStreamLock);
 		if (mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->IsStreamerStalled())
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall", __FUNCTION__, __LINE__);
+			pthread_mutex_unlock(&mStreamLock);
 			return;
 		}
 		else if (!gpGlobalConfig->internalReTune)
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
+			pthread_mutex_unlock(&mStreamLock);
 			return;
 		}
+		pthread_mutex_unlock(&mStreamLock);
 
 		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
 		{
@@ -9505,6 +9549,7 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 {
 	std::string tracks;
 
+	pthread_mutex_lock(&mStreamLock);
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
@@ -9570,6 +9615,7 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 			AAMPLOG_ERR("PrivateInstanceAAMP::%s() %d No available audio track information!", __FUNCTION__, __LINE__);
 		}
 	}
+	pthread_mutex_unlock(&mStreamLock);
 	return tracks;
 }
 
@@ -9582,6 +9628,7 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 {
 	std::string tracks;
 
+	pthread_mutex_lock(&mStreamLock);
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
@@ -9647,6 +9694,7 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 			AAMPLOG_ERR("PrivateInstanceAAMP::%s() %d No available text track information!", __FUNCTION__, __LINE__);
 		}
 	}
+	pthread_mutex_unlock(&mStreamLock);
 	return tracks;
 }
 
@@ -9876,10 +9924,12 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 int PrivateInstanceAAMP::GetAudioTrack()
 {
 	int idx = -1;
+	AcquireStreamLock();
 	if (mpStreamAbstractionAAMP)
 	{
 		idx = mpStreamAbstractionAAMP->GetAudioTrack();
 	}
+	ReleaseStreamLock();
 	return idx;
 }
 
@@ -9962,8 +10012,10 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 					discardEnteringLiveEvt = true;
 					
 					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					AcquireStreamLock();
 					TeardownStream(false);
 					TuneHelper(eTUNETYPE_SEEK);
+					ReleaseStreamLock();
 
 					discardEnteringLiveEvt = false;
 				}
@@ -9995,6 +10047,7 @@ void PrivateInstanceAAMP::RefreshSubtitles()
 int PrivateInstanceAAMP::GetTextTrack()
 {
 	int idx = -1;
+	AcquireStreamLock();
 #ifdef AAMP_CC_ENABLED
 	if (AampCCManager::GetInstance()->GetStatus() && mpStreamAbstractionAAMP)
 	{
@@ -10016,6 +10069,7 @@ int PrivateInstanceAAMP::GetTextTrack()
 	{
 		idx = mpStreamAbstractionAAMP->GetTextTrack();
 	}
+	ReleaseStreamLock();
 	return idx;
 }
 
@@ -10030,11 +10084,12 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 #ifdef AAMP_CC_ENABLED
 	AampCCManager::GetInstance()->SetStatus(enabled);
 #endif
-
+	AcquireStreamLock();
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->MuteSubtitles(!enabled);
 	}
+	ReleaseStreamLock();
 	subtitles_muted = !enabled;
 }
 
@@ -10344,6 +10399,7 @@ void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
 */
 void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
+	AcquireStreamLock();
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
@@ -10354,6 +10410,7 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 		}
 #endif
 	}
+	ReleaseStreamLock();
 }
 
 /**
@@ -10362,10 +10419,12 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 */
 void PrivateInstanceAAMP::EnableContentRestrictions()
 {
+	AcquireStreamLock();
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->EnableContentRestrictions();
 	}
+	ReleaseStreamLock();
 }
 
 /**
@@ -10502,6 +10561,10 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 		if (mScheduler)
 		{
 			taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg));
+			if (taskId == AAMP_SCHEDULER_ID_INVALID)
+			{
+				AAMPLOG_ERR("%s:%d mScheduler returned invalid ID, dropping the schedule request!", __FUNCTION__, __LINE__);
+			}
 		}
 		else
 		{
@@ -10551,6 +10614,26 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
 	{
 		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
 	}
+}
+
+/**
+ *	 @brief acquire streamsink lock
+ *
+ *	 @return void
+ */
+void PrivateInstanceAAMP::AcquireStreamLock()
+{
+	pthread_mutex_lock(&mStreamLock);
+}
+
+/**
+ *	 @brief release streamsink lock
+ *
+ *	 @return void
+ */
+void PrivateInstanceAAMP::ReleaseStreamLock()
+{
+	pthread_mutex_unlock(&mStreamLock);
 }
 
 /**
@@ -10609,11 +10692,14 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				else
 				{
 					discardEnteringLiveEvt = true;
-				
+
 					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+
+					AcquireStreamLock();
 					TeardownStream(false);
 					TuneHelper(eTUNETYPE_SEEK);
 					discardEnteringLiveEvt = false;
+					ReleaseStreamLock();
 				}
 			}
 		}
