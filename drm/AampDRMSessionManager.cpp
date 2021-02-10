@@ -792,6 +792,13 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			break;
 	}
 
+	if(*httpCode == -1)
+	{
+		logprintf("%s:%d Updating Curl Abort Response Code", __FUNCTION__, __LINE__);
+		// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
+		*httpCode = CURLE_ABORTED_BY_CALLBACK;
+	}
+
 	if(requestFailed && keyInfo != NULL)
 	{
 		delete keyInfo;
