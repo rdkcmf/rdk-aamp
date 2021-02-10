@@ -6019,6 +6019,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							}
 						}
 					}
+                                        const std::vector<IAdaptationSet *> adaptationSets= period->GetAdaptationSets();
+                                        if(adaptationSets.size() > 0)
+					{
+                                             IAdaptationSet* adaptationSet = adaptationSets.at(0);
+                			     if ((mNumberOfTracks == 1) && (IsContentType(adaptationSet, eMEDIATYPE_AUDIO)))
+             				     {
+                                                 representationCount += adaptationSet->GetRepresentation().size();
+	                        	     }
+                                       	}	
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
 					{
 						delete[] mStreamInfo;
@@ -6035,7 +6044,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					mBitrateIndexVector.clear();
 					int addedProfiles = 0;
 					size_t idx = 0;
-					const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
 					for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
 					{
 						IAdaptationSet* adaptationSet = adaptationSets.at(adaptIdx);
@@ -6106,15 +6114,50 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							}
 						}
 					}
-
+                                       if(adaptationSets.size() > 0) 	
+                                       	{
+                                        
+                                            IAdaptationSet* adaptationSet = adaptationSets.at(0);
+					    if ((mNumberOfTracks == 1) && (IsContentType(adaptationSet, eMEDIATYPE_AUDIO)))
+                                             {
+   						size_t numRepresentations = adaptationSet->GetRepresentation().size();
+						for (size_t reprIdx = 0; reprIdx < numRepresentations; reprIdx++)
+						{
+								IRepresentation *representation = adaptationSet->GetRepresentation().at(reprIdx);
+								mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
+								mStreamInfo[idx].isIframeTrack = false;
+								mStreamInfo[idx].resolution.height = 0;
+								mStreamInfo[idx].resolution.width = 0;
+								mStreamInfo[idx].resolution.framerate = 0;
+								std::string repFrameRate = representation->GetFrameRate();
+                                                                                            
+                                                                 if(repFrameRate.empty())
+									repFrameRate = adapFrameRate;
+								if(!repFrameRate.empty())
+								{
+									int val1, val2;
+									sscanf(repFrameRate.c_str(),"%d/%d",&val1,&val2);
+									double frate = val2? ((double)val1/val2):val1;
+									mStreamInfo[idx].resolution.framerate = frate;
+								}
+									GetABRManager().addProfile({
+										mStreamInfo[idx].isIframeTrack,
+										mStreamInfo[idx].bandwidthBitsPerSecond,
+										mStreamInfo[idx].resolution.width,
+										mStreamInfo[idx].resolution.height,
+									});
+									addedProfiles++;
+									// Map profile index to corresponding adaptationset and representation index
+									mProfileMaps[idx].adaptationSetIndex = 0;
+									mProfileMaps[idx].representationIndex = reprIdx;
+								        idx++;
+						}
+					    }
+                                        }
 					if (0 == addedProfiles)
 					{
 						ret = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
-						AAMPLOG_WARN("%s:%d No video profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
-						if (mNumberOfTracks)
-						{
-							AAMPLOG_WARN("%s:%d Audio only profile(s) found, should be playable in future release.", __FUNCTION__, __LINE__);
-						}
+						AAMPLOG_WARN("%s:%d No profiles found, minBitrate : %ld maxBitrate: %ld", __FUNCTION__, __LINE__, minBitrate, maxBitrate);
 						return ret;
 					}
 					if (modifyDefaultBW)
