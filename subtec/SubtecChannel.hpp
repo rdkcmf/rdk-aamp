@@ -42,9 +42,10 @@ private:
 
 class SubtecChannel
 {
+
 protected:
     template<typename PacketType, typename ...Args>
-    PacketPtr sendPacket(Args && ...args)
+    void sendPacket(Args && ...args)
     {
         std::unique_lock<std::mutex> lock(mChannelMtx);
         PacketSender::Instance()->SendPacket(make_unique<PacketType>(m_channelId, m_counter++, std::forward<Args>(args)...));
