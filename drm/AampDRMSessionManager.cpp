@@ -1222,6 +1222,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			if(licenseRequestAbort)
 			{
 				AAMPLOG_ERR("%s:%d Error!! License request was aborted. Resetting session slot %d", __FUNCTION__, __LINE__, sessionSlot);
+				eventHandle->setFailure(AAMP_TUNE_DRM_SELF_ABORT);
 				eventHandle->setResponseCode(CURLE_ABORTED_BY_CALLBACK);
 				return KEY_ERROR;
 			}
@@ -1352,6 +1353,12 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 			else if (CURLE_OPERATION_TIMEDOUT == httpResponseCode)
 			{
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_TIMEOUT);
+			}
+			else if(CURLE_ABORTED_BY_CALLBACK == httpResponseCode || CURLE_WRITE_ERROR == httpResponseCode)
+			{
+				// Set failure reason as AAMP_TUNE_DRM_SELF_ABORT to avoid unnecessary error reporting.
+				eventHandle->setFailure(AAMP_TUNE_DRM_SELF_ABORT);
+				eventHandle->setResponseCode(httpResponseCode);
 			}
 			else
 			{
@@ -1578,8 +1585,7 @@ void *CreateDRMSession(void *arg)
 			AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s",  __FUNCTION__, __LINE__, systemId);
 			AAMPTuneFailure failure = e->getFailure();
 			long responseCode = e->getResponseCode();
-			bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED &&
-						(responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
+			bool selfAbort = (failure == AAMP_TUNE_DRM_SELF_ABORT);
 			if (!selfAbort)
 			{
 				bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)
