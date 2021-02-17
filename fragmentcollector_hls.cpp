@@ -6483,7 +6483,7 @@ void TrackState::UpdateDrmIV(const char *ptr)
 
 void TrackState::FetchPlaylist()
 {
-	int playlistDownloadFailCount = 0;
+
 	long http_error = 0;   //CID:81884 - Initialization
 	double downloadTime;
 	long  main_error = 0;
@@ -6511,25 +6511,19 @@ void TrackState::FetchPlaylist()
 	AampCurlInstance dnldCurlInstance = aamp->GetPlaylistCurlInstance(mType , true);
 	aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs,dnldCurlInstance);
 	aamp->profiler.ProfileBegin(bucketId);
-	do
-	{
+
 		(void) aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		main_error = getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									main_error,mEffectiveUrl, downloadTime);
 		if(playlist.len)
-		{
 			aamp->profiler.ProfileEnd(bucketId);
-			break;
-		}
-		logprintf("Playlist download failed : %s failure count : %d : http response : %d", mPlaylistUrl.c_str(), playlistDownloadFailCount, (int)http_error);
-		aamp->InterruptableMsSleep(500);
-		playlistDownloadFailCount += 1;
-	} while(aamp->DownloadsAreEnabled() && (MAX_MANIFEST_DOWNLOAD_RETRY >  playlistDownloadFailCount) && (404 == http_error));
+
 	aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 	if (!playlist.len)
 	{
+		logprintf("Playlist download failed : %s  http response : %d", mPlaylistUrl.c_str(), (int)http_error);
 		aamp->mPlaylistFetchFailError = http_error;
 		aamp->profiler.ProfileError(bucketId, main_error);
 	}

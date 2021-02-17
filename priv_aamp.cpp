@@ -4036,6 +4036,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						{
 							if( simType == eMEDIATYPE_MANIFEST ||
 								simType == eMEDIATYPE_AUDIO ||
+								simType == eMEDIATYPE_VIDEO ||
 							    simType == eMEDIATYPE_INIT_VIDEO ||
 							    simType == eMEDIATYPE_PLAYLIST_AUDIO ||
 							    simType == eMEDIATYPE_INIT_AUDIO ||
