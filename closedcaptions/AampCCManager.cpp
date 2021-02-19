@@ -432,104 +432,105 @@ int AampCCManagerBase::SetStyle(const std::string &options)
 		/** Get the current attributes */
 		GetAttributes (&attribute, GSW_CC_TYPE_DIGITAL);
 
+		short attribsMask = 0;
+
 		if (inputOptions.get("fontStyle", optionValue))
 		{
 			getFontStyle(optionValue, &(attribute.fontStyle));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_STYLE, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_STYLE, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_STYLE;
 		}
 
 		if (inputOptions.get("textEdgeColor", optionValue))
 		{
 			getColor(GSW_CC_ATTRIB_EDGE_COLOR, GSW_CC_TYPE_DIGITAL, optionValue, &(attribute.edgeColor));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_EDGE_COLOR, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_EDGE_COLOR, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_EDGE_COLOR;
 		}
 
 		if (inputOptions.get("textEdgeStyle", optionValue))
 		{
 			getEdgeType(optionValue, &(attribute.edgeType));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_EDGE_TYPE, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_EDGE_TYPE, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_EDGE_TYPE;
 		}
 
 		if (inputOptions.get("textForegroundColor", optionValue))
 		{
 			getColor(GSW_CC_ATTRIB_FONT_COLOR, GSW_CC_TYPE_DIGITAL, optionValue, &(attribute.charFgColor));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_COLOR, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_COLOR, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_COLOR;
 		}
 
 		if (inputOptions.get("textForegroundOpacity", optionValue))
 		{
 			getOpacity(optionValue, &(attribute.charFgOpacity));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_OPACITY, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_OPACITY, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_OPACITY;
 		}
 
 		if (inputOptions.get("textBackgroundColor", optionValue))
 		{
 			getColor(GSW_CC_ATTRIB_BACKGROUND_COLOR, GSW_CC_TYPE_DIGITAL, optionValue, &(attribute.charBgColor));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BACKGROUND_COLOR, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BACKGROUND_COLOR, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_BACKGROUND_COLOR;
 		}
 
 		if (inputOptions.get("textBackgroundOpacity", optionValue))
 		{
 			getOpacity(optionValue, &(attribute.charBgOpacity));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BACKGROUND_OPACITY, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BACKGROUND_OPACITY, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_BACKGROUND_OPACITY;
 		}
 
 		if (inputOptions.get("penItalicized", optionValue))
 		{
 			getTextStyle(optionValue, &(attribute.fontItalic));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_ITALIC, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_ITALIC, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_ITALIC;
 		}
 
 		if (inputOptions.get("penSize", optionValue))
 		{
 			getFontSize(optionValue, &(attribute.fontSize));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_SIZE, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_SIZE, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_SIZE;
 		}
 
 		if (inputOptions.get("penUnderline", optionValue))
 		{
 			getTextStyle(optionValue, &(attribute.fontUnderline));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_UNDERLINE, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_FONT_UNDERLINE, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_FONT_UNDERLINE;
 		}
 
 		if (inputOptions.get("windowBorderEdgeColor", optionValue))
 		{
 			getColor(GSW_CC_ATTRIB_BORDER_COLOR, GSW_CC_TYPE_DIGITAL, optionValue, &(attribute.borderColor));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BORDER_COLOR, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BORDER_COLOR, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_BORDER_COLOR;
 		}
 
 		if (inputOptions.get("windowBorderEdgeStyle", optionValue))
 		{
 			getEdgeType(optionValue, (gsw_CcEdgeType*) &(attribute.borderType));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BORDER_TYPE, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_BORDER_TYPE, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_BORDER_TYPE;
 		}
 
 		if (inputOptions.get("windowFillColor", optionValue))
 		{
 			getColor(GSW_CC_ATTRIB_WIN_COLOR, GSW_CC_TYPE_DIGITAL, optionValue, &(attribute.winColor));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_WIN_COLOR, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_WIN_COLOR, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_WIN_COLOR;
 		}
 
 		if (inputOptions.get("windowFillOpacity", optionValue))
 		{
 			getOpacity(optionValue, &(attribute.winOpacity));
-			SetAttributes(&attribute, GSW_CC_ATTRIB_WIN_OPACITY, GSW_CC_TYPE_DIGITAL);
-			SetAttributes(&attribute, GSW_CC_ATTRIB_WIN_OPACITY, GSW_CC_TYPE_ANALOG);
+			attribsMask |=GSW_CC_ATTRIB_WIN_OPACITY;
 		}
+
+		if(attribsMask != 0)
+		{
+
+			SetAttributes(&attribute, attribsMask, GSW_CC_TYPE_DIGITAL);
+			SetAttributes(&attribute, attribsMask, GSW_CC_TYPE_ANALOG);
+		}
+		else
+		{
+			AAMPLOG_WARN("AampCCManagerBase::%s:%d received optionsJson but result attributeMask is 0", __FUNCTION__, __LINE__);
+		}
+
 	}
+
 	return ret;
 }
 
