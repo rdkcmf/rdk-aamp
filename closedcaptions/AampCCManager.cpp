@@ -541,7 +541,7 @@ int AampCCManagerBase::SetStyle(const std::string &options)
 void AampCCManagerBase::Stop()
 {
 	EnsureInitialized();
-	AAMPLOG_TRACE("AampCCManagerBase::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
+	AAMPLOG_INFO("AampCCManagerBase::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
 	if (mRendering)
 	{
 		StopRendering();
@@ -551,7 +551,7 @@ void AampCCManagerBase::Stop()
 
 void AampCCManagerBase::Start()
 {
-	AAMPLOG_TRACE("AampCCManagerBase::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
+	AAMPLOG_INFO("AampCCManagerBase::%s %d mRendering(%d)", __FUNCTION__, __LINE__, mRendering);
 	if (!mRendering)
 	{
 		StartRendering();

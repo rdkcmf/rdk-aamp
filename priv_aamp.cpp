@@ -4696,7 +4696,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			// Stop CC when pipeline is stopped/destroyed and if foreground instance
 			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
 			{
-				AampCCManager::GetInstance()->Release();
+				if(!newTune)
+				{
+					AampCCManager::GetInstance()->Release();
+				}
 			}
 #endif
 			mStreamSink->Stop(!newTune);
