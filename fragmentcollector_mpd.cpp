@@ -71,6 +71,12 @@
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
 
+#define MEDIATYPE_VIDEO "video"
+#define MEDIATYPE_AUDIO "audio"
+#define MEDIATYPE_TEXT "text"
+#define MEDIATYPE_AUX_AUDIO "aux-audio"
+#define MEDIATYPE_IMAGE "image"
+
 static uint64_t ParseISO8601Duration(const char *ptr);
 
 
@@ -262,8 +268,6 @@ public:
 		return initialization;
 	}
 }; // SegmentTemplates
-
-static const char *mMediaTypeName[] = { "video", "audio", "text", "aux-audio" };
 
 /**
  * @brief Check if the given period is empty
@@ -688,7 +692,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mLastDrmHelper()
 	,mUpdateStreamInfo(false)
 	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mCommonKeyDuration(0)
-	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds()
+	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
 	, mMaxTracks(0)
 {
 	this->aamp = aamp;
@@ -952,6 +956,30 @@ static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
 }
 
 /**
+ * @brief Return the name corresponding to the Media Type
+ * @param mediaType media type
+ * @retval the name of the mediaType
+ */
+static const char* getMediaTypeName( MediaType mediaType )
+{
+	switch(mediaType)
+	{
+		case eMEDIATYPE_VIDEO:
+                        return MEDIATYPE_VIDEO;
+                case eMEDIATYPE_AUDIO:
+                        return MEDIATYPE_AUDIO;
+                case eMEDIATYPE_SUBTITLE:
+                        return MEDIATYPE_TEXT;
+                case eMEDIATYPE_AUX_AUDIO:
+                        return MEDIATYPE_AUX_AUDIO;
+                case eMEDIATYPE_IMAGE:
+                        return MEDIATYPE_IMAGE;
+                default:
+                        return NULL;
+	}
+}
+
+/**
  * @brief Check if adaptation set is of a given media type
  * @param adaptationSet adaptation set
  * @param mediaType media type
@@ -959,11 +987,11 @@ static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
  */
 static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 {
-	const char *name = mMediaTypeName[mediaType];
+	const char *name = getMediaTypeName(mediaType);
 	//RDK-27796, we need distinct names for other areas, not for the below checks
 	if (mediaType == eMEDIATYPE_AUX_AUDIO)
 	{
-		name = mMediaTypeName[eMEDIATYPE_AUDIO];
+		name = getMediaTypeName(eMEDIATYPE_AUDIO);
 	}
 
 	if(name != NULL)
@@ -1254,6 +1282,17 @@ static AampCurlInstance getCurlInstanceByMediaType(MediaType type)
 	return instance;
 }
 
+static void deIndexTileInfo(std::vector<TileInfo> &indexedTileInfo)
+{
+	logprintf("In %s indexedTileInfo size=%d",__FUNCTION__,indexedTileInfo.size());
+	for(int i=0;i<indexedTileInfo.size();i++)
+	{
+		aamp_Free((char**)&indexedTileInfo[i].url);
+	}
+	indexedTileInfo.clear();
+	traceprintf("%s exiting",__FUNCTION__);
+
+}
 /**
  * @brief Fetch and cache a fragment
  *
@@ -1276,7 +1315,7 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 	{
 		if(!(pMediaStreamContext->initialization.empty()) && (0 == pMediaStreamContext->initialization.compare(fragmentUrl))&& !discontinuity)
 		{
-			AAMPLOG_TRACE("We have pushed the same initailization segment for %s skipping", mMediaTypeName[pMediaStreamContext->type]);
+			AAMPLOG_TRACE("We have pushed the same initailization segment for %s skipping", getMediaTypeName(MediaType(pMediaStreamContext->type)));
 			return retval;
 		}
 		else
@@ -1902,7 +1941,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				{
 					char range[128];
 					sprintf(range, "%d-%d", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
-					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,mMediaTypeName[pMediaStreamContext->mediaType], range);
+					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,getMediaTypeName(pMediaStreamContext->mediaType), range);
 					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
 					{
 						pMediaStreamContext->fragmentTime += fragmentDuration;
@@ -1943,7 +1982,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						{
 							std::string fragmentUrl;
 							GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor,  segmentURL->GetMediaURI());
-							AAMPLOG_INFO("%s [%s]", mMediaTypeName[pMediaStreamContext->mediaType], segmentURL->GetMediaRange().c_str());
+							AAMPLOG_INFO("%s [%s]", getMediaTypeName(pMediaStreamContext->mediaType), segmentURL->GetMediaRange().c_str());
 							if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, segmentURL->GetMediaRange().c_str() ))
 							{
 								logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
@@ -2799,7 +2838,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		std::smatch uuid;
 		if (!std::regex_search(schemeIdUri, uuid, rgx))
 		{
-			AAMPLOG_WARN("%s:%d (%s) got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], iContentProt);
+			AAMPLOG_WARN("%s:%d (%s) got schemeID empty at ContentProtection node-%d", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), iContentProt);
 			continue;
 		}
 
@@ -2845,7 +2884,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
-			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
+			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 		}
 		else if (data && dataLength)
 		{
@@ -2853,21 +2892,21 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 
 			if (!tmpDrmHelper->parsePssh(data, dataLength))
 			{
-				AAMPLOG_WARN("%s:%d (%s) Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+				AAMPLOG_WARN("%s:%d (%s) Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__, getMediaTypeName(mediaType));
 			}
 			else
 			{
 				// Track the best DRM available to use
 				if ((!drmHelper) || (GetDrmPrefs(drmInfo.systemUUID) > GetDrmPrefs(drmHelper->getUuid())))
 				{
-					logprintf("%s:%d (%s) Created DRM helper for UUID %s and best to use", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
+					logprintf("%s:%d (%s) Created DRM helper for UUID %s and best to use", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 					drmHelper = tmpDrmHelper;
 				}
 			}
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
+			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 		}
 
 		if (data)
@@ -2908,7 +2947,7 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 				int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 				if (rc != 0)
 				{
-					AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
+					AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), rc);
 				}
 				drmSessionThreadStarted = false;
 			}
@@ -2926,7 +2965,7 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 			}
 			else
 			{
-				AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
+				AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), errno, strerror(errno));
 			}
 		}
 		else
@@ -2936,7 +2975,7 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, getMediaTypeName(mediaType));
 	}
 }
 
@@ -2968,7 +3007,7 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 			if (rc != 0)
 			{
-				AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], rc);
+				AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), rc);
 			}
 			drmSessionThreadStarted = false;
 		}
@@ -2985,12 +3024,12 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 		}
 		else
 		{
-			AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], errno, strerror(errno));
+			AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), errno, strerror(errno));
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+		AAMPLOG_WARN("%s:%d (%s) Skipping creation of session for duplicate helper", __FUNCTION__, __LINE__, getMediaTypeName(mediaType));
 	}
 }
 
@@ -3672,7 +3711,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 		for (int i = 0; i < mMaxTracks; i++)
 		{
-			mMediaStreamContext[i] = new MediaStreamContext((TrackType)i, this, aamp, mMediaTypeName[i]);
+			mMediaStreamContext[i] = new MediaStreamContext((TrackType)i, this, aamp, getMediaTypeName(MediaType(i)));
 			mMediaStreamContext[i]->fragmentDescriptor.manifestUrl = manifestUrl;
 			mMediaStreamContext[i]->mediaType = (MediaType)i;
 			mMediaStreamContext[i]->representationIndex = -1;
@@ -5699,7 +5738,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 				SetESChangeStatus();
 			}
 			logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
-				__FUNCTION__, __LINE__, mMediaTypeName[i],selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
+				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)),selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
@@ -5708,11 +5747,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
 			logprintf("StreamAbstractionAAMP_MPD::%s %d > No valid adaptation set found for Media[%s]\n",
-				__FUNCTION__, __LINE__, mMediaTypeName[i]);
+				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)));
 		}
 
 		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s\n",
-			__FUNCTION__, __LINE__, mMediaTypeName[i], pMediaStreamContext->enabled?"enabled":"disabled");
+			__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)), pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//RDK-27796, we need this hack for cases where subtitle is not enabled, but auxiliary audio track is enabled
 		if (eMEDIATYPE_AUX_AUDIO == i && pMediaStreamContext->enabled && !mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled)
@@ -6526,7 +6565,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 							int start, fin;
 							sscanf(range.c_str(), "%d-%d", &start, &fin);
 #ifdef DEBUG_TIMELINE
-							logprintf("init %s %d..%d", mMediaTypeName[pMediaStreamContext->mediaType], start, fin);
+							logprintf("init %s %d..%d", getMediaTypeName(pMediaStreamContext->mediaType), start, fin);
 #endif
 							std::string fragmentUrl;
 							GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
@@ -6614,7 +6653,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 									{
 										const char *firstSegmentRange = firstSegmentURL->GetMediaRange().c_str();
 										AAMPLOG_INFO("firstSegmentRange %s [%s]",
-												mMediaTypeName[pMediaStreamContext->mediaType], firstSegmentRange);
+												getMediaTypeName(pMediaStreamContext->mediaType), firstSegmentRange);
 										if (sscanf(firstSegmentRange, "%d-%d", &start, &fin) == 2)
 										{
 											if (start > 1)
@@ -6640,7 +6679,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 								{
 									std::string fragmentUrl;
 									GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
-									AAMPLOG_INFO("%s [%s]", mMediaTypeName[pMediaStreamContext->mediaType],
+									AAMPLOG_INFO("%s [%s]", getMediaTypeName(pMediaStreamContext->mediaType),
 											range.c_str());
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
@@ -6790,7 +6829,7 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 										GetFragmentUrl(fragmentUrl,fragmentDescriptor , initialization);
 										if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())
 										{
-											logprintf("%s %d Pushing encrypted header for %s", __FUNCTION__, __LINE__, mMediaTypeName[i]);
+											logprintf("%s %d Pushing encrypted header for %s", __FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)));
 											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + mMediaStreamContext[i]->mediaType), mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
 											if(!temp)
 											{
@@ -7768,6 +7807,23 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 		delete[] mStreamInfo;
 	}
 
+	if(!indexedTileInfo.empty())
+	{
+		deIndexTileInfo(indexedTileInfo);
+	}
+
+	if(!thumbnailtrack.empty())
+	{
+		int size = thumbnailtrack.size();
+		for(int i = 0; i < size ; i++)
+		{
+			StreamInfo *tmp = thumbnailtrack[i];
+			if(tmp)
+			{
+				delete tmp;
+			}
+		}
+	}
 
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
 
@@ -8096,13 +8152,156 @@ std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 	return audioBitrate;
 }
 
+static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vector<TileInfo> &indexedTileInfo,std::vector<StreamInfo*> &thumbnailtrack)
+{
+	bool ret = false;
+	logprintf("Entering  %s.",__FUNCTION__);
+	bool trackEmpty = thumbnailtrack.empty();
+	if(trackEmpty || indexedTileInfo.empty())
+	{
+		int idx = 0;
+		int w, h;
+		bool done = false;
+		{
+			for(IPeriod* tempPeriod : mpd->GetPeriods())
+			{
+				const std::vector<IAdaptationSet *> adaptationSets = tempPeriod->GetAdaptationSets();
+				int adSize = adaptationSets.size();
+				for(int j =0; j < adSize; j++)
+				{
+					if( IsContentType(adaptationSets.at(j), eMEDIATYPE_IMAGE) )
+					{
+						const std::vector<IRepresentation *> representation = adaptationSets.at(j)->GetRepresentation();
+						for (int repIndex = 0; repIndex < representation.size(); repIndex++)
+						{
+							const dash::mpd::IRepresentation *rep = representation.at(repIndex);
+							const std::vector<INode *> subnodes = rep->GetAdditionalSubNodes();
+							for (unsigned i = 0; i < subnodes.size() && !done; i++)
+							{
+								INode *xml = subnodes[i];
+								if(xml != NULL)
+								{
+									if (xml->GetName() == "EssentialProperty")
+									{
+										if (xml->HasAttribute("schemeIdUri"))
+										{
+											const std::string& schemeUri = xml->GetAttributeValue("schemeIdUri");
+											if (schemeUri == "http://dashif.org/guidelines/thumbnail_tile")
+											{
+												traceprintf("schemeuri = thumbnail_tile");
+											}
+											else
+											{
+												logprintf("%s:%d - skipping schemeUri %s", __FUNCTION__, __LINE__, schemeUri.c_str());
+											}
+										}
+										if(xml->HasAttribute("value"))
+										{
+											const std::string& value = xml->GetAttributeValue("value");
+											if(!value.empty())
+											{
+												sscanf(value.c_str(), "%dx%d",&w,&h);
+												logprintf("%s:%d - value=%dx%d", __FUNCTION__, __LINE__,w,h);
+												done = true;
+											}
+										}
+									}
+									else
+									{
+										logprintf("%s:%d - skipping name %s", __FUNCTION__, __LINE__, xml->GetName().c_str());
+									}
+								}
+								else
+								{
+									AAMPLOG_WARN("%s:%d :  xml is null", __FUNCTION__, __LINE__);  //CID:81118 - Null Returns
+								}
+							}	// end of sub node loop
+							int bandwidth = rep->GetBandwidth();
+							if(thumbIndexValue < 0 || trackEmpty)
+							{
+								std::string mimeType = rep->GetMimeType();
+								StreamInfo *tmp = new StreamInfo;
+								tmp->bandwidthBitsPerSecond = (long) bandwidth;
+								tmp->resolution.width = rep->GetWidth()/w;
+								tmp->resolution.height = rep->GetHeight()/h;
+								thumbnailtrack.push_back(tmp);
+								traceprintf("In %s thumbnailtrack bandwidth=%d width=%d height=%d",__FUNCTION__, tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
+							}
+							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
+							{
+								const ISegmentTemplate *segRep = NULL;
+								const ISegmentTemplate *segAdap = NULL;
+								segAdap = adaptationSets.at(j)->GetSegmentTemplate();
+								segRep = representation.at(repIndex)->GetSegmentTemplate();
+								SegmentTemplates segmentTemplates(segRep, segAdap);
+								if( segmentTemplates.HasSegmentTemplate() )
+								{
+									const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+									uint32_t timeScale = segmentTemplates.GetTimescale();
+									uint64_t startNumber = segmentTemplates.GetStartNumber();
+									std::string media = segmentTemplates.Getmedia();
+									if (segmentTimeline)
+									{
+										traceprintf("In %s - segment timeline",__FUNCTION__);
+										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+										int timeLineIndex = 0;
+										uint64_t durationMs = 0;
+										while (timeLineIndex < timelines.size())
+										{
+											std::string tmedia = media;
+											TileInfo tileInfo;
+											memset( &tileInfo,0,sizeof(tileInfo) );
+											ITimeline *timeline = timelines.at(timeLineIndex);
+											double startTime = timeline->GetStartTime() / timeScale;
+											uint32_t repeatCount = timeline->GetRepeatCount();
+											uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+											durationMs += ((repeatCount + 1) * timelineDurationMs);
+											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
+											replace(tmedia, "Number", timeLineIndex);
+											char *ptr = (char *)malloc(tmedia.size()+1); // +1 for NULL terminator.
+											strcpy(ptr, tmedia.c_str());
+											tileInfo.url = ptr;
+											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
+											tileInfo.startTime = startTime;
+											tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
+											tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
+											tileInfo.numRows = h;
+											tileInfo.numCols = w;
+											traceprintf("StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+											timeLineIndex++;
+											indexedTileInfo.push_back(tileInfo);
+										}
+									}
+									else
+									{
+										// Segment base.
+									}
+								}
+							}
+						}	// end of representation loop
+					}	// if content type is IMAGE
+				}	// end of adaptation set loop
+				if((thumbIndexValue < 0) && !done)
+				{
+					break;
+				}
+			}	// end of Period loop
+		}	// end of thumbnail track size
+	}
+	logprintf("Exiting %s.",__FUNCTION__);
+}
+
 /**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableThumbnailTracks(void)
 {
-        return std::vector<StreamInfo*>();
+	if(thumbnailtrack.empty())
+	{
+		indexThumbnails(mpd, -1, indexedTileInfo, thumbnailtrack);
+	}
+	return thumbnailtrack;
 }
 
 /**
@@ -8114,8 +8313,25 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableThumbnailTracks(
  */
 bool StreamAbstractionAAMP_MPD::SetThumbnailTrack(int thumbnailIndex)
 {
-	(void)thumbnailIndex;	/* unused */
-	return false;
+	bool ret = false;
+	if(aamp->mthumbIndexValue != thumbnailIndex)
+	{
+		if(thumbnailIndex < thumbnailtrack.size() || thumbnailtrack.empty())
+		{
+			deIndexTileInfo(indexedTileInfo);
+			indexThumbnails(mpd, thumbnailIndex, indexedTileInfo, thumbnailtrack);
+			if(!indexedTileInfo.empty())
+			{
+				aamp->mthumbIndexValue = thumbnailIndex;
+				ret = true;
+			}
+		}
+	}
+	else
+	{
+		ret = true;
+	}
+	return ret;
 }
 
 /**
@@ -8131,9 +8347,75 @@ bool StreamAbstractionAAMP_MPD::SetThumbnailTrack(int thumbnailIndex)
  * @param *height height of each thumbnail tile.
  * @return Updated vector of available thumbnail data.
  */
-std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(double tStart, double tEnd, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {
-        return std::vector<ThumbnailData>();
+        std::vector<ThumbnailData> data;
+	if(indexedTileInfo.empty())
+	{
+		if(aamp->mthumbIndexValue >= 0)
+		{
+			logprintf("In %s calling indexthumbnail",__FUNCTION__);
+			deIndexTileInfo(indexedTileInfo);
+			indexThumbnails(mpd, aamp->mthumbIndexValue, indexedTileInfo, thumbnailtrack);
+		}
+		else
+		{
+			logprintf("Exiting %s. Thumbnail track not configured!!!.",__FUNCTION__);
+			return data;
+		}
+	}
+
+	ThumbnailData tmpdata;
+	double totalSetDuration = 0;
+	bool updateBaseParam = true;
+	for(int i = 0; i< indexedTileInfo.size(); i++)
+	{
+		TileInfo &tileInfo = indexedTileInfo[i];
+		tmpdata.t = tileInfo.startTime;
+		if( tmpdata.t > tEnd )
+		{
+			break;
+		}
+		double tileSetEndTime = tmpdata.t + tileInfo.tileSetDuration;
+		totalSetDuration += tileInfo.tileSetDuration;
+		if( tileSetEndTime < tStart )
+		{
+			continue;
+		}
+		tmpdata.url = tileInfo.url;
+		tmpdata.d = tileInfo.posterDuration;
+		bool done = false;
+		for( int row=0; row<tileInfo.numRows && !done; row++ )
+		{
+			for( int col=0; col<tileInfo.numCols && !done; col++ )
+			{
+				double tNext = tmpdata.t+tileInfo.posterDuration;
+				if( tNext >= tileSetEndTime )
+				{
+					tmpdata.d = tileSetEndTime - tmpdata.t;
+					done = true;
+				}
+				if( tEnd >= tmpdata.t && tStart < tNext  )
+				{
+					tmpdata.x = col * thumbnailtrack[aamp->mthumbIndexValue]->resolution.width;
+					tmpdata.y = row * thumbnailtrack[aamp->mthumbIndexValue]->resolution.height;
+					data.push_back(tmpdata);
+				}
+				tmpdata.t = tNext;
+			}
+		}
+		if(updateBaseParam)
+		{
+			updateBaseParam = false;
+			std::string url = tmpdata.url;
+			*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			*width = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width;
+			*height = thumbnailtrack[aamp->mthumbIndexValue]->resolution.height;
+			*raw_w = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width * tileInfo.numCols;
+			*raw_h = thumbnailtrack[aamp->mthumbIndexValue]->resolution.height * tileInfo.numRows;
+		}
+	}
+	return data;
 }
 
 /**

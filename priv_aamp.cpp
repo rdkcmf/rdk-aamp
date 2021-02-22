@@ -1960,7 +1960,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mTsbRecordingId()
 	, mPersistBitRateOverSeek(false)
 	, mPreviousAudioType (FORMAT_INVALID)
-	, mthumbIndexValue(0)
+	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mProgramDateTime (0)
 {
