@@ -1963,7 +1963,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mTsbRecordingId()
 	, mPersistBitRateOverSeek(false)
 	, mProgramDateTime (0)
-	, mthumbIndexValue(0)
+	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
 {

@@ -1645,7 +1645,7 @@ static void ProcessCliCommand( char *cmd )
 				{
 					printf("[AAMPCLI] Matched Command eAAMP_SET_ThumbnailTrack - %s\n",cmd);
 					sscanf(cmd, "set %d %d", &opt, &rate);
-					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");;
+					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");
 					break;
 				}
 				case eAAMP_SET_PausedBehavior:
