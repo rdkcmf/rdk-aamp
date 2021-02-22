@@ -112,7 +112,7 @@ class GlobalConfigAAMP
 public:
 	long defaultBitrate;        /**< Default bitrate*/
 	long defaultBitrate4K;      /**< Default 4K bitrate*/
-	bool bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
+	TriState bEnableABR;            /**< Enable/Disable adaptive bitrate logic*/
 	bool noFog;                 /**< Disable FOG*/
 	char *mapMPD;               /**< Mapping of HLS to MPD url for matching string */
 	char *mapM3U8;		    /**< Mapping of MPD to HLS url for matching string */

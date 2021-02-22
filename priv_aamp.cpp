@@ -1007,7 +1007,7 @@ static void ProcessConfigEntry(std::string cfg)
 		}
 		else if (cfg.compare("abr") == 0)
 		{
-			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
+			gpGlobalConfig->bEnableABR = eFalseState;
 			logprintf("abr %s", gpGlobalConfig->bEnableABR ? "on" : "off");
 		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-life=", gpGlobalConfig->abrCacheLife) == 1)
@@ -1915,7 +1915,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mVideoEnd(NULL),
 #endif
 	mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
-	mIsFirstRequestToFOG(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
+	mIsFirstRequestToFOG(false), mABREnabled(true), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
@@ -1957,6 +1957,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mDefaultBitrate(DEFAULT_INIT_BITRATE)
+	, mDefaultBitrate4K(DEFAULT_INIT_BITRATE_4K)
+	, mDefaultIframeBitrate(0)
+	, mDefaultIframeBitrate4K(0)
+	
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -5140,8 +5145,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
-	mABREnabled = gpGlobalConfig->bEnableABR;
-	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;	
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
@@ -6037,18 +6040,62 @@ void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
 	{
 		mABREnabled = false;
 		mUserRequestedBandwidth = bitrate;
+		SetInitialBitrate(bitrate);
+		SetInitialBitrate4K(bitrate);
+		
 	}
 }
 
 /**
- *   @brief Get preferred bitrate for video.
+ *   @brief Get user configured fixed bitrate 
  *
- *   @return preferred bitrate.
+ *   @return bitrate to play
  */
-long PrivateInstanceAAMP::GetVideoBitrate()
+long PrivateInstanceAAMP::GetUserConfigVideoBitrate()
 {
 	return mUserRequestedBandwidth;
 }
+
+/**
+ *   @brief Get default bitrate for video.
+ *
+ *   @return default bitrate.
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate()
+{
+	return mDefaultBitrate;
+}
+
+/**
+ *   @brief Get default bitrate for 4K video.
+ *
+ *   @return default 4K bitrate.
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate4K()
+{
+	return mDefaultBitrate4K;
+}
+
+/**
+ *   @brief Get default bitrate for Iframe video.
+ *
+ *   @return default  bitrate.
+ */
+long PrivateInstanceAAMP::GetDefaultIframeBitrate()
+{
+	return mDefaultIframeBitrate;
+}
+
+/**
+ *   @brief Get default bitrate for Iframe 4K video.
+ *
+ *   @return default bitrate.
+ */
+long PrivateInstanceAAMP::GetDefaultIframeBitrate4K()
+{
+	return mDefaultIframeBitrate4K;
+}
+
 
 /**
  *   @brief Get available thumbnail tracks.
@@ -8239,9 +8286,9 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
  */
 void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
 {
-	if (bitrate > 0)
+	if (bitrate > 0 && gpGlobalConfig->defaultBitrate == 0)
 	{
-		gpGlobalConfig->defaultBitrate = bitrate;
+		mDefaultBitrate = bitrate;
 	}
 }
 
@@ -8252,9 +8299,9 @@ void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
  */
 void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
-	if (bitrate4K > 0)
+	if (bitrate4K > 0 && gpGlobalConfig->defaultBitrate4K == 0)
 	{
-		gpGlobalConfig->defaultBitrate4K = bitrate4K;
+		mDefaultBitrate4K = bitrate4K ;		
 	}
 }
 
@@ -8471,6 +8518,50 @@ void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
 		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
 	}
 }
+
+/**
+ *   @brief Function to set ABR Configuration / Reset the last setting
+ *	 while reusing playerinstance
+ *
+ */
+void PrivateInstanceAAMP::ConfigureABRSettings()
+{
+	if(gpGlobalConfig->bEnableABR != eUndefinedState)
+	{
+		mABREnabled = gpGlobalConfig->bEnableABR;
+	}
+	else
+	{
+		mABREnabled = true;
+	}
+	if(gpGlobalConfig->defaultBitrate != 0)
+	{
+		mDefaultBitrate = gpGlobalConfig->defaultBitrate;
+	}
+	else
+	{
+		mDefaultBitrate = DEFAULT_INIT_BITRATE;
+	}
+	if(gpGlobalConfig->defaultBitrate4K != 0)
+	{
+		mDefaultBitrate4K = gpGlobalConfig->defaultBitrate4K;
+	}
+	else
+	{
+		mDefaultBitrate4K = DEFAULT_INIT_BITRATE_4K;
+	}
+	mDefaultIframeBitrate = 0 ;
+	mDefaultIframeBitrate4K = 0;
+	if(gpGlobalConfig->iframeBitrate != 0)
+	{
+		mDefaultIframeBitrate = gpGlobalConfig->iframeBitrate;
+	}
+	if(gpGlobalConfig->iframeBitrate4K != 0)
+	{
+		mDefaultIframeBitrate4K = gpGlobalConfig->iframeBitrate4K;
+	}
+}
+
 
 /**
  *   @brief To set Westeros sink configuration
@@ -10138,7 +10229,27 @@ void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
 }
 
 void PrivateInstanceAAMP::ConfigureWithLocalOptions()
-{
+{	
+	if(gpGlobalConfig->bEnableABR != eUndefinedState)
+	{
+		mABREnabled = gpGlobalConfig->bEnableABR;
+	}
+	if(gpGlobalConfig->defaultBitrate != 0)
+	{
+		mDefaultBitrate = gpGlobalConfig->defaultBitrate;
+	}	
+	if(gpGlobalConfig->defaultBitrate4K != 0)
+	{
+		mDefaultBitrate4K = gpGlobalConfig->defaultBitrate4K;
+	}	
+	if(gpGlobalConfig->iframeBitrate != 0)
+	{
+		mDefaultIframeBitrate = gpGlobalConfig->iframeBitrate;
+	}	
+	if(gpGlobalConfig->iframeBitrate4K != 0)
+	{
+		mDefaultIframeBitrate4K = gpGlobalConfig->iframeBitrate4K;
+	}
 	if(gpGlobalConfig->rampdownLimit >= 0)
 	{
 		mRampDownLimit = gpGlobalConfig->rampdownLimit;

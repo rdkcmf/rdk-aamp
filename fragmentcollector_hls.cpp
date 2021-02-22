@@ -4216,7 +4216,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				long persistedBandwidth = aamp->GetPersistedBandwidth();
 				//We were tuning to a lesser profile previously, so we use it as starting profile
 				// XIONE-2039 If bitrate to be persisted during trickplay is true, set persisted BW as default init BW
-				if (persistedBandwidth > 0 && (persistedBandwidth < gpGlobalConfig->defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
+				if (persistedBandwidth > 0 && (persistedBandwidth < aamp->GetDefaultBitrate() || aamp->IsBitRatePersistedOverSeek()))
 				{
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
