@@ -217,6 +217,8 @@ private:
 	void ProcessVssContentProtection(std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType);
 	std::shared_ptr<AampDrmHelper> CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType);
 #endif
+	std::vector<StreamInfo*> thumbnailtrack;
+	std::vector<TileInfo> indexedTileInfo;
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_
