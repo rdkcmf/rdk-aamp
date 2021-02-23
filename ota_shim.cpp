@@ -376,9 +376,9 @@ void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTr
 }
 
 /**
- *   @brief Get current audio track
+ *   @brief Get the list of available audio tracks
  *
- *   @return int - index of current audio track
+ *   @return std::vector<AudioTrackInfo> List of available audio tracks
  */
 std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks()
 {
@@ -582,6 +582,106 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
         strncpy (aamp->language, mAudioTracks[trackId].language.c_str(),mAudioTracks[trackId].language.length());
     }
     return;
+#endif
+}
+
+/**
+ *   @brief Get the list of available text tracks
+ *
+ *   @return std::vector<TextTrackInfo> List of available text tracks
+ */
+std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
+{
+	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	if (mTextTracks.empty())
+		GetTextTracks();
+
+	return mTextTracks;
+}
+
+/**
+ * @brief GetTextTracks get the available text tracks for the selected service / media
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::GetTextTracks()
+{
+	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	JsonObject param;
+	JsonObject result;
+	JsonArray attributesArray;
+	std::vector<TextTrackInfo> txtTracks;
+	std::string output;
+	JsonArray outputArray;
+	JsonObject textData;
+	int arrayCount = 0;
+
+	attributesArray.Add("pk"); // int - Unique primary key dynamically allocated. Used for track selection.
+	attributesArray.Add("name"); //  Name to display in the UI when doing track selection
+	attributesArray.Add("type");  // Specific track type for the track - "CC" for ATSC Closed caption
+	attributesArray.Add("description"); //Track description supplied by the content provider
+	attributesArray.Add("language"); //ISO 639-2 three character text language
+	attributesArray.Add("contentType"); // Track content type e.g "HEARING_IMPAIRED", "EASY_READER"
+	attributesArray.Add("ccServiceNumber"); // Set to 1-63 for 708 CC Subtitles and 0 for 608
+	attributesArray.Add("isSelected"); // Is Currently selected track
+
+	param["id"] = APP_ID;
+	param["attributes"] = attributesArray;
+
+	thunderAccessObj.InvokeJSONRPC("getSubtitleTracks", param, result);
+
+	result.ToString(output);
+	AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d text track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+	outputArray = result["table"].Array();
+	arrayCount = outputArray.Length();
+
+	std::string txtTrackIdx = "";
+	std::string instreamId;
+	int ccIndex = 0;
+
+	for(int i = 0; i < arrayCount; i++)
+	{
+		std::string trackType;
+		textData = outputArray[i].Object();
+		trackType = textData["type"].String();
+		if(0 == trackType.compare("CC"))
+		{
+			std::string empty;
+			std::string index = std::to_string(ccIndex++);
+			std::string serviceNo;
+			int ccServiceNumber = -1;
+			std::string languageCode = Getiso639map_NormalizeLanguageCode(textData["language"].String());
+
+			ccServiceNumber = textData["ccServiceNumber"].Number();
+			/*Plugin info : ccServiceNumber	int Set to 1-63 for 708 CC Subtitles and 0 for 608*/
+			if(0 == ccServiceNumber)
+			{
+				/*608 CC - Appending with incremented ccIndex*/
+				/*To Do : check whether plugin can provide a better way to identify 608 and 708 captions*/
+				serviceNo = "CC";
+				serviceNo.append(std::to_string(ccIndex));
+			}
+			else if((ccServiceNumber >= 1) && (ccServiceNumber <= 63))
+			{
+				/*708 CC*/
+				serviceNo = "SERVICE";
+				serviceNo.append(std::to_string(ccServiceNumber));
+			}
+			else
+			{
+				/*No information on service number. Will return empty string*/
+			}
+
+			txtTracks.push_back(TextTrackInfo(index, languageCode, true, empty, textData["name"].String(), serviceNo, empty, (int)textData["pk"].Number()));
+			//values shared: index, language, isCC, rendition-empty, name, instreamId, characteristics-empty, primarykey
+			AAMPLOG_WARN("[OTA_SHIM]::%s Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", __FUNCTION__, index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
+		}
+	}
+	mTextTracks = txtTracks;
+	return;
 #endif
 }
 
