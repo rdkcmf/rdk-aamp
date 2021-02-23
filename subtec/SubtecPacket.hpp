@@ -34,11 +34,11 @@ class Packet
 {
 public:
     Packet() : m_buffer() {}
-    
+
     const uint32_t getType()
     {
         uint32_t type = 0;
-        
+
         if (getBuffer().size() >= 4)
         {
             std::vector<std::uint8_t> buffer = getBuffer();
@@ -50,16 +50,16 @@ public:
         return type;
     }
 
-    const std::vector<uint8_t>& getBytes() 
-    { 
-        return m_buffer; 
+    const std::vector<uint8_t>& getBytes()
+    {
+        return m_buffer;
     }
-    
+
     static std::string getTypeString(uint32_t type)
     {
         std::string ret;
         PacketType pktType = static_cast<PacketType>(type);
-        
+
         switch(pktType)
         {
         case PacketType::PES_DATA:
@@ -113,6 +113,9 @@ public:
         case PacketType::UNMUTE :
             ret = "UNMUTE";
             break;
+        case PacketType::CC_SET_ATTRIBUTE:
+            ret = "CC_SET_ATTRIBUTE";
+            break;
         case PacketType::INVALID:
             ret = "INVALID";
             break;
@@ -120,10 +123,10 @@ public:
             ret = "UNKNOWN";
             break;
         }
-        
+
         return ret;
     }
-    
+
 
 protected:
     std::vector<uint8_t>& getBuffer() { return m_buffer; }
@@ -147,12 +150,13 @@ protected:
         WEBVTT_SELECTION = 15,
         WEBVTT_DATA = 16,
         WEBVTT_TIMESTAMP = 17,
+        CC_SET_ATTRIBUTE = 18,
 
         INVALID = 0xFFFFFFFF,
     };
-    
+
     std::vector<uint8_t> m_buffer;
-    
+
     void append32(std::uint32_t value)
     {
         m_buffer.push_back((static_cast<std::uint8_t>((value >> 0)) & 0xFF));
@@ -168,7 +172,7 @@ protected:
         m_buffer.push_back((static_cast<std::int8_t>((value >> 16)) & 0xFF));
         m_buffer.push_back((static_cast<std::int8_t>((value >> 24)) & 0xFF));
     }
-    
+
     void append64(std::uint64_t value)
     {
         append32((static_cast<std::int32_t>((value >> 0)) & 0xFFFFFFFF));
@@ -335,6 +339,68 @@ public:
 };
 
 
+/*
+
+field           size    value       description
+type            4       18          message type
+counter         4       0..n
+size            4       68          specifies size of transferred "data"
+
+data:
+
+channelId           4                   Specifies channel on which data for subtitles is transmitted.
+ccType              4       {0,1}       0 - analog, 1 - digital
+attribType          4                   bitmask specifying which attribs are set
+
+1.  FONT_COLOR          4       0..n
+2.  BACKGROUND_COLOR    4       0..n
+3.  FONT_OPACITY        4       0..n
+4.  BACKGROUND_OPACITY  4       0..n
+5.  FONT_STYLE          4       0..n
+6.  FONT_SIZE           4       0..n
+7.  FONT_ITALIC         4       0..n
+8.  FONT_UNDERLINE      4       0..n
+9.  BORDER_TYPE         4       0..n
+10. BORDER_COLOR        4       0..n
+11. WIN_COLOR           4       0..n
+12. WIN_OPACITY         4       0..n
+13. EDGE_TYPE           4       0..n
+14. EDGE_COLOR          4       0..n
+
+
+
+*/
+
+class CCSetAttributePacket : public Packet
+{
+public:
+
+    /**
+     * Constructor.
+     *
+     * @param counter
+     *      Packet counter.
+     */
+    CCSetAttributePacket(std::uint32_t channelId,
+                       std::uint32_t counter,
+                       std::uint32_t ccType,
+                       std::uint32_t attribType,
+                       const std::array<uint32_t, 14>& attributesValues)
+    {
+        appendType(PacketType::CC_SET_ATTRIBUTE);
+        append32(counter);
+        append32(17*4);
+        append32(channelId);
+        append32(ccType);
+        append32(attribType);
+
+        for(const auto value : attributesValues)
+            append32(value);
+    }
+};
+
+
+
 class SubtecChannelManager
 {
 public:
@@ -342,7 +408,7 @@ public:
     {
         if (!s_Instance)
             s_Instance = new SubtecChannelManager;
-            
+
         return s_Instance;
     }
     int getNextChannelId() { return m_nextChannelId++; }
@@ -356,18 +422,21 @@ private:
 
 class SubtecChannel
 {
-public:    
+public:
     SubtecChannel() : m_counter(0), m_channelId(0)
     {
         m_channelId = SubtecChannelManager::getInstance()->getNextChannelId();
     }
-    
+
     PacketPtr generateResetAllPacket() { m_counter = 1; return SubtecChannelManager::getInstance()->generateResetAllPacket(); }
     PacketPtr generateResetChannelPacket() { return make_unique<ResetChannelPacket>(m_channelId, m_counter++); }
     PacketPtr generatePausePacket() { return make_unique<PausePacket>(m_channelId, m_counter++); }
     PacketPtr generateResumePacket() { return make_unique<ResumePacket>(m_channelId, m_counter++); }
     PacketPtr generateMutePacket() { return make_unique<MutePacket>(m_channelId, m_counter++); }
     PacketPtr generateUnmutePacket() { return make_unique<UnmutePacket>(m_channelId, m_counter++); }
+    PacketPtr generateCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues) {
+         return make_unique<CCSetAttributePacket>(m_channelId, m_counter++, ccType, attribType, attributesValues);
+    }
 
 protected:
     uint32_t m_channelId;

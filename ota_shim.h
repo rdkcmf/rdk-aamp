@@ -73,6 +73,7 @@ public:
     void SetAudioTrackByLanguage(const char* lang) override;
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
+    std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
@@ -89,6 +90,7 @@ private:
     void SetPreferredAudioLanguage();
     int GetAudioTrackInternal();
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
+    void GetTextTracks();
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 };

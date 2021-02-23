@@ -75,6 +75,25 @@ select:focus {
 		}
 	}
 
+	function clearTextMapList() {
+		var selectList = document.getElementById("TextList");
+		// when length is 0, the evaluation will return false.
+		while (selectList.options.length)
+		{
+			// continue to remove the first option until no options remain.
+			selectList.remove(0);
+		}
+	}
+
+	function clearAudioMapList() {
+		var selectList = document.getElementById("AudioList");
+		// when length is 0, the evaluation will return false.
+		while (selectList.options.length)
+		{
+			// continue to remove the first option until no options remain.
+			selectList.remove(0);
+		}
+	}
 	var tc;
 	var listener;
 	var listenerOnPlayerStatus;
@@ -87,6 +106,15 @@ select:focus {
 	var hdmiin1 = "hdmiin://localhost/deviceid/0";
 	var hdmiin2 = "hdmiin://localhost/deviceid/1";
 	var hdmiin3 = "hdmiin://localhost/deviceid/2";
+	var enableNativeCC = true;
+	var ccStatus = false;
+
+	var ccInitConfigParam = {
+		nativeCCRendering: true
+	};
+	const ccOption1 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"white","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":"false"};
+	const ccOption2 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"yellow","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"yellow","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":"true"};
+	const ccOption3 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"red","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":"true"};
 	
 	var en_spaInitConfig = {
 		preferredAudioLanguage: "eng,spa"
@@ -376,7 +404,7 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 	{
 
 		//window.resizeBy(1280,720);
-		
+		SetRectangle(0.6,0.5,0.3,0.3)
 		totalChannels = 0;
 		isPlaying = false;
 		
@@ -401,6 +429,7 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 		registerOnScanAction();
 		//registerOnPlayerStatus();
 		getAllServices();
+
 	}
 
 var focusIndex;
@@ -506,8 +535,11 @@ function playerLoad(url) {
 }
 function playChannel()
 {
+	clearTextMapList();
+
+	clearAudioMapList();
 	var chMapElement = document.getElementById("chMap");
-    var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
+	var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
 	var strData = chMapElement.options[chMapElement.selectedIndex].text;
 	setCurrentPlayingChText(strData);
 	
@@ -529,7 +561,10 @@ function playChannel()
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		}
-		clog("playChannel:"+strLocator);
+		if(enableNativeCC === true) {
+			aampPlayer.initConfig(ccInitConfigParam);
+			console.log("Using  ccInitConfigParam");
+		}
 		aampPlayer.load(strLocator);
 	}
 	isPlaying = true;
@@ -650,7 +685,7 @@ function getAvailableAudioTracks() {
 
 	var avlAudioTracks = aampPlayer.getAvailableAudioTracks();
 	if(avlAudioTracks != undefined)
-    {
+	{
 		var textTrackList = JSON.parse(avlAudioTracks);
 		console.log("Invoked getAvailableAudioTracks " +avlAudioTracks);
 		setGuideText("Invoked getAvailableAudioTracks " +avlAudioTracks);
@@ -867,8 +902,8 @@ function blockedEventHandler(event) {
 	</div>
 	
 	<div id="content">
-		<select id = "chMap" size="28" onchange="onChannelMapNav();" onclick="playChannel();"></select>
-				
+		<select id = "chMap" size="10" onchange="onChannelMapNav();" onclick="playChannel();"></select>
+
 		<input type="button" value="startScan" onclick="startScan();"/>
 		<input type="button" value="abortScan" onclick="abortScan();"/>
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
@@ -897,6 +932,22 @@ function blockedEventHandler(event) {
 		<input type="button" value="Preferred-Spa,Eng" onclick="SetPreferredLanguages(spa_enInitConfig);"/>
 		
 		<br/>
+
+		<input type="button" value="CC" onclick="toggleCC();"/>
+		<input type="button" value="GetAvlTextTracks" onclick="getAvailableTextTracks();"/>
+		<select id = "TextList" size="3"></select>
+		<input type="button" value="SetTextTrack" onclick="setTextTrack();"/>
+		<input type="button" value="GetTextTrack" onclick="getTextTrack();"/>
+
+		<select id="ccStyles" size="3">
+			<option>Option 1</option>
+			<option>Option 2</option>
+			<option>Option 3</option>
+		</select>
+		<input type="button" value="SetTextStyleOptions" onclick="setTextStyleOptions();"/>
+		<input type="button" value="GetTextStyleOptions" onclick="getTextStyleOptions();"/>
+		<br/>
+
 		<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>
 		<input type="button" value="abortGuideScan" onclick="startGuideScan();"</input> -->
 
@@ -905,11 +956,11 @@ function blockedEventHandler(event) {
 		<b> Tuned:</b> <label id = "currChSelLabel"></label>
 		<br/>
 		<div id="myprogressBar">1%</div>
-		<textarea rows="4" cols="120" id="console" style="border:solid 1px orange;"></textarea>
+		<textarea rows="12" cols="100" id="console" style="border:solid 1px orange;"></textarea>
 		<br/>
 		<b>Guide Data</b>
 		<br/>
-		<textarea rows="4" cols="120" id="guideText" style="border:solid 1px orange;"></textarea>
+		<textarea rows="12" cols="100" id="guideText" style="border:solid 1px orange;"></textarea>
 		<br/>
 		<b>Use red record key to toggle fullscreen mode</b>
 	</div>

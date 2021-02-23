@@ -223,22 +223,30 @@ struct TextTrackInfo
 	std::string instreamId;
 	std::string characteristics;
 	std::string codec;
+	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
 
-	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec()
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec()
+		codec(), primaryKey(0)
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha, int pk):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(id), characteristics(cha),
+		codec(), primaryKey(pk)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(),
-		codec(codecStr)
+		codec(codecStr), primaryKey(0)
 	{
 	}
 };

@@ -25,8 +25,8 @@
 #include "GlobalConfigAAMP.h"
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
-#ifdef AAMP_RDK_CC_ENABLED
-#include "AampRDKCCManager.h"
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
 #endif
 #include "helper/AampDrmHelper.h"
 #include "StreamAbstractionAAMP.h"
@@ -135,10 +135,10 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 
 	bool isLastPlayerInstance = !PrivateInstanceAAMP::IsActiveInstancePresent();
 
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	if (isLastPlayerInstance)
 	{
-		AampRDKCCManager::DestroyInstance();
+		AampCCManager::DestroyInstance();
 	}
 #endif
 #ifdef SUPPORT_JS_EVENTS 
@@ -1730,7 +1730,7 @@ void PlayerInstanceAAMP::SetAppName(std::string name)
  */
 void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 {
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	gpGlobalConfig->nativeCCRendering = enable;
 #endif
 }
@@ -1860,7 +1860,7 @@ void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
  */
 void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	if (format == eCLOSEDCAPTION_FORMAT_608)
 	{
 		gpGlobalConfig->preferredCEA708 = eFalseState;
