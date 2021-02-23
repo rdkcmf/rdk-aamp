@@ -32,6 +32,7 @@ select:focus {
 </style>
 		
 <script src="thunderJS.js"></script>
+<script src="URLs.js"></script> 
 
 <script>
 	function log(text)
@@ -468,6 +469,29 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 		{
 			fromPC = true;
 		}
+
+		if(urls) {
+			// Iteratively adding all the options to videoURLs
+			for (var iter = 0; iter < urls.length; iter++)
+			{
+				var option = document.createElement("option");
+				// Replace http/https with aamp at runtime
+				//if(urls[iter].url.startsWith("https"))
+				//{
+				//	option.value = urls[iter].url.replace(/^https:\/\//i, 'aamps://');
+				//}
+				//else if(urls[iter].url.startsWith("http"))
+				//{
+				//	option.value = urls[iter].url.replace(/^http:\/\//i, 'aamp://');
+				//}
+				//else
+				{
+					option.value = urls[iter].url;
+				}
+				option.text = urls[iter].name;
+				videoURLs.add(option);
+			}
+		}
 			
 		CollectButtons();
 		Connect();
@@ -575,6 +599,12 @@ window.onkeydown = function(elt)
 		{
 			playChannel(true);
 		}
+		//log("focus index: " + focusIndex);
+		//log("elem: " +navElements[focusIndex].id);
+		if(navElements[focusIndex].id == "videoURLs")
+		{
+			playChannelFromURL();
+		}
 		break;
 	}
 }
@@ -615,6 +645,41 @@ function playChannel()
 			console.log("Using  ccInitConfigParam");
 		}
 		clog("playChannel:"+strLocator);
+		aampPlayer.load(strLocator);
+	}
+	isPlaying = true;
+}
+
+function playChannelFromURL()
+{
+	var strLocator = document.getElementById("videoURLs").value;
+
+	clearConsole();
+	log("strLocator " + strLocator);
+
+	setCurrentPlayingChText(strLocator);
+
+	//setGuideText(strData);
+
+	if(fromPC)
+	{
+		playerLoad(strLocator);
+	}
+	else
+	{
+		if( aampPlayer )
+		{
+			aampPlayer.stop(); // needed for AMLOGIC-550 workaround?
+		}
+		else
+		{
+			aampPlayer = new AAMPMediaPlayer();
+			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
+		}
+		if(enableNativeCC === true) {
+			aampPlayer.initConfig(ccInitConfigParam);
+		}
+		log("aampPlayer load " + strLocator);
 		aampPlayer.load(strLocator);
 	}
 	isPlaying = true;
@@ -996,6 +1061,7 @@ function blockedEventHandler(event) {
 		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>
 		<input type="button" value="BL" onclick="SetRectangle(0.0,0.5,0.5,0.5);"/>
 		<input type="button" value="BR" onclick="SetRectangle(0.5,0.5,0.5,0.5);"/>
+		<select id="videoURLs" size="3"/></select>
 		
 		<br/>
 
