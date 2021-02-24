@@ -427,7 +427,7 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
     JsonObject param;
     JsonObject properties;
 
-    if(aamp->preferredLanguagesList.size() > 0) {
+    if(0 != aamp->preferredLanguagesString.length()) {
         properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
         param["properties"] = properties;
         mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);

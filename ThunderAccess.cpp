@@ -124,12 +124,19 @@ bool ThunderAccessAAMP::ActivatePlugin()
     JsonObject result;
     JsonObject controlParam;
     std::string response;
+    uint32_t status = Core::ERROR_NONE;
 
     if (NULL != controllerObject) {
         controlParam["callsign"] = pluginCallsign;
-        if (Core::ERROR_NONE == controllerObject->Invoke<JsonObject, JsonObject>(1000, _T("activate"), controlParam, result)){
+        status = controllerObject->Invoke<JsonObject, JsonObject>(1000, _T("activate"), controlParam, result);
+        if (Core::ERROR_NONE == status){
             result.ToString(response);
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s plugin Activated. Response : %s ", pluginCallsign.c_str(), response.c_str());
+        }
+        else
+        {
+            AAMPLOG_WARN( "[ThunderAccessAAMP] %s plugin Activation failed with error status : %u ", pluginCallsign.c_str(), status);
+            ret = false;
         }
     } else {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : Controller Object NULL ", __FUNCTION__);
@@ -150,11 +157,13 @@ bool ThunderAccessAAMP::ActivatePlugin()
 bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler)
 {
     bool ret = true;
+    uint32_t status = Core::ERROR_NONE;
     if (NULL != remoteObject) {
-        if (remoteObject->Subscribe<JsonObject>(1000, _T(eventName), functionHandler) == Core::ERROR_NONE) {
+        status = remoteObject->Subscribe<JsonObject>(1000, _T(eventName), functionHandler);
+        if (Core::ERROR_NONE == status) {
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s : Subscribed to : %s", __FUNCTION__, eventName.c_str());
         } else {
-            AAMPLOG_WARN( "[ThunderAccessAAMP] %s : Failed to Subscribe notification handler for : %s", __FUNCTION__, eventName.c_str());
+            AAMPLOG_WARN( "[ThunderAccessAAMP] %s : Subscription failed for : %s with error status %u", __FUNCTION__, eventName.c_str(), status);
             ret = false;
         }
     } else {
@@ -196,12 +205,15 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
 {
     bool ret = true;
     std::string response;
+    uint32_t status = Core::ERROR_NONE;
+
     if(NULL == remoteObject)
     {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : client not initialized! ", __FUNCTION__ );
         return false;
     }
-    if (Core::ERROR_NONE == remoteObject->Invoke<JsonObject, JsonObject>(1000, _T(method), param, result))
+    status = remoteObject->Invoke<JsonObject, JsonObject>(1000, _T(method), param, result);
+    if (Core::ERROR_NONE == status)
     {
         if (result["success"].Boolean()) {
             result.ToString(response);
@@ -216,7 +228,7 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
     }
     else
     {
-        AAMPLOG_WARN( "[ThunderAccessAAMP] %s : invoke failed! ", method.c_str());
+        AAMPLOG_WARN( "[ThunderAccessAAMP] %s : invoke failed with error status %u", method.c_str(), status);
         ret = false;
     }
     return ret;
