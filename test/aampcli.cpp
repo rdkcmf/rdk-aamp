@@ -2187,6 +2187,40 @@ void timer(int v) {
 }
 #endif
 
+static std::string GetNextFieldFromCSV( const char **pptr )
+{
+	const char *ptr = *pptr;
+	const char *delim = ptr;
+	const char *next = ptr;
+
+	if( *ptr=='\"' )
+	{
+		ptr++; // skip startquote
+		delim  = strchr(ptr,'\"');
+		if( delim )
+		{
+			next = delim+1; // skip endquote
+		}
+		else
+		{
+			delim = ptr;
+		}
+	}
+	else
+	{
+		while( *delim>=' ' && *delim!=',' )
+		{
+			delim++;
+		}
+		next = delim;
+	}
+
+	if( *next==',' ) next++;
+	*pptr = next;
+
+	return std::string(ptr,delim-ptr);
+}
+
 static void LoadVirtualChannelMapFromCSV( FILE *f )
 {
 	char buf[MAX_BUFFER_LENGTH];
@@ -2194,44 +2228,13 @@ static void LoadVirtualChannelMapFromCSV( FILE *f )
 	{
 		VirtualChannelInfo channelInfo;
 		const char *ptr = buf;
-		channelInfo.channelNumber = atoi(buf); // invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID
-		ptr = strchr(ptr,',');
-		if( ptr )
-		{
-			ptr++;
-			const char *delim;
-			bool quotedName = (*ptr=='\"');
-			if( quotedName )
-			{
-				ptr++;
-				delim  = strchr(ptr,'\"');
-			}
-			else
-			{
-				delim = strchr(ptr,',');
-			}
-			if( delim )
-			{
-				channelInfo.name = std::string(ptr,delim-ptr);
-				if( quotedName )
-				{ // skip end-quote
-					delim++;
-				}
-				ptr = delim+1;
-				delim = ptr;
-				while( *delim>=' ' && *delim!=',' )
-				{
-					delim++;
-				}
-				if( delim>ptr )
-				{
-					channelInfo.uri = std::string(ptr,delim-ptr);
-					mVirtualChannelMap.Add( channelInfo );
-				}
-			}
-		}
+		std::string channelNumber = GetNextFieldFromCSV( &ptr );
+		channelInfo.channelNumber = atoi(channelNumber.c_str());
+		channelInfo.name = GetNextFieldFromCSV(&ptr);
+		channelInfo.uri = GetNextFieldFromCSV(&ptr);
+		mVirtualChannelMap.Add( channelInfo );
 	}
-} // LoadVirtualChannelMapFromCSV
+}
 
 static const char *skipwhitespace( const char *ptr )
 {
