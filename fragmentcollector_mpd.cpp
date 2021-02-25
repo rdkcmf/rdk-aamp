@@ -5958,6 +5958,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							mStreamInfo[idx].resolution.height = representation->GetHeight();
 							mStreamInfo[idx].resolution.width = representation->GetWidth();
 							mStreamInfo[idx].resolution.framerate = 0;
+							mStreamInfo[idx].enabled = false;
 							//Update profile resolution with VideoEnd Metrics object.
 							aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 													mStreamInfo[idx].bandwidthBitsPerSecond,
@@ -5975,9 +5976,14 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.framerate = frate;
 							}
 
-							mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 							delete representation;
-
+							// Skip profile by resolution, if profile capping already applied in Fog
+							if(aamp->mOutputResolutionCheckEnabled && aamp->mProfileCappedStatus &&  aamp->mDisplayWidth > 0 && mStreamInfo[idx].resolution.width > aamp->mDisplayWidth)
+							{
+								AAMPLOG_INFO ("Video Profile Ignoring resolution=%d:%d display=%d:%d Bw=%ld", mStreamInfo[idx].resolution.width, mStreamInfo[idx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[idx].bandwidthBitsPerSecond);
+								continue;
+							}
+							mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 							if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
 							{
 								mMaxTSBBandwidth = mStreamInfo[idx].bandwidthBitsPerSecond;
@@ -6020,9 +6026,14 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					GetABRManager().clearProfiles();
 					mBitrateIndexVector.clear();
 					int addedProfiles = 0;
-										size_t idx = 0;
-										const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
-										for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
+					const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+					size_t idx = 0;
+					std::map<int, struct ProfileInfo> iProfileMaps;
+					bool resolutionCheckEnabled = false;
+					bool bVideoCapped = false;
+					bool bIframeCapped = false;
+
+					for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
 					{
 						IAdaptationSet* adaptationSet = adaptationSets.at(adaptIdx);
 						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
@@ -6037,6 +6048,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.width = representation->GetWidth();
 								mStreamInfo[idx].resolution.framerate = 0;
 								std::string repFrameRate = representation->GetFrameRate();
+								mStreamInfo[idx].enabled = false;
 								if(repFrameRate.empty())
 									repFrameRate = adapFrameRate;
 								if(!repFrameRate.empty())
@@ -6046,38 +6058,115 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									double frate = val2? ((double)val1/val2):val1;
 									mStreamInfo[idx].resolution.framerate = frate;
 								}
-								if ((mStreamInfo[idx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[idx].bandwidthBitsPerSecond < maxBitrate))
-								{
-									GetABRManager().addProfile({
-										mStreamInfo[idx].isIframeTrack,
-										mStreamInfo[idx].bandwidthBitsPerSecond,
-										mStreamInfo[idx].resolution.width,
-										mStreamInfo[idx].resolution.height,
-									});
-									addedProfiles++;
-									// Map profile index to corresponding adaptationset and representation index
-									mProfileMaps[idx].adaptationSetIndex = adaptIdx;
-									mProfileMaps[idx].representationIndex = reprIdx;
+								 // Map profile index to corresponding adaptationset and representation index
+                                                                iProfileMaps[idx].adaptationSetIndex = adaptIdx;
+                                                                iProfileMaps[idx].representationIndex = reprIdx;
 
-									//Update profile resolution with VideoEnd Metrics object.
-									aamp->UpdateVideoEndProfileResolution(
-										(mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
-										mStreamInfo[idx].bandwidthBitsPerSecond,
-										mStreamInfo[idx].resolution.width,
-										mStreamInfo[idx].resolution.height);
-									
-									if(mStreamInfo[idx].resolution.height > 1080
-											|| mStreamInfo[idx].resolution.width > 1920)
+								if (aamp->mOutputResolutionCheckEnabled && aamp->mDisplayWidth > 0 && aamp->mDisplayHeight > 0)
+								{
+									if (representation->GetWidth() <= aamp->mDisplayWidth)
 									{
-										defaultBitrate = gpGlobalConfig->defaultBitrate4K;
-										iframeBitrate = gpGlobalConfig->iframeBitrate4K;
+										resolutionCheckEnabled = true;
+									}
+									else
+									{
+										if (mStreamInfo[idx].isIframeTrack)
+											bIframeCapped = true;
+										else
+											bVideoCapped = true;
 									}
 								}
 								idx++;
 							}
 						}
 					}
+					for (int pidx = 0; pidx < idx; pidx++)
+					{
+						if (resolutionCheckEnabled && ((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || (!mStreamInfo[pidx].isIframeTrack && bVideoCapped)) && mStreamInfo[pidx].resolution.width > aamp->mDisplayWidth)
+						{
+							AAMPLOG_INFO("%s:%d Video Profile ignoring for resolution= %d:%d display= %d:%d BW=%ld", __FUNCTION__, __LINE__, mStreamInfo[pidx].resolution.width, mStreamInfo[pidx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[pidx].bandwidthBitsPerSecond);
+						}
+						else
+						{
+							if ((mStreamInfo[pidx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[pidx].bandwidthBitsPerSecond < maxBitrate))
+							{
+								GetABRManager().addProfile({
+									mStreamInfo[pidx].isIframeTrack,
+									mStreamInfo[pidx].bandwidthBitsPerSecond,
+									mStreamInfo[pidx].resolution.width,
+									mStreamInfo[pidx].resolution.height,
+									"",
+									pidx
+								});
 
+								mProfileMaps[addedProfiles].adaptationSetIndex = iProfileMaps[pidx].adaptationSetIndex;
+								mProfileMaps[addedProfiles].representationIndex = iProfileMaps[pidx].representationIndex;
+								addedProfiles++;
+								if (resolutionCheckEnabled && (mStreamInfo[pidx].isIframeTrack && bIframeCapped) || (!mStreamInfo[pidx].isIframeTrack && bVideoCapped))
+                                                                {
+                                                                        aamp->mProfileCappedStatus = true;
+                                                                }
+
+								//Update profile resolution with VideoEnd Metrics object.
+								aamp->UpdateVideoEndProfileResolution(
+									(mStreamInfo[pidx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
+								mStreamInfo[pidx].bandwidthBitsPerSecond,
+								mStreamInfo[pidx].resolution.width,
+								mStreamInfo[pidx].resolution.height);
+								if(mStreamInfo[pidx].resolution.height > 1080
+									|| mStreamInfo[pidx].resolution.width > 1920)
+								{
+									defaultBitrate = gpGlobalConfig->defaultBitrate4K;
+									iframeBitrate = gpGlobalConfig->iframeBitrate4K;
+								}
+								mStreamInfo[pidx].enabled = true;
+								AAMPLOG_INFO("%s:%d Added Video Profile to ABR BW= %ld res= %d:%d display= %d:%d pc:%d", __FUNCTION__, __LINE__, mStreamInfo[pidx].bandwidthBitsPerSecond, mStreamInfo[pidx].resolution.width, mStreamInfo[pidx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, aamp->mProfileCappedStatus);
+							}
+						}
+					}
+					if(adaptationSets.size() > 0)
+                                       	{
+                                        
+                                            IAdaptationSet* adaptationSet = adaptationSets.at(0);
+					    if ((mNumberOfTracks == 1) && (IsContentType(adaptationSet, eMEDIATYPE_AUDIO)))
+                                             {
+   						size_t numRepresentations = adaptationSet->GetRepresentation().size();
+						for (size_t reprIdx = 0; reprIdx < numRepresentations; reprIdx++)
+						{
+								IRepresentation *representation = adaptationSet->GetRepresentation().at(reprIdx);
+								mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
+								mStreamInfo[idx].isIframeTrack = false;
+								mStreamInfo[idx].resolution.height = 0;
+								mStreamInfo[idx].resolution.width = 0;
+								mStreamInfo[idx].resolution.framerate = 0;
+								mStreamInfo[idx].enabled = true;
+								std::string repFrameRate = representation->GetFrameRate();
+                                                                                            
+                                                                 if(repFrameRate.empty())
+									repFrameRate = adapFrameRate;
+								if(!repFrameRate.empty())
+								{
+									int val1, val2;
+									sscanf(repFrameRate.c_str(),"%d/%d",&val1,&val2);
+									double frate = val2? ((double)val1/val2):val1;
+									mStreamInfo[idx].resolution.framerate = frate;
+								}
+									GetABRManager().addProfile({
+										mStreamInfo[idx].isIframeTrack,
+										mStreamInfo[idx].bandwidthBitsPerSecond,
+										mStreamInfo[idx].resolution.width,
+										mStreamInfo[idx].resolution.height,
+										"",
+										(int)idx
+									});
+									addedProfiles++;
+									// Map profile index to corresponding adaptationset and representation index
+									mProfileMaps[idx].adaptationSetIndex = 0;
+									mProfileMaps[idx].representationIndex = reprIdx;
+								        idx++;
+						}
+					    }
+                                        }
 					if (0 == addedProfiles)
 					{
 						ret = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
@@ -8006,8 +8095,22 @@ int StreamAbstractionAAMP_MPD::GetProfileIndexForBandwidth(long mTsbBandwidth)
  */
 StreamInfo* StreamAbstractionAAMP_MPD::GetStreamInfo(int idx)
 {
+	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;
 	assert(idx < GetProfileCount());
-	return &mStreamInfo[idx];
+	if (isFogTsb)
+	{
+		return &mStreamInfo[idx];
+	}
+	else
+	{
+		int userData = 0;
+
+		if (GetProfileCount() && !aamp->IsTSBSupported()) // avoid calling getUserDataOfProfile() for playlist only URL playback.
+		{
+			userData = GetABRManager().getUserDataOfProfile(idx);
+		}
+		return &mStreamInfo[userData];
+	}
 }
 
 
@@ -8035,7 +8138,7 @@ int StreamAbstractionAAMP_MPD::GetBWIndex(long bitrate)
 		for (int i = 0; i < profileCount; i++)
 		{
 			StreamInfo *streamInfo = &mStreamInfo[i];
-			if (!streamInfo->isIframeTrack && streamInfo->bandwidthBitsPerSecond > bitrate)
+			if (!streamInfo->isIframeTrack && streamInfo->enabled && streamInfo->bandwidthBitsPerSecond > bitrate)
 			{
 				--topBWIndex;
 			}

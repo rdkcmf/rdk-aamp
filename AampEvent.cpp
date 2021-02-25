@@ -411,11 +411,14 @@ const std::string &MediaMetadataEvent::getDrmType() const
  * @param[in] height     - Video height
  * @param[in] frameRate  - Framerate
  * @param[in] position   - Position
+ * @param[in] cappedProfile - Restricted profile status
+ * @param[in] displayWidth - Output display width
+ * @param[in] displayHeight - Output display height
  */
-BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position):
+BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool cappedProfile, int displayWidth, int displayHeight):
 		AAMPEventObject(AAMP_EVENT_BITRATE_CHANGED), mTime(time),
 		mBitrate(bitrate), mDescription(desc), mWidth(width),
-		mHeight(height), mFrameRate(frameRate), mPosition(position)
+		mHeight(height), mFrameRate(frameRate), mPosition(position), mCappedProfile(cappedProfile), mDisplayWidth(displayWidth), mDisplayHeight(displayHeight)
 {
 
 }
@@ -488,6 +491,36 @@ double BitrateChangeEvent::getFrameRate() const
 double BitrateChangeEvent::getPosition() const
 {
 	return mPosition;
+}
+
+/**
+ * @brief Get Profile capped status
+ *
+ * @return true or false
+ */
+bool BitrateChangeEvent::getCappedProfileStatus() const
+{
+        return mCappedProfile;
+}
+
+/**
+ * @brief Get output tv display Width
+ *
+ * @return Display width
+ */
+int BitrateChangeEvent::getDisplayWidth() const
+{
+        return mDisplayWidth;
+}
+
+/**
+ * @brief Get output tv display Height
+ *
+ * @return Displat height
+ */
+int BitrateChangeEvent::getDisplayHeight() const
+{
+        return mDisplayHeight;
 }
 
 /*

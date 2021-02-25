@@ -233,6 +233,9 @@ struct AAMPEvent
 			int height;                 /**< Video height */
 			double framerate;           /**< FrameRate */
 			double position;            /**< bitrate changed position*/
+			bool cappedProfile;         /**< profile capped status*/
+			int displayWidth;	    /**< output display width*/
+			int displayHeight;	    /**< output display height*/
 		} bitrateChanged;
 
 		/**
@@ -810,6 +813,9 @@ class BitrateChangeEvent: public AAMPEventObject
 	int mHeight;			/**< Video height */
 	double mFrameRate;		/**< FrameRate */
 	double mPosition;		/**< Position at which bitrate changed */
+	bool mCappedProfile;  	        /**< Capped/Restricted profile status */
+	int mDisplayWidth;		/**< TV display width */
+	int mDisplayHeight;		/**< TV display height */
 
 public:
 	BitrateChangeEvent() = delete;
@@ -825,9 +831,12 @@ public:
 	 * @param[in] width      - Video width
 	 * @param[in] height     - Video height
 	 * @param[in] frameRate  - Framerate
-	 * @param[in] position   - Position 
+	 * @param[in] position   - Position
+	 * @param[in] cappedProfile - Profile capping status
+	 * @param[in] displayWidth - Output tv display width
+	 * @param[in] displayHeight - Output tv dispay height
 	 */
-	BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position);
+	BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool mCappedProfile, int mDisplayWidth, int mDisplayHeight);
 
 	/**
 	 * @brief BitrateChangeEvent Destructor
@@ -882,6 +891,28 @@ public:
 	 * @return Position
 	 */
 	double getPosition() const;
+
+	 /**
+         * @brief Get Capped Profile status
+         *
+         * @return profile filterting restricted status
+         */
+        bool getCappedProfileStatus() const;
+
+	 /**
+         * @brief Get display width
+         *
+         * @return output display tv width
+         */
+        int getDisplayWidth() const;
+
+	 /**
+         * @brief Get display Height
+         *
+         * @return output display tv height
+         */
+        int getDisplayHeight() const;
+
 };
 
 /**

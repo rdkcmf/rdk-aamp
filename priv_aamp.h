@@ -683,6 +683,10 @@ public:
 	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
 	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
 	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
+	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
+	int mDisplayWidth; /**< Display resolution width */
+	int mDisplayHeight; /**< Display resolution height */
+	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1985,6 +1989,8 @@ public:
 	 */
 	void ConfigureLicenseCaching();
 
+	void ConfigureOutputResolutionCheck();
+
 	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
@@ -2110,6 +2116,13 @@ public:
 	 */
 	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
 
+         /**
+         *   @brief IsFirstRequestToFog Function to check first reqruest to fog
+         *
+         *   @return true if first request to fog
+         */
+        bool IsFirstRequestToFog()  { return mIsFirstRequestToFOG; }
+
 	/**
 	 *   @brief Check if current stream is muxed
 	 *
@@ -2212,6 +2225,13 @@ public:
 	 *   @return void
 	 */
 	void UpdateVideoEndTsbStatus(bool btsbAvailable);
+
+	/**
+	 *   @brief updates profile capped status
+	 *
+	 *   @return void
+	 */
+	void UpdateProfileCappedStatus(void);
 
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -2321,6 +2341,15 @@ public:
 	 *	 @return void
 	 */
 	void SetLicenseCaching(bool bValue);
+
+	/**
+         *       @brief Set Display resolution check
+         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
+         *
+         *       @return void
+         */
+        void SetOutputResolutionCheck(bool bValue);
+
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration

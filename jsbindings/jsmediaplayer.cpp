@@ -268,6 +268,7 @@ enum ConfigParamType
 	ePARAM_SSL_VERIFY_PEER,
 	ePARAM_LICENSE_CACHING,
 	ePARAM_PAUSED_BEHAVIOR,
+	ePARAM_LIMIT_RESOLUTION,
 	ePARAM_MAX_COUNT
 };
 
@@ -340,6 +341,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_SSL_VERIFY_PEER, "sslVerifyPeer"},
 	{ ePARAM_LICENSE_CACHING, "setLicenseCaching"},
 	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
+	{ ePARAM_LIMIT_RESOLUTION, "limitResolution"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -851,6 +853,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PERSIST_BITRATE_OVER_SEEK:
 			case ePARAM_SSL_VERIFY_PEER:
 			case ePARAM_LICENSE_CACHING:
+			case ePARAM_LIMIT_RESOLUTION:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -1029,6 +1032,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_PAUSED_BEHAVIOR:
 					privObj->_aamp->SetPausedBehavior((int) valueAsNumber);
 					break;
+				case ePARAM_LIMIT_RESOLUTION:
+                                        privObj->_aamp->SetOutputResolutionCheck(valueAsBoolean);
+                                        break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}

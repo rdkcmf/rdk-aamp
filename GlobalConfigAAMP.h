@@ -249,6 +249,7 @@ public:
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	bool midFragmentSeekEnabled;    /*** Enables Mid Fragment Seek functionality ***/
+	TriState bLimitResolution; /** Flag to indicate if display resolution based profile selection to be done */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
