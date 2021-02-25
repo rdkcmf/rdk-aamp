@@ -1099,6 +1099,15 @@ public:
 	void SetLicenseCaching(bool bValue);
 
 	/**
+         *       @brief Set Display resolution check
+         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
+         *
+         *       @return void
+         */
+        void SetOutputResolutionCheck(bool bValue);
+
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled
