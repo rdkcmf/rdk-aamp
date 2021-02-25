@@ -1648,6 +1648,17 @@ void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
 }
 
 /**
+ *   @brief Set display resolution check for video profile filtering
+ *   @param[in] bValue - true/false to enable/disable profile filtering
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetOutputResolutionCheck(bool bValue)
+{
+        aamp->SetOutputResolutionCheck(bValue);
+}
+
+/**
  *   @brief Set Matching BaseUrl Config Configuration
  *
  *   @param[in] bValue - true if Matching BaseUrl enabled

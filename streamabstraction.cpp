@@ -1164,7 +1164,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 			// Send bitrate notification
 			aamp->NotifyBitRateChangeEvent(cacheFragStreamInfo.bandwidthBitsPerSecond,
 					cacheFragStreamInfo.reason, cacheFragStreamInfo.resolution.width,
-					cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, position, lGetBWIndex);
+					cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, position, cacheFragStreamInfo.isCappedProfile, lGetBWIndex);
 			// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
 			aamp->SetPersistedProfileIndex(profileIndex);
 		}
@@ -1198,6 +1198,7 @@ void StreamAbstractionAAMP::UpdateStreamInfoBitrateData(int profileIndex, Stream
 		cacheFragStreamInfo.resolution.height = streamInfo->resolution.height;
 		cacheFragStreamInfo.resolution.framerate = streamInfo->resolution.framerate;
 		cacheFragStreamInfo.resolution.width = streamInfo->resolution.width;
+		cacheFragStreamInfo.isCappedProfile  = streamInfo->isCappedProfile;
 		//logprintf("%s:%d stream Info bps(%ld) w(%d) h(%d) fr(%f)", __FUNCTION__, __LINE__, cacheFragStreamInfo.bandwidthBitsPerSecond, cacheFragStreamInfo.resolution.width, cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate);
 	}
 }

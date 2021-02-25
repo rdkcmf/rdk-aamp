@@ -695,6 +695,10 @@ public:
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
+
+	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
+	int mDisplayWidth; /**< Display resolution width */
+	int mDisplayHeight; /**< Display resolution height */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -986,10 +990,11 @@ public:
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
  	 * @param[in] framerate - FRAME-RATE from manifest
+	 * @param[in] isCappedProfile - Flag to indicate restricted profile
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool isCappedProfile, bool GetBWIndex = false);
 
 	/**
 	 * @brief Notify when end of stream reached
@@ -1997,6 +2002,8 @@ public:
 	 */
 	void ConfigureLicenseCaching();
 
+	void ConfigureOutputResolutionCheck();
+
 	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
@@ -2213,9 +2220,10 @@ public:
 	 *   @param[in]  bitrate - bitrate ( bits per sec )
 	 *   @param[in]  width - Frame width
 	 *   @param[in]  Height - Frame Height
+	 *   @param[in] cappedProfile - Profile restriction status
 	 *   @return void
 	 */
-	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height);
+	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height, bool cappedProfile);
 
 	/**
 	 *   @brief updates time shift buffer status
@@ -2334,6 +2342,15 @@ public:
 	 *	 @return void
 	 */
 	void SetLicenseCaching(bool bValue);
+
+	/**
+         *       @brief Set Display resolution check
+         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
+         *
+         *       @return void
+         */
+        void SetOutputResolutionCheck(bool bValue);
+
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration

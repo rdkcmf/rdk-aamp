@@ -1038,6 +1038,19 @@ public:
 		name = JSStringCreateWithUTF8CString("position");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("cappedProfile");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getCappedProfileStatus()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("displayWidth");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getDisplayWidth()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("displayHeight");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getDisplayHeight()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
 	}
 };
 

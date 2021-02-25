@@ -4139,7 +4139,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 	TSProcessor* audioQueuedPC = NULL;
 	long http_error = 0;   //CID:81873 - Initialization
-
 	memset(&mainManifest, 0, sizeof(mainManifest));
 	if (newTune)
 	{
@@ -7465,40 +7464,72 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 	std::string audiogroupId ;
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
+	bool iProfileCapped = false;
+	bool resolutionCheckEnabled = aamp->mOutputResolutionCheckEnabled;
+	if(resolutionCheckEnabled && (0 == aamp->mDisplayWidth || 0 == aamp->mDisplayHeight))
+	{
+		resolutionCheckEnabled = false;
+	}
 
 	if(rate != AAMP_NORMAL_PLAY_RATE && mIframeAvailable)
 	{
 		// Add all the iframe tracks
 		int iFrameSelectedCount = 0;
 		int iFrameAvailableCount = 0;
-		for (int j = 0; j < mProfileCount; j++)
+		for (;;)
 		{
-			struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
-			streamInfo->enabled = false;
-			if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
+			bool loopAgain = false;
+			for (int j = 0; j < mProfileCount; j++)
 			{
-				iFrameAvailableCount++;
-				if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
+				struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
+				streamInfo->enabled = false;
+				streamInfo->isCappedProfile = false;
+
+				if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
 				{
+					iFrameAvailableCount++;
+					if (resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
+					{
+						AAMPLOG_INFO("%s:%d Iframe Video Profile ignoring higher res=%d:%d display=%d:%d BW=%ld", __FUNCTION__, __LINE__, streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, streamInfo->bandwidthBitsPerSecond);
+						iProfileCapped = true;
+					}
+					else if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
+					{
+						if (resolutionCheckEnabled)
+						{
+							streamInfo->isCappedProfile = true;
+						}
+
 						//Update profile resolution with VideoEnd Metrics object.
-					aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
-							streamInfo->bandwidthBitsPerSecond,
-							streamInfo->resolution.width,
-							streamInfo->resolution.height );
+						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height,
+								streamInfo->isCappedProfile );
 
-					mAbrManager.addProfile({
-							streamInfo->isIframeTrack,
-							streamInfo->bandwidthBitsPerSecond,
-							streamInfo->resolution.width,
-							streamInfo->resolution.height,
-							"",
-							j});
+						mAbrManager.addProfile({
+								streamInfo->isIframeTrack,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height,
+								"",
+								j});
 
-					streamInfo->enabled = true;
-					iFrameSelectedCount++;
+						streamInfo->enabled = true;
+						iFrameSelectedCount++;
 
-					AAMPLOG_INFO("%s:%d Added to ABR for Iframe, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+						AAMPLOG_INFO("%s:%d Video Profile added to ABR for Iframe, userData=%d BW =%ld res=%d:%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height);
+					}
 				}
+			}
+			if (iFrameAvailableCount > 0 && 0 == iFrameSelectedCount && resolutionCheckEnabled)
+			{
+				resolutionCheckEnabled = false;
+				loopAgain = true;
+			}
+			if (false == loopAgain)
+			{
+				break;
 			}
 		}
 		if(iFrameSelectedCount == 0 && iFrameAvailableCount !=0)
@@ -7541,14 +7572,18 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			int vProfileCountAvailable = 0;
 			int audioProfileMatchedCount = 0;
 			int bitrateMatchedCount = 0;
+			int resolutionMatchedCount = 0;
 			bool ignoreBitRateRangeCheck = false;
 			int availableCountATMOS = 0, availableCountEC3 = 0, availableCountAC3 = 0;
 			StreamOutputFormat selectedAudioType = FORMAT_INVALID;
+			bool bVideoResolutionCheckEnabled = false;
+			bool bVideoThumbnailResolutionCheckEnabled = false;
 
 			for (int j = 0; j < mProfileCount; j++)
 			{
 				struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
 				streamInfo->enabled = false;
+				streamInfo->isCappedProfile = false;
 				bool ignoreProfile = false;
 				bool clearProfiles = false;
 				if(!streamInfo->isIframeTrack)
@@ -7563,114 +7598,126 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					if((!audiogroupId.empty() && !audiogroupId.compare(streamInfo->audio)) || audiogroupId.empty())
 					{
 						audioProfileMatchedCount++;
-
-						if (((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate)) || ignoreBitRateRangeCheck)
+						if(resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
 						{
-							bitrateMatchedCount++;
-
-							switch( streamInfo->audioFormat)
+							iProfileCapped = true;
+							AAMPLOG_INFO("%s:%d: Video Profile ignored Bw=%ld res=%d:%d display=%d:%d", __FUNCTION__, __LINE__, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight);
+						}
+						else
+						{
+							resolutionMatchedCount++;
+							if (((streamInfo->bandwidthBitsPerSecond < minBitrate) || (streamInfo->bandwidthBitsPerSecond > maxBitrate)) && !ignoreBitRateRangeCheck)
 							{
-								case FORMAT_AUDIO_ES_AAC:
-									if(bDisableAAC)
-									{
-										AAMPLOG_INFO("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-										ignoreProfile = true;
-									}
-									else
-									{
-										aacProfiles++;
-									}
-									break;
-
-								case FORMAT_AUDIO_ES_AC3:
-									availableCountAC3++;
-									if(bDisableAC3)
-									{
-										AAMPLOG_INFO("%s:%d: AC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-										ignoreProfile = true;
-									}
-									else
-									{
-										// found AC3 profile , disable AAC profiles from adding
-										ac3Profiles++;
-										bDisableAAC = true;
-										if(aacProfiles)
-										{
-											// if already aac profiles added , clear it from local table and ABR table
-											aacProfiles = 0;
-											clearProfiles = true;
-										}
-									}
-									break;
-
-								case FORMAT_AUDIO_ES_EC3:
-									availableCountEC3++;
-									if(bDisableEC3)
-									{
-										AAMPLOG_INFO("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-										ignoreProfile = true;
-									}
-									else
-									{ // found EC3 profile , disable AAC and AC3 profiles from adding
-										ec3Profiles++;
-										bDisableAAC = true;
-										bDisableAC3 = true;
-										if(aacProfiles || ac3Profiles)
-										{
-											// if already aac or ac3 profiles added , clear it from local table and ABR table
-											aacProfiles = ac3Profiles = 0;
-											clearProfiles = true;
-										}
-									}
-									break;
-
-								case FORMAT_AUDIO_ES_ATMOS:
-									availableCountATMOS++;
-									if(bDisableATMOS)
-									{
-										AAMPLOG_INFO("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
-										ignoreProfile = true;
-									}
-									else
-									{ // found ATMOS Profile , disable AC3, EC3 and AAC profile from adding
-										atmosProfiles++;
-										bDisableAAC = true;
-										bDisableAC3 = true;
-										bDisableEC3 = true;
-										if(aacProfiles || ac3Profiles || ec3Profiles)
-										{
-											// if already aac or ac3 or ec3 profiles added , clear it from local table and ABR table
-											aacProfiles = ac3Profiles = ec3Profiles = 0;
-											clearProfiles = true;
-										}
-									}
-									break;
-
-								default:
-									AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
-									break;
+								iProfileCapped = true;
 							}
-
-							if(clearProfiles)
+							else
 							{
-								j = 0;
-								vProfileCountAvailable = 0;
-								audioProfileMatchedCount = 0;
-								bitrateMatchedCount = 0;
-								vProfileCountSelected = 0;
-								availableCountEC3 = 0;
-								availableCountAC3 = 0;
-								availableCountATMOS = 0;
-								// Continue the loop from start of profile
-								continue;
-							}
+								bitrateMatchedCount++;
 
-							if(!ignoreProfile)
-							{
-								streamInfo->enabled = true;
-								vProfileCountSelected ++;
-								selectedAudioType = streamInfo->audioFormat;
-								//AAMPLOG_INFO("%s:%d Found  video profile , enabled count:%d", __FUNCTION__, __LINE__, vProfileCountSelected);
+								switch(streamInfo->audioFormat)
+								{
+									case FORMAT_AUDIO_ES_AAC:
+										if(bDisableAAC)
+										{
+											AAMPLOG_INFO("%s:%d: AAC Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+											ignoreProfile = true;
+										}
+										else
+										{
+											aacProfiles++;
+										}
+										break;
+
+									case FORMAT_AUDIO_ES_AC3:
+										availableCountAC3++;
+										if(bDisableAC3)
+										{
+											AAMPLOG_INFO("%s:%d: AC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+											ignoreProfile = true;
+										}
+										else
+										{
+											// found AC3 profile , disable AAC profiles from adding
+											ac3Profiles++;
+											bDisableAAC = true;
+											if(aacProfiles)
+											{
+												// if already aac profiles added , clear it from local table and ABR table
+												aacProfiles = 0;
+												clearProfiles = true;
+											}
+										}
+										break;
+
+									case FORMAT_AUDIO_ES_EC3:
+										availableCountEC3++;
+										if(bDisableEC3)
+										{
+											AAMPLOG_INFO("%s:%d: EC3 Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+											ignoreProfile = true;
+										}
+										else
+										{ // found EC3 profile , disable AAC and AC3 profiles from adding
+											ec3Profiles++;
+											bDisableAAC = true;
+											bDisableAC3 = true;
+											if(aacProfiles || ac3Profiles)
+											{
+												// if already aac or ac3 profiles added , clear it from local table and ABR table
+												aacProfiles = ac3Profiles = 0;
+												clearProfiles = true;
+											}
+										}
+										break;
+
+									case FORMAT_AUDIO_ES_ATMOS:
+										availableCountATMOS++;
+										if(bDisableATMOS)
+										{
+											AAMPLOG_INFO("%s:%d: ATMOS Profile ignored[%s]", __FUNCTION__, __LINE__, streamInfo->uri);
+											ignoreProfile = true;
+										}
+										else
+										{ // found ATMOS Profile , disable AC3, EC3 and AAC profile from adding
+											atmosProfiles++;
+											bDisableAAC = true;
+											bDisableAC3 = true;
+											bDisableEC3 = true;
+											if(aacProfiles || ac3Profiles || ec3Profiles)
+											{
+												// if already aac or ac3 or ec3 profiles added , clear it from local table and ABR table
+												aacProfiles = ac3Profiles = ec3Profiles = 0;
+												clearProfiles = true;
+											}
+										}
+										break;
+
+									default:
+										AAMPLOG_WARN("%s:%d unknown codec string to categorize :%s ",__FUNCTION__,__LINE__,streamInfo->codecs);
+										break;
+								}
+
+								if(clearProfiles)
+								{
+									j = 0;
+									vProfileCountAvailable = 0;
+									audioProfileMatchedCount = 0;
+									bitrateMatchedCount = 0;
+									vProfileCountSelected = 0;
+									availableCountEC3 = 0;
+									availableCountAC3 = 0;
+									availableCountATMOS = 0;
+									// Continue the loop from start of profile
+									continue;
+								}
+
+								if(!ignoreProfile)
+								{
+									streamInfo->enabled = true;
+									vProfileCountSelected ++;
+									selectedAudioType = streamInfo->audioFormat;
+									//AAMPLOG_INFO("%s:%d Found  video profile , enabled count:%d", __FUNCTION__, __LINE__, vProfileCountSelected);
+								}
 							}
 						}
 					}
@@ -7701,7 +7748,8 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_VIDEO,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
-								streamInfo->resolution.height );
+								streamInfo->resolution.height,
+								iProfileCapped );
 
 						mAbrManager.addProfile({
 								streamInfo->isIframeTrack,
@@ -7710,8 +7758,11 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								streamInfo->resolution.height,
 								"",
 								j});
-
-						AAMPLOG_INFO("%s:%d Added to ABR, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+						if (iProfileCapped)
+						{
+							streamInfo->isCappedProfile = true;
+						}
+						AAMPLOG_INFO("%s:%d Video Profile added to ABR, userData=%d BW=%ld res=%d:%d pc=%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, iProfileCapped);
 					}
 					else if( isThumbnailStream(streamInfo) )
 					{
@@ -7719,7 +7770,8 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
-								streamInfo->resolution.height );
+								streamInfo->resolution.height,
+								streamInfo->isCappedProfile );
 
 						mAbrManager.addProfile({
 								streamInfo->isIframeTrack,
@@ -7743,6 +7795,15 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					audiogroupId.clear();
 					continue;
 				}
+				else if(vProfileCountAvailable && audioProfileMatchedCount && resolutionMatchedCount==0)
+                                {
+                                        // Video Profiles available , but not finding anything within configured display resolution
+                                        // As fallback recovery ,lets ignore display resolution check and add available video profiles for playback to happen
+                                        AAMPLOG_WARN("%s:%d ERROR No Video Profile found for display res = %d:%d",__FUNCTION__,__LINE__, aamp->mDisplayWidth, aamp->mDisplayHeight);
+                                        resolutionCheckEnabled = false;
+					iProfileCapped = false;
+                                        continue;
+                                }
 				else if(vProfileCountAvailable && audioProfileMatchedCount && bitrateMatchedCount==0)
 				{
 					// Video Profiles available , but not finding anything within bitrate range configured

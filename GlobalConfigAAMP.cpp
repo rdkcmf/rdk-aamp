@@ -78,6 +78,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #else
 	wifiCurlHeaderEnabled(false)
 #endif
+	,bLimitResolution(eUndefinedState)
 	,mEnableSeekableRange(eUndefinedState)
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP), mPersistBitRateOverSeek(eUndefinedState), licenseCaching(eUndefinedState)
 	, mDownloadDelayInMs(0)

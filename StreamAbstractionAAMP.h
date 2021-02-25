@@ -63,6 +63,7 @@ struct StreamInfo
 {
 	bool enabled;					/**< indicates if the streamInfo profile is enabled */
 	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
+	bool isCappedProfile;		/**< indicates profile filtering applied by resolution or bitrate */
 	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
 	StreamResolution resolution;    /**< Resolution of the stream*/
 	BitrateChangeReason reason;	/**< Reason for bitrate change*/
