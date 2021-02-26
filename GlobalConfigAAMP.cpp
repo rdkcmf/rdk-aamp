@@ -32,7 +32,7 @@
  * @brief GlobalConfigAAMP Constructor
  */
 GlobalConfigAAMP::GlobalConfigAAMP():
-	defaultBitrate(0), defaultBitrate4K(0), bEnableABR(eUndefinedState), noFog(false), mapMPD(NULL),mapM3U8(NULL),
+	defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL),mapM3U8(NULL),
 	abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
 	maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
 	harvestCountLimit(0), harvestPath(0), harvestConfig(0xFFFFFFFF)/*Enable all type by default */,

@@ -1986,13 +1986,6 @@ public:
 	void ConfigureInitFragTimeoutRetryCount();
 
 	/**
-	 *	 @brief Function to set ABR Configuration / Reset the last setting
-	 *	 while reusing playerinstance
-	 *
-	 */
-	void ConfigureABRSettings();
-
-	/**
 	 *	 @brief To set westeros sink configuration
 	 *
 	 */
@@ -2056,35 +2049,12 @@ public:
 	*/
 	std::string GetThumbnailTracks();
 	/**
-	 *   @brief Get user configured bitrate for video.
+	 *   @brief Get preferred bitrate for video.
 	 *
 	 *   @return preferred bitrate.
 	 */
-	long GetUserConfigVideoBitrate();
-	/**
-	 *	 @brief Get default bitrate for video.
-	 *
-	 *	 @return default bitrate.
-	 */
-	long GetDefaultBitrate();	
-	/**
-	 *	 @brief Get default bitrate for 4K video.
-	 *
-	 *	 @return default 4K bitrate.
-	 */
-	long GetDefaultBitrate4K();
-	/**
-	 *	 @brief Get default bitrate for Iframe video.
-	 *
-	 *	 @return default  bitrate.
-	 */
-	long GetDefaultIframeBitrate();	
-	/**
-	 *	 @brief Get default bitrate for Iframe 4K video.
-	 *
-	 *	 @return default bitrate.
-	 */
-	long GetDefaultIframeBitrate4K();
+	long GetVideoBitrate();
+
 	/**
 	 *   @brief To set the network proxy
 	 *
@@ -2974,10 +2944,6 @@ private:
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
 	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
-	long mDefaultBitrate;
-	long mDefaultBitrate4K;	
-	long mDefaultIframeBitrate;
-	long mDefaultIframeBitrate4K;
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
 	char *mLicenseProxy;                /**< proxy for license acquisition */

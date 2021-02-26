@@ -1052,10 +1052,10 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 	pthread_cond_init(&mStateCond, NULL);
 
 	// Set default init bitrate according to the config.
-	mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
-	if (aamp->GetDefaultIframeBitrate() > 0)
+	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
+	if (gpGlobalConfig->iframeBitrate > 0)
 	{
-		mAbrManager.setDefaultIframeBitrate(aamp->GetDefaultIframeBitrate());
+		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
 	}
 	mRampDownLimit = aamp->mRampDownLimit;
 
@@ -1894,8 +1894,8 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	//Check if there is an actual change in bitrate
-	long userRequestedBandwidth = aamp->GetUserConfigVideoBitrate();
-	if (userRequestedBandwidth != aamp->GetDefaultBitrate())
+	long userRequestedBandwidth = aamp->GetVideoBitrate();
+	if (userRequestedBandwidth != gpGlobalConfig->defaultBitrate)
 	{
 		int desiredProfileIndex = mAbrManager.getBestMatchedProfileIndexByBandWidth(userRequestedBandwidth);
 		if (currentProfileIndex != desiredProfileIndex)
