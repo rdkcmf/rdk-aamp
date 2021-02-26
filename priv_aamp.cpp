@@ -5133,7 +5133,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
-	ConfigureABRSettings();
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
