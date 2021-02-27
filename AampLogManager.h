@@ -136,6 +136,7 @@ public:
 	bool curl;       /**< Curl logs*/
 	bool progress;   /**< Download progress logs*/
 	bool failover;	 /**< server fail over logs*/
+	bool stream;     /**< Display stream contents */
 	bool curlHeader; /**< Curl header logs*/
 	bool logMetadata;	 /**< Timed metadata logs*/
 	static bool disableLogRedirection;
@@ -143,7 +144,7 @@ public:
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false), logMetadata(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false), logMetadata(false), stream(false)
 	{
 	}
 
