@@ -5390,7 +5390,8 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 				{
 					rc = eMEDIAFORMAT_DASH;
 				}
-				else if(urlStr.compare(extensionStart,extensionLength,"mp3") == 0 || urlStr.compare(extensionStart,extensionLength,"mp4") == 0 )
+				else if(urlStr.compare(extensionStart,extensionLength,"mp3") == 0 || urlStr.compare(extensionStart,extensionLength,"mp4") == 0 ||
+					urlStr.compare(extensionStart,extensionLength,"mkv") == 0)
 				{
 					rc = eMEDIAFORMAT_PROGRESSIVE;
 				}
