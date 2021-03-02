@@ -933,6 +933,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->logging.info = true;
 			logprintf("info logging %s", gpGlobalConfig->logging.info ? "on" : "off");
 		}
+		else if (cfg.compare("stream") == 0) 
+		{
+			gpGlobalConfig->logging.stream = true;
+			logprintf("stream logging %s", gpGlobalConfig->logging.stream ? "on" : "off");
+		}
 		else if (cfg.compare("failover") == 0)
 		{
 			gpGlobalConfig->logging.failover = true;
@@ -1957,6 +1962,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mProgramDateTime (0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -3691,7 +3697,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
-		AAMPLOG_INFO("aamp url:%d,%d,%d,%s", mediaType, simType, curlInstance, remoteUrl.c_str());
+		AAMPLOG_INFO("aamp url:%d,%d,%d,%f,%s", mediaType, simType, curlInstance,fragmentDurationSeconds, remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
 		{
@@ -4911,6 +4917,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	trickStartUTCMS = -1;
 
 	double playlistSeekPos = seek_pos_seconds - culledSeconds;
+	AAMPLOG_INFO("%s:%d playlistSeek : %f seek_pos_seconds:%f culledSeconds : %f ",__FUNCTION__,__LINE__,playlistSeekPos,seek_pos_seconds,culledSeconds);
 	if (playlistSeekPos < 0)
 	{
 		playlistSeekPos = 0;
@@ -5024,7 +5031,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
-		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
+		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
 #endif
 		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
 		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d mAuxFormat %d", mVideoFormat, mAudioFormat, mAuxFormat);
@@ -5142,7 +5149,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-	mLogTimetoTopProfile = true;	
+	mLogTimetoTopProfile = true;
+	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
+	// reused 
+	mProgramDateTime = 0;
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
