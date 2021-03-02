@@ -26,6 +26,8 @@
 #define AAMPGSTPLAYER_H
 
 #include <stddef.h>
+#include <functional>
+#include <gst/gst.h>
 #include "priv_aamp.h"
 #include <pthread.h>
 
@@ -73,7 +75,11 @@ public:
 
 
 	struct AAMPGstPlayerPriv *privateContext;
-	AAMPGstPlayer(PrivateInstanceAAMP *aamp);
+	AAMPGstPlayer(PrivateInstanceAAMP *aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
+#endif
+	);
 	AAMPGstPlayer(const AAMPGstPlayer&) = delete;
 	AAMPGstPlayer& operator=(const AAMPGstPlayer&) = delete;
 	~AAMPGstPlayer();
