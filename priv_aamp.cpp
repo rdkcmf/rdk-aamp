@@ -7200,15 +7200,6 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			return;
 		}
 
-		// Ignore for eMEDIAFORMAT_PROGRESSIVE, as the buffer management is done within GStreamer and AAMP plays no part
-		// For all kinds of errors called with ScheduleRetune there is no valid scenario for progressive playback
-		// The only debatable one being, eGST_ERROR_GST_PIPELINE_INTERNAL. This was again brought in for a specific player use-case
-		if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
-		{
-			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as it's a progressive file playback", __FUNCTION__, __LINE__);
-			return;
-		}
-
 		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
