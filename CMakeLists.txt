@@ -252,9 +252,13 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
     endif()
 endif()
 
+if(CMAKE_CDM_DRM)
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1")
+endif()
+
 if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER)
     message("OpenCDM support enabled")
-    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_OPENCDM")
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_OPENCDM -DAAMP_HLS_DRM=1")
     set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/AampHlsDrmSessionManager.cpp
                                                      drm/AampHlsOcdmBridge.cpp
                                                      drm/processProtectionHls.cpp
@@ -310,12 +314,10 @@ endif()
 # Always include Adobe Access Helper
 set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampAveDrmHelper.cpp)
 
-if(CMAKE_CDM_DRM)
-    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1 -DAAMP_HLS_DRM=1")
-endif()
 
 if(CMAKE_USE_CLEARKEY)
     set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/ClearKeyDrmSession.cpp)
+    set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampClearKeyHelper.cpp)
     set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CLEARKEY")
 endif()
 
@@ -358,7 +360,8 @@ elseif(CMAKE_CDM_DRM)
     message("Not Using OPEN CDM but using CDM")
     if(CMAKE_USE_PLAYREADY)
         set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/playreadydrmsession.cpp )
-        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYREADY")
+        set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampPlayReadyHelper.cpp)
+        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYREADY -DDRM_BUILD_PROFILE=DRM_BUILD_PROFILE_OEM -DTARGET_LITTLE_ENDIAN=1 -DTARGET_SUPPORTS_UNALIGNED_DWORD_POINTERS=0")
         set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lplayready")
         find_path (STAGING_INCDIR playready)
         find_path (STAGING_INCDIR playready/oem/common/inc)
@@ -386,6 +389,10 @@ elseif(CMAKE_CDM_DRM)
         if (CMAKE_USE_PLAYREADY)
             set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsec_api_crypto")
         endif()
+    endif()
+
+    if(CMAKE_IARM_MGR)
+        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lIARMBus -lds -ldshalcli")
     endif()
 endif()
 
