@@ -69,7 +69,7 @@ disablePlaylistIndexEvent=1    disables generation of playlist indexed event by 
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
 map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
-fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
+fog=0  Implies de-fog' incoming URLS and force direct aamp-only playback
 map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
 min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
