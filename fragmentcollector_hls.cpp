@@ -1308,7 +1308,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 	bool discontinuity = false;
 	const char* programDateTime = NULL;
 
-	traceprintf ("GetNextFragmentUriFromPlaylist : playTarget %f playlistPosition %f fragmentURI %p", playTarget, playlistPosition, fragmentURI);
+	traceprintf ("GetNextFragmentUriFromPlaylist %s playTarget %f playlistPosition %f fragmentURI %p",name, playTarget, playlistPosition, fragmentURI);
 
 	if (playTarget < 0)
 	{
@@ -1550,7 +1550,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				nextMediaSequenceNumber++;
 				if (((playlistPosition + fragmentDurationSeconds) > playTarget) || ((playTarget - playlistPosition) < PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS))
 				{
-					//logprintf("Return fragment %s playlistPosition %f playTarget %f", ptr, playlistPosition, playTarget);
+					//logprintf("%s Return fragment %s playlistPosition %f playTarget %f",__FUNCTION__, ptr, playlistPosition, playTarget);
 					this->byteRangeOffset = byteRangeOffset;
 					this->byteRangeLength = byteRangeLength;
 					mByteOffsetCalculation = false;
@@ -1646,8 +1646,8 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		ptr = next;
 	}
 #ifdef TRACE
-	logprintf("GetNextFragmentUriFromPlaylist :  pos %f returning %s", playlistPosition, rc);
-	logprintf("seqNo=%lld", nextMediaSequenceNumber - 1);
+	logprintf("GetNextFragmentUriFromPlaylist %s:  pos %f returning %s", name,playlistPosition, rc);
+	logprintf("GetNextFragmentUriFromPlaylist %s: seqNo=%lld", name,nextMediaSequenceNumber - 1);
 #endif
 	return rc;
 }
@@ -2587,7 +2587,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		mDrmInfo.manifestURL = mEffectiveUrl;
 		mDrmInfo.masterManifestURL = aamp->GetManifestUrl();
 		mDrmInfo.initData = aamp->GetDrmInitData();
-
+		double fragDuration = 0;
 		ptr = GetNextLineStart(playlist.ptr);
 		while (ptr)
 		{
@@ -2609,8 +2609,19 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					}
 					programDateTimeIdxOfFragment = NULL;
 					node.pFragmentInfo = ptr-8;//Point to beginning of #EXTINF
+					fragDuration = atof(ptr);
+					// enable logging for all stream type , for top 10 segments .This will help to find diff between
+					// playlist
+					if(gpGlobalConfig->logging.stream && indexCount < 10)
+					{
+						std::string urlname;
+						char *urlstrstart=GetNextLineStart(ptr);
+						char *urlstrend=GetNextLineStart(urlstrstart);
+						urlname.assign(urlstrstart,(urlstrend-urlstrstart));
+						logprintf("%s %s [%d]:[%f]:[%f]:%s",__FUNCTION__,name,indexCount,fragDuration,totalDuration,urlname.c_str());
+					}
 					indexCount++;
-					totalDuration += atof(ptr);
+					totalDuration += fragDuration;
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
 					node.initFragmentPtr = initFragmentPtr;
@@ -2620,7 +2631,10 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					indexFirstMediaSequenceNumber = atoll(ptr);
 					mediaSequence = true;
-					//logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
+					if(gpGlobalConfig->logging.stream)
+					{
+						logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
+					}
 				}
 				else if(startswith(&ptr,"-X-TARGETDURATION:"))
 				{
@@ -2681,13 +2695,20 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
-					//logprintf("%s %s Discontinuity Posn : %f ",__FUNCTION__,name, totalDuration);
+					if(gpGlobalConfig->logging.stream)
+					{
+						logprintf("%s %s [%d] Discontinuity Posn : %f ",__FUNCTION__,name,indexCount,totalDuration);
+					}
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
 					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
-					//AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
+						
+					if(gpGlobalConfig->logging.stream)
+					{
+						AAMPLOG_INFO("%s %s EXT-X-PROGRAM-DATE-TIME: %.*s ",__FUNCTION__,name, 30, programDateTimeIdxOfFragment);
+					}
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
 					{
@@ -2899,8 +2920,8 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				culledSec = 0;
 			}
 
-			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:%f AampCulled:%f TrackCulled:%f",
-				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, culledSec, aamp->culledSeconds, mCulledSeconds);
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:(%f -> %f) TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, aamp->culledSeconds,(aamp->culledSeconds+culledSec), mCulledSeconds);
 		}
 		else
 		{
@@ -2909,8 +2930,8 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 			// Both negative and positive values added
 			mCulledSeconds += culledSec;
 
-			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:%f AampCulled:%f TrackCulled:%f",
-				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, culledSec, aamp->culledSeconds, mCulledSeconds);		
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:(%f -> %f) TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
 		}
 	}	
 
@@ -3079,7 +3100,7 @@ void TrackState::RefreshPlaylist(void)
 		}
 #endif
 
-		double culled;
+		double culled=0;
 		IndexPlaylist(true, culled);
 		// Update culled seconds if playlist download was successful
 		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
@@ -3090,6 +3111,8 @@ void TrackState::RefreshPlaylist(void)
 		{
 			if(eTRACK_VIDEO == type)
 			{
+				AAMPLOG_INFO("%s Updating PDT (%f) and culled (%f)",__FUNCTION__,mProgramDateTime,culled); 
+				aamp->mProgramDateTime = mProgramDateTime;
 				aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
 			}
 			// Metadata refresh is needed for live content only , not for VOD
@@ -4401,7 +4424,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if(ts->enabled)
 			{
-				double dummy;
+				double culled=0;
 				bool playContextConfigured = false;
 				aamp_AppendNulTerminator(&ts->playlist); // make safe for cstring operations
 				if (gpGlobalConfig->logging.trace  )
@@ -4414,7 +4437,18 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 #endif
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
-				ts->IndexPlaylist(false,dummy);
+				ts->IndexPlaylist(!newTune,culled);
+				if (IsLive())
+				{
+					if(eTRACK_VIDEO == ts->type && culled > 0)
+					{
+						AAMPLOG_INFO("%s Updating PDT (%f) and culled (%f) Updated seek_pos_seconds:%f ",__FUNCTION__,ts->mProgramDateTime,culled,(seekPosition - culled));
+						aamp->mProgramDateTime = ts->mProgramDateTime;
+						aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
+						SeekPosUpdate((seekPosition - culled));
+					}
+				}
+
 
 #ifndef AVE_DRM
 				if(ts->mDrmMetaDataIndexCount > 0)
@@ -5539,6 +5573,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
 	mCulledSecondsAtStart = aamp->culledSeconds;
+	mProgramDateTime = aamp->mProgramDateTime;
+	AAMPLOG_INFO("%s Restore PDT (%f) ",__FUNCTION__,mProgramDateTime);
 }
 /***************************************************************************
 * @fn ~TrackState
