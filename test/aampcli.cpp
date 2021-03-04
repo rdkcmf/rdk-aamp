@@ -52,13 +52,6 @@
 #include <main_aamp.h>
 #include "../StreamAbstractionAAMP.h"
 
-#ifdef IARM_MGR
-#include "host.hpp"
-#include "manager.hpp"
-#include "libIBus.h"
-#include "libIBusDaemon.h"
-#endif
-
 #define MAX_BUFFER_LENGTH 4096
 
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
@@ -2260,22 +2253,6 @@ static FILE *GetConfigFile(const std::string& cfgFile)
  */
 int main(int argc, char **argv)
 {
-
-#ifdef IARM_MGR
-	char Init_Str[] = "aamp-cli";
-	IARM_Bus_Init(Init_Str);
-	IARM_Bus_Connect();
-	try
-	{
-		device::Manager::Initialize();
-		printf("[AAMPCLI] device::Manager::Initialize() succeeded\n");
-
-	}
-	catch (...)
-	{
-		printf("[AAMPCLI] device::Manager::Initialize() failed\n");
-	}
-#endif
 	char driveName = (*argv)[0];
 	AampLogManager mLogManager;
 	AampLogManager::disableLogRedirection = true;
