@@ -65,6 +65,10 @@ namespace subtecConnector
 
         return CC_VL_OS_API_RESULT_SUCCESS;
     }
+    void resetChannel()
+    {
+        CCDataController::Instance()->sendResetChannelPacket();
+    }
 
     void close()
     {

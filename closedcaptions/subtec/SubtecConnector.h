@@ -353,6 +353,7 @@ typedef int mrcc_Error;
 namespace subtecConnector
 {
     mrcc_Error initialize();
+    void resetChannel();
     void close();
 
 namespace ccMgrAPI
