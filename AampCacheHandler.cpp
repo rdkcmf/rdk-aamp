@@ -30,6 +30,9 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 	PlayListCachedData *tmpData,*newtmpData;
 	pthread_mutex_lock(&mMutex);
 
+	//Initialize AampCacheHandler
+	Init();
+
 	// First check point , Caching is allowed only if its VOD and for Main Manifest(HLS) for both VOD/Live
 	// For Main manifest , fileType will bypass storing for live content
 	if(trackLiveStatus==false || fileType==eMEDIATYPE_MANIFEST)
@@ -229,14 +232,12 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 	return retVal;
 }
 
-AampCacheHandler::AampCacheHandler():
-	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
-	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
-	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE)
+void AampCacheHandler::Init()
 {
-	pthread_mutex_init(&mMutex, NULL);
-	pthread_mutex_init(&mCondVarMutex, NULL);
-	pthread_cond_init(&mCondVar, NULL);
+	//Check if already initialized
+	if(true == mInitialized)
+		return;
+
 	if(0 != pthread_create(&mAsyncCleanUpTaskThreadId, NULL, &AampCacheThreadFunction, this))
 	{
 		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
@@ -246,13 +247,14 @@ AampCacheHandler::AampCacheHandler():
 		mAsyncThreadStartedFlag = true;
 		mAsyncCacheCleanUpThread = true;
 	}
+	mInitialized = true;
 }
-
-/**
- * @brief Destructor Function
- */
-AampCacheHandler::~AampCacheHandler()
+void AampCacheHandler::ClearCacheHandler()
 {
+	//Check if already uninitialized
+	if(false == mInitialized)
+		return;
+
 	mCacheActive = true;
 	pthread_mutex_lock(&mCondVarMutex);
 	mAsyncCacheCleanUpThread = false;
@@ -268,10 +270,28 @@ AampCacheHandler::~AampCacheHandler()
 		}
 	}
 	ClearPlaylistCache();
+	mInitialized = false;
+}
+AampCacheHandler::AampCacheHandler():
+	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
+	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
+	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),mInitialized(false)
+{
+	pthread_mutex_init(&mMutex, NULL);
+	pthread_mutex_init(&mCondVarMutex, NULL);
+	pthread_cond_init(&mCondVar, NULL);
+}
+
+/**
+ * @brief Destructor Function
+ */
+AampCacheHandler::~AampCacheHandler()
+{
+	if(true == mInitialized)
+		ClearCacheHandler();
 	pthread_mutex_destroy(&mMutex);
 	pthread_mutex_destroy(&mCondVarMutex);
 	pthread_cond_destroy(&mCondVar);
-
 }
 
 /**
