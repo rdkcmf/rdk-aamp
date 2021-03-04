@@ -423,6 +423,32 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 	}
 }
 
+/***************************************************************************
+* @fn ParseTileInfCallback
+* @brief Callback function to decode Key and attribute
+*
+* @param attrName[in] input string
+* @param delimEqual[in] delimiter string
+* @param fin[in] string end pointer
+* @param arg[out] Updated TileInfo structure instance
+* @return void
+***************************************************************************/
+static void ParseTileInfCallback(char *attrName, char *delimEqual, char *fin, void* arg)
+{
+	// #EXT-X-TILES:RESOLUTION=416x234,LAYOUT=9x17,DURATION=2.002
+	TileInfo *var = (TileInfo *)arg;
+	const char *valuePtr = delimEqual + 1;
+	if (AttributeNameMatch(attrName, "LAYOUT"))
+	{
+		sscanf(valuePtr, "%dx%d", &var->numCols, &var->numRows);
+		traceprintf("In %s rows:%d cols:%d",__FUNCTION__,var->numRows, var->numCols);
+	}
+	else if (AttributeNameMatch(attrName, "DURATION"))
+	{
+		var->posterDuration = atof(valuePtr);
+		traceprintf("In %s duration:%f",__FUNCTION__,var->duration);
+	}
+}
 
 /***************************************************************************
 * @fn ParseXStartAttributeCallback
@@ -878,6 +904,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					mProfileCount++;
 					mIframeAvailable = true;
 				}
+				else if (startswith(&ptr, "-X-IMAGE-STREAM-INF:"))
+				{
+					HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
+					memset(streamInfo, 0, sizeof(*streamInfo));
+					ParseAttrList(ptr, ParseStreamInfCallback, this);
+					if (streamInfo->uri == NULL)
+					{ // uri on following line
+						streamInfo->uri = next;
+						next = mystrpbrk(next);
+					}
+
+					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					{
+						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
+					}
+
+					streamInfo->isIframeTrack = true;
+					streamInfo->enabled = false;
+					mProfileCount++;
+				}
 				else if (startswith(&ptr, "-X-STREAM-INF:"))
 				{
 					struct HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
@@ -1308,7 +1354,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 	bool discontinuity = false;
 	const char* programDateTime = NULL;
 
-	traceprintf ("GetNextFragmentUriFromPlaylist : playTarget %f playlistPosition %f fragmentURI %p", playTarget, playlistPosition, fragmentURI);
+	traceprintf ("GetNextFragmentUriFromPlaylist %s playTarget %f playlistPosition %f fragmentURI %p",name, playTarget, playlistPosition, fragmentURI);
 
 	if (playTarget < 0)
 	{
@@ -1550,7 +1596,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 				nextMediaSequenceNumber++;
 				if (((playlistPosition + fragmentDurationSeconds) > playTarget) || ((playTarget - playlistPosition) < PLAYLIST_TIME_DIFF_THRESHOLD_SECONDS))
 				{
-					//logprintf("Return fragment %s playlistPosition %f playTarget %f", ptr, playlistPosition, playTarget);
+					//logprintf("%s Return fragment %s playlistPosition %f playTarget %f",__FUNCTION__, ptr, playlistPosition, playTarget);
 					this->byteRangeOffset = byteRangeOffset;
 					this->byteRangeLength = byteRangeLength;
 					mByteOffsetCalculation = false;
@@ -1646,8 +1692,8 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		ptr = next;
 	}
 #ifdef TRACE
-	logprintf("GetNextFragmentUriFromPlaylist :  pos %f returning %s", playlistPosition, rc);
-	logprintf("seqNo=%lld", nextMediaSequenceNumber - 1);
+	logprintf("GetNextFragmentUriFromPlaylist %s:  pos %f returning %s", name,playlistPosition, rc);
+	logprintf("GetNextFragmentUriFromPlaylist %s: seqNo=%lld", name,nextMediaSequenceNumber - 1);
 #endif
 	return rc;
 }
@@ -1939,9 +1985,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 #endif
 					segDrmDecryptFailCount = 0; /* Resetting the retry count in the case of decryption success */
 				}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-				context->HarvestFile(fragmentUrl, &cachedFragment->fragment, true);
-#endif
 				if (!context->firstFragmentDecrypted)
 				{
 					aamp->NotifyFirstFragmentDecrypted();
@@ -1952,12 +1995,6 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				logprintf("fragment. len zero for %s", fragmentURI);
 			}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			else
-			{
-				context->HarvestFile(fragmentUrl, &cachedFragment->fragment, true);
-			}
-#endif
 		}
 		else
 		{
@@ -2587,7 +2624,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		mDrmInfo.manifestURL = mEffectiveUrl;
 		mDrmInfo.masterManifestURL = aamp->GetManifestUrl();
 		mDrmInfo.initData = aamp->GetDrmInitData();
-
+		double fragDuration = 0;
 		ptr = GetNextLineStart(playlist.ptr);
 		while (ptr)
 		{
@@ -2609,8 +2646,19 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					}
 					programDateTimeIdxOfFragment = NULL;
 					node.pFragmentInfo = ptr-8;//Point to beginning of #EXTINF
+					fragDuration = atof(ptr);
+					// enable logging for all stream type , for top 10 segments .This will help to find diff between
+					// playlist
+					if(gpGlobalConfig->logging.stream && indexCount < 10)
+					{
+						std::string urlname;
+						char *urlstrstart=GetNextLineStart(ptr);
+						char *urlstrend=GetNextLineStart(urlstrstart);
+						urlname.assign(urlstrstart,(urlstrend-urlstrstart));
+						logprintf("%s %s [%d]:[%f]:[%f]:%s",__FUNCTION__,name,indexCount,fragDuration,totalDuration,urlname.c_str());
+					}
 					indexCount++;
-					totalDuration += atof(ptr);
+					totalDuration += fragDuration;
 					node.completionTimeSecondsFromStart = totalDuration;
 					node.drmMetadataIdx = drmMetadataIdx;
 					node.initFragmentPtr = initFragmentPtr;
@@ -2620,7 +2668,10 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					indexFirstMediaSequenceNumber = atoll(ptr);
 					mediaSequence = true;
-					//logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
+					if(gpGlobalConfig->logging.stream)
+					{
+						logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
+					}
 				}
 				else if(startswith(&ptr,"-X-TARGETDURATION:"))
 				{
@@ -2681,13 +2732,20 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
-					//logprintf("%s %s Discontinuity Posn : %f ",__FUNCTION__,name, totalDuration);
+					if(gpGlobalConfig->logging.stream)
+					{
+						logprintf("%s %s [%d] Discontinuity Posn : %f ",__FUNCTION__,name,indexCount,totalDuration);
+					}
 				}
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
 					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
-					//AAMPLOG_INFO("%s EXT-X-PROGRAM-DATE-TIME: %.*s ",name, 30, programDateTimeIdxOfFragment);
+						
+					if(gpGlobalConfig->logging.stream)
+					{
+						AAMPLOG_INFO("%s %s EXT-X-PROGRAM-DATE-TIME: %.*s ",__FUNCTION__,name, 30, programDateTimeIdxOfFragment);
+					}
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
 					{
@@ -2899,8 +2957,8 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				culledSec = 0;
 			}
 
-			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:%f AampCulled:%f TrackCulled:%f",
-				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, culledSec, aamp->culledSeconds, mCulledSeconds);
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:(%f -> %f) TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, aamp->culledSeconds,(aamp->culledSeconds+culledSec), mCulledSeconds);
 		}
 		else
 		{
@@ -2909,8 +2967,8 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 			// Both negative and positive values added
 			mCulledSeconds += culledSec;
 
-			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:%f AampCulled:%f TrackCulled:%f",
-				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, culledSec, aamp->culledSeconds, mCulledSeconds);		
+			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:(%f -> %f) TrackCulled:%f",
+				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
 		}
 	}	
 
@@ -2918,44 +2976,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-/***************************************************************************
-* @fn HarvestFile
-* @brief Function to harvest stream contents locally for debugging
-*
-* @param url[in] url string
-* @param buffer[in] data content
-* @param isFragment[in] flag indicating fragment or not
-* @param prefix[in] prefix string to add to file name
-* @return void
-***************************************************************************/
-void StreamAbstractionAAMP_HLS::HarvestFile(std::string url, GrowableBuffer* buffer, bool isFragment, const char* prefix)
-{
-	if (aamp->HarvestFragments(isFragment))
-	{
-		logprintf("aamp: hls Harvest %s len %d", url.c_str(), (int)buffer->len);
-		std::string path = "/media/tsb/"; // SD card on xi3v2
-		std::size_t pos = url.rfind('/');
-		if (pos != std::string::npos)
-		{
-			std::string prefix = url.substr(pos+1);
-			path += prefix;
-
-			std::ofstream f(path, std::ofstream::binary);
-			if (f.good())
-			{
-				f.write(buffer->ptr, buffer->len);
-				logprintf("aamp: hls -harvest written %s buffer.len %d", path.c_str(), (int)buffer->len);
-				f.close();
-			}
-			else
-			{
-				logprintf("aamp: hls -harvest file open failed %s len %d", path.c_str(), (int)buffer->len);
-			}
-		}
-	}
-}
-#endif
 /***************************************************************************
 * @fn ABRProfileChanged
 * @brief Function to handle Profile change after ABR
@@ -3079,7 +3099,7 @@ void TrackState::RefreshPlaylist(void)
 		}
 #endif
 
-		double culled;
+		double culled=0;
 		IndexPlaylist(true, culled);
 		// Update culled seconds if playlist download was successful
 		// DELIA-40121: We need culledSeconds to find the timedMetadata position in playlist
@@ -3090,6 +3110,8 @@ void TrackState::RefreshPlaylist(void)
 		{
 			if(eTRACK_VIDEO == type)
 			{
+				AAMPLOG_INFO("%s Updating PDT (%f) and culled (%f)",__FUNCTION__,mProgramDateTime,culled); 
+				aamp->mProgramDateTime = mProgramDateTime;
 				aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
 			}
 			// Metadata refresh is needed for live content only , not for VOD
@@ -3099,10 +3121,6 @@ void TrackState::RefreshPlaylist(void)
 	
 		if( mDuration > 0.0f )
 		{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			const char* prefix = (type == eTRACK_SUBTITLE)?"sub-":(type == eTRACK_AUDIO)?"aud-":(context->trickplayMode)?"ifr-":"vid-";
-			context->HarvestFile(mPlaylistUrl, &playlist, false, prefix);
-#endif
 			if (IsLive())
 			{
 				fragmentURI = FindMediaForSequenceNumber();
@@ -3186,6 +3204,9 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 			{
 				ignoreProfile = true;
 			}
+			break;
+			
+		default:
 			break;
 	}
 
@@ -3911,7 +3932,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 					else
 					{
 						logprintf("%s:%d invalid diff %f ts->playTarget %f trackDuration %f", __FUNCTION__, __LINE__,
-						        diffBetweenStartTimes, ts->playTarget, video->mDuration);
+							diffBetweenStartTimes, ts->playTarget, video->mDuration);
 						retval = eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR;
 					}
 				}
@@ -4087,13 +4108,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			printf("***Main Manifest***:\n\n%s\n************\n", this->mainManifest.ptr);
 		}
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		HarvestFile(aamp->GetManifestUrl(), &mainManifest, false, "main-");
-#endif
 #ifdef AAMP_HLS_DRM
 		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
+		bool forceClearSession = (!aamp->mLicenseCaching && (tuneType == eTUNETYPE_NEW_NORMAL));
+		sessionMgr->clearDrmSession(forceClearSession);
 		sessionMgr->clearFailedKeyIds();
 		sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+		sessionMgr->setLicenseRequestAbort(false);
 #endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
 		AAMPStatusType mainManifestResult = ParseMainManifest();
@@ -4137,7 +4158,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				long persistedBandwidth = aamp->GetPersistedBandwidth();
 				//We were tuning to a lesser profile previously, so we use it as starting profile
-				if (persistedBandwidth > 0 && persistedBandwidth < gpGlobalConfig->defaultBitrate)
+				// XIONE-2039 If bitrate to be persisted during trickplay is true, set persisted BW as default init BW
+				if (persistedBandwidth > 0 && (persistedBandwidth < gpGlobalConfig->defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
 				{
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
@@ -4398,20 +4420,27 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 			if(ts->enabled)
 			{
-				double dummy;
+				double culled=0;
 				bool playContextConfigured = false;
 				aamp_AppendNulTerminator(&ts->playlist); // make safe for cstring operations
 				if (gpGlobalConfig->logging.trace  )
 				{
 					printf("***Initial Playlist:******\n\n%s\n*****************\n", ts->playlist.ptr);
 				}
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-				const char* prefix = (iTrack == eTRAK_SUBTITLE)?"sub-":((iTrack == eTRACK_AUDIO)?"aud-":(trickplayMode)?"ifr-":"vid-");
-				HarvestFile(ts->mPlaylistUrl, &ts->playlist, false, prefix);
-#endif
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
-				ts->IndexPlaylist(false,dummy);
+				ts->IndexPlaylist(!newTune,culled);
+				if (IsLive())
+				{
+					if(eTRACK_VIDEO == ts->type && culled > 0)
+					{
+						AAMPLOG_INFO("%s Updating PDT (%f) and culled (%f) Updated seek_pos_seconds:%f ",__FUNCTION__,ts->mProgramDateTime,culled,(seekPosition - culled));
+						aamp->mProgramDateTime = ts->mProgramDateTime;
+						aamp->UpdateCullingState(culled); // report amount of content that was implicitly culled since last playlist download		
+						SeekPosUpdate((seekPosition - culled));
+					}
+				}
+
 
 #ifndef AVE_DRM
 				if(ts->mDrmMetaDataIndexCount > 0)
@@ -5042,19 +5071,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
-		if (video->enabled && GetProfileCount())
-		{
-			BitrateChangeReason bitrateReason = (newTune) ? eAAMP_BITRATE_CHANGE_BY_TUNE : (trickplayMode ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK);
-			aamp->NotifyBitRateChangeEvent(this->streamInfo[this->currentProfileIndex].bandwidthBitsPerSecond,
-						bitrateReason,
-						this->streamInfo[this->currentProfileIndex].resolution.width,
-						this->streamInfo[this->currentProfileIndex].resolution.height,
-						this->streamInfo[this->currentProfileIndex].resolution.framerate,
-						video->playTarget, true);
-			aamp->SetPersistedProfileIndex(currentProfileIndex);
-		}
-
-		
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
@@ -5181,11 +5197,18 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
 	double pts = 0.0;
-	if( mStartTimestampZero)
+	if(mStartTimestampZero)
 	{
+		// For CMAF assets, we employ isobmffprocessor to get the PTS value since its not
+		// known from manifest. mFirstPTS will be populated only if platform has qtdemux override enabled.
+		// We check for only video, since mFirstPTS is first video frame's PTS.
+		if (trackState[eMEDIATYPE_VIDEO]->streamOutputFormat == FORMAT_ISO_BMFF && mFirstPTS != 0)
+		{
+			pts += mFirstPTS;
+		}
 		if(gpGlobalConfig->midFragmentSeekEnabled)
 		{
-			pts = midSeekPtsOffset;
+			pts += midSeekPtsOffset;
 		}
 	}
 	else
@@ -5481,7 +5504,8 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
-	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false)
+	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),
+	mFirstPTS(0)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
@@ -5549,6 +5573,8 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
 	mCulledSecondsAtStart = aamp->culledSeconds;
+	mProgramDateTime = aamp->mProgramDateTime;
+	AAMPLOG_INFO("%s Restore PDT (%f) ",__FUNCTION__,mProgramDateTime);
 }
 /***************************************************************************
 * @fn ~TrackState
@@ -5593,7 +5619,7 @@ TrackState::~TrackState()
 *
 * @return void
 ***************************************************************************/
-void TrackState::Stop()
+void TrackState::Stop(bool clearDRM)
 {
 	AbortWaitForCachedAndFreeFragment(true);
 
@@ -5625,6 +5651,14 @@ void TrackState::Stop()
 		mSubtitleParser->reset();
 		mSubtitleParser->close();
 	}
+
+	// XIONE-2208: While waiting on fragmentCollectorThread to join the mDrm
+	// can get initialized in fragmentCollectorThread.
+	// Clear DRM data after join if this is required.
+	if(mDrm && clearDRM)
+	{
+		mDrm->Release();
+	}
 }
 /***************************************************************************
 * @fn ~StreamAbstractionAAMP_HLS
@@ -5646,6 +5680,7 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	}
 
 	aamp->SyncBegin();
+	aamp_Free(&this->thumbnailManifest.ptr);
 	aamp_Free(&this->mainManifest.ptr);
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	aamp->SyncEnd();
@@ -5733,7 +5768,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 
 		if(track && track->Enabled())
 		{
-			track->Stop();
+			track->Stop(clearChannelData);
 			if (!clearChannelData)
 			{
 				//Restore drm key state which was reset by drm_CancelKeyWait earlier since drm data is persisted
@@ -5872,17 +5907,231 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 }
 
 /***************************************************************************
+* @fn isThumbnailStream
+* @brief Function to check if the provided stream is a thumbnail stream
+*
+* @return bool true on success
+***************************************************************************/
+static bool isThumbnailStream( const struct HlsStreamInfo *streamInfo )
+{
+	bool ret = false;
+	if (streamInfo->codecs)
+	{
+		ret = SubStringMatch(streamInfo->codecs, streamInfo->codecs+4, "jpeg");
+	}
+	return ret;
+}
+
+/***************************************************************************
+* @fn GetAvailableThumbnailTracks
+* @brief Function to get available thumbnail tracks
+*
+* @return vector of available thumbnail tracks.
+***************************************************************************/
+std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableThumbnailTracks(void)
+{
+	std::vector<StreamInfo*> thumbnailTracks;
+	for( int i = 0; i < mProfileCount; i++ )
+	{
+		struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
+		if( streamInfo->isIframeTrack && isThumbnailStream(streamInfo) )
+		{
+			struct StreamInfo *sptr = streamInfo;
+			thumbnailTracks.push_back(sptr);
+		}
+
+	}
+	return thumbnailTracks;
+}
+
+/***************************************************************************
+* @fn IndexThumbnails
+* @brief Function to index thumbnail manifest.
+*
+* @param *ptr pointer to thumbnail manifest
+* @return Updated vector of available thumbnail tracks.
+***************************************************************************/
+static std::vector<TileInfo> IndexThumbnails( char *ptr )
+{ // TODO: do we need to append nul pointer to downloaded playlist here?
+	std::vector<TileInfo> rc;
+
+	double startTime = 0;
+	TileInfo tileInfo;
+	memset( &tileInfo,0,sizeof(tileInfo) );
+
+	while(ptr)
+	{
+		char *next = mystrpbrk(ptr);
+		if(*ptr)
+		{
+			if (startswith(&ptr, "#EXT"))
+			{
+				if (startswith(&ptr, "INF:"))
+				{
+					tileInfo.tileSetDuration = atof(ptr);
+				}
+				else if (startswith(&ptr, "-X-TILES:"))
+				{
+					ParseAttrList(ptr, ParseTileInfCallback, &tileInfo);
+				}
+			}
+			else
+			{
+				tileInfo.url = ptr;
+				tileInfo.startTime = startTime;
+				startTime += tileInfo.tileSetDuration;
+				rc.push_back( tileInfo );
+			}
+		}
+		ptr = next;
+	}
+	return rc;
+}
+
+/***************************************************************************
+* @fn SetThumbnailTrack
+* @brief Function to set thumbnail track for processing
+*
+* @param thumbnail index value indicating the track to select
+* @return bool true on success.
+***************************************************************************/
+bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
+{
+	bool rc = false;
+	indexedTileInfo.clear();
+	aamp_Free( &thumbnailManifest.ptr );
+	thumbnailManifest.len = 0;
+
+	for( int iProfile=0; iProfile<mProfileCount; iProfile++ )
+	{
+		const HlsStreamInfo *streamInfo = &this->streamInfo[iProfile];
+		if( streamInfo->isIframeTrack && isThumbnailStream(streamInfo) )
+		{
+			if( thumbIndex>0 )
+			{
+				thumbIndex--;
+			}
+			else
+			{
+				aamp->mthumbIndexValue = iProfile;
+
+				std::string url;
+				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri);
+				long http_error = 0;
+				double downloadTime = 0;
+				std::string tempEffectiveUrl;
+				if( aamp->GetFile(url, &thumbnailManifest, tempEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST,true,eMEDIATYPE_PLAYLIST_IFRAME) )
+				{
+					logprintf("In StreamAbstractionAAMP_HLS::%s Configured Thumbnail",__FUNCTION__);
+					aamp_AppendNulTerminator( &thumbnailManifest );
+					aamp->getAampCacheHandler()->InsertToPlaylistCache(streamInfo->uri, &thumbnailManifest, tempEffectiveUrl,false,eMEDIATYPE_PLAYLIST_IFRAME);
+					indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
+					rc = true;
+				}
+				else
+				{
+					logprintf("In StreamAbstractionAAMP_HLS::%s Unable to fetch the Thumbnail Manifest",__FUNCTION__);
+				}
+				break;
+			}
+		}
+	}
+	return rc;
+}
+
+/***************************************************************************
+* @fn GetThumbnailRangeData
+* @brief Function to fetch the thumbnail data.
+*
+* @param tStart start duration of thumbnail data.
+* @param tEnd end duration of thumbnail data.
+* @param *baseurl base url of thumbnail images.
+* @param *raw_w absolute width of the thumbnail spritesheet.
+* @param *raw_h absolute height of the thumbnail spritesheet.
+* @param *width width of each thumbnail tile.
+* @param *height height of each thumbnail tile.
+* @return Updated vector of available thumbnail data.
+***************************************************************************/
+std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(double tStart, double tEnd, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+	std::vector<ThumbnailData> data;
+	HlsStreamInfo *streaminfo = &this->streamInfo[aamp->mthumbIndexValue];
+	if(!thumbnailManifest.ptr)
+	{
+		std::string tmpurl;
+		if(aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(streaminfo->uri, &thumbnailManifest, tmpurl))
+		{
+			indexedTileInfo = IndexThumbnails( thumbnailManifest.ptr );
+		}
+		else
+		{
+			logprintf("StreamAbstractionAAMP_HLS::%s Failed to retrieve the thumbnail playlist from cache.",__FUNCTION__);
+		}
+	}
+
+	ThumbnailData tmpdata;
+	double totalSetDuration = 0;
+	for( TileInfo &tileInfo : indexedTileInfo )
+	{
+		tmpdata.t = tileInfo.startTime;
+		if( tmpdata.t > tEnd )
+		{ // done
+			break;
+		}
+		double tileSetEndTime = tmpdata.t + tileInfo.tileSetDuration;
+		totalSetDuration += tileInfo.tileSetDuration;
+		if( tileSetEndTime < tStart )
+		{ // skip over
+			continue;
+		}
+		tmpdata.url = tileInfo.url;
+		*raw_w = streaminfo->resolution.width * tileInfo.numCols;
+		*raw_h = streaminfo->resolution.height * tileInfo.numRows;
+		tmpdata.d = tileInfo.posterDuration;
+		bool done = false;
+		for( int row=0; row<tileInfo.numRows && !done; row++ )
+		{
+			for( int col=0; col<tileInfo.numCols && !done; col++ )
+			{
+				double tNext = tmpdata.t+tileInfo.posterDuration;
+				if( tNext >= tileSetEndTime )
+				{ // clamp & bail
+					tmpdata.d = tileSetEndTime - tmpdata.t;
+					done = true;
+				}
+				if( tEnd >= tmpdata.t && tStart < tNext  )
+				{
+					tmpdata.x = col * streaminfo->resolution.width;
+					tmpdata.y = row * streaminfo->resolution.height;
+					data.push_back(tmpdata);
+				}
+				tmpdata.t = tNext;
+			}
+		}
+
+		std::string url;
+		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri);
+		*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+		*width = streaminfo->resolution.width;
+		*height = streaminfo->resolution.height;
+	}
+	return data;
+}
+
+/***************************************************************************
 * @fn NotifyFirstVideoPTS
 * @brief Function to notify first video pts value from tsprocessor
 *
 * @param pts[in] base pts
+* @param timeScale[in] time scale
 * @return none
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts)
+void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
+	mFirstPTS = ((double)pts / (double)timeScale);
+
 	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-
 	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
 	{
 		//position within playlist and pts in ms
@@ -7007,7 +7256,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		{
 			struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
 			streamInfo->enabled = false;
-			if(streamInfo->isIframeTrack)
+			if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
 			{
 				iFrameAvailableCount++;
 				if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
@@ -7207,6 +7456,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						}
 					}
 				}
+				else if( isThumbnailStream(streamInfo) )
+				{
+					vProfileCountSelected ++;
+				}
 			}
 
 			if (aamp->mPreviousAudioType != selectedAudioType)
@@ -7240,6 +7493,23 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								j});
 
 						AAMPLOG_INFO("%s:%d Added to ABR, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
+					}
+					else if( isThumbnailStream(streamInfo) )
+					{
+						//Updating Thumbnail profiles along with Video profiles.
+						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height );
+
+						mAbrManager.addProfile({
+								streamInfo->isIframeTrack,
+								streamInfo->bandwidthBitsPerSecond,
+								streamInfo->resolution.width,
+								streamInfo->resolution.height,
+								"",
+								j});
+						AAMPLOG_INFO("%s:%d Adding image track, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
 					}
 				}
 				break;

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+ If not stated otherwise in this file or this component's license file the
+ following copyright and licenses apply:
+
+ Copyright 2018 RDK Management
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+ http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>UVE Lightning App</title>
+  <script src="https://unpkg.com/@lightningjs/core@2.1.2/dist/lightning.min.js"></script>
+  <style>
+    canvas {
+		position: absolute;
+		z-index: 2;
+	}
+  </style>
+  <script>
+       class LightningAppOverlay extends lng.Application {
+		  static _template() {
+			return {
+			  Text: {
+				mount: 0.5,
+				x: 640,
+				y: 72,
+				zIndex: 3,
+				text: {
+				text: "LIGHTNING UVE PLAYER",
+				fontFace: 'Regular',
+				fontSize: 46,
+				textColor: 0xbbff0000,
+				}
+			  },
+			}
+		  }
+		  _init() {
+			this.videoEl = document.createElement('video')
+			this.videoEl.style.position = 'absolute'
+			this.videoEl.setAttribute('width', '100%')
+			this.videoEl.setAttribute('height', '100%')
+			this.videoEl.setAttribute('src', 'placeholder.mp4')
+			this.videoEl.setAttribute('type', 'video/ave')
+			document.body.appendChild(this.videoEl)
+			this.player = new AAMPMediaPlayer()
+			var locator = "https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd"
+			this.player.load(locator)
+		  }
+       }
+      window.onload = function() {
+        const options = {stage: {w: 1920, h: 1080}}
+        const app = new LightningAppOverlay(options);
+        document.body.appendChild(app.stage.getCanvas());
+      }
+    </script>
+  </head>
+<body>
+</body>
+</html>

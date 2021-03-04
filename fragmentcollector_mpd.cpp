@@ -49,9 +49,6 @@
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
 //#define DEBUG_TIMELINE
-//#define AAMP_HARVEST_SUPPORT_ENABLED
-//#define AAMP_DISABLE_INJECT
-//#define HARVEST_MPD
 
 /**
  * @addtogroup AAMP_COMMON_TYPES
@@ -265,17 +262,6 @@ public:
 
 static const char *mMediaTypeName[] = { "video", "audio", "text" };
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-#ifdef USE_PLAYERSINKBIN
-#define HARVEST_BASE_PATH "/media/tsb/aamp-harvest/" // SD card friendly path
-#else
-#define HARVEST_BASE_PATH "aamp-harvest/"
-#endif
-static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media);
-static void WriteFile(std::string fileName, const char* data, int len);
-#endif // AAMP_HARVEST_SUPPORT_ENABLED
-
-
 /**
  * @brief Check if the given period is empty
  */
@@ -367,9 +353,6 @@ public:
 	 * @retval true on success
 	 */
 	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		, std::string media = 0
-#endif
 		, bool playingAd = false
 	)
 	{
@@ -515,16 +498,6 @@ public:
 		}
 		else
 		{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-			if (aamp->HarvestFragments())
-			{
-				std::string fileName;
-				fileName.assign(fragmentUrl);
-				GetFilePath(fileName, &fragmentDescriptor, media);
-				logprintf("%s:%d filePath %s", __FUNCTION__, __LINE__, fileName.c_str());
-				WriteFile(fileName, cachedFragment->fragment.ptr, cachedFragment->fragment.len);
-			}
-#endif
 			cachedFragment->position = position;
 			cachedFragment->duration = duration;
 			cachedFragment->discontinuity = discontinuity;
@@ -1415,60 +1388,6 @@ static AampCurlInstance getCurlInstanceByMediaType(MediaType type)
 	return instance;
 }
 
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-
-#include <sys/stat.h>
-
-/**
- * @brief Gets file path to havest
- * @param[out] filePath path of file
- * @param fragmentDescriptor fragment descriptor
- * @param media string containing media info
- */
-static void GetFilePath(std::string& filePath, const FragmentDescriptor *fragmentDescriptor, std::string media)
-{
-	std::string constructedUri = HARVEST_BASE_PATH;
-	constructedUri += media;
-	replace(constructedUri, "Bandwidth", fragmentDescriptor->Bandwidth);
-	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
-	replace(constructedUri, "Number", fragmentDescriptor->Number);
-	replace(constructedUri, "Time", fragmentDescriptor->Time);
-	filePath = constructedUri;
-}
-
-
-/**
- * @brief Write file to storage
- * @param fileName out file name
- * @param data buffer
- * @param len length of buffer
- */
-static void WriteFile(std::string fileName, const char* data, int len)
-{
-	std::size_t pos = fileName.rfind('/');
-	std::string dirpath = fileName.substr(0, pos);
-	DIR *d = opendir(dirpath.c_str());
-	if (!d)
-	{
-		mkdir(dirpath.c_str(), 0777);
-	}
-	else
-		closedir(d);
-
-	std::ofstream f(fileName, std::ofstream::binary);
-	if (f.good())
-	{
-		f.write(data, len);
-		f.close();
-	}
-	else
-	{
-		logprintf("File open failed. outfile = %s ", fileName.c_str());
-	}
-}
-#endif // AAMP_HARVEST_SUPPORT_ENABLED
-
-
 /**
  * @brief Fetch and cache a fragment
  *
@@ -1513,9 +1432,6 @@ bool PrivateStreamAbstractionMPD::FetchFragment(MediaStreamContext *pMediaStream
 //	logprintf("%s:%d [%s] mFirstFragPTS %f  position %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstFragPTS[pMediaStreamContext->mediaType], position, mFirstFragPTS[pMediaStreamContext->mediaType]+position);
 	position += mFirstFragPTS[pMediaStreamContext->mediaType];
 	bool fragmentCached = pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		, media
-#endif
 		,(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING));
 	// Check if we have downloaded the fragment and waiting for init fragment download on
 	// bitrate switching before caching it.
@@ -1791,9 +1707,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 								// Now we reached the right row , need to traverse the repeat index to reach right node
 								// Whenever new fragments arrive inside the same timeline update fragment number,repeat count and startNumber.
 								// If first fragment start Number is zero, check lastSegmentDuration of period timeline for update.
-								while(pMediaStreamContext->fragmentRepeatCount < repeatCount &&
-									(startTime < pMediaStreamContext->lastSegmentTime) ||
-									((startTime == 0) && (pMediaStreamContext->lastSegmentTime == 0) && (pMediaStreamContext->lastSegmentDuration != 0)))
+								while((pMediaStreamContext->fragmentRepeatCount < repeatCount && startTime < pMediaStreamContext->lastSegmentTime) ||
+									(startTime == 0 && pMediaStreamContext->lastSegmentTime == 0 && pMediaStreamContext->lastSegmentDuration != 0))
 								{
 									startTime += duration;
 									pMediaStreamContext->fragmentDescriptor.Number++;
@@ -3752,8 +3667,11 @@ AAMPStatusType PrivateStreamAbstractionMPD::Init(TuneType tuneType)
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
 	AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
+	bool forceClearSession = (!aamp->mLicenseCaching && (tuneType == eTUNETYPE_NEW_NORMAL));
+	sessionMgr->clearDrmSession(forceClearSession);
 	sessionMgr->clearFailedKeyIds();
 	sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
+	sessionMgr->setLicenseRequestAbort(false);
   #endif
 	aamp->licenceFromManifest = false;
 	bool newTune = aamp->IsNewTune();
@@ -4453,26 +4371,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 
 	if (gotManifest)
 	{
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-		std::string fileName = HARVEST_BASE_PATH;
-		fileName.append("manifest.mpd");
-		WriteFile( fileName, manifest.ptr, manifest.len);
-#endif
-
-//Enable to harvest MPD file
-//Save the last 3 MPDs
-#ifdef HARVEST_MPD
-		static int counter = 0;
-		string fileSuffix = to_string(counter % 999);
-		counter++;
-		string fullPath = "/tmp/data/fog/vssmanifest-" + fileSuffix + ".mpd";
-		logprintf("Saving manifest to %s",fullPath.c_str());
-		FILE *outputFile = fopen(fullPath.c_str(), "w");
-		fwrite(manifest.ptr, manifest.len, 1, outputFile);
-		fprintf(outputFile,"EndofManifest");
-		fclose(outputFile);
-#endif
-
 		MPD* mpd = nullptr;
 		vector<std::string> locationUrl;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
@@ -5542,7 +5440,8 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 				// For (a) GetDesiredCodecIndex will handle appropriate codec type 
 				// For (b) This code loop will take care ,but need to check for condition of disableEC3/disableATMOS 
 				//	as added below
-				if(selectedCodecType == eAUDIO_ATMOS && aamp->mDisableATMOS || selectedCodecType == eAUDIO_DDPLUS && aamp->mDisableEC3)
+				if((selectedCodecType == eAUDIO_ATMOS && aamp->mDisableATMOS) ||
+				   (selectedCodecType == eAUDIO_DDPLUS && aamp->mDisableEC3))
 				{
 					selectedCodecType = eAUDIO_UNKNOWN;
 				}	
@@ -6242,7 +6141,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateTrackInfo(bool modifyDefaultBW
 					if (modifyDefaultBW)
 					{
 						long persistedBandwidth = aamp->GetPersistedBandwidth();
-						if(persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate))
+						// XIONE-2039 If Bitrate persisted over trickplay is true, set persisted BW as default init BW
+						if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
 						{
 							defaultBitrate = persistedBandwidth;
 						}
@@ -6674,7 +6574,18 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 						ISegmentList *segmentList = pMediaStreamContext->representation->GetSegmentList();
 						if (segmentList)
 						{
-							std::string initialization = segmentList->GetInitialization()->GetSourceURL();
+							const IURLType *urlType = segmentList->GetInitialization();
+							if( !urlType )
+							{
+								segmentList = pMediaStreamContext->adaptationSet->GetSegmentList();
+								urlType = segmentList->GetInitialization();
+								if( !urlType )
+								{
+									AAMPLOG_WARN("%s:%d : initialization is null", __FUNCTION__, __LINE__);
+									continue;
+								}
+							}
+							std::string initialization = urlType->GetSourceURL();
 							if (!initialization.empty())
 							{
 								double fragmentDuration = 0.0;
@@ -7292,18 +7203,32 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 					int adaptationSetCount = adapatationSets.size();
 					if(currentPeriodId != mCurrentPeriod->GetId())
 					{
-						logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
-						currentPeriodId = mCurrentPeriod->GetId();
-						mPrevAdaptationSetCount = adaptationSetCount;
-						logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
+						/*DELIA-47914:  If next period is empty, period ID change is  not processing.
+						Will check the period change for the same period in the next iteration.*/
+						if(adaptationSetCount > 0 || !IsEmptyPeriod(mCurrentPeriod))
+						{
+							logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
+							currentPeriodId = mCurrentPeriod->GetId();
+							mPrevAdaptationSetCount = adaptationSetCount;
+							periodChanged = true;
+							requireStreamSelection = true;
+							logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
+						}
+						else
+						{
+							for (int i = 0; i < mNumberOfTracks; i++)
+							{
+								mMediaStreamContext[i]->enabled = false;
+							}
+							logprintf("Period ID not changed from \'%s\' to \'%s\',since period is empty [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
+						}
+
 						//We are moving to new period so reset the lastsegment time
 						for (int i = 0; i < mNumberOfTracks; i++)
 						{
 							mMediaStreamContext[i]->lastSegmentTime = 0;
 							mMediaStreamContext[i]->lastSegmentDuration = 0;
 						}
-						requireStreamSelection = true;
-						periodChanged = true;
 					}
 					else if(mPrevAdaptationSetCount != adaptationSetCount)
 					{
@@ -8336,6 +8261,45 @@ std::vector<long> StreamAbstractionAAMP_MPD::GetAudioBitrates(void)
 	return audioBitrate;
 }
 
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks.
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableThumbnailTracks(void)
+{
+        return std::vector<StreamInfo*>();
+}
+
+/**
+ * @fn SetThumbnailTrack
+ * @brief Function to set thumbnail track for processing
+ *
+ * @param thumbnail index value indicating the track to select
+ * @return bool true on success.
+ */
+bool StreamAbstractionAAMP_MPD::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void)thumbnailIndex;	/* unused */
+	return false;
+}
+
+/**
+ * @fn GetThumbnailRangeData
+ * @brief Function to fetch the thumbnail data.
+ *
+ * @param tStart start duration of thumbnail data.
+ * @param tEnd end duration of thumbnail data.
+ * @param *baseurl base url of thumbnail images.
+ * @param *raw_w absolute width of the thumbnail spritesheet.
+ * @param *raw_h absolute height of the thumbnail spritesheet.
+ * @param *width width of each thumbnail tile.
+ * @param *height height of each thumbnail tile.
+ * @return Updated vector of available thumbnail data.
+ */
+std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+        return std::vector<ThumbnailData>();
+}
 
 /**
 *   @brief  Stops injecting fragments to StreamSink.
@@ -8518,7 +8482,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 
 					if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
 					{
-						AAMPLOG_WARN("%s:%d [CDAI]: BasePeriodId[%s] in Adbreak[%s]. But Ad not available.",__FUNCTION__,__LINE__, mBasePeriodId.c_str(), brkId.c_str());
+						AAMPLOG_WARN("%s:%d [CDAI]: BasePeriodId in Adbreak. But Ad not available. BasePeriodId[%s],Adbreak[%s]",__FUNCTION__,__LINE__, mBasePeriodId.c_str(), brkId.c_str());
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
 					}
 					stateChanged = true;
@@ -8570,7 +8534,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 		case AdState::IN_ADBREAK_AD_PLAYING:
 			if(AdEvent::AD_FINISHED == evt)
 			{
-				AAMPLOG_WARN("%s:%d [CDAI]: Ad[idx=%d] finished at Period[%s]. Waiting to catchup the base offset..",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
+				AAMPLOG_WARN("%s:%d [CDAI]: Ad finished at Period. Waiting to catchup the base offset.[idx=%d] [period=%s]",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str());
 				mCdaiObject->mAdState = AdState::IN_ADBREAK_WAIT2CATCHUP;
 
 				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_END;
@@ -8583,7 +8547,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 			else if(AdEvent::AD_FAILED == evt)
 			{
 				mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid = true;
-				logprintf("%s:%d [CDAI]: Ad[idx=%d] Playback failed. Going to the base period[%s] at offset[%lf].",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx, mBasePeriodId.c_str(), mBasePeriodOffset);
+				logprintf("%s:%d [CDAI]: Ad Playback failed. Going to the base period[%s] at offset[%lf].Ad[idx=%d]",__FUNCTION__,__LINE__, mBasePeriodId.c_str(), mBasePeriodOffset,mCdaiObject->mCurAdIdx);
 				mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING; //TODO: Vinod, It should be IN_ADBREAK_WAIT2CATCHUP, But you need to fix the catchup check logic.
 
 				placementEvt2Send = AAMP_EVENT_AD_PLACEMENT_ERROR;	//Followed by AAMP_EVENT_AD_PLACEMENT_END
@@ -8606,7 +8570,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 		case AdState::IN_ADBREAK_WAIT2CATCHUP:
 			if(-1 == mCdaiObject->mCurAdIdx)
 			{
-				logprintf("%s:%d [CDAI]: AdIdx[-1]. BUG! BUG!! BUG!!! We should not come here.",__FUNCTION__,__LINE__);
+				logprintf("%s:%d [CDAI]: BUG! BUG!! BUG!!! We should not come here.AdIdx[-1].",__FUNCTION__,__LINE__);
 				mCdaiObject->mCurPlayingBreakId = "";
 				mCdaiObject->mCurAds = nullptr;
 				mCdaiObject->mCurAdIdx = -1;
@@ -8639,7 +8603,7 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 				{
 					if(mCdaiObject->mCurAds->at(mCdaiObject->mCurAdIdx).invalid)
 					{
-						AAMPLOG_WARN("%s:%d [CDAI]: AdIdx[%d] in invalid. Skipping!!.",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx);
+						AAMPLOG_WARN("%s:%d [CDAI]: AdIdx is invalid. Skipping. AdIdx[%d].",__FUNCTION__,__LINE__, mCdaiObject->mCurAdIdx);
 						mCdaiObject->mAdState = AdState::IN_ADBREAK_AD_NOT_PLAYING;
 					}
 					else

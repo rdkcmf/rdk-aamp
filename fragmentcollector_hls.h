@@ -151,6 +151,21 @@ struct DiscontinuityIndexNode
 };
 
 /**
+*	\struct	TileInfo
+* 	\brief	TileInfo structure for Thumbnail data
+*/
+struct TileInfo
+{
+	int numRows; /**< Number of Rows from Tile Inf */
+	int numCols; /**< Number of Cols from Tile Inf */
+	double posterDuration; /**< Duration of each Tile in Spritesheet */
+
+	double tileSetDuration; /**<Duration of whole Tile set */
+	double startTime;
+	const char *url;
+};
+
+/**
 *	\enum DrmKeyMethod
 * 	\brief	Enum for various EXT-X-KEY:METHOD= values
 */
@@ -187,7 +202,7 @@ public:
 	/// Start Fragment downloader and Injector thread  
 	void Start();
 	/// Reset and Stop Collector and Injector thread 
-	void Stop();
+	void Stop(bool clearDRM = false);
 	/// Fragment Collector thread execution function
 	void RunFetchLoop();
 	/// Function to parse playlist file and update data structures 
@@ -431,6 +446,16 @@ public:
 	/// Function to get the language code
 	std::string GetLanguageCode( int iMedia );
 	int GetBestAudioTrackByLanguage( void );
+	/// Function to get the thumbnail rates.
+	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void);
+	// Function to set the thumbnail resolution.
+	bool SetThumbnailTrack(int);
+	// Function to get the Thumbnail Information.
+	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*);
+	// Function to parse the Thumbnail Manifest and extract Tile information.
+	std::map<std::string,double> GetImageRangeString(double*, std::string, TileInfo*, double);
+	GrowableBuffer thumbnailManifest;	/**< Thumbnail manifest buffer holder */
+	std::vector<TileInfo> indexedTileInfo;	/**< Indexed Thumbnail information */
 	
 	void NotifyPlaybackPaused(bool pause) override;
 
@@ -458,10 +483,6 @@ public:
 	AAMPStatusType ParseMainManifest();
 	/// Function to get playlist URI for the track type 
 	const char *GetPlaylistURI(TrackType trackType, StreamOutputFormat* format = NULL);
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	/// Function to locally store the download files for debug purpose 
-	void HarvestFile(const char * url, GrowableBuffer* buffer, bool isFragment, const char* prefix = NULL);
-#endif
 	int lastSelectedProfileIndex; 	/**< Variable  to restore in case of playlist download failure */
 
 	/// Stop injection of fragments.
@@ -472,7 +493,7 @@ public:
 	bool IsLive();
 
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
@@ -507,6 +528,7 @@ private:
 	bool mIframeAvailable;					/**< True if iframe available in the stream */
 	bool mUseAvgBandwidthForABR;
 	std::set<std::string> mLangList; /**< Available language list */
+	double mFirstPTS; /**< First video PTS in seconds */
 };
 
 #endif // FRAGMENTCOLLECTOR_HLS_H

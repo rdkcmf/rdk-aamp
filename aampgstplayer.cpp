@@ -27,9 +27,7 @@
 #include "AampUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
-#if defined(REALTEKCE)
 #include <gst/app/gstappsink.h>
-#endif
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -38,9 +36,10 @@
 #include <pthread.h>
 #include <atomic>
 
+
 #ifdef __APPLE__
-#include "gst/video/videooverlay.h"
-#import "cocoa_window.h"
+	#include "gst/video/videooverlay.h"
+	guintptr (*gCbgetWindowContentView)() = NULL;
 #endif
 
 #ifdef AAMP_MPD_DRM
@@ -94,6 +93,7 @@ typedef enum {
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 #define BUFFERING_TIMEOUT_PRIORITY -70
+#define AAMP_MIN_DECODE_ERROR_INTERVAL 10000
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -179,6 +179,8 @@ struct AAMPGstPlayerPriv
 #endif
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
+	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
+	int decodeErrorCBCount; //Total decode error cb received within thresold time
 };
 
 /**
@@ -245,6 +247,9 @@ const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
  * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
  */
 AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+        , std::function< void(uint8_t *, int, int, int) > exportFrames
+#endif
 	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
 {
 	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
@@ -258,6 +263,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 		pthread_mutex_init(&mBufferingLock, NULL);
 		pthread_mutex_init(&mProtectionLock, NULL);
 
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+		this->cbExportYUVFrame = exportFrames;
+#endif
 		CreatePipeline();
 		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
 		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
@@ -422,7 +430,7 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 					"width", G_TYPE_INT, 1920,
 					"height", G_TYPE_INT, 1080,
 					NULL);
-#elif (defined(RPI) || defined(__APPLE__))
+#elif (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
 			caps = gst_caps_new_simple ("video/x-h264",
                                        "alignment", G_TYPE_STRING, "au",
                                        "stream-format", G_TYPE_STRING, "avc",
@@ -432,7 +440,14 @@ static GstCaps* GetGstCaps(StreamOutputFormat format)
 #endif
 			break;
 		case FORMAT_VIDEO_ES_HEVC:
+#if (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
+			caps = gst_caps_new_simple ("video/x-h265",
+					"alignment", G_TYPE_STRING, "au",
+					"stream-format", G_TYPE_STRING, "hev1",
+					NULL);
+#else
 			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
+#endif
 			break;
 		case FORMAT_VIDEO_ES_MPEG2:
 			caps = gst_caps_new_simple ("video/mpeg",
@@ -661,6 +676,20 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 }
 
 /**
+ * @brief Check if first frame received or not
+ * @retval true if the first frame received
+ */
+bool AAMPGstPlayer::IsFirstFrameReceived(void)
+{
+	if (privateContext)
+	{
+		return privateContext->firstFrameReceived;
+	}
+
+	return false;
+}
+
+/**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
  * @param[in] type media type of the frame which is decoded, either audio or video.
  */
@@ -765,8 +794,12 @@ bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 {
+#if defined (REALTEKCE)
+	return (aamp_StartsWith(name, "westerossink") || aamp_StartsWith(name, "rtkv1sink"));
+#else
 	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
 			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+#endif
 }
 
 /**
@@ -777,15 +810,31 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
  */
 bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
 {
-
-  // The idea is to identify video or audio decoder plugin created at runtime by playbin and register to its first-frame/pts-error callbacks
-  // This support is available in BCOM plugins in RDK builds and hence checking only for such plugin instances here
-  // While using playersinkbin, these callbacks are supported via "event-callback" signal and hence not requried to do explicitly
-       // For platforms that doesnt support callback, we use GST_STATE_PLAYING state change of playbin to notify first frame to app
-       return  (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin && 
-               (!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder") == true) ||
-               (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true) ||
-               (aamp_StartsWith(name, "brcmaudiodecoder") == true));
+	// The idea is to identify video or audio decoder plugin created at runtime by playbin and register to its first-frame/pts-error callbacks
+	// This support is available in BCOM plugins in RDK builds and hence checking only for such plugin instances here
+	// While using playersinkbin, these callbacks are supported via "event-callback" signal and hence not requried to do explicitly
+	// For platforms that doesnt support callback, we use GST_STATE_PLAYING state change of playbin to notify first frame to app
+	bool isAudioOrVideoDecoder = false;
+	if (!_this->privateContext->stream[eMEDIATYPE_VIDEO].using_playersinkbin &&
+	    !_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideodecoder"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+	else if (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+	else if (aamp_StartsWith(name, "brcmaudiodecoder"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+#if defined (REALTEKCE)
+	else if (aamp_StartsWith(name, "omx"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+#endif
+	return isAudioOrVideoDecoder;
 }
 
 /**
@@ -817,6 +866,60 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 	privateContext->ptsCheckForEosOnUnderflowIdleTaskId = 0;
 	return G_SOURCE_REMOVE;
 }
+
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+
+/**
+ * @brief Callback function to get video frames
+ * @param[in] object - pointer to appsink instance triggering "new-sample" signal
+ * @param[in] _this  - pointer to AAMPGstPlayer instance
+ * @retval GST_FLOW_OK
+ */
+GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this)
+{
+	GstSample *sample;
+	GstBuffer *buffer;
+	GstMapInfo map;
+
+	if(_this && _this->cbExportYUVFrame)
+	{
+		sample = gst_app_sink_pull_sample (GST_APP_SINK (object));
+		if (sample)
+		{
+			int width, height;
+			GstCaps *caps = gst_sample_get_caps(sample);
+			GstStructure *capsStruct = gst_caps_get_structure(caps,0);
+			gst_structure_get_int(capsStruct,"width",&width);
+			gst_structure_get_int(capsStruct,"height",&height);
+			//logprintf("StrCAPS=%s\n", gst_caps_to_string(caps));
+			buffer = gst_sample_get_buffer (sample);
+			if (buffer)
+			{
+				if (gst_buffer_map(buffer, &map, GST_MAP_READ))
+				{
+					_this->cbExportYUVFrame(map.data, map.size, width, height);
+
+					gst_buffer_unmap(buffer, &map);
+				}
+				else
+				{
+					logprintf("%s:%d buffer map failed\n", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				logprintf("%s:%d buffer NULL\n", __FUNCTION__, __LINE__);
+			}
+			gst_sample_unref (sample);
+		}
+		else
+		{
+			logprintf("%s:%d sample NULL\n", __FUNCTION__, __LINE__);
+		}
+	}
+	return GST_FLOW_OK;
+}
+#endif
 
 /**
  * @brief Callback invoked when facing an underflow
@@ -893,6 +996,27 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
 	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_AUDIO);
+	}
+}
+
+/**
+ * @brief Callback invoked a Decode error is encountered
+ * @param[in] object pointer to element raising the callback
+ * @param[in] arg0 number of arguments
+ * @param[in] arg1 array of arguments
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ */
+static void AAMPGstPlayer_OnGstDecodeErrorCb(GstElement* object, guint arg0, gpointer arg1,
+        AAMPGstPlayer * _this)
+{
+	long long deltaMS = NOW_STEADY_TS_MS - _this->privateContext->decodeErrorMsgTimeMS;
+	_this->privateContext->decodeErrorCBCount += 1;
+	if (deltaMS >= AAMP_MIN_DECODE_ERROR_INTERVAL)
+	{
+		_this->aamp->SendAnomalyEvent(ANOMALY_WARNING, "Decode Error Message Callback=%d time=%d",_this->privateContext->decodeErrorCBCount, AAMP_MIN_DECODE_ERROR_INTERVAL);
+		_this->privateContext->decodeErrorMsgTimeMS = NOW_STEADY_TS_MS;
+		logprintf("## %s() : Got Decode Error message from %s ## total_cb=%d timeMs=%d", __FUNCTION__, GST_ELEMENT_NAME(object),  _this->privateContext->decodeErrorCBCount, AAMP_MIN_DECODE_ERROR_INTERVAL);
+		_this->privateContext->decodeErrorCBCount = 0;
 	}
 }
 
@@ -1041,7 +1165,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 				}
 #endif
-#if defined(INTELCE) || defined(RPI) || (defined(__APPLE__))
+#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
 				if(!_this->privateContext->firstFrameReceived)
 				{
 					_this->privateContext->firstFrameReceived = true;
@@ -1049,9 +1173,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->aamp->LogTuneComplete();
 				}
 				_this->aamp->NotifyFirstFrameReceived();
-#endif
-
-#if defined(INTELCE) || defined(RPI) || defined(__APPLE__)
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
 				if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
@@ -1103,6 +1224,12 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					G_CALLBACK(AAMPGstPlayer_OnGstBufferUnderflowCb), _this);
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
+				// To register decode-error-callback for video decoder source alone
+				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
+				{
+					g_signal_connect(msg->src, "decode-error-callback",
+						G_CALLBACK(AAMPGstPlayer_OnGstDecodeErrorCb), _this);
+				}
 			}
 		}
 		break;
@@ -1252,6 +1379,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					type_check_instance("bus_sync_handle: video_dec ", _this->privateContext->video_dec);
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+                                        g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
 				}
 				else
 				{
@@ -1352,7 +1480,11 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 #ifdef __APPLE__
     case GST_MESSAGE_ELEMENT:
-        if (gst_is_video_overlay_prepare_window_handle_message(msg))
+                if (
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+		(nullptr == _this->cbExportYUVFrame) &&
+#endif
+         gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
         {
             logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu",getWindowContentView());
             gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), getWindowContentView());
@@ -1484,7 +1616,11 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 	{
 		logprintf("Querying video decoder for handle");
 #ifndef INTELCE
+#if defined (REALTEKCE)
+		dec_handle = this->privateContext->video_dec;
+#else
 		g_object_get(this->privateContext->video_dec, "videodecoder", &dec_handle, NULL);
+#endif
 #else
 		g_object_get(privateContext->video_dec, "decode-handle", &dec_handle, NULL);
 #endif
@@ -1730,6 +1866,23 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
 		}
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+		//else if(_this->cbExportYUVFrame)
+		{
+			if (eMEDIATYPE_VIDEO == streamId)
+			{
+				logprintf("AAMPGstPlayer_SetupStream - using appsink\n");
+				GstElement* appsink = gst_element_factory_make("appsink", NULL);
+				assert(appsink);
+				GstCaps *caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "I420", NULL);
+				gst_app_sink_set_caps (GST_APP_SINK(appsink), caps);
+				g_object_set (G_OBJECT (appsink), "emit-signals", TRUE, "sync", TRUE, NULL);
+				g_signal_connect (appsink, "new-sample", G_CALLBACK (AAMPGstPlayer::AAMPGstPlayer_OnVideoSample), _this);
+				g_object_set(stream->sinkbin, "video-sink", appsink, NULL);
+				_this->privateContext->video_sink = appsink;
+			}
+		}
+#endif
 #else
 		logprintf("AAMPGstPlayer_SetupStream - using playbin2");
 		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
@@ -1763,8 +1916,10 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		gint flags;
 		g_object_get(stream->sinkbin, "flags", &flags, NULL);
 		logprintf("playbin flags1: 0x%x", flags); // 0x617 on settop
-#if defined NO_NATIVE_AV || (defined(__APPLE__))
+#if (defined(__APPLE__) || defined(NO_NATIVE_AV)) 
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO;
+#elif defined (REALTEKCE)
+		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO | GST_PLAY_FLAG_SOFT_VOLUME;
 #else
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
@@ -1841,13 +1996,13 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(REALTEKCE))
+#ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
 		enableOverride = TRUE;
 #else
 		enableOverride = (privateContext->rate != AAMP_NORMAL_PLAY_RATE);
 #endif
 		GstStructure * eventStruct = gst_structure_new("aamp_override", "enable", G_TYPE_BOOLEAN, enableOverride, "rate", G_TYPE_FLOAT, (float)privateContext->rate, "aampplayer", G_TYPE_BOOLEAN, TRUE, NULL);
-#if (defined(INTELCE) || defined(RPI) || defined(__APPLE__))
+#ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
 		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
@@ -2424,6 +2579,8 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
 	privateContext->paused = false;
+	privateContext->decodeErrorMsgTimeMS = 0;
+	privateContext->decodeErrorCBCount = 0;
 #ifdef TRACE
 	logprintf("exiting AAMPGstPlayer::%s", __FUNCTION__);
 #endif
@@ -3109,7 +3266,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 {
 	GstElement *gSource = NULL;
 	char *propertyName = NULL;
-	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
+	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUDIO];
 
 	AAMPLOG_INFO("AAMPGstPlayer::%s() %d > volume = %f, using_playersinkbin = %d, audio_sink = %p", __FUNCTION__, __LINE__, privateContext->audioVolume, stream->using_playersinkbin, privateContext->audio_sink);
 
@@ -3118,6 +3275,13 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		gSource = stream->sinkbin;
 		propertyName = (char*)"audio-mute";
 	}
+#if defined (REALTEKCE)
+	else if (stream->sinkbin)
+	{
+		gSource = stream->sinkbin;
+		propertyName = (char*)"mute";
+	}
+#endif
 	else if (privateContext->audio_sink)
 	{
 		gSource = privateContext->audio_sink;
@@ -3338,8 +3502,8 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 bool AAMPGstPlayer::Discontinuity(MediaType type)
 {
 	bool ret = false;
-	logprintf("Entering AAMPGstPlayer::%s type %d", __FUNCTION__, (int)type);
 	media_stream *stream = &privateContext->stream[type];
+	logprintf("Entering AAMPGstPlayer::%s type(%d) format(%d) resetPosition(%d)", __FUNCTION__, (int)type, stream->format, stream->resetPosition);
 	/*Handle discontinuity only if atleast one buffer is pushed*/
 	if (stream->format != FORMAT_INVALID && stream->resetPosition == true)
 	{
@@ -3358,10 +3522,12 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 
 /**
  * @brief Check if PTS is changing
- * @retval true if PTS changed from lastKnown PTS, will optimistically return true
+ *
+ * @param[in] timeout - to check if PTS hasn't changed within a time duration
+ * @retval true if PTS changed from lastKnown PTS or timeout hasn't expired, will optimistically return true
  * 			if video-pts attribute is not available from decoder
  */
-bool AAMPGstPlayer::CheckForPTSChange()
+bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 {
 	bool ret = true;
 #ifndef INTELCE
@@ -3381,7 +3547,12 @@ bool AAMPGstPlayer::CheckForPTSChange()
 		}
 		else
 		{
-			ret = false;
+			long diff = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
+			if (diff > timeout)
+			{
+				AAMPLOG_WARN("AAMPGstPlayer::%s():%d Video PTS hasn't been updated for %ld ms and timeout - %ld ms", __FUNCTION__, __LINE__, diff, timeout);
+				ret = false;
+			}
 		}
 	}
 	else
@@ -3423,55 +3594,55 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
 	bool ret = true;
-#ifdef USE_GST1
-	media_stream *stream = &privateContext->stream[mediaType];
-	if (stream->source)
+	GstState current, pending;
+
+	gst_element_get_state(privateContext->pipeline, &current, &pending, 0 * GST_MSECOND);
+
+	if (current != GST_STATE_READY && pending != GST_STATE_PAUSED)
 	{
-		guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
-		if(0 != cacheLevel)
+#ifdef USE_GST1
+		media_stream *stream = &privateContext->stream[mediaType];
+		if (stream->source)
 		{
-			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT "", __FUNCTION__, __LINE__, cacheLevel);
-			ret = false;
-		}
-		else
-		{
-			// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
-			// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
-			traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
-			if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
-					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
+			guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
+			if(0 != cacheLevel)
 			{
-				logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
-					__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
-					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
+				traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT, __FUNCTION__, __LINE__, cacheLevel);
+				ret = false;
 			}
-#ifndef INTELCE
 			else
 			{
-				bool ptsChanged = CheckForPTSChange();
-				if(!ptsChanged)
+				// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
+				// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
+				traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
+				if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
+						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
 				{
-					long long deltaMS = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
-					if (deltaMS <= AAMP_MIN_PTS_UPDATE_INTERVAL)
+					logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
+						__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
+						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
+				}
+#ifndef INTELCE
+				else
+				{
+					bool ptsChanged = CheckForPTSChangeWithTimeout(AAMP_MIN_PTS_UPDATE_INTERVAL);
+					if(!ptsChanged)
 					{
-						//Timeout hasn't expired. Need to wait for PTS min update interval to expire
-						ret = false;
+						//PTS hasn't changed for the timeout value
+						AAMPLOG_WARN("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
+							__FUNCTION__, __LINE__, AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
 					}
 					else
 					{
-						logprintf("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for: %lldms and ret(%d)\n",
-								__FUNCTION__, __LINE__, deltaMS, ret);
+						ret = false;
 					}
 				}
-				else
-				{
-					ret = false;
-				}
+#endif
 			}
-#endif
 		}
-	}
 #endif
+	}
+
 	return ret;
 }
 

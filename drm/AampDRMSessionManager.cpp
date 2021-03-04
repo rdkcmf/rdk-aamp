@@ -115,7 +115,7 @@ AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessi
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 		,curlSessionAbort(false), mEnableAccessAtrributes(true)
-		,mDrmSessionLock()
+		,mDrmSessionLock(), licenseRequestAbort(false)
 {
 	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
 	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
@@ -202,6 +202,18 @@ void AampDRMSessionManager::setCurlAbort(bool isAbort){
 bool AampDRMSessionManager::getCurlAbort(){
 	return curlSessionAbort;
 }
+
+/**
+ * @brief	Get Session abort flag
+ * @param	void
+ * @return	bool flag.
+ */
+void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
+{
+	setCurlAbort(isAbort);
+	licenseRequestAbort = isAbort;
+}
+
 /**
  * @brief	Clean up the failed keyIds.
  *
@@ -238,6 +250,30 @@ void AampDRMSessionManager::clearAccessToken()
 		free(accessToken);
 		accessToken = NULL;
 		accessTokenLen = 0;
+	}
+}
+
+/**
+ * @brief	Clean up the Session Data if license key acquisition failed or if LicenseCaching is false.
+ *
+ * @param forceClearSession clear the drm session irrespective of failed keys if LicenseCaching is false.
+ * @return	void.
+ */
+void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
+{
+	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	{
+		// Clear the session data if license key acquisition failed or if forceClearSession is true in the case of LicenseCaching is false.
+		if((cachedKeyIDs[i].isFailedKeyId || forceClearSession) && drmSessionContexts != NULL)
+		{
+			AampMutexHold sessionMutex(drmSessionContexts[i].sessionMutex);
+			if (drmSessionContexts[i].drmSession != NULL)
+			{
+				logprintf("%s:%d AampDRMSessionManager:: Clearing failed Session Data Slot : %d", __FUNCTION__, __LINE__, i);
+				delete drmSessionContexts[i].drmSession;
+				drmSessionContexts[i].drmSession = nullptr;
+			}
+		}
 	}
 }
 
@@ -361,7 +397,9 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		if(!gpGlobalConfig->sslVerifyPeer){
+		     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		}
 		curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
 		res = curl_easy_perform(curl);
@@ -621,10 +659,17 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		// Below code will have to extended to support the same (eg: money trace headers)
 		customHeaderStr.append(header.second.at(0));
 		headers = curl_slist_append(headers, customHeaderStr.c_str());
+		if (gpGlobalConfig->logging.curlLicense)
+		{
+			logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customHeaderStr.c_str());
+		}
 	}
 
 	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, licenseRequest.url.c_str());
-	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	if (gpGlobalConfig->logging.curlLicense)
+	{
+		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	}
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
 	curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
@@ -633,7 +678,9 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	if(!gpGlobalConfig->sslVerifyPeer){
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	}
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
 	if(licenseRequest.method == AampLicenseRequest::POST)
@@ -668,8 +715,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		if(!aamp->DownloadsAreEnabled())
 		{
 			logprintf("%s:%d Aborting License acquisition", __FUNCTION__, __LINE__);
-			// Update httpCode, so that DRM error event will not be send by upper layer
-			*httpCode = res;
+			// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
+			*httpCode = CURLE_ABORTED_BY_CALLBACK;
 			break;
 		}
 		if (res != CURLE_OK)
@@ -756,6 +803,13 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 
 		if(!loopAgain)
 			break;
+	}
+
+	if(*httpCode == -1)
+	{
+		logprintf("%s:%d Updating Curl Abort Response Code", __FUNCTION__, __LINE__);
+		// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
+		*httpCode = CURLE_ABORTED_BY_CALLBACK;
 	}
 
 	if(requestFailed && keyInfo != NULL)
@@ -886,6 +940,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	if (code != KEY_INIT)
 	{
 		logprintf("%s:%d Unable to initialize DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		AampMutexHold keymutex(cachedKeyMutex);
+ 		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
 	}
 
@@ -893,6 +949,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	if (code != KEY_READY)
 	{
 		logprintf("%s:%d Unable to get Ready Status DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		AampMutexHold keymutex(cachedKeyMutex);
+		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
 	}
 
@@ -1174,12 +1232,18 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 					challengeInfo.accessToken = std::string(sessionToken, tokenLen);
 				}
 			}
+			if(licenseRequestAbort)
+			{
+				AAMPLOG_ERR("%s:%d Error!! License request was aborted. Resetting session slot %d", __FUNCTION__, __LINE__, sessionSlot);
+				eventHandle->setFailure(AAMP_TUNE_DRM_SELF_ABORT);
+				eventHandle->setResponseCode(CURLE_ABORTED_BY_CALLBACK);
+				return KEY_ERROR;
+			}
 
 			AampLicenseRequest licenseRequest;
 			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
 			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
 			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
-
 			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
 			{
 				AAMPLOG_ERR("%s:%d Error!! License challenge was not generated by the CDM : Key State %d", __FUNCTION__, __LINE__, code);
@@ -1296,22 +1360,24 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				{
 					eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
 				}
-				AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
-				AAMPLOG_WARN("%s:%d deleting existing DRM session for %s, Authorisation failed", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
-				delete drmSessionContexts[sessionSlot].drmSession;
-				drmSessionContexts[sessionSlot].drmSession = nullptr;
+				AAMPLOG_WARN("%s:%d DRM session for %s, Authorisation failed", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+
 			}
 			else if (CURLE_OPERATION_TIMEDOUT == httpResponseCode)
 			{
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_TIMEOUT);
+			}
+			else if(CURLE_ABORTED_BY_CALLBACK == httpResponseCode || CURLE_WRITE_ERROR == httpResponseCode)
+			{
+				// Set failure reason as AAMP_TUNE_DRM_SELF_ABORT to avoid unnecessary error reporting.
+				eventHandle->setFailure(AAMP_TUNE_DRM_SELF_ABORT);
+				eventHandle->setResponseCode(httpResponseCode);
 			}
 			else
 			{
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
 				eventHandle->setResponseCode(httpResponseCode);
 			}
-			AampMutexHold keymutex(cachedKeyMutex);
-			cachedKeyIDs[sessionSlot].isFailedKeyId = true;
 
 			return KEY_ERROR;
 		}
@@ -1493,7 +1559,6 @@ void *CreateDRMSession(void *arg)
 	bool isSecClientError = false;
 #endif
 
-        sessionManger->setCurlAbort(false);
 	sessionParams->aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 
 	DrmMetaDataEventPtr e = std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, isSecClientError);
@@ -1533,8 +1598,7 @@ void *CreateDRMSession(void *arg)
 			AAMPLOG_ERR("%s:%d Failed DRM Session Creation for systemId = %s",  __FUNCTION__, __LINE__, systemId);
 			AAMPTuneFailure failure = e->getFailure();
 			long responseCode = e->getResponseCode();
-			bool selfAbort = (failure == AAMP_TUNE_LICENCE_REQUEST_FAILED &&
-						(responseCode == CURLE_ABORTED_BY_CALLBACK || responseCode == CURLE_WRITE_ERROR));
+			bool selfAbort = (failure == AAMP_TUNE_DRM_SELF_ABORT);
 			if (!selfAbort)
 			{
 				bool isRetryEnabled =      (failure != AAMP_TUNE_AUTHORISATION_FAILURE)

@@ -208,6 +208,14 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 				if (ret)
 				{
 					double pos = ((double)basePTS / (double)timeScale);
+					// If AAMP override hack is enabled for this platform, then we need to pass the basePTS value to
+					// PrivateInstanceAAMP since PTS will be restamped in qtdemux. This ensures proper pts value is sent in progress event.
+#ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
+					p_aamp->NotifyFirstVideoPTS(basePTS, timeScale);
+					// Here, basePTS might not be based on a 90KHz clock, whereas gst videosink might be.
+					// So PTS value sent via progress event might not be accurate.
+					p_aamp->NotifyVideoBasePTS(basePTS);
+#endif
 					if (type == eBMFFPROCESSOR_TYPE_VIDEO)
 					{
 						// Send flushing seek to gstreamer pipeline.

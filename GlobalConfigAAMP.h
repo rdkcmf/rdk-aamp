@@ -116,12 +116,9 @@ public:
 	bool noFog;                 /**< Disable FOG*/
 	char *mapMPD;               /**< Mapping of HLS to MPD url for matching string */
 	char *mapM3U8;		    /**< Mapping of MPD to HLS url for matching string */
-	bool fogSupportsDash;       /**< Enable FOG support for DASH*/
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	int harvest;                /**< Save decrypted fragments for debugging*/
-	char* harvestpath;
-#endif
-
+	unsigned int harvestConfig;  /**< Variable to configure the harvest support , bit masking technique **/
+	int harvestCountLimit;                /**< Limit of number of files to be harvested*/
+	char* harvestPath;					  /**< Custom path for saving harvested files*/
 	AampLogManager logging;             	/**< Aamp log manager class*/
 	int gPreservePipeline;                  /**< Flush instead of teardown*/
 	int gAampDemuxHLSAudioTsTrack;          /**< Demux Audio track from HLS transport stream*/
@@ -143,6 +140,7 @@ public:
 	TriState mPropagateUriParameters;       /**< Enable URI parameters from appliation*/
 	TriState mEnableRectPropertyCfg;        /**< Allow or deny rectangle property set for sink element*/
 	TriState mUseAverageBWForABR;           /** Enables usage of AverageBandwidth if available for ABR */
+	TriState licenseCaching;           		/** Enable/Disable license caching */
 	int  mPreCacheTimeWindow;		/** Max time to complete PreCaching .In Minutes  */
 	bool prefetchIframePlaylist;            /**< Enabled prefetching of I-Frame playlist*/
 	TriState forceEC3;                           /**< Forcefully enable DDPlus*/
@@ -203,7 +201,7 @@ public:
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
-	bool disableSslVerifyPeer;		/**< Disable curl ssl certificate verification. */
+	TriState sslVerifyPeer;		/**< Enable or Disable curl ssl certificate verification. */
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
@@ -241,6 +239,8 @@ public:
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
+	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
+
 public:
 
 	/**

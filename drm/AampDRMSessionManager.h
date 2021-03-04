@@ -151,6 +151,7 @@ private:
 	pthread_mutex_t cachedKeyMutex;
 	pthread_mutex_t mDrmSessionLock;
 	bool curlSessionAbort;
+	bool licenseRequestAbort;
 	bool mEnableAccessAtrributes;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
@@ -189,6 +190,8 @@ public:
 
 	void clearFailedKeyIds();
 
+	void clearDrmSession(bool forceClearSession = false);
+
 	void setSessionMgrState(SessionMgrState state);
 
 	SessionMgrState getSessionMgrState();
@@ -196,6 +199,8 @@ public:
 	void setCurlAbort(bool isAbort);
 
 	bool getCurlAbort(void);
+
+	void setLicenseRequestAbort(bool isAbort);
 
 	const char* getAccessToken(int &tokenLength, long &error_code);
 

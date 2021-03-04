@@ -96,14 +96,14 @@ void PacketSender::AddPacket(PacketPtr packet)
     uint32_t type = packet->getType();
     std::string typeString = Packet::getTypeString(type);
     mPacketQueue.push(std::move(packet));
-    logprintf("PacketSender: %s - queue size %lu type %s:%d\n", __FUNCTION__, mPacketQueue.size(), typeString.c_str(), type);
+    // logprintf("PacketSender: %s - queue size %lu type %s:%d\n", __FUNCTION__, mPacketQueue.size(), typeString.c_str(), type);
 }
 
 void PacketSender::senderTask()
 {
     std::unique_lock<std::mutex> lock(mPktMutex);
     do {
-        logprintf("PacketSender: Locking sender\n");
+        // logprintf("PacketSender: Locking sender\n");
         mStartCv.notify_all();
         running = true;
         mCv.wait(lock);
@@ -111,7 +111,7 @@ void PacketSender::senderTask()
         {
             sendPacket(std::move(mPacketQueue.front()));
             mPacketQueue.pop();
-            logprintf("PacketSender: %s - queue size %lu\n", __FUNCTION__, mPacketQueue.size());
+            // logprintf("PacketSender: %s - queue size %lu\n", __FUNCTION__, mPacketQueue.size());
         }
     } while(running);
 }
@@ -141,7 +141,10 @@ void PacketSender::sendPacket(PacketPtr pkt)
     auto buffer = pkt->getBytes();
     size_t size =  static_cast<ssize_t>(buffer.size());
     auto written = ::write(mSubtecSocketHandle, &buffer[0], size);
-    logprintf("PacketSender: Written %ld bytes with size %ld\n", written, size);
+    if(written != size)
+    {
+        logprintf("PacketSender: Written %ld bytes with size %ld\n", written, size);
+    }
 }
 
 bool PacketSender::initSenderTask()

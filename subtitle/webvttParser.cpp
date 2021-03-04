@@ -372,7 +372,6 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 
 				text = nextLine;
 				nextLine = findWebVTTLineBreak(nextLine);
-
 				while(nextLine && (*nextLine != CHAR_LINE_FEED && *nextLine != CHAR_CARRIAGE_RETURN && *nextLine != '\0'))
 				{
 					AAMPLOG_TRACE("Found nextLine:%s", nextLine);
@@ -380,9 +379,9 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 					{
 						nextLine[-1] = '\n';
 					}
-					else if (nextLine[-2] == '\0')
+					if (nextLine[-2] == '\0')
 					{
-						nextLine[-1] = '\r';
+						nextLine[-2] = '\r';
 					}
 					nextLine = findWebVTTLineBreak(nextLine);
 				}

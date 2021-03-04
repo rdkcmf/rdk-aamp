@@ -29,11 +29,10 @@
 #include <string.h>
 #include <pthread.h>
 
+#include "jsbindings-version.h"
 #include "jsutils.h"
 #include "main_aamp.h"
 #include "priv_aamp.h"
-
-#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.7"
 
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -291,7 +290,7 @@ static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thi
 		return JSValueMakeUndefined(context);
 	}
 
-	return aamp_CStringToJSValue(context, GLOBAL_AAMP_NATIVEBINDING_VERSION);
+	return aamp_CStringToJSValue(context, AAMP_UNIFIED_VIDEO_ENGINE_VERSION);
 }
 
 
@@ -3550,6 +3549,40 @@ static JSValueRef AAMP_setLanguageFormat(JSContextRef context, JSObjectRef funct
 
 
 /**
+ * @brief Callback invoked from JS to set the license caching config
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setLicenseCaching(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLicenseCaching on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLicenseCaching' - 1 argument required");
+	}
+	else
+	{
+		bool enabled = JSValueToBoolean(context, arguments[0]);
+		pAAMP->_aamp->SetLicenseCaching(enabled);
+	}
+	return JSValueMakeUndefined(context);
+}
+
+/**
  * @brief Array containing the AAMP's statically declared functions
  */
 static const JSStaticFunction AAMP_staticfunctions[] =
@@ -3597,6 +3630,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setTextStyleOptions", AAMP_setTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getTextStyleOptions", AAMP_getTextStyleOptions, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setLanguageFormat", AAMP_setLanguageFormat, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setLicenseCaching", AAMP_setLicenseCaching, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 
@@ -3989,6 +4023,8 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 
 	// DELIA-48250 Set tuned event configuration to playlist indexed
 	pAAMP->_aamp->SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
+	// DELIA-48278 Set EnableVideoRectangle to false, this is tied to westeros config
+	pAAMP->_aamp->EnableVideoRectangle(false);
 
 	pAAMP->_eventType = AAMP_JS_AddEventTypeClass(jsContext);
 	JSValueProtect(jsContext, pAAMP->_eventType);

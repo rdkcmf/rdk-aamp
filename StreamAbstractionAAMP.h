@@ -701,8 +701,9 @@ public:
 	 *   @brief Check if playback has stalled and update related flags.
 	 *
 	 *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+	 *   @param[in] isStalledBeforePlay - true if the playback stalled due to lack of new fragment before the pipeline changed to playing state.
 	 */
-	void CheckForPlaybackStall(bool fragmentParsed);
+	void CheckForPlaybackStall(bool fragmentParsed, bool isStalledBeforePlay = false);
 
 	void NotifyFirstFragmentInjected(void);
 
@@ -855,8 +856,9 @@ public:
 	 *   @brief Receives first video PTS for the current playback
 	 *
 	 *   @param[in] pts - pts value
+	 *   @param[in] timeScale - time scale value 
 	 */
-	virtual void NotifyFirstVideoPTS(unsigned long long pts) = 0;
+	virtual void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale) { };
 	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
@@ -900,7 +902,7 @@ public:
 	 *
 	 *   @return std::vector<TextTrackInfo> list of text tracks
 	 */
-	std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
+	virtual std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
 
 	/**
 	*   @brief Update seek position when player is initialized
@@ -978,6 +980,27 @@ public:
 	 * @param[in] wxh - width & height of video rectangle
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
+
+        /**
+         *   @brief Get available thumbnail bitrates.
+         *
+         *   @return available thumbnail bitrates.
+         */
+        virtual std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) = 0;
+
+        /**
+         *   @brief Set thumbnail bitrate.
+         *
+         *   @return none.
+         */
+	virtual bool SetThumbnailTrack(int) = 0;
+
+        /**
+         *   @brief Get thumbnail data for duration value.
+         *
+         *   @return thumbnail data.
+         */
+	virtual std::vector<ThumbnailData> GetThumbnailRangeData(double, double, std::string*, int*, int*, int*, int*) = 0;
 	
         /**
           * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
@@ -996,6 +1019,22 @@ public:
         virtual void SetAudioTrackByLanguage(const char* lang) {}
 
 	void MuteSubtitles(bool mute);
+
+	/**
+	 *       @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *       @return void
+	 */
+	virtual void DisableContentRestrictions(long grace, long time, bool eventChange){};
+
+	/**
+	 *       @brief Enable Content Restrictions - lock
+	 *       @return void
+	 */
+	virtual void EnableContentRestrictions(){};
 
 protected:
 	/**

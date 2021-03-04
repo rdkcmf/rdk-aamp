@@ -26,6 +26,8 @@
 #define AAMPGSTPLAYER_H
 
 #include <stddef.h>
+#include <functional>
+#include <gst/gst.h>
 #include "priv_aamp.h"
 #include <pthread.h>
 
@@ -63,7 +65,7 @@ public:
 	void SetAudioVolume(int volume);
 	void setVolumeOrMuteUnMute(void);
 	bool IsCacheEmpty(MediaType mediaType);
-	bool CheckForPTSChange();
+	bool CheckForPTSChangeWithTimeout(long timeout);
 	void NotifyFragmentCachingComplete();
 	void NotifyFragmentCachingOngoing();
 	void GetVideoSize(int &w, int &h);
@@ -73,12 +75,17 @@ public:
 
 
 	struct AAMPGstPlayerPriv *privateContext;
-	AAMPGstPlayer(PrivateInstanceAAMP *aamp);
+	AAMPGstPlayer(PrivateInstanceAAMP *aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+	, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
+#endif
+	);
 	AAMPGstPlayer(const AAMPGstPlayer&) = delete;
 	AAMPGstPlayer& operator=(const AAMPGstPlayer&) = delete;
 	~AAMPGstPlayer();
 	static void InitializeAAMPGstreamerPlugins();
 	void NotifyEOS();
+	bool IsFirstFrameReceived(void);
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();

@@ -75,10 +75,13 @@ public:
 	void StartInjection(void) override;
 	double GetBufferedDuration();
 	void SeekPosUpdate(double secondsRelativeToTuneTime) { };
-	void NotifyFirstVideoPTS(unsigned long long pts) { };
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
+
+	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+	bool SetThumbnailTrack(int) override;
+	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 
 	void SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex);
 	void SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex);

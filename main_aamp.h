@@ -39,6 +39,7 @@
 #define MAINAAMP_H
 
 #include <memory>
+#include <functional>
 #include <vector>
 #include <string>
 #include <string.h>
@@ -223,22 +224,30 @@ struct TextTrackInfo
 	std::string instreamId;
 	std::string characteristics;
 	std::string codec;
+	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
 
-	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec()
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec()
+		codec(), primaryKey(0)
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha, int pk):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(id), characteristics(cha),
+		codec(), primaryKey(pk)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(),
-		codec(codecStr)
+		codec(codecStr), primaryKey(0)
 	{
 	}
 };
@@ -414,9 +423,18 @@ public:
 
 	/**
 	 * @brief Check if PTS is changing
-	 * @retval true if PTS is changing
+	 *
+	 * @param[in] timeout - max time period within which PTS hasn't changed
+	 * @retval true if PTS is changing, false if PTS hasn't changed for timeout msecs
 	 */
-	virtual bool CheckForPTSChange() {return true;};
+	virtual bool CheckForPTSChangeWithTimeout(long timeout) { return true; }
+
+	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	virtual bool IsFirstFrameReceived() {return true;};
 
 	/**
 	 *   @brief Check whether cach is empty
@@ -509,6 +527,7 @@ public:
 	 *   @brief PlayerInstanceAAMP Constructor.
 	 *
 	 *   @param  streamSink - custom stream sink, NULL for default.
+	 *   @param  exportFrames - Callback function to export video frames of signature 'void fn(uint8_t *yuvBuffer, int size, int pixel_w, int pixel_h)'
 	 */
 	PlayerInstanceAAMP(StreamSink* streamSink = NULL
 			, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
@@ -1082,6 +1101,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *	 @brief Set license caching
+	 *	 @param[in] bValue - true/false to enable/disable license caching
+	 *
+	 *	 @return void
+	 */
+	void SetLicenseCaching(bool bValue);
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled
@@ -1096,6 +1123,14 @@ public:
          *   @return void
          */
 	void SetPropagateUriParameters(bool bValue);
+
+	/**
+	 *   @brief to configure ssl verify peer parameter
+	 *
+	 *   @param[in] bValue - default value: false
+	 *   @return void
+	 */
+	void SetSslVerifyPeerConfig(bool bValue);
 
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
@@ -1320,8 +1355,61 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
+	/**
+	 *	 @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *	 @return void
+	 */
+	void DisableContentRestrictions(long grace, long time, bool eventChange);
+
+	/**
+	 *	 @brief Enable Content Restrictions - lock
+	 *	 @return void
+	 */
+	void EnableContentRestrictions();
+
+	/**
+	 *   @brief Enable/disable configuration to persist ABR profile over seek/SAP
+	 *
+	 *   @param[in] value - To enable/disable configuration
+	 *   @return void
+	 */
+	void PersistBitRateOverSeek(bool value);
+
+	/**
+	 *   @brief To get the available bitrates for thumbnails.
+	 *
+	 *   @ret bitrate of thumbnail track.
+	 */
+	std::string GetAvailableThumbnailTracks(void);
+
+	/**
+	 *   @brief To set a preferred bitrate for thumbnail profile.
+	 *
+	 *   @param[in] preferred bitrate for thumbnail profile
+	 */
+	bool SetThumbnailTrack(int thumbIndex);
+
+	/**
+	 *   @brief To get preferred thumbnails for the duration.
+	 *
+	 *   @param[in] duration  for thumbnails
+	 */
+	std::string GetThumbnails(double sduration, double eduration);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
+
+	/**
+	 *   @brief Stop playback and release resources.
+	 *
+	 *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+	 *   @return void
+	 */
+	void StopInternal(bool sendStateChangeEvent);
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 };

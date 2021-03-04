@@ -33,11 +33,9 @@
  */
 GlobalConfigAAMP::GlobalConfigAAMP():
 	defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL),mapM3U8(NULL),
-	fogSupportsDash(true), abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
+	abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
 	maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	harvest(0), harvestpath(0),
-#endif
+	harvestCountLimit(0), harvestPath(0), harvestConfig(0xFFFFFFFF)/*Enable all type by default */,
 	gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(eUndefinedState),
 	gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),
 	playlistsParallelFetch(eUndefinedState), prefetchIframePlaylist(false), dashParallelFragDownload(eUndefinedState),
@@ -55,7 +53,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
 	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0), waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
-	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), disableSslVerifyPeer(true),
+	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true),
 	discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
 	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE),
@@ -82,7 +80,9 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #endif
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP)
 	, midFragmentSeekEnabled(false)
-	,mEnableSeekableRange(eUndefinedState)
+	, mEnableSeekableRange(eUndefinedState)
+	, mPersistBitRateOverSeek(eUndefinedState)
+	, licenseCaching(eUndefinedState)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
@@ -98,15 +98,6 @@ GlobalConfigAAMP::GlobalConfigAAMP():
  */
 GlobalConfigAAMP::~GlobalConfigAAMP()
 {
-	// free memory allocated in global Config
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	if(harvestpath)
-	{
-		free(harvestpath);
-		harvestpath = NULL;
-	}
-#endif
-
 	if(licenseServerURL)
 	{
 		free(licenseServerURL);

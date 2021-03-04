@@ -62,6 +62,19 @@ else()
 	message("CMAKE_QT5WEBKIT_JSBINDINGS not set, CMAKE_WPEWEBKIT_JSBINDINGS not set")
 endif()
 
+if(CMAKE_RENDER_FRAMES_IN_APP_CONTEXT)
+        #Gstreamer will export frames to app. It is app's responsibility to render frames.
+        message("CMAKE_RENDER_FRAMES_IN_APP_CONTEXT set")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRENDER_FRAMES_IN_APP_CONTEXT")
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        set(OPENGL_LIBRARIES "-framework OpenGL -framework GLUT")
+else()
+       pkg_check_modules(OPENGL REQUIRED gl)
+       set(OPENGL_LIBRARIES "${OPENGL_LIBRARIES} -lglut")
+       pkg_check_modules(GLEW REQUIRED glew)
+endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+endif()
+
 # Mac OS X
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     execute_process (
@@ -79,8 +92,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     set(CMAKE_HAVE_THREADS_LIBRARY 1)
     pkg_check_modules(GLIB REQUIRED GLib-2.0)
     include_directories(${GLIB_INCLUDE_DIRS})
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DENABLE_AAMP_QTDEMUX_OVERRIDE=1")
 else()
-    set(LIB_SHARED SHARED)
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
@@ -145,6 +158,20 @@ endif()
 
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_VANILLA_AES_SUPPORT ${USE_MAC_FOR_RANDOM_GEN}")
 
+if (CMAKE_AMLOGIC_SOC)
+	message("CMAKE_AMLOGIC_SOC set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DNO_NATIVE_AV=1 -DAMLOGIC")
+endif()
+if (CMAKE_PLATFORM_UBUNTU)
+	message("CMAKE_PLATFORM_UBUNTU set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUBUNTU=1 -DNO_NATIVE_AV=1 -DENABLE_AAMP_QTDEMUX_OVERRIDE=1")
+endif()
+
+if (CMAKE_AMLOGIC_SOC)
+	message("CMAKE_AMLOGIC_SOC set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DNO_NATIVE_AV=1")
+endif()
+
 if (CMAKE_USE_OPENCDM_ADAPTER)
   if (NOT CMAKE_USE_OPENCDM)
     message("Forcing CMAKE_USE_OPENCDM due to CMAKE_USE_OPENCDM_ADAPTER")
@@ -157,7 +184,7 @@ if(CMAKE_USE_RDK_PLUGINS)
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYERSINKBIN -DREAD_ESTB_IFACE_FROM_DEVICE_PROPERTIES -DCREATE_PIPE_SESSION_TO_XRE")
 endif()
 
-set(LIBAAMP_DEPENDS ${OS_LD_FLAGS} ${GSTREAMERBASE_LIBRARIES} ${GSTREAMER_LIBRARIES} ${CURL_LIBRARIES} ${LIBDASH_LIBRARIES} ${LibXml2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${AAMP_CLI_LD_FLAGS} -ldl -labr -luuid ${SEC_CLIENT_LIB} -lcjson)
+set(LIBAAMP_DEPENDS ${OS_LD_FLAGS} ${GSTREAMERBASE_LIBRARIES} ${GSTREAMER_LIBRARIES} ${CURL_LIBRARIES} ${LIBDASH_LIBRARIES} ${LibXml2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${OPENSSL_LIBRARIES} ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} ${AAMP_CLI_LD_FLAGS} -ldl -labr -luuid ${SEC_CLIENT_LIB} -lcjson)
 set(PLAYBINTEST_DEPENDS ${OS_LD_FLAGS} ${CMAKE_THREAD_LIBS_INIT} ${GSTREAMER_LIBRARIES})
 
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
@@ -184,7 +211,8 @@ set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-	# avoid compilation failure on OSX
+	# avoid cmake failure on OSX
+        set(CMAKE_MACOSX_RPATH 1)
 else()
 	set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
 	add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
@@ -225,9 +253,13 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
     endif()
 endif()
 
+if(CMAKE_CDM_DRM)
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1")
+endif()
+
 if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER)
     message("OpenCDM support enabled")
-    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_OPENCDM")
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_OPENCDM -DAAMP_HLS_DRM=1")
     set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/AampHlsDrmSessionManager.cpp
                                                      drm/AampHlsOcdmBridge.cpp
                                                      drm/processProtectionHls.cpp
@@ -283,12 +315,10 @@ endif()
 # Always include Adobe Access Helper
 set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampAveDrmHelper.cpp)
 
-if(CMAKE_CDM_DRM)
-    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_MPD_DRM=1 -DAAMP_HLS_DRM=1")
-endif()
 
 if(CMAKE_USE_CLEARKEY)
     set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/ClearKeyDrmSession.cpp)
+    set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampClearKeyHelper.cpp)
     set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CLEARKEY")
 endif()
 
@@ -331,7 +361,8 @@ elseif(CMAKE_CDM_DRM)
     message("Not Using OPEN CDM but using CDM")
     if(CMAKE_USE_PLAYREADY)
         set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/playreadydrmsession.cpp )
-        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYREADY")
+        set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampPlayReadyHelper.cpp)
+        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_PLAYREADY -DDRM_BUILD_PROFILE=DRM_BUILD_PROFILE_OEM -DTARGET_LITTLE_ENDIAN=1 -DTARGET_SUPPORTS_UNALIGNED_DWORD_POINTERS=0")
         set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lplayready")
         find_path (STAGING_INCDIR playready)
         find_path (STAGING_INCDIR playready/oem/common/inc)
@@ -360,6 +391,16 @@ elseif(CMAKE_CDM_DRM)
             set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsec_api_crypto")
         endif()
     endif()
+
+    if(CMAKE_IARM_MGR)
+        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lIARMBus -lds -ldshalcli")
+    endif()
+endif()
+
+if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
+    include_directories(closedcaptions)
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_CC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/AampCCManager.cpp)
 endif()
 
 if (CMAKE_RDK_CC_ENABLED)
@@ -373,6 +414,30 @@ if (CMAKE_RDK_CC_ENABLED)
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
 endif()
 
+
+if (CMAKE_SUBTEC_CC_ENABLED)
+    message("CMAKE_SUBTEC_CC_ENABLED set")
+
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_SUBTEC_CC_ENABLED")
+
+    set(LIBSUBTECCONNECTOR_DEFINES "${LIBAAMP_DEFINES}")
+    set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader)
+    set(LIBSUBTECCONNECTOR_SOURCES  ${AAMP_SUBTEC_SOURCES}
+        closedcaptions/subtec/SubtecConnector.cpp
+        closedcaptions/subtec/CCDataController.cpp
+        aamplogging.cpp)
+
+    add_library(subtec_connector SHARED ${LIBSUBTECCONNECTOR_SOURCES})
+    target_link_libraries(subtec_connector ${LIBSUBTECCONNECTOR_DEPENDS})
+    install(TARGETS subtec_connector DESTINATION lib)
+
+    link_directories("${CMAKE_BINARY_DIR}")
+
+    set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/subtec/AampSubtecCCManager.cpp)
+    set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsubtec_connector")
+endif()
+
+
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 
 set(LIBAAMP_SOURCES "${LIBAAMP_SOURCES}" "${LIBAAMP_DRM_SOURCES}")
@@ -385,12 +450,17 @@ target_link_libraries(playbintest ${PLAYBINTEST_DEPENDS})
 if(CMAKE_SOC_PLATFORM_INTEL)
 	message("CMAKE_SOC_PLATFORM_INTEL set")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lismd_core -lismd_vidpproc -lismd_vidsink_direct -lismd_vidrend -lismd_viddec  -lismd_core -lsysloghelper -lgdl")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DINTELCE=1 -DAAMP_STOP_SINK_ON_SEEK=1 -DUSE_SYSLOG_HELPER_PRINT=1")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DINTELCE=1 -DAAMP_STOP_SINK_ON_SEEK=1 -DUSE_SYSLOG_HELPER_PRINT=1 -DENABLE_AAMP_QTDEMUX_OVERRIDE=1")
 endif()
 
 if(CMAKE_SOC_PLATFORM_REALTEK)
         message("CMAKE_SOC_PLATFORM_REALTEK set")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DREALTEKCE=1")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DREALTEKCE=1 -DENABLE_AAMP_QTDEMUX_OVERRIDE=1")
+endif()
+
+if(CMAKE_SOC_PLATFORM_RPI)
+	message("CMAKE_SOC_PLATFORM_RPI set")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRPI=1 -DENABLE_AAMP_QTDEMUX_OVERRIDE=1")
 endif()
 
 if(CMAKE_SYSTEMD_JOURNAL)
@@ -436,7 +506,7 @@ install(TARGETS playbintest DESTINATION bin)
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
 install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
-  drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h 
+  drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)

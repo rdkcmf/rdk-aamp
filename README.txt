@@ -31,7 +31,8 @@ info		enable logging of requested urls
 gst		enable gstreamer logging including pipeline dump
 progress	enable periodic logging of position
 trace		enable dumps of manifests
-curl		enable verbose curl logging
+curl		enable verbose curl logging for manifest/playlist/segment downloads 
+curlLicense     enable verbose curl logging for license request (non-secclient)
 debug		enable debul level logs
 logMetadata	enable timed metadata logging
 abr		disable abr mode (defaults on)
@@ -68,7 +69,7 @@ disablePlaylistIndexEvent=1    disables generation of playlist indexed event by 
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
 map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
-fog-dash=1	Implies fog has support for dash, so no "defogging" when map-mpd is set.
+fog=0  Implies de-fog' incoming URLS and force direct aamp-only playback
 map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
 min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
@@ -111,7 +112,7 @@ curl-download-start-timeout=<X> specify the value in seconds for after which a C
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
-sslverifypeer=1	Enable TLS certificate verification.
+sslverifypeer=<X>	X = 1 to enable TLS certificate verification, X = 0 to disable peer verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 
@@ -130,6 +131,29 @@ Note: To add multiple customHeader, add one more line in aamp.cfg and add the da
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+harvest-count-limit=<X> Specify the limit of number of files to be harvested
+harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
+harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits
+    By default aamp will dump all the type of data, set 0 for desabling harvest
+	0x00000001 (1)      - Enable Harvest Video fragments - set 1st bit 
+	0x00000002 (2)      - Enable Harvest audio - set 2nd bit 
+	0x00000004 (4)      - Enable Harvest subtitle - set 3rd bit 
+	0x00000008 (8)      - Enable Harvest auxiliary audio - set 4th bit 
+	0x00000010 (16)     - Enable Harvest manifest - set 5th bit 
+	0x00000020 (32)     - Enable Harvest license - set 6th bit , TODO: not yet supported license dumping
+	0x00000040 (64)     - Enable Harvest iframe - set 7th bit 
+	0x00000080 (128)    - Enable Harvest video init fragment - set 8th bit 
+	0x00000100 (256)    - Enable Harvest audio init fragment - set 9th bit 
+	0x00000200 (512)    - Enable Harvest subtitle init fragment - set 10th bit 
+	0x00000400 (1024)   - Enable Harvest auxiliary audio init fragment - set 11th bit 
+	0x00000800 (2048)   - Enable Harvest video playlist - set 12th bit 
+	0x00001000 (4096)   - Enable Harvest audio playlist - set 13th bit 
+	0x00002000 (8192)   - Enable Harvest subtitle playlist - set 14th bit 
+	0x00004000 (16384)  - Enable Harvest auxiliary audio playlist - set 15th bit 
+	0x00008000 (32768)  - Enable Harvest Iframe playlist - set 16th bit 
+	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
+	example :- if you want harvest only manifest and vide0 fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
+	harvest-config=17
 descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
 disableMidFragmentSeek=1       Disables the Mid-Fragment seek functionality in aamp.
 
@@ -154,6 +178,8 @@ maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
+persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
+setLicenseCaching=0 used to disable license caching, by default the value is 1 to enable the license caching.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
@@ -194,6 +220,8 @@ CLI-specific commands:
 help		show usage notes
 http://...	tune to specified URL
 <number>	tune to specified channel (based on canned aamp channel map)
+next        tune to next virtual channel
+prev        tune to previous virtual channel
 seek <sec>	time-based seek within current content (stub)
 ff32		set desired trick speed to 32x
 ff16		set desired trick speed to 16x
@@ -214,6 +242,10 @@ bps <val>   Set video bitrate in bps
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
 *<Channel Number> <Channel Name> <Channel URL>
 
+or
+
+To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.csv
+<Channel Number>,<Channel Name>,<Channel URL>
 ================================================================================================
 Following line can be added as a header while making CSV with profiler data.
 

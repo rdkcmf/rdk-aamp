@@ -39,6 +39,7 @@ select:focus {
 		console.log(text);
 		document.getElementById("console").value += text+"\n";
 	}
+
 	function clearConsole()
 	{
 		document.getElementById("console").value = "";
@@ -50,6 +51,7 @@ select:focus {
 		console.log(text);
 		document.getElementById("console").value += text+"\n";
 	}
+
 	function setGuideText(text)
 	{
 	document.getElementById("guideText").value = text;
@@ -75,6 +77,25 @@ select:focus {
 		}
 	}
 
+	function clearTextMapList() {
+		var selectList = document.getElementById("TextList");
+		// when length is 0, the evaluation will return false.
+		while (selectList.options.length)
+		{
+			// continue to remove the first option until no options remain.
+			selectList.remove(0);
+		}
+	}
+
+	function clearAudioMapList() {
+		var selectList = document.getElementById("AudioList");
+		// when length is 0, the evaluation will return false.
+		while (selectList.options.length)
+		{
+			// continue to remove the first option until no options remain.
+			selectList.remove(0);
+		}
+	}
 	var tc;
 	var listener;
 	var listenerOnPlayerStatus;
@@ -87,6 +108,15 @@ select:focus {
 	var hdmiin1 = "hdmiin://localhost/deviceid/0";
 	var hdmiin2 = "hdmiin://localhost/deviceid/1";
 	var hdmiin3 = "hdmiin://localhost/deviceid/2";
+	var enableNativeCC = true;
+	var ccStatus = false;
+
+	var ccInitConfigParam = {
+		nativeCCRendering: true
+	};
+	const ccOption1 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"white","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":"false"};
+	const ccOption2 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"yellow","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"yellow","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":"true"};
+	const ccOption3 = {"penItalicized":"false","textEdgeStyle":"none","textEdgeColor":"red","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":"true"};
 	
 	var en_spaInitConfig = {
 		preferredAudioLanguage: "eng,spa"
@@ -128,6 +158,7 @@ select:focus {
 		log( "Thunder Configuration: " + JSON.stringify(config) );
 		tc = ThunderJS(config);
 	}
+
 	function Activate( callsign )
 	{
 		tc.call( "Controller","activate", {"callsign":callsign} ).then( result => {
@@ -136,6 +167,55 @@ select:focus {
 			log( callsign + " activation error" );
 		});
 	}
+
+	function directTune()
+	{
+		tc.call("org.rdk.MediaServices","getServices",{}).then(result => {
+			isPlaying = false;
+			clearChannelMapList();
+
+			var chMapElement = document.getElementById("chMap");
+			var resultTable = result.table;
+			// create url list from the results
+			for (service in resultTable) {
+				tuneUrl = "tune://atsc?frequency=" + bandNameFrequencyMapper(Number(resultTable[service].bandName)) + "&serviceid=" + resultTable[service].serviceId;
+				var opt = document.createElement('option');
+				opt.text = tuneUrl;
+				opt.value = tuneUrl;
+				if( service==0 )
+				{
+					opt.selected = true;
+				}
+				chMapElement.add(opt,null);
+			}
+		}).catch(err => {
+			log('getServices Error '+ err);
+		});
+	}
+
+	/**
+	 * Convert the band name to frequency
+	 */
+	var freqTable = [
+		5700000,6300000,6900000,7900000,8500000,17700000,18300000,18900000,
+		19500000,20100000,20700000,21300000,47300000,47900000,48500000,49100000,
+		49700000,50300000,50900000,51500000,52100000,52700000,53300000,53900000,
+		54500000,55100000,55700000,56300000,56900000,57500000,58100000,58700000,
+		59300000,59900000,60500000,61100000,61700000,62300000,62900000,63500000,
+		64100000,64700000,65300000,65900000,66500000,67100000,67700000,68300000,
+		68900000,69500000,70100000,70700000,71300000,71900000,72500000,73100000,
+		73700000,74300000,74900000,75500000,76100000,76700000,77300000,77900000,
+		78500000,79100000,79700000,80300000 ];
+	function bandNameFrequencyMapper(bandName)
+	{
+		var idx = bandName-2;
+		if( idx>=0 && idx<freqTable.length )
+		{
+			return freqTable[bandName-2];
+		}
+		return 0;
+	}
+
 	function startScan()
 	{
 		tc.call("org.rdk.MediaServices","startScan", { "type": "ATSC", "onlyFree": true} ).then(result => {
@@ -147,7 +227,7 @@ select:focus {
 		});
 	}
 	
-		function abortScan()
+	function abortScan()
 	{
 		tc.call("org.rdk.MediaServices","abortScan", {} ).then(result => {
 		getAllServices();
@@ -158,7 +238,7 @@ select:focus {
 		});
 	}
 	
-			function registerOnPlayerStatus ()
+	function registerOnPlayerStatus ()
 	{
 		listenerOnPlayerStatus = tc.on('org.rdk.MediaPlayer','onPlayerStatus', (notification) => {
 			//var data = 'sts:' + notification.playerStatus + ' p:' + notification.position  + ' l:' + notification.length + ' loc:' + notification.locator + ' loff:' +  notification.liveOffset + ' spd:' + notification.speed ;
@@ -172,7 +252,7 @@ select:focus {
 	}
 	
 	
-		function registerOnScanProgress()
+	function registerOnScanProgress()
 	{
 		listener = tc.on("org.rdk.MediaServices",'onScanProgress', (notification) => {
 				var value = notification.progress * 100;
@@ -192,7 +272,7 @@ select:focus {
 		});
 	}
 	
-			function registerOnScanAction ()
+	function registerOnScanAction ()
 	{
 		listener = tc.on("org.rdk.MediaServices",'onScanAction ', (notification) => {
 				
@@ -201,7 +281,7 @@ select:focus {
 		});
 	}
 	
-		function getService()
+	function getService()
 	{
 		tc.call("org.rdk.MediaServices","getService",{"servicePk":1, "attributes": [ "pk","name","signalStrength" ]}).then(result => {
 			clog('getService Success '+ JSON.stringify(result))
@@ -376,7 +456,7 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 	{
 
 		//window.resizeBy(1280,720);
-		
+		SetRectangle(0.6,0.5,0.3,0.3)
 		totalChannels = 0;
 		isPlaying = false;
 		
@@ -401,6 +481,7 @@ function SetRectangle( pctx, pcty, pctw, pcth )
 		registerOnScanAction();
 		//registerOnPlayerStatus();
 		getAllServices();
+
 	}
 
 var focusIndex;
@@ -506,8 +587,11 @@ function playerLoad(url) {
 }
 function playChannel()
 {
+	clearTextMapList();
+
+	clearAudioMapList();
 	var chMapElement = document.getElementById("chMap");
-    var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
+	var strLocator = chMapElement.options[chMapElement.selectedIndex].value;
 	var strData = chMapElement.options[chMapElement.selectedIndex].text;
 	setCurrentPlayingChText(strData);
 	
@@ -529,7 +613,10 @@ function playChannel()
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		}
-		clog("playChannel:"+strLocator);
+		if(enableNativeCC === true) {
+			aampPlayer.initConfig(ccInitConfigParam);
+			console.log("Using  ccInitConfigParam");
+		}
 		aampPlayer.load(strLocator);
 	}
 	isPlaying = true;
@@ -650,7 +737,7 @@ function getAvailableAudioTracks() {
 
 	var avlAudioTracks = aampPlayer.getAvailableAudioTracks();
 	if(avlAudioTracks != undefined)
-    {
+	{
 		var textTrackList = JSON.parse(avlAudioTracks);
 		console.log("Invoked getAvailableAudioTracks " +avlAudioTracks);
 		setGuideText("Invoked getAvailableAudioTracks " +avlAudioTracks);
@@ -804,6 +891,34 @@ function setTextStyleOptions() {
 	}
 }
 
+function disableContentRestrictionsTimeout() {
+	var until = {"time":120};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions with timeout: " + JSON.stringify(until));
+}
+
+function disableContentRestrictionsProgramChange() {
+	var until = {"programChange":true};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions until program change");
+}
+
+function disableContentRestrictionsBoth() {
+	var until = {"programChange":true, "time":30};
+	aampPlayer.disableContentRestrictions(until);
+	console.log("Invoked disableContentRestrictions with both");
+}
+
+function disableContentRestrictions() {
+	aampPlayer.disableContentRestrictions();
+	console.log("Invoked disableContentRestrictions until reboot");
+}
+
+function enableContentRestrictions() {
+	aampPlayer.enableContentRestrictions();
+	console.log("Invoked enableContentRestrictions");
+}
+
 var playerStatesEnum = { "idle":0, "initializing":1, "initialized":2, "preparing":3, "prepared":4, "playing":8, "paused":6, "seeking":7, "complete":11, "error":12, "blocked":14};
 function playbackStateChanged(event) {
     log("Playback state changed event: " + JSON.stringify(event));
@@ -867,8 +982,8 @@ function blockedEventHandler(event) {
 	</div>
 	
 	<div id="content">
-		<select id = "chMap" size="28" onchange="onChannelMapNav();" onclick="playChannel();"></select>
-				
+		<select id = "chMap" size="10" onchange="onChannelMapNav();" onclick="playChannel();"></select>
+
 		<input type="button" value="startScan" onclick="startScan();"/>
 		<input type="button" value="abortScan" onclick="abortScan();"/>
 		<input type="button" value="RefreshChannelMap" onclick="getAllServices();"/>
@@ -897,6 +1012,29 @@ function blockedEventHandler(event) {
 		<input type="button" value="Preferred-Spa,Eng" onclick="SetPreferredLanguages(spa_enInitConfig);"/>
 		
 		<br/>
+
+		<input type="button" value="CC" onclick="toggleCC();"/>
+		<input type="button" value="GetAvlTextTracks" onclick="getAvailableTextTracks();"/>
+		<select id = "TextList" size="3"></select>
+		<input type="button" value="SetTextTrack" onclick="setTextTrack();"/>
+		<input type="button" value="GetTextTrack" onclick="getTextTrack();"/>
+
+		<select id="ccStyles" size="3">
+			<option>Option 1</option>
+			<option>Option 2</option>
+			<option>Option 3</option>
+		</select>
+		<input type="button" value="SetTextStyleOptions" onclick="setTextStyleOptions();"/>
+		<input type="button" value="GetTextStyleOptions" onclick="getTextStyleOptions();"/>
+
+		<br/>
+		<input type="button" value="disableContentRestrictions-120s" onclick="disableContentRestrictionsTimeout();"/>
+		<input type="button" value="disableContentRestrictions-pc" onclick="disableContentRestrictionsProgramChange();"/>
+		<input type="button" value="both" onclick="disableContentRestrictionsBoth();"/>
+		<input type="button" value="disableContentRestrictions-reboot" onclick="disableContentRestrictions();"/>
+		<input type="button" value="enableContentRestrictions" onclick="enableContentRestrictions();"/>
+		<br/>
+
 		<!-- <input type="button" value="startGuideScan" onclick="startGuideScan();"</input>
 		<input type="button" value="abortGuideScan" onclick="startGuideScan();"</input> -->
 
@@ -905,11 +1043,11 @@ function blockedEventHandler(event) {
 		<b> Tuned:</b> <label id = "currChSelLabel"></label>
 		<br/>
 		<div id="myprogressBar">1%</div>
-		<textarea rows="4" cols="120" id="console" style="border:solid 1px orange;"></textarea>
+		<textarea rows="12" cols="100" id="console" style="border:solid 1px orange;"></textarea>
 		<br/>
 		<b>Guide Data</b>
 		<br/>
-		<textarea rows="4" cols="120" id="guideText" style="border:solid 1px orange;"></textarea>
+		<textarea rows="12" cols="100" id="guideText" style="border:solid 1px orange;"></textarea>
 		<br/>
 		<b>Use red record key to toggle fullscreen mode</b>
 	</div>

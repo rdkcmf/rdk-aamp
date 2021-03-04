@@ -76,7 +76,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		}else if(0 == currState.compare("PLAYING"))
 		{
 			if(!tuned){
-				aamp->SendTunedEvent();
+				aamp->SendTunedEvent(false);
 				/* For consistency, during first tune, first move to
 				 PREPARED state to match normal IPTV flow sequence */
 				aamp->SetState(eSTATE_PREPARED);
@@ -107,6 +107,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		aamp->SetState(state);
 	}
 }
+
 #endif
 
 /**
@@ -130,7 +131,8 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     mediaSettingsObj.ActivatePlugin();
     std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> actualMethod = std::bind(&StreamAbstractionAAMP_OTA::onPlayerStatusHandler, this, std::placeholders::_1);
 
-    thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
+    //mEventSubscribed flag updated for tracking event subscribtion
+    mEventSubscribed = thunderAccessObj.SubscribeEvent(_T("onPlayerStatus"), actualMethod);
 
     AAMPStatusType retval = eAAMPSTATUS_OK;
 
@@ -150,7 +152,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-                            , tuned(false),
+                            , tuned(false),mEventSubscribed(false),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
                             thunderRDKShellObj(RDKSHELL_CALLSIGN)
@@ -178,7 +180,17 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 	param["tag"] = "MyApp";
         thunderAccessObj.InvokeJSONRPC("release", param, result);
 
-	thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+	// unsubscribing only if subscribed
+	if (mEventSubscribed)
+	{
+		thunderAccessObj.UnSubscribeEvent(_T("onPlayerStatus"));
+		mEventSubscribed = false;
+	}
+	else
+	{
+		AAMPLOG_WARN("[OTA_SHIM]OTA Destructor finds Player Status Event not Subscribed !! ");
+	}
+
 	AAMPLOG_INFO("[OTA_SHIM]StreamAbstractionAAMP_OTA Destructor called !! ");
 #endif
 }
@@ -365,9 +377,9 @@ void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTr
 }
 
 /**
- *   @brief Get current audio track
+ *   @brief Get the list of available audio tracks
  *
- *   @return int - index of current audio track
+ *   @return std::vector<AudioTrackInfo> List of available audio tracks
  */
 std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks()
 {
@@ -415,7 +427,7 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
     JsonObject param;
     JsonObject properties;
 
-    if(aamp->preferredLanguagesList.size() > 0) {
+    if(0 != aamp->preferredLanguagesString.length()) {
         properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
         param["properties"] = properties;
         mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
@@ -534,6 +546,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+    return 0;
 #else
     int pk = 0;
     JsonObject param;
@@ -575,6 +588,171 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
 }
 
 /**
+ *   @brief Get the list of available text tracks
+ *
+ *   @return std::vector<TextTrackInfo> List of available text tracks
+ */
+std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
+{
+	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	if (mTextTracks.empty())
+		GetTextTracks();
+
+	return mTextTracks;
+}
+
+/**
+ * @brief GetTextTracks get the available text tracks for the selected service / media
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::GetTextTracks()
+{
+	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	JsonObject param;
+	JsonObject result;
+	JsonArray attributesArray;
+	std::vector<TextTrackInfo> txtTracks;
+	std::string output;
+	JsonArray outputArray;
+	JsonObject textData;
+	int arrayCount = 0;
+
+	attributesArray.Add("pk"); // int - Unique primary key dynamically allocated. Used for track selection.
+	attributesArray.Add("name"); //  Name to display in the UI when doing track selection
+	attributesArray.Add("type");  // Specific track type for the track - "CC" for ATSC Closed caption
+	attributesArray.Add("description"); //Track description supplied by the content provider
+	attributesArray.Add("language"); //ISO 639-2 three character text language
+	attributesArray.Add("contentType"); // Track content type e.g "HEARING_IMPAIRED", "EASY_READER"
+	attributesArray.Add("ccServiceNumber"); // Set to 1-63 for 708 CC Subtitles and 0 for 608
+	attributesArray.Add("isSelected"); // Is Currently selected track
+	attributesArray.Add("ccTypeIs708"); // Is Currently selected track
+
+	param["id"] = APP_ID;
+	param["attributes"] = attributesArray;
+
+	thunderAccessObj.InvokeJSONRPC("getSubtitleTracks", param, result);
+
+	result.ToString(output);
+	AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d text track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+	outputArray = result["table"].Array();
+	arrayCount = outputArray.Length();
+
+	std::string txtTrackIdx = "";
+	std::string instreamId;
+	int ccIndex = 0;
+
+	for(int i = 0; i < arrayCount; i++)
+	{
+		std::string trackType;
+		textData = outputArray[i].Object();
+		trackType = textData["type"].String();
+		if(0 == trackType.compare("CC"))
+		{
+			std::string empty;
+			std::string index = std::to_string(ccIndex++);
+			std::string serviceNo;
+			int ccServiceNumber = -1;
+			std::string languageCode = Getiso639map_NormalizeLanguageCode(textData["language"].String());
+
+			ccServiceNumber = textData["ccServiceNumber"].Number();
+			/*Plugin info : ccServiceNumber	int Set to 1-63 for 708 CC Subtitles and 0 for 608*/
+			if(textData["ccTypeIs708"].Boolean())
+			{
+				if((ccServiceNumber >= 1) && (ccServiceNumber <= 63))
+				{
+					/*708 CC*/
+					serviceNo = "SERVICE";
+					serviceNo.append(std::to_string(ccServiceNumber));
+				}
+				else
+				{
+					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 708 CC", __FUNCTION__, __LINE__);
+				}
+			}
+			else
+			{
+				if((ccServiceNumber >= 1) && (ccServiceNumber <= 4))
+				{
+					/*608 CC*/
+					serviceNo = "CC";
+					serviceNo.append(std::to_string(ccServiceNumber));
+				}
+				else
+				{
+					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 608 CC", __FUNCTION__, __LINE__);
+				}
+			}
+
+			txtTracks.push_back(TextTrackInfo(index, languageCode, true, empty, textData["name"].String(), serviceNo, empty, (int)textData["pk"].Number()));
+			//values shared: index, language, isCC, rendition-empty, name, instreamId, characteristics-empty, primarykey
+			AAMPLOG_WARN("[OTA_SHIM]::%s Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", __FUNCTION__, index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
+		}
+	}
+	mTextTracks = txtTracks;
+	return;
+#endif
+}
+
+/**
+ * @brief Disable Restrictions (unlock) till seconds mentioned
+ *
+ * @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+ * @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+ * @param[in] eventChange - disable restriction handling till next program event boundary
+ */
+void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time, bool eventChange)
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	if(-1 == grace){
+
+		param["grace"] = -1;
+		param["time"] = -1;
+		param["eventChange"] = false;
+		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next reboot or explicit enable", __FUNCTION__ );
+	}else{
+		param["grace"] = 0;
+		param["time"] = time;
+		param["eventChange"] = eventChange;
+
+		if(-1 != time)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, time);
+
+		if(eventChange)
+			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
+	}
+	thunderAccessObj.InvokeJSONRPC("disableContentRestrictionsUntil", param, result);
+
+#endif
+}
+
+/**
+ * @brief Enable Content Restriction (lock)
+ *
+ * @param[in]
+ * @param[in]
+ */
+void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
+{
+#ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
+#else
+	AAMPLOG_WARN( "[OTA_SHIM]%s: locked ", __FUNCTION__);
+	JsonObject param;
+	JsonObject result;
+	param["id"] = APP_ID;
+	thunderAccessObj.InvokeJSONRPC("enableContentRestrictions", param, result);
+
+#endif
+}
+
+/**
  * @brief Stub implementation
  */
 void StreamAbstractionAAMP_OTA::DumpProfiles(void)
@@ -589,7 +767,7 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
  */
 void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat)
 {
-    primaryOutputFormat = FORMAT_ISO_BMFF;
+    primaryOutputFormat = FORMAT_INVALID;
     audioOutputFormat = FORMAT_INVALID;
 }
 
@@ -683,6 +861,37 @@ std::vector<long> StreamAbstractionAAMP_OTA::GetAudioBitrates(void)
 }
 
 /**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableThumbnailTracks(void)
+{ // STUB
+	return std::vector<StreamInfo*>();
+}
+
+/**
+ * @fn SetThumbnailTrack
+ * @brief Function to set thumbnail track for processing
+ *
+ * @param thumbnail index value indicating the track to select
+ * @return bool true on success.
+ */
+bool StreamAbstractionAAMP_OTA::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void) thumbnailIndex;	/* unused */
+	return false;
+}
+
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks
+ */
+std::vector<ThumbnailData> StreamAbstractionAAMP_OTA::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+	return std::vector<ThumbnailData>();
+}
+
+/**
 *   @brief  Stops injecting fragments to StreamSink.
 */
 void StreamAbstractionAAMP_OTA::StopInjection(void)
@@ -695,10 +904,3 @@ void StreamAbstractionAAMP_OTA::StopInjection(void)
 void StreamAbstractionAAMP_OTA::StartInjection(void)
 { // STUB - discontinuity related
 }
-
-
-
-
-
-
-

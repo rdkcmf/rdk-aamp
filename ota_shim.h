@@ -67,12 +67,17 @@ public:
     void StopInjection(void) override;
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
-    void NotifyFirstVideoPTS(unsigned long long pts) { };
     void SetVideoRectangle(int x, int y, int w, int h) override;
     void SetAudioTrack(int index) override;
     void SetAudioTrackByLanguage(const char* lang) override;
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
+    std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
+    void DisableContentRestrictions(long grace, long time, bool eventChange) override;
+    void EnableContentRestrictions() override;
+    std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    bool SetThumbnailTrack(int) override;
+    std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
@@ -80,6 +85,7 @@ private:
     ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
     bool tuned;
+    bool mEventSubscribed;
 
     ThunderAccessAAMP thunderRDKShellObj;
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
@@ -88,6 +94,7 @@ private:
     void SetPreferredAudioLanguage();
     int GetAudioTrackInternal();
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
+    void GetTextTracks();
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
 };

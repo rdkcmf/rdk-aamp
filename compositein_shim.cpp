@@ -70,3 +70,25 @@ void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
 {
 	StopHelper("stopCompositeInput");
 }
+
+/**
+ * @brief To get the available thumbnail tracks.
+ * @ret available thumbnail tracks.
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
+{ // STUB
+        AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+	return std::vector<StreamInfo*>();
+}
+
+bool StreamAbstractionAAMP_COMPOSITEIN::SetThumbnailTrack(int thumbnailIndex)
+{
+	(void)thumbnailIndex;	/* unused */
+        return false;
+}
+
+std::vector<ThumbnailData> StreamAbstractionAAMP_COMPOSITEIN::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
+{
+        return std::vector<ThumbnailData>();
+}
+

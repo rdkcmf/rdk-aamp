@@ -25,8 +25,8 @@
 #include "GlobalConfigAAMP.h"
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
-#ifdef AAMP_RDK_CC_ENABLED
-#include "AampRDKCCManager.h"
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
 #endif
 #include "helper/AampDrmHelper.h"
 #include "StreamAbstractionAAMP.h"
@@ -105,7 +105,12 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	aamp = new PrivateInstanceAAMP();
 	if (NULL == streamSink)
 	{
-		mInternalStreamSink = new AAMPGstPlayer(aamp);
+		mInternalStreamSink = new AAMPGstPlayer(aamp
+#ifdef RENDER_FRAMES_IN_APP_CONTEXT
+                , exportFrames
+#endif
+		);
+
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
@@ -135,10 +140,10 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 
 	bool isLastPlayerInstance = !PrivateInstanceAAMP::IsActiveInstancePresent();
 
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	if (isLastPlayerInstance)
 	{
-		AampRDKCCManager::DestroyInstance();
+		AampCCManager::DestroyInstance();
 	}
 #endif
 #ifdef SUPPORT_JS_EVENTS 
@@ -175,20 +180,8 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 			return;
 		}
 
-		logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
-		if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
-		{
-			/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
-			aamp->sendTuneMetrics(false);
-		}
+		StopInternal(sendStateChangeEvent);
 
-		if (sendStateChangeEvent)
-		{
-			aamp->SetState(eSTATE_IDLE);
-		}
-
-		AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
-		aamp->Stop();
 	}
 }
 
@@ -218,9 +211,10 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 	PrivAAMPState state;
 	aamp->GetState(state);
 
-	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)){
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
+	{
 		//Calling tune without closing previous tune
-		Stop(false);
+		StopInternal(false);
 	}
 
 	aamp->getAampCacheHandler()->StartPlaylistCache();
@@ -737,7 +731,10 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		}
 
 		bool seekWhilePause = false;
-		if (aamp->pipeline_paused)
+		// For autoplay false, pipeline_paused will be true, which denotes a non-playing state
+		// as the GST pipeline is not yet created, avoid setting pipeline_paused to false here
+		// which might mess up future SetRate call for BG->FG
+		if (aamp->mbPlayEnabled && aamp->pipeline_paused)
 		{
 			// resume downloads and clear paused flag. state change will be done
 			// on streamSink configuration.
@@ -916,6 +913,8 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
 				aamp->TeardownStream(false);
+				// Before calling TuneHelper, ensure player is not in Error state
+				ERROR_STATE_CHECK_VOID();
 				aamp->TuneHelper(eTUNETYPE_SEEK);
 
 				aamp->discardEnteringLiveEvt = false;
@@ -1553,7 +1552,7 @@ void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
  */
 bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 {
-        return aamp->GetAsyncTuneConfig();
+	return aamp->GetAsyncTuneConfig();
 }
 
 /**
@@ -1565,6 +1564,18 @@ bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
 	aamp->SetWesterosSinkConfig(bValue);
+}
+
+/**
+ *   @brief Set license caching
+ *   @param[in] bValue - true/false to enable/disable license caching
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetLicenseCaching(bValue);
 }
 
 /**
@@ -1598,6 +1609,17 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
 {
         aamp->SetPropagateUriParameters(bValue);
+}
+
+/**
+ *   @brief Configure URI  parameters
+ *   @param[in] bValue -true to enable
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
+{
+        aamp->SetSslVerifyPeerConfig(bValue);
 }
 
 /**
@@ -1728,7 +1750,7 @@ void PlayerInstanceAAMP::SetAppName(std::string name)
  */
 void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 {
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	gpGlobalConfig->nativeCCRendering = enable;
 #endif
 }
@@ -1858,7 +1880,7 @@ void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
  */
 void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
-#ifdef AAMP_RDK_CC_ENABLED
+#ifdef AAMP_CC_ENABLED
 	if (format == eCLOSEDCAPTION_FORMAT_608)
 	{
 		gpGlobalConfig->preferredCEA708 = eFalseState;
@@ -1868,6 +1890,43 @@ void PlayerInstanceAAMP::SetCEAFormat(int format)
 		gpGlobalConfig->preferredCEA708 = eTrueState;
 	}
 #endif
+}
+
+/**
+*   @brief To get the bitrate of thumbnail profile.
+*
+*   @ret bitrate of thumbnail tracks profile
+*/
+std::string PlayerInstanceAAMP::GetAvailableThumbnailTracks(void)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+	return aamp->GetThumbnailTracks();
+}
+
+/**
+ *   @brief To set a preferred bitrate for thumbnail profile.
+ *
+ *   @param[in] preferred bitrate for thumbnail profile
+ */
+bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
+	if(thumbIndex < 0 || !aamp->mpStreamAbstractionAAMP)
+	{
+		return false;
+	}
+	return aamp->mpStreamAbstractionAAMP->SetThumbnailTrack(thumbIndex);
+}
+
+/**
+ *   @brief To get preferred thumbnails for the duration.
+ *
+ *   @param[in] duration  for thumbnails
+ */
+std::string PlayerInstanceAAMP::GetThumbnails(double tStart, double tEnd)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+	return aamp->GetThumbnails(tStart, tEnd);
 }
 
 /**
@@ -1905,6 +1964,69 @@ void PlayerInstanceAAMP::SetReportVideoPTS(bool enabled)
 	aamp->SetReportVideoPTS(enabled);
 }
 
+/**
+*   @brief Disable Content Restrictions - unlock
+*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+*   @param[in] eventChange - disable restriction handling till next program event boundary
+*
+*   @return void
+*/
+void PlayerInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+	aamp->DisableContentRestrictions(grace, time, eventChange);
+}
+
+/**
+*   @brief Enable Content Restrictions - lock
+*   @return void
+*/
+void PlayerInstanceAAMP::EnableContentRestrictions()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+	aamp->EnableContentRestrictions();
+}
+
+/**
+ *   @brief Enable/disable configuration to persist ABR profile over SAP/seek
+ *
+ *   @param[in] value - To enable/disable configuration
+ *   @return void
+ */
+void PlayerInstanceAAMP::PersistBitRateOverSeek(bool value)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->PersistBitRateOverSeek(value);
+}
+
+/**
+ *   @brief Stop playback and release resources.
+ *
+ *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+ *   @return void
+ */
+void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
+{
+	PrivAAMPState state;
+	aamp->GetState(state);
+
+	if(gpGlobalConfig->enableMicroEvents && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
+	{
+		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
+		aamp->sendTuneMetrics(false);
+	}
+
+	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
+
+	if (sendStateChangeEvent)
+	{
+		aamp->SetState(eSTATE_IDLE);
+	}
+
+	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
+	aamp->Stop();
+}
 /**
  * @}
  */

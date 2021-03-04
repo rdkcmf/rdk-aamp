@@ -38,6 +38,36 @@ brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugin
 You can find help [here](https://wesleyli.co/2016/10/running-gstreamer-on-mac-os-x).
 More details about packages available at [freedesktop.org](https://gstreamer.freedesktop.org/documentation/installing/on-mac-osx.html)
 
+**3.1 Build and install patched gst-plugins-good**
+Optional, but fixes some playback issues.
+
+Dependencies:
+```brew install meson ninja```
+
+Download https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-1.18.2.tar.xz
+```tar -xvzf gst-plugins-good-1.18.2.tar.xz```
+
+Download the following patches  from RDK Central to gst-plugins-good-1.18.2 directory. Note that the patches are valid for 1.16 or 1.18, but the 1.16 build directions are different and have not been included here.
+```https://gerrit.teamccp.com/plugins/gitiles/rdk/yocto_oe/layers/meta-rdk-ext/+/2101_sprint/recipes-multimedia/gstreamer/files/```
+```
+0009-qtdemux-aamp-tm_gst-1.16.patch
+0013-qtdemux-remove-override-segment-event_gst-1.16.patch
+0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
+0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
+```
+Apply patches
+```
+cd gst-plugins-good-1.18.2
+patch -p1 < file.patch```
+```
+**Build & Install**
+```
+meson build
+ninja -C build
+cd build
+ninja test [Should all pass but one.]
+sudo ninja install
+```
 **4. Install [Cmake](https://cmake.org/download/)**
 
 like cmake-3.18.0-Darwin-x86_64.dmg or latest
@@ -113,7 +143,7 @@ echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \
 brew install ossp-uuid
 ```
 
-**9. Install cjson
+**9. Install cjson**
 
 ```
 brew install cjson
@@ -140,17 +170,27 @@ git clone "https://code.rdkcentral.com/r/rdk/components/generic/aamp" -b dev_spr
 **2. Build the code**
 
 ```
+	osxbuild.sh
+	Start XCode, open build/AAMP.xcodeproj project file
 	Product -> Build
 ```
+If you see the error 'No CMAKE_C_COMPILER could be found.' when running osxbuild.sh, check that your installed cmake version matches the minimum required version shown earlier.
+Even after updating the CMake version if you still see the above error, then run "sudo xcode-select --reset" and then execute the "osxbuild.sh" this fixes the issue.
+
 
 **3. Select target to execute**
 
 ```
-	Product -> Scheme -> Edit scheme
-	Run page-> Info
-	Select Executable -> Other and open the ‘aamp-cli’ image name from {AAMP_PATH}/build/aamp_cli
+	Product -> Scheme -> Choose Scheme
+	aamp-cli
 ```
+
 **4. Execute**
+
+While executing if you face the below MacOS warning then please follow the below steps to fix it.
+"Example warning: Machine runs macOS 10.15.7, which is lower than aamp-cli's minimum deployment target of 11.1. Change your project's minimum deployment target or upgrade machine’s version of macOS."
+Click "AAMP" project and lower the "macOS Deployment Target" version. For example: Change it to 10.11 then run the aamp-cli, it will work.
+
 
 ```
 Product -> Run

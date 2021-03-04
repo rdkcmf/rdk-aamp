@@ -206,8 +206,9 @@ enum HttpHeaderType
 {
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
-	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
+	eHTTPHEADERTYPE_FOG_REASON, /**< FOG-X-Reason Header */
 	eHTTPHEADERTYPE_EFF_LOCATION, /**< Effective URL location returned */
+	eHTTPHEADERTYPE_FOG_ERROR,  /**< FOG-X-Error Header */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -250,6 +251,18 @@ enum AudioType
 	eAUDIO_AAC,
 	eAUDIO_DDPLUS,
 	eAUDIO_ATMOS
+};
+
+/**
+ *
+ * @enum Curl Request
+ *
+ */
+enum CurlRequest
+{
+	eCURL_GET,
+	eCURL_POST,
+	eCURL_DELETE
 };
 
 /**
@@ -335,6 +348,16 @@ struct httpRespHeaderData {
 	std::string data;     /**< Header value */
 };
 
+struct ThumbnailData {
+	ThumbnailData() : url(""), x(0), y(0), t(0.0), d(0.0)
+	{
+	}
+	std::string url; /**<  url of tile image (may be relative or absolute path) */
+	double t; /**<  presentation time for this thumbnail */
+	double d; /**< time duration of this tile */
+	int x;    /**< x coordinate of thumbnail within tile */
+	int y;    /**< y coordinate of Thumbnail within tile */
+};
 
 /**
  * @brief  Structure of the event listener list
@@ -610,6 +633,7 @@ public:
 	long long playStartUTCMS;
 	double durationSeconds;
 	double culledSeconds;
+	double mProgramDateTime;
 	float maxRefreshPlaylistIntervalSecs;
 	long long initialTuneTimeMs;
 	EventListener* mEventListener;
@@ -651,9 +675,14 @@ public:
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
+	std::string mFogErrorString;	/**< To keep the copy of fog error status*/
+
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
+	bool mLicenseCaching;	/**< Enable/Disable license caching */
 
+	std::string mTsbRecordingId; /**< Recording ID of current TSB */
+	int mthumbIndexValue;
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -752,14 +781,15 @@ public:
 	char* GetOnVideoEndSessionStatData();
 
 	/**
-	 * @brief Perform custom get curl request
+	 * @brief Perform custom curl request
 	 *
 	 * @param[in] remoteUrl - File URL
 	 * @param[out] buffer - Pointer to the output buffer
 	 * @param[out] http_error - HTTP error code
+	 * @param[in] CurlRequest - request type
 	 * @return bool status
 	 */
-	bool ProcessCustomGetCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error);
+	bool ProcessCustomCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error, CurlRequest request = eCURL_GET);
 
 	/**
 	 * @brief get Media Type in string
@@ -1029,7 +1059,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void ReportAdProgress(void);
+	void ReportAdProgress(bool sync = true);
 
 	/**
 	 *   @brief Get asset duration in milliseconds
@@ -1160,16 +1190,6 @@ public:
 	 * @return void
 	 */
 	void InterruptableMsSleep(int timeInMs);
-
-#ifdef AAMP_HARVEST_SUPPORT_ENABLED
-	/**
-	 * @brief Collect decrypted fragments
-	 *
-	 * @param[in] modifyCount - Collect only the configured number of fragments
-	 * @return void
-	 */
-	bool HarvestFragments(bool modifyCount = true);
-#endif
 
 	/**
 	 * @brief Get download disable status
@@ -1415,6 +1435,27 @@ public:
 	bool Discontinuity(MediaType track, bool setDiscontinuityFlag = false);
 
 	/**
+	 *	 @brief Set discontinuity ignored flag for given track
+	 *
+	 *	 @return void
+	 */
+	void SetTrackDiscontinuityIgnoredStatus(MediaType track);
+
+	/**
+	 *	 @brief Check whether the given track discontinuity ignored earlier.
+	 *
+	 *	 @return true - if the discontinuity already ignored.
+	 */
+	bool IsDiscontinuityIgnoredForOtherTrack(MediaType track);
+
+	/**
+	 *	 @brief Reset discontinuity ignored flag for audio and video tracks
+	 *
+	 *	 @return void
+	 */
+	void ResetTrackDiscontinuityIgnoredStatus(void);
+
+	/**
 	 *   @brief Set video zoom mode
 	 *
 	 *   @param[in] zoom - Video zoom mode
@@ -1471,6 +1512,13 @@ public:
 	*   @return void
 	*/
 	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
+
+	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	bool IsFirstFrameReceived(void);
 
 	/**
 	 *   @brief Check sink cache empty
@@ -1728,9 +1776,10 @@ public:
 	/**
 	 *   @brief Send stalled error
 	 *
+	 *   @param[in] isStalledBeforePlay - true if the playback stalled before the pipeline state changed to play.
 	 *   @return void
 	 */
-	void SendStalledErrorEvent();
+	void SendStalledErrorEvent(bool isStalledBeforePlay = false);
 
 	/**
 	 *   @brief Is discontinuity pending to process
@@ -1798,13 +1847,6 @@ public:
 	 *   @return void
 	 */
 	void setCurrentDrm(std::shared_ptr<AampDrmHelper> drm) { mCurrentDrm = drm; }
-
-	/**
-	 *   @brief Check if current  playback is from local TSB
-	 *
-	 *   @return true: yes, false: no
-	 */
-	bool IsLocalPlayback() { return mIsLocalPlayback; }
 
 #ifdef USE_SECCLIENT
 	/**
@@ -1946,6 +1988,12 @@ public:
 	void ConfigureWesterosSink();
 
 	/**
+	 *	 @brief To set license caching config
+	 *
+	 */
+	void ConfigureLicenseCaching();
+
+	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
 	 *   @param[in] preferred timeout value
@@ -1984,7 +2032,18 @@ public:
 	 *   @param[in] preferred bitrate.
 	 */
 	void SetVideoBitrate(long bitrate);
-
+	/**
+	*    @brief Get the Thumbnail Tile data.
+	*
+	*    @return string with Thumbnail information.
+	*/
+	std::string GetThumbnails(double start, double end);
+	/**
+	*    @brief Get available thumbnail tracks.
+	*
+	*    @return string with thumbnail track information.
+	*/
+	std::string GetThumbnailTracks();
 	/**
 	 *   @brief Get preferred bitrate for video.
 	 *
@@ -2102,8 +2161,9 @@ public:
 	 *   @brief Receives first video PTS of the current playback
 	 *
 	 *   @param[in]  pts - pts value
+	 *   @param[in]  timeScale - time scale (default 90000)
 	 */
-	void NotifyFirstVideoPTS(unsigned long long pts);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale = 90000);
 
 	/**
 	 *   @brief To send webvtt cue as an event
@@ -2256,6 +2316,14 @@ public:
 	void SetWesterosSinkConfig(bool bValue);
 
 	/**
+	 *	 @brief Set license caching
+	 *	 @param[in] bValue - true/false to enable/disable license caching
+	 *
+	 *	 @return void
+	 */
+	void SetLicenseCaching(bool bValue);
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled
@@ -2270,6 +2338,14 @@ public:
 	 *	 @return void
 	 */
 	void SetPropagateUriParameters(bool bValue);
+
+	/**
+	 *   @brief to configure disable ssl verify peer parameter
+	 *
+	 *   @param[in] bValue - default value: false
+	 *   @return void
+	 */
+	void SetSslVerifyPeerConfig(bool bValue);
 
 	/**
 	 *	 @brief Configure New ABR Enable/Disable
@@ -2670,6 +2746,38 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
+	/**
+	 *       @brief Disable Content Restrictions - unlock
+	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *       @param[in] eventChange - disable restriction handling till next program event boundary
+	 *
+	 *       @return void
+	 */
+	void DisableContentRestrictions(long grace=0, long time=-1, bool eventChange=false);
+
+	/**
+	 *       @brief Enable Content Restrictions - lock
+	 *       @return void
+	 */
+	void EnableContentRestrictions();
+
+
+	/**
+	 *   @brief Enable/disable configuration to persist ABR profile over Seek/SAP
+	 *
+	 *   @param[in] value - To enable/disable configuration
+	 *   @return void
+	 */
+	void PersistBitRateOverSeek(bool value);
+
+	/**
+	 *   @brief Get config for ABR profile persitenace over Seek/Audio Chg
+	 *
+	 *   @return bool - true if enabled
+	 */
+	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+
 private:
 
 	/**
@@ -2743,12 +2851,12 @@ private:
 	long long mPlayerLoadTime;
 	PrivAAMPState mState;
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
-	long long mLastDiscontinuityTimeMs;
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
 	std::shared_ptr<AampDrmHelper> mCurrentDrm;
 	int  mPersistedProfileIndex;
 	long mAvailableBandwidth;
 	bool mProcessingDiscontinuity[AAMP_TRACK_COUNT];
+	bool mIsDiscontinuityIgnored[AAMP_TRACK_COUNT];
 	bool mDiscontinuityTuneOperationInProgress;
 	ContentType mContentType;
 	bool mTunedEventPending;
@@ -2756,7 +2864,6 @@ private:
 	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
-	bool mIsLocalPlayback; /** indicates if the playback is from FOG(TSB/IP-DVR) */
 	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
 	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
 	char *mNetworkProxy;                /**< proxy for download requests */
@@ -2794,5 +2901,7 @@ private:
 	int mCacheMaxSize;
 	bool mEnableSeekableRange;
 	bool mReportVideoPTS;
+	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
+	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
 };
 #endif // PRIVAAMP_H
