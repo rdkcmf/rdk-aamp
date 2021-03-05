@@ -2095,7 +2095,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	if (mDRMSessionManager)
 	{
 		delete mDRMSessionManager;
-		mAampCacheHandler = NULL;
+		mDRMSessionManager = NULL;
 	}
 #endif
 	if(mCurlShared)
