@@ -475,25 +475,10 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 bool PlayerInstanceAAMP::IsValidRate(int rate)
 {
 	bool retValue = false;
-
-	switch(rate)
+	if (abs(rate) <= AAMP_RATE_TRICKPLAY_MAX)
 	{
-		case AAMP_RATE_REW_1X:
-		case AAMP_RATE_REW_2X:
-		case AAMP_RATE_REW_3X:
-		case AAMP_RATE_REW_4X:
-		case AAMP_RATE_PAUSE:
-		case AAMP_NORMAL_PLAY_RATE:
-		case AAMP_RATE_FWD_1X:
-		case AAMP_RATE_FWD_2X:
-		case AAMP_RATE_FWD_3X:
-		case AAMP_RATE_FWD_4X:
-		{
-			retValue = true;
-			break;
-		}
+		retValue = true;
 	}
-
 	return retValue;
 }
 

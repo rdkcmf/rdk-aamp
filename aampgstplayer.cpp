@@ -81,9 +81,6 @@ typedef enum {
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
-#define DEFAULT_VIDEO_RECTANGLE "0,0,0,0"
-#else
-#define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
 #define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
@@ -182,6 +179,8 @@ struct AAMPGstPlayerPriv
 	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
 	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
+	bool progressiveBufferingEnabled;
+	bool progressiveBufferingStatus;
 };
 
 /**
@@ -272,7 +271,19 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 
 		CreatePipeline();
 		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
+#ifdef INTELCE
+                strcpy(privateContext->videoRectangle, "0,0,0,0");
+#else
+                /* DELIA-45366-default video scaling should take into account actual graphics
+                 * resolution instead of assuming 1280x720.
+                 * By default we where setting the resolution has 0,0,1280,720.
+                 * For Full HD this default resolution will not scale to full size.
+                 * So, we no need to set any default rectangle size here,
+                 * since the video will display full screen, if a gstreamer pipeline is started
+                 * using the westerossink connected using westeros compositor.
+                 */
+                strcpy(privateContext->videoRectangle, "");
+#endif
 	}
 	else
 	{
@@ -1287,6 +1298,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_DURATION:
 	case GST_MESSAGE_LATENCY:
 	case GST_MESSAGE_NEW_CLOCK:
+	case GST_MESSAGE_ASYNC_DONE:
 		break;
 	case GST_MESSAGE_APPLICATION:
 		const GstStructure *msgS;
@@ -1295,6 +1307,39 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			logprintf("Received HDCPProtectionFailure event.Schedule Retune ");
 			_this->Flush(0, AAMP_NORMAL_PLAY_RATE, true);
 			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
+		}
+		break;
+	case GST_MESSAGE_BUFFERING:
+		{
+			if (_this->privateContext->progressiveBufferingEnabled)
+			{
+				gint percent;
+				gst_message_parse_buffering (msg, &percent);
+				traceprintf("Buffering: %d", percent);
+				if (percent == 100)
+				{
+					_this->privateContext->progressiveBufferingStatus = false;
+					if (_this->privateContext->buffering_target_state == GST_STATE_PLAYING)
+					{
+						gst_element_set_state(_this->privateContext->pipeline, GST_STATE_PLAYING);
+					}
+					else
+					{
+						AAMPLOG_WARN("Received GST_MESSAGE_BUFFERING with percent: %d and buffering_target_state: %d",
+									percent, _this->privateContext->buffering_target_state);
+					}
+					_this->aamp->SendBufferChangeEvent(false);
+				}
+				else
+				{
+					if (!_this->privateContext->progressiveBufferingStatus)
+					{
+						gst_element_set_state(_this->privateContext->pipeline, GST_STATE_PAUSED);
+						_this->aamp->SendBufferChangeEvent(true);
+					}
+					_this->privateContext->progressiveBufferingStatus = true;
+				}
+			}
 		}
 		break;
 	default:
@@ -1565,6 +1610,8 @@ bool AAMPGstPlayer::CreatePipeline()
 #if defined(REALTEKCE)
 			privateContext->audioSinkAsyncEnabled = FALSE;
 #endif
+			privateContext->progressiveBufferingEnabled = false;
+			privateContext->progressiveBufferingStatus = false;
 			if (privateContext->positionQuery == NULL)
 			{
 				privateContext->positionQuery = gst_query_new_position(GST_FORMAT_TIME);
@@ -1954,6 +2001,11 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 #else
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
+		if(_this->aamp->getStreamType() == 30)
+		{
+			flags |= GST_PLAY_FLAG_DOWNLOAD;
+		}
+
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
 		if((_this->aamp->getStreamType() != 30) ||  gpGlobalConfig->useAppSrcForProgressivePlayback)
 		{
@@ -2576,7 +2628,22 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		}
 	}
 
-	if (this->privateContext->buffering_enabled && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
+	// For progressive playback, buffer management is done by GStreamer
+	// This might change in future, which can be achieved using appsrc and curl
+	// So we enable GST_MESSAGE_BUFFERING based buffering logic
+	if (aamp->getStreamType() == 30)
+	{
+		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
+		this->privateContext->buffering_in_progress = false;
+		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
+		{
+			logprintf("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
+		}
+		privateContext->pendingPlayState = false;
+		privateContext->progressiveBufferingEnabled = true;
+		privateContext->progressiveBufferingStatus = true;
+	}
+	else if (this->privateContext->buffering_enabled && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
 		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
 		this->privateContext->buffering_in_progress = true;

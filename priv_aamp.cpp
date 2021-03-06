@@ -933,6 +933,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->logging.info = true;
 			logprintf("info logging %s", gpGlobalConfig->logging.info ? "on" : "off");
 		}
+		else if (cfg.compare("stream") == 0) 
+		{
+			gpGlobalConfig->logging.stream = true;
+			logprintf("stream logging %s", gpGlobalConfig->logging.stream ? "on" : "off");
+		}
 		else if (cfg.compare("failover") == 0)
 		{
 			gpGlobalConfig->logging.failover = true;
@@ -1957,6 +1962,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mProgramDateTime (0)
 	, mConfig (config)
 {
 	LazilyLoadConfigIfNeeded();
@@ -2098,7 +2104,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	if (mDRMSessionManager)
 	{
 		delete mDRMSessionManager;
-		mAampCacheHandler = NULL;
+		mDRMSessionManager = NULL;
 	}
 #endif
 	if(mCurlShared)
@@ -2295,7 +2301,8 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	// Issue observed when culled position reaches the paused position during lightning trickplay and player resumes the playback with paused position as playback position ignoring XRE shown position.
 	// Fix checks if the player is put into paused state with lighting mode(by checking last stored rate). 
   	// In this state player will not come out of Paused state, even if the culled position reaches paused position.
-	if (pipeline_paused && mpStreamAbstractionAAMP && (rate != AAMP_RATE_FWD_4X) && (rate != AAMP_RATE_REW_4X))
+	// The rate check is a special case for a specific player, if this is contradicting to other players, we will have to add a config to enable/disable
+	if (pipeline_paused && mpStreamAbstractionAAMP && (abs(rate) != AAMP_RATE_TRICKPLAY_MAX))
 	{
 		double position = GetPositionMilliseconds() / 1000.0; // in seconds
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
@@ -3692,7 +3699,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
-		AAMPLOG_INFO("aamp url:%d,%d,%d,%s", mediaType, simType, curlInstance, remoteUrl.c_str());
+		AAMPLOG_INFO("aamp url:%d,%d,%d,%f,%s", mediaType, simType, curlInstance,fragmentDurationSeconds, remoteUrl.c_str());
 		CurlCallbackContext context;
 		if (curl)
 		{
@@ -4912,6 +4919,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	trickStartUTCMS = -1;
 
 	double playlistSeekPos = seek_pos_seconds - culledSeconds;
+	AAMPLOG_INFO("%s:%d playlistSeek : %f seek_pos_seconds:%f culledSeconds : %f ",__FUNCTION__,__LINE__,playlistSeekPos,seek_pos_seconds,culledSeconds);
 	if (playlistSeekPos < 0)
 	{
 		playlistSeekPos = 0;
@@ -5025,7 +5033,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 #ifndef AAMP_STOP_SINK_ON_SEEK
-		logprintf("%s:%d Updated seek_pos_seconds %f \n",__FUNCTION__,__LINE__, seek_pos_seconds);
+		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
 #endif
 		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
 		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d mAuxFormat %d", mVideoFormat, mAudioFormat, mAuxFormat);
@@ -5143,7 +5151,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
-	mLogTimetoTopProfile = true;	
+	mLogTimetoTopProfile = true;
+	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
+	// reused 
+	mProgramDateTime = 0;
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
@@ -5410,7 +5421,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
         {
                 rc = eMEDIAFORMAT_COMPOSITE;
         }
-        else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0))
+        else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0) || (urlStr.rfind("mr:",0)==0))
         {
                 rc = eMEDIAFORMAT_OTA;
         }
@@ -6989,6 +7000,15 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		else if (!gpGlobalConfig->internalReTune)
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
+			return;
+		}
+
+		// Ignore for eMEDIAFORMAT_PROGRESSIVE, as the buffer management is done within GStreamer and AAMP plays no part
+		// For all kinds of errors called with ScheduleRetune there is no valid scenario for progressive playback
+		// The only debatable one being, eGST_ERROR_GST_PIPELINE_INTERNAL. This was again brought in for a specific player use-case
+		if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+		{
+			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as it's a progressive file playback", __FUNCTION__, __LINE__);
 			return;
 		}
 

@@ -1345,7 +1345,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
-	if(video->enabled)
+	if(video && video->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download 
 		// If buffer is low , set timeout less than the buffer availability
@@ -1366,7 +1366,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 			AAMPLOG_INFO("Setting Video timeout to :%ld %f",timeoutMs,vBufferDuration);
 		}
 	}
-	if(audio->enabled)
+	if(audio && audio->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download
 		// If buffer is low , set timeout less than the buffer availability

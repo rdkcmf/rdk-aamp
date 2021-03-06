@@ -427,7 +427,7 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
     JsonObject param;
     JsonObject properties;
 
-    if(aamp->preferredLanguagesList.size() > 0) {
+    if(0 != aamp->preferredLanguagesString.length()) {
         properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
         param["properties"] = properties;
         mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
@@ -629,6 +629,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 	attributesArray.Add("contentType"); // Track content type e.g "HEARING_IMPAIRED", "EASY_READER"
 	attributesArray.Add("ccServiceNumber"); // Set to 1-63 for 708 CC Subtitles and 0 for 608
 	attributesArray.Add("isSelected"); // Is Currently selected track
+	attributesArray.Add("ccTypeIs708"); // Is Currently selected track
 
 	param["id"] = APP_ID;
 	param["attributes"] = attributesArray;
@@ -659,22 +660,31 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 
 			ccServiceNumber = textData["ccServiceNumber"].Number();
 			/*Plugin info : ccServiceNumber	int Set to 1-63 for 708 CC Subtitles and 0 for 608*/
-			if(0 == ccServiceNumber)
+			if(textData["ccTypeIs708"].Boolean())
 			{
-				/*608 CC - Appending with incremented ccIndex*/
-				/*To Do : check whether plugin can provide a better way to identify 608 and 708 captions*/
-				serviceNo = "CC";
-				serviceNo.append(std::to_string(ccIndex));
-			}
-			else if((ccServiceNumber >= 1) && (ccServiceNumber <= 63))
-			{
-				/*708 CC*/
-				serviceNo = "SERVICE";
-				serviceNo.append(std::to_string(ccServiceNumber));
+				if((ccServiceNumber >= 1) && (ccServiceNumber <= 63))
+				{
+					/*708 CC*/
+					serviceNo = "SERVICE";
+					serviceNo.append(std::to_string(ccServiceNumber));
+				}
+				else
+				{
+					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 708 CC", __FUNCTION__, __LINE__);
+				}
 			}
 			else
 			{
-				/*No information on service number. Will return empty string*/
+				if((ccServiceNumber >= 1) && (ccServiceNumber <= 4))
+				{
+					/*608 CC*/
+					serviceNo = "CC";
+					serviceNo.append(std::to_string(ccServiceNumber));
+				}
+				else
+				{
+					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 608 CC", __FUNCTION__, __LINE__);
+				}
 			}
 
 			txtTracks.push_back(TextTrackInfo(index, languageCode, true, empty, textData["name"].String(), serviceNo, empty, (int)textData["pk"].Number()));
