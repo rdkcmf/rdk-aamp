@@ -1190,9 +1190,10 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 		{
 			/** flag for authToken set externally by app **/
 			bool usingAppDefinedAuthToken = !aampInstance->mSessionToken.empty();
+			bool anonymouslicReq 	=	 aampInstance->mConfig->IsConfigSet(eAAMPConfig_AnonymousLicenseRequest);
 			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 
-			if (!(drmHelper->getDrmMetaData().empty() || gpGlobalConfig->licenseAnonymousRequest))
+			if (!(drmHelper->getDrmMetaData().empty() || anonymouslicReq))
 			{
 				AampMutexHold accessTokenMutexHold(accessTokenMutex);
 
@@ -1234,6 +1235,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			AampLicenseRequest licenseRequest;
 			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
 			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
+			licenseRequest.licenseAnonymousRequest = anonymouslicReq;
 			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
 			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
 			{

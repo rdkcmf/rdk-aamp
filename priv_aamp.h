@@ -52,6 +52,7 @@
 #include <algorithm>
 #include <glib.h>
 #include <cjson/cJSON.h>
+#include "AampConfig.h"
 
 static const char *mMediaFormatName[] =
 {
@@ -695,6 +696,7 @@ public:
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
+	AampConfig *mConfig;
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1414,7 +1416,7 @@ public:
 	/**
 	 * @brief PrivateInstanceAAMP Constructor
 	 */
-	PrivateInstanceAAMP();
+	PrivateInstanceAAMP(AampConfig *config=NULL);
 
 	/**
 	 * @brief PrivateInstanceAAMP Destructor

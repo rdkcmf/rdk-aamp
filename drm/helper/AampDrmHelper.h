@@ -41,7 +41,7 @@ struct AampChallengeInfo
 
 struct AampLicenseRequest
 {
-	AampLicenseRequest() : method(), url(), payload(), headers()
+	AampLicenseRequest() : method(), url(), payload(), headers(),licenseAnonymousRequest(false)
 	{}
 	enum LicenseMethod
 	{
@@ -51,6 +51,7 @@ struct AampLicenseRequest
 	};
 
 	LicenseMethod method;
+	bool licenseAnonymousRequest;
 	std::string url;
 	std::string payload;
 	std::unordered_map<std::string, std::vector<std::string>> headers;

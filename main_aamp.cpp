@@ -43,6 +43,8 @@
 #include <regex>
 #endif //WIN32
 
+AampConfig *gpGlobalAampConfig=NULL;
+
 #define ERROR_STATE_CHECK_VOID() \
 	PrivAAMPState state; \
 	aamp->GetState(state); \
@@ -92,8 +94,7 @@
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),
-	mAsyncRunning(false)
+	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
@@ -104,7 +105,23 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	mJSBinding_DL = dlopen(szJSLib, RTLD_GLOBAL | RTLD_LAZY);
 	logprintf("[AAMP_JS] dlopen(\"%s\")=%p", szJSLib, mJSBinding_DL);
 #endif
-	aamp = new PrivateInstanceAAMP();
+
+	// Create very first instance of Aamp Config to read the cfg & Operator file .This is needed for very first
+	// tune only . After that every tune will use the same config parameters
+	if(gpGlobalAampConfig == NULL)
+	{
+		logprintf("[AAMP_JS][%p]Creating global Config Instance",this);
+		gpGlobalAampConfig =  new AampConfig();
+		gpGlobalAampConfig->ReadAampCfgTxtFile();
+		gpGlobalAampConfig->ReadOperatorConfiguration();
+		gpGlobalAampConfig->ReadAampCfgJsonFile();
+		gpGlobalAampConfig->ShowAAMPConfiguration();
+	}
+
+	// Copy the default configuration to session configuration .App can modify the configuration set
+	mConfig = *gpGlobalAampConfig;
+
+	aamp = new PrivateInstanceAAMP(&mConfig);
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(aamp
@@ -182,6 +199,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalConfig);
 		delete gpGlobalConfig;
 		gpGlobalConfig = NULL;
+	}
+	
+	if(gpGlobalAampConfig)
+	{
+		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalAampConfig);
+		delete gpGlobalAampConfig;
 	}
 }
 
@@ -1129,7 +1152,7 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetAnonymousRequest(isAnonymous);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AnonymousLicenseRequest,isAnonymous);
 }
 
 /**

@@ -50,6 +50,7 @@
 #include "AampDrmSystems.h"
 #include "AampMediaType.h"
 #include "AampScheduler.h"
+#include "AampConfig.h"
 
 /*! \mainpage
  *
@@ -1421,6 +1422,8 @@ public:
 	std::string GetThumbnails(double sduration, double eduration);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
+
+	AampConfig mConfig;
 private:
 
 	/**
