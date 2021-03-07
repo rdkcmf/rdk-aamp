@@ -24,6 +24,7 @@
 
 #include "StreamAbstractionAAMP.h"
 #include "AampUtils.h"
+#include "AampCacheHandler.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -32,6 +33,12 @@
 #include <cmath>
 
 #define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for MSO specific linear streams.
+
+// checks if current state is going to use IFRAME ( Fragment/Playlist )
+#define IS_FOR_IFRAME(rate, type) ((type == eTRACK_VIDEO) && (rate != AAMP_NORMAL_PLAY_RATE))
+
+#define MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (6000)
+#define MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS (500) // 500mSec
 
 using namespace std;
 
@@ -49,6 +56,72 @@ static void* BufferHealthMonitor(void* user_data)
 	}
 	track->MonitorBufferHealth();
 	return NULL;
+}
+
+/**
+ * @brief Abort wait for playlist download
+ *
+ * @return void
+ */
+void MediaTrack::AbortWaitForPlaylistDownload()
+{
+	if(playlistDownloaderThreadStarted)
+	{
+		plDownloaderSignal.notify_one();
+	}
+	else
+	{
+		AAMPLOG_ERR("%s[%s] Playlist downloader thread not started", __FUNCTION__, name);
+	}
+}
+
+
+/**
+ * @brief Start playlist downloader loop
+ *
+ * @return void
+ */
+void MediaTrack::StartPlaylistDownloaderThread()
+{
+	AAMPLOG_TRACE("%s:%d Starting playlist downloader for %s", __FUNCTION__, __LINE__, name);
+	if(!playlistDownloaderThreadStarted)
+	{
+		// Start a new thread for this track
+		if(NULL == playlistDownloaderThread)
+		{
+			// Set thread abort flag to false and start the thread.
+			abortPlaylistDownloader = false;
+			playlistDownloaderThread = new std::thread(&MediaTrack::PlaylistDownloader, this);
+			playlistDownloaderThreadStarted = true;
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d Failed to start thread, already initialized for %s", __FUNCTION__, __LINE__, name);
+		}
+	}
+	else
+	{
+		AAMPLOG_INFO("%s Thread already running for %s", __FUNCTION__, name);
+	}
+}
+
+/**
+ * @brief Stop playlist downloader loop
+ *
+ * @return void
+ */
+void MediaTrack::StopPlaylistDownloaderThread()
+{
+	if ((playlistDownloaderThread) && (playlistDownloaderThread->joinable()))
+	{
+		abortPlaylistDownloader = true;
+		AbortWaitForPlaylistDownload();
+		playlistDownloaderThread->join();
+		delete playlistDownloaderThread;
+		playlistDownloaderThread = NULL;
+		playlistDownloaderThreadStarted = false;
+		AAMPLOG_WARN("%s[%s] Aborted", __FUNCTION__, name);
+	}
 }
 
 /**
@@ -884,6 +957,9 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
 		mSubtitleParser(NULL), refreshSubtitles(false)
+		,abortPlaylistDownloader(true), playlistDownloaderThreadStarted(false), plDownloaderSignal()
+		,plDwnldMutex(), playlistDownloaderThread(NULL), playlistProcessMutex(), playlistProcessLock(playlistProcessMutex, std::defer_lock)
+		, fragmentCollectorWaitingForPlaylistUpdate(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -2548,4 +2624,319 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchupForAux()
 		AAMPLOG_WARN("%s:%d :  video  is null", __FUNCTION__, __LINE__);  //CID:85054 - Null Returns
 	}
 	pthread_mutex_unlock(&mLock);
+}
+
+/**
+ * @brief To acquire playlist process lock for synchronisation purposes
+ *
+ * @return void
+ */
+void MediaTrack::AcquirePlaylistLock()
+{
+	playlistProcessLock.lock();
+}
+
+/**
+ * @brief To release playlist process lock
+ *
+ * @return void
+ */
+void MediaTrack::ReleasePlaylistLock()
+{
+	playlistProcessLock.unlock();
+}
+
+/**
+ * @brief Returns playlist type of track
+ *
+ * @param[in] type - track type
+ * @param[in] isIframe - Flag to indiacte whether the track is iframe or not
+ *
+ * @return Mediatype - Returns type of playlist, Default is manifest(for DASH)
+ */
+MediaType MediaTrack::GetPlaylistMediaTypeFromTrack(TrackType type, bool isIframe)
+{
+		MediaType playlistType = eMEDIATYPE_MANIFEST;
+		// For DASH, return playlist type as manifest
+		if(eMEDIAFORMAT_DASH != aamp->mMediaFormat)
+		{
+			if(isIframe)
+			{
+				playlistType = eMEDIATYPE_PLAYLIST_IFRAME;
+			}
+			else if (type == eTRACK_AUDIO )
+			{
+				playlistType = eMEDIATYPE_PLAYLIST_AUDIO;
+			}
+			else if (type == eTRACK_SUBTITLE)
+			{
+				playlistType = eMEDIATYPE_PLAYLIST_SUBTITLE;
+			}
+			else if (type == eTRACK_AUX_AUDIO)
+			{
+				playlistType = eMEDIATYPE_PLAYLIST_AUX_AUDIO;
+			}
+			else if (type == eTRACK_VIDEO)
+			{
+				playlistType = eMEDIATYPE_PLAYLIST_VIDEO;
+			}
+		}
+		return playlistType;
+}
+
+/**
+ * @brief Wait until timeout is reached or interrupted
+ *
+ * @param[in] timeInMs timeout in milliseconds
+ * @return void
+ */
+void MediaTrack::EnterTimedWaitForPlaylistRefresh(int timeInMs)
+{
+	if(timeInMs > 0)
+	{
+		std::unique_lock<std::mutex> lock(plDwnldMutex);
+		if(plDownloaderSignal.wait_for(lock, std::chrono::milliseconds(timeInMs)) == std::cv_status::timeout)
+		{
+			AAMPLOG_TRACE("%s[%s] timeout exceeded %d", __FUNCTION__, name, timeInMs); // make it trace
+		}
+		else
+		{
+			AAMPLOG_TRACE("%s[%s] Signalled conditional wait", __FUNCTION__, name); // TRACE
+		}
+	}
+}
+
+/**
+ * @brief Playlist downloader
+ *
+ * @return void
+ */
+void MediaTrack::PlaylistDownloader()
+{
+	MediaType mediaType = GetPlaylistMediaTypeFromTrack(type, IS_FOR_IFRAME(aamp->rate,type));
+	std::string trackName = aamp->MediaTypeString(mediaType);
+	int updateDuration = 0, liveRefreshTimeOutInMs = 0 ;
+	updateDuration = (int) GetMinUpdateDuration();
+	long long lastPlaylistDownloadTimeMS = 0;
+	bool quickPlaylistDownload = false;
+	AAMPLOG_WARN("%s[%s] : Enter, track '%s'", __FUNCTION__, trackName.c_str(), name);
+	do
+	{
+		/* TIMEOUT WAIT LOGIC
+		 *
+		 * Skipping this for VOD contents.
+		 * Cases : When player attempts ABR, Player rampdown for retry logic
+		 * 			Subtitle language change is requested
+		 * quickPlaylistDownload is enabled under above cases for live refresh.
+		 *
+		 */
+		if(aamp->IsLive() && !quickPlaylistDownload)
+		{
+			lastPlaylistDownloadTimeMS = GetLastPlaylistDownloadTime();
+			liveRefreshTimeOutInMs = updateDuration - (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
+			if(liveRefreshTimeOutInMs <= 0 && aamp->IsLive() && aamp->rate > 0)
+			{
+				AAMPLOG_INFO("%s[%s] Refreshing playlist as it exceeded download timeout",__FUNCTION__, trackName.c_str());
+			}
+			else
+			{
+				liveRefreshTimeOutInMs = WaitTimeBasedOnBufferAvailable();
+				EnterTimedWaitForPlaylistRefresh(liveRefreshTimeOutInMs);
+			}
+		}
+
+		/* PLAYLIST DOWNLOAD LOGIC
+		 *
+		 * Proceed if downloads are enabled.
+		 *
+		 */
+		if(aamp->DownloadsAreEnabled())
+		{
+			GrowableBuffer manifest;
+			AAMPStatusType status = AAMPStatusType::eAAMPSTATUS_OK;
+			// reset quickPlaylistDownload for live playlist
+			quickPlaylistDownload = false;
+			std::string manifestUrl = GetPlaylistUrl();
+			// take the original url before it gets changed in GetFile
+			std::string effectiveUrl = GetEffectivePlaylistUrl();
+			bool gotManifest = false;
+			long http_error = 0;
+			double downloadTime;
+			memset(&manifest, 0, sizeof(manifest));
+
+			/*
+			 *
+			 * FOR HLS, This should be called here
+			 * FOR DASH, We can move this to ProcessPlaylist(), after getting MPD doc
+			 *
+			 */
+			long long lastPlaylistDownloadTime = aamp_GetCurrentTimeMS();
+			SetLastPlaylistDownloadTime(lastPlaylistDownloadTime);
+
+			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, effectiveUrl))
+			{
+				aamp->mManifestUrl = effectiveUrl;
+				AAMPLOG_INFO("%s:%d manifest[%s] retrieved from cache", __FUNCTION__, __LINE__, trackName.c_str());
+			}
+			else
+			{
+				//aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
+
+				AampCurlInstance curlInstance = aamp->GetPlaylistCurlInstance(mediaType, false);
+				// Enable downloads of mediaType if disabled
+				if(!aamp->mMediaDownloadsEnabled[mediaType])
+				{
+					aamp->EnableMediaDownloads(mediaType);
+				}
+				gotManifest = aamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, &downloadTime, NULL, curlInstance, true, mediaType);
+
+				//update videoend info
+				aamp->UpdateVideoEndMetrics(mediaType,0,http_error,effectiveUrl,downloadTime);
+				if (gotManifest)
+				{
+					/*
+					 * TODO:: Profiler part
+					 */
+					aamp->mManifestUrl = manifestUrl;
+				}
+			}
+
+
+			// Acquire playlist process lock, Process Playlist
+			AcquirePlaylistLock();
+			ProcessPlaylist(manifest, http_error);
+			ReleasePlaylistLock();
+
+			if(fragmentCollectorWaitingForPlaylistUpdate)
+			{
+				// Signal fragment collector to abort it's wait for playlist process
+				AbortWaitForPlaylistDownload();
+				fragmentCollectorWaitingForPlaylistUpdate = false;
+			}
+
+			// Check whether downloads are still enabled after processing playlist
+			if (aamp->DownloadsAreEnabled())
+			{
+				if (!aamp->mMediaDownloadsEnabled[mediaType])
+				{
+					AAMPLOG_ERR("%s[%s] Aborted playlist download by callback, retrying..", __FUNCTION__, trackName.c_str());
+					// Download playlist without any wait
+					quickPlaylistDownload = true;
+				}
+				/*
+					* TODO:: Profile error
+					* 		Send proper error event.
+					*/
+				// aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
+			}
+			else // if downloads disabled
+			{
+				AAMPLOG_ERR("%s[%s] : Downloads are disabled, exitting", __FUNCTION__, trackName.c_str());
+				abortPlaylistDownloader = true;
+			}
+		}
+		else
+		{
+			if(fragmentCollectorWaitingForPlaylistUpdate)
+			{
+				// Abort fragment collector wait for playlist process while exiting
+				AbortWaitForPlaylistDownload();
+				fragmentCollectorWaitingForPlaylistUpdate = false;
+			}
+			AAMPLOG_ERR("%s[%s] : Downloads are disabled, exitting", __FUNCTION__, trackName.c_str());
+			abortPlaylistDownloader = true;
+		}
+	} while (!abortPlaylistDownloader); // abortPlaylistDownloader is true by default, made for VOD playlist.
+
+	AAMPLOG_WARN("%s[%s] : Exit", __FUNCTION__, trackName.c_str());
+}
+
+/**
+ * @brief Wait time for playlist refresh based on buffer available
+ *
+ * @return minDelayBetweenPlaylistUpdates - wait time for playlist refresh
+ */
+int MediaTrack::WaitTimeBasedOnBufferAvailable()
+{
+	long long lastPlaylistDownloadTimeMS = GetLastPlaylistDownloadTime();
+	int minDelayBetweenPlaylistUpdates = 0;
+	if (lastPlaylistDownloadTimeMS)
+	{
+		minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+		int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
+		long long currentPlayPosition = aamp->GetPositionMilliseconds();
+		long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
+		// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation
+		// So using the endposition in playlist - Current playing position to get the buffer availability
+		long bufferAvailable = (endPositionAvailable - currentPlayPosition);
+		//Get Minimum update duration in milliseconds
+		long minUpdateDuration = GetMinUpdateDuration();
+
+		// If buffer Available is > 2*minUpdateDuration
+		if(bufferAvailable  > (minUpdateDuration*2) )
+		{
+			// may be 1.0 times also can be set ???
+			minDelayBetweenPlaylistUpdates = (int)(1.5 * minUpdateDuration);
+		}
+		// if buffer is between 2*target & mMinUpdateDurationMs
+		else if(bufferAvailable  > minUpdateDuration)
+		{
+			minDelayBetweenPlaylistUpdates = (int)(0.5 * minUpdateDuration);
+		}
+		// This is to handle the case where target duration is high value(>Max delay)  but buffer is available just above the max update inteval
+		else if(bufferAvailable > (2*MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS))
+		{
+			minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+		}
+		// if buffer < targetDuration && buffer < MaxDelayInterval
+		else
+		{
+			// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze
+			// need to refresh soon ..
+			if(bufferAvailable)
+			{
+				minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ;
+			}
+			else
+			{
+				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS; // 500mSec
+			}
+			// limit the logs when buffer is low
+			{
+				static int bufferlowCnt;
+				if((bufferlowCnt++ & 5) == 0)
+				{
+					logprintf("Buffer is running low(%ld).Refreshing playlist(%d).PlayPosition(%lld) End(%lld)",
+						bufferAvailable,minDelayBetweenPlaylistUpdates,currentPlayPosition,endPositionAvailable);
+				}
+			}
+
+		}
+
+		// First cap max limit ..
+		// remove already consumed time from last update
+		// if time interval goes negative, limit to min value
+
+		// restrict to Max delay interval
+		if (minDelayBetweenPlaylistUpdates > MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
+		{
+			minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+		}
+
+		// adjust with last refreshed time interval
+		minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
+
+		if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
+		{
+			// minimum of 500 mSec needed to avoid too frequent download.
+			minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+		}
+
+		AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) delay(%d) delta(%d) End(%lld) PlayPosition(%lld)",
+			bufferAvailable,minDelayBetweenPlaylistUpdates,timeSinceLastPlaylistDownload,endPositionAvailable,currentPlayPosition);
+
+		// sleep before next manifest update
+		// aamp->InterruptableMsSleep();
+	}
+	return minDelayBetweenPlaylistUpdates;
 }

@@ -189,8 +189,9 @@ struct CurlCallbackContext
 struct CurlProgressCbContext
 {
 	PrivateInstanceAAMP *aamp;
-	CurlProgressCbContext() : aamp(NULL), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
-	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
+	MediaType fileType;
+	CurlProgressCbContext() : aamp(NULL), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), fileType(eMEDIATYPE_DEFAULT) {}
+	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), fileType(eMEDIATYPE_DEFAULT) {}
 	long long downloadStartTime;
 	long long downloadUpdatedTime;
 	long startTimeout;
@@ -1581,7 +1582,7 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 	size_t ret = 0;
 	CurlCallbackContext *context = (CurlCallbackContext *)userdata;
 	pthread_mutex_lock(&context->aamp->mLock);
-	if (context->aamp->mDownloadsEnabled)
+	if (context->aamp->mDownloadsEnabled && context->aamp->mMediaDownloadsEnabled[context->fileType])
 	{
 		size_t numBytesForBlock = size*nmemb;
 		aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
@@ -1765,7 +1766,7 @@ static int progress_callback(
 	CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
 	int rc = 0;
 	context->aamp->SyncBegin();
-	if (!context->aamp->mDownloadsEnabled)
+	if (!context->aamp->mDownloadsEnabled && context->aamp->mMediaDownloadsEnabled[context->fileType])
 	{
 		rc = -1; // CURLE_ABORTED_BY_CALLBACK
 	}
@@ -1957,6 +1958,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mMediaDownloadsEnabled()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2046,6 +2048,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	}
 	pthread_mutex_unlock(&gMutex);
 
+	mMediaDownloadsEnabled.clear();
 	pthread_mutex_lock(&mLock);
 	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
 	{
@@ -2056,7 +2059,6 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 			delete pListener;
 		}
 	}
-
 	if (mNetworkProxy)
 	{
 		free(mNetworkProxy);
@@ -3446,8 +3448,7 @@ void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int insta
  */
 AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bool isInitialDownload)
 {
-	AampCurlInstance retType = eCURLINSTANCE_MANIFEST_PLAYLIST;
-	bool indivCurlInstanceFlag = false;
+	AampCurlInstance retType = eCURLINSTANCE_MANIFEST_MAIN;
 
 	//DELIA-41646
 	// logic behind this function :
@@ -3455,24 +3456,23 @@ AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bo
 	// b. Based on the decision flag is considerd . mParallelFetchPlaylist for Init and mParallelFetchPlaylistRefresh
 	//	  for refresh
 	// c. If respective configuration is enabled , then associate separate curl for each track type
-	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_PLAYLIST)
-
-	indivCurlInstanceFlag = isInitialDownload ? mParallelFetchPlaylist : mParallelFetchPlaylistRefresh;
-	if(indivCurlInstanceFlag)
+	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_MAIN)
+	if(!isInitialDownload || mParallelFetchPlaylist)
 	{
 		switch(type)
 		{
 			case eMEDIATYPE_PLAYLIST_VIDEO:
-				retType = eCURLINSTANCE_VIDEO;
+			case eMEDIATYPE_PLAYLIST_IFRAME:
+				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_VIDEO;
 				break;
 			case eMEDIATYPE_PLAYLIST_AUDIO:
-				retType = eCURLINSTANCE_AUDIO;
+				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_AUDIO;
 				break;
 			case eMEDIATYPE_PLAYLIST_SUBTITLE:
-				retType = eCURLINSTANCE_SUBTITLE;
+				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_SUBTITLE;
 				break;
 			case eMEDIATYPE_PLAYLIST_AUX_AUDIO:
-				retType = eCURLINSTANCE_AUX_AUDIO;
+				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_AUX_AUDIO;
 				break;
 			default:
 				break;
@@ -3716,6 +3716,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
+			progressCtx.fileType = simType;
 			//Disable download stall detection checks for FOG playback done by JS PP
 			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
@@ -4840,6 +4841,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		lastUnderFlowTimeMs[i] = 0;
 	}
 	LazilyLoadConfigIfNeeded();
+	EnableAllMediaDownloads();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
@@ -5484,7 +5486,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		long bitrate;
 		int fogError;
 
-		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
+		CurlInit(eCURLINSTANCE_MANIFEST_MAIN, 1, GetNetworkProxy());
 
 		bool gotManifest = GetFile(
 							url,
@@ -5494,7 +5496,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 							&downloadTime,
 							"0-100", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
-							eCURLINSTANCE_MANIFEST_PLAYLIST,
+							eCURLINSTANCE_MANIFEST_MAIN,
 							false,
 							eMEDIATYPE_MANIFEST,
 							&bitrate,
@@ -10290,6 +10292,43 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
 	else
 	{
 		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
+	}
+}
+
+
+/**
+ * @brief Enable download activity for individual mediaType
+ *
+ * @param[in] MediaType - playlist type
+ * @return void
+ */
+void PrivateInstanceAAMP::EnableMediaDownloads(MediaType type)
+{
+	mMediaDownloadsEnabled[type] = true;
+}
+
+/**
+ * @brief Disable download activity for individual mediaType
+ *
+ * @param[in] MediaType - playlist type
+ * @return void
+ */
+void PrivateInstanceAAMP::DisableMediaDownloads(MediaType type)
+{
+	mMediaDownloadsEnabled[type] = false;
+}
+
+/**
+ * @brief Enable Download activity for all mediatypes
+ *
+ * @return void
+ */
+void PrivateInstanceAAMP::EnableAllMediaDownloads()
+{
+	for (int i = 0; i <= eMEDIATYPE_DEFAULT; i++)
+	{
+		// Enable downloads for all mediaTypes
+		EnableMediaDownloads((MediaType) i);
 	}
 }
 

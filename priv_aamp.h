@@ -148,7 +148,11 @@ enum AampCurlInstance
 	eCURLINSTANCE_AUDIO,
 	eCURLINSTANCE_SUBTITLE,
 	eCURLINSTANCE_AUX_AUDIO,
-	eCURLINSTANCE_MANIFEST_PLAYLIST,
+	eCURLINSTANCE_MANIFEST_MAIN,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_VIDEO,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_AUDIO,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_SUBTITLE,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_AUX_AUDIO,
 	eCURLINSTANCE_DAI,
 	eCURLINSTANCE_AES,
 	eCURLINSTANCE_PLAYLISTPRECACHE,
@@ -553,6 +557,29 @@ public:
 	 */
 	void SetOnTuneRate(const int rate);
 
+	/**
+	 * @brief Enable downloads for different playlists
+	 *
+	 * @param[in] MediaType - playlist type
+	 * @return void
+	 */
+	void EnableMediaDownloads(MediaType type);
+
+	/**
+	 * @brief Disable downloads for different playlists
+	 *
+	 * @param[in] MediaType - playlist type
+	 * @return void
+	 */
+	void DisableMediaDownloads(MediaType type);
+
+	/**
+	 * @brief Enable Download activity for all mediatypes
+	 *
+	 * @return void
+	 */
+	void EnableAllMediaDownloads();
+
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
@@ -570,6 +597,7 @@ public:
 	StreamOutputFormat mPreviousAudioType; /* Used to maintain previous audio type of HLS playback */
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
+	std::map<MediaType, bool> mMediaDownloadsEnabled; /* Used to enable/Disable individual mediaType downloads */
 	StreamSink* mStreamSink;
 
 	ProfileEventAAMP profiler;

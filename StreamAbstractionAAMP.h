@@ -161,6 +161,126 @@ public:
 	void StopInjectLoop();
 
 	/**
+	 * @brief Stop playlist downloader loop
+	 *
+	 * @return void
+	 */
+	void StopPlaylistDownloaderThread();
+
+	/**
+	 * @brief Start playlist downloader loop
+	 *
+	 * @return void
+	 */
+	void StartPlaylistDownloaderThread();
+
+	/**
+	 * @brief Abort wait for playlist download
+	 *
+	 * @return void
+	 */
+	void AbortWaitForPlaylistDownload();
+
+	/**
+	 * @brief Playlist downloader loop
+	 *
+	 * @return void
+	 */
+	void PlaylistDownloader();
+
+	/**
+	 * @brief Wait time for playlist refresh based on buffer available
+	 *
+	 * @return minDelayBetweenPlaylistUpdates - wait time for playlist refresh
+	 */
+	int WaitTimeBasedOnBufferAvailable();
+
+	/**
+	 * @brief Process downloaded playlist
+	 *
+	 * @param[in] newPlaylist - newly downloaded playlist buffer
+	 * @param[in] http_error - Download response code
+	 *
+	 * @return void
+	 */
+	virtual void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error) = 0;
+
+	/**
+	 * @brief Returns playlist URL
+	 *
+	 * @return URL string
+	 */
+	virtual std::string& GetPlaylistUrl() = 0;
+
+	/**
+	 * @brief Returns the MPD original playlist URL
+	 *
+	 * @return string - original playlist URL(redirected)
+	 */
+	virtual std::string& GetEffectivePlaylistUrl() = 0;
+
+	/**
+	 * @brief Returns last playlist download time
+	 *
+	 * @return lastPlaylistDownloadTime
+	 */
+	virtual long long GetLastPlaylistDownloadTime() = 0;
+
+	/**
+	 * @brief Returns minimum playlist update duration
+	 *
+	 * @return minimumUpdateDuration
+	 */
+	virtual long GetMinUpdateDuration() = 0;
+
+	/**
+	 * @brief Sets last playlist download time
+	 *
+	 * @param[in] time last playlist download time
+	 * @return void
+	 */
+	virtual void SetLastPlaylistDownloadTime(long long time) = 0;
+
+	/**
+	 * @brief Returns playlist type of track
+	 *
+	 * @param[in] type - track type
+	 * @param[in] isIframe - Flag to indiacte whether the track is iframe or not
+	 *
+	 * @return Mediatype
+	 */
+	MediaType GetPlaylistMediaTypeFromTrack(TrackType type, bool isIframe);
+
+	/**
+	 * @brief To acquire playlist process lock for synchronisation purposes
+	 *
+	 * @return void
+	 */
+	void AcquirePlaylistLock();
+
+	/**
+	 * @brief To release playlist process lock
+	 *
+	 * @return void
+	 */
+	void ReleasePlaylistLock();
+
+	/**
+	 * @brief To notify that the fragment collector is waiting for next playlistProcess
+	 *
+	 * @return void
+	 */
+	void NotifyFragmentCollectorWait() {fragmentCollectorWaitingForPlaylistUpdate = true;}
+
+	/**
+	 * @brief Wait until timeout is reached or interrupted
+	 *
+	 * @param[in] timeInMs timeout in milliseconds
+	 * @return void
+	 */
+	void EnterTimedWaitForPlaylistRefresh(int timeInMs);
+
+	/**
 	 * @brief Status of media track
 	 *
 	 * @return Enabled/Disabled
@@ -408,6 +528,14 @@ private:
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
 
+	std::thread *playlistDownloaderThread;	/**< PlaylistDownloadThread of track*/
+	bool playlistDownloaderThreadStarted;	/**< `Playlist downloader thread started or not*/
+	bool abortPlaylistDownloader;			/**< Flag used to abort playlist downloader*/
+	std::condition_variable plDownloaderSignal;	/**< Conditional variable for signalling timed wait*/
+	std::mutex plDwnldMutex;				/**< Playlist download mutex for conditional timed wait*/
+	std::mutex playlistProcessMutex;		/**< Playlist process mutex for synchronization*/
+	std::unique_lock<std::mutex> playlistProcessLock;	/**< Lock to be used by AcquirePlaylistLock and ReleasePlaylistLock*/
+	bool fragmentCollectorWaitingForPlaylistUpdate;	/**< Flag to indicate that the fragment collecor is waiting for ongoing playlist download, used for profile changes*/
 };
 
 /**

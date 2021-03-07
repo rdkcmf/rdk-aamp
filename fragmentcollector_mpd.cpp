@@ -259,8 +259,10 @@ public:
 			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
-			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
+			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
+			mPlaylistUrl(""), mEffectiveUrl("")
 	{
+		mPlaylistUrl = aamp->GetManifestUrl();
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 	}
 
@@ -575,6 +577,47 @@ public:
 		}
 	}
 
+	/**
+	 * @brief Returns the MPD playlist URL
+	 *
+	 * @return string - playlist URL
+	 */
+	std::string& GetPlaylistUrl() { return mPlaylistUrl; }
+
+	/**
+	 * @brief Returns the MPD original playlist URL
+	 *
+	 * @return string - original playlist URL(redirected)
+	 */
+	std::string& GetEffectivePlaylistUrl() { return mEffectiveUrl; }
+
+	/**
+	 * @brief Returns last playlist download time
+	 *
+	 * @return lastPlaylistDownloadTime
+	 */
+	long long GetLastPlaylistDownloadTime() { return (long long) context->mLastPlaylistDownloadTimeMs; }
+
+	/**
+	 * @brief Sets last playlist download time
+	 *
+	 * @param[in] time last playlist download time
+	 * @return void
+	 */
+	void SetLastPlaylistDownloadTime(long long time) { context->mLastPlaylistDownloadTimeMs = time; }
+
+	/**
+	 * @brief Returns minimum playlist update duration in Ms
+	 *
+	 * @return minimumUpdateDuration
+	 */
+	long GetMinUpdateDuration() { return (long) context->GetMinUpdateDuration(); }
+
+	/**
+	 * TODO :: ProcessPlaylistFor MPD
+	 */
+	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error) {};
+
 	MediaType mediaType;
 	struct FragmentDescriptor fragmentDescriptor;
 	const IAdaptationSet *adaptationSet;
@@ -601,6 +644,8 @@ public:
 	std::string initialization;
 	uint32_t adaptationSetId;
 	bool mSkipSegmentOnError;
+	std::string mPlaylistUrl;
+	std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
 }; // MediaStreamContext
 
 /**
@@ -3564,7 +3609,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	bool forceSpeedsChangedEvent = false;
 	bool pushEncInitFragment = false;
 	AAMPStatusType retval = eAAMPSTATUS_OK;
-	aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT, aamp->GetNetworkProxy());
+	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT, aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
 
 	aamp->mStreamSink->ClearProtectionEvent();
