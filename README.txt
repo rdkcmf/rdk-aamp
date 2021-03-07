@@ -1,6 +1,20 @@
 Advanced Adaptive Micro Player (AAMP)
+=================================================================================================================
 
-Source Overview:
+Index 
+----------------------------
+1. AAMP Source Overview
+2. AAMP Configuration
+3. Channel Override Settings
+4. Westeros Settings
+5. AAMP Tunetime 
+6. AAMP MicroEvents 
+7. VideoEnd (Session Statistics) Event 
+----------------------------
+
+
+---------------------------------------------------------------------------------------
+1. AAMP Source Overview:
 
 aampcli.cpp
 - entry point for command line test app
@@ -23,7 +37,212 @@ fragmentcollector_progressive
 drm
 - digital rights management support and plugins
 
-================================================================================================
+=================================================================================================================
+2. AAMP Configuration
+
+AAMP Configuration can be set with different method . Below is the list (from 
+lowest priority to highest priority override ownership).
+	a) AAMP Default Settings within Code 
+	b) AAMP Configuration from Operator ( RFC / ENV variables )
+	c) AAMP Settings from Stream 
+	d) AAMP Settings from Application settings 
+	e) AAMP Settings from Dev configuration ( /opt/aamp.cfg - text format  , /opt/aampcfg.json - JSON format input)
+
+Configuration Field						Description	
+===============================================================================
+On / OFF Switches : All Enable/Disable configuration needs true/false input .
+Example : abr=false -> to disable ABR 
+===============================================================================
+abr					Enable/Disable adaptive bitrate logic.Default : true
+fog					Enable / Disable Fog .Default : true
+parallelPlaylistDownload		Enabled parallel fetching of audio & video playlists for HLS during Tune.Default False
+parallelPlaylistRefresh			Enabled parallel fetching of audio & video playlists for HLS during refresh .Default True
+preFetchIframePlaylist			Enabled prefetching of I-Frame playlist.Default False
+preservePipeline			Flush instead of teardown.Default False
+demux-hls-audio-track                   Demux Audio track from HLS transport stream
+demux-hls-video-track                   Demux Video track from HLS transport stream
+throttle                                Regulate output data flow
+demuxed-audio-before-video              Demux video track from HLS transport stream track mode
+demux-hls-video-track-tm                Send demuxed audio before video                      
+stereoOnly                              Enabled selection of stereo only audio.It Overrides forceEC3/disableEC3/disableATMOS.Default False
+forceEC3                                Forcefully enable DDPlus.Default False
+disableEC3                              Disable DDPlus.Default False
+disableATMOS                            Disable Dolby ATMOS.Default False
+disablePlaylistIndexEvent               Disable playlist index event
+enableSubscribedTags                    Enabled subscribed tags
+dash-ignore-base-url-if-slash           Ignore the constructed URI of DASH
+license-anonymous-request               Acquire license without token
+
+
+
+
+=================================================================================================================
+3. Channel Override Settings
+
+Overriding channels in aamp.cfg
+aamp.cfg allows to map channnels to custom urls as follows
+
+*<Token> <Custom url>
+This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
+
+Example adding the following in aamp.cfg will make tune to the given url (Spring_4Ktest) on tuning to url with USAHD in it
+This can be done for n number of channels.
+
+*USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
+*FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
+
+=================================================================================================================
+4. Westeros Settings
+
+To enable Westeros
+-------------------
+
+Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
+flag in SetEnv.sh under /opt, then restart the receiver process:
+
+	export AAMP_ENABLE_WESTEROS_SINK=true
+
+Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
+instead of going through browser rendering.  This allows for smoother video zoom animations
+(Refer DELIA-38429/RDK-26261)
+
+However, note that with this optimization applied, the AAMP Diagnostics overlays cannot be made visible.
+As a temporary workaround, the following flag can be used  by developers which will make diagnostic overlay
+again visible at expense of zoom smoothness:
+
+	export DISABLE_NONCOMPOSITED_WEBGL_FOR_IPVIDEO=1
+
+=================================================================================================================
+4. AAMP-CLI Commands
+
+CLI-specific commands:
+<enter>		dump currently available profiles
+help		show usage notes
+http://...	tune to specified URL
+<number>	tune to specified channel (based on canned aamp channel map)
+next        tune to next virtual channel
+prev        tune to previous virtual channel
+seek <sec>	time-based seek within current content (stub)
+ff32		set desired trick speed to 32x
+ff16		set desired trick speed to 16x
+ff		set desired trick speed to 4x
+flush		flush player buffers
+stop		stop streaming
+status		dump gstreamer state
+rect		Set video rectangle. eg. rect 0 0 640 360
+zoom <val>	Set video zoom mode. mode "none" if val is zero, else mode "full"
+pause       Pause playback
+play        Resume playback
+rw<val>     Rewind with speed <val>
+live        Seek to live point
+exit        Gracefully exit application
+sap <lang>  Select alternate audio language track.
+bps <val>   Set video bitrate in bps
+
+To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
+*<Channel Number> <Channel Name> <Channel URL>
+
+or
+
+To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.csv
+<Channel Number>,<Channel Name>,<Channel URL>
+=================================================================================================================
+5. AAMP Tunetime 
+
+Following line can be added as a header while making CSV with profiler data.
+
+version#4
+version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
+
+=================================================================================================================
+
+6. AAMP MicroEvents 
+=====================
+Common:
+ct = Content Type
+it = Initiation Time of Playback in epoch format (on Receiver side)
+tt = Total Tune Time/latency
+pi = Playback Index
+ts = Tune Status
+va = Vector of tune Attempts
+
+Individual Tune Attempts:
+s = Start Time in epoch format
+td = Tune Duration
+st = Stream Type
+u = URL
+r = Result (1:Success, 0:Failure)
+v = Vector of Events happened
+
+Events:
+i = Id
+	0: main manifest download
+	1: video playlist download
+	2: audio playlist download
+	3: subtitle playlist download
+	4: video initialization fragment download
+	5: audio initialization fragment download
+	6: subtitle initialization fragment download
+	7: video fragment download
+	8: audio fragment download
+	9: subtitle fragment download
+	10: video decryption
+	11: audio decryption
+	12: subtitle decryption
+	13: license acquisition total
+	14: license acquisition pre-processing
+	15: license acquisition network
+	16: license acquisition post-processing
+b = Beginning time of the event, relative to 's'
+d = Duration till the completion of event
+o = Output of Event (200:Success, Non 200:Error Code)
+
+=================================================================================================================
+7. VideoEnd (Session Statistics) Event 
+==========================
+vr = version of video end event (currently "1.0")
+tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
+ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
+d = duration - estimate of total playback duration.  Note that this is based on fragments downloaded/injected - user may interrupt buffered playback with seek/stop, causing estimates to skew higher in edge cases.
+dn = Download step-downs due to bad Network bandwidth
+de = Download step-downs due to Error handling ramp-down/retry logic
+w = Display Width :  value > 0 = Valid Width.. value -1 means HDMI display resolution could NOT be read successfully. Only for HDMI Display else wont be available.
+h = Display Height : value > 0 = Valid Height,  value -1 means HDMI display resolution could NOT be read successfully. Only for HDMI Display else wont be available.
+t = indicates that FOG time shift buffer (TSB) was used for playback
+m =  main manifest
+v = video Profile
+i = Iframe Profile
+a1 = audio track 1
+a2 = audio track 2
+a3 = audio track 3
+...
+u = Unknown Profile or track type
+
+l = supported languages
+p = profile-specific metrics encapsulation
+w = profile frame width
+h = profile frame height
+ls = license statistics
+
+ms = manifest statistics
+fs = fragment statistics
+
+r = total license rotations / stream switches
+e = encrypted to clear switches
+c = clear to encrypted switches
+
+4 = HTTP-4XX error count
+5 = HTTP-5XX error count
+t = CURL timeout error count
+c = CURL error count (other)
+s = successful download count
+
+u = URL of most recent (last) failed download
+n = normal fragment statistics
+i = "init" fragment statistics (used in case of DASH and fragmented mp4)
+
+
+=================================================================================================================
 
 /opt/aamp.cfg
 This optional file supports changes to default logging/behavior and channel remappings to alternate content.
@@ -57,6 +276,7 @@ appSrcForProgressivePlayback // Enables appsrc for playing progressive AV type
 decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp error
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
+stereoOnly=1 // disables EC3 & ATMOS . Overrides forceEC3 / disableEC3 / disableATMOS
 forceEC3=1 // inserts "-eac3" before .m3u8 in main manifest url. Useful in live environment to test Dolby track.
 disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in live environment to disable Dolby track.
 		//This flag makes AAC preferred over ATMOS and DD+
@@ -178,159 +398,5 @@ maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
 persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
 setLicenseCaching=0 used to disable license caching, by default the value is 1 to enable the license caching.
-=================================================================================================================
-Overriding channels in aamp.cfg
-aamp.cfg allows to map channnels to custom urls as follows
-
-*<Token> <Custom url>
-This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
-
-Example adding the following in aamp.cfg will make tune to the given url (Spring_4Ktest) on tuning to url with USAHD in it
-This can be done for n number of channels.
-
-*USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
-*FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
-
-=================================================================================================================
-
-To enable Westeros
--------------------
-
-Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
-flag in SetEnv.sh under /opt, then restart the receiver process:
-
-	export AAMP_ENABLE_WESTEROS_SINK=true
-
-Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
-instead of going through browser rendering.  This allows for smoother video zoom animations
-(Refer DELIA-38429/RDK-26261)
-
-However, note that with this optimization applied, the AAMP Diagnostics overlays cannot be made visible.
-As a temporary workaround, the following flag can be used  by developers which will make diagnostic overlay
-again visible at expense of zoom smoothness:
-
-	export DISABLE_NONCOMPOSITED_WEBGL_FOR_IPVIDEO=1
-
-=================================================================================================================
-
-CLI-specific commands:
-<enter>		dump currently available profiles
-help		show usage notes
-http://...	tune to specified URL
-<number>	tune to specified channel (based on canned aamp channel map)
-next        tune to next virtual channel
-prev        tune to previous virtual channel
-seek <sec>	time-based seek within current content (stub)
-ff32		set desired trick speed to 32x
-ff16		set desired trick speed to 16x
-ff		set desired trick speed to 4x
-flush		flush player buffers
-stop		stop streaming
-status		dump gstreamer state
-rect		Set video rectangle. eg. rect 0 0 640 360
-zoom <val>	Set video zoom mode. mode "none" if val is zero, else mode "full"
-pause       Pause playback
-play        Resume playback
-rw<val>     Rewind with speed <val>
-live        Seek to live point
-exit        Gracefully exit application
-sap <lang>  Select alternate audio language track.
-bps <val>   Set video bitrate in bps
-
-To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
-*<Channel Number> <Channel Name> <Channel URL>
-
-or
-
-To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.csv
-<Channel Number>,<Channel Name>,<Channel URL>
-================================================================================================
-Following line can be added as a header while making CSV with profiler data.
-
-version#4
-version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
-
-MicroEvents Information
-=====================
-Common:
-ct = Content Type
-it = Initiation Time of Playback in epoch format (on Receiver side)
-tt = Total Tune Time/latency
-pi = Playback Index
-ts = Tune Status
-va = Vector of tune Attempts
-
-Individual Tune Attempts:
-s = Start Time in epoch format
-td = Tune Duration
-st = Stream Type
-u = URL
-r = Result (1:Success, 0:Failure)
-v = Vector of Events happened
-
-Events:
-i = Id
-	0: main manifest download
-	1: video playlist download
-	2: audio playlist download
-	3: subtitle playlist download
-	4: video initialization fragment download
-	5: audio initialization fragment download
-	6: subtitle initialization fragment download
-	7: video fragment download
-	8: audio fragment download
-	9: subtitle fragment download
-	10: video decryption
-	11: audio decryption
-	12: subtitle decryption
-	13: license acquisition total
-	14: license acquisition pre-processing
-	15: license acquisition network
-	16: license acquisition post-processing
-b = Beginning time of the event, relative to 's'
-d = Duration till the completion of event
-o = Output of Event (200:Success, Non 200:Error Code)
 
 
-VideoEnd (Session Statistics) Event Information
-==========================
-vr = version of video end event (currently "1.0")
-tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
-ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
-d = duration - estimate of total playback duration.  Note that this is based on fragments downloaded/injected - user may interrupt buffered playback with seek/stop, causing estimates to skew higher in edge cases.
-dn = Download step-downs due to bad Network bandwidth
-de = Download step-downs due to Error handling ramp-down/retry logic
-w = Display Width :  value > 0 = Valid Width.. value -1 means HDMI display resolution could NOT be read successfully. Only for HDMI Display else wont be available.
-h = Display Height : value > 0 = Valid Height,  value -1 means HDMI display resolution could NOT be read successfully. Only for HDMI Display else wont be available.
-t = indicates that FOG time shift buffer (TSB) was used for playback
-m =  main manifest
-v = video Profile
-i = Iframe Profile
-a1 = audio track 1
-a2 = audio track 2
-a3 = audio track 3
-...
-u = Unknown Profile or track type
-
-l = supported languages
-p = profile-specific metrics encapsulation
-w = profile frame width
-h = profile frame height
-ls = license statistics
-
-ms = manifest statistics
-fs = fragment statistics
-
-r = total license rotations / stream switches
-e = encrypted to clear switches
-c = clear to encrypted switches
-
-4 = HTTP-4XX error count
-5 = HTTP-5XX error count
-t = CURL timeout error count
-c = CURL error count (other)
-s = successful download count
-
-u = URL of most recent (last) failed download
-n = normal fragment statistics
-i = "init" fragment statistics (used in case of DASH and fragmented mp4)

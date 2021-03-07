@@ -3045,7 +3045,8 @@ void TrackState::RefreshPlaylist(void)
 	// failed to read from cache , then download it
 	if(!bCacheRead)
 	{
-		if(!aamp->mParallelFetchPlaylistRefresh)
+		bool bParallelRefresh = ISCONFIGSET(eAAMPConfig_PlaylistParallelRefresh);
+		if(!bParallelRefresh)
 		{
 			// Lock the mutex if parallel fetch is disabled. So that other thread blocks here
 			pthread_mutex_lock(&aamp->mParallelPlaylistFetchLock);
@@ -3077,7 +3078,7 @@ void TrackState::RefreshPlaylist(void)
 		(void) aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);  //CID:89271 - checked return
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
-		if(!aamp->mParallelFetchPlaylistRefresh)
+		if(!bParallelRefresh)
 		{
 			pthread_mutex_unlock(&aamp->mParallelPlaylistFetchLock);
 		}
@@ -3182,10 +3183,10 @@ void TrackState::RefreshPlaylist(void)
 bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat)
 {
 	bool ignoreProfile = false;
-	bool bDisableEC3 = aamp->mDisableEC3;
-	bool bDisableAC3 = aamp->mDisableEC3;
+	bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+	bool bDisableAC3 = bDisableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+	bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
 
 	switch (audioFormat)
 	{
@@ -4387,7 +4388,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			if(!audio->playlist.len)
 			{
-				if (aamp->mParallelFetchPlaylist)
+				if (ISCONFIGSET(eAAMPConfig_PlaylistParallelFetch))
 				{
 					int ret = pthread_create(&trackPLDownloadThreadID, NULL, TrackPLDownloader, audio);
 					if(ret != 0)
@@ -4914,7 +4915,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			aamp->SetState(eSTATE_PREPARING);
 
 		//Currently un-used playlist indexed event, might save some JS overhead
-		if (!gpGlobalConfig->disablePlaylistIndexEvent)
+		if (!ISCONFIGSET(eAAMPConfig_DisablePlaylistIndexEvent))
 		{
 			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
 		}
@@ -5261,7 +5262,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
-		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
+		if (newTune && ISCONFIGSET(eAAMPConfig_PrefetchIFramePlaylistDL))
 		{
 			int iframeStreamIdx = GetIframeTrack();
 			if (0 <= iframeStreamIdx)
@@ -7384,7 +7385,7 @@ void TrackState::RestoreDrmState()
 void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 {
 	double totalDuration = 0.0;
-	if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
+	if (ISCONFIGSET(eAAMPConfig_EnableSubscribedTags) && (eTRACK_VIDEO == type))
 	{
 		pthread_mutex_lock(&mPlaylistMutex);
 		if (playlist.ptr)
@@ -7515,10 +7516,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		// 3. Make sure filters for disableATMOS/disableEC3/disableAAC is applied
 
 		// Get the initial configuration to filter the profiles
-		bool bDisableEC3 = aamp->mDisableEC3;
-		bool bDisableAC3 = aamp->mDisableEC3;
+		bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+		bool bDisableAC3 = bDisableEC3;
 		// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-		bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+		bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
 		bool bDisableAAC = false;
 
 		// Check if any demuxed audio exists , if muxed it will be -1

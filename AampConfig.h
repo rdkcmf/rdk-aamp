@@ -84,9 +84,8 @@
  */
 typedef enum
 {
-	eAAMPConfig_EnableABR = 0,								/**< Enable/Disable adaptive bitrate logic*/
-	eAAMPConfig_AsyncOnTuneEvent,							/**< if true, AAMP_EVENT_TUNED will be sent Asynchronously otherwise will be sent synchronously */
-	eAAMPConfig_DisableFog, 								/**< Disable FOG*/
+	eAAMPConfig_EnableABR = 0,								/**< Enable/Disable adaptive bitrate logic*/	
+	eAAMPConfig_Fog, 										/**< Enable / Disable FOG*/
 	eAAMPConfig_PrefetchIFramePlaylistDL,					/**< Enabled prefetching of I-Frame playlist*/
 	eAAMPConfig_PreservePipeline,							/**< Flush instead of teardown*/
 	eAAMPConfig_DemuxAudioHLSTrack ,						/**< Demux Audio track from HLS transport stream*/
@@ -96,7 +95,8 @@ typedef enum
 	eAAMPConfig_DemuxHLSVideoTsTrackTM, 					/**< Send demuxed audio before video*/
 	eAAMPConfig_ForceEC3,									/**< Forcefully enable DDPlus*/
 	eAAMPConfig_DisableEC3, 								/**< Disable DDPlus*/
-	eAAMPConfig_DisableATMOS,								/**< Disable Dolby ATMOS*/	
+	eAAMPConfig_DisableATMOS,								/**< Disable Dolby ATMOS*/
+	eAAMPConfig_StereoOnly,									/**< Enable Stereo Only playback, disables EC3/ATMOS. Overrides ForceEC3 */
 	eAAMPConfig_DisablePlaylistIndexEvent,					/**< Disable playlist index event*/
 	eAAMPConfig_EnableSubscribedTags,						/**< Enabled subscribed tags*/
 	eAAMPConfig_DASHIgnoreBaseURLIfSlash,					/**< Ignore the constructed URI of DASH, if it is / */
@@ -155,7 +155,7 @@ typedef enum
 	eAAMPConfig_ABRBufferCheckEnabled,						/**< Flag to enable/disable buffer based ABR handling*/
 	eAAMPConfig_NewDiscontinuity			   ,			/**< Flag to enable/disable buffer based ABR handling*/
 	eAAMPConfig_PlaylistParallelFetch,						/**< Enabled parallel fetching of audio & video playlists*/
-	eAAMPConfig_ParallelPlaylistRefresh,					/**< Enabled parallel fetching for refresh of audio & video playlists*/
+	eAAMPConfig_PlaylistParallelRefresh,					/**< Enabled parallel fetching for refresh of audio & video playlists*/
 	eAAMPConfig_BulkTimeMetaReport, 						/**< Enabled Bulk event reporting for TimedMetadata*/
 	eAAMPConfig_RemovePersistent,							/**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	eAAMPConfig_AvgBWForABR,								/** Enables usage of AverageBandwidth if available for ABR */
@@ -386,6 +386,7 @@ public:
 	//std::string GetUserAgentString();
 	//DRMSystems GetPreferredDRM();
 private:
+	void DoCustomSetting();
 	template<class J,class K>
 	void SetValue(J &setting, ConfigPriority newowner, const K &value);
 	void trim(std::string& src);

@@ -73,101 +73,6 @@
 
 static uint64_t ParseISO8601Duration(const char *ptr);
 
-
-/**
- * @struct FragmentDescriptor
- * @brief Stores information of dash fragment
- */
-struct FragmentDescriptor
-{
-private :
-	const std::vector<IBaseUrl *>*baseUrls;
-	std::string matchingBaseURL;
-public :
-	std::string manifestUrl;
-	uint32_t Bandwidth;
-	std::string RepresentationID;
-	uint64_t Number;
-	double Time;
-
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL("")
-	{
-	}
-	
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL)
-	{
-	}
-
-	FragmentDescriptor& operator=(const FragmentDescriptor &p)
-	{
-		manifestUrl = p.manifestUrl;
-		baseUrls = p.baseUrls;
-		RepresentationID.assign(p.RepresentationID);
-		Bandwidth = p.Bandwidth;
-		Number = p.Number;
-		Time = p.Time;
-		matchingBaseURL = p.matchingBaseURL;
-		return *this;
-	}
-
-	const std::vector<IBaseUrl *>*  GetBaseURLs() const
-	{
-		return baseUrls;
-	}
-
-	std::string GetMatchingBaseUrl() const
-	{
-		return matchingBaseURL;
-	}
-	void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
-	{
-		if(baseurls)
-		{
-			this->baseUrls = baseurls;
-			if(this->baseUrls->size() > 0 )
-			{
-				// use baseurl which matches with host from manifest.
-				if(gpGlobalConfig->useMatchingBaseUrl == eTrueState)
-				{
-					std::string prefHost = aamp_getHostFromURL(manifestUrl);
-					for (auto & item : *this->baseUrls) {
-						std::string itemUrl =item->GetUrl();
-						std::string host  = aamp_getHostFromURL(itemUrl);
-						if(0 == prefHost.compare(host))
-						{
-							this->matchingBaseURL = item->GetUrl();
-							return; // return here, we are done
-						}
-					}
-				}
-				//we are here means useMatchingBaseUrl not enabled or host did not match
-				// hence initialize default to first baseurl
-				this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
-			}
-			else
-			{
-				this->matchingBaseURL.clear();
-			}
-		}
-	}
-
-};
-
-/**
- * @struct PeriodInfo
- * @brief Stores details about available periods in mpd
- */
-
-struct PeriodInfo {
-	std::string periodId;
-	uint64_t startTime;
-	double duration;
-
-	PeriodInfo() : periodId(""), startTime(0), duration(0.0)
-	{
-	}
-};
-
 static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
 {
 	double newduration = 2.0;
@@ -1185,7 +1090,7 @@ static int replace(std::string& str, const std::string& from, const std::string&
  * @param fragmentDescriptor descriptor
  * @param media media information string
  */
-static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media)
+void StreamAbstractionAAMP_MPD::GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media)
 {
 	std::string constructedUri = fragmentDescriptor->GetMatchingBaseUrl();
 	if( media.compare(0, 7, "http://")==0 || media.compare(0, 8, "https://")==0 )
@@ -1194,7 +1099,7 @@ static void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *
 	}
 	else if (!constructedUri.empty())
 	{
-		if(gpGlobalConfig->dashIgnoreBaseURLIfSlash)
+		if(ISCONFIGSET(eAAMPConfig_DASHIgnoreBaseURLIfSlash))
 		{
 			if (constructedUri == "/")
 			{
@@ -5254,6 +5159,9 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,A
 	size_t numAdaptationSets = period->GetAdaptationSets().size();
 	logprintf("%s: aamp->language %s, aamp->noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
 					__func__, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
+	
+	bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
+	bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
 	for( int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
 		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
@@ -5294,7 +5202,7 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,A
 			{
 				AudioType selectedCodecType = eAUDIO_UNKNOWN;
 				uint32_t selRepBandwidth = 0;
-				int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
+				int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,disableEC3 , disableATMOS);
 
 				// Two possibility of Audio selection
 				// a) One Adaptation having multiple representation with different Codecc types
@@ -5303,8 +5211,8 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,A
 				// For (a) GetDesiredCodecIndex will handle appropriate codec type
 				// For (b) This code loop will take care ,but need to check for condition of disableEC3/disableATMOS
 				//	as added below
-				if((selectedCodecType == eAUDIO_ATMOS && aamp->mDisableATMOS) ||
-				   (selectedCodecType == eAUDIO_DDPLUS && aamp->mDisableEC3))
+				if((selectedCodecType == eAUDIO_ATMOS && disableATMOS) ||
+				   (selectedCodecType == eAUDIO_DDPLUS && disableEC3))
 				{
 					selectedCodecType = eAUDIO_UNKNOWN;
 				}
@@ -5370,7 +5278,7 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx,A
 			if( audioAdaptationSet )
 			{
 				uint32_t selRepBandwidth = 0;
-				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
+				desiredRepIdx = GetDesiredCodecIndex(audioAdaptationSet,  CodecType, selRepBandwidth,disableEC3, disableATMOS);
 			}
 		}
 	}
@@ -6747,8 +6655,10 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 								else if (mAudioType != eAUDIO_UNKNOWN)
 								{
 									AudioType selectedAudioType = eAUDIO_UNKNOWN;
-									uint32_t selectedRepBandwidth = 0;
-									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
+									uint32_t selectedRepBandwidth = 0;									
+									bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
+									bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,disableEC3 , disableATMOS);
 									if(selectedAudioType != mAudioType)
 									{
 										continue;

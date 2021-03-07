@@ -1457,8 +1457,11 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
  */
 void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
-	ERROR_STATE_CHECK_VOID();
-	aamp->SetStereoOnlyPlayback(bValue);
+	ERROR_STATE_CHECK_VOID();	
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableEC3,true);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableATMOS,true);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ForceEC3,false);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StereoOnly,true);
 }
 
 /**
@@ -1580,7 +1583,7 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetParallelPlaylistDL(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistParallelFetch,bValue);
 }
 
 /**
@@ -1592,7 +1595,7 @@ void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetParallelPlaylistRefresh(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistParallelRefresh,bValue);
 }
 
 /**

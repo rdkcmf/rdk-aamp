@@ -3465,7 +3465,7 @@ AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bo
 	// c. If respective configuration is enabled , then associate separate curl for each track type
 	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_PLAYLIST)
 
-	indivCurlInstanceFlag = isInitialDownload ? mParallelFetchPlaylist : mParallelFetchPlaylistRefresh;
+	indivCurlInstanceFlag = isInitialDownload ? ISCONFIGSET_PRIV(eAAMPConfig_PlaylistParallelFetch): ISCONFIGSET_PRIV(eAAMPConfig_PlaylistParallelRefresh);
 	if(indivCurlInstanceFlag)
 	{
 		switch(type)
@@ -4694,7 +4694,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #else
 		const bool forceStop = false;
 #endif
-		if (!forceStop && ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline))
+		if (!forceStop && ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
 			mStreamSink->Flush(0, rate);
 		}
@@ -5066,7 +5066,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		if (mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
-			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline)
+			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline))
 			{
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
@@ -5140,7 +5140,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
-	ConfigureParallelFetch();
+	//ConfigureParallelFetch();
 	ConfigureDashParallelFragmentDownload();
 	ConfigureBulkTimedMetadata();
 	ConfigureRetuneForUnpairedDiscontinuity();
@@ -5330,16 +5330,16 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		}
 		//DELIA-47890 Fog can be disable by  having option fog=0 option in aamp.cfg,based on  that gpGlobalConfig->noFog is updated
 		//Removed variable gpGlobalConfig->fogSupportsDash as it has similar usage
-		if (gpGlobalConfig->noFog)
+		if(!ISCONFIGSET_PRIV(eAAMPConfig_Fog))
 		{
 			DeFog(mManifestUrl);
 		}
 
-		if (mForceEC3)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_ForceEC3))
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (mDisableEC3)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_DisableEC3))
 		{
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
@@ -6745,7 +6745,7 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
 	std::vector<TimedMetadata>::iterator iter;
-	if(gpGlobalConfig->enableSubscribedTags && reportMetadata.size())
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSubscribedTags) && reportMetadata.size())
 	{
 		AAMPLOG_INFO("%s:%d Sending bulk Timed Metadata",__FUNCTION__,__LINE__);
 
@@ -8385,6 +8385,7 @@ void PrivateInstanceAAMP::ConfigureDashParallelFragmentDownload()
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d DASH Paraller Frag DL Config [%d]", __FUNCTION__, __LINE__, mDashParallelFragDownload);
 }
 
+#if 0
 /**
  *   @brief To set Parallel Download configuration
  *
@@ -8403,6 +8404,7 @@ void PrivateInstanceAAMP::ConfigureParallelFetch()
 		mParallelFetchPlaylistRefresh = (bool)gpGlobalConfig->parallelPlaylistRefresh ;
 	}
 }
+#endif
 
 /**
  *   @brief To set bulk timedMetadata reporting configuration
@@ -8577,7 +8579,7 @@ DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 {
 	return gpGlobalConfig->preferredDrm;
 }
-
+#if 0
 /**
  *   @brief Set Stereo Only Playback.
  */
@@ -8595,7 +8597,7 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
 	}
 }
-
+#endif
 /**
  *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
  *
@@ -9075,6 +9077,7 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
 	customHeaders.insert(mCustomLicenseHeaders.begin(), mCustomLicenseHeaders.end());
 }
 
+#if 0
 /**
  *   @brief Set parallel playlist download config value.
  *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
@@ -9086,7 +9089,7 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 	mParallelFetchPlaylist = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
-
+#endif
 /**
  *   @brief Sends an ID3 metadata event.
  *
@@ -9113,7 +9116,7 @@ bool PrivateInstanceAAMP::GetEventListenerStatus(AAMPEventType eventType)
 	}
 	return false;
 }
-
+#if 0
 /**
  *	 @brief Set parallel playlist download config value for linear .
  *	 @param[in] bValue - true if a/v playlist to be downloaded in parallel for linear
@@ -9125,7 +9128,7 @@ void PrivateInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 	mParallelFetchPlaylistRefresh = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist Refresh Fetch  Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
-
+#endif
 /**
  *   @brief Set Bulk TimedMetadata reporting flag 
  *   @param[in] bValue - true if Application supports bulk reporting 
@@ -10196,6 +10199,7 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
 	}
+#if 0	
 	if(gpGlobalConfig->disableEC3 != eUndefinedState)
 	{
 		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
@@ -10203,11 +10207,12 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	if(gpGlobalConfig->disableATMOS != eUndefinedState)
 	{
 		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
-	}
+	}	
 	if(gpGlobalConfig->forceEC3 != eUndefinedState)
 	{
 		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
 	}
+#endif	
 	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)
 	{
 		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;

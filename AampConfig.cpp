@@ -70,21 +70,22 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"map-m3u8",eAAMPConfig_MapM3U8,-1,-1},
 	{"fragmp4-license-prefetch",eAAMPConfig_Fragmp4_PrefetchLicense,-1,-1},
 	{"enable_videoend_event",eAAMPConfig_EnableVideoEndEvent,-1,-1},
-	{"fog",eAAMPConfig_DisableFog,-1,-1},
+	{"fog",eAAMPConfig_Fog,-1,-1},
 	{"harvest-count-limit",eAAMPConfig_HarvestCount,-1,-1},
 	{"harvest-config",eAAMPConfig_HarvestConfig,-1,-1},
 	{"harvest-path",eAAMPConfig_HarvestPath,-1,-1},
-	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},
-	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},
-	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},
+	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},										// Complete
+	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
+	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
+	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},									// Complete
 	{"cdvrlive-offset",eAAMPConfig_CDVRLiveOffset,-1,-1},	
 	{"live-offset",eAAMPConfig_LiveOffset,-1,-1},
-	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},
-	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},
+	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},		// Complete
+	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},				// Complete
 	{"networkTimeout",eAAMPConfig_NetworkTimeout,-1,-1},
 	{"manifestTimeout",eAAMPConfig_ManifestTimeout,-1,-1},	
 	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,-1,-1},
-	{"dash-ignore-base-url-if-slash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},
+	{"dash-ignore-base-url-if-slash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},	// Complete
 	{"license-anonymous-request",eAAMPConfig_AnonymousLicenseRequest,-1,-1},		// Complete
 	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,-1,-1},
 	{"info",eAAMPConfig_InfoLogging,-1,-1},
@@ -115,7 +116,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abr-skip-duration",eAAMPConfig_ABRSkipDuration,-1,-1},
 	{"abr-nw-consistency",eAAMPConfig_ABRNWConsistency,-1,-1},	
 	{"min-buffer-rampdown",eAAMPConfig_MinABRNWBufferRampDown,-1,-1},
-	{"flush",eAAMPConfig_PreservePipeline,-1,-1},
+	{"preservePipeline",eAAMPConfig_PreservePipeline,-1,-1},
 	{"demux-hls-audio-track",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
 	{"demux-hls-video-track",eAAMPConfig_DemuxVideoHLSTrack,-1,-1},
 	{"demux-hls-video-track-tm",eAAMPConfig_DemuxHLSVideoTsTrackTM,-1,-1},
@@ -128,17 +129,16 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"playready-output-protection",eAAMPConfig_EnablePROutputProtection,-1,-1},
 	{"live-tune-event",eAAMPConfig_LiveTuneEvent,-1,-1},
 	{"vod-tune-event",eAAMPConfig_VODTuneEvent,-1,-1},	
-	{"playlists-parallel-fetch",eAAMPConfig_PlaylistParallelFetch,-1,-1},
+	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
 	{"useDashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
-	{"parallelPlaylistRefresh",eAAMPConfig_ParallelPlaylistRefresh ,-1,-1},
+	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
 	{"bulk-timedmeta-report",eAAMPConfig_BulkTimeMetaReport,-1,-1},
 	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,-1,-1},
 	{"useRetuneForGSTInternalError",eAAMPConfig_RetuneForGSTError,-1,-1},
-	{"async-tune",eAAMPConfig_AsyncOnTuneEvent,-1,-1},
 	{"useWesterosSink",eAAMPConfig_EnableWesterosSink,-1,-1},
 	{"setLicenseCaching",eAAMPConfig_SetLicenseCaching,-1,-1},
 	{"propagateUriParameters",eAAMPConfig_PropogateURIParam,-1,-1},
-	{"pre-fetch-iframe-playlist",eAAMPConfig_PrefetchIFramePlaylistDL,-1,-1},
+	{"preFetchIframePlaylist",eAAMPConfig_PrefetchIFramePlaylistDL,-1,-1},
 	{"hls-av-sync-use-start-time",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
 	{"mpd-discontinuity-handling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
 	{"mpd-discontinuity-handling-cdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
@@ -228,16 +228,16 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	// Player Default Configuration
 	///////////////// Following for Boolean setting ////////////////////////////
 	bAampCfgValue[eAAMPConfig_EnableABR].value				=	true;
-	bAampCfgValue[eAAMPConfig_AsyncOnTuneEvent].value			=	false;
-	bAampCfgValue[eAAMPConfig_DisableFog].value				=	false;
-	bAampCfgValue[eAAMPConfig_PrefetchIFramePlaylistDL].value		=	true;
-	bAampCfgValue[eAAMPConfig_PreservePipeline].value			=	true;
+	bAampCfgValue[eAAMPConfig_Fog].value					=	true;
+	bAampCfgValue[eAAMPConfig_PrefetchIFramePlaylistDL].value		=	false;
+	bAampCfgValue[eAAMPConfig_PreservePipeline].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxAudioHLSTrack].value			=	true;
 	bAampCfgValue[eAAMPConfig_DemuxVideoHLSTrack].value			=	true;
 	bAampCfgValue[eAAMPConfig_Throttle].value				=	true;
 	bAampCfgValue[eAAMPConfig_DemuxAudioBeforeVideo].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxHLSVideoTsTrackTM].value			=	true;
-	bAampCfgValue[eAAMPConfig_ForceEC3].value				=	false;	
+	bAampCfgValue[eAAMPConfig_ForceEC3].value				=	false;
+	bAampCfgValue[eAAMPConfig_StereoOnly].value				=	false;
 	bAampCfgValue[eAAMPConfig_DisableEC3].value				=	false;
 	bAampCfgValue[eAAMPConfig_DisableATMOS].value				=	false;
 	bAampCfgValue[eAAMPConfig_DisablePlaylistIndexEvent].value		=	true;
@@ -297,8 +297,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_Fragmp4_PrefetchLicense].value		=	true;	
 	bAampCfgValue[eAAMPConfig_ABRBufferCheckEnabled].value			=	true;	
 	bAampCfgValue[eAAMPConfig_NewDiscontinuity].value			=	false;	
-	bAampCfgValue[eAAMPConfig_PlaylistParallelFetch].value			=	true;	
-	bAampCfgValue[eAAMPConfig_ParallelPlaylistRefresh].value		=	false;	
+	bAampCfgValue[eAAMPConfig_PlaylistParallelFetch].value			=	false;	
+	bAampCfgValue[eAAMPConfig_PlaylistParallelRefresh].value		=	true;	
 	bAampCfgValue[eAAMPConfig_BulkTimeMetaReport].value			=	false;	
 	bAampCfgValue[eAAMPConfig_RemovePersistent].value			=	false;
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
@@ -394,6 +394,7 @@ std::string AampConfig::GetUserAgentString()
 	return std::string(sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value + " " + AAMP_USERAGENT_SUFFIX);
 }
 #endif
+
 
 /**
  * @brief IsConfigSet - Gets the boolean configuration value 
@@ -906,6 +907,7 @@ void AampConfig::ReadAampCfgJsonFile()
 				ProcessConfigJson( jsonbuffer, AAMP_DEV_CFG_SETTING);
 				delete[] jsonbuffer;
 				ShowDevCfgConfiguration();
+				DoCustomSetting();
 			}
 		}
 }
@@ -953,6 +955,7 @@ void AampConfig::ReadAampCfgTxtFile()
 			}
 			f.close();
 			ShowDevCfgConfiguration();
+			DoCustomSetting();
 		}
 	}
 
@@ -1012,6 +1015,8 @@ void AampConfig::ReadOperatorConfiguration()
 		logprintf("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableEC3,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableATMOS,true);
+		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_ForceEC3,false);
+		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_StereoOnly,true);
 	}
 
 	const char *env_aamp_min_vod_cache = getenv("AAMP_MIN_VOD_CACHE");
@@ -1238,6 +1243,29 @@ DRMSystems AampConfig::GetPreferredDRM()
 #endif 
 
 ///////////////////////////////// Private Functions ///////////////////////////////////////////
+
+/**
+ * @brief DoCustomSetting - Function to do override , to avoid complexity with multiple configs
+ *
+ * @return None
+ */
+void AampConfig::DoCustomSetting()
+{
+	if(IsConfigSet(eAAMPConfig_StereoOnly))
+	{
+		// If Stereo Only flag is set , it will override all other sub setting with audio
+		SetConfigValue<bool>(AAMP_DEV_CFG_SETTING,eAAMPConfig_DisableEC3,true);		
+		SetConfigValue<bool>(AAMP_DEV_CFG_SETTING,eAAMPConfig_DisableATMOS,true);
+		SetConfigValue<bool>(AAMP_DEV_CFG_SETTING,eAAMPConfig_ForceEC3,false);		
+	}
+	else if(IsConfigSet(eAAMPConfig_DisableEC3))
+	{
+		// if EC3 is disabled , no need to enable forceEC3 
+		SetConfigValue<bool>(AAMP_DEV_CFG_SETTING,eAAMPConfig_ForceEC3,false);	
+	}
+}
+
+
 /**
  * @brief SetValue - Function to store the configuration and ownership based on priority set
  *
