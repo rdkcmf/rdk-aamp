@@ -833,10 +833,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					privObj->_aamp->SetParallelPlaylistRefresh(valueAsBoolean);
 					break;
 				case ePARAM_ASYNCTUNE:
-					if (valueAsBoolean)
-					{
-						privObj->_aamp->EnableAsyncOperation();
-					}
+					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
 					break;
 				case ePARAM_USE_WESTEROS_SINK:
 					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);

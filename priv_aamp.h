@@ -2308,12 +2308,12 @@ public:
 	void SetParallelPlaylistRefresh(bool bValue);
 
 	/**
-	 *   @brief Set async tune configuration
+	 *   @brief Set async tune configuration for EventPriority
 	 *
 	 *   @param[in] bValue - true if async tune enabled
 	 *   @return void
 	 */
-	void SetAsyncTuneConfig(bool bValue);
+	void SetEventPriorityAsyncTune(bool bValue);
 
 	/**
 	 *   @brief Get async tune configuration

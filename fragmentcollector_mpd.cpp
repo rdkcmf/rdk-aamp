@@ -200,6 +200,7 @@ public:
 			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
 	{
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
+		fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
 	}
 
 	/**
@@ -2462,8 +2463,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 				{
 					mpd->SetFetchTime(fetchTime);
 #if 1
-					FindTimedMetadata(mpd, root, init, aamp->mBulkTimedMetadata);
-					if(aamp->mBulkTimedMetadata && init && aamp->IsNewTune())
+					bool bMetadata = ISCONFIGSET(eAAMPConfig_BulkTimedMetaReport);
+					FindTimedMetadata(mpd, root, init, bMetadata);
+					if(bMetadata && init && aamp->IsNewTune())
 					{
 						// Send bulk report
 						aamp->ReportBulkTimedMetadata();
@@ -5425,7 +5427,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						selRepresentationIndex = audioRepresentationIndex;
 						aTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
 					}
-					else if (eMEDIATYPE_VIDEO == i && !gpGlobalConfig->bAudioOnlyPlayback)
+					else if (eMEDIATYPE_VIDEO == i && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 					{
 						if (!isIframeAdaptationAvailable || selAdaptationSetIndex == -1)
 						{
@@ -5460,7 +5462,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						}
 					}
 				}
-				else if ((!gpGlobalConfig->bAudioOnlyPlayback) && (eMEDIATYPE_VIDEO == i))
+				else if ((!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback)) && (eMEDIATYPE_VIDEO == i))
 				{
 					//iframe track
 					if ( IsIframeTrack(adaptationSet) )
@@ -5636,7 +5638,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		}
 
 		//Store the iframe track status in current period if there is any change
-		if (!gpGlobalConfig->bAudioOnlyPlayback && (i == eMEDIATYPE_VIDEO) && (aamp->mIsIframeTrackPresent != isIframeAdaptationAvailable))
+		if (!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && (i == eMEDIATYPE_VIDEO) && (aamp->mIsIframeTrackPresent != isIframeAdaptationAvailable))
 		{
 			aamp->mIsIframeTrackPresent = isIframeAdaptationAvailable;
 			//Iframe tracks changed mid-stream, sent a playbackspeed changed event
@@ -6679,6 +6681,7 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 									{
 										std::string fragmentUrl;
 										FragmentDescriptor *fragmentDescriptor = new FragmentDescriptor();
+										fragmentDescriptor->bUseMatchingBaseUrl	=	ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
 										fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;
 										ProcessContentProtection(adaptationSet, (MediaType)i);
 										fragmentDescriptor->Bandwidth = representation->GetBandwidth();
@@ -7196,8 +7199,8 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 					lastLiveFlag = mIsLiveStream;
 					/*Discontinuity handling on period change*/
-					if (periodChanged && gpGlobalConfig->mpdDiscontinuityHandling && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
-							(gpGlobalConfig->mpdDiscontinuityHandlingCdvr || (!aamp->IsInProgressCDVR())))
+					if (periodChanged && ISCONFIGSET(eAAMPConfig_MPDDiscontinuityHandling) && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled &&
+							(ISCONFIGSET(eAAMPConfig_MPDDiscontinuityHandlingCdvr) || (!aamp->IsInProgressCDVR())))
 					{
 						MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 						SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),

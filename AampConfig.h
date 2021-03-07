@@ -115,7 +115,6 @@ typedef enum
 	eAAMPConfig_EnableClientDai,							/**< Enabling the client side DAI*/
 	eAAMPConfig_PlayAdFromCDN,								/**< Play Ad from CDN. Not from FOG.*/
 	eAAMPConfig_EnableVideoEndEvent,						/**< Enable or disable videovend events */
-	eAAMPConfig_DisableWesteros,							/**< To disable westeros sink (by default this is true*/
 	eAAMPConfig_EnableRectPropertyCfg,						/**< To allow or deny rectangle property set for sink element*/ 
 	eAAMPConfig_ReportVideoPTS, 							/**< Enables Video PTS reporting */
 	eAAMPConfig_DecoderUnavailableStrict,					/**< Reports decoder unavailable GST Warning as aamp error*/
@@ -140,7 +139,7 @@ typedef enum
 	eAAMPConfig_EnableGstPositionQuery, 					/**<GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms*/
 	eAAMPConfig_DisableMidFragmentSeek, 					/**<Disables the Mid-Fragment seek functionality in aamp.*/
 	eAAMPConfig_PropogateURIParam,							/**<Feature where top-level manifest URI parameters included when downloading fragments*/
-	eAAMPConfig_EnableWesterosSink, 						/**<Enable player to use westeros sink based video decoding */
+	eAAMPConfig_UseWesterosSink, 							/**<Enable/Disable player to use westeros sink based video decoding */
 	eAAMPConfig_EnableLinearSimulator,						/**<Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.*/
 	eAAMPConfig_RetuneForUnpairDiscontinuity,				/**<disable unpaired discontinuity retun functionality*/
 	eAAMPConfig_RetuneForGSTError,							/**<disable retune mitigation for gst pipeline internal data stream error*/
@@ -153,10 +152,10 @@ typedef enum
 	eAAMPConfig_SetLicenseCaching,							/**<Disable  license caching*/
 	eAAMPConfig_Fragmp4_PrefetchLicense,					/*** Enable fragment mp4 license prefetching**/
 	eAAMPConfig_ABRBufferCheckEnabled,						/**< Flag to enable/disable buffer based ABR handling*/
-	eAAMPConfig_NewDiscontinuity			   ,			/**< Flag to enable/disable buffer based ABR handling*/
+	eAAMPConfig_NewDiscontinuity,							/**< Flag to enable/disable new discontinuity handling with PDT*/
 	eAAMPConfig_PlaylistParallelFetch,						/**< Enabled parallel fetching of audio & video playlists*/
 	eAAMPConfig_PlaylistParallelRefresh,					/**< Enabled parallel fetching for refresh of audio & video playlists*/
-	eAAMPConfig_BulkTimeMetaReport, 						/**< Enabled Bulk event reporting for TimedMetadata*/
+	eAAMPConfig_BulkTimedMetaReport, 						/**< Enabled Bulk event reporting for TimedMetadata*/
 	eAAMPConfig_RemovePersistent,							/**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	eAAMPConfig_AvgBWForABR,								/** Enables usage of AverageBandwidth if available for ABR */
 	eAAMPConfig_NativeCCRendering,							/*** If native CC rendering to be supported */

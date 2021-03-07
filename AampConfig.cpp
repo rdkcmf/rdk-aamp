@@ -85,8 +85,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"networkTimeout",eAAMPConfig_NetworkTimeout,-1,-1},
 	{"manifestTimeout",eAAMPConfig_ManifestTimeout,-1,-1},	
 	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,-1,-1},
-	{"dash-ignore-base-url-if-slash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},	// Complete
-	{"license-anonymous-request",eAAMPConfig_AnonymousLicenseRequest,-1,-1},		// Complete
+	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},	// Complete
+	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,-1,-1},		// Complete
 	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,-1,-1},
 	{"info",eAAMPConfig_InfoLogging,-1,-1},
 	{"failover",eAAMPConfig_FailoverLogging,-1,-1},
@@ -117,10 +117,10 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abr-nw-consistency",eAAMPConfig_ABRNWConsistency,-1,-1},	
 	{"min-buffer-rampdown",eAAMPConfig_MinABRNWBufferRampDown,-1,-1},
 	{"preservePipeline",eAAMPConfig_PreservePipeline,-1,-1},
-	{"demux-hls-audio-track",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
-	{"demux-hls-video-track",eAAMPConfig_DemuxVideoHLSTrack,-1,-1},
-	{"demux-hls-video-track-tm",eAAMPConfig_DemuxHLSVideoTsTrackTM,-1,-1},
-	{"demuxed-audio-before-video",eAAMPConfig_DemuxAudioBeforeVideo,-1,-1},
+	{"demuxHlsAudioTrack",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
+	{"demuxHlsVideoTrack",eAAMPConfig_DemuxVideoHLSTrack,-1,-1},
+	{"demuxHlsVideoTrackTrickMode",eAAMPConfig_DemuxHLSVideoTsTrackTM,-1,-1},
+	{"demuxAudioBeforeVideo",eAAMPConfig_DemuxAudioBeforeVideo,-1,-1},
 	{"throttle",eAAMPConfig_Throttle,-1,-1},
 	{"min-init-cache",eAAMPConfig_VideoMinCachedSeconds,-1,-1},	
 	{"buffer-health-monitor-delay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
@@ -132,33 +132,33 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
 	{"useDashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
 	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
-	{"bulk-timedmeta-report",eAAMPConfig_BulkTimeMetaReport,-1,-1},
+	{"bulkTimedMetadata",eAAMPConfig_BulkTimedMetaReport,-1,-1},
 	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,-1,-1},
 	{"useRetuneForGSTInternalError",eAAMPConfig_RetuneForGSTError,-1,-1},
-	{"useWesterosSink",eAAMPConfig_EnableWesterosSink,-1,-1},
+	{"useWesterosSink",eAAMPConfig_UseWesterosSink,-1,-1},
 	{"setLicenseCaching",eAAMPConfig_SetLicenseCaching,-1,-1},
 	{"propagateUriParameters",eAAMPConfig_PropogateURIParam,-1,-1},
 	{"preFetchIframePlaylist",eAAMPConfig_PrefetchIFramePlaylistDL,-1,-1},
-	{"hls-av-sync-use-start-time",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
-	{"mpd-discontinuity-handling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
-	{"mpd-discontinuity-handling-cdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
+	{"hlsAVTrackSyncUsingPDT",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
+	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
+	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
 	{"ck-license-server-url",eAAMPConfig_CKLicenseServerUrl,-1,-1},
 	{"license-server-url",eAAMPConfig_LicenseServerUrl,-1,-1},
 	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
 	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
 	{"report-progress-interval",eAAMPConfig_ReportProgressInterval,-1,-1},	
 	{"http-proxy",eAAMPConfig_HttpProxy,-1,-1},
-	{"force-http",eAAMPConfig_ForceHttp,-1,-1},
-	{"internal-retune",eAAMPConfig_InternalReTune,-1,-1},
-	{"gst-buffering-before-play",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
+	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
+	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
+	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
 	{"re-tune-on-buffering-timeout",eAAMPConfig_ReTuneOnBufferingTimeout,-1,-1},
 	{"iframe-default-bitrate",eAAMPConfig_IFrameDefaultBitrate,-1,-1},
 	{"iframe-default-bitrate-4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
-	{"aamp-audio-only-playback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
+	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
 	{"license-retry-wait-time",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
 	{"fragment-cache-length",eAAMPConfig_MaxFragmentCached,-1,-1},
 	{"pts-error-threshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
-	{"enable_setvideorectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
+	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
 	{"max-playlist-cache",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
 	{"dash-max-drm-sessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
 	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
@@ -185,7 +185,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"minBitrate",eAAMPConfig_MinBitrate,-1,-1},
 	{"maxBitrate",eAAMPConfig_MaxBitrate,-1,-1},
 	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryLimit,-1,-1},
-	{"enable-native-cc",eAAMPConfig_NativeCCRendering,-1,-1},
+	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,-1,-1},
 	{"disableSubtec",eAAMPConfig_Subtec_subtitle,-1,-1},
 	{"webVttNative",eAAMPConfig_WebVTTNative,-1,-1},
 	{"preferred-cea-708",eAAMPConfig_PreferredCea,-1,-1},
@@ -207,7 +207,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 //	{"pr-license-server-url",eAAMPConfig_PRLicenseServerUrl,-1,-1},
 //	{"wv-license-server-url",eAAMPConfig_WVLicenseServerUrl,-1,-1},
 //	{"enableMicroEvents",eAAMPConfig_EnableMicroEvents,-1,-1},
-	{"disableWesteros",eAAMPConfig_DisableWesteros,-1,-1},
 	 {"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };
@@ -233,7 +232,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_PreservePipeline].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxAudioHLSTrack].value			=	true;
 	bAampCfgValue[eAAMPConfig_DemuxVideoHLSTrack].value			=	true;
-	bAampCfgValue[eAAMPConfig_Throttle].value				=	true;
+	bAampCfgValue[eAAMPConfig_Throttle].value					=	false;
 	bAampCfgValue[eAAMPConfig_DemuxAudioBeforeVideo].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxHLSVideoTsTrackTM].value			=	true;
 	bAampCfgValue[eAAMPConfig_ForceEC3].value				=	false;
@@ -258,7 +257,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_EnableClientDai].value			=	false;	
 	bAampCfgValue[eAAMPConfig_PlayAdFromCDN].value				=	false;	
 	bAampCfgValue[eAAMPConfig_EnableVideoEndEvent].value			=	true;	
-	bAampCfgValue[eAAMPConfig_DisableWesteros].value			=	false;	
 	bAampCfgValue[eAAMPConfig_EnableRectPropertyCfg].value			=	true;	
 	bAampCfgValue[eAAMPConfig_ReportVideoPTS].value				=	false;		
 	bAampCfgValue[eAAMPConfig_DecoderUnavailableStrict].value		=	false;	
@@ -283,10 +281,14 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;
 	bAampCfgValue[eAAMPConfig_DisableMidFragmentSeek].value			=	true;	
 	bAampCfgValue[eAAMPConfig_PropogateURIParam].value			=	true;	
-	bAampCfgValue[eAAMPConfig_EnableWesterosSink].value			=	false;	
+#if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked	
+	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	true;	
+#else
+	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	false;	
+#endif
 	bAampCfgValue[eAAMPConfig_CurlHeader].value				=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForGSTError].value			=	true;	
-	bAampCfgValue[eAAMPConfig_MatchBaseUrl].value				=	true;	
+	bAampCfgValue[eAAMPConfig_MatchBaseUrl].value				=	false;	
 	bAampCfgValue[eAAMPConfig_DisablewifiCurlHeader].value			=	true;	
 	bAampCfgValue[eAAMPConfig_EnableLinearSimulator].value			=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForUnpairDiscontinuity].value		=	true;	
@@ -299,7 +301,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_NewDiscontinuity].value			=	false;	
 	bAampCfgValue[eAAMPConfig_PlaylistParallelFetch].value			=	false;	
 	bAampCfgValue[eAAMPConfig_PlaylistParallelRefresh].value		=	true;	
-	bAampCfgValue[eAAMPConfig_BulkTimeMetaReport].value			=	false;	
+	bAampCfgValue[eAAMPConfig_BulkTimedMetaReport].value			=	false;	
 	bAampCfgValue[eAAMPConfig_RemovePersistent].value			=	false;
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
@@ -1056,8 +1058,9 @@ void AampConfig::ReadOperatorConfiguration()
 		if(iValue || bValue)
 		{
 			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
-			SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableWesteros,true);
+			SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_UseWesterosSink,true);
 		}
+		
 	}
 
 	ShowOperatorSetConfiguration();

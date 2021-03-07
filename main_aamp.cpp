@@ -132,10 +132,7 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
-	if (gpGlobalConfig->mAsyncTuneConfig == eTrueState)
-	{
-		EnableAsyncOperation();
-	}
+	AsyncStartStop();
 }
 
 /**
@@ -206,6 +203,21 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalAampConfig);
 		delete gpGlobalAampConfig;
 	}
+}
+
+
+/**
+ * @brief API to reset configuration across tunes for single player instance
+ *
+ */
+void PlayerInstanceAAMP::ResetConfiguration()
+{
+	AAMPLOG_WARN("%s Resetting Configuration to default values ",__FUNCTION__);
+	// Copy the default configuration to session configuration .App can modify the configuration set
+	mConfig = *gpGlobalAampConfig;
+	// Based on the default condition , reset the AsyncTune scheduler
+	AsyncStartStop();
+	mConfig.ShowAAMPConfiguration();
 }
 
 
@@ -1147,7 +1159,7 @@ void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
  */
 void PlayerInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 {
-	aamp->SetAvgBWForABR(useAvgBW);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AvgBWForABR,useAvgBW);
 }
 
 /**
@@ -1458,10 +1470,19 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();	
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableEC3,true);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableATMOS,true);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ForceEC3,false);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StereoOnly,true);
+	if(bValue)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableEC3,true);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableATMOS,true);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ForceEC3,false);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StereoOnly,true);
+	}
+	else
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableEC3,false);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DisableATMOS,false);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StereoOnly,false);
+	}
 }
 
 /**
@@ -1470,7 +1491,7 @@ void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetBulkTimedMetaReport(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_BulkTimedMetaReport,bValue);
 }
 
 /**
@@ -1479,7 +1500,7 @@ void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetRetuneForUnpairedDiscontinuity(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RetuneForUnpairDiscontinuity,bValue);
 }
 
 /**
@@ -1616,7 +1637,7 @@ bool PlayerInstanceAAMP::GetAsyncTuneConfig()
  */
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
-	aamp->SetWesterosSinkConfig(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_UseWesterosSink,bValue);
 }
 
 /**
@@ -1639,7 +1660,7 @@ void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
  */
 void PlayerInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 {
-	aamp->SetMatchingBaseUrlConfig(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MatchBaseUrl,bValue);
 }
 
 /**
@@ -1650,7 +1671,10 @@ void PlayerInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
  */
 void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 {
-	aamp->SetNewABRConfig(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ABRBufferCheckEnabled,bValue);
+	// Piggybagged following setting along with NewABR for Peacock
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NewDiscontinuity,bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,bValue);
 }
 
 /**
@@ -1746,8 +1770,10 @@ const char* PlayerInstanceAAMP::GetPreferredLanguages()
  *   @return void
  */
 void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
-{
-	aamp->SetNewAdBreakerConfig(bValue);
+{	
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NewDiscontinuity,bValue);
+	// Piggyback the PDT based processing for new Adbreaker processing for peacock.
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,bValue);
 }
 
 /**
@@ -1804,7 +1830,7 @@ void PlayerInstanceAAMP::SetAppName(std::string name)
 void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 {
 #ifdef AAMP_CC_ENABLED
-	gpGlobalConfig->nativeCCRendering = enable;
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NativeCCRendering,enable);
 #endif
 }
 
@@ -2088,21 +2114,36 @@ void PlayerInstanceAAMP::EnableContentRestrictions()
 }
 
 /**
- *   @brief Enable async operation and initialize resources
+ *   @brief Enable/Disable async operation
  *
  *   @return void
  */
-void PlayerInstanceAAMP::EnableAsyncOperation()
+void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+{
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AsyncTune,bValue);
+	// Start it for the playerinstance if default not started and App wants
+	// Stop Async operation for the playerinstance if default started and App doesnt want 
+	AsyncStartStop();
+}
+
+void PlayerInstanceAAMP::AsyncStartStop()
 {
 	// Check if global configuration is set to false
 	// Additional check added here, since this API can be called from jsbindings/native app
-	if (gpGlobalConfig->mAsyncTuneConfig != eFalseState && !mAsyncRunning)
+	if (ISCONFIGSET(eAAMPConfig_AsyncTune) && !mAsyncRunning)
 	{
 		AAMPLOG_WARN("%s:%d Enable async tune operation!!", __FUNCTION__, __LINE__);
 		mAsyncRunning = true;
 		StartScheduler();
-		aamp->SetAsyncTuneConfig(true);
+		aamp->SetEventPriorityAsyncTune(true);
 		aamp->SetScheduler(this);
+	}
+	else if(!ISCONFIGSET(eAAMPConfig_AsyncTune) && mAsyncRunning)
+	{
+		AAMPLOG_WARN("%s:%d Disable async tune operation!!", __FUNCTION__, __LINE__);
+		aamp->SetEventPriorityAsyncTune(false);
+		StopScheduler();
+		mAsyncRunning = false;
 	}
 }
 

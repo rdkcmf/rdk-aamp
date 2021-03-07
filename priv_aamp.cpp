@@ -2826,7 +2826,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	}
 
 #ifdef AAMP_CC_ENABLED
-	if (gpGlobalConfig->nativeCCRendering)
+	if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 	{
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
@@ -2913,7 +2913,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			// GStreamer position reporting is taken care of.
 			// BCOM-4765: Set seek_pos_seconds to injected position only in case of westerossink. In cases with
 			// brcmvideodecoder, we have noticed a drift of 500ms for HLS-TS assets (due to PTS restamping
-			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && mWesterosSinkEnabled)
+			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && ISCONFIGSET_PRIV(eAAMPConfig_UseWesterosSink))
 			{
 				seek_pos_seconds = injectedPosition;
 			}
@@ -2930,7 +2930,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 
 		// To notify app of discontinuity processing complete
-		ReportProgress(!mAsyncTuneEnabled);
+		ReportProgress(!GetAsyncTuneConfig());
 
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
@@ -4678,10 +4678,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #ifdef AAMP_STOP_SINK_ON_SEEK
 		const bool forceStop = true;
 		// Don't send event if nativeCCRendering is ON
-		if (!gpGlobalConfig->nativeCCRendering)
+		if (!ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(0);
-			if (!mAsyncTuneEnabled)
+			if (!GetAsyncTuneConfig())
 			{
 				SendEventSync(event);
 			}
@@ -4694,7 +4694,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #else
 		const bool forceStop = false;
 #endif
-		if (!forceStop && ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
+		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
 			mStreamSink->Flush(0, rate);
 		}
@@ -4702,7 +4702,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		{
 #ifdef AAMP_CC_ENABLED
 			// Stop CC when pipeline is stopped/destroyed and if foreground instance
-			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering) && mbPlayEnabled)
 			{
 				if(!newTune)
 				{
@@ -4946,7 +4946,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 	case eMEDIAFORMAT_HLS:
 	case eMEDIAFORMAT_HLS_MP4:
-		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, gpGlobalConfig->gThrottle );
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate);
 		break;
 
 	case eMEDIAFORMAT_PROGRESSIVE:
@@ -5066,7 +5066,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		if (mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
-			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline))
+			if ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline))
 			{
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
@@ -5142,10 +5142,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigurePlaylistTimeout();
 	//ConfigureParallelFetch();
 	ConfigureDashParallelFragmentDownload();
-	ConfigureBulkTimedMetadata();
-	ConfigureRetuneForUnpairedDiscontinuity();
+	//ConfigureBulkTimedMetadata();
+	//ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureRetuneForGSTInternalError();
-	ConfigureWesterosSink();
+	//ConfigureWesterosSink();
 	ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
@@ -5155,10 +5155,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
 	mProgramDateTime = 0;
+	#if 0
 	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
+	#endif
 
 	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState){
 		/* Disable ssl verification by default */
@@ -5344,7 +5346,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
 
-		if(gpGlobalConfig->bForceHttp)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_ForceHttp))
 		{
 			replace(mManifestUrl, "https://", "http://");
 		}
@@ -5816,7 +5818,7 @@ void PrivateInstanceAAMP::detach()
 		mpStreamAbstractionAAMP->StopInjection();
 #ifdef AAMP_CC_ENABLED
 		// Stop CC when pipeline is stopped
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Release();
 		}
@@ -6194,11 +6196,16 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
  *
  *   @return void
  */
-void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+void PrivateInstanceAAMP::SetEventPriorityAsyncTune(bool bValue)
 {
-	mAsyncTuneEnabled = bValue;
-	mEventPriority = AAMP_MAX_EVENT_PRIORITY;
-	AAMPLOG_INFO("%s:%d Async Tune Config : %s ",__FUNCTION__,__LINE__,(mAsyncTuneEnabled)?"True":"False");
+	if(bValue)
+	{
+		mEventPriority = AAMP_MAX_EVENT_PRIORITY;
+	}
+	else
+	{
+		mEventPriority = G_PRIORITY_DEFAULT_IDLE;
+	}	
 }
 
 /**
@@ -6208,9 +6215,10 @@ void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
  */
 bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 {
-        return mAsyncTuneEnabled;
+        return ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 }
 
+#if 0
 /**
  *   @brief Set Matching BaseUrl Config Configuration
  *
@@ -6229,7 +6237,7 @@ void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 		AAMPLOG_WARN("%s : Ignoring app setting[%d] already set value:%d", __FUNCTION__, bValue ,gpGlobalConfig->useMatchingBaseUrl );
 	}
 }
-
+#endif
 /**
  *   @brief to configure propagate URI parameters for fragment download
  *
@@ -6259,7 +6267,7 @@ void PrivateInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 	logprintf("%s:%d Disable Ssl Verify Peer : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->sslVerifyPeer)?"True":"False");
 }
 
-
+#if 0
 /**
  *   @brief Set Westeros sink Configuration
  *   @param[in] bValue - true if westeros sink enabled
@@ -6278,6 +6286,7 @@ void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 	}
 	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
 }
+#endif
 
 /**
  *   @brief Set license caching
@@ -6299,6 +6308,7 @@ void PrivateInstanceAAMP::SetLicenseCaching(bool bValue)
 	AAMPLOG_INFO("%s:%d License Caching is : %s ",__FUNCTION__, __LINE__, (mLicenseCaching ? "True" : "False"));
 }
 
+#if 0
 /**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
@@ -6349,6 +6359,8 @@ void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 	}
 	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
 }
+
+#endif
 
 /**
  *   @brief Set video rectangle.
@@ -6494,7 +6506,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
-		if (gpGlobalConfig->bPositionQueryEnabled && !gpGlobalConfig->bAudioOnlyPlayback)
+		if (gpGlobalConfig->bPositionQueryEnabled && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback))
 		{
 			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
@@ -6775,7 +6787,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
-				if (!mAsyncTuneEnabled)
+				if (!GetAsyncTuneConfig())
 				{
 					SendEventSync(eventData);
 				}
@@ -6858,7 +6870,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 
 
-		if ((eventData->getName() == "SCTE35") || !bSyncCall || mAsyncTuneEnabled)
+		if ((eventData->getName() == "SCTE35") || !bSyncCall || GetAsyncTuneConfig())
 		{
 			SendEventAsync(eventData);
 		}
@@ -6903,7 +6915,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	if (mStreamSink != NULL)
 	{
 #ifdef AAMP_CC_ENABLED
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
 		}
@@ -6997,7 +7009,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall", __FUNCTION__, __LINE__);
 			return;
 		}
-		else if (!gpGlobalConfig->internalReTune)
+		else if (!ISCONFIGSET_PRIV(eAAMPConfig_InternalReTune))
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
 			return;
@@ -7773,7 +7785,7 @@ void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	gpGlobalConfig->licenseAnonymousRequest = isAnonymous;
 }
-
+#if 0
 /**
  *   @brief Indicates average BW to be used for ABR Profiling.
  *
@@ -7783,7 +7795,7 @@ void PrivateInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 {
 	mUseAvgBandwidthForABR = useAvgBW;
 }
-
+#endif
 /**
  *   @brief Set Max TimeWindow for PreCaching Playlist
  *
@@ -8406,6 +8418,7 @@ void PrivateInstanceAAMP::ConfigureParallelFetch()
 }
 #endif
 
+#if 0
 /**
  *   @brief To set bulk timedMetadata reporting configuration
  *
@@ -8429,7 +8442,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
             mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
     }
 }
-
+#endif
 /**
  *   @brief To set retune configuration for gstpipeline internal data stream error.
  *
@@ -8441,7 +8454,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
             mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
     }
 }
-
+#if 0
 /**
  *   @brief Set unpaired discontinuity retune flag
  *   @param[in] bValue - true if unpaired discontinuity retune set
@@ -8453,7 +8466,7 @@ void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
     mUseRetuneForUnpairedDiscontinuity = bValue;
     AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
-
+#endif
 /**
  *   @brief Set retune configuration for gstpipeline internal data stream error.
  *   @param[in] bValue - true if gst internal error retune set
@@ -8495,6 +8508,7 @@ void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
 	}
 }
 
+#if 0
 /**
  *   @brief To set Westeros sink configuration
  *
@@ -8508,6 +8522,7 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
 
 	AAMPLOG_WARN("%s Westeros Sink", mWesterosSinkEnabled ? "Enabling" : "Disabling");
 }
+#endif
 
 /**
  *   @brief To set license caching config
@@ -9128,7 +9143,7 @@ void PrivateInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 	mParallelFetchPlaylistRefresh = bValue;
 	AAMPLOG_INFO("%s:%d Parallel playlist Refresh Fetch  Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
-#endif
+
 /**
  *   @brief Set Bulk TimedMetadata reporting flag 
  *   @param[in] bValue - true if Application supports bulk reporting 
@@ -9140,6 +9155,7 @@ void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
         mBulkTimedMetadata = bValue;
         AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
+#endif
 
 /**
  *   @brief Sending a flushing seek to stream sink with given position
@@ -10079,7 +10095,7 @@ void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 		// So disable video rectangle property only for those use-case.
 		if (rectProperty == false)
 		{
-			if (mWesterosSinkEnabled)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_UseWesterosSink))
 			{
 				mEnableRectPropertyEnabled = rectProperty;
 			}
@@ -10183,6 +10199,7 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
 	}
+#if 0	
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 	{
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
@@ -10191,6 +10208,7 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
 	}
+#endif	
 	if (gpGlobalConfig->ckLicenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
@@ -10221,10 +10239,12 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
 	}
+#if 0	
 	if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
 	{
 		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
+#endif
 	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
 	{
 		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
@@ -10266,7 +10286,7 @@ void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 {
 	int taskId = 0;
-	if (mAsyncTuneEnabled)
+	if (GetAsyncTuneConfig())
 	{
 		if (mScheduler)
 		{
@@ -10293,7 +10313,7 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 {
 	bool ret = false;
-	if (mAsyncTuneEnabled)
+	if (GetAsyncTuneConfig())
 	{
 		ret = mScheduler->RemoveTask(taskId);
 	}

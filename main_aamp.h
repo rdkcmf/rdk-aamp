@@ -589,6 +589,12 @@ public:
 	 *   @return void
 	 */
 	void Stop(bool sendStateChangeEvent = true);
+	
+	/**
+	 *	 @brief API to reset configuration across tunes if same player instance used
+	 *
+	 */
+	void ResetConfiguration();
 
 	/**
 	 *	 @brief Check given rate is valid.
@@ -1379,11 +1385,18 @@ public:
 	void SetMaxPlaylistCacheSize(int cacheSize);
 
 	/**
-	 *   @brief Enable async operation and initialize resources
+	 *   @brief Enable/Disable async operation 
 	 *
 	 *   @return void
 	 */
-	void EnableAsyncOperation();
+	void SetAsyncTuneConfig(bool bValue);
+
+	/**
+		 *	 @brief Enable/Disable async operation 
+		 *
+		 *	 @return void
+		 */
+	void AsyncStartStop();
 
 	/**
 	 *   @brief Enable/disable configuration to persist ABR profile over seek/SAP

@@ -732,7 +732,7 @@ void MediaTrack::RunInjectLoop()
 		// BCOM-2959  -- Disable audio video balancing for CDVR content .. 
 		// CDVR Content includes eac3 audio, the duration of audio doesnt match with video
 		// and hence balancing fetch/inject not needed for CDVR
-		if(!gpGlobalConfig->bAudioOnlyPlayback && !aamp->IsCDVRContent())
+		if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && !aamp->IsCDVRContent())
 		{
 			StreamAbstractionAAMP* pContext = GetContext();
 			if(pContext != NULL)
@@ -1431,7 +1431,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 			}
 			// For first time after tune, not to check for buffer availability, go for existing method .
 			// during steady state run check the buffer for ramp up or ramp down
-			if(!mNwConsistencyBypass && aamp->mABRBufferCheckEnabled)
+			if(!mNwConsistencyBypass && ISCONFIGSET(eAAMPConfig_ABRBufferCheckEnabled))
 			{
 				// Checking if frequent profile change happening
 				if(currentProfileIndex != desiredProfileIndex)	
@@ -1509,7 +1509,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 			aamp->UpdateVideoEndMetrics(stAbrInfo);
 
-			if(aamp->mABRBufferCheckEnabled)
+			if(ISCONFIGSET(eAAMPConfig_ABRBufferCheckEnabled))
 			{
 				// After Rampdown, configure the timeouts for next downloads based on buffer
 				ConfigureTimeoutOnBuffer();
@@ -1958,7 +1958,7 @@ bool StreamAbstractionAAMP::IsMuxedStream()
 {
 	bool ret = false;
 
-	if ((!gpGlobalConfig->bAudioOnlyPlayback) && (AAMP_NORMAL_PLAY_RATE == aamp->rate))
+	if ((!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback)) && (AAMP_NORMAL_PLAY_RATE == aamp->rate))
 	{
 		MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
@@ -2271,7 +2271,7 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 			}
 
 			//Check if mTrackState was reset from CheckForMediaTrackInjectionStall
-			if ((!aamp->mUseRetuneForUnpairedDiscontinuity || type == eTRACK_AUDIO) && (!aborted && ((mTrackState & state) != state)))
+			if ((!ISCONFIGSET(eAAMPConfig_RetuneForUnpairDiscontinuity) || type == eTRACK_AUDIO) && (!aborted && ((mTrackState & state) != state)))
 			{
 				//Ignore discontinuity
 				ret = false;
@@ -2400,7 +2400,7 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 
 				if (bProcessFlag)
 				{
-					if (aamp->mUseRetuneForUnpairedDiscontinuity && type != eTRACK_AUDIO)
+					if (ISCONFIGSET(eAAMPConfig_RetuneForUnpairDiscontinuity) && type != eTRACK_AUDIO)
 					{
 						if(aamp->GetBufUnderFlowStatus())
 						{

@@ -86,7 +86,7 @@ extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDat
 extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
-#define UseProgramDateTimeIfAvailable() (gpGlobalConfig->hlsAVTrackSyncUsingStartTime || aamp->mIsVSS)
+#define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information
@@ -871,6 +871,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	mProfileCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
+	bool useavgbw = ISCONFIGSET(eAAMPConfig_AvgBWForABR);
 #ifdef AVE_DRM
 	//clear previouse data
 	setCustomLicensePayLoad(NULL);
@@ -893,7 +894,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						next = mystrpbrk(next);
 					}
 
-					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth !=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -915,7 +916,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						next = mystrpbrk(next);
 					}
 
-					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth !=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -934,7 +935,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
-					if(streamInfo->averageBandwidth!=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth!=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -4358,7 +4359,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
 		}
 
-		if(gpGlobalConfig->bAudioOnlyPlayback)
+		if(ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
 			if(audio->enabled)
 			{
@@ -4593,8 +4594,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Send Metadata for Video playlist
 				if(iTrack == eTRACK_VIDEO)
 				{
-					ts->FindTimedMetadata(aamp->mBulkTimedMetadata , true);
-					if(aamp->mBulkTimedMetadata && newTune)
+					bool bMetadata = ISCONFIGSET(eAAMPConfig_BulkTimedMetaReport);
+					ts->FindTimedMetadata(bMetadata, true);
+					if(bMetadata && newTune)
 					{
 						// Send bulk report
 						aamp->ReportBulkTimedMetadata();
@@ -4750,7 +4752,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						// Creation of playContext is required only for TS fragments
 						if (format == FORMAT_MPEGTS)
 						{
-							if (gpGlobalConfig->gAampDemuxHLSAudioTsTrack)
+							if (ISCONFIGSET(eAAMPConfig_DemuxAudioHLSTrack))
 							{
 								logprintf("StreamAbstractionAAMP_HLS::%s : Configure audio TS track demuxing", __FUNCTION__);
 								ts->playContext = new TSProcessor(aamp, eStreamOp_DEMUX_AUDIO);
@@ -4792,8 +4794,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						ts->enabled = false;
 					}
 				}
-				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == AAMP_NORMAL_PLAY_RATE))
-						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != AAMP_NORMAL_PLAY_RATE)))
+				else if ((ISCONFIGSET(eAAMPConfig_DemuxVideoHLSTrack) && (rate == AAMP_NORMAL_PLAY_RATE))
+						|| (ISCONFIGSET(eAAMPConfig_DemuxHLSVideoTsTrackTM)&& (rate != AAMP_NORMAL_PLAY_RATE)))
 				{
 					/*Populate format from codec data*/
 					format = GetStreamOutputFormatForTrack(eTRACK_VIDEO);
@@ -4823,7 +4825,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 							// Even if audio info is not present in manifest, we let TSProcessor run a full sweep
 							// If audio is found, then TSProcessor will configure stream sink accordingly
-							if(!gpGlobalConfig->bAudioOnlyPlayback)
+							if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 							{
 								// For muxed tracks, demux audio and video
 								demuxOp = eStreamOp_DEMUX_ALL;
@@ -5012,7 +5014,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			else
 			{
-				if(!gpGlobalConfig->bAudioOnlyPlayback)
+				if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 				{
 					bool syncDone = false;
 					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == other->mDiscontinuityIndexCount))
@@ -5107,7 +5109,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			SeekPosUpdate(video->playTarget);
 		}
 		/*Adjust for discontinuity*/
-		if ((audio->enabled || aux->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
+		if ((audio->enabled || aux->enabled) && (aamp->IsLive()) && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
 			TrackState *otherTrack = audio->enabled ? audio : aux;
 			int discontinuityIndexCount = video->mDiscontinuityIndexCount;
@@ -5691,9 +5693,9 @@ static void *FragmentCollector(void *arg)
 * @param enableThrottle[in] throttle enable/disable flag
 * @return void
 ***************************************************************************/
-StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
+StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
-	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
+	enableThrottle(false), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
 	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),
 	mFirstPTS(0)
@@ -5702,7 +5704,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
 #endif
 	trickplayMode = false;
-
+	enableThrottle = ISCONFIGSET(eAAMPConfig_Throttle);
 	logprintf("hls fragment collector seekpos = %f", seekpos);
 	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
@@ -5717,7 +5719,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT,aamp->GetNetworkProxy());
 	memset(streamInfo, 0, sizeof(*streamInfo));
-	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
+	//mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
 }
 /***************************************************************************
 * @fn TrackState
@@ -6778,7 +6780,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 
 	while (aamp->DownloadsAreEnabled())
 	{
-		if(aamp->mNewAdBreakerEnabled)
+		if(ISCONFIGSET(eAAMPConfig_NewDiscontinuity))
 		{
 			// No condition to check DiscontinuityCount.Possible that in next refresh it will be available, 
 			// Case where one discontinnuity in one track ,but other track not having it	

@@ -1597,7 +1597,7 @@ bool AAMPGstPlayer::CreatePipeline()
 #else
 			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this);
 #endif
-			privateContext->buffering_enabled = gpGlobalConfig->gstreamerBufferingBeforePlay;
+			privateContext->buffering_enabled = ISCONFIGSET(eAAMPConfig_GStreamerBufferingBeforePlay);
 			privateContext->buffering_in_progress = false;
 			privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
 			privateContext->buffering_target_state = GST_STATE_NULL;
@@ -2553,7 +2553,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		newFormat[eMEDIATYPE_AUX_AUDIO] = auxFormat;
 	}
 
-	if (!aamp->mWesterosSinkEnabled)
+	if (!ISCONFIGSET(eAAMPConfig_UseWesterosSink))
 	{
 		privateContext->using_westerossink = false;
 #if defined(REALTEKCE)

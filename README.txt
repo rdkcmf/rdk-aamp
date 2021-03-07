@@ -53,28 +53,41 @@ Configuration Field						Description
 On / OFF Switches : All Enable/Disable configuration needs true/false input .
 Example : abr=false -> to disable ABR 
 ===============================================================================
-abr					Enable/Disable adaptive bitrate logic.Default : true
-fog					Enable / Disable Fog .Default : true
-parallelPlaylistDownload		Enabled parallel fetching of audio & video playlists for HLS during Tune.Default False
-parallelPlaylistRefresh			Enabled parallel fetching of audio & video playlists for HLS during refresh .Default True
-preFetchIframePlaylist			Enabled prefetching of I-Frame playlist.Default False
-preservePipeline			Flush instead of teardown.Default False
-demux-hls-audio-track                   Demux Audio track from HLS transport stream
-demux-hls-video-track                   Demux Video track from HLS transport stream
-throttle                                Regulate output data flow
-demuxed-audio-before-video              Demux video track from HLS transport stream track mode
-demux-hls-video-track-tm                Send demuxed audio before video                      
-stereoOnly                              Enabled selection of stereo only audio.It Overrides forceEC3/disableEC3/disableATMOS.Default False
-forceEC3                                Forcefully enable DDPlus.Default False
-disableEC3                              Disable DDPlus.Default False
-disableATMOS                            Disable Dolby ATMOS.Default False
-disablePlaylistIndexEvent               Disable playlist index event
-enableSubscribedTags                    Enabled subscribed tags
-dash-ignore-base-url-if-slash           Ignore the constructed URI of DASH
-license-anonymous-request               Acquire license without token
-
-
-
+abr				Enable/Disable adaptive bitrate logic.Default true
+fog				Enable/Disable Fog .Default true
+parallelPlaylistDownload	Enable parallel fetching of audio & video playlists for HLS during Tune.Default false
+parallelPlaylistRefresh		Enable parallel fetching of audio & video playlists for HLS during refresh .Default true
+preFetchIframePlaylist		Enable prefetching of I-Frame playlist.Default false
+preservePipeline		Flush instead of teardown.Default false
+demuxHlsAudioTrack		Demux Audio track from HLS transport stream.Default true
+demuxHlsVideoTrack		Demux Video track from HLS transport stream.Default true
+demuxHlsVideoTrackTrickMode	Demux Video track from HLS transport stream during TrickMode.Defaut true
+throttle			Regulate output data flow,used with restamping. Default false
+demuxAudioBeforeVideo		Demux video track from HLS transport stream track mode.Default false
+stereoOnly			Enable selection of stereo only audio.It Overrides forceEC3/disableEC3/disableATMOS.Default false
+forceEC3			Forcefully enable DDPlus.Default false
+disableEC3			Disable DDPlus.Default false
+disableATMOS			Disable Dolby ATMOS.Default false
+disablePlaylistIndexEvent	Disable playlist index event.Default true
+enableSubscribedTags		Enable subscribed tags.Default true
+dashIgnoreBaseUrlIfSlash	Ignore the constructed URI of DASH.Default false
+licenseAnonymousRequest		Acquire license without token.Default false
+hlsAVTrackSyncUsingPDT		Use EXT-X-PROGRAM-DATE to synchronize audio and video playlists. Default false
+mpdDiscontinuityHandling	Discontinuity handling during MPD period transition.Default true
+mpdDiscontinuityHandlingCdvr	Discontinuity handling during MPD period transition for cDvr.Default true
+forceHttp			Allow forcing of HTTP protocol for HTTPS URLs . Default false
+internalRetune			Internal reTune logic on underflows/ pts errors.Default true
+audioOnlyPlayback		Audio only Playback . Default false
+gstBufferAndPlay		Pre-buffering which ensures minimum buffering is done before pipeline play.Default true
+bulkTimedMetadata		Report timed Metadata as single bulk event.Default false
+asyncTune			Asynchronous API / Event handling for UI.Default false
+useWesterosSink		Enable/Disable westeros sink based video decoding. 
+useNewABR			Enable/Disable New buffer based hybrid ABR . Default true (enables useNewAdBreaker & PDT based A/V sync)
+useNewAdBreaker		Enable/Disable New discontinuity processing based on PDT.Default false
+useAverageBandwidth	Enable/Disable use of average bandwidth in manifest for ABR instead of Bandwidth attribute . Default false
+useRetuneForUnpairedDiscontinuity	Enable/Disable internal retune on unpaired discontinuity .Default true
+useMatchingBaseUrl	Enable/Disable use of matching base url, whenever there are multiple base urls are available.Default false
+nativeCCRendering	Enable/Disable Native CC rendering in AAMP Player.Default false
 
 =================================================================================================================
 3. Channel Override Settings
@@ -243,6 +256,7 @@ i = "init" fragment statistics (used in case of DASH and fragmented mp4)
 
 
 =================================================================================================================
+/////TODO -- To remove following after above tables are completed
 
 /opt/aamp.cfg
 This optional file supports changes to default logging/behavior and channel remappings to alternate content.
@@ -315,10 +329,7 @@ http-proxy=<SCHEME>://<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy wit
 http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with Proxy Authentication Credentials. Make sure to encode special characters if present in username or password (URL Encoding)
 mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
 mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
-force-http Allow forcing of HTTP protocol for HTTPS URLs
-internal-retune=0 Disable internal reTune logic on underflows/ pts errors
 re-tune-on-buffering-timeout=0 Disable internal re-tune on buffering time-out
-gst-buffering-before-play=0 Disable pre buffering logic which ensures minimum buffering is done before pipeline play
 audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads
@@ -374,7 +385,6 @@ langcodepref=<X>
 
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
 propagateUriParameters=0 to disable feature where top-level manifest URI parameters included when downloading fragments.  Default is 1 (enabled).
-useWesterosSink=1  Enable player to use westeros sink based video decoding. Default value is false(disabled)
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.

@@ -72,12 +72,13 @@ public :
 	std::string RepresentationID;
 	uint64_t Number;
 	double Time;
+	bool bUseMatchingBaseUrl;
 
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL("")
+	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL(""),bUseMatchingBaseUrl(false)
 	{
 	}
 	
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL)
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL),bUseMatchingBaseUrl(p.bUseMatchingBaseUrl)
 	{
 	}
 
@@ -110,7 +111,7 @@ public :
 			if(this->baseUrls->size() > 0 )
 			{
 				// use baseurl which matches with host from manifest.
-				if(gpGlobalConfig->useMatchingBaseUrl == eTrueState)
+				if(bUseMatchingBaseUrl)
 				{
 					std::string prefHost = aamp_getHostFromURL(manifestUrl);
 					for (auto & item : *this->baseUrls) {
