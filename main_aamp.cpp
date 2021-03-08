@@ -885,12 +885,42 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
-	aamp->AcquireStreamLock();
-	aamp->TeardownStream(false);
-	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
-	aamp->rate = rate;
-	aamp->TuneHelper(eTUNETYPE_SEEK);
-	aamp->ReleaseStreamLock();
+	if (!IsValidRate(rate))
+	{
+		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		return;
+	}
+
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		if ((!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0))
+		{
+			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
+			return;
+		}
+		aamp->AcquireStreamLock();
+		aamp->TeardownStream(false);
+		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+		aamp->rate = rate;
+		aamp->TuneHelper(eTUNETYPE_SEEK);
+		aamp->ReleaseStreamLock();
+		if(rate == 0)
+		{
+			if (!aamp->pipeline_paused)
+			{
+				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+				aamp->StopDownloads();
+				bool retValue = aamp->mStreamSink->Pause(true, false);
+				aamp->pipeline_paused = true;
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+	}
 }
 
 /**
