@@ -111,6 +111,14 @@ public:
 	 */
 	void SetTrickplayStatus(bool enable);
 
+	/**
+	 * @brief To enable/disable CC when parental control locked/unlocked
+	 *
+	 * @param[in] locked - true when parental control lock enabled, false otherwise
+	 * @return void
+	 */
+	void SetParentalControlStatus(bool locked);
+
 	virtual ~AampCCManagerBase(){ };
 
 protected:
@@ -182,6 +190,7 @@ protected:
 	bool mRendering{false}; /**< If CC is visible or not */
 	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
 	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
+	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */
 };
 
 class AampCCManager
