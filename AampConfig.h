@@ -78,9 +78,9 @@
 #define ISCONFIGSET(x) (aamp->mConfig->IsConfigSet(x))
 #define ISCONFIGSET_PRIV(x) (mConfig->IsConfigSet(x))
 #define SETCONFIGVALUE(owner,key,value) (aamp->mConfig->SetConfigValue(owner, key ,value))
+#define SETCONFIGVALUE_PRIV(owner,key,value) (mConfig->SetConfigValue(owner, key ,value))
 #define GETCONFIGVALUE(key,value) (aamp->mConfig->GetConfigValue( key ,value))
 #define GETCONFIGVALUE_PRIV(key,value) (mConfig->GetConfigValue( key ,value))
-
 /**
  * @brief AAMP Config Settings
  */
@@ -152,7 +152,7 @@ typedef enum
 	eAAMPConfig_DashParallelFragDownload,					/**<Enable dash fragment parallel download*/
 	eAAMPConfig_PersistentBitRateOverSeek,					/**< ABR profile persistence during Seek/Trickplay/Audio switching*/
 	eAAMPConfig_SetLicenseCaching,							/**< License caching*/
-	eAAMPConfig_Fragmp4_PrefetchLicense,					/*** Enable fragment mp4 license prefetching**/
+	eAAMPConfig_Fragmp4PrefetchLicense,					/*** Enable fragment mp4 license prefetching**/
 	eAAMPConfig_ABRBufferCheckEnabled,						/**< Flag to enable/disable buffer based ABR handling*/
 	eAAMPConfig_NewDiscontinuity,							/**< Flag to enable/disable new discontinuity handling with PDT*/
 	eAAMPConfig_PlaylistParallelFetch,						/**< Enabled parallel fetching of audio & video playlists*/
@@ -169,7 +169,7 @@ typedef enum
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,	
 	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
-	eAAMPConfig_HarvestCount,									/**< Number of fragments to harvest */
+	eAAMPConfig_HarvestCountLimit,									/**< Number of files to be harvested */
 	eAAMPConfig_HarvestConfig,									/**< Indicate type of file to be  harvest */
 	eAAMPConfig_ABRCacheLife,									/**< Adaptive bitrate cache life in seconds*/
 	eAAMPConfig_ABRCacheLength,									/**< Adaptive bitrate cache length*/

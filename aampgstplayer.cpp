@@ -2108,7 +2108,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		// When override is enabled qtdemux internally restamps and sends segment.start = 0 which is part of
 		// AAMP's change in qtdemux so we don't need to query segment.start
 		// Enabling position query based progress reporting for non-westerossink configurations
-		if (gpGlobalConfig->bPositionQueryEnabled && enableOverride == FALSE)
+		if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && enableOverride == FALSE)
 		{
 			privateContext->segmentStart = -1;
 		}

@@ -68,10 +68,10 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 {
 	{"map-mpd",eAAMPConfig_MapMPD,-1,-1},
 	{"map-m3u8",eAAMPConfig_MapM3U8,-1,-1},
-	{"fragmp4-license-prefetch",eAAMPConfig_Fragmp4_PrefetchLicense,-1,-1},
+	{"fragmp4LicensePrefetch",eAAMPConfig_Fragmp4PrefetchLicense,-1,-1},
 	{"enable_videoend_event",eAAMPConfig_EnableVideoEndEvent,-1,-1},
 	{"fog",eAAMPConfig_Fog,-1,-1},
-	{"harvest-count-limit",eAAMPConfig_HarvestCount,-1,-1},
+	{"harvestCountLimit",eAAMPConfig_HarvestCountLimit,-1,-1},
 	{"harvest-config",eAAMPConfig_HarvestConfig,-1,-1},
 	{"harvest-path",eAAMPConfig_HarvestPath,-1,-1},
 	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},										// Complete
@@ -103,8 +103,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"default-bitrate",eAAMPConfig_DefaultBitrate,-1,-1},		
 	{"default-bitrate-4K",eAAMPConfig_DefaultBitrate4K,-1,-1},
 	{"abr",eAAMPConfig_EnableABR,-1,-1},
-	{"abr-cache-life",eAAMPConfig_ABRCacheLife,-1,-1},	
-	{"abr-cache-length",eAAMPConfig_ABRCacheLength,-1,-1},	
+	{"abrCacheLife",eAAMPConfig_ABRCacheLife,-1,-1},	
+	{"abrCacheLength",eAAMPConfig_ABRCacheLength,-1,-1},	
 	{"useNewABR",eAAMPConfig_ABRBufferCheckEnabled,-1,-1},
 	{"useNewAdBreaker",eAAMPConfig_NewDiscontinuity,-1,-1},
 	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
@@ -112,9 +112,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"descriptiveaudiotrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
 	{"langcodepref",eAAMPConfig_LanguageCodePreference,-1,-1},
 	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,-1,-1},
-	{"abr-cache-outlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
-	{"abr-skip-duration",eAAMPConfig_ABRSkipDuration,-1,-1},
-	{"abr-nw-consistency",eAAMPConfig_ABRNWConsistency,-1,-1},	
+	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
+	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,-1,-1},
+	{"abrNwConsistency",eAAMPConfig_ABRNWConsistency,-1,-1},	
 	{"min-buffer-rampdown",eAAMPConfig_MinABRNWBufferRampDown,-1,-1},
 	{"preservePipeline",eAAMPConfig_PreservePipeline,-1,-1},
 	{"demuxHlsAudioTrack",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
@@ -123,8 +123,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"demuxAudioBeforeVideo",eAAMPConfig_DemuxAudioBeforeVideo,-1,-1},
 	{"throttle",eAAMPConfig_Throttle,-1,-1},
 	{"min-init-cache",eAAMPConfig_VideoMinCachedSeconds,-1,-1},	
-	{"buffer-health-monitor-delay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
-	{"buffer-health-monitor-interval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
+	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
+	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
 	{"preferred-drm",eAAMPConfig_PreferredDRM,-1,-1},
 	{"playready-output-protection",eAAMPConfig_EnablePROutputProtection,-1,-1},
 	{"live-tune-event",eAAMPConfig_LiveTuneEvent,-1,-1},
@@ -174,7 +174,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},	
 	{"reportbufferevent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enable-tune-profiling",eAAMPConfig_EnableTuneProfile,-1,-1},
-	{"gst-position-query-enable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
+	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
 	{"use-matching-baseurl",eAAMPConfig_MatchBaseUrl,-1,-1},
 	{"remove_Persistent",eAAMPConfig_RemovePersistent,-1,-1},
 	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,-1,-1},
@@ -278,8 +278,12 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_ManifestLatencyLogging].value			=	true;			
 	bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;		
 	bAampCfgValue[eAAMPConfig_EnableTuneProfile].value			=	false;	
+#ifdef INTELCE	
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;
-	bAampCfgValue[eAAMPConfig_DisableMidFragmentSeek].value			=	true;	
+#else
+       bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	true;
+#endif
+        bAampCfgValue[eAAMPConfig_DisableMidFragmentSeek].value			=	true;	
 	bAampCfgValue[eAAMPConfig_PropogateURIParam].value			=	true;	
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked	
 	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	true;	
@@ -296,7 +300,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_DashParallelFragDownload].value		=	true;	
 	bAampCfgValue[eAAMPConfig_PersistentBitRateOverSeek].value		=	false;	
 	bAampCfgValue[eAAMPConfig_SetLicenseCaching].value			=	true;	
-	bAampCfgValue[eAAMPConfig_Fragmp4_PrefetchLicense].value		=	true;	
+	bAampCfgValue[eAAMPConfig_Fragmp4PrefetchLicense].value			=	true;	
 	bAampCfgValue[eAAMPConfig_ABRBufferCheckEnabled].value			=	true;	
 	bAampCfgValue[eAAMPConfig_NewDiscontinuity].value			=	false;	
 	bAampCfgValue[eAAMPConfig_PlaylistParallelFetch].value			=	false;	
@@ -309,21 +313,24 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
 	bAampCfgValue[eAAMPConfig_PreferredCea].value				=	false;
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
-#if 0
 	///////////////// Following for Integer Data type configs ////////////////////////////
-	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	
-	iAampCfgValue[eAAMPConfig_HarvestCount-eAAMPConfig_IntStartValue].value			=	0;
+//	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	
+	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
+
 	iAampCfgValue[eAAMPConfig_ABRCacheLength-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_CACHE_LENGTH;
 	iAampCfgValue[eAAMPConfig_ABRCacheOutlier-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_OUTLIER;
+
 	iAampCfgValue[eAAMPConfig_ABRSkipDuration-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_SKIP_DURATION;	
 	iAampCfgValue[eAAMPConfig_ABRNWConsistency-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_NW_CONSISTENCY_CNT;		
+	iAampCfgValue[eAAMPConfig_BufferHealthMonitorDelay-eAAMPConfig_IntStartValue].value     =       DEFAULT_BUFFER_HEALTH_MONITOR_DELAY;
+	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
+
+#if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
 	iAampCfgValue[eAAMPConfig_VideoMinCachedSeconds-eAAMPConfig_IntStartValue].value	=	DEFAULT_MINIMUM_CACHE_VIDEO_SECONDS;
-	iAampCfgValue[eAAMPConfig_BufferHealthMonitorDelay-eAAMPConfig_IntStartValue].value	=	DEFAULT_BUFFER_HEALTH_MONITOR_DELAY;
-	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_PreferredDRM-eAAMPConfig_IntStartValue].value			=	eDRM_PlayReady;
 	iAampCfgValue[eAAMPConfig_LiveTuneEvent-eAAMPConfig_IntStartValue].value		=	eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_PLAYLIST_INDEXED;

@@ -1972,6 +1972,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mManifestRefreshCount (0)
 	, mProgramDateTime (0)
 	, mConfig (config)
+	, mHarvestCountLimit(0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2043,6 +2044,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
 #endif
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 }
 
 /**
@@ -3533,11 +3535,14 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	std::vector< long> tmpData;
 	std::vector< long>::iterator tmpDataIter;
 	long long presentTime = aamp_GetCurrentTimeMS();
+	int  abrCacheLife,abrOutlierDiffBytes;
+
 	pthread_mutex_lock(&mLock);
 	for (bitrateIter = mAbrBitrateData.begin(); bitrateIter != mAbrBitrateData.end();)
 	{
 		//logprintf("[%s][%d] Sz[%d] TimeCheck Pre[%lld] Sto[%lld] diff[%lld] bw[%ld] ",__FUNCTION__,__LINE__,mAbrBitrateData.size(),presentTime,(*bitrateIter).first,(presentTime - (*bitrateIter).first),(long)(*bitrateIter).second);
-		if ((bitrateIter->first <= 0) || (presentTime - bitrateIter->first > gpGlobalConfig->abrCacheLife))
+		GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLife,abrCacheLife); 
+        	if ((bitrateIter->first <= 0) || (presentTime - bitrateIter->first > abrCacheLife))
 		{
 			//logprintf("[%s][%d] Threadshold time reached , removing bitrate data ",__FUNCTION__,__LINE__);
 			bitrateIter = mAbrBitrateData.erase(bitrateIter);
@@ -3568,12 +3573,13 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	
 		long diffOutlier = 0;
 		avg = 0;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheOutlier,abrOutlierDiffBytes);
 		for (tmpDataIter = tmpData.begin();tmpDataIter != tmpData.end();)
 		{
 			diffOutlier = (*tmpDataIter) > medianbps ? (*tmpDataIter) - medianbps : medianbps - (*tmpDataIter);
-			if (diffOutlier > gpGlobalConfig->abrOutlierDiffBytes)
+			if (diffOutlier > abrOutlierDiffBytes)
 			{
-				//logprintf("[%s][%d] Outlier found[%ld]>[%ld] erasing ....",__FUNCTION__,__LINE__,diffOutlier,gpGlobalConfig->abrOutlierDiffBytes);
+				//logprintf("[%s][%d] Outlier found[%ld]>[%ld] erasing ....",__FUNCTION__,__LINE__,diffOutlier,abrOutlierDiffBytes);
 				tmpDataIter = tmpData.erase(tmpDataIter);
 			}
 			else
@@ -4102,16 +4108,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
-			if( gpGlobalConfig->harvestCountLimit > 0 )
+			if( mHarvestCountLimit > 0 )
 			{
-				logprintf("aamp harvestCountLimit: %d", gpGlobalConfig->harvestCountLimit);
+				logprintf("aamp harvestCountLimit: %d", mHarvestCountLimit);
 				/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
 				if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO || fileType == eMEDIATYPE_PLAYLIST_AUX_AUDIO
 				|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
 				{
 					mManifestRefreshCount++;
 				}
-				aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount);
+				if(aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount))
+					mHarvestCountLimit--;
 			}
 			double expectedContentLength = 0;
 			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
@@ -6513,7 +6520,6 @@ long long PrivateInstanceAAMP::GetPositionMs()
 {
 	return (prevPositionMiliseconds!=-1) ? prevPositionMiliseconds : GetPositionMilliseconds();
 }
-
 /**
  * @brief Get current stream position
  * @retval current stream position in ms
@@ -6524,8 +6530,8 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
-		if (gpGlobalConfig->bPositionQueryEnabled && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback))
-		{
+		if (ISCONFIGSET_PRIV(eAAMPConfig_EnableGstPositionQuery) && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback))
+                {
 			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
 		else

@@ -787,7 +787,7 @@ static void * TrackPLDownloader(void *arg)
 static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 #ifdef AAMP_HLS_DRM
 		/** If fragments are CDM encrypted KC **/
-		if (aamp->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
+		if (aamp->fragmentCdmEncrypted && ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
 			pthread_mutex_lock(&aamp->drmParserMutex);
 			DrmSessionDataInfo* drmDataToUse = NULL;
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
@@ -1069,7 +1069,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 #ifdef AAMP_HLS_DRM
 				else if (startswith(&ptr, "-X-SESSION-KEY:"))
 				{
-						if (gpGlobalConfig->fragmp4LicensePrefetch)
+						if (ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense))
 						{
 							size_t len;
 							len = FindLineLength(ptr);
@@ -2782,7 +2782,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					//drmMetadataIdx = mDrmMetaDataIndexPosition;
 					if(mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR){
 #ifdef AAMP_HLS_DRM
-						if (gpGlobalConfig->fragmp4LicensePrefetch){
+						if (ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
 							pthread_mutex_lock(&aamp->drmParserMutex);
 							attrNameData* aesCtrAttrData = new attrNameData(keyinfo.mKeyTagStr); 
 							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 

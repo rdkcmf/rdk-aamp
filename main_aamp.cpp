@@ -605,10 +605,10 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 		else
 		{
-			// DELIA-39530 - For 1.0->0.0 and 0.0->1.0 if bPositionQueryEnabled is enabled, GStreamer position query will give proper value
-			// Fallback case added for when bPositionQueryEnabled is disabled, since we will be using elapsedTime to calculate position and
+			// DELIA-39530 - For 1.0->0.0 and 0.0->1.0 if eAAMPConfig_EnableGstPositionQuery is enabled, GStreamer position query will give proper value
+			// Fallback case added for when eAAMPConfig_EnableGstPositionQuery is disabled, since we will be using elapsedTime to calculate position and
 			// trickStartUTCMS has to be reset
-			if (!gpGlobalConfig->bPositionQueryEnabled)
+			if (!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
 			{
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
 				aamp->trickStartUTCMS = -1;

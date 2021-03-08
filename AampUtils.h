@@ -168,6 +168,6 @@ struct timespec aamp_GetTimespec(int timeInMs);
  * @param media type of file
  * @param count for manifest or playlist update
  */
-void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count);
+bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count);
 
 #endif  /* __AAMP_UTILS_H__ */

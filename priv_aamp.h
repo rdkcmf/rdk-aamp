@@ -2991,5 +2991,6 @@ private:
 	int mEventPriority; /**< priority for async events */
 	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
+	int mHarvestCountLimit;	// Harvest count 
 };
 #endif // PRIVAAMP_H

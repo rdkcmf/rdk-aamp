@@ -80,15 +80,18 @@ const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
  */
 void MediaTrack::MonitorBufferHealth()
 {
-	assert(gpGlobalConfig->bufferHealthMonitorDelay >= gpGlobalConfig->bufferHealthMonitorInterval);
-	unsigned int bufferMontiorScheduleTime = gpGlobalConfig->bufferHealthMonitorDelay - gpGlobalConfig->bufferHealthMonitorInterval;
+	int  bufferHealthMonitorDelay,bufferHealthMonitorInterval;
+	GETCONFIGVALUE(eAAMPConfig_BufferHealthMonitorDelay,bufferHealthMonitorDelay); 
+	GETCONFIGVALUE(eAAMPConfig_BufferHealthMonitorInterval,bufferHealthMonitorInterval) ;
+	assert(bufferHealthMonitorDelay >= bufferHealthMonitorInterval);
+	unsigned int bufferMontiorScheduleTime = bufferHealthMonitorDelay - bufferHealthMonitorInterval;
 	bool keepRunning = false;
 	if(aamp->DownloadsAreEnabled() && !abort)
 	{
 		aamp->InterruptableMsSleep(bufferMontiorScheduleTime *1000);
 		keepRunning = true;
 	}
-	int monitorInterval = gpGlobalConfig->bufferHealthMonitorInterval  * 1000;
+	int monitorInterval = bufferHealthMonitorInterval  * 1000;
 	while(keepRunning && !abort)
 	{
 		aamp->InterruptableMsSleep(monitorInterval);
@@ -1417,7 +1420,9 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 		{
 			long currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 			long networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
-			int nwConsistencyCnt = (mNwConsistencyBypass)?1:gpGlobalConfig->abrNwConsistency;
+			int abrNwConsistency;
+			GETCONFIGVALUE(eAAMPConfig_ABRNWConsistency,abrNwConsistency) ;
+			int nwConsistencyCnt = (mNwConsistencyBypass)?1:abrNwConsistency;
 			// Ramp up/down (do ABR)
 			desiredProfileIndex = mAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
 					currentBandwidth, networkBandwidth, nwConsistencyCnt);
@@ -1634,8 +1639,10 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 		{
 			double totalFetchedDuration = video->GetTotalFetchedDuration();
 			bool checkProfileChange = true;
+			int abrSkipDuration;
+			GETCONFIGVALUE(eAAMPConfig_ABRSkipDuration,abrSkipDuration) ;
 			//Avoid doing ABR during initial buffering which will affect tune times adversely
-			if ( totalFetchedDuration > 0 && totalFetchedDuration < gpGlobalConfig->abrSkipDuration)
+			if ( totalFetchedDuration > 0 && totalFetchedDuration < abrSkipDuration)
 			{
 				//For initial fragment downloads, check available bw is less than default bw
 				long availBW = aamp->GetCurrentlyAvailableBandwidth();

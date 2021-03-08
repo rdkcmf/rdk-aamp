@@ -888,8 +888,9 @@ static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
  * @param len length of buffer
  * @param media type of file
  */
-void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count)
+bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count)
 {
+	bool retVal=false;
 	char * prefix = gpGlobalConfig->harvestPath;
 	if( !prefix )
 	{
@@ -901,8 +902,6 @@ void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 	/*Check harvesting of this file type has enabled by user */
 	if(getHarvestConfigForMedia(fileType) & harvestConfig)
 	{
-		/** Harvest enabled so decrease the harvest count */
-		gpGlobalConfig->harvestCountLimit--;
 		std::size_t pos = fileName.find("://");
 		if( pos != std::string::npos )
 		{
@@ -933,7 +932,9 @@ void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 				logprintf("File open failed. outfile = %s ", (dirpath + fileName).c_str());
 			}
 		}
+		retVal = true;
 	}
+	return retVal;
 }
 
 /**

@@ -37,6 +37,14 @@
 #define MAX_PTS_ERRORS_THRESHOLD 4
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
+#define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life  in milli secs*/
+#define DEFAULT_ABR_OUTLIER 5000000                 /**< ABR outlier: 5 MB */
+#define DEFAULT_ABR_SKIP_DURATION 6                 /**< Initial skip duration of ABR - 6 sec */
+#define DEFAULT_ABR_NW_CONSISTENCY_CNT 2            /**< ABR network consistency count */
+#define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
+#define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
+#define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
+
 #if 0
 
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */

@@ -81,33 +81,40 @@ audioOnlyPlayback		Audio only Playback . Default false
 gstBufferAndPlay		Pre-buffering which ensures minimum buffering is done before pipeline play.Default true
 bulkTimedMetadata		Report timed Metadata as single bulk event.Default false
 asyncTune			Asynchronous API / Event handling for UI.Default false
-useWesterosSink		Enable/Disable westeros sink based video decoding. 
+useWesterosSink			Enable/Disable westeros sink based video decoding. 
 useNewABR			Enable/Disable New buffer based hybrid ABR . Default true (enables useNewAdBreaker & PDT based A/V sync)
-useNewAdBreaker		Enable/Disable New discontinuity processing based on PDT.Default false
-useAverageBandwidth	Enable/Disable use of average bandwidth in manifest for ABR instead of Bandwidth attribute . Default false
+useNewAdBreaker			Enable/Disable New discontinuity processing based on PDT.Default false
+useAverageBandwidth		Enable/Disable use of average bandwidth in manifest for ABR instead of Bandwidth attribute . Default false
 useRetuneForUnpairedDiscontinuity	Enable/Disable internal retune on unpaired discontinuity .Default true
-useMatchingBaseUrl	Enable/Disable use of matching base url, whenever there are multiple base urls are available.Default false
-nativeCCRendering	Enable/Disable Native CC rendering in AAMP Player.Default false
-enableVideoRectangle			Enable/Disable Setting of rectangle property for sink element.Default true
+useMatchingBaseUrl		Enable/Disable use of matching base url, whenever there are multiple base urls are available.Default false
+nativeCCRendering		Enable/Disable Native CC rendering in AAMP Player.Default false
+enableVideoRectangle		Enable/Disable Setting of rectangle property for sink element.Default true
 useRetuneForGstInternalError	Enable/Disable Retune on GST Error.Default true
-enableSeekableRange				Enable/Disable Seekable range reporting in progress event for non-fog content.Default false
-reportVideoPts 					Enable/Disable video pts reporting in progress events.Default false
-propagateUriParameters			Enable/Disable top-level manifest URI parameters while downloading fragments.  Default true
-sslVerifyPeer					Enable/Disable SSL Peer verification for curl connection . Default false
-setLicenseCaching				Enable/Disable license caching in WV . Default true
-persistBitRateOverSeek			Enable/Disable ABR profile persistence during Seek/Trickplay/Audio switching. Default false
+enableSeekableRange		Enable/Disable Seekable range reporting in progress event for non-fog content.Default false
+reportVideoPts 			Enable/Disable video pts reporting in progress events.Default false
+propagateUriParameters		Enable/Disable top-level manifest URI parameters while downloading fragments.  Default true
+sslVerifyPeer			Enable/Disable SSL Peer verification for curl connection . Default false
+setLicenseCaching		Enable/Disable license caching in WV . Default true
+persistBitRateOverSeek		Enable/Disable ABR profile persistence during Seek/Trickplay/Audio switching. Default false
+fragmp4LicensePrefetch		Enable/Disable fragment mp4 license prefetching.Default true
+gstPositionQueryEnable		GStreamer position query will be used for progress report events.Default true for non-Intel platforms
 
+// Integer inputs
+minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
+maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
+ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
+waitTimeBeforeRetryHttp5xx 	Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+harvestCountLimit		Specify the limit of number of files to be harvested
+bufferHealthMonitorDelay 	Override for buffer health monitor start delay after tune/ seek (in secs)
+bufferHealthMonitorInterval	Override for buffer health monitor interval(in secs)
+abrCacheLife 			Lifetime value for abr cache  for network bandwidth calculation(in msecs.default 5000 msec)
+abrCacheLength  		Length of abr cache for network bandwidth calculation (# of segments . default 3)
+abrCacheOutlier 		Outlier difference which will be ignored from network bandwidth calculation(default 5MB.in bytes)
+abrNwConsistency		Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2)
+abrSkipDuration			Minimum duration of fragment to be downloaded before triggering abr (in secs.default 6 sec).
 
-
-minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
-maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
-ptsErrorThreshold=<X>	aamp maximum number of back-to-back pts errors to be considered for triggering a retune
-waitTimeBeforeRetryHttp5xx=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
-licenseServerUrl=<URL> URL to be used for license requests for encrypted(PR/WV) assets 
-
-
-
-
+// String inputs 
+licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets 
 =================================================================================================================
 3. Channel Override Settings
 
@@ -367,7 +374,6 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 enable_setvideorectangle=0       Disable AAMP to set rectangle property to sink. Default is true(enabled).
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
-harvest-count-limit=<X> Specify the limit of number of files to be harvested
 harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
 harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits
     By default aamp will dump all the type of data, set 0 for desabling harvest
