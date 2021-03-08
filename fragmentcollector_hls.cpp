@@ -7290,7 +7290,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			mAbrManager.updateProfile();
 		}
 	}
-	else if(rate == AAMP_NORMAL_PLAY_RATE)
+	else if(rate == AAMP_NORMAL_PLAY_RATE || rate == AAMP_RATE_PAUSE)
 	{
 		// Filters to add a video track
 		// 1. It should match the audio groupId selected
