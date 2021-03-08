@@ -58,6 +58,7 @@ void AampSubtecCCManager::Release(void)
 		mInitialized = false;
 	}
 	mTrickplayStarted = false;
+	mParentalCtrlLocked = false;
 }
 
 /**

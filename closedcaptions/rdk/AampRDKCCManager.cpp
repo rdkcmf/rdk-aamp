@@ -46,6 +46,7 @@ void AampRDKCCManager::Release(void)
 		mCCHandle = NULL;
 	}
 	mTrickplayStarted = false;
+	mParentalCtrlLocked = false;
  }
 
  /**
