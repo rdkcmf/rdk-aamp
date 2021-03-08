@@ -4416,7 +4416,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs,eCURLINSTANCE_VIDEO);
 		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,eCURLINSTANCE_VIDEO);
-
 		//update videoend info
 		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl,downloadTime);
 
@@ -7107,7 +7106,8 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 	double delta = 0;
 	bool lastLiveFlag = false;  //CID:96059 - Removed the  placeNextAd variable which is initialized but not used
 	int direction = 1;
-  
+	bool hasEventStream = false;
+
 	if(rate < 0)
 		direction = -1;
 	bool adStateChanged = false;
@@ -7570,7 +7570,22 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 						}
 						lastPrdOffset = mBasePeriodOffset;
 					}
-					int timeoutMs =  MAX_DELAY_BETWEEN_MPD_UPDATE_MS - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
+
+					double refreshInterval = MAX_DELAY_BETWEEN_MPD_UPDATE_MS;
+                                        std::vector<IPeriod*> availablePeriods = mpd->GetPeriods();
+                                        for(auto temp : availablePeriods)
+                                        {
+						//DELIA-38846: refresh T5 Linear CDAI more frequently to avoid race condition
+                                                auto eventStream = temp->GetEventStreams();
+                                                if( !(eventStream.empty()) )
+                                                {
+                                                        hasEventStream = true;
+                                                        refreshInterval = mMinUpdateDurationMs;
+                                                        break;
+                                                }
+
+                                        }
+					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
 					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0)
 					{
 						liveMPDRefresh = true;
@@ -7682,6 +7697,10 @@ void PrivateStreamAbstractionMPD::FetcherLoop()
 			// if time interval goes negative, limit to min value
 
 			// restrict to Max delay interval
+			if ( hasEventStream && (minDelayBetweenPlaylistUpdates > mMinUpdateDurationMs) )
+			{
+				minDelayBetweenPlaylistUpdates = (int)mMinUpdateDurationMs;
+			}
 			if (minDelayBetweenPlaylistUpdates > MAX_DELAY_BETWEEN_MPD_UPDATE_MS)
 			{
 				minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_MPD_UPDATE_MS;
