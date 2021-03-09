@@ -485,7 +485,14 @@ if(CMAKE_WPEWEBKIT_JSBINDINGS)
 	message("CMAKE_WPEWEBKIT_JSBINDINGS set, creating jsbinding library")
 	add_subdirectory(test)
 	add_library(aampjsbindings SHARED jsbindings/jscontroller-jsbindings.cpp jsbindings/jsbindings.cpp jsbindings/jsutils.cpp jsbindings/jsmediaplayer.cpp jsbindings/jseventlistener.cpp jsbindings/jsevent.cpp)
-	target_link_libraries(aampjsbindings aamp)
+    target_link_libraries(aampjsbindings aamp)
+
+    if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
+        set(LIBAAMPJSBINDINGS_DEFINES "${LIBAAMPJSBINDINGS_DEFINES} -DAAMP_CC_ENABLED")
+    endif()
+
+    set_target_properties(aampjsbindings PROPERTIES COMPILE_FLAGS "${LIBAAMPJSBINDINGS_DEFINES}")
+
 	install(TARGETS aampjsbindings DESTINATION lib)
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_WPEWEBKIT_JSBINDINGS")
 else()

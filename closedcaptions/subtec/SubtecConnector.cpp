@@ -43,24 +43,29 @@
 
 namespace subtecConnector
 {
-    mrcc_Error initialize()
+    mrcc_Error initHal()
     {
         const auto registerResult = vlhal_cc_Register(0, CCDataController::Instance(), closedCaptionDataCb, closedCaptionDecodeCb);
-        logprintf("vlhal_cc_Register return value = %d", registerResult);
+        logprintf("vlhal_cc_Register return value = %d\n", registerResult);
 
         if(registerResult != 0)
             return CC_VL_OS_API_RESULT_FAILED;
 
         const auto startResult = media_closeCaptionStart(nullptr);
-        logprintf("media_closeCaptionStart return value = %d", registerResult);
+        logprintf("media_closeCaptionStart return value = %d\n", registerResult);
 
         if(startResult != 0)
             return CC_VL_OS_API_RESULT_FAILED;
+        
+        return CC_VL_OS_API_RESULT_SUCCESS;
+    }
 
+    mrcc_Error initPacketSender()
+    {
         const auto packetSenderStartResult = PacketSender::Instance()->Init();
-        logprintf("PacketSender::Init() return value = %d", (int)packetSenderStartResult);
+        logprintf("PacketSender::Init() return value = %d\n", (int)packetSenderStartResult);
 
-        if(packetSenderStartResult != 0)
+        if(!packetSenderStartResult)
             return CC_VL_OS_API_RESULT_FAILED;
 
         return CC_VL_OS_API_RESULT_SUCCESS;
@@ -153,7 +158,7 @@ namespace ccMgrAPI
                 break;
             }
             default:
-                logprintf("ccGetCapability invoked with not supported attribType = 0x%x", (int)attribType);
+                logprintf("ccGetCapability invoked with not supported attribType = 0x%x\n", (int)attribType);
                 return CC_VL_OS_API_RESULT_FAILED;
         }
 

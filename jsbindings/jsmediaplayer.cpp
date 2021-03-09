@@ -22,12 +22,25 @@
  * @brief JavaScript bindings for AAMPMediaPlayer
  */
 
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+	#include <core/core.h>
+	#include "ThunderAccess.h"
+	#include "AampUtils.h"
+#endif
 
 #include "jsbindings-version.h"
 #include "jsbindings.h"
 #include "jsutils.h"
 #include "jseventlistener.h"
+#include <functional>
+#include <string>
+#include <unordered_map>
 #include <vector>
+
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
+#endif
+
 
 extern "C"
 {
@@ -3228,8 +3241,125 @@ void ClearAAMPPlayerInstances(void)
 	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
 }
 
-
 #ifdef PLATCO
+
+class XREReceiver_onEventHandler
+{
+public:
+	static void handle(JSContextRef ctx, std::string method, size_t argumentCount, const JSValueRef arguments[])
+	{
+		if(handlers_map.count(method) != 0)
+		{
+			handlers_map.at(method)(ctx, argumentCount, arguments);
+		}
+		else
+		{
+			ERROR("[XREReceiver]:%s:%d no handler for method %s", __FUNCTION__, __LINE__, method.c_str());
+		}
+	}
+
+	static std::string findTextTrackWithLang(JSContextRef ctx, std::string selectedLang)
+	{
+		const auto textTracks = AampCCManager::GetInstance()->getLastTextTracks();
+		ERROR("[XREReceiver]:%s:%d found %d text tracks", __FUNCTION__, __LINE__, (int)textTracks.size());
+
+		if(!selectedLang.empty() && isdigit(selectedLang[0]))
+		{
+			ERROR("[XREReceiver]:%s:%d trying to parse selected lang as index", __FUNCTION__, __LINE__);
+			try
+			{
+				//input index starts from 1, not from 0, hence '-1'
+				int idx = std::stoi(selectedLang)-1;
+				ERROR("[XREReceiver]:%s:%d parsed index = %d", __FUNCTION__, __LINE__, idx);
+				return textTracks.at(idx).instreamId;
+			}
+			catch(const std::exception& e)
+			{
+				ERROR("[XREReceiver]:%s:%d exception during parsing lang selection %s", __FUNCTION__, __LINE__, e.what());
+			}
+		}
+
+		for(const auto& track : textTracks)
+		{
+			ERROR("[XREReceiver]:%s:%d found language '%s', expected '%s'", __FUNCTION__, __LINE__, track.language.c_str(), selectedLang.c_str());
+			if(selectedLang == track.language)
+			{
+				return track.instreamId;
+			}
+		}
+
+		ERROR("[XREReceiver]:%s:%d cannot find text track matching the selected language, defaulting to 'CC1'", __FUNCTION__, __LINE__);
+		return "CC1";
+	}
+
+private:
+
+	static void handle_onClosedCaptions(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[])
+	{
+		ERROR("[XREReceiver]:%s:%d ", __FUNCTION__, __LINE__);
+		if(argumentCount != 2)
+		{
+			ERROR("[XREReceiver]:%s wrong argument count (expected 2) %d", __FUNCTION__, argumentCount);
+			return;
+		}
+
+		JSObjectRef argument = JSValueToObject(ctx, arguments[1], NULL);
+
+		JSStringRef param_enable 		= JSStringCreateWithUTF8CString("enable");
+		JSStringRef param_setOptions	= JSStringCreateWithUTF8CString("setOptions");
+		JSStringRef param_setTrack		= JSStringCreateWithUTF8CString("setTrack");
+
+		JSValueRef param_enable_value 		= JSObjectGetProperty(ctx, argument, param_enable, NULL);
+		JSValueRef param_setOptions_value	= JSObjectGetProperty(ctx, argument, param_setOptions, NULL);
+		JSValueRef param_setTrack_value		= JSObjectGetProperty(ctx, argument, param_setTrack, NULL);
+
+		if(JSValueIsBoolean(ctx, param_enable_value))
+		{
+			const bool enable_value = JSValueToBoolean(ctx, param_enable_value);
+			ERROR("[XREReceiver]:%s:%d received enable boolean %d", __FUNCTION__, __LINE__, enable_value);
+
+#ifdef AAMP_CC_ENABLED
+			AampCCManager::GetInstance()->SetStatus(enable_value);
+#endif
+		}
+
+		if(JSValueIsObject(ctx, param_setOptions_value))
+		{
+			ERROR("[XREReceiver]:%s:%d received setOptions, ignoring for now", __FUNCTION__, __LINE__);
+		}
+
+		if(JSValueIsString(ctx, param_setTrack_value))
+		{
+			char* lang = aamp_JSValueToCString(ctx, param_setTrack_value, NULL);
+			ERROR("[XREReceiver]:%s:%d received setTrack language:  %s", __FUNCTION__, __LINE__, lang);
+
+			std::string lang_str;
+			lang_str.assign(lang);
+			delete[] lang;
+
+			std::string textTrack = findTextTrackWithLang(ctx, lang_str);
+
+			ERROR("[XREReceiver]:%s:%d selected textTrack = '%s'", __FUNCTION__, __LINE__, textTrack.c_str());
+
+#ifdef AAMP_CC_ENABLED
+			AampCCManager::GetInstance()->SetTrack(textTrack);
+#endif
+
+		}
+
+		JSStringRelease(param_enable);
+		JSStringRelease(param_setOptions);
+		JSStringRelease(param_setTrack);
+	}
+
+	using Handler_t = std::function<void(JSContextRef, size_t, const JSValueRef[])>;
+	static std::unordered_map<std::string, Handler_t> handlers_map;
+};
+
+std::unordered_map<std::string, XREReceiver_onEventHandler::Handler_t>  XREReceiver_onEventHandler::handlers_map = {
+	{ std::string{"onClosedCaptions"}, &XREReceiver_onEventHandler::handle_onClosedCaptions}
+};
+
 // temporary patch to avoid JavaScript exception in webapps referencing XREReceiverObject in builds that don't support it
 
 /**
@@ -3244,7 +3374,19 @@ void ClearAAMPPlayerInstances(void)
  */
 JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("%s arg count - %d", __FUNCTION__, argumentCount);
+	INFO("[XREReceiver]:%s arg count - %d", __FUNCTION__, argumentCount);
+	if (argumentCount > 0)
+	{
+		if (JSValueIsString(ctx, arguments[0]))
+		{
+			char* value =  aamp_JSValueToCString(ctx, arguments[0], exception);
+			std::string method;
+			method.assign(value);
+			XREReceiver_onEventHandler::handle(ctx, method, argumentCount, arguments);
+
+			delete[] value;
+		}
+	}
 	return JSValueMakeUndefined(ctx);
 }
 

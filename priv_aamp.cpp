@@ -9348,6 +9348,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks(trackInfo);
+#endif
 		if (!trackInfo.empty())
 		{
 			//Convert to JSON format
