@@ -692,6 +692,16 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 			AAMPLOG_WARN("[OTA_SHIM]::%s Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", __FUNCTION__, index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
 		}
 	}
+
+	if (txtTracks.empty())
+	{
+		std::string empty;
+		// Push dummy track , when not published,
+		// it is obseved that even if track is not published
+		// CC1 is present
+		txtTracks.push_back(TextTrackInfo("0", "und", true, empty, "Undetermined", "CC1", empty, 0 ));
+	}
+
 	mTextTracks = txtTracks;
 	return;
 #endif
