@@ -103,6 +103,7 @@ minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 ptsErrorThreshold=<X>	aamp maximum number of back-to-back pts errors to be considered for triggering a retune
 waitTimeBeforeRetryHttp5xx=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+licenseServerUrl=<URL> URL to be used for license requests for encrypted(PR/WV) assets 
 
 
 

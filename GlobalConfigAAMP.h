@@ -169,7 +169,7 @@ public:
 	int bufferHealthMonitorDelay;           /**< Buffer health monitor start delay after tune/ seek*/
 	int bufferHealthMonitorInterval;        /**< Buffer health monitor interval*/
 	bool hlsAVTrackSyncUsingStartTime;      /**< HLS A/V track to be synced with start time*/
-	char* licenseServerURL;                 /**< License server URL*/
+	//char* licenseServerURL;                 /**< License server URL*/
 	bool licenseServerLocalOverride;        /**< Enable license server local overriding*/
 	int vodTrickplayFPS;                    /**< Trickplay frames per second for VOD*/
 	bool vodTrickplayFPSLocalOverride;      /**< Enabled VOD Trickplay FPS local overriding*/

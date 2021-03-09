@@ -1241,11 +1241,13 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("Clear Key license-server-url=%s", gpGlobalConfig->ckLicenseServerURL);
 		}
+                #if 0
 		else if(ReadConfigStringHelper(cfg, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
 		{
 			gpGlobalConfig->licenseServerLocalOverride = true;
 			logprintf("license-server-url=%s", gpGlobalConfig->licenseServerURL);
 		}
+                #endif
 		else if(ReadConfigNumericHelper(cfg, "vod-trickplay-fps=", gpGlobalConfig->vodTrickplayFPS) == 1)
 		{
 			VALIDATE_INT("vod-trickplay-fps", gpGlobalConfig->vodTrickplayFPS, TRICKPLAY_NETWORK_PLAYBACK_FPS)
@@ -7760,7 +7762,7 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 		}
 	}
 }
-
+#if 0
 /**
  *   @brief Set License Server URL.
  *
@@ -7793,7 +7795,7 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d", __FUNCTION__, url, type);
 }
-
+#endif
 /**
  *   @brief Indicates if session token has to be used with license request or not.
  *
@@ -10237,11 +10239,11 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
 	}
+#if 0
 	if (gpGlobalConfig->licenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
 	}
-#if 0	
 	if(gpGlobalConfig->disableEC3 != eUndefinedState)
 	{
 		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;

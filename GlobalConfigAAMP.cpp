@@ -44,7 +44,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	disablePlaylistIndexEvent(1), enableSubscribedTags(1), dashIgnoreBaseURLIfSlash(false),networkTimeoutMs(-1),
 	licenseAnonymousRequest(false), minInitialCacheSeconds(MINIMUM_INIT_CACHE_NOT_OVERRIDDEN), useLinearSimulator(false),
 	bufferHealthMonitorDelay(DEFAULT_BUFFER_HEALTH_MONITOR_DELAY), bufferHealthMonitorInterval(DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL),
-	preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerURL(NULL), licenseServerLocalOverride(false),
+	preferredDrm(eDRM_PlayReady), hlsAVTrackSyncUsingStartTime(false), licenseServerLocalOverride(false),
 	vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false), linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),
 	linearTrickplayFPSLocalOverride(false), stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT),
 	httpProxy(0), reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true), bForceHttp(false),
@@ -95,11 +95,13 @@ GlobalConfigAAMP::GlobalConfigAAMP():
  */
 GlobalConfigAAMP::~GlobalConfigAAMP()
 {
+        #if 0
 	if(licenseServerURL)
 	{
 		free(licenseServerURL);
 		licenseServerURL = NULL;
 	}
+        #endif
 
 	if(httpProxy)
 	{

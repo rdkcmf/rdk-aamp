@@ -143,7 +143,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
 	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
 	{"ck-license-server-url",eAAMPConfig_CKLicenseServerUrl,-1,-1},
-	{"license-server-url",eAAMPConfig_LicenseServerUrl,-1,-1},
+	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
 	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
 	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
 	{"report-progress-interval",eAAMPConfig_ReportProgressInterval,-1,-1},	
