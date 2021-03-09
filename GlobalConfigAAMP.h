@@ -78,7 +78,7 @@
 
 // HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
 #define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
-#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
+//#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 
@@ -186,7 +186,7 @@ public:
 	bool bForceHttp;                        /**< Force HTTP*/
 	int abrSkipDuration;                    /**< Initial duration for ABR skip*/
 	bool internalReTune;                    /**< Internal re-tune on underflows/ pts errors*/
-	int ptsErrorThreshold;                       /**< Max number of back-to-back PTS errors within designated time*/
+	//int ptsErrorThreshold;                       /**< Max number of back-to-back PTS errors within designated time*/
 	bool bAudioOnlyPlayback;                /**< AAMP Audio Only Playback*/
 	bool gstreamerBufferingBeforePlay;      /**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
 	int licenseRetryWaitTime;
@@ -200,7 +200,7 @@ public:
 	char *pUserAgentString;			/**< Curl user-agent string */
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
 	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
-	int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
+	//int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	TriState sslVerifyPeer;		/**< Enable or Disable curl ssl certificate verification. */
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
 	bool enableClientDai;                   /**< Enabling the client side DAI*/
@@ -222,7 +222,7 @@ public:
 	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
 	int mInitRampdownLimit; /** Maximum number of limits for ramdown and try download if playlist download failed at start time before reporting failure **/
-	long minBitrate;		/*** Minimum bandwidth of playback profile */
+	//long minBitrate;		/*** Minimum bandwidth of playback profile */
 	long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */

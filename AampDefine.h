@@ -34,6 +34,9 @@
 #endif
 #endif
 
+#define MAX_PTS_ERRORS_THRESHOLD 4
+#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
+
 #if 0
 
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */

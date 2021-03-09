@@ -2968,7 +2968,7 @@ private:
 	AampCacheHandler *mAampCacheHandler;
 	PreCacheUrlList mPreCacheDnldList;
 	std::string mAppName;
-	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
+	//long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
 	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)

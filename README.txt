@@ -98,6 +98,15 @@ setLicenseCaching				Enable/Disable license caching in WV . Default true
 persistBitRateOverSeek			Enable/Disable ABR profile persistence during Seek/Trickplay/Audio switching. Default false
 
 
+
+minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
+maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
+ptsErrorThreshold=<X>	aamp maximum number of back-to-back pts errors to be considered for triggering a retune
+waitTimeBeforeRetryHttp5xx=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
+
+
+
+
 =================================================================================================================
 3. Channel Override Settings
 
@@ -350,7 +359,6 @@ curl-stall-timeout=<X> specify the value in seconds for a CURL download to be de
 curl-download-start-timeout=<X> specify the value in seconds for after which a CURL download is aborted if no data is received after connect, 0 to disable. Disabled by default
 playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
-wait-time-before-retry-http-5xx-ms=<X> Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 sslverifypeer=<X>	X = 1 to enable TLS certificate verification, X = 0 to disable peer verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
 enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
@@ -403,8 +411,6 @@ customHeader=<customHeaderString> custom header string data to be appended to cu
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
 initRampdownLimit=<X> Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
-minBitrate=<X>		Set minimum bitrate filter for playback profiles, default is 0.
-maxBitrate=<X>		Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").

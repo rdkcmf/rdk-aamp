@@ -157,12 +157,12 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
 	{"license-retry-wait-time",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
 	{"fragment-cache-length",eAAMPConfig_MaxFragmentCached,-1,-1},
-	{"pts-error-threshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
+	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
 	{"max-playlist-cache",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
 	{"dash-max-drm-sessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
 	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
-	{"wait-time-before-retry-http-5xx-ms",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
+	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplaybuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
 	{"curl-stall-timeout",eAAMPConfig_CurlStallTimeout,-1,-1},
@@ -367,7 +367,10 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
 	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
 	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
-#endif	
+#endif
+        lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value                          =       0;
+        iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value            =       MAX_PTS_ERRORS_THRESHOLD;
+        iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value     =       DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	///////////////// Following for String type config ////////////////////////////
 	sAampCfgValue[eAAMPConfig_MapMPD-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_MapM3U8-eAAMPConfig_StringStartValue].value			=	"";

@@ -1314,11 +1314,13 @@ static void ProcessConfigEntry(std::string cfg)
 			VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
 			logprintf("aamp fragment cache length: %d", gpGlobalConfig->maxCachedFragmentsPerTrack);
 		}
+                #if 0
 		else if (ReadConfigNumericHelper(cfg, "pts-error-threshold=", gpGlobalConfig->ptsErrorThreshold) == 1)
 		{
 			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
 			logprintf("aamp pts-error-threshold: %d", gpGlobalConfig->ptsErrorThreshold);
 		}
+                #endif
 		else if (ReadConfigNumericHelper(cfg, "enable_setvideorectangle=", value) == 1)
 		{
 			gpGlobalConfig->mEnableRectPropertyCfg = (TriState)(value != 0);
@@ -1360,11 +1362,13 @@ static void ProcessConfigEntry(std::string cfg)
 				tmpValue = NULL;
 			}
 		}
+                #if 0
 		else if (ReadConfigNumericHelper(cfg, "wait-time-before-retry-http-5xx-ms=", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
 		{
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
 			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
 		}
+                #endif
 		else if (ReadConfigNumericHelper(cfg, "preplaybuffercount=", gpGlobalConfig->preplaybuffercount) == 1)
 		{
 			VALIDATE_INT("preplaybuffercount", gpGlobalConfig->preplaybuffercount, 10);
@@ -1473,11 +1477,13 @@ static void ProcessConfigEntry(std::string cfg)
 			VALIDATE_INT("drmDecryptFailThreshold", gpGlobalConfig->drmDecryptFailCount, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
 			logprintf("drmDecryptFailThreshold=%d", gpGlobalConfig->drmDecryptFailCount);
 		}
+                #if 0
 		else if (ReadConfigNumericHelper(cfg, "minBitrate=", gpGlobalConfig->minBitrate) ==1)
 		{
 			VALIDATE_LONG("minBitrate", gpGlobalConfig->minBitrate, 0);
 			logprintf("minBitrate=%d", gpGlobalConfig->minBitrate);
 		}
+                #endif
 		else if (ReadConfigNumericHelper(cfg, "maxBitrate=", gpGlobalConfig->maxBitrate) ==1)
 		{
 			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
@@ -1934,7 +1940,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	,mEnableRectPropertyEnabled(true), waitforplaystart(), mLicenseCaching(true)
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
-	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
+	,mRampDownLimit(-1), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
 	,mCurlShared(NULL)
@@ -3865,7 +3871,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < maxDownloadAttempt)
 						{
-							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
+                                                        int waitTimeBeforeRetryHttp5xxMSValue;
+                                                        GETCONFIGVALUE_PRIV(eAAMPConfig_Http5XXRetryWaitInterval,waitTimeBeforeRetryHttp5xxMSValue);
+							InterruptableMsSleep(waitTimeBeforeRetryHttp5xxMSValue);
 							logprintf("Download failed due to Server error. Retrying Attempt:%d!", downloadAttempt);
 							loopAgain = true;
 						}
@@ -5863,7 +5871,7 @@ void PrivateInstanceAAMP::SetRampDownLimit(int limit)
 		}
 	}
 }
-
+#if 0
 /**
  * @brief Set minimum bitrate value.
  *
@@ -5872,7 +5880,7 @@ void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
 	mMinBitrate = bitrate;
 }
-
+#endif
 /**
  * @brief Set maximum bitrate value.
  */
@@ -5899,7 +5907,9 @@ long PrivateInstanceAAMP::GetMaximumBitrate()
  */
 long PrivateInstanceAAMP::GetMinimumBitrate()
 {
-	return mMinBitrate;
+        long minBitrateValue;
+        GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,minBitrateValue);
+	return minBitrateValue;
 }
 
 /**
@@ -7050,6 +7060,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
+                int ptsErrorThresholdValue;
+                GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
 		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
 		{
 			if (this == iter->pAAMP)
@@ -7073,8 +7085,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							{
 								gAAMPInstance->numPtsErrors++;
 								logprintf("PrivateInstanceAAMP::%s:%d: numPtsErrors %d, ptsErrorThreshold %d",
-									__FUNCTION__, __LINE__, gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
-								if (gAAMPInstance->numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
+									__FUNCTION__, __LINE__, gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
+								if (gAAMPInstance->numPtsErrors >= ptsErrorThresholdValue)
 								{
 									gAAMPInstance->numPtsErrors = 0;
 									gAAMPInstance->reTune = true;
@@ -7088,7 +7100,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 								gAAMPInstance->numPtsErrors = 0;
 								logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since (diff %lld > threshold %lld) numPtsErrors %d, ptsErrorThreshold %d.",
 									__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
-									gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+									gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
 							}
 						}
 						else
@@ -10193,10 +10205,12 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mRampDownLimit = gpGlobalConfig->rampdownLimit;
 	}
+ #if 0
 	if(gpGlobalConfig->minBitrate > 0)
 	{
 		mMinBitrate = gpGlobalConfig->minBitrate;
 	}
+ #endif
 	if(gpGlobalConfig->maxBitrate > 0)
 	{
 		mMaxBitrate = gpGlobalConfig->maxBitrate;

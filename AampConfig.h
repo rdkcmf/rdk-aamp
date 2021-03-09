@@ -78,6 +78,8 @@
 #define ISCONFIGSET(x) (aamp->mConfig->IsConfigSet(x))
 #define ISCONFIGSET_PRIV(x) (mConfig->IsConfigSet(x))
 #define SETCONFIGVALUE(owner,key,value) (aamp->mConfig->SetConfigValue(owner, key ,value))
+#define GETCONFIGVALUE(key,value) (aamp->mConfig->GetConfigValue( key ,value))
+#define GETCONFIGVALUE_PRIV(key,value) (mConfig->GetConfigValue( key ,value))
 
 /**
  * @brief AAMP Config Settings

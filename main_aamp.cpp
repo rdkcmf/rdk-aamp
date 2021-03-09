@@ -436,23 +436,16 @@ void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, b
  */
 void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
-	if (gpGlobalConfig->minBitrate > 0)
+	if (bitrate > 0)
 	{
-		aamp->SetMinimumBitrate(gpGlobalConfig->minBitrate);
-		AAMPLOG_INFO("%s:%d Setting minBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->minBitrate);
+		AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MinBitrate,bitrate);
 	}
 	else
 	{
-		if (bitrate > 0)
-		{
-			AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
-			aamp->SetMinimumBitrate(bitrate);
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
-		}
+		AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
 	}
+
 }
 
 /**
@@ -463,7 +456,7 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 {
 	if (gpGlobalConfig->maxBitrate > 0)
 	{
-		aamp->SetMinimumBitrate(gpGlobalConfig->maxBitrate);
+		//aamp->SetMinimumBitrate(gpGlobalConfig->maxBitrate);
 		AAMPLOG_INFO("%s:%d Setting maxBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->maxBitrate);
 	}
 	else

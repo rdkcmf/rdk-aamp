@@ -49,9 +49,9 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	linearTrickplayFPSLocalOverride(false), stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT),
 	httpProxy(0), reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true), bForceHttp(false),
 	internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
-	iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD), ckLicenseServerURL(NULL),
+	iframeBitrate(0), iframeBitrate4K(0), ckLicenseServerURL(NULL),
 	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
-	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0), waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
+	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0),
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
 	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true),
@@ -69,7 +69,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #endif
 	useRetuneForUnpairedDiscontinuity(eUndefinedState), uriParameter(NULL), customHeaderStr{""}, useRetuneForGSTInternalError(eUndefinedState),
 	minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN), maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP),
-	rampdownLimit(-1), minBitrate(0), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0),
+	rampdownLimit(-1), maxBitrate(0), segInjectFailCount(0), drmDecryptFailCount(0),
 	initFragmentRetryCount(-1), unknownValues(), useMatchingBaseUrl(eUndefinedState), bEnableSubtec(true), bWebVttNative(false),
 	nativeCCRendering(false), preferredCEA708(eUndefinedState)
 	,mInitRampdownLimit(-1), midFragmentSeekEnabled(false),
