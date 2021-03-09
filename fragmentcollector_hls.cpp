@@ -1850,7 +1850,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 		{
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
-			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI);
+			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d mDrmMethod %d", fragmentUrl, fragmentEncrypted, (int)discontinuity, mDrmMethod);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
@@ -2478,7 +2478,7 @@ void TrackState::SetDrmContext()
 
 	//CID:93939 - Removed the drmContextUpdated variable which is initialized but not used
 	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-
+	mDrmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
 	if(drmMetadataIdx)
 	{
 		logprintf("TrackState::[%s][%s] Enter mCMSha1Hash [%p] mDrmMetaDataIndexPosition %d", __FUNCTION__,name, mCMSha1Hash,
@@ -2500,7 +2500,7 @@ void TrackState::SetDrmContext()
 	else if (AampHlsDrmSessionManager::getInstance().isDrmSupported(mDrmInfo))
 	{
 		// OCDM-based DRM decryption is available via the HLS OCDM bridge
-		AAMPLOG_INFO("%s:%d Drm support available", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("%s:%d Drm support available", __FUNCTION__, __LINE__);		
 		mDrm = AampHlsDrmSessionManager::getInstance().createSession(aamp, mDrmInfo,(MediaType)(type));
 		if (!mDrm)
 		{
@@ -2992,7 +2992,7 @@ void TrackState::ABRProfileChanged()
 	if(pcontext != NULL)
 	{
 		traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
-		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext);
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		pthread_mutex_lock(&mutex);
 		//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
 		//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
@@ -4192,7 +4192,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 #ifdef AAMP_HLS_DRM
 		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
-		bool forceClearSession = (!aamp->mLicenseCaching && (tuneType == eTUNETYPE_NEW_NORMAL));
+		bool forceClearSession = (!ISCONFIGSET(eAAMPConfig_SetLicenseCaching) && (tuneType == eTUNETYPE_NEW_NORMAL));
 		sessionMgr->clearDrmSession(forceClearSession);
 		sessionMgr->clearFailedKeyIds();
 		sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
@@ -4335,7 +4335,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)
 			{
-				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri);
+				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				if(ts->streamOutputFormat != FORMAT_INVALID)
 				{
 					ts->enabled = true;
@@ -4442,7 +4442,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 						const char *uri = GetPlaylistURI(eTRACK_VIDEO, &video->streamOutputFormat);
 						if (uri){
-							aamp_ResolveURL(video->mPlaylistUrl, aamp->GetManifestUrl(), uri);
+							aamp_ResolveURL(video->mPlaylistUrl, aamp->GetManifestUrl(), uri ,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 
 						}else{
 							AAMPLOG_ERR("StreamAbstractionAAMP_HLS:: %s:%d Failed to get URL after %d rampdown attempts", 
@@ -5273,7 +5273,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				std::string defaultIframePlaylistEffectiveUrl;
 				GrowableBuffer defaultIframePlaylist;
 				HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(iframeStreamIdx);
-				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri);
+				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
 				if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
@@ -5348,7 +5348,7 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 	{
 		// Add Video and IFrame Profiles
 		PreCacheUrlStruct newelem;
-		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri);
+		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		newelem.type = streamInfo[idx].isIframeTrack?eMEDIATYPE_PLAYLIST_IFRAME:eMEDIATYPE_PLAYLIST_VIDEO;
 		dnldList.push_back(newelem);
 	}
@@ -5360,7 +5360,7 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 		{
 			//std::string url;
 			PreCacheUrlStruct newelem;
-			aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), mediaInfo[cnt].uri);
+			aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), mediaInfo[cnt].uri ,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			newelem.type = mediaInfo[cnt].type;
 			dnldList.push_back(newelem);
 		}
@@ -5443,7 +5443,7 @@ void TrackState::SwitchSubtitleTrack()
 		AAMPLOG_INFO("%s:%d Preparing to flush fragments and switch playlist", __FUNCTION__, __LINE__);
 		// Flush all counters, reset the playlist URL and refresh the playlist
 		FlushFragments();
-		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type),ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		RefreshPlaylist();
 
 		playTarget = 0.0;
@@ -6208,7 +6208,7 @@ bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 				aamp->mthumbIndexValue = iProfile;
 
 				std::string url;
-				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri);
+				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				long http_error = 0;
 				double downloadTime = 0;
 				std::string tempEffectiveUrl;
@@ -6302,7 +6302,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 		}
 
 		std::string url;
-		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri);
+		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		*baseurl = url.substr(0,url.find_last_of("/\\")+1);
 		*width = streaminfo->resolution.width;
 		*height = streaminfo->resolution.height;
@@ -7199,7 +7199,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 		if (!uri.empty())
 		{
 			std::string fragmentUrl;
-			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri.c_str());
+			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri.c_str(), ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			std::string tempEffectiveUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			AAMPLOG_WARN("TrackState::%s:%d [%s] init-fragment = %s", __FUNCTION__, __LINE__, name, fragmentUrl.c_str());

@@ -202,7 +202,7 @@ public:
 
 	void setLicenseRequestAbort(bool isAbort);
 
-	const char* getAccessToken(int &tokenLength, long &error_code);
+	const char* getAccessToken(int &tokenLength, long &error_code ,bool bSslPeerVerify);
 
 	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession = false);
 

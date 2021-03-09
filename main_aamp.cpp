@@ -109,13 +109,14 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	// Create very first instance of Aamp Config to read the cfg & Operator file .This is needed for very first
 	// tune only . After that every tune will use the same config parameters
 	if(gpGlobalAampConfig == NULL)
-	{
-		logprintf("[AAMP_JS][%p]Creating global Config Instance",this);
+	{		
 		gpGlobalAampConfig =  new AampConfig();
+		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalAampConfig);
 		gpGlobalAampConfig->ReadAampCfgTxtFile();
 		gpGlobalAampConfig->ReadOperatorConfiguration();
 		gpGlobalAampConfig->ReadAampCfgJsonFile();
 		gpGlobalAampConfig->ShowAAMPConfiguration();
+		
 	}
 
 	// Copy the default configuration to session configuration .App can modify the configuration set
@@ -198,10 +199,11 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		gpGlobalConfig = NULL;
 	}
 	
-	if(gpGlobalAampConfig)
+	if(isLastPlayerInstance && gpGlobalAampConfig)
 	{
-		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalAampConfig);
+		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalAampConfig);
 		delete gpGlobalAampConfig;
+		gpGlobalAampConfig = NULL;
 	}
 }
 
@@ -1509,7 +1511,7 @@ void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 void PlayerInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetRetuneForGSTInternalError(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RetuneForGSTError,bValue);
 }
 
 /**
@@ -1649,7 +1651,13 @@ void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetLicenseCaching(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SetLicenseCaching,bValue);
+	// Though its set from App , it may not get applied if other priority owners have diff setting
+	if(!ISCONFIGSET(eAAMPConfig_SetLicenseCaching))
+	{
+		// When License Caching is disabled , set the max drm session to 1
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxDASHDRMSessions,1);
+	}
 }
 
 /**
@@ -1685,7 +1693,7 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
  */
 void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
 {
-        aamp->SetPropagateUriParameters(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PropogateURIParam,bValue);
 }
 
 /**
@@ -1696,7 +1704,7 @@ void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
  */
 void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 {
-        aamp->SetSslVerifyPeerConfig(bValue);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SslVerifyPeer,bValue);
 }
 
 /**
@@ -1851,7 +1859,21 @@ void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
  */
 void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 {
-	aamp->EnableVideoRectangle(rectProperty);
+	if(!rectProperty)
+	{
+		if(ISCONFIGSET(eAAMPConfig_UseWesterosSink))
+		{
+			SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableRectPropertyCfg,false);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Skipping the configuration value[%d], since westerossink is disabled", __FUNCTION__, __LINE__, rectProperty);			
+		}
+	}
+	else 
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableRectPropertyCfg,true);
+	}
 }
 
 /**
@@ -2072,10 +2094,10 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
  *
  *   @param[in] enabled - true if enabled
  */
-void PlayerInstanceAAMP::EnableSeekableRange(bool enabled)
+void PlayerInstanceAAMP::EnableSeekableRange(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->EnableSeekableRange(enabled);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableSeekRange,bValue);
 }
 
 /**
@@ -2083,10 +2105,10 @@ void PlayerInstanceAAMP::EnableSeekableRange(bool enabled)
  *
  *   @param[in] enabled - true if enabled
  */
-void PlayerInstanceAAMP::SetReportVideoPTS(bool enabled)
+void PlayerInstanceAAMP::SetReportVideoPTS(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetReportVideoPTS(enabled);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportVideoPTS,bValue);
 }
 
 /**
@@ -2153,10 +2175,10 @@ void PlayerInstanceAAMP::AsyncStartStop()
  *   @param[in] value - To enable/disable configuration
  *   @return void
  */
-void PlayerInstanceAAMP::PersistBitRateOverSeek(bool value)
+void PlayerInstanceAAMP::PersistBitRateOverSeek(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->PersistBitRateOverSeek(value);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PersistentBitRateOverSeek,bValue);	
 }
 
 /**

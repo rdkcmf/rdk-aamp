@@ -365,7 +365,7 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
  *  @note		AccessToken memory is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
-const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code)
+const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code , bool bSslPeerVerify)
 {
 	if(accessToken == NULL)
 	{
@@ -386,7 +386,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-		if(!gpGlobalConfig->sslVerifyPeer){
+		if(!bSslPeerVerify){
 		     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
@@ -669,7 +669,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-	if(!gpGlobalConfig->sslVerifyPeer){
+	if(!ISCONFIGSET(eAAMPConfig_SslVerifyPeer)){
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	}
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -849,6 +849,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.mediaFormat = mediaFormat;
 	drmInfo.systemUUID = systemId;
+	drmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
 
 	if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 	{
@@ -1202,7 +1203,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				char *sessionToken = NULL;
 				if(!usingAppDefinedAuthToken)
 				{ /* authToken not set externally by app */
-					sessionToken = (char *)getAccessToken(tokenLen, tokenError);
+					sessionToken = (char *)getAccessToken(tokenLen, tokenError , aampInstance->mConfig->IsConfigSet(eAAMPConfig_SslVerifyPeer));
 					AAMPLOG_WARN("%s:%d Access Token from AuthServer", __FUNCTION__, __LINE__);
 				}
 				else
@@ -1272,7 +1273,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 						}
 						int tokenLen = 0;
 						long tokenError = 0;
-						const char *sessionToken = getAccessToken(tokenLen, tokenError);
+						const char *sessionToken = getAccessToken(tokenLen, tokenError,aampInstance->mConfig->IsConfigSet(eAAMPConfig_SslVerifyPeer));
 						if (NULL != sessionToken)
 						{
 							AAMPLOG_INFO("%s:%d Requesting License with new access token", __FUNCTION__, __LINE__);

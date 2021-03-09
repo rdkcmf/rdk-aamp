@@ -169,7 +169,7 @@ static const char * ParseUriProtocol(const char *uri)
  * @param[in] uri manifest/ fragment uri
  * @retval void
  */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams)
 {
 	if( ParseUriProtocol(uri) )
 	{
@@ -213,7 +213,7 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 			dst += "/";
 		}
 		dst += uri;
-		if( gpGlobalConfig->mPropagateUriParameters )
+		if( bPropagateUriParams )
 		{
 			if (strchr(uri,'?') == 0)
 			{ // uri doesn't have url parameters; copy from parents if present

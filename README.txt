@@ -88,6 +88,15 @@ useAverageBandwidth	Enable/Disable use of average bandwidth in manifest for ABR 
 useRetuneForUnpairedDiscontinuity	Enable/Disable internal retune on unpaired discontinuity .Default true
 useMatchingBaseUrl	Enable/Disable use of matching base url, whenever there are multiple base urls are available.Default false
 nativeCCRendering	Enable/Disable Native CC rendering in AAMP Player.Default false
+enableVideoRectangle			Enable/Disable Setting of rectangle property for sink element.Default true
+useRetuneForGstInternalError	Enable/Disable Retune on GST Error.Default true
+enableSeekableRange				Enable/Disable Seekable range reporting in progress event for non-fog content.Default false
+reportVideoPts 					Enable/Disable video pts reporting in progress events.Default false
+propagateUriParameters			Enable/Disable top-level manifest URI parameters while downloading fragments.  Default true
+sslVerifyPeer					Enable/Disable SSL Peer verification for curl connection . Default false
+setLicenseCaching				Enable/Disable license caching in WV . Default true
+persistBitRateOverSeek			Enable/Disable ABR profile persistence during Seek/Trickplay/Audio switching. Default false
+
 
 =================================================================================================================
 3. Channel Override Settings
@@ -384,7 +393,7 @@ langcodepref=<X>
 	3: ISO639_PREFER_2_CHAR_LANGCODE language codes normalized to 2-character iso639-1 encoding (i.e. "de")
 
 reportbufferevent=<X> Enable/Disable reporting buffer event for buffer underflow, default is 1 (enabled)
-propagateUriParameters=0 to disable feature where top-level manifest URI parameters included when downloading fragments.  Default is 1 (enabled).
+
 useLinearSimulator Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 useRetuneForGSTInternalError=0 To disable retune mitigation for gst pipeline internal data stream error, by default this is flag enabled.
@@ -402,11 +411,11 @@ initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout 
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
-reportvideopts if present, current video pts is reported via progress events
+
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion
 maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer appsource setup to complete
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
-persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
+
 setLicenseCaching=0 used to disable license caching, by default the value is 1 to enable the license caching.
 
 

@@ -2836,7 +2836,7 @@ public:
 	 *
 	 *   @return bool - true if enabled
 	 */
-	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+	bool IsBitRatePersistedOverSeek() { return ISCONFIGSET_PRIV(eAAMPConfig_PersistentBitRateOverSeek); }
 
 private:
 

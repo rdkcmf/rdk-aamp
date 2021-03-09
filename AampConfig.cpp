@@ -107,7 +107,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abr-cache-length",eAAMPConfig_ABRCacheLength,-1,-1},	
 	{"useNewABR",eAAMPConfig_ABRBufferCheckEnabled,-1,-1},
 	{"useNewAdBreaker",eAAMPConfig_NewDiscontinuity,-1,-1},
-	{"reportvideopts",eAAMPConfig_ReportVideoPTS,-1,-1},
+	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
 	{"decoderunavailablestrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
 	{"descriptiveaudiotrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
 	{"langcodepref",eAAMPConfig_LanguageCodePreference,-1,-1},
@@ -134,7 +134,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
 	{"bulkTimedMetadata",eAAMPConfig_BulkTimedMetaReport,-1,-1},
 	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,-1,-1},
-	{"useRetuneForGSTInternalError",eAAMPConfig_RetuneForGSTError,-1,-1},
+	{"useRetuneForGstInternalError",eAAMPConfig_RetuneForGSTError,-1,-1},
 	{"useWesterosSink",eAAMPConfig_UseWesterosSink,-1,-1},
 	{"setLicenseCaching",eAAMPConfig_SetLicenseCaching,-1,-1},
 	{"propagateUriParameters",eAAMPConfig_PropogateURIParam,-1,-1},
@@ -164,7 +164,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
 	{"wait-time-before-retry-http-5xx-ms",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplaybuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
-	{"sslverifypeer",eAAMPConfig_EnableSslVerifyPeer,-1,-1},
+	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
 	{"curl-stall-timeout",eAAMPConfig_CurlStallTimeout,-1,-1},
 	{"curl-download-start-timeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
 	{"discontinuity-timeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},	
@@ -195,7 +195,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"maxTimeoutForSourceSetup",eAAMPConfig_SourceSetupTimeout,-1,-1},
 	{"disableMidFragmentSeek",eAAMPConfig_DisableMidFragmentSeek,-1,-1},
 	{"disableWifiCurlHeader",eAAMPConfig_DisablewifiCurlHeader,-1,-1},
-	{"persistBitRateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
+	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
 	{"log",eAAMPConfig_LogLevel,-1,-1},
 	{"max-buffer-rampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
 	{"min-vod-cache",eAAMPConfig_VODMinCachedSeconds,-1,-1},	
@@ -253,7 +253,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_EnableMicroEvents].value			=	false;	
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;	
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;	
-	bAampCfgValue[eAAMPConfig_EnableSslVerifyPeer].value			=	true;	
+	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	false;	
 	bAampCfgValue[eAAMPConfig_EnableClientDai].value			=	false;	
 	bAampCfgValue[eAAMPConfig_PlayAdFromCDN].value				=	false;	
 	bAampCfgValue[eAAMPConfig_EnableVideoEndEvent].value			=	true;	
@@ -292,7 +292,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_DisablewifiCurlHeader].value			=	true;	
 	bAampCfgValue[eAAMPConfig_EnableLinearSimulator].value			=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForUnpairDiscontinuity].value		=	true;	
-	bAampCfgValue[eAAMPConfig_EnableSeekRange].value			=	true;	
+	bAampCfgValue[eAAMPConfig_EnableSeekRange].value			=	false;	
 	bAampCfgValue[eAAMPConfig_DashParallelFragDownload].value		=	true;	
 	bAampCfgValue[eAAMPConfig_PersistentBitRateOverSeek].value		=	false;	
 	bAampCfgValue[eAAMPConfig_SetLicenseCaching].value			=	true;	
@@ -1464,7 +1464,7 @@ bool AampConfig::ReadNumericHelper(std::string valStr, T& value)
  */
 char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
 {
-	char *	strConfig = NULL;
+	char *  strConfig = NULL;
 	IARM_Result_t result; 
 	HOSTIF_MsgData_t param;
 	memset(&param,0,sizeof(param));
@@ -1472,7 +1472,7 @@ char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLe
 	param.reqType = HOSTIF_GET;
 
 	result = IARM_Bus_Call(IARM_BUS_TR69HOSTIFMGR_NAME,IARM_BUS_TR69HOSTIFMGR_API_GetParams,
-					(void *)&param,	sizeof(param));
+                    (void *)&param,	sizeof(param));
 	if(result  == IARM_RESULT_SUCCESS)
 	{
 		if(fcNoFault == param.faultCode)
@@ -1484,18 +1484,18 @@ char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLe
 				iConfigLen = param.paramLen;
 				const char *src = (const char*)(param.paramValue);
 				strConfig = (char * ) base64_Decode(src,&iConfigLen);
-				
-				logprintf("%s: ERROR Got:%s En-Len:%d Dec-len:%d\n",__FUNCTION__,strforLog.c_str(),param.paramLen,iConfigLen);
+
+				logprintf("GetTR181AAMPConfig: Got:%s En-Len:%d Dec-len:%d",strforLog.c_str(),param.paramLen,iConfigLen);
 			}
 			else
 			{
-				logprintf("%s: ERROR Not a string param type=%d or Invalid len:%d\n",__FUNCTION__,param.paramtype, param.paramLen);
+				logprintf("GetTR181AAMPConfig: Not a string param type=%d or Invalid len:%d ",param.paramtype, param.paramLen);
 			}
 		}
 	}
 	else
 	{
-		logprintf("%s: ERROR Failed to retrieve value result=%d",__FUNCTION__,result);
+		logprintf("GetTR181AAMPConfig: Failed to retrieve value result=%d",result);
 	}
 	return strConfig;
 }

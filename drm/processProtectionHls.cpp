@@ -57,7 +57,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 static int GetFieldValue(string &attrName, string keyName, string &valuePtr);
 static int getKeyId(string attrName, string &keyId);
 static int getPsshData(string attrName, string &psshData);
-static shared_ptr<AampDrmHelper> getDrmHelper(string attrName);
+static shared_ptr<AampDrmHelper> getDrmHelper(string attrName , bool bPropagateUriParams);
 static uint8_t getPsshDataVersion(string attrName);
 
 /**
@@ -210,7 +210,7 @@ static uint8_t getPsshDataVersion(string attrName){
  * 
  * @return AampDrmHelper - DRM Helper (nullptr in case of unexpected behaviour)
  */
-static std::shared_ptr<AampDrmHelper> getDrmHelper(string attrName){
+static std::shared_ptr<AampDrmHelper> getDrmHelper(string attrName , bool bPropagateUriParams){
 
 	string systemId = "";
 	
@@ -227,6 +227,7 @@ static std::shared_ptr<AampDrmHelper> getDrmHelper(string attrName){
 	DrmInfo drmInfo;
 	drmInfo.mediaFormat = eMEDIAFORMAT_HLS_MP4;
 	drmInfo.systemUUID=systemId;
+	drmInfo.bPropagateUriParams = bPropagateUriParams;
 	return AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 }
 
@@ -261,7 +262,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 	MediaType mediaType = eMEDIATYPE_VIDEO;
 	DrmSessionDataInfo *drmSessioData = NULL;
 	do{
-		drmHelper = getDrmHelper(attrName);
+		drmHelper = getDrmHelper(attrName , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		if (nullptr == drmHelper){
 			AAMPLOG_ERR("%s:%d Failed to get DRM type/helper from manifest!",
 			__FUNCTION__, __LINE__);

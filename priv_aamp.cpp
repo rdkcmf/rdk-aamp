@@ -2153,7 +2153,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		// Override above logic if mEnableSeekableRange is set, used by third-party apps
-		if (!mEnableSeekableRange && (mContentType == ContentType_LINEAR && !mTSBEnabled))
+		if (!ISCONFIGSET_PRIV(eAAMPConfig_EnableSeekRange) && (mContentType == ContentType_LINEAR && !mTSBEnabled))
 		{
 			start = -1;
 			end = -1;
@@ -2174,7 +2174,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 			}
 		}
 
-		if(mReportVideoPTS)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_ReportVideoPTS))
 		{
 				/*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
 				**In order to report PTS of video currently being played out, we add the base PTS
@@ -3712,7 +3712,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
-			if(!gpGlobalConfig->sslVerifyPeer)
+			if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer))
 			{
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -4419,7 +4419,7 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-		if(!gpGlobalConfig->sslVerifyPeer){
+		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
@@ -5144,9 +5144,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureDashParallelFragmentDownload();
 	//ConfigureBulkTimedMetadata();
 	//ConfigureRetuneForUnpairedDiscontinuity();
-	ConfigureRetuneForGSTInternalError();
+	//ConfigureRetuneForGSTInternalError();
 	//ConfigureWesterosSink();
-	ConfigureLicenseCaching();
+	//ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
 	mABREnabled = gpGlobalConfig->bEnableABR;
@@ -5160,13 +5160,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
 	}
-	#endif
+
 
 	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState){
 		/* Disable ssl verification by default */
 		gpGlobalConfig->sslVerifyPeer = eFalseState;
 		AAMPLOG_INFO("%s:%d : SSL Verification has not configured , default is False", __FUNCTION__,__LINE__);
 	}
+	#endif
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
@@ -6238,6 +6239,8 @@ void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 	}
 }
 #endif
+#if 0
+
 /**
  *   @brief to configure propagate URI parameters for fragment download
  *
@@ -6250,6 +6253,8 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
 	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
 }
+
+
 
 /**
  *   @brief to disable SSL verify peer 
@@ -6267,7 +6272,6 @@ void PrivateInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 	logprintf("%s:%d Disable Ssl Verify Peer : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->sslVerifyPeer)?"True":"False");
 }
 
-#if 0
 /**
  *   @brief Set Westeros sink Configuration
  *   @param[in] bValue - true if westeros sink enabled
@@ -6287,6 +6291,8 @@ void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
 }
 #endif
+
+#if 0
 
 /**
  *   @brief Set license caching
@@ -6308,7 +6314,7 @@ void PrivateInstanceAAMP::SetLicenseCaching(bool bValue)
 	AAMPLOG_INFO("%s:%d License Caching is : %s ",__FUNCTION__, __LINE__, (mLicenseCaching ? "True" : "False"));
 }
 
-#if 0
+
 /**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
@@ -8442,7 +8448,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
             mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
     }
 }
-#endif
+
 /**
  *   @brief To set retune configuration for gstpipeline internal data stream error.
  *
@@ -8454,7 +8460,7 @@ void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
             mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
     }
 }
-#if 0
+
 /**
  *   @brief Set unpaired discontinuity retune flag
  *   @param[in] bValue - true if unpaired discontinuity retune set
@@ -8466,7 +8472,7 @@ void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
     mUseRetuneForUnpairedDiscontinuity = bValue;
     AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
-#endif
+
 /**
  *   @brief Set retune configuration for gstpipeline internal data stream error.
  *   @param[in] bValue - true if gst internal error retune set
@@ -8478,6 +8484,7 @@ void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
 	mUseRetuneForGSTInternalError = bValue;
 	AAMPLOG_INFO("%s:%d GST Retune Config from App : %d", __FUNCTION__, __LINE__, bValue);
 }
+#endif
 
 /**
  *   @brief Function to Configure PreCache Playlist functionality
@@ -8524,6 +8531,7 @@ void PrivateInstanceAAMP::ConfigureWesterosSink()
 }
 #endif
 
+#if 0
 /**
  *   @brief To set license caching config
  *
@@ -8541,7 +8549,7 @@ void PrivateInstanceAAMP::ConfigureLicenseCaching()
 		AAMPLOG_WARN("%s License Caching, MaxDRMSessions: %d", mLicenseCaching ? "Enabling" : "Disabling", gpGlobalConfig->dash_MaxDRMSessions);
 	}
 }
-
+#endif 
 /**
  *   @brief To set the download buffer size value
  *
@@ -10078,7 +10086,7 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, false, mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 	}
 }
-
+#if 0
 /**
  *   @brief Set video rectangle property
  *
@@ -10131,6 +10139,7 @@ void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
 		mEnableSeekableRange = (bool)gpGlobalConfig->mEnableSeekableRange;
 	}
 }
+#endif
 
 /**
 *   @brief Disable Content Restrictions - unlock
@@ -10159,7 +10168,7 @@ void PrivateInstanceAAMP::EnableContentRestrictions()
 		mpStreamAbstractionAAMP->EnableContentRestrictions();
 	}
 }
-
+#if 0
 /**
  *   @brief Enable video PTS reporting in progress event
  *
@@ -10176,6 +10185,7 @@ void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
 		mReportVideoPTS = (bool)gpGlobalConfig->bReportVideoPTS;
 	}
 }
+#endif
 
 void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 {
@@ -10230,25 +10240,26 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
 	}
-#endif	
+
 	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)
 	{
 		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;
 	}
+
 	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
 	{
 		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
 	}
-#if 0	
+
 	if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
 	{
 		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
 	}
-#endif
 	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
 	{
 		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
 	}
+#endif	
 	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
 	{
 		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
@@ -10261,10 +10272,12 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
 	}
+#if 0
 	if(gpGlobalConfig->mPersistBitRateOverSeek != eUndefinedState)
 	{
 		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
 	}
+#endif
 }
 
 /**
@@ -10324,6 +10337,7 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 	return ret;
 }
 
+#if 0
 /**
  *   @brief Enable/disable configuration to persist ABR profile over SAP/Seek
  *
@@ -10341,7 +10355,7 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
 		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
 	}
 }
-
+#endif
 /**
  * EOF
  */

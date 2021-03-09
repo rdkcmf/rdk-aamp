@@ -111,7 +111,7 @@ typedef enum
 	eAAMPConfig_EnableMicroEvents,							/**< Enabling the tunetime micro events*/
 	eAAMPConfig_EnablePROutputProtection,					/**< Playready output protection config */
 	eAAMPConfig_ReTuneOnBufferingTimeout,					/**< Re-tune on buffering timeout */
-	eAAMPConfig_EnableSslVerifyPeer,						/**< Enable curl ssl certificate verification. */
+	eAAMPConfig_SslVerifyPeer,						/**< Enable curl ssl certificate verification. */
 	eAAMPConfig_EnableClientDai,							/**< Enabling the client side DAI*/
 	eAAMPConfig_PlayAdFromCDN,								/**< Play Ad from CDN. Not from FOG.*/
 	eAAMPConfig_EnableVideoEndEvent,						/**< Enable or disable videovend events */
@@ -149,7 +149,7 @@ typedef enum
 	eAAMPConfig_EnableSeekRange,							/**<Enable seekable range reporting via progress events */
 	eAAMPConfig_DashParallelFragDownload,					/**<Enable dash fragment parallel download*/
 	eAAMPConfig_PersistentBitRateOverSeek,					/**< ABR profile persistence during Seek/Trickplay/Audio switching*/
-	eAAMPConfig_SetLicenseCaching,							/**<Disable  license caching*/
+	eAAMPConfig_SetLicenseCaching,							/**< License caching*/
 	eAAMPConfig_Fragmp4_PrefetchLicense,					/*** Enable fragment mp4 license prefetching**/
 	eAAMPConfig_ABRBufferCheckEnabled,						/**< Flag to enable/disable buffer based ABR handling*/
 	eAAMPConfig_NewDiscontinuity,							/**< Flag to enable/disable new discontinuity handling with PDT*/

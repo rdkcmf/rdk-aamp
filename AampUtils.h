@@ -67,9 +67,10 @@ std::string aamp_getHostFromURL(std::string url);
  * @param[out] dst - Created URL
  * @param[in] base - Base URL
  * @param[in] uri - File path
+ * @param[in] propagateUriParams - flag to use base uri params
  * @retval void
  */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams);
 
 /**
  * @brief Check if string start with a prefix
