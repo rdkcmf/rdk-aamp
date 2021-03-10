@@ -553,7 +553,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	//logprintf("mediaUsage is %s", mediaUsage);
 	//logprintf("sessionToken is %s", sessionToken);
 	unsigned int attemptCount = 0;
-	int sleepTime = gpGlobalConfig->licenseRetryWaitTime;
+	int sleepTime ;
+	aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
 				if(sleepTime<=0) sleepTime = 100;
 	while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
@@ -573,7 +574,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		{
 			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
 			if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
-			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
+			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
 			mssleep(sleepTime);
 		}
 		else
@@ -739,9 +740,11 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTime);
 			if (*httpCode != 200 && *httpCode != 206)
 			{
+				int  licenseRetryWaitTime;
+				aamp->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,licenseRetryWaitTime) ;
 				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : http %d", __FUNCTION__, __LINE__, attemptCount, *httpCode);
 				if(*httpCode >= 500 && *httpCode < 600
-						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
+						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && licenseRetryWaitTime > 0)
 				{
 					delete keyInfo;
 					delete callbackData;
@@ -750,8 +753,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 					callbackData->data = keyInfo;
 					callbackData->mDRMSessionManager = this;
 					curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
-					mssleep(gpGlobalConfig->licenseRetryWaitTime);
+					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__,licenseRetryWaitTime);
+					mssleep(licenseRetryWaitTime);
 				}
 			}
 			else

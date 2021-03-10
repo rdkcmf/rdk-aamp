@@ -1037,7 +1037,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(gpGlobalConfig->abrCacheLength),
+		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(0),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0),
 		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
@@ -1053,7 +1053,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 
 	pthread_mutex_init(&mStateLock, NULL);
 	pthread_cond_init(&mStateCond, NULL);
-
+	GETCONFIGVALUE(eAAMPConfig_ABRCacheLength,mMaxBufferCountCheck); 
 	// Set default init bitrate according to the config.
 	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
 	if (gpGlobalConfig->iframeBitrate > 0)
@@ -1285,6 +1285,8 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
+	int  abrCacheLength;
+        GETCONFIGVALUE(eAAMPConfig_ABRCacheLength,abrCacheLength);
 
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
@@ -1305,7 +1307,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 					logprintf("%s Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f",__FUNCTION__,
 					currProfileIndex,newProfileIndex,bufferValue);
 					loop = (++loop >4)?1:loop;
-					mMaxBufferCountCheck =  pow(gpGlobalConfig->abrCacheLength ,loop);
+					mMaxBufferCountCheck =  pow(abrCacheLength ,loop);
 					mBitrateReason = eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL;
 				}
 				// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
@@ -1320,7 +1322,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 		{
 			mABRLowBufferCounter++;
 			mABRHighBufferCounter = 0;
-			if(mABRLowBufferCounter > gpGlobalConfig->abrCacheLength)
+			if(mABRLowBufferCounter > abrCacheLength)
 			{
 				newProfileIndex =  mAbrManager.getRampedDownProfileIndex(currProfileIndex);
 				if(newProfileIndex  != currProfileIndex)
