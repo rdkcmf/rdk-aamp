@@ -50,7 +50,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	httpProxy(0), reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true), bForceHttp(false),
 	internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 	iframeBitrate(0), iframeBitrate4K(0), ckLicenseServerURL(NULL),
-	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
+        enableMicroEvents(false), enablePROutputProtection(false),
 	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0),
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), tunedEventConfigLive(eTUNED_EVENT_MAX), tunedEventConfigVOD(eTUNED_EVENT_MAX),
 	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),

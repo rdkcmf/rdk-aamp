@@ -194,8 +194,8 @@ public:
 	long iframeBitrate4K;                   /**< Default bitrate for iframe track selection for 4K assets*/
 	char *ckLicenseServerURL;				/**< ClearKey License server URL*/
 	bool enableMicroEvents;                 /**< Enabling the tunetime micro events*/
-	long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
-	long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
+	//long curlStallTimeout;                  /**< Timeout value for detection curl download stall in seconds*/
+	//long curlDownloadStartTimeout;          /**< Timeout value for curl download to start after connect in seconds*/
 	bool enablePROutputProtection;          /**< Playready output protection config */
 	char *pUserAgentString;			/**< Curl user-agent string */
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */

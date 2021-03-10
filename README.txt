@@ -100,8 +100,6 @@ fragmp4LicensePrefetch		Enable/Disable fragment mp4 license prefetching.Default 
 gstPositionQueryEnable		GStreamer position query will be used for progress report events.Default true for non-Intel platforms
 
 // Integer inputs
-minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
-maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
 waitTimeBeforeRetryHttp5xx 	Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 harvestCountLimit		Specify the limit of number of files to be harvested
@@ -113,8 +111,15 @@ abrCacheOutlier 		Outlier difference which will be ignored from network bandwidt
 abrNwConsistency		Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2)
 abrSkipDuration			Minimum duration of fragment to be downloaded before triggering abr (in secs.default 6 sec).
 
-// String inputs 
-licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets 
+// String inputs
+licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
+
+// Long inputs
+minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
+maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
+downloadStallTimeout            Timeout value for detection curl download stall in second,default is 0.
+downloadStartTimeout            Timeout value for curl download to start after connect in seconds,default is 0.
+
 =================================================================================================================
 3. Channel Override Settings
 

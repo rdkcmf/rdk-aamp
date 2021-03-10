@@ -1381,6 +1381,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->sslVerifyPeer = (TriState)(value == 1);
 			logprintf("ssl verify peer is %s", gpGlobalConfig->sslVerifyPeer? "disabled" : "enabled");
 		}
+                #if 0
 		else if (ReadConfigNumericHelper(cfg, "curl-stall-timeout=", gpGlobalConfig->curlStallTimeout) == 1)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
@@ -1391,6 +1392,7 @@ static void ProcessConfigEntry(std::string cfg)
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld", gpGlobalConfig->curlDownloadStartTimeout);
 		}
+                #endif
 		else if (ReadConfigNumericHelper(cfg, "discontinuity-timeout=", gpGlobalConfig->discontinuityTimeout) == 1)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
@@ -3739,21 +3741,21 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
 			//Disable download stall detection checks for FOG playback done by JS PP
-			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
+			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO ||
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
 				simType == eMEDIATYPE_PLAYLIST_IFRAME || simType == eMEDIATYPE_PLAYLIST_AUX_AUDIO)
-			{	
+			{
 				// For Manifest file : Set starttimeout to 0 ( no wait for first byte). Playlist/Manifest with DAI
-				// contents take more time , hence to avoid frequent timeout, its set as 0			
+				// contents take more time , hence to avoid frequent timeout, its set as 0
 				progressCtx.startTimeout = 0;
 			}
 			else
 			{
 				// for Video/Audio segments , set the start timeout as configured by Application
-				progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,progressCtx.startTimeout);
 			}
-			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
-                  
+			GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,progressCtx.stallTimeout);
+
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
 
@@ -8970,7 +8972,7 @@ bool PrivateInstanceAAMP::IsMuxedStream()
 	}
 	return ret;
 }
-
+#if 0
 /**
  *   @brief To set the curl stall timeout value
  *
@@ -8996,6 +8998,7 @@ void PrivateInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 		gpGlobalConfig->curlDownloadStartTimeout = startTimeout;
 	}
 }
+#endif
 
 /**
  * @brief Stop injection for a track.

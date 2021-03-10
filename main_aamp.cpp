@@ -1558,7 +1558,10 @@ void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetDownloadStallTimeout(stallTimeout);
+        if( stallTimeout >= 0 )
+        {
+            SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CurlStallTimeout,stallTimeout);
+        }
 }
 
 /**
@@ -1569,7 +1572,10 @@ void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetDownloadStartTimeout(startTimeout);
+        if( startTimeout >= 0 )
+        {
+            SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CurlDownloadStartTimeout,startTimeout);
+        }
 }
 
 /**

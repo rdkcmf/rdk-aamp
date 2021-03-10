@@ -165,13 +165,13 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplaybuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
-	{"curl-stall-timeout",eAAMPConfig_CurlStallTimeout,-1,-1},
-	{"curl-download-start-timeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
-	{"discontinuity-timeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},	
+	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,-1,-1},
+	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
+	{"discontinuity-timeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},
 	{"ad-from-cdn-only",eAAMPConfig_PlayAdFromCDN,-1,-1},
-	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},	
-	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},	
+	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
+	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportbufferevent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enable-tune-profiling",eAAMPConfig_EnableTuneProfile,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
@@ -357,16 +357,16 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 
 	///////////////// Following for Long Data type config ////////////////////////////
 	lAampCfgValue[eAAMPConfig_PlaylistTimeout-eAAMPConfig_LongStartValue].value			=	CURL_FRAGMENT_DL_TIMEOUT;
-	lAampCfgValue[eAAMPConfig_DefaultBitrate-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE;	
-	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE_4K;		
-	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value		=	0;	
-	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value		=	0;		
-	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;		
-	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;		
-	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value		=	DEFAULT_DISCONTINUITY_TIMEOUT;	
-	lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value				=	0;		
-	lAampCfgValue[eAAMPConfig_MaxBitrate-eAAMPConfig_LongStartValue].value				= 	0;//	LONG_MAX;	
-	lAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_LongStartValue].value			= 	0;//	tobeadded;	
+	lAampCfgValue[eAAMPConfig_DefaultBitrate-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE;
+	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE_4K;
+	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value		=	0;
+	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value		=	0;
+	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
+	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
+	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value		=	DEFAULT_DISCONTINUITY_TIMEOUT;
+	lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value				=	0;
+	lAampCfgValue[eAAMPConfig_MaxBitrate-eAAMPConfig_LongStartValue].value				= 	0;//	LONG_MAX;
+	lAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_LongStartValue].value			= 	0;//	tobeadded;
 
 
 	///////////////// Following for double data types /////////////////////////////
@@ -375,9 +375,11 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
 	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 #endif
+	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
+	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
         lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value                          =       0;
         iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value            =       MAX_PTS_ERRORS_THRESHOLD;
-        iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value     =       DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
+        iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value     =       DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;
 	///////////////// Following for String type config ////////////////////////////
 	sAampCfgValue[eAAMPConfig_MapMPD-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_MapM3U8-eAAMPConfig_StringStartValue].value			=	"";
