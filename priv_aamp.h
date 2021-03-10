@@ -2032,7 +2032,7 @@ public:
 	 *
 	 *   @return true if ABR enabled.
 	 */
-	bool CheckABREnabled(void) { return mABREnabled; }
+	bool CheckABREnabled(void) { return ISCONFIGSET_PRIV(eAAMPConfig_EnableABR); }
 	/**
 	 *   @brief Set a preferred bitrate for video.
 	 *
@@ -2504,6 +2504,29 @@ public:
 	 * @return minimum bitrate value
 	 */
 	long GetMinimumBitrate();
+	/**
+	 * @brief Get default bitrate value.
+	 * @return default bitrate value
+	 */
+	long GetDefaultBitrate();
+
+	/**
+	* @brief Get Default bitrate for 4K
+	* @return default bitrate 4K value
+	*/
+	long GetDefaultBitrate4K();
+
+	/**
+	 * @brief Get Default Iframe bitrate value.
+	 * @return default iframe bitrate value
+	 */
+	long GetIframeBitrate();
+
+	/**
+	 * @brief Get Default Iframe bitrate 4K value.
+	 * @return default iframe bitrate 4K value
+	 */
+	long GetIframeBitrate4K();
 
 	/**
 	 * @brief Check if track can inject data into GStreamer.

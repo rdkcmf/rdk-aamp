@@ -5170,8 +5170,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	//ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
-	mABREnabled = gpGlobalConfig->bEnableABR;
-	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
+	//mABREnabled = gpGlobalConfig->bEnableABR;
+	//mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
@@ -5915,14 +5915,59 @@ long PrivateInstanceAAMP::GetMaximumBitrate()
 }
 
 /**
- * @brief Set maximum bitrate value.
+ * @brief Get maximum bitrate value.
  * @return minimum bitrate value
  */
 long PrivateInstanceAAMP::GetMinimumBitrate()
 {
-        long minBitrateValue;
-        GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,minBitrateValue);
+	long minBitrateValue;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,minBitrateValue);
 	return minBitrateValue;
+}
+
+
+/**
+ * @brief Get Default bitrate value.
+ * @return default bitrate value
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate()
+{
+	long defaultBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DefaultBitrate,defaultBitRate);
+	return defaultBitRate;
+}
+
+/**
+ * @brief Get Default bitrate for 4K
+ * @return default bitrate 4K value
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate4K()
+{
+	long defaultBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DefaultBitrate4K,defaultBitRate);
+	return defaultBitRate;
+}
+
+/**
+ * @brief Get Default Iframe bitrate value.
+ * @return default iframe bitrate value
+ */
+long PrivateInstanceAAMP::GetIframeBitrate()
+{
+	long defaultIframeBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_IFrameDefaultBitrate,defaultIframeBitRate);
+	return defaultIframeBitRate;
+}
+
+/**
+ * @brief Get Default Iframe bitrate 4K value.
+ * @return default iframe bitrate 4K value
+ */
+long PrivateInstanceAAMP::GetIframeBitrate4K()
+{
+	long defaultIframeBitRate4K;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_IFrameDefaultBitrate4K,defaultIframeBitRate4K);
+	return defaultIframeBitRate4K;
 }
 
 /**
@@ -6060,6 +6105,7 @@ std::shared_ptr<AampDrmHelper> PrivateInstanceAAMP::GetCurrentDRM(void)
 	return mCurrentDrm;
 }
 
+#if 0
 /**
  *   @brief Set a preferred bitrate for video.
  *
@@ -6069,15 +6115,17 @@ void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
 {
 	if (bitrate == 0)
 	{
-		mABREnabled = true;
+		SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_EnableABR,true);
 	}
 	else
 	{
-		mABREnabled = false;
-		mUserRequestedBandwidth = bitrate;
+		SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_EnableABR,false);
+		SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_b,bitrate);
 	}
 }
+#endif
 
+#if 0
 /**
  *   @brief Get preferred bitrate for video.
  *
@@ -6085,8 +6133,11 @@ void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
  */
 long PrivateInstanceAAMP::GetVideoBitrate()
 {
-	return mUserRequestedBandwidth;
+	long bitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DefaultBitrate,bitrate);
+	return bitrate;
 }
+#endif
 
 /**
  *   @brief Get available thumbnail tracks.
@@ -8297,6 +8348,7 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 	SendEventAsync(event);
 }
 
+#if 0
 /**
  *   @brief To set the initial bitrate value.
  *
@@ -8322,6 +8374,7 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 		gpGlobalConfig->defaultBitrate4K = bitrate4K;
 	}
 }
+#endif
 
 /**
  *   @brief To set the network download timeout value.

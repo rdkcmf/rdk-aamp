@@ -46,6 +46,8 @@
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
 #define DEFAULT_REPORT_PROGRESS_INTERVAL 1000     /**< Progress event reporting interval: 1msec */
 #define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
+#define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
+#define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
 
 #if 0
 
@@ -67,16 +69,9 @@
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
-#define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
-#define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
 #define DEFAULT_MINIMUM_INIT_CACHE_SECONDS  0        /**< Default initial cache size of playback */
 #define MINIMUM_INIT_CACHE_NOT_OVERRIDDEN  -1        /**< Initial cache size not overridden by aamp.cfg */
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
-#define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life */
-#define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
-#define DEFAULT_ABR_OUTLIER 5000000                 /**< ABR outlier: 5 MB */
-#define DEFAULT_ABR_SKIP_DURATION 6                 /**< Initial skip duration of ABR - 6 sec */
-#define DEFAULT_ABR_NW_CONSISTENCY_CNT 2            /**< ABR network consistency count */
 
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
@@ -505,7 +500,8 @@ typedef enum
 	AAMP_OPERATOR_SETTING           = 1,
 	AAMP_STREAM_SETTING             = 2,
 	AAMP_APPLICATION_SETTING        = 3,
-	AAMP_DEV_CFG_SETTING            = 4,            // Highest priority
+	AAMP_TUNE_SETTING        		= 4,
+	AAMP_DEV_CFG_SETTING            = 5,            // Highest priority
 	AAMP_MAX_SETTING
 }ConfigPriority;
 

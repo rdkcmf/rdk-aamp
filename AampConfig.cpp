@@ -53,6 +53,7 @@ static AampOwnerLookupEntry OwnerLookUpTable[] =
 	{"oper",AAMP_OPERATOR_SETTING},
 	{"stream",AAMP_STREAM_SETTING},
 	{"app",AAMP_APPLICATION_SETTING},
+	{"tune",AAMP_APPLICATION_SETTING},
 	{"cfg",AAMP_DEV_CFG_SETTING},	
 	{"unknown",AAMP_MAX_SETTING}
 };
@@ -100,8 +101,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"debug",eAAMPConfig_DebugLogging,-1,-1},
 	{"trace",eAAMPConfig_TraceLogging,-1,-1},	
 	{"curl",eAAMPConfig_CurlLogging,-1,-1},	
-	{"default-bitrate",eAAMPConfig_DefaultBitrate,-1,-1},		
-	{"default-bitrate-4K",eAAMPConfig_DefaultBitrate4K,-1,-1},
+	{"defaultBitrate",eAAMPConfig_DefaultBitrate,-1,-1},
+	{"defaultBitrate4K",eAAMPConfig_DefaultBitrate4K,-1,-1},
 	{"abr",eAAMPConfig_EnableABR,-1,-1},
 	{"abrCacheLife",eAAMPConfig_ABRCacheLife,-1,-1},	
 	{"abrCacheLength",eAAMPConfig_ABRCacheLength,-1,-1},	
@@ -152,8 +153,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
 	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
 	{"re-tune-on-buffering-timeout",eAAMPConfig_ReTuneOnBufferingTimeout,-1,-1},
-	{"iframe-default-bitrate",eAAMPConfig_IFrameDefaultBitrate,-1,-1},
-	{"iframe-default-bitrate-4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
+	{"iframeDefaultBitrate",eAAMPConfig_IFrameDefaultBitrate,-1,-1},
+	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
 	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
 	{"fragment-cache-length",eAAMPConfig_MaxFragmentCached,-1,-1},
@@ -356,10 +357,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 
 	///////////////// Following for Long Data type config ////////////////////////////
 	lAampCfgValue[eAAMPConfig_PlaylistTimeout-eAAMPConfig_LongStartValue].value			=	CURL_FRAGMENT_DL_TIMEOUT;
-	lAampCfgValue[eAAMPConfig_DefaultBitrate-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE;
-	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value			=	DEFAULT_INIT_BITRATE_4K;
-	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value		=	0;
-	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
 	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value		=	DEFAULT_DISCONTINUITY_TIMEOUT;
@@ -374,11 +371,17 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
 	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 #endif
-	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
-	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
-        lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value                          =       0;
+	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value		=	0;
+	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value	=	0;
+        lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value			=       0;
         iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value            =       MAX_PTS_ERRORS_THRESHOLD;
         iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value     =       DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;
+	lAampCfgValue[eAAMPConfig_DefaultBitrate-eAAMPConfig_LongStartValue].value		=       DEFAULT_INIT_BITRATE;
+	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value		=       DEFAULT_INIT_BITRATE_4K;
+	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value	=       0;
+	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value	=       0;
+
+
 	///////////////// Following for String type config ////////////////////////////
 	sAampCfgValue[eAAMPConfig_MapMPD-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_MapM3U8-eAAMPConfig_StringStartValue].value			=	"";
@@ -1152,9 +1155,9 @@ void AampConfig::ConfigureLogSettings(AampLogManager *instance)
  */
 void AampConfig::ShowOperatorSetConfiguration()
 {
-	logprintf("////////////////// AAMP Config (Operator Set) //////////\n");
+	logprintf("////////////////// AAMP Config (Operator Set) //////////");
 	ShowConfiguration(AAMP_OPERATOR_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");
+	logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowAppSetConfiguration - List all Application configured settings
@@ -1163,9 +1166,9 @@ void AampConfig::ShowOperatorSetConfiguration()
  */
 void AampConfig::ShowAppSetConfiguration()
 {	
-	logprintf("////////////////// AAMP Config (Application Set) //////////\n");
+	logprintf("////////////////// AAMP Config (Application Set) //////////");
 	ShowConfiguration(AAMP_APPLICATION_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");	
+	logprintf("//////////////////////////////////////////////////");	
 }
 /**
  * @brief ShowStreamSetConfiguration - List all stream configured settings
@@ -1174,9 +1177,9 @@ void AampConfig::ShowAppSetConfiguration()
  */
 void AampConfig::ShowStreamSetConfiguration()
 {	
-	logprintf("////////////////// AAMP Config (Stream Set) //////////\n");
+	logprintf("////////////////// AAMP Config (Stream Set) //////////");
 	ShowConfiguration(AAMP_STREAM_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");
+	logprintf("//////////////////////////////////////////////////");
 
 }
 /**
@@ -1186,9 +1189,9 @@ void AampConfig::ShowStreamSetConfiguration()
  */
 void AampConfig::ShowDefaultAampConfiguration()
 {
-	logprintf("////////////////// AAMP Default Configuration  //////////\n");
+	logprintf("////////////////// AAMP Default Configuration  //////////");
 	ShowConfiguration(AAMP_DEFAULT_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");
+	logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowDevCfgConfiguration - List all developer configured settings
@@ -1197,9 +1200,9 @@ void AampConfig::ShowDefaultAampConfiguration()
  */
 void AampConfig::ShowDevCfgConfiguration()
 {
-	logprintf("////////////////// AAMP Cfg Override Configuration  //////////\n");
+	logprintf("////////////////// AAMP Cfg Override Configuration  //////////");
 	ShowConfiguration(AAMP_DEV_CFG_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");	
+	logprintf("//////////////////////////////////////////////////");	
 }
 /**
  * @brief ShowAAMPConfiguration - Show all settings for every owner
@@ -1208,9 +1211,9 @@ void AampConfig::ShowDevCfgConfiguration()
  */
 void AampConfig::ShowAAMPConfiguration()
 {
-	logprintf("////////////////// AAMP Configuration  //////////\n");
+	logprintf("////////////////// AAMP Configuration  //////////");
 	ShowConfiguration(AAMP_MAX_SETTING);
-	logprintf("//////////////////////////////////////////////////\n");
+	logprintf("//////////////////////////////////////////////////");
 }
 
 //////////////// Special Functions which involve conversion of configuration ///////////
@@ -1293,12 +1296,19 @@ void AampConfig::SetValue(J &setting, ConfigPriority newowner, const K &value)
 {
 	if(setting.owner <= newowner )
 	{
+		// n number of times same configuration can be overwritten.
+		// to store to last value ,owner has to be different
+		if(setting.lastowner != newowner)
+		{
+			setting.lastvalue = setting.value;
+			setting.lastowner = setting.owner;
+		}
 		setting.value = value;
 		setting.owner = newowner;
 	}
 	else
 	{
-		logprintf("%s: Owner[%d] not allowed to Set ,current Owner[%d]\n",__FUNCTION__,newowner,setting.owner);
+		logprintf("%s: Owner[%d] not allowed to Set ,current Owner[%d]",__FUNCTION__,newowner,setting.owner);
 	}
 }
 
@@ -1364,6 +1374,83 @@ bool AampConfig::ValidateRange(std::string key, T& value)
 }
 
 /**
+ * @brief RestoreConfiguration - Function is restore last configuration value from current ownership
+ *
+ * @param[in] owner - Owner value for reverting
+ * @return None
+ */
+void AampConfig::RestoreConfiguration(ConfigPriority owner)
+{
+	// All Bool values
+	for(int i=0;i<eAAMPConfig_BoolMaxValue;i++)
+	{
+		if(bAampCfgValue[i].owner == owner && bAampCfgValue[i].owner != bAampCfgValue[i].lastowner)
+		{
+			logprintf("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,
+				OwnerLookUpTable[bAampCfgValue[i].lastowner].ownerName,bAampCfgValue[i].value?"true":"false",bAampCfgValue[i].lastvalue?"true":"false");
+			bAampCfgValue[i].owner = bAampCfgValue[i].lastowner;
+			bAampCfgValue[i].value = bAampCfgValue[i].lastvalue;
+
+		}
+	}
+
+	// All integer values
+	for(int i=eAAMPConfig_IntStartValue+1;i<eAAMPConfig_IntMaxValue;i++)
+	{
+		// for int array
+		if(iAampCfgValue[i-eAAMPConfig_IntStartValue].owner == owner && iAampCfgValue[i-eAAMPConfig_IntStartValue].owner != iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner)
+		{
+			logprintf("Cfg [%-3d][%-20s][%-5s]->[%-5s][%d]->[%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,
+				OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value,iAampCfgValue[i-eAAMPConfig_IntStartValue].lastvalue);
+			iAampCfgValue[i-eAAMPConfig_IntStartValue].owner = iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner;
+			iAampCfgValue[i-eAAMPConfig_IntStartValue].value = iAampCfgValue[i-eAAMPConfig_IntStartValue].lastvalue;
+
+		}
+	}
+
+	// All long values
+	for(int i=eAAMPConfig_LongStartValue+1;i<eAAMPConfig_LongMaxValue;i++)
+	{
+		// for long array
+		if(lAampCfgValue[i-eAAMPConfig_LongStartValue].owner == owner && lAampCfgValue[i-eAAMPConfig_LongStartValue].owner  != lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner)
+		{
+			logprintf("Cfg [%-3d][%-20s][%-5s]->[%-5s][%ld]->[%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,
+				OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value,lAampCfgValue[i-eAAMPConfig_LongStartValue].lastvalue);
+			lAampCfgValue[i-eAAMPConfig_LongStartValue].owner = lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner;
+			lAampCfgValue[i-eAAMPConfig_LongStartValue].value = lAampCfgValue[i-eAAMPConfig_LongStartValue].lastvalue;
+		}
+	}
+
+	// All double values
+	for(int i=eAAMPConfig_DoubleStartValue+1;i<eAAMPConfig_DoubleMaxValue;i++)
+	{
+		// for double array
+		if(dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner == owner && dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner != dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner)
+                {
+					logprintf("Cfg [%-3d][%-20s][%-5s]->[%-5s][%f]->[%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,
+						OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastvalue);
+					dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner = dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner;
+					dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value = dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastvalue;
+                }
+        }
+
+
+	// All String values
+	for(int i=eAAMPConfig_StringStartValue+1;i<eAAMPConfig_StringMaxValue;i++)
+	{
+		// for string array
+		if(sAampCfgValue[i-eAAMPConfig_StringStartValue].owner == owner && sAampCfgValue[i-eAAMPConfig_StringStartValue].owner != sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner)
+		{
+			logprintf("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,
+				OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str(),sAampCfgValue[i-eAAMPConfig_StringStartValue].lastvalue.c_str());
+			sAampCfgValue[i-eAAMPConfig_StringStartValue].owner = sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner;
+			sAampCfgValue[i-eAAMPConfig_StringStartValue].value = sAampCfgValue[i-eAAMPConfig_StringStartValue].lastvalue;
+		}
+	}
+
+}
+
+/**
  * @brief ShowConfiguration - Function to list configration values based on the owner 
  *
  * @param[in] owner - Owner value for listing
@@ -1376,7 +1463,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 	{
 		if(bAampCfgValue[i].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%s]\n",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
+			logprintf("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
 		}
 	}
 
@@ -1386,7 +1473,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for int array
 		if(iAampCfgValue[i-eAAMPConfig_IntStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%d]\n",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
+			logprintf("Cfg [%-3d][%-20s][%-5s][%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
 		}
 	}
 
@@ -1396,7 +1483,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for long array 
 		if(lAampCfgValue[i-eAAMPConfig_LongStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%ld]\n",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
+			logprintf("Cfg [%-3d][%-20s][%-5s][%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
 		}
 	}
 
@@ -1406,7 +1493,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for double array
 		if(dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner == owner || owner == AAMP_MAX_SETTING)
                 {
-                        logprintf("Cfg [%-3d][%-20s][%-5s][%f]\n",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
+                        logprintf("Cfg [%-3d][%-20s][%-5s][%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
                 }
         }
 
@@ -1418,7 +1505,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for string array 
 		if(sAampCfgValue[i-eAAMPConfig_StringStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%s]\n",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
+			logprintf("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
 		}
 	}
 
@@ -1427,7 +1514,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		ChannelMapIter iter;
 		for (iter = mChannelOverrideMap.begin(); iter != mChannelOverrideMap.end(); ++iter)
 		{
-			logprintf("Cfg Channel[%s]-> [%s]\n",iter->name.c_str(),iter->uri.c_str());
+			logprintf("Cfg Channel[%s]-> [%s]",iter->name.c_str(),iter->uri.c_str());
 		}
 	}
 	

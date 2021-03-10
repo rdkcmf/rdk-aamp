@@ -5749,8 +5749,8 @@ int StreamAbstractionAAMP_MPD::GetProfileIdxForBandwidthNotification(uint32_t ba
 AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex)
 {
 	AAMPStatusType ret = eAAMPSTATUS_OK;
-	long defaultBitrate = gpGlobalConfig->defaultBitrate;
-	long iframeBitrate = gpGlobalConfig->iframeBitrate;
+	long defaultBitrate = aamp->GetDefaultBitrate();
+	long iframeBitrate = aamp->GetIframeBitrate();
 	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
@@ -5961,8 +5961,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									if(mStreamInfo[idx].resolution.height > 1080
 											|| mStreamInfo[idx].resolution.width > 1920)
 									{
-										defaultBitrate = gpGlobalConfig->defaultBitrate4K;
-										iframeBitrate = gpGlobalConfig->iframeBitrate4K;
+										defaultBitrate = aamp->GetDefaultBitrate4K();
+										iframeBitrate = aamp->GetIframeBitrate4K();
 									}
 								}
 								idx++;
@@ -6026,7 +6026,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					}
 				}
 
-				if (defaultBitrate != gpGlobalConfig->defaultBitrate)
+				if (defaultBitrate != aamp->GetDefaultBitrate())
 				{
 					GetABRManager().setDefaultInitBitrate(defaultBitrate);
 				}
@@ -6845,10 +6845,10 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 							{
 								pMediaStreamContext->context->CheckForProfileChange();
 							}
-							else
-							{
-								pMediaStreamContext->context->CheckUserProfileChangeReq();
-							}
+							//else
+							//{
+							//	pMediaStreamContext->context->CheckUserProfileChangeReq();
+							//}
 						}
 					}
 					else if (pMediaStreamContext->eos == true && mIsLiveManifest && trackIdx == eMEDIATYPE_VIDEO)

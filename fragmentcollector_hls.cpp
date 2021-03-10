@@ -4210,7 +4210,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					struct HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
 					setupStreamInfo(streamInfo, mProfileCount);
 					streamInfo->uri = aamp->GetManifestUrl().c_str();
-					aamp->SetVideoBitrate(-1);
+					SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_EnableABR,false);
 					mainManifestResult = eAAMPSTATUS_OK;
 					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Playlist only playback.", __FUNCTION__, __LINE__);
 				}
@@ -4239,9 +4239,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if (!newTune)
 			{
 				long persistedBandwidth = aamp->GetPersistedBandwidth();
+				long defaultBitRate 	= aamp->GetDefaultBitrate();
 				//We were tuning to a lesser profile previously, so we use it as starting profile
 				// XIONE-2039 If bitrate to be persisted during trickplay is true, set persisted BW as default init BW
-				if (persistedBandwidth > 0 && (persistedBandwidth < gpGlobalConfig->defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
+				if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitRate || aamp->IsBitRatePersistedOverSeek()))
 				{
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
@@ -5522,10 +5523,10 @@ void TrackState::RunFetchLoop()
 					{
 						context->CheckForProfileChange();
 					}
-					else if (!context->aamp->IsTSBSupported())
-					{
-						context->CheckUserProfileChangeReq();
-					}
+					//else if (!context->aamp->IsTSBSupported())
+					//{
+					//	context->CheckUserProfileChangeReq();
+					//}
 				}
 			}
 

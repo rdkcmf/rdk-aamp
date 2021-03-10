@@ -1055,10 +1055,11 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 	pthread_cond_init(&mStateCond, NULL);
 	GETCONFIGVALUE(eAAMPConfig_ABRCacheLength,mMaxBufferCountCheck); 
 	// Set default init bitrate according to the config.
-	mAbrManager.setDefaultInitBitrate(gpGlobalConfig->defaultBitrate);
-	if (gpGlobalConfig->iframeBitrate > 0)
+	mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+	long ibitrate = aamp->GetIframeBitrate();
+	if (ibitrate > 0)
 	{
-		mAbrManager.setDefaultIframeBitrate(gpGlobalConfig->iframeBitrate);
+		mAbrManager.setDefaultIframeBitrate(ibitrate);
 	}
 	mRampDownLimit = aamp->mRampDownLimit;
 
@@ -1896,6 +1897,7 @@ long StreamAbstractionAAMP::GetAudioBitrate(void)
 	return ((audio && audio->enabled) ? (audio->GetCurrentBandWidth()) : 0);
 }
 
+#if 0
 /**
  *   @brief Check if a preferred bitrate is set and change profile accordingly.
  */
@@ -1956,7 +1958,7 @@ void StreamAbstractionAAMP::CheckUserProfileChangeReq(void)
 		}
 	}
 }
-
+#endif
 
 /**
  *   @brief Check if current stream is muxed

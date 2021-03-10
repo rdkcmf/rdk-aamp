@@ -305,7 +305,9 @@ typedef struct ConfigBool
 {
 	ConfigPriority owner;
 	bool value;
-	ConfigBool():owner(AAMP_DEFAULT_SETTING),value(false){}
+	ConfigPriority lastowner;
+	bool lastvalue;
+	ConfigBool():owner(AAMP_DEFAULT_SETTING),value(false),lastowner(AAMP_DEFAULT_SETTING),lastvalue(false){}
 }ConfigBool;
 
 /**
@@ -315,7 +317,9 @@ typedef struct ConfigInt
 {
 	ConfigPriority owner;
 	int value;
-	ConfigInt():owner(AAMP_DEFAULT_SETTING),value(0){}
+	ConfigPriority lastowner;
+	int lastvalue;
+	ConfigInt():owner(AAMP_DEFAULT_SETTING),value(0),lastowner(AAMP_DEFAULT_SETTING),lastvalue(0){}
 }ConfigInt;
 
 /**
@@ -325,7 +329,9 @@ typedef struct ConfigLong
 {
 	ConfigPriority owner;
 	long value;
-	ConfigLong():owner(AAMP_DEFAULT_SETTING),value(0){}
+	ConfigPriority lastowner;
+	long lastvalue;
+	ConfigLong():owner(AAMP_DEFAULT_SETTING),value(0),lastowner(AAMP_DEFAULT_SETTING),lastvalue(0){}
 }ConfigLong;
 
 /**
@@ -333,9 +339,11 @@ typedef struct ConfigLong
  */
 typedef struct ConfigDouble
 {
-        ConfigPriority owner;
-        double value;
-        ConfigDouble():owner(AAMP_DEFAULT_SETTING),value(0){}
+    ConfigPriority owner;
+    double value;
+    ConfigPriority lastowner;
+    double lastvalue;
+    ConfigDouble():owner(AAMP_DEFAULT_SETTING),value(0),lastowner(AAMP_DEFAULT_SETTING),lastvalue(0){}
 }ConfigDouble;
 /**
  * @brief AAMP Config String data type
@@ -344,7 +352,9 @@ typedef struct ConfigString
 {
 	ConfigPriority owner;
 	std::string value;
-	ConfigString():owner(AAMP_DEFAULT_SETTING),value(""){}
+	ConfigPriority lastowner;
+	std::string lastvalue;
+	ConfigString():owner(AAMP_DEFAULT_SETTING),value(""),lastowner(AAMP_DEFAULT_SETTING),lastvalue(""){}
 }ConfigString;
 
 
@@ -380,6 +390,7 @@ public:
 	bool GetChannelOverride(const std::string chName, std::string &chOverride);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
+	void RestoreConfiguration(ConfigPriority owner);
 	////////// Special Functions /////////////////////////
 	//long GetManifestTimeoutMs();
 	//long GetNetworkTimeoutMs();

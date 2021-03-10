@@ -1315,8 +1315,20 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
  */
 void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 {
-	ERROR_OR_IDLE_STATE_CHECK_VOID();
-	aamp->SetVideoBitrate(bitrate);
+	if (bitrate != 0)
+	{
+		// Single bitrate profile selection , with abr disabled
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableABR,false);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,bitrate);
+	}
+	else
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableABR,true);
+		long gpDefaultBitRate;
+		gpGlobalAampConfig->GetConfigValue( eAAMPConfig_DefaultBitrate ,gpDefaultBitRate);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,gpDefaultBitRate);
+		AAMPLOG_WARN("%s:%d Resetting default bitrate to  %ld",__FUNCTION__, __LINE__,gpDefaultBitRate);
+	}
 }
 
 /**
@@ -1397,8 +1409,7 @@ std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetInitialBitrate(bitrate);
-	
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,bitrate);
 }
 
 /**
@@ -1409,7 +1420,7 @@ void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
 void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetInitialBitrate4K(bitrate4K);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate4K,bitrate4K);
 }
 
 /**
@@ -2214,6 +2225,9 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 
 	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
+	// Revert all tune specific setting and stream specific setting , back to App/default setting
+	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING);
+	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING);
 }
 /**
  * @}
