@@ -642,7 +642,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{
 			if (!aamp->pipeline_paused)
 			{
-				AAMPLOG_INFO("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				retValue = aamp->mStreamSink->Pause(true, false);

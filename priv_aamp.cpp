@@ -2674,7 +2674,14 @@ void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
 		ScheduleEvent(aed);
 		if(eventType != AAMP_EVENT_PROGRESS)
 		{
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, eventType);
+			if(eventType != AAMP_EVENT_STATE_CHANGED)
+			{
+				AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, eventType);
+			}
+			else
+			{
+				AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
+			}
 		}
 	}
 	else
