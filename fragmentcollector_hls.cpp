@@ -3292,8 +3292,9 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 					if(iter != aamp->preferredLanguagesList.end())
 					{
 						current_preferred_lang_index  = std::distance(aamp->preferredLanguagesList.begin(),iter);
-						if( preferred_audio_track_index < current_preferred_lang_index )
-						{
+						if( preferred_audio_track_index < 0 ||
+						   current_preferred_lang_index  < preferred_audio_track_index)
+						{  // First preferred found or higher priority preferred (lower distance)
 							preferred_audio_track_index = current_preferred_lang_index;
 							preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
 							preferred_audio_track = i;
