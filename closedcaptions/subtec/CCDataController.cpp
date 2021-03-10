@@ -102,6 +102,10 @@ void CCDataController::sendResume()
     sendSinglePacket(channel.generateResumePacket());
 }
 
+void CCDataController::sendResetChannelPacket()
+{
+    sendSinglePacket(channel.generateResetChannelPacket());
+}
 
 CCDataController::CCDataController()
     : channel{}
