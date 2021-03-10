@@ -4101,8 +4101,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					}
 					
 					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
-					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
+					int  abrCacheLength;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,abrCacheLength); 
+					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+					if(mAbrBitrateData.size() > abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
 					pthread_mutex_unlock(&mLock);
 				}
@@ -7909,6 +7911,7 @@ void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
 	gpGlobalConfig->stallTimeoutInMS = timeoutMS;
 }
 
+#if 0
 /**
  *   @brief To set the Playback Position reporting interval.
  *
@@ -7927,6 +7930,7 @@ void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
 	AAMPLOG_WARN("%s Progress Interval configured %d",__FUNCTION__,mReportProgressInterval);		
 }
 
+#endif
 /**
  *   @brief To set the max retry attempts for init frag curl timeout failures
  *

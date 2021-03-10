@@ -44,6 +44,8 @@
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
+#define DEFAULT_REPORT_PROGRESS_INTERVAL 1000     /**< Progress event reporting interval: 1msec */
+#define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 
 #if 0
 

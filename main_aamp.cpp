@@ -1241,7 +1241,7 @@ void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
 	ERROR_STATE_CHECK_VOID();
 	if(reportIntervalMS > 0)
 	{
-		aamp->SetReportInterval(reportIntervalMS);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,reportIntervalMS);
 	}
 }
 

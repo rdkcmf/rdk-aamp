@@ -110,6 +110,8 @@ abrCacheLength  		Length of abr cache for network bandwidth calculation (# of se
 abrCacheOutlier 		Outlier difference which will be ignored from network bandwidth calculation(default 5MB.in bytes)
 abrNwConsistency		Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2)
 abrSkipDuration			Minimum duration of fragment to be downloaded before triggering abr (in secs.default 6 sec).
+progressReportingInterval           Interval of progress reporting(in msecs.default is 1000 msec)
+licenseRetryWaitTime               License retry wait interval(in msecs.default is 500msec)
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

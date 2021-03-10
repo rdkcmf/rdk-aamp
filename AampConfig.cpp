@@ -146,7 +146,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
 	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
 	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
-	{"report-progress-interval",eAAMPConfig_ReportProgressInterval,-1,-1},	
+	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,-1,-1},	
 	{"http-proxy",eAAMPConfig_HttpProxy,-1,-1},
 	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
@@ -155,7 +155,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"iframe-default-bitrate",eAAMPConfig_IFrameDefaultBitrate,-1,-1},
 	{"iframe-default-bitrate-4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
-	{"license-retry-wait-time",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
+	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
 	{"fragment-cache-length",eAAMPConfig_MaxFragmentCached,-1,-1},
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
@@ -325,7 +325,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_ABRNWConsistency-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_NW_CONSISTENCY_CNT;		
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorDelay-eAAMPConfig_IntStartValue].value     =       DEFAULT_BUFFER_HEALTH_MONITOR_DELAY;
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
-
+	iAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
+	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
@@ -336,8 +337,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_NETWORK_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_LiveTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_TSB_PLAYBACK_FPS;
-	iAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
-	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEF_LICENSE_REQ_RETRY_WAIT_TIME;
 	iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value		=	MAX_PTS_ERRORS_THRESHOLD;
 	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;	
 	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;	
