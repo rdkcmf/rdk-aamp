@@ -5216,6 +5216,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mIscDVR = true;
 	}
 
+#ifdef AAMP_CC_ENABLED
+	if (eMEDIAFORMAT_OTA == mMediaFormat)
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+	}
+#endif
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -8166,6 +8175,15 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 {
 	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
 	SendEventAsync(event);
+#ifdef AAMP_CC_ENABLED
+	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(true);
+		}
+	}
+#endif
 }
 
 /**
@@ -9977,6 +9995,12 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
+#ifdef AAMP_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+#endif
 	}
 }
 
