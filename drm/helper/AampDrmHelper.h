@@ -64,7 +64,7 @@ public:
 	const std::string EMPTY_DRM_METADATA;
 	const std::string EMPTY_STRING;
 
-	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STRING() {};
+	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STRING() ,bOutputProtectionEnabled(false) {};
 
 	/**
 	 * Returns the OCDM system ID of the helper
@@ -96,7 +96,7 @@ public:
 	 * Determine whether HDCP 2.2 protection is required to be active
 	 * @return true if HDCP 2.2 protection is required, false otherwise
 	 */
-	virtual bool isHdcp22Required() const { return false; };
+	virtual bool isHdcp22Required() const { return bOutputProtectionEnabled; };
 
 	/**
 	 * Returns the content specific DRM metadata
@@ -195,11 +195,17 @@ public:
 	 */
 	virtual const std::string& friendlyName() const { return EMPTY_STRING; }
 
+	/*
+	 * Set Output protection flag for the drmHelper
+	 * @return None
+	 */
+	void setOutputProtectionFlag(bool bValue) { bOutputProtectionEnabled = bValue;}
 public:
 	virtual ~AampDrmHelper() {};
 
 protected:
 	const DrmInfo mDrmInfo;
+	bool bOutputProtectionEnabled;
 };
 
 class AampDrmHelperFactory

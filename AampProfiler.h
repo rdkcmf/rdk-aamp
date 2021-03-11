@@ -181,6 +181,7 @@ private:
 	long bandwidthBitsPerSecondAudio;       /**< Audio bandwidth in bps */
 	int drmErrorCode;                       /**< DRM error code */
 	bool enabled;                           /**< Profiler started or not */
+	bool bEnableMicroEvent;			/**< Flag to indicate if tune profiling required */
 	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
 	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
 
@@ -383,6 +384,13 @@ public:
 	 * @return void
 	 */
 	void SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType);
+	/**
+	 * @brief Method to set the MicroEvent On/Off Flag 
+	 *
+	 * @param[in] Flag status
+	 * @return void
+	 */
+	void SetMicroEventFlag(bool bValue) { bEnableMicroEvent = bValue;}
 };
 
 #endif /* __AAMP_PROFILER_H__ */

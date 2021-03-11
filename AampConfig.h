@@ -137,7 +137,6 @@ typedef enum
 	eAAMPConfig_IframeLatencyLogging,						/**< Enable Latency logging for Iframe fragment downloads*/
 	eAAMPConfig_ManifestLatencyLogging,						/**< Enables Manifest download latency logging */	
 	eAAMPConfig_XREEventReporting,							/**< Enable/Disable Event reporting to XRE */
-	eAAMPConfig_EnableTuneProfile,							/**<Enable "MicroEvent" tune profiling using - both in splunk (for receiver-integrated aamp) and via console logging*/
 	eAAMPConfig_EnableGstPositionQuery, 					/**<GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms*/
 	eAAMPConfig_DisableMidFragmentSeek, 					/**<Disables the Mid-Fragment seek functionality in aamp.*/
 	eAAMPConfig_PropogateURIParam,							/**<Feature where top-level manifest URI parameters included when downloading fragments*/

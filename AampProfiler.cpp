@@ -37,7 +37,7 @@
 ProfileEventAAMP::ProfileEventAAMP():
 	tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
         bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(),
-	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0)
+	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0),bEnableMicroEvent(false)
 {
 
 }
@@ -349,7 +349,7 @@ void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 	{
 		SetTuneFailCode(result, type);
 		bucket->errorCount++;
-		if (gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
+		if (bEnableMicroEvent && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
 					 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
 		{
 			long long start = bucket->tStart + tuneStartMonotonicBase;
@@ -370,7 +370,7 @@ void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 	if (!bucket->complete && !(0==bucket->tStart))
 	{
 		bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
-		if(gpGlobalConfig->enableMicroEvents && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
+		if(bEnableMicroEvent && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
 					 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
 		{
 			long long start = bucket->tStart + tuneStartMonotonicBase;

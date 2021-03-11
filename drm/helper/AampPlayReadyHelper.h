@@ -37,7 +37,7 @@ public:
 
 	bool isClearDecrypt() const { return false; }
 
-	bool isHdcp22Required() const { return gpGlobalConfig->enablePROutputProtection; }
+	bool isHdcp22Required() const { return bOutputProtectionEnabled; }
 
 	void setDrmMetaData(const std::string& metaData);
 

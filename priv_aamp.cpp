@@ -1975,6 +1975,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mProgramDateTime (0)
 	, mConfig (config)
 	, mHarvestCountLimit(0)
+	, mHarvestConfig(0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2047,6 +2048,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_init(&drmParserMutex, NULL);
 #endif
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 }
 
 /**
@@ -3099,7 +3102,10 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 		SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
-		if(gpGlobalConfig->enableMicroEvents) sendTuneMetrics(success);
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+		{
+			sendTuneMetrics(success);
+		}
 		mTuneCompleted = true;
 		mFirstTune = false;
 
@@ -4029,7 +4035,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					#endif
 				}
 
-				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
+				if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents) && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
 				{
 					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
 				}
@@ -4112,7 +4118,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
-			if( mHarvestCountLimit > 0 )
+			if((mHarvestCountLimit > 0) && (mHarvestConfig & getHarvestConfigForMedia(fileType)))
 			{
 				logprintf("aamp harvestCountLimit: %d", mHarvestCountLimit);
 				/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
@@ -4121,7 +4127,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				{
 					mManifestRefreshCount++;
 				}
-				if(aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount))
+				std::string harvestPath;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestPath,harvestPath);
+				if(harvestPath.empty() )
+				{
+					harvestPath = getDefaultHarvestPath();
+					AAMPLOG_WARN("Harvest path has not configured, taking default path %s", harvestPath.c_str());
+				}
+				if(aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount,harvestPath.c_str()))
 					mHarvestCountLimit--;
 			}
 			double expectedContentLength = 0;
@@ -4911,7 +4924,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
-		if(gpGlobalConfig->mEnableVideoEndEvent 
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)
 			&& (mTuneAttempts == 1)) // only for first attempt, dont send event when JSPP retunes. 
 		{
 			SendVideoEndEvent();
@@ -5334,19 +5347,22 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	if( !remapUrl )
 	{
-		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
+		std::string mapMPDStr, mapM3U8Str;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MapMPD,mapMPDStr);
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MapM3U8,mapM3U8Str);
+		if (!mapMPDStr.empty() && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
+			if((hostName.find(mapMPDStr) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(mapMPDStr) != std::string::npos))
 			{
 				replace(mManifestUrl, ".m3u8", ".mpd");
 				mMediaFormat = eMEDIAFORMAT_DASH;
 			}
 		}
-		else if (gpGlobalConfig->mapM3U8 && mMediaFormat == eMEDIAFORMAT_DASH)
+		else if (!mapM3U8Str.empty() && mMediaFormat == eMEDIAFORMAT_DASH)
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapM3U8) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapM3U8) != std::string::npos))
+			if((hostName.find(mapM3U8Str) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(mapM3U8Str) != std::string::npos))
 			{
 				replace(mManifestUrl, ".mpd" , ".m3u8");
 				mMediaFormat = eMEDIAFORMAT_HLS;
@@ -7431,7 +7447,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
 	{
 		pthread_mutex_lock(&mLock);
 		if(mVideoEnd)
@@ -7471,7 +7487,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
 	{
 		pthread_mutex_lock(&mLock);
 		if(mVideoEnd)
@@ -7496,7 +7512,7 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
 	{
 		int audioIndex = 1;
 		// ignore for write and aborted errors
@@ -7677,7 +7693,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
 	{
 		//only for Ramp down case
 		if(info.desiredProfileIndex < info.currentProfileIndex)

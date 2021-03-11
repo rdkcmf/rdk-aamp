@@ -109,7 +109,7 @@ long aamp_GetIPResolveValue()
  * @param void
  * @return character pointer indicating default dump path
  */
-static const char * getDefaultDumpPath()
+std::string getDefaultHarvestPath()
 {
         std::string value = "/aamp/";
 /* In case of linux and mac simulator use home directory to dump the data as default */
@@ -126,7 +126,7 @@ static const char * getDefaultDumpPath()
 #else
         value.insert(0,"/opt");
 #endif
-        return value.c_str();
+        return value;
 }
 
 /**
@@ -797,7 +797,7 @@ static inline void createdir(const char *dirpath)
  * @param fileType meida file type
  * @return HarvestConfigType harvestType
  */
-static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
+int getHarvestConfigForMedia(MediaType fileType)
 {
 	enum HarvestConfigType harvestType = eHARVEST_ENAABLE_DEFAULT;
 	switch(fileType)
@@ -878,7 +878,7 @@ static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
 			harvestType = eHARVEST_DISABLE_DEFAULT;
 			break; 
 	}
-	return harvestType;
+	return (int)harvestType;
 }
 
 /**
@@ -888,19 +888,9 @@ static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
  * @param len length of buffer
  * @param media type of file
  */
-bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count)
+bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix)
 {
-	bool retVal=false;
-	char * prefix = gpGlobalConfig->harvestPath;
-	if( !prefix )
-	{
-                prefix = (char *)getDefaultDumpPath();
-                AAMPLOG_WARN("Harvest path has not configured, taking default path %s", prefix);
-	}
-	unsigned int harvestConfig = gpGlobalConfig->harvestConfig;
-
-	/*Check harvesting of this file type has enabled by user */
-	if(getHarvestConfigForMedia(fileType) & harvestConfig)
+	bool retVal=false;	
 	{
 		std::size_t pos = fileName.find("://");
 		if( pos != std::string::npos )

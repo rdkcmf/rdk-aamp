@@ -1110,6 +1110,13 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 		AAMPLOG_INFO("%s:%d Created new DrmSession for DrmSystemId %s", __FUNCTION__, __LINE__, systemId.c_str());
 		drmSessionContexts[sessionSlot].data = keyIdArray;
 		code = drmSessionContexts[sessionSlot].drmSession->getState();
+		// exception : by default for all types of drm , outputprotection is not handled in player 
+		// for playready , its configured within player 
+		if (systemId == PLAYREADY_KEY_SYSTEM_STRING && aampInstance->mConfig->IsConfigSet(eAAMPConfig_EnablePROutputProtection))
+		{
+			drmSessionContexts[sessionSlot].drmSession->setOutputProtection(true);
+			drmHelper->setOutputProtectionFlag(true);
+		}
 	}
 	else
 	{

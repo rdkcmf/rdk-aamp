@@ -67,14 +67,14 @@ static AampOwnerLookupEntry OwnerLookUpTable[] =
 ///// Format -> configuration name, configuration enum (defined in AampConfig.h) , minValue(-1 if none) , maxValue(-1 if none)
 static AampConfigLookupEntry ConfigLookUpTable[] =
 {
-	{"map-mpd",eAAMPConfig_MapMPD,-1,-1},
-	{"map-m3u8",eAAMPConfig_MapM3U8,-1,-1},
+	{"mapMPD",eAAMPConfig_MapMPD,-1,-1},
+	{"mapM3U8",eAAMPConfig_MapM3U8,-1,-1},
 	{"fragmp4LicensePrefetch",eAAMPConfig_Fragmp4PrefetchLicense,-1,-1},
-	{"enable_videoend_event",eAAMPConfig_EnableVideoEndEvent,-1,-1},
+	{"enableVideoEndEvent",eAAMPConfig_EnableVideoEndEvent,-1,-1},
 	{"fog",eAAMPConfig_Fog,-1,-1},
 	{"harvestCountLimit",eAAMPConfig_HarvestCountLimit,-1,-1},
-	{"harvest-config",eAAMPConfig_HarvestConfig,-1,-1},
-	{"harvest-path",eAAMPConfig_HarvestPath,-1,-1},
+	{"harvestConfig",eAAMPConfig_HarvestConfig,-1,-1},
+	{"harvestPath",eAAMPConfig_HarvestPath,-1,-1},
 	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},										// Complete
 	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
 	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
@@ -127,7 +127,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
 	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
 	{"preferred-drm",eAAMPConfig_PreferredDRM,-1,-1},
-	{"playready-output-protection",eAAMPConfig_EnablePROutputProtection,-1,-1},
+	{"playreadyOutputProtection",eAAMPConfig_EnablePROutputProtection,-1,-1},
 	{"live-tune-event",eAAMPConfig_LiveTuneEvent,-1,-1},
 	{"vod-tune-event",eAAMPConfig_VODTuneEvent,-1,-1},	
 	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
@@ -174,7 +174,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
 	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportbufferevent",eAAMPConfig_ReportBufferEvent,-1,-1},
-	{"enable-tune-profiling",eAAMPConfig_EnableTuneProfile,-1,-1},
+	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
 	{"use-matching-baseurl",eAAMPConfig_MatchBaseUrl,-1,-1},
 	{"remove_Persistent",eAAMPConfig_RemovePersistent,-1,-1},
@@ -204,11 +204,10 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"iframeLatencyLogging",eAAMPConfig_IframeLatencyLogging,-1,-1},
 	{"videoLatencyLogging",eAAMPConfig_VideoLatencyLogging,-1,-1},
 	{"manifestLatencyLogging",eAAMPConfig_ManifestLatencyLogging,-1,-1},
-	{"<url1> <url2>",eAAMPConfig_RedirectUrl,-1,-1},
+//	{"<url1> <url2>",eAAMPConfig_RedirectUrl,-1,-1},
 //	{"pr-license-server-url",eAAMPConfig_PRLicenseServerUrl,-1,-1},
 //	{"wv-license-server-url",eAAMPConfig_WVLicenseServerUrl,-1,-1},
-//	{"enableMicroEvents",eAAMPConfig_EnableMicroEvents,-1,-1},
-	 {"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
+//	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };
 	
@@ -278,7 +277,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_VideoLatencyLogging].value			=	true;			
 	bAampCfgValue[eAAMPConfig_ManifestLatencyLogging].value			=	true;			
 	bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;		
-	bAampCfgValue[eAAMPConfig_EnableTuneProfile].value			=	false;	
 #ifdef INTELCE	
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;
 #else
@@ -328,6 +326,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
 	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME;
+	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value			=	0;	
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
@@ -343,7 +342,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;	
 	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
-	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value		=	0;	
+	
 	iAampCfgValue[eAAMPConfig_FragmentRetryLimit-eAAMPConfig_IntStartValue].value		=	MAX_FRAGMENT_RETRY_LIMIT;	
 	iAampCfgValue[eAAMPConfig_RampdownLimit-eAAMPConfig_IntStartValue].value		=	0;	
 	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	DRM_FAIL_RETRY_COUNT;	

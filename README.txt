@@ -98,11 +98,16 @@ setLicenseCaching		Enable/Disable license caching in WV . Default true
 persistBitRateOverSeek		Enable/Disable ABR profile persistence during Seek/Trickplay/Audio switching. Default false
 fragmp4LicensePrefetch		Enable/Disable fragment mp4 license prefetching.Default true
 gstPositionQueryEnable		GStreamer position query will be used for progress report events.Default true for non-Intel platforms
+playreadyOutputProtection  	Enable/Disable HDCP output protection for DASH-PlayReady playback. Default false
+enableVideoEndEvent		Enable/Disable Video End event generation; Default true
+enableTuneProfiling		Enable/Disable Video End event generation; Default false
+playreadyOutputProtection	Enable/Disable output protection for PlayReady DRM.Default false
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
 waitTimeBeforeRetryHttp5xx 	Specify the wait time before retry for 5xx http errors. Default wait time is 1s.
 harvestCountLimit		Specify the limit of number of files to be harvested
+harvestConfig			*Specify the value to indicate the type of file to be harvested. Refer table below for masking table 
 bufferHealthMonitorDelay 	Override for buffer health monitor start delay after tune/ seek (in secs)
 bufferHealthMonitorInterval	Override for buffer health monitor interval(in secs)
 abrCacheLife 			Lifetime value for abr cache  for network bandwidth calculation(in msecs.default 5000 msec)
@@ -115,12 +120,41 @@ licenseRetryWaitTime               License retry wait interval(in msecs.default 
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
+mapMPD					<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
+mapM3U8					<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
+harvestPath				Specify the path where fragments has to be harvested,check folder permissions specifying the path
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 downloadStallTimeout            Timeout value for detection curl download stall in second,default is 0.
 downloadStartTimeout            Timeout value for curl download to start after connect in seconds,default is 0.
+
+
+
+
+*File Harvest Config :
+    By default aamp will dump all the type of data, set 0 for desabling harvest
+	0x00000001 (1)      - Enable Harvest Video fragments - set 1st bit 
+	0x00000002 (2)      - Enable Harvest audio - set 2nd bit 
+	0x00000004 (4)      - Enable Harvest subtitle - set 3rd bit 
+	0x00000008 (8)      - Enable Harvest auxiliary audio - set 4th bit 
+	0x00000010 (16)     - Enable Harvest manifest - set 5th bit 
+	0x00000020 (32)     - Enable Harvest license - set 6th bit , TODO: not yet supported license dumping
+	0x00000040 (64)     - Enable Harvest iframe - set 7th bit 
+	0x00000080 (128)    - Enable Harvest video init fragment - set 8th bit 
+	0x00000100 (256)    - Enable Harvest audio init fragment - set 9th bit 
+	0x00000200 (512)    - Enable Harvest subtitle init fragment - set 10th bit 
+	0x00000400 (1024)   - Enable Harvest auxiliary audio init fragment - set 11th bit 
+	0x00000800 (2048)   - Enable Harvest video playlist - set 12th bit 
+	0x00001000 (4096)   - Enable Harvest audio playlist - set 13th bit 
+	0x00002000 (8192)   - Enable Harvest subtitle playlist - set 14th bit 
+	0x00004000 (16384)  - Enable Harvest auxiliary audio playlist - set 15th bit 
+	0x00008000 (32768)  - Enable Harvest Iframe playlist - set 16th bit 
+	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
+	example :- if you want harvest only manifest and vide0 fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
+	harvest-config=17
+
 
 =================================================================================================================
 3. Channel Override Settings
@@ -334,10 +368,9 @@ live-offset    live offset time in seconds, aamp starts live playback this much 
 cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playback this much time before the live point
 disablePlaylistIndexEvent=1    disables generation of playlist indexed event by AAMP on tune/trickplay/seek
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
-map-mpd=<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
 fog=0  Implies de-fog' incoming URLS and force direct aamp-only playback
-map-m3u8=<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
+
 min-init-cache	Video duration to be cached before playing in seconds.
 networkTimeout=<download time out> Specify download time out in seconds, default is 10 seconds
 manifestTimeout=<manifest download time out> Specify manifest download time out in seconds, default is 10 seconds
@@ -372,16 +405,13 @@ iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe tra
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
 curl-stall-timeout=<X> specify the value in seconds for a CURL download to be deemed as stalled after download freezes, 0 to disable. Disabled by default
 curl-download-start-timeout=<X> specify the value in seconds for after which a CURL download is aborted if no data is received after connect, 0 to disable. Disabled by default
-playready-output-protection=1  enable HDCP output protection for DASH-PlayReady playback. By default playready-output-protection is disabled.
 max-playlist-cache=<X> Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes
 sslverifypeer=<X>	X = 1 to enable TLS certificate verification, X = 0 to disable peer verification.
 subtitle-language=<X> ISO 639-1 code of preferred subtitle language
-enable_videoend_event=<X>	Enable/Disable Video End event generation; default is 1 (enabled)
 dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionManager. Expected value range is 2 to 30 will default to 2 if out of range value is given 
 enable_setvideorectangle=0       Disable AAMP to set rectangle property to sink. Default is true(enabled).
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
-harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
 harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits
     By default aamp will dump all the type of data, set 0 for desabling harvest
 	0x00000001 (1)      - Enable Harvest Video fragments - set 1st bit 
