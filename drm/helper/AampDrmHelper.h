@@ -61,9 +61,9 @@ class AampDrmHelper
 public:
 	const uint32_t TIMEOUT_SECONDS;
 	const std::string EMPTY_DRM_METADATA;
-	const std::string EMPTY_STRING;
+	const std::string EMPTY_STR;
 
-	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STRING() {};
+	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STR() {};
 
 	/**
 	 * Returns the OCDM system ID of the helper
@@ -192,7 +192,7 @@ public:
 	 * Gets the friendly display name of the DRM
 	 * @return friendly name
 	 */
-	virtual const std::string& friendlyName() const { return EMPTY_STRING; }
+	virtual const std::string& friendlyName() const { return EMPTY_STR; }
 
 public:
 	virtual ~AampDrmHelper() {};
