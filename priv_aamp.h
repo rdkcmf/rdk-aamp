@@ -2153,7 +2153,7 @@ public:
 	 */
 	void setCurrentDrm(std::shared_ptr<AampDrmHelper> drm) { mCurrentDrm = drm; }
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 	/**
 	 * @brief Extracts / Generates MoneyTrace string
 	 * @param[out] customHeader - Generated moneytrace is stored
@@ -2215,6 +2215,15 @@ public:
 	 *   @param[in] reason          - Blocked Reason
 	 */
 	void SendBlockedEvent(const std::string & reason);
+
+	/**
+	 *   @brief  Generate WatermarkSessionUpdate event based on args passed.
+	 *
+	 *   @param[in] sessionHandle - Handle used to track and manage session
+	 *   @param[in] status - Status of the watermark session
+	 *   @param[in] system - Watermarking protection provider
+	 */
+	void SendWatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system);
 
 	/**
 	 *   @brief To set the initial bitrate value.

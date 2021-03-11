@@ -132,8 +132,9 @@ unsigned char *base64_Decode(const char *src, size_t *len, size_t srcLen)
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 		-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	};
-	size_t numChars = (srcLen / 4) * 3; // initially round up to nearest 4 bytes
-	unsigned char *outData = (unsigned char *)malloc(numChars); // 5538
+	size_t numChars = (srcLen * 3) / 4; // initially round up to nearest 4 bytes, avoid losing precision
+	unsigned char *outData = (unsigned char *)malloc(numChars);
+	size_t outSize = 0; // output size
 	if (outData)
 	{
 		// memset(outData, 0x00, numChars); // not-needed
@@ -148,19 +149,20 @@ unsigned char *base64_Decode(const char *src, size_t *len, size_t srcLen)
 			*dst++ = (data0 << 2) | (data1 >> 4);
 			if (data2 < 0)
 			{
-				numChars -= 2;
+				outSize++;
 				break;
 			}
 			*dst++ = (data1 << 4) | (data2 >> 2);
 			if (data3 < 0)
 			{
-				numChars--;
+				outSize += 2;
 				break;
 			}
 			*dst++ = (data2 << 6) | (data3);
 			src += 4;
+			outSize += 3;
 		}
-		*len = numChars; // 5536
+		*len = outSize;
 	}
 	else
 	{ // insufficient memory

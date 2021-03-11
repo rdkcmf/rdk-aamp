@@ -33,6 +33,10 @@
 #include "AampJsonObject.h"
 #include "AampUtils.h"
 #include "AampRfc.h"
+#include <inttypes.h>
+#ifdef USE_SECMANAGER
+#include "AampSecManager.h"
+#endif
 
 //#define LOG_TRACE 1
 #define LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
@@ -61,7 +65,7 @@ void *CreateDRMSession(void *arg);
 int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
 void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 /**
  *  @brief Get formatted URL of license server
  *
@@ -107,6 +111,9 @@ AampDRMSessionManager::AampDRMSessionManager(AampLogManager *logObj, int maxDrmS
 		,mDrmSessionLock(), licenseRequestAbort(false)
 		,mMaxDRMSessions(maxDrmSessions)
 		,mLogObj(logObj)
+#ifdef USE_SECMANAGER
+		,mSessionId(AAMP_SECMGR_INVALID_SESSION_ID)
+#endif
 {
 	if(maxDrmSessions < 1)
 	{
@@ -145,7 +152,14 @@ void AampDRMSessionManager::clearSessionData()
 	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
-		{
+		{			
+#ifdef USE_SECMANAGER
+			// Cached session is about to be destroyed, send release to SecManager
+			if (drmSessionContexts[i].drmSession->getSessionId() != AAMP_SECMGR_INVALID_SESSION_ID)
+			{
+				AampSecManager::GetInstance()->ReleaseSession(drmSessionContexts[i].drmSession->getSessionId());
+			}
+#endif
 			SAFE_DELETE(drmSessionContexts[i].drmSession);
 			drmSessionContexts[i] = DrmSessionContext();
 		}
@@ -263,11 +277,42 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 			AampMutexHold sessionMutex(drmSessionContexts[i].sessionMutex);
 			if (drmSessionContexts[i].drmSession != NULL)
 			{
-				logprintf("%s:%d AampDRMSessionManager:: Clearing failed Session Data Slot : %d", __FUNCTION__, __LINE__, i);
+				logprintf("%s:%d AampDRMSessionManager:: Clearing failed Session Data Slot : %d", __FUNCTION__, __LINE__, i);				
+#ifdef USE_SECMANAGER
+				// Cached session is about to be destroyed, send release to SecManager
+				if (drmSessionContexts[i].drmSession->getSessionId() != AAMP_SECMGR_INVALID_SESSION_ID)
+				{
+					AampSecManager::GetInstance()->ReleaseSession(drmSessionContexts[i].drmSession->getSessionId());
+				}
+#endif
 				SAFE_DELETE(drmSessionContexts[i].drmSession);
 			}
 		}
 	}
+}
+
+void AampDRMSessionManager::setVideoWindowSize(int width, int height)
+{
+#ifdef USE_SECMANAGER
+	logprintf("In AampDRMSessionManager::%s setting video windor size w:%d x h:%d mMaxDRMSessions=%d mSessionId=[%" PRId64 "]",__FUNCTION__,width,height,mMaxDRMSessions,mSessionId);
+	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
+	{
+		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AampSecManager::GetInstance()->setVideoWindowSize(mSessionId, width, height);
+	}
+#endif
+}
+
+void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
+{
+#ifdef USE_SECMANAGER
+	logprintf("In AampDRMSessionManager::%s after calling setPlaybackSpeedState speed=%d position=%f mSessionId=[%" PRId64 "]",__FUNCTION__,speed, position, mSessionId);
+	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
+	{
+		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AampSecManager::GetInstance()->setPlaybackSpeedState(mSessionId, speed, position);
+	}
+#endif
 }
 
 /**
@@ -502,23 +547,26 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 }
 
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
-		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle)
+		const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle)
 {
 	DrmData *licenseResponse = nullptr;
 	const char *mediaUsage = "stream";
 	string contentMetaData = drmHelper->getDrmMetaData();
 	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());
 	char *encodedChallengeData = base64_Encode(challengeInfo.data->getData(), challengeInfo.data->getDataLength());
+	
+	//Calculate the lengths using the logic in base64_Encode
+	size_t encodedDataLen = ((contentMetaData.length() + 2) /3) * 4;
+	size_t encodedChallengeDataLen = ((challengeInfo.data->getDataLength() + 2) /3) * 4;
+	
 	const char *keySystem = drmHelper->ocdmSystemId().c_str();
 	const char *secclientSessionToken = challengeInfo.accessToken.empty() ? NULL : challengeInfo.accessToken.c_str();
 
-	int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
 	char *licenseResponseStr = NULL;
 	size_t licenseResponseLength = 2;
 	uint32_t refreshDuration = 3;
-	SecClient_ExtendedStatus statusInfo;
 	const char *requestMetadata[1][2];
 	uint8_t numberOfAccessAttributes = 0;
 	const char *accessAttributes[2][2] = {NULL, NULL, NULL, NULL};
@@ -557,58 +605,108 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	//logprintf("keySystem is %s", keySystem);
 	//logprintf("mediaUsage is %s", mediaUsage);
 	//logprintf("sessionToken is %s", sessionToken);
-	unsigned int attemptCount = 0;
-	int sleepTime ;
-	aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
-				if(sleepTime<=0) sleepTime = 100;
-	while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+#if USE_SECMANAGER
+	if(aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager))
 	{
-		attemptCount++;
-		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
-							requestMetadata, numberOfAccessAttributes,
-							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
-							encodedData,
-							strlen(encodedData),
-							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
-							secclientSessionToken,
-							&licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
-
-		if (((sec_client_result >= 500 && sec_client_result < 600)||
-			(sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
-			&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+		int64_t statusCode;
+		int64_t reasonCode;
+		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
+																 requestMetadata,
+																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
+																 encodedData, encodedDataLen,
+																 encodedChallengeData, encodedChallengeDataLen,
+																 keySystem,
+																 mediaUsage,
+																 secclientSessionToken, challengeInfo.accessToken.length(),
+																 &mSessionId,
+																 &licenseResponseStr, &licenseResponseLength,
+																 &statusCode, &reasonCode);
+		if (res)
 		{
-			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
-			if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
-			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
-			mssleep(sleepTime);
+			AAMPLOG_WARN("%s:%d acquireLicense via SecManager SUCCESS!",__FUNCTION__, __LINE__);
+			//TODO: Sort this out for backward compatibility
+			*httpCode = 200;
+			*httpExtStatusCode = 0;
+			if (licenseResponseStr)
+			{
+				licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+				free(licenseResponseStr);
+			}
 		}
 		else
 		{
-			break;
+			logprintf("%s:%d acquireLicense via SecManager FAILED!",__FUNCTION__, __LINE__);
+			//TODO: Sort this out for backward compatibility
+			*httpCode = statusCode;
+			*httpExtStatusCode = reasonCode;
 		}
 	}
-
-	if (gpGlobalConfig->logging.debug)
-	{
-		logprintf("licenseResponse is %s", licenseResponseStr);
-		logprintf("licenseResponse len is %zd", licenseResponseLength);
-		logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
-		logprintf("refreshDuration is %d", refreshDuration);
-	}
-
-	if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
-	{
-		logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
-		*httpCode = sec_client_result;
-		*httpExtStatusCode = statusInfo.statusCode;
-	}
+#endif
+#if USE_SECCLIENT
+#if USE_SECMANAGER
 	else
 	{
-		logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
-		eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
-		licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+#endif
+		int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
+		SecClient_ExtendedStatus statusInfo;
+		unsigned int attemptCount = 0;
+		int sleepTime ;
+		aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
+		if(sleepTime<=0) sleepTime = 100;
+		while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+		{
+			attemptCount++;
+			sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
+														 requestMetadata, numberOfAccessAttributes,
+														 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
+														 encodedData,
+														 strlen(encodedData),
+														 encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
+														 secclientSessionToken,
+														 &licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
+			
+			if (((sec_client_result >= 500 && sec_client_result < 600)||
+				 (sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
+				&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+			{
+				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+				logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
+				mssleep(sleepTime);
+			}
+			else
+			{
+				break;
+			}
+		}
+		if (gpGlobalConfig->logging.debug)
+		{
+			logprintf("licenseResponse is %s", licenseResponseStr);
+			logprintf("licenseResponse len is %zd", licenseResponseLength);
+			logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
+			logprintf("refreshDuration is %d", refreshDuration);
+		}
+		
+		if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
+		{
+			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
+			*httpCode = sec_client_result;
+			*httpExtStatusCode = statusInfo.statusCode;
+		}
+		else
+		{
+			logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
+			eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
+			licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+		}
+		
+		if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+#if USE_SECMANAGER
 	}
-	if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+#endif
+#endif
+	free(encodedData);
+	free(encodedChallengeData);
 
 	return licenseResponse;
 }
@@ -957,6 +1055,15 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
+#ifdef USE_SECMANAGER
+	// License acquisition was done, so mSessionId will be populated now
+	if (mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
+	{
+		AAMPLOG_WARN("%s:%d Setting sessionId[%" PRId64 "] to current drmSession", __FUNCTION__, __LINE__, mSessionId);
+		drmSessionContexts[selectedSlot].drmSession->setSessionId(mSessionId);
+	}
+#endif
+
 	return drmSessionContexts[selectedSlot].drmSession;
 }
 
@@ -1095,6 +1202,17 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			if (existingState == KEY_READY)
 			{
 				AAMPLOG_WARN("Found drm session READY with same keyID %s - Reusing drm session", keyIdDebugStr.c_str());
+#ifdef USE_SECMANAGER
+				// Cached session is re-used, set its session ID to active.
+				// State management will be done from getLicenseSec function in case of KEY_INIT
+				if (drmSessionContexts[sessionSlot].drmSession->getSessionId() != AAMP_SECMGR_INVALID_SESSION_ID &&
+					mSessionId == AAMP_SECMGR_INVALID_SESSION_ID)
+				{
+					// Set the drmSession's ID as mSessionId so that this code will not be repeated for multiple calls for createDrmSession
+					mSessionId = drmSessionContexts[sessionSlot].drmSession->getSessionId();
+					AampSecManager::GetInstance()->UpdateSessionState(drmSessionContexts[sessionSlot].drmSession->getSessionId(), true);
+				}
+#endif
 				return KEY_READY;
 			}
 			if (existingState == KEY_INIT)
@@ -1125,6 +1243,13 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			AAMPLOG_WARN("existing DRM session for %s has different key in slot %d", drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), sessionSlot);
 		}
 		AAMPLOG_WARN("deleting existing DRM session for %s ", drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+#ifdef USE_SECMANAGER
+		// Cached session is about to be destroyed, send release to SecManager
+		if (drmSessionContexts[sessionSlot].drmSession->getSessionId() != AAMP_SECMGR_INVALID_SESSION_ID)
+		{
+			AampSecManager::GetInstance()->ReleaseSession(drmSessionContexts[sessionSlot].drmSession->getSessionId());
+		}
+#endif		
 		SAFE_DELETE(drmSessionContexts[sessionSlot].drmSession);
 	}
 
@@ -1298,7 +1423,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				AAMPLOG_WARN("Request License from the Drm Server %s", licenseRequest.url.c_str());
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 				if (isContentMetadataAvailable || usingAppDefinedAuthToken)
 				{
 					eventHandle->setSecclientError(true);
@@ -1353,7 +1478,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		{
 			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
 
-#ifndef USE_SECCLIENT
+#if !defined(USE_SECCLIENT) && !defined(USE_SECMANAGER)
 			if (!drmHelper->getDrmMetaData().empty())
 			{
 				/*
@@ -1475,15 +1600,15 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isContentMetadataAvailable = !contentMetaData.empty();
 
-#ifdef USE_SECCLIENT
 	if (!contentMetaData.empty())
 	{
 		if (!licenseRequest.url.empty())
 		{
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 			licenseRequest.url = getFormattedLicenseServerURL(licenseRequest.url);
+#endif
 		}
 	}
-#endif
 
 	if(!isContentMetadataAvailable)
 	{
@@ -1517,6 +1642,19 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 	return isContentMetadataAvailable;
 }
 
+
+void AampDRMSessionManager::notifyCleanup()
+{
+#ifdef USE_SECMANAGER
+	if(AAMP_SECMGR_INVALID_SESSION_ID != mSessionId)
+	{
+		// Set current session to inactive
+		AampSecManager::GetInstance()->UpdateSessionState(mSessionId, false);
+		// Reset the session ID, the session ID is preserved within AampDrmSession instances
+		mSessionId = AAMP_SECMGR_INVALID_SESSION_ID;
+	}
+#endif
+}
 
 /**
  *  @brief		Function to release the DrmSession if it running
@@ -1593,7 +1731,7 @@ void *CreateDRMSession(void *arg)
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
 	AampDRMSessionManager* sessionManger = sessionParams->aamp->mDRMSessionManager;
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 	bool isSecClientError = true;
 #else
 	bool isSecClientError = false;

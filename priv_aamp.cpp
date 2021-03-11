@@ -2397,6 +2397,12 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	{
 		SendEvent(std::make_shared<SpeedChangedEvent>(rate),AAMP_EVENT_ASYNC_MODE);
 	}
+#ifdef USE_SECMANAGER
+	if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
+	{
+		mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+	}
+#endif
 }
 
 /**
@@ -7732,6 +7738,18 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	AAMPLOG_WARN("seek pos %.3f", seek_pos_seconds);
+
+
+#ifdef USE_SECMANAGER
+	if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
+	{
+        mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+		int x,y,w,h;
+		sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
+        AAMPLOG_WARN("calling setVideoWindowSize  w:%d x h:%d ",w,h);
+        mDRMSessionManager->setVideoWindowSize(w,h);
+	}
+#endif
 	
 }
 
@@ -7795,7 +7813,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatTypeEnum() const
         return mMediaFormat;
 }
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 /**
  * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
  * @param[out] customHeader - Generated moneytrace is stored
@@ -7850,7 +7868,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]",customHeader.c_str());
 }
-#endif /* USE_SECCLIENT */
+#endif /* USE_SECCLIENT || USE_SECMANAGER */
 
 /**
  * @brief Send tuned event if configured to sent after decryption
@@ -8034,6 +8052,19 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 		}
 	}
 #endif
+}
+
+/**
+ *   @brief  Generate WatermarkSessionUpdate event based on args passed.
+ *
+ *   @param[in] sessionHandle - Handle used to track and manage session
+ *   @param[in] status - Status of the watermark session
+ *   @param[in] system - Watermarking protection provider
+ */
+void PrivateInstanceAAMP::SendWatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system)
+{
+	WatermarkSessionUpdateEventPtr event = std::make_shared<WatermarkSessionUpdateEvent>(sessionHandle, status, system);
+	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
