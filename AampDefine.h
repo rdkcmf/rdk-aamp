@@ -48,6 +48,9 @@
 #define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
+#define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
+
+#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
 
 #if 0
 

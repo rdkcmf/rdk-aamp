@@ -894,6 +894,7 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("enableSubscribedTags=%d", gpGlobalConfig->enableSubscribedTags);
 		}
+		#if 0
 		else if (ReadConfigNumericHelper(cfg, "networkTimeout=", inputTimeout) == 1)
 		{
 			VALIDATE_DOUBLE("networkTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
@@ -906,6 +907,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->manifestTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
 			logprintf("manifestTimeout=%ld ms", gpGlobalConfig->manifestTimeoutMs);
 		}
+		#endif
 		else if (ReadConfigNumericHelper(cfg, "playlistTimeout=", inputTimeout) == 1)
 		{
 			VALIDATE_DOUBLE("playlist", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
@@ -1392,12 +1394,12 @@ static void ProcessConfigEntry(std::string cfg)
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp curl-download-start-timeout: %ld", gpGlobalConfig->curlDownloadStartTimeout);
 		}
-                #endif
 		else if (ReadConfigNumericHelper(cfg, "discontinuity-timeout=", gpGlobalConfig->discontinuityTimeout) == 1)
 		{
 			//Not calling VALIDATE_LONG since zero is supported
 			logprintf("aamp discontinuity-timeout: %ld", gpGlobalConfig->discontinuityTimeout);
 		}
+		#endif
 		else if (ReadConfigNumericHelper(cfg, "client-dai=", value) == 1)
 		{
 			gpGlobalConfig->enableClientDai = (value == 1);
@@ -1933,7 +1935,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mIsFirstRequestToFOG(false), mABREnabled(false), mUserRequestedBandwidth(0), mNetworkProxy(NULL), mLicenseProxy(NULL),mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
-	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
+	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mNetworkTimeout(-1), mManifestTimeout(-1),mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
 	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), 
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
@@ -5171,8 +5173,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
-	ConfigureNetworkTimeout();
-	ConfigureManifestTimeout();
+	//ConfigureNetworkTimeout();
+	//ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
 	//ConfigureParallelFetch();
 	ConfigureDashParallelFragmentDownload();
@@ -5220,6 +5222,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	/* Reset counter in new tune */
 	mManifestRefreshCount = 0;
+	/*Reading networkTimeout and ManifestTimeout config value*/
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,mNetworkTimeout);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,mManifestTimeout);
+	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(mNetworkTimeout);
+	mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(mManifestTimeout);
+
 	
 	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
 	if(mCacheMaxSize != 0)
@@ -5586,9 +5594,11 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
 	AAMPLOG_TRACE("%s:%d : Enter mediaType %d", __FUNCTION__, __LINE__, mediaType);
-	if(!(mStreamSink->CheckForPTSChangeWithTimeout(gpGlobalConfig->discontinuityTimeout)))
+        long discontinuityTimeoutValue;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DiscontinuityTimeout,discontinuityTimeoutValue);
+	if(!(mStreamSink->CheckForPTSChangeWithTimeout(discontinuityTimeoutValue)))
 	{
-		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, gpGlobalConfig->discontinuityTimeout);
+		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, discontinuityTimeoutValue);
 		ResetDiscontinuityInTracks();
 		ResetTrackDiscontinuityIgnoredStatus();
 		ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, mediaType);
@@ -8390,8 +8400,6 @@ void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 		gpGlobalConfig->defaultBitrate4K = bitrate4K;
 	}
 }
-#endif
-
 /**
  *   @brief To set the network download timeout value.
  *
@@ -8413,17 +8421,18 @@ void PrivateInstanceAAMP::SetNetworkTimeout(double timeout)
 void PrivateInstanceAAMP::ConfigureNetworkTimeout()
 {
 	// If aamp.cfg has value , then set it as priority
-	if(gpGlobalConfig->networkTimeoutMs != -1)
+	double networkTimeoutValue;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,networkTimeoutValue);
+	if( networkTimeoutValue != -1 )
 	{
-		mNetworkTimeoutMs = gpGlobalConfig->networkTimeoutMs;
+		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(networkTimeoutValue);
 	}
-	else if(mNetworkTimeoutMs == -1)
+	else
 	{
 		// if App has not set the value , then set default value 
 		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
 	}
 }
-
 /**
  *   @brief To set the manifest download timeout value.
  *
@@ -8437,7 +8446,7 @@ void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 	}
 }
-
+#endif
 /**
  *   @brief To set the playlist download timeout value.
  *
@@ -8451,23 +8460,26 @@ void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
 	}
 }
-
+#if 0
 /**
  *   @brief To set the manifest timeout as per priority
  *
  */
 void PrivateInstanceAAMP::ConfigureManifestTimeout()
 {
-	if(gpGlobalConfig->manifestTimeoutMs != -1)
+	double manifestTimeoutValue;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,manifestTimeoutValue);
+	if( manifestTimeoutValue != -1 )
 	{
-		mManifestTimeoutMs = gpGlobalConfig->manifestTimeoutMs;
+		mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(manifestTimeoutValue);
 	}
-	else if(mManifestTimeoutMs == -1)
+	else
 	{
-		mManifestTimeoutMs = mNetworkTimeoutMs;
+		mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
 	}
-}
 
+}
+#endif
 /**
  *   @brief To set the playlist timeout as per priority
  *

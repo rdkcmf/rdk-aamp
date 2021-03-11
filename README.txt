@@ -129,8 +129,11 @@ minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
 downloadStallTimeout            Timeout value for detection curl download stall in second,default is 0.
 downloadStartTimeout            Timeout value for curl download to start after connect in seconds,default is 0.
+discontinuityTimeout		Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000.
 
-
+// Double inputs
+networkTimeout			Specify download time out in seconds, default is 10 seconds.
+manifestTimeout			Specify manifest download time out in seconds, default is 10 seconds.
 
 
 *File Harvest Config :
