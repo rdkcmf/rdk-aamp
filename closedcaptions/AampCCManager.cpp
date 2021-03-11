@@ -720,7 +720,7 @@ int AampCCManagerBase::SetStatus(bool enable)
 	EnsureInitialized();
 	int ret = 0;
 	mEnabled = enable;
-	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mRendering=%d,  mTrickplayStarted: %d, mParentalCtrlLocked: %d mCCHandle: %s",
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mRendering=%d, mTrickplayStarted: %d, mParentalCtrlLocked: %d mCCHandle: %s",
 				__FUNCTION__, __LINE__, mEnabled, mRendering, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
 	if (!mTrickplayStarted && !mParentalCtrlLocked && CheckCCHandle())
 	{
