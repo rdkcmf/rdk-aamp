@@ -24,6 +24,8 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <limits>
+#include <mutex>
 
 template<typename T, typename ...Args>
 std::unique_ptr<T> make_unique(Args&& ...args)
@@ -34,7 +36,8 @@ std::unique_ptr<T> make_unique(Args&& ...args)
 class Packet
 {
 public:
-    Packet() : m_buffer() {}
+    Packet() : m_buffer(), m_counter(std::numeric_limits<std::uint32_t>::max()) {}
+    Packet(std::uint32_t counter) : m_buffer(), m_counter(counter) {}
 
     const uint32_t getType()
     {
@@ -54,6 +57,11 @@ public:
     const std::vector<uint8_t>& getBytes()
     {
         return m_buffer;
+    }
+    
+    const std::uint32_t getCounter()
+    {
+        return m_counter;
     }
 
     static std::string getTypeString(uint32_t type)
@@ -157,6 +165,7 @@ protected:
     };
 
     std::vector<uint8_t> m_buffer;
+    std::uint32_t m_counter;
 
     void append32(std::uint32_t value)
     {
@@ -192,7 +201,6 @@ protected:
     }
 };
 
-
 using PacketPtr = std::unique_ptr<Packet>;
 
 class DummyPacket : public Packet
@@ -215,7 +223,7 @@ public:
      *      Packet counter.
      */
     PausePacket(std::uint32_t channelId,
-                std::uint32_t counter)
+                std::uint32_t counter) : Packet(counter)
     {
         appendType(PacketType::PAUSE);
         append32(counter);
@@ -238,7 +246,7 @@ public:
      *      Packet counter.
      */
     ResumePacket(std::uint32_t channelId,
-                 std::uint32_t counter)
+                 std::uint32_t counter) : Packet(counter)
     {
         appendType(PacketType::RESUME);
         append32(counter);
@@ -261,7 +269,7 @@ public:
      *      Packet counter.
      */
     MutePacket(std::uint32_t channelId,
-                 std::uint32_t counter)
+               std::uint32_t counter) : Packet(counter)
     {
         appendType(PacketType::MUTE);
         append32(counter);
@@ -284,7 +292,7 @@ public:
      *      Packet counter.
      */
     UnmutePacket(std::uint32_t channelId,
-                 std::uint32_t counter)
+                 std::uint32_t counter) : Packet(counter)
     {
         appendType(PacketType::UNMUTE);
         append32(counter);
@@ -307,7 +315,7 @@ public:
      * @param counter
      *      Packet counter.
      */
-    ResetAllPacket()
+    ResetAllPacket() : Packet(0)
     {
         appendType(PacketType::RESET_ALL);
         append32(0);
@@ -330,7 +338,7 @@ public:
      *      Packet counter.
      */
     ResetChannelPacket(std::uint32_t channelId,
-                       std::uint32_t counter)
+                       std::uint32_t counter) : Packet(counter)
     {
         appendType(PacketType::RESET_CHANNEL);
         append32(counter);
@@ -383,10 +391,10 @@ public:
      *      Packet counter.
      */
     CCSetAttributePacket(std::uint32_t channelId,
-                       std::uint32_t counter,
-                       std::uint32_t ccType,
-                       std::uint32_t attribType,
-                       const std::array<uint32_t, 14>& attributesValues)
+                         std::uint32_t counter,
+                         std::uint32_t ccType,
+                         std::uint32_t attribType,
+                         const std::array<uint32_t, 14> &attributesValues) : Packet(counter)
     {
         appendType(PacketType::CC_SET_ATTRIBUTE);
         append32(counter);
@@ -399,48 +407,3 @@ public:
             append32(value);
     }
 };
-
-
-
-class SubtecChannelManager
-{
-public:
-    static SubtecChannelManager* getInstance()
-    {
-        if (!s_Instance)
-            s_Instance = new SubtecChannelManager;
-
-        return s_Instance;
-    }
-    int getNextChannelId() { return m_nextChannelId++; }
-    PacketPtr generateResetAllPacket() { return make_unique<ResetAllPacket>(); }
-protected:
-    SubtecChannelManager() :  m_nextChannelId(0) {}
-private:
-    static SubtecChannelManager *s_Instance;
-    uint32_t m_nextChannelId;
-};
-
-class SubtecChannel
-{
-public:
-    SubtecChannel() : m_counter(0), m_channelId(0)
-    {
-        m_channelId = SubtecChannelManager::getInstance()->getNextChannelId();
-    }
-
-    PacketPtr generateResetAllPacket() { m_counter = 1; return SubtecChannelManager::getInstance()->generateResetAllPacket(); }
-    PacketPtr generateResetChannelPacket() { return make_unique<ResetChannelPacket>(m_channelId, m_counter++); }
-    PacketPtr generatePausePacket() { return make_unique<PausePacket>(m_channelId, m_counter++); }
-    PacketPtr generateResumePacket() { return make_unique<ResumePacket>(m_channelId, m_counter++); }
-    PacketPtr generateMutePacket() { return make_unique<MutePacket>(m_channelId, m_counter++); }
-    PacketPtr generateUnmutePacket() { return make_unique<UnmutePacket>(m_channelId, m_counter++); }
-    PacketPtr generateCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues) {
-         return make_unique<CCSetAttributePacket>(m_channelId, m_counter++, ccType, attribType, attributesValues);
-    }
-
-protected:
-    uint32_t m_channelId;
-    uint32_t m_counter;
-};
-

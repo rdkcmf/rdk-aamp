@@ -20,6 +20,7 @@
 #pragma once
 
 #include "SubtecPacket.hpp"
+#include "SubtecChannel.hpp"
 
 
 class ClosedCaptionsPacket : public Packet
@@ -95,18 +96,18 @@ class ClosedCaptionsChannel : public SubtecChannel
 {
 public:
     ClosedCaptionsChannel() = default;
-    PacketPtr generateDataPacketWithPTS(uint32_t ptsValue, uint8_t* data, size_t dataLen)
+    void SendDataPacketWithPTS(uint32_t ptsValue, uint8_t* data, size_t dataLen)
     {
-        return make_unique<ClosedCaptionsPacket>(m_channelId, m_counter++, ptsValue, data, dataLen);
+        sendPacket<ClosedCaptionsPacket>(ptsValue, data, dataLen);
     }
 
-    PacketPtr generateDataPacketNoPTS(uint8_t* data, size_t dataLen)
+    void SendDataPacketNoPTS(uint8_t* data, size_t dataLen)
     {
-        return make_unique<ClosedCaptionsPacket>(m_channelId, m_counter++, data, dataLen);
+        sendPacket<ClosedCaptionsPacket>(data, dataLen);
     }
 
-    PacketPtr generateActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA type, unsigned int channel)
+    void SendActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA type, unsigned int channel)
     {
-        return make_unique<ClosedCaptionsActiveTypePacket>(m_channelId, m_counter++, type, channel);
+        sendPacket<ClosedCaptionsActiveTypePacket>(type, channel);
     }
 };

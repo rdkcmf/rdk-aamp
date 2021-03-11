@@ -2178,7 +2178,14 @@ public:
 	 *   @return bool - true if subtitles are enabled
 	 */
 	bool IsSubtitleEnabled(void);
-	
+
+	/**
+	 *   @brief Send a timestamp packet to the subtitle renderer
+	 * 	 based on GetPositionMilliseconds()
+	 *
+	 */
+	void UpdateSubtitleTimestamp();
+
 	/**
 	 *   @brief To check if JavaScript cue listeners are registered
 	 *
