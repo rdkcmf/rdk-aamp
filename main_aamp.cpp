@@ -48,6 +48,10 @@
 AampConfig *gpGlobalConfig=NULL;
 AampLogManager *mLogObj=NULL;
 
+#ifdef USE_SECMANAGER
+#include "AampSecManager.h"
+#endif
+
 #define ERROR_STATE_CHECK_VOID() \
 	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR){ \
@@ -228,6 +232,12 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		AAMPLOG_WARN("[AAMP_JS] dlclose(%p)", mJSBinding_DL);
 		dlclose(mJSBinding_DL);
+	}
+#endif
+#ifdef USE_SECMANAGER
+	if (isLastPlayerInstance)
+	{
+		AampSecManager::DestroyInstance();
 	}
 #endif
 	if (isLastPlayerInstance && gpGlobalConfig)

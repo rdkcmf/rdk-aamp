@@ -50,6 +50,10 @@
 #define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define DRM_METADATA_TAG_END "</ckm:policy>"
 
+#ifdef USE_SECMANAGER
+#define AAMP_SECMGR_INVALID_SESSION_ID (-1)
+#endif
+
 void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
 
 unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength, const char* startStr, const char* endStr, int *len, const char* verStr);

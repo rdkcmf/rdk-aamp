@@ -27,7 +27,11 @@
 #define __AAMP_MEMORY_UTILS_H__
 
 #include <stddef.h>
-
+#ifdef USE_SECMANAGER
+#include <sys/shm.h>
+#define SHM_ACCESS_PERMISSION 0666
+#define SHMGET_RETRY_MAX 10
+#endif
 /**
  * @brief Structure of GrowableBuffer
  */
@@ -73,4 +77,20 @@ void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
  */
 void aamp_AppendNulTerminator(struct GrowableBuffer *buffer);
 
+#ifdef USE_SECMANAGER
+/**
+ * @brief Creates shared memory and provides the key
+ * @param shmPointer Pointer to the created memory
+ * @param shmLen Length of the buffer to be created
+ * @param shmKey shared memory key
+ */
+void * aamp_CreateSharedMem( size_t shmLen, key_t & shmKey);
+/**
+ * @brief Detatch and delete shared memory
+ * @param shmPointer Pointer to the created memory
+ * @param shmKey shared memory key
+ * @param shmLen Length of the buffer
+ */
+void aamp_CleanUpSharedMem(void* shmPointer, key_t shmKey, size_t shmLen);
+#endif
 #endif /* __AAMP_MEMORY_UTILS_H__ */
