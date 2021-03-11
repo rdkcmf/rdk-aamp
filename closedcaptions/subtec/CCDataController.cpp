@@ -97,7 +97,7 @@ void CCDataController::sendResume()
 
 void CCDataController::sendResetChannelPacket()
 {
-    sendSinglePacket(channel.generateResetChannelPacket());
+    channel.SendResetChannelPacket();
 }
 
 CCDataController::CCDataController()
