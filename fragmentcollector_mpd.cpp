@@ -8161,9 +8161,15 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 	}
 
 	aamp->mStreamSink->ClearProtectionEvent();
- #ifdef AAMP_MPD_DRM
+	if (clearChannelData)
+	{
+#ifdef AAMP_MPD_DRM
+		aamp->mDRMSessionManager->notifyCleanup();
+#endif
+	}
+#ifdef AAMP_MPD_DRM
 	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
-  #endif
+#endif
 
 	aamp->EnableDownloads();
 }

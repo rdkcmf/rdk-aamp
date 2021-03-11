@@ -1913,7 +1913,7 @@ public:
 	 */
 	void setCurrentDrm(std::shared_ptr<AampDrmHelper> drm) { mCurrentDrm = drm; }
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 	/**
 	 * @brief Extracts / Generates MoneyTrace string
 	 * @param[out] customHeader - Generated moneytrace is stored

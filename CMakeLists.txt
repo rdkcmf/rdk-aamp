@@ -155,8 +155,18 @@ if (CMAKE_WPEFRAMEWORK_REQUIRED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp Module.cpp)
 endif()
 
+if (CMAKE_USE_SECCLIENT AND CMAKE_USE_SECMANAGER)
+	message(WARNING "Both CMAKE_USE_SECCLIENT and CMAKE_USE_SECMANAGER set, not recommended!")
+endif()
+
 if(CMAKE_USE_SECCLIENT)
 	set(SEC_CLIENT_LIB -lSecClient )
+elseif(CMAKE_USE_SECMANAGER)
+	if (NOT CMAKE_WPEFRAMEWORK_REQUIRED)
+		message(FATAL_ERROR "CMAKE_USE_SECMANAGER set but CMAKE_WPEFRAMEWORK_REQUIRED not set")
+	else()
+		set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} drm/AampSecManager.cpp)
+	endif()
 endif()
 
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_VANILLA_AES_SUPPORT ${USE_MAC_FOR_RANDOM_GEN}")
@@ -498,6 +508,9 @@ endif()
 if(CMAKE_USE_SECCLIENT)
 	message("CMAKE_USE_SECCLIENT set")
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_SECCLIENT")
+elseif(CMAKE_USE_SECMANAGER)
+	message("CMAKE_USE_SECMANAGER set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_SECMANAGER")
 endif()
 
 if(CMAKE_WPEWEBKIT_JSBINDINGS)
@@ -526,10 +539,14 @@ endif()
 message("LIB_AAMP_DEPENDS is ${LIBAAMP_DEPENDS}")
 
 target_link_libraries(aamp ${LIBAAMP_DEPENDS})
+
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
-set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CPP_THUNDER_PLUGIN_ACCESS")
-target_link_libraries(aamp ${WPEFRAMEWORK_LIBRARIES})
+	# Remove compiler flag as it causes compilation issues with wpeframework headers
+	STRING(REPLACE " -Werror=effc++" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_CPP_THUNDER_PLUGIN_ACCESS")
+	target_link_libraries(aamp ${WPEFRAMEWORK_LIBRARIES})
 endif()
+
 target_link_libraries(aamp-cli aamp ${AAMP_CLI_LD_FLAGS})
 
 set_target_properties(aamp PROPERTIES COMPILE_FLAGS "${LIBAAMP_DEFINES} ${OS_CXX_FLAGS}")
@@ -546,8 +563,9 @@ install(FILES AampEvent.h AampConfig.h AampDefine.h AampEventListener.h drm/Aamp
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h 
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
-  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
-  AampGstUtils.h AampRfc.h AampScheduler.h
+  AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h AampGstUtils.h
+  AampScheduler.h
+  drm/AampSecManager.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

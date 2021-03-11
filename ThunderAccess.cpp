@@ -33,7 +33,6 @@ using namespace WPEFramework;
 
 #define SERVER_DETAILS  "127.0.0.1:9998"
 #define MAX_LENGTH 1024
-#define THUNDER_RPC_TIMEOUT 5000 
 
 /**
  *  * @brief Structure to save the Thunder security token details
@@ -214,11 +213,11 @@ bool ThunderAccessAAMP::UnSubscribeEvent (string eventName)
 /**
  *   @brief  invokeJSONRPC
  *   @note   Invoke JSONRPC call for the plugin
- *   @param  Plugin method, reference to input pram and result
+ *   @param  Plugin method, reference to input param, result and waitTime (default = THUNDER_RPC_TIMEOUT)
  *   @retval true on success
  *   @retval false on failure
  */
-bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result)
+bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result, const uint32_t waitTime)
 {
     bool ret = true;
     std::string response;
@@ -229,7 +228,7 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : client not initialized! ", __FUNCTION__ );
         return false;
     }
-    status = remoteObject->Invoke<JsonObject, JsonObject>(THUNDER_RPC_TIMEOUT, _T(method), param, result);
+    status = remoteObject->Invoke<JsonObject, JsonObject>(waitTime, _T(method), param, result);
     if (Core::ERROR_NONE == status)
     {
         if (result["success"].Boolean()) {

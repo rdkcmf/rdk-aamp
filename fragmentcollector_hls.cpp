@@ -5934,6 +5934,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 			// check for WV and PR , if anything to be flushed
 			aamp->mStreamSink->ClearProtectionEvent();
 		}
+		aamp->mDRMSessionManager->notifyCleanup();
 		aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
 #endif
 	}
