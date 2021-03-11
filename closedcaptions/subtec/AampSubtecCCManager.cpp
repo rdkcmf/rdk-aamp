@@ -50,8 +50,8 @@ void AampSubtecCCManager::EnsureInitialized()
  * @brief Release CC resources
  */
 void AampSubtecCCManager::Release(void)
-{
-	Stop();
+{	
+	subtecConnector::resetChannel();
 	if(mInitialized)
 	{
 		subtecConnector::close();
