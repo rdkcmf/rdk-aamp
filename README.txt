@@ -68,7 +68,7 @@ stereoOnly			Enable selection of stereo only audio.It Overrides forceEC3/disable
 forceEC3			Forcefully enable DDPlus.Default false
 disableEC3			Disable DDPlus.Default false
 disableATMOS			Disable Dolby ATMOS.Default false
-disablePlaylistIndexEvent	Disable playlist index event.Default true
+disablePlaylistIndexEvent	Disables generation of playlist indexed event by AAMP on tune/trickplay/seek.Default true
 enableSubscribedTags		Enable subscribed tags.Default true
 dashIgnoreBaseUrlIfSlash	Ignore the constructed URI of DASH.Default false
 licenseAnonymousRequest		Acquire license without token.Default false
@@ -102,6 +102,12 @@ playreadyOutputProtection  	Enable/Disable HDCP output protection for DASH-PlayR
 enableVideoEndEvent		Enable/Disable Video End event generation; Default true
 enableTuneProfiling		Enable/Disable Video End event generation; Default false
 playreadyOutputProtection	Enable/Disable output protection for PlayReady DRM.Default false
+descriptiveAudioTrack   	Enable/Disable role in audio track selection.syntax <langcode>-<role> instead of just <langcode>.Default false
+decoderUnavailableStrict	Reports decoder unavailable GST Warning as aamp error. Default false
+retuneOnBufferingTimeout 	Enable/Disable internal re-tune on buffering time-out.Default true
+client-dai			Enable/Disable Client-DAI.Default false
+cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
+appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -115,20 +121,22 @@ abrCacheLength  		Length of abr cache for network bandwidth calculation (# of se
 abrCacheOutlier 		Outlier difference which will be ignored from network bandwidth calculation(default 5MB.in bytes)
 abrNwConsistency		Number of checks before profile incr/decr by 1.This is to avoid frequenct profile switching with network change(default 2)
 abrSkipDuration			Minimum duration of fragment to be downloaded before triggering abr (in secs.default 6 sec).
-progressReportingInterval           Interval of progress reporting(in msecs.default is 1000 msec)
-licenseRetryWaitTime               License retry wait interval(in msecs.default is 500msec)
+progressReportingInterval	Interval of progress reporting(in msecs.default is 1000 msec)
+licenseRetryWaitTime		License retry wait interval(in msecs.default is 500msec)
+liveOffset    			live offset time in seconds, aamp starts live playback this much time before the live point.Default 15sec
+cdvrLiveOffset    		live offset time in seconds for cdvr, aamp starts live playback this much time before the live point for inprogress cdvr.Default 30 sec
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
-mapMPD					<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) 
-mapM3U8					<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8) 
-harvestPath				Specify the path where fragments has to be harvested,check folder permissions specifying the path
+mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
+mapM3U8				<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8)
+harvestPath			Specify the path where fragments has to be harvested,check folder permissions specifying the path
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
 maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_MAX.
-downloadStallTimeout            Timeout value for detection curl download stall in second,default is 0.
-downloadStartTimeout            Timeout value for curl download to start after connect in seconds,default is 0.
+downloadStallTimeout		Timeout value for detection curl download stall in second,default is 0.
+downloadStartTimeout		Timeout value for curl download to start after connect in seconds,default is 0.
 
 
 
@@ -353,7 +361,6 @@ vod-tune-event=0 // send streamplaying when playlist acquired (default)
 vod-tune-event=1 // send streamplaying when first fragment 
 vod-tune-event=2 // send streamplaying when first frame visible
 
-appSrcForProgressivePlayback // Enables appsrc for playing progressive AV type
 decoderunavailablestrict     // Reports decoder unavailable GST Warning as aamp error
 
 demuxed-audio-before-video=1 // send audio es before video in case of s/w demux
@@ -364,8 +371,6 @@ disableEC3=1 	// removes "-eac3" before .m3u8 in main manifest url. Useful in li
 		//Default priority of audio selction is ATMOS, DD+ then AAC
 disableATMOS=1 //For playback makes DD+ or AAC preferred over ATMOS (EC+3)
 
-live-offset    live offset time in seconds, aamp starts live playback this much time before the live point
-cdvrlive-offset    live offset time in seconds for cdvr, aamp starts live playback this much time before the live point
 disablePlaylistIndexEvent=1    disables generation of playlist indexed event by AAMP on tune/trickplay/seek
 enableSubscribedTags=1    Specifies if subscribedTags[] and timeMetadata events are enabled during HLS parsing, default value: 1 (true)
 dash-ignore-base-url-if-slash If present, disables dash BaseUrl value if it is /
@@ -395,7 +400,7 @@ http-proxy=<SCHEME>://<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy wit
 http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with Proxy Authentication Credentials. Make sure to encode special characters if present in username or password (URL Encoding)
 mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
 mpd-discontinuity-handling-cdvr=0	Disable discontinuity handling during MPD period transition for cDvr.
-re-tune-on-buffering-timeout=0 Disable internal re-tune on buffering time-out
+
 audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads

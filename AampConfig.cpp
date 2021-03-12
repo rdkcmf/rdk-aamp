@@ -79,8 +79,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
 	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
 	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},									// Complete
-	{"cdvrlive-offset",eAAMPConfig_CDVRLiveOffset,-1,-1},	
-	{"live-offset",eAAMPConfig_LiveOffset,-1,-1},
+	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,0,50},
+	{"liveOffset",eAAMPConfig_LiveOffset,0,50},
 	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},		// Complete
 	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},				// Complete
 	{"networkTimeout",eAAMPConfig_NetworkTimeout,-1,-1},
@@ -109,8 +109,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"useNewABR",eAAMPConfig_ABRBufferCheckEnabled,-1,-1},
 	{"useNewAdBreaker",eAAMPConfig_NewDiscontinuity,-1,-1},
 	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
-	{"decoderunavailablestrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
-	{"descriptiveaudiotrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
+	{"decoderUnavailableStrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
+	{"descriptiveAudioTrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
 	{"langcodepref",eAAMPConfig_LanguageCodePreference,-1,-1},
 	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,-1,-1},
 	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
@@ -152,7 +152,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
 	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
-	{"re-tune-on-buffering-timeout",eAAMPConfig_ReTuneOnBufferingTimeout,-1,-1},
+	{"retuneOnBufferingTimeout",eAAMPConfig_ReTuneOnBufferingTimeout,-1,-1},
 	{"iframeDefaultBitrate",eAAMPConfig_IFrameDefaultBitrate,-1,-1},
 	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
@@ -169,8 +169,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,-1,-1},
 	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
 	{"discontinuity-timeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},
-	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},
-	{"ad-from-cdn-only",eAAMPConfig_PlayAdFromCDN,-1,-1},
+	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
+	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
 	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
 	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportbufferevent",eAAMPConfig_ReportBufferEvent,-1,-1},
@@ -367,8 +367,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	///////////////// Following for double data types /////////////////////////////
 	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
 	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
-	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
-	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 #endif
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value	=	0;
@@ -380,6 +378,9 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value	=       0;
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value	=       0;
 
+	///////////////// Following for double data types /////////////////////////////
+	//dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
+	//dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 
 	///////////////// Following for String type config ////////////////////////////
 	sAampCfgValue[eAAMPConfig_MapMPD-eAAMPConfig_StringStartValue].value			=	"";

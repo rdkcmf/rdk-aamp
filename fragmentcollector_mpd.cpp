@@ -4166,7 +4166,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		}
 		aamp_Free(&manifest.ptr);
 		mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
-		if(mIsLiveStream && gpGlobalConfig->enableClientDai)
+		if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_EnableClientDai))
 		{
 			mCdaiObject->PlaceAds(mpd);
 		}
@@ -4663,7 +4663,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * period)
 {
 	bool ret = false;
-	if(!(gpGlobalConfig->enableClientDai))
+	if(!ISCONFIGSET(eAAMPConfig_EnableClientDai))
 	{
 		return ret;
 	}
@@ -4959,7 +4959,7 @@ std::string StreamAbstractionAAMP_MPD::GetLanguageForAdaptationSet(IAdaptationSe
 		
 	lang = Getiso639map_NormalizeLanguageCode(lang);
 
-	if (gpGlobalConfig->bDescriptiveAudioTrack && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
+	if (ISCONFIGSET(eAAMPConfig_DescriptiveAudioTrack) && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
 	{
 		std::vector<IDescriptor *> role = adaptationSet->GetRole();
 		for (unsigned iRole = 0; iRole < role.size(); iRole++)
@@ -8157,7 +8157,7 @@ bool StreamAbstractionAAMP_MPD::onAdEvent(AdEvent evt)
 
 bool StreamAbstractionAAMP_MPD::onAdEvent(AdEvent evt, double &adOffset)
 {
-	if(!(gpGlobalConfig->enableClientDai))
+	if(!ISCONFIGSET(eAAMPConfig_EnableClientDai))
 	{
 		return false;
 	}

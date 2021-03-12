@@ -4108,7 +4108,7 @@ std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 	std::string lang = this->mediaInfo[iMedia].language;
 	lang = Getiso639map_NormalizeLanguageCode(lang);
 
-	if (gpGlobalConfig->bDescriptiveAudioTrack)
+	if(ISCONFIGSET(eAAMPConfig_DescriptiveAudioTrack))
 	{
 		if (this->mediaInfo[iMedia].name)
 		{ // include NAME (role) as part of advertised language

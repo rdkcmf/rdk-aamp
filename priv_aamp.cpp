@@ -5171,6 +5171,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
+
 	ConfigureNetworkTimeout();
 	ConfigureManifestTimeout();
 	ConfigurePlaylistTimeout();
@@ -8726,7 +8730,7 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
  */
 void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35)
 {
-	if(gpGlobalConfig->enableClientDai && !adBreakId.empty())
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableClientDai) && !adBreakId.empty())
 	{
 		AAMPLOG_WARN("%s:%d [CDAI] Found Adbreak on period[%s] Duration[%d]", __FUNCTION__, __LINE__, adBreakId.c_str(), breakdur);
 		std::string adId("");
@@ -8745,7 +8749,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
  */
 void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
-	if(gpGlobalConfig->enableClientDai)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableClientDai))
 	{
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url);
 	}

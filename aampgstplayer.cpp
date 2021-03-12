@@ -1070,7 +1070,7 @@ static gboolean buffering_timeout (gpointer data)
 			DRM key acquisition can end after injection, and buffering is not expected
 			to be completed by the 1 second timeout
 			*/
-			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
 			{
 				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 				privateContext->buffering_in_progress = false;
@@ -1149,7 +1149,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_WARNING:
 		gst_message_parse_warning(msg, &error, &dbg_info);
 		g_printerr("GST_MESSAGE_WARNING %s: %s\n", GST_OBJECT_NAME(msg->src), error->message);
-		if (gpGlobalConfig->decoderUnavailableStrict && strstr(error->message, "No decoder available") != NULL)
+		if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_DecoderUnavailableStrict)  && strstr(error->message, "No decoder available") != NULL)
 		{
 			char warnDesc[MAX_ERROR_DESCRIPTION_LENGTH];
 			snprintf( warnDesc, MAX_ERROR_DESCRIPTION_LENGTH, "GstPipeline Error:%s", error->message );
@@ -2009,7 +2009,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		}
 
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
-		if((_this->aamp->getStreamType() != 30) ||  gpGlobalConfig->useAppSrcForProgressivePlayback)
+		if((_this->aamp->getStreamType() != 30) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);

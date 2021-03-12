@@ -202,7 +202,6 @@ typedef enum
 	eAAMPConfig_MaxABRNWBufferRampUp,							/**< Maximum ABR Buffer for Rampup*/
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
-		
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	
@@ -223,8 +222,8 @@ typedef enum
 	eAAMPConfig_DoubleStartValue,
 	eAAMPConfig_NetworkTimeout,									/**< Fragment download timeout in ms*/
 	eAAMPConfig_ManifestTimeout,								/**< Manifest download timeout in ms*/
-	eAAMPConfig_LiveOffset,										/**< Current LIVE offset*/
-	eAAMPConfig_CDVRLiveOffset,									/**< CDVR LIVE offset*/
+	eAAMPConfig_LiveOffset, 									/**< Current LIVE offset*/
+	eAAMPConfig_CDVRLiveOffset, 								/**< CDVR LIVE offset*/
 	eAAMPConfig_DoubleMaxValue,
 	////////////////////////////////////
 	eAAMPConfig_StringStartValue,

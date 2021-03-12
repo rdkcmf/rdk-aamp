@@ -427,7 +427,7 @@ void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, b
 {
 	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
 	gpGlobalConfig->langCodePreference = preferredFormat;
-	gpGlobalConfig->bDescriptiveAudioTrack = useRole;
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DescriptiveAudioTrack,useRole);
 }
 
 /**

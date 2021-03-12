@@ -496,7 +496,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	{
 		finalManifest = true;
 		xmlTextReaderPtr reader = xmlReaderForMemory(manifest.ptr, (int) manifest.len, NULL, NULL, 0);
-		if(tryFog && !(gpGlobalConfig->playAdFromCDN) && reader && mIsFogTSB)	//Main content from FOG. Ad is expected from FOG.
+		if(tryFog && !mAamp->mConfig->IsConfigSet(eAAMPConfig_PlayAdFromCDN) && reader && mIsFogTSB)	//Main content from FOG. Ad is expected from FOG.
 		{
 			std::string channelUrl = mAamp->GetManifestUrl();	//TODO: Get FOG URL from channel URL
 			std::string encodedUrl;
