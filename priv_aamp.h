@@ -70,7 +70,7 @@ static const char *mMediaFormatName[] =
 #define AAMP_DRM_CURL_COUNT 4           /**< audio+video+sub+aux track DRMs */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-//#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
+#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
 #define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
@@ -597,8 +597,6 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	double mLiveOffset;
-	double mNetworkTimeout;
-	double mManifestTimeout;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;

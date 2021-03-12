@@ -48,7 +48,7 @@
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
-//#define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
+#define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
 
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10sec */
@@ -151,8 +151,8 @@ public:
 	int disablePlaylistIndexEvent;          /**< Disable playlist index event*/
 	int enableSubscribedTags;               /**< Enabled subscribed tags*/
 	bool dashIgnoreBaseURLIfSlash;          /**< Ignore the constructed URI of DASH, if it is / */
-	//long networkTimeoutMs;                 	/**< Fragment download timeout in ms*/
-	//long manifestTimeoutMs;                 /**< Manifest download timeout in ms*/
+	long networkTimeoutMs;                 	/**< Fragment download timeout in ms*/
+	long manifestTimeoutMs;                 /**< Manifest download timeout in ms*/
 	long playlistTimeoutMs;                 /**< Playlist download timeout in ms*/
 	bool licenseAnonymousRequest;           /**< Acquire license without token*/
 	bool useLinearSimulator;				/**< Simulate linear stream from VOD asset*/
@@ -207,7 +207,7 @@ public:
 	bool playAdFromCDN;                     /**< Play Ad from CDN. Not from FOG.*/
 	bool mEnableVideoEndEvent;              /**< Enable or disable videovend events */
 	int dash_MaxDRMSessions;				/** < Max drm sessions that can be cached by AampDRMSessionManager*/
-	//long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
+	long discontinuityTimeout;              /**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	TriState bReportVideoPTS;                    /**< Enables Video PTS reporting */
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */

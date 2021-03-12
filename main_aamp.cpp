@@ -1431,7 +1431,7 @@ void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 void PlayerInstanceAAMP::SetNetworkTimeout(double timeout)
 {
         ERROR_STATE_CHECK_VOID();
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NetworkTimeout,timeout);
+        aamp->SetNetworkTimeout(timeout);
 }
 
 /**
@@ -1442,7 +1442,7 @@ void PlayerInstanceAAMP::SetNetworkTimeout(double timeout)
 void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
 {
 	ERROR_STATE_CHECK_VOID();
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ManifestTimeout,timeout);
+	aamp->SetManifestTimeout(timeout);
 }
 
 /**

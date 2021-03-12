@@ -147,9 +147,8 @@ void MediaTrack::MonitorBufferHealth()
 			GetContext()->CheckForMediaTrackInjectionStall(type);
 
 			pthread_mutex_lock(&mutex);
-                        long discontinuityTimeoutValue;
-			GETCONFIGVALUE(eAAMPConfig_DiscontinuityTimeout,discontinuityTimeoutValue);
-			if((!aamp->pipeline_paused) && aamp->IsDiscontinuityProcessPending() && discontinuityTimeoutValue)
+
+			if((!aamp->pipeline_paused) && aamp->IsDiscontinuityProcessPending() && gpGlobalConfig->discontinuityTimeout)
 			{
 				aamp->CheckForDiscontinuityStall((MediaType)type);
 			}
