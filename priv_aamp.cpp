@@ -7986,6 +7986,7 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool ch
 			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 		}
 	}
+	noExplicitUserLanguageSelection = false;
 
 	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
 	{

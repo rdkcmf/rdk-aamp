@@ -3280,30 +3280,31 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 						not_explicit_user_lang_track = i;
 						AAMPLOG_TRACE("%s:%d Default track language:%d", __FUNCTION__, __LINE__, not_explicit_user_lang_track);
 					}
-				}
-				// TODO - Pick the best audio codec type if there are multiple PreferredAudio Entries for same codec ?
-				if(aamp->preferredLanguagesList.size() > 0)
-				{
-					// has not found the most preferred lang yet
-					// find language part in preferred language list
-					// but not further than current index
-					std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
-					auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), langPart);
-					if(iter != aamp->preferredLanguagesList.end())
+
+					// TODO - Pick the best audio codec type if there are multiple PreferredAudio Entries for same codec ?
+					if(aamp->preferredLanguagesList.size() > 0)
 					{
-						current_preferred_lang_index  = std::distance(aamp->preferredLanguagesList.begin(),iter);
-						if( preferred_audio_track_index < current_preferred_lang_index )
+						// has not found the most preferred lang yet
+						// find language part in preferred language list
+						// but not further than current index
+						std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
+						auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), langPart);
+						if(iter != aamp->preferredLanguagesList.end())
 						{
-							preferred_audio_track_index = current_preferred_lang_index;
-							preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
-							preferred_audio_track = i;
-							AAMPLOG_TRACE("%s:%d 1st preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
-						}
-						else if( preferred_audio_track_index == current_preferred_lang_index && (this->mediaInfo[i].audioFormat > preferred_audio_track_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ))
-						{
-							preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
-							preferred_audio_track = i;
-							AAMPLOG_TRACE("%s:%d 2nd preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
+							current_preferred_lang_index  = std::distance(aamp->preferredLanguagesList.begin(),iter);
+							if( preferred_audio_track_index < current_preferred_lang_index )
+							{
+								preferred_audio_track_index = current_preferred_lang_index;
+								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
+								preferred_audio_track = i;
+								AAMPLOG_TRACE("%s:%d 1st preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
+							}
+							else if( preferred_audio_track_index == current_preferred_lang_index && (this->mediaInfo[i].audioFormat > preferred_audio_track_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ))
+							{
+								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
+								preferred_audio_track = i;
+								AAMPLOG_TRACE("%s:%d 2nd preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
+							}
 						}
 					}
 				}
