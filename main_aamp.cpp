@@ -21,6 +21,13 @@
  * @file main_aamp.cpp
  * @brief Advanced Adaptive Media Player (AAMP)
  */
+#ifdef IARM_MGR
+#include "host.hpp"
+#include "manager.hpp"
+#include "libIBus.h"
+#include "libIBusDaemon.h"
+#include "irMgr.h"
+#endif
 
 #include "main_aamp.h"
 #include "GlobalConfigAAMP.h"
@@ -87,6 +94,7 @@ AampConfig *gpGlobalAampConfig=NULL;
 		return val; \
 	}
 
+static bool iarmInitialized = false;
 /**
  *   @brief Constructor.
  *
@@ -96,6 +104,30 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
 	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
+
+#ifdef IARM_MGR
+if(!iarmInitialized)
+{
+        char processName[20] = {0};
+        IARM_Result_t result;
+        sprintf (processName, "AAMP-PLAYER-%u", getpid());
+        if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
+                logprintf("IARM Interface Inited in AAMP");
+        }
+        else {
+            logprintf("IARM Interface Inited Externally : %d", result);
+        }
+
+        if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Connect())) {
+                logprintf("IARM Interface Connected  in AAMP");
+        }
+        else {
+            logprintf ("IARM Interface Connected Externally :%d", result);
+        }
+	iarmInitialized = true;
+}
+#endif
+
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
 	const char* szJSLib = "libaampjsbindings.so";
@@ -640,7 +672,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{
 			if (!aamp->pipeline_paused)
 			{
-				AAMPLOG_INFO("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				retValue = aamp->mStreamSink->Pause(true, false);

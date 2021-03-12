@@ -95,6 +95,10 @@ void CCDataController::sendResume()
     channel.SendResumePacket();
 }
 
+void CCDataController::sendResetChannelPacket()
+{
+    channel.SendResetChannelPacket();
+}
 
 CCDataController::CCDataController()
     : channel{}

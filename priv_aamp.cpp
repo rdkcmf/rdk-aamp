@@ -1970,7 +1970,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mTsbRecordingId()
 	, mPersistBitRateOverSeek(false)
 	, mPreviousAudioType (FORMAT_INVALID)
-	, mthumbIndexValue(0)
+	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mProgramDateTime (0)
 	, mConfig (config)
@@ -2690,7 +2690,14 @@ void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
 		ScheduleEvent(aed);
 		if(eventType != AAMP_EVENT_PROGRESS)
 		{
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, eventType);
+			if(eventType != AAMP_EVENT_STATE_CHANGED)
+			{
+				AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, eventType);
+			}
+			else
+			{
+				AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
+			}
 		}
 	}
 	else
@@ -4738,10 +4745,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			// Stop CC when pipeline is stopped/destroyed and if foreground instance
 			if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering) && mbPlayEnabled)
 			{
-				if(!newTune)
-				{
-					AampCCManager::GetInstance()->Release();
-				}
+				AampCCManager::GetInstance()->Release();
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -5304,6 +5308,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mIscDVR = true;
 	}
 
+#ifdef AAMP_CC_ENABLED
+	if (eMEDIAFORMAT_OTA == mMediaFormat)
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+	}
+#endif
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -8366,6 +8379,15 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 {
 	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
 	SendEventAsync(event);
+#ifdef AAMP_CC_ENABLED
+	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(true);
+		}
+	}
+#endif
 }
 
 #if 0
@@ -10254,6 +10276,12 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
+#ifdef AAMP_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+#endif
 	}
 }
 
