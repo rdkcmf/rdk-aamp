@@ -213,7 +213,7 @@ public:
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int langCodePreference; /**<prefered format for normalizing language code */
-        bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
+//        bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
