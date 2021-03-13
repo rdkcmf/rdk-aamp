@@ -146,6 +146,7 @@ ceaFormat				Preferred CEA option for CC. Default stream based . Override value
 							0 - CEA 608
 							1 - CEA 708
 							
+maxPlaylistCacheSize            Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes.Default is 3072.
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

@@ -1330,6 +1330,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mEnableRectPropertyCfg = (TriState)(value != 0);
 			logprintf("AAMP Rectangle property for sink element: %d\n", value);
 		}
+		#if 0
 		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
 		{
 			// Read value in KB , convert it to bytes
@@ -1337,6 +1338,7 @@ static void ProcessConfigEntry(std::string cfg)
 			VALIDATE_INT("max-playlist-cache", gpGlobalConfig->gMaxPlaylistCacheSize, MAX_PLAYLIST_CACHE_SIZE);
 			logprintf("aamp max-playlist-cache: %ld", gpGlobalConfig->gMaxPlaylistCacheSize);
 		}
+		#endif
 		else if(sscanf(cfg.c_str(), "dash-max-drm-sessions=%d", &gpGlobalConfig->dash_MaxDRMSessions) == 1)
 		{
 			// Read value in KB , convert it to bytes
@@ -1489,12 +1491,12 @@ static void ProcessConfigEntry(std::string cfg)
 			VALIDATE_LONG("minBitrate", gpGlobalConfig->minBitrate, 0);
 			logprintf("minBitrate=%d", gpGlobalConfig->minBitrate);
 		}
-                #endif
 		else if (ReadConfigNumericHelper(cfg, "maxBitrate=", gpGlobalConfig->maxBitrate) ==1)
 		{
 			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
 			logprintf("maxBitrate=%d", gpGlobalConfig->maxBitrate);
 		}
+                #endif
 		else if (ReadConfigNumericHelper(cfg, "initFragmentRetryCount=", gpGlobalConfig->initFragmentRetryCount) == 1)
 		{
 			logprintf("initFragmentRetryCount=%d", gpGlobalConfig->initFragmentRetryCount);
@@ -5174,6 +5176,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
+	int iCacheMaxSize = 0;
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
@@ -5233,14 +5236,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mManifestRefreshCount = 0;
 	
 	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
-	if(mCacheMaxSize != 0)
-        {
-                getAampCacheHandler()->SetMaxPlaylistCacheSize(mCacheMaxSize);
-        }
-	else if(mPreCacheDnldTimeWindow > 0)
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxPlaylistCacheSize,iCacheMaxSize);
+	if(mPreCacheDnldTimeWindow > 0)
 	{
+		// if precaching enabled, then set cache to infinite 
+		// support download of all the playlist files
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
+	else if(iCacheMaxSize != 0)
+        {
+                getAampCacheHandler()->SetMaxPlaylistCacheSize(iCacheMaxSize*1024); // convert KB inputs to bytes
+        }
 
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
@@ -5929,7 +5935,6 @@ void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
 	mMinBitrate = bitrate;
 }
-#endif
 /**
  * @brief Set maximum bitrate value.
  */
@@ -5940,6 +5945,7 @@ void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
 		mMaxBitrate = bitrate;
 	}
 }
+#endif
 
 /**
  * @brief Get maximum bitrate value.
@@ -5947,18 +5953,20 @@ void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
  */
 long PrivateInstanceAAMP::GetMaximumBitrate()
 {
-	return mMaxBitrate;
+	long lMaxBitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxBitrate,lMaxBitrate);
+	return lMaxBitrate;
 }
 
 /**
- * @brief Get maximum bitrate value.
+ * @brief Get minimum bitrate value.
  * @return minimum bitrate value
  */
 long PrivateInstanceAAMP::GetMinimumBitrate()
 {
-	long minBitrateValue;
-	GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,minBitrateValue);
-	return minBitrateValue;
+	long lMinBitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,lMinBitrate);
+	return lMinBitrate;
 }
 
 
@@ -10365,11 +10373,11 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mMinBitrate = gpGlobalConfig->minBitrate;
 	}
- #endif
 	if(gpGlobalConfig->maxBitrate > 0)
 	{
 		mMaxBitrate = gpGlobalConfig->maxBitrate;
 	}
+ #endif
 	if(gpGlobalConfig->segInjectFailCount > 0)
 	{
 		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
@@ -10437,19 +10445,17 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
 	}
-#endif		
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
 	}
-#if 0
 	if(gpGlobalConfig->mPersistBitRateOverSeek != eUndefinedState)
 	{
 		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
 	}
 #endif
 }
-
+#if 0
 /**
  * @brief Set Maximum Cache Size for playlist store
  *
@@ -10458,6 +10464,7 @@ void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 {
 	mCacheMaxSize = cacheSize * 1024 ;
 }
+#endif
 
 /**
  *   @brief Add async task to scheduler

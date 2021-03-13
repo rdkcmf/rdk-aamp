@@ -77,7 +77,7 @@
 #define MAX_DASH_DRM_SESSIONS 30
 
 // HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
-#define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
+//#define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 //#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
@@ -199,7 +199,7 @@ public:
 	bool enablePROutputProtection;          /**< Playready output protection config */
 	char *pUserAgentString;			/**< Curl user-agent string */
 	bool reTuneOnBufferingTimeout;          /**< Re-tune on buffering timeout */
-	int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
+	//int gMaxPlaylistCacheSize;              /**< Max Playlist Cache Size  */
 	//int waitTimeBeforeRetryHttp5xxMS;		/**< Wait time in milliseconds before retry for 5xx errors*/
 	TriState sslVerifyPeer;		/**< Enable or Disable curl ssl certificate verification. */
 	std::string mSubtitleLanguage;          /**< User preferred subtitle language*/
@@ -223,7 +223,7 @@ public:
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
 	int mInitRampdownLimit; /** Maximum number of limits for ramdown and try download if playlist download failed at start time before reporting failure **/
 	//long minBitrate;		/*** Minimum bandwidth of playback profile */
-	long maxBitrate;		/*** Maximum bandwidth of playback profile */
+	//long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
 	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */

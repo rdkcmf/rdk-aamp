@@ -432,10 +432,7 @@ void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
  */
 void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 {
-        if(gpGlobalConfig->gMaxPlaylistCacheSize == 0)
-        {
-                aamp->SetMaxPlaylistCacheSize(cacheSize);
-        }
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxPlaylistCacheSize,cacheSize);
 }
 
 /**
@@ -486,22 +483,14 @@ void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
  */
 void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 {
-	if (gpGlobalConfig->maxBitrate > 0)
+	if (bitrate > 0)
 	{
-		//aamp->SetMinimumBitrate(gpGlobalConfig->maxBitrate);
-		AAMPLOG_INFO("%s:%d Setting maxBitrate from configuration file: %ld", __FUNCTION__, __LINE__, gpGlobalConfig->maxBitrate);
+		AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxBitrate,bitrate);
 	}
 	else
 	{
-		if (bitrate > 0)
-		{
-			AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
-			aamp->SetMaximumBitrate(bitrate);
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
-		}
+		AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
 	}
 }
 

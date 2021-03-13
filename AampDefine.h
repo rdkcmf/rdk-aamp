@@ -19,7 +19,7 @@
 
 #ifndef __AAMP_DEFINE_H__
 #define __AAMP_DEFINE_H__
-
+#include <limits.h>
 #ifdef WIN32
 #define AAMP_CFG_PATH "c:/tmp/aamp.cfg"
 #define AAMP_JSON_PATH "c:/tmp/aamp.json"
@@ -36,6 +36,7 @@
 
 #define MAX_PTS_ERRORS_THRESHOLD 4
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
+#define MAX_PLAYLIST_CACHE_SIZE    (3*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 
 #define DEFAULT_ABR_CACHE_LIFE 5000                 /**< Default ABR cache life  in milli secs*/
 #define DEFAULT_ABR_OUTLIER 5000000                 /**< ABR outlier: 5 MB */
@@ -119,7 +120,6 @@ enum TunedEventConfig
 #define MAX_DASH_DRM_SESSIONS 30
 
 // HLS CDVR/VOD playlist size for 1hr -> 225K , 2hr -> 450-470K , 3hr -> 670K . Most played CDVR/Vod < 2hr
-#define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
