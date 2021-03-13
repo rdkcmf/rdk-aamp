@@ -1151,6 +1151,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->enablePROutputProtection = (value != 0);
 			logprintf("playready-output-protection is %s", (value ? "on" : "off"));
 		}
+#if 0
 		else if (ReadConfigNumericHelper(cfg, "live-tune-event=", value) == 1)
                 { // default is 0; set 1 for sending tuned for live
                         logprintf("live-tune-event = %d", value);
@@ -1167,6 +1168,7 @@ static void ProcessConfigEntry(std::string cfg)
                                 gpGlobalConfig->tunedEventConfigVOD = (TunedEventConfig)(value);
                         }
                 }
+#endif
 		else if (ReadConfigNumericHelper(cfg, "playlists-parallel-fetch=", value) == 1)
 		{
 			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
@@ -2078,7 +2080,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 			delete pListener;
 		}
 	}
-
+#if 0
 	if (mNetworkProxy)
 	{
 		free(mNetworkProxy);
@@ -2088,7 +2090,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	{
 		free(mLicenseProxy);
 	}
-
+#endif
 #ifdef SESSION_STATS
 	if (mVideoEnd)
 	{
@@ -3334,13 +3336,13 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
-
+#if 0
 			// dev override in cfg file takes priority to App Setting 
 			if(gpGlobalConfig->httpProxy != NULL)
 			{
 				proxy = gpGlobalConfig->httpProxy;				
 			}
-
+#endif
 			if (proxy != NULL)
 			{
 				/* use this proxy */
@@ -5177,6 +5179,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
 	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 
 	ConfigureNetworkTimeout();
@@ -6272,6 +6275,7 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 	return rc;
 }
 
+#if 0
 /**
  *   @brief To set the vod-tune-event according to the player.
  *
@@ -6296,6 +6300,20 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
 	{
 		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
 	}
+}
+#endif
+TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
+{
+	int tunedEventConfig;			
+	if(isLive)
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveTuneEvent,tunedEventConfig);
+	}
+	else
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_VODTuneEvent,tunedEventConfig);
+	}
+	return (TunedEventConfig)tunedEventConfig;
 }
 
 /**
@@ -6844,11 +6862,12 @@ void PrivateInstanceAAMP::Stop()
 		mCdaiObject = NULL;
 	}
 
+#if 0
 	/* Clear the session data*/
 	if(!mSessionToken.empty()){
 		mSessionToken.clear();
 	}
-
+#endif
 	EnableDownloads();
 }
 
@@ -7007,8 +7026,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
 
-	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
-	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
+	if (eTUNED_EVENT_ON_GST_PLAYING == GetTuneEventConfig(IsLive()))
 	{
 		// This is an idle callback, so we can sent event synchronously
 		if (SendTunedEvent())
@@ -8230,8 +8248,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 {
 	if(mTunedEventPending)
 	{
-		TunedEventConfig tunedEventConfig =  IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
-		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
+		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == GetTuneEventConfig(IsLive()))
 		{
 			// For HLS - This is invoked by fetcher thread, so we have to sent asynchronously
 			if (SendTunedEvent(false))
@@ -8694,6 +8711,7 @@ bool PrivateInstanceAAMP::IsTuneCompleted()
 	return mTuneCompleted;
 }
 
+#if 0
 /**
  *   @brief Set Preferred DRM.
  *
@@ -8713,7 +8731,7 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 		gpGlobalConfig->preferredDrm = drmType;
 	}
 }
-
+#endif
 /**
  *   @brief Get Preferred DRM.
  *
@@ -8721,7 +8739,9 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
  */
 DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 {
-	return gpGlobalConfig->preferredDrm;
+	int drmType;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredDRM,drmType);
+	return (DRMSystems)drmType;
 }
 #if 0
 /**
@@ -9001,7 +9021,7 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s ", __FUNCTION__, mTunedManifestUrl.c_str());
 	return mTunedManifestUrl.c_str();
 }
-
+#if 0
 /**
  *   @brief To set the network proxy
  *
@@ -9017,7 +9037,7 @@ void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
 	mNetworkProxy = strdup(proxy);
 	pthread_mutex_unlock(&mLock);
 }
-
+#endif
 /**
  *   @brief Get network proxy
  *
@@ -9025,9 +9045,15 @@ void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
  */
 const char* PrivateInstanceAAMP::GetNetworkProxy() const
 {
-	return mNetworkProxy;
+	std::string proxy;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkProxy,proxy);
+	if(proxy.empty())
+		return NULL;
+	else
+		return proxy.c_str();
 }
 
+#if 0
 /**
  *   @brief To set the proxy for license request
  *
@@ -9043,6 +9069,22 @@ void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 	mLicenseProxy = strdup(licenseProxy);
 	pthread_mutex_unlock(&mLock);
 }
+#endif
+/**
+ *   @brief Get License proxy
+ *
+ *   @retval License proxy
+ */
+const char* PrivateInstanceAAMP::GetLicenseReqProxy() const
+{
+	std::string proxy;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseProxy,proxy);
+	if(proxy.empty())
+		return NULL;
+	else
+		return proxy.c_str();
+}
+
 
 /**
  *   @brief Signal trick mode discontinuity to stream sink
@@ -9564,6 +9606,7 @@ void PrivateInstanceAAMP::SetAppName(std::string name)
 	mAppName = name;
 }
 
+
 /*
  *   @brief Get the application name
  *
@@ -9573,6 +9616,7 @@ std::string PrivateInstanceAAMP::GetAppName()
 {
 	return mAppName;
 }
+
 
 /*
  *   @brief Set DRM message event
@@ -9856,16 +9900,11 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 					}
 
 					// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
-					if (gpGlobalConfig->preferredCEA708 != eUndefinedState)
+					int overrideCfg;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_CEAPreferred,overrideCfg);
+					if (overrideCfg != -1)
 					{
-						if (gpGlobalConfig->preferredCEA708 == eTrueState)
-						{
-							format = eCLOSEDCAPTION_FORMAT_708;
-						}
-						else
-						{
-							format = eCLOSEDCAPTION_FORMAT_608;
-						}
+						format = (CCFormat)(overrideCfg & 1);
 						AAMPLOG_WARN("PrivateInstanceAAMP::%s %d CC format override present, override format to: %d", __FUNCTION__, __LINE__, format);
 					}
 					AampCCManager::GetInstance()->SetTrack(track.instreamId, format);
@@ -10050,7 +10089,7 @@ void PrivateInstanceAAMP::SetInitRampdownLimit(int limit)
 		}
 	}
 }
-
+#if 0
 /**
  *   @brief Set the session Token for player
  *
@@ -10070,7 +10109,7 @@ void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
 	}
 	return;
 }
-
+#endif
 /**
  *   @brief To check if auxiliary audio is enabled
  *
@@ -10389,7 +10428,7 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
 	}
-#endif	
+
 	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
 	{
 		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
@@ -10398,6 +10437,7 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
 	}
+#endif		
 	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
 	{
 		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;

@@ -125,12 +125,37 @@ progressReportingInterval	Interval of progress reporting(in msecs.default is 100
 licenseRetryWaitTime		License retry wait interval(in msecs.default is 500msec)
 liveOffset    			live offset time in seconds, aamp starts live playback this much time before the live point.Default 15sec
 cdvrLiveOffset    		live offset time in seconds for cdvr, aamp starts live playback this much time before the live point for inprogress cdvr.Default 30 sec
+liveTuneEvent 			Send streamplaying for live when 
+							0 -	playlist acquired 
+							1 - first fragment decrypted
+							2 - first frame visible (default)
+
+vodTuneEvent 			Send streamplaying for vod when 
+							0 -	playlist acquired 
+							1 - first fragment decrypted
+							2 - first frame visible (default)
+preferredDrm			Preferred DRM for playback  
+							0 - No DRM 
+							1 - Widevine
+							2 - PlayReady ( Default)
+							3 - Consec
+							4 - AdobeAccess
+							5 - Vanilla AES
+							6 - ClearKey
+ceaFormat				Preferred CEA option for CC. Default stream based . Override value 
+							0 - CEA 608
+							1 - CEA 708
+							
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
 mapM3U8				<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8)
 harvestPath			Specify the path where fragments has to be harvested,check folder permissions specifying the path
+networkProxy		proxy address to set for all file downloads. Default None  
+licenseProxy		proxy address to set for licese fetch . Default None
+sessionToken		SessionToken string to override from Application . Default None
+
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.

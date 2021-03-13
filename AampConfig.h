@@ -44,7 +44,7 @@
 #include "AampDefine.h"
 #include "AampLogManager.h"
 #include <cjson/cJSON.h>
-
+#include "AampDrmSystems.h"
 #ifdef IARM_MGR
 #include "host.hpp"
 #include "manager.hpp"
@@ -162,7 +162,6 @@ typedef enum
 	eAAMPConfig_NativeCCRendering,							/*** If native CC rendering to be supported */
 	eAAMPConfig_Subtec_subtitle,							/**< Enable subtec-based subtitles */
 	eAAMPConfig_WebVTTNative,								/**< Enable subtec-based subtitles */
-	eAAMPConfig_PreferredCea,								/*** To force 608/708 track selection in CC manager */
 	eAAMPConfig_AsyncTune,								 	/*** To enable Asynchronous tune */
 	eAAMPConfig_BoolMaxValue,	
 	/////////////////////////////////
@@ -202,6 +201,7 @@ typedef enum
 	eAAMPConfig_MaxABRNWBufferRampUp,							/**< Maximum ABR Buffer for Rampup*/
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
+	eAAMPConfig_CEAPreferred,									/*** To force 608/708 track selection in CC manager */
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	
@@ -234,12 +234,14 @@ typedef enum
 	eAAMPConfig_CKLicenseServerUrl,								/**< ClearKey License server URL*/
 	eAAMPConfig_PRLicenseServerUrl,								/**< PlayReady License server URL*/
 	eAAMPConfig_WVLicenseServerUrl,								/**< Widevine License server URL*/
-	eAAMPConfig_HttpProxy,										/**< HTTP proxy address*/
 	eAAMPConfig_UserAgent,										/**< Curl user-agent string */
 	eAAMPConfig_SubTitleLanguage,								/**< User preferred subtitle language*/
 	eAAMPConfig_RedirectUrl,									/**<redirects requests to tune to url1 to url2*/
 	eAAMPConfig_CustomHeader,								  	/**<custom header string data to be appended to curl request*/
 	eAAMPConfig_URIParameter,									/**<uri parameter data to be appended on download-url during curl request*/
+	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
+	eAAMPConfig_LicenseProxy,									/**<License Proxy */
+	eAAMPConfig_SessionToken,									/**<Session Token  */
 	eAAMPConfig_StringMaxValue,				
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;

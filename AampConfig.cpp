@@ -126,10 +126,10 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"min-init-cache",eAAMPConfig_VideoMinCachedSeconds,-1,-1},	
 	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
 	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
-	{"preferred-drm",eAAMPConfig_PreferredDRM,-1,-1},
+	{"preferredDrm",eAAMPConfig_PreferredDRM,0,eDRM_MAX_DRMSystems},
 	{"playreadyOutputProtection",eAAMPConfig_EnablePROutputProtection,-1,-1},
-	{"live-tune-event",eAAMPConfig_LiveTuneEvent,-1,-1},
-	{"vod-tune-event",eAAMPConfig_VODTuneEvent,-1,-1},	
+	{"liveTuneEvent",eAAMPConfig_LiveTuneEvent,-1,-1},
+	{"vodTuneEvent",eAAMPConfig_VODTuneEvent,-1,-1},	
 	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
 	{"useDashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
 	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
@@ -148,7 +148,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
 	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
 	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,-1,-1},	
-	{"http-proxy",eAAMPConfig_HttpProxy,-1,-1},
 	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
 	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
@@ -189,7 +188,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,-1,-1},
 	{"disableSubtec",eAAMPConfig_Subtec_subtitle,-1,-1},
 	{"webVttNative",eAAMPConfig_WebVTTNative,-1,-1},
-	{"preferred-cea-708",eAAMPConfig_PreferredCea,-1,-1},
+	{"ceaFormat",eAAMPConfig_CEAPreferred,-1,-1},
 	{"asyncTune",eAAMPConfig_AsyncTune,-1,-1},	
 	{"initRampdownLimit",eAAMPConfig_RampdownLimit,-1,-1},
 	{"enableSeekableRange",eAAMPConfig_EnableSeekRange,-1,-1},
@@ -204,6 +203,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"iframeLatencyLogging",eAAMPConfig_IframeLatencyLogging,-1,-1},
 	{"videoLatencyLogging",eAAMPConfig_VideoLatencyLogging,-1,-1},
 	{"manifestLatencyLogging",eAAMPConfig_ManifestLatencyLogging,-1,-1},
+	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
+	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
+	{"sessionToken",eAAMPConfig_SessionToken,-1,-1},
 //	{"<url1> <url2>",eAAMPConfig_RedirectUrl,-1,-1},
 //	{"pr-license-server-url",eAAMPConfig_PRLicenseServerUrl,-1,-1},
 //	{"wv-license-server-url",eAAMPConfig_WVLicenseServerUrl,-1,-1},
@@ -309,8 +311,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	false;
-	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
-	bAampCfgValue[eAAMPConfig_PreferredCea].value				=	false;
+	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;	
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
 	///////////////// Following for Integer Data type configs ////////////////////////////
 //	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	
@@ -326,15 +327,16 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
 	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME;
-	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value			=	0;	
+	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value			=	0;		
+	iAampCfgValue[eAAMPConfig_PreferredDRM-eAAMPConfig_IntStartValue].value				=	eDRM_PlayReady;
+	iAampCfgValue[eAAMPConfig_CEAPreferred-eAAMPConfig_IntStartValue].value			=	-1;	
+	iAampCfgValue[eAAMPConfig_LiveTuneEvent-eAAMPConfig_IntStartValue].value		=	eTUNED_EVENT_ON_GST_PLAYING;
+	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_GST_PLAYING;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
 	iAampCfgValue[eAAMPConfig_VideoMinCachedSeconds-eAAMPConfig_IntStartValue].value	=	DEFAULT_MINIMUM_CACHE_VIDEO_SECONDS;
-	iAampCfgValue[eAAMPConfig_PreferredDRM-eAAMPConfig_IntStartValue].value			=	eDRM_PlayReady;
-	iAampCfgValue[eAAMPConfig_LiveTuneEvent-eAAMPConfig_IntStartValue].value		=	eTUNED_EVENT_ON_PLAYLIST_INDEXED;
-	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_PLAYLIST_INDEXED;
 	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_NETWORK_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_LiveTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_TSB_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value		=	MAX_PTS_ERRORS_THRESHOLD;
@@ -391,11 +393,14 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	sAampCfgValue[eAAMPConfig_PRLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_RedirectUrl-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_WVLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
-	sAampCfgValue[eAAMPConfig_HttpProxy-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_SubTitleLanguage-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_CustomHeader-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_URIParameter-eAAMPConfig_StringStartValue].value		=	"";
+	sAampCfgValue[eAAMPConfig_NetworkProxy-eAAMPConfig_StringStartValue].value		=	"";
+	sAampCfgValue[eAAMPConfig_LicenseProxy-eAAMPConfig_StringStartValue].value		=	"";
+	sAampCfgValue[eAAMPConfig_SessionToken-eAAMPConfig_StringStartValue].value		=	"";
+	
 	logprintf("Completed AampConfig Constructor.....");	
 }
 
@@ -691,23 +696,27 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 			if(drmConfig)
 			{
 				cJSON *subitem = drmConfig->child;
+				DRMSystems drmType;
 				while( subitem )
 				{
 					if(strcasecmp("com.microsoft.playready",subitem->string)==0)
 					{
 						SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,(std::string)subitem->valuestring);
+						drmType = eDRM_PlayReady;
 					}
 					if(strcasecmp("com.widevine.alpha",subitem->string)==0)
 					{
 						SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,(std::string)subitem->valuestring);
+						drmType = eDRM_WideVine;
 					}
 					if(strcasecmp("org.w3.clearkey",subitem->string)==0)
 					{
 						SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,(std::string)subitem->valuestring);
+						drmType = eDRM_ClearKey;
 					}
 					if(strcasecmp("preferredKeysystem",subitem->string)==0)
 					{
-						SetConfigValue<std::string>(owner,eAAMPConfig_PreferredDRM,(std::string)subitem->valuestring);
+						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
 					}
 					subitem = subitem->next;
 				}
@@ -1238,7 +1247,8 @@ long AampConfig::GetManifestTimeoutMs()
 {
 	return (long)CONVERT_SEC_TO_MS(dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value);
 }
-
+#endif
+#if 0
 /**
  * @brief GetPreferredDRM - Get Preferred DRM type
  *
@@ -1257,7 +1267,7 @@ DRMSystems AampConfig::GetPreferredDRM()
 		prefSys = eDRM_PlayReady;       // default is playready
 	return prefSys;
 }
-#endif 
+#endif
 
 ///////////////////////////////// Private Functions ///////////////////////////////////////////
 

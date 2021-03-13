@@ -1507,7 +1507,7 @@ void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetPreferredDRM(drmType);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredDRM,(int)drmType);
 }
 
 /**
@@ -1579,7 +1579,7 @@ void PlayerInstanceAAMP::SetAlternateContents(const std::string &adBreakId, cons
 void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetNetworkProxy(proxy);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NetworkProxy ,(std::string)proxy);
 }
 
 /**
@@ -1590,7 +1590,7 @@ void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
 void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetLicenseReqProxy(licenseProxy);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LicenseProxy ,(std::string)licenseProxy);
 }
 
 /**
@@ -1601,10 +1601,10 @@ void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
-        if( stallTimeout >= 0 )
-        {
-            SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CurlStallTimeout,stallTimeout);
-        }
+	if( stallTimeout >= 0 )
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CurlStallTimeout,stallTimeout);
+	}
 }
 
 /**
@@ -1678,7 +1678,7 @@ void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
  */
 bool PlayerInstanceAAMP::GetAsyncTuneConfig()
 {
-	return aamp->GetAsyncTuneConfig();
+	return ISCONFIGSET(eAAMPConfig_AsyncTune);
 }
 
 /**
@@ -1899,7 +1899,8 @@ void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
  */
 void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
 {
-	aamp->SetTuneEventConfig(static_cast<TunedEventConfig> (tuneEventType));
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveTuneEvent,tuneEventType);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_VODTuneEvent,tuneEventType);
 }
 
 /**
@@ -2031,15 +2032,8 @@ void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
  */
 void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
-#ifdef AAMP_CC_ENABLED
-	if (format == eCLOSEDCAPTION_FORMAT_608)
-	{
-		gpGlobalConfig->preferredCEA708 = eFalseState;
-	}
-	else if (format == eCLOSEDCAPTION_FORMAT_708)
-	{
-		gpGlobalConfig->preferredCEA708 = eTrueState;
-	}
+#ifdef AAMP_CC_ENABLED	
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CEAPreferred,format);
 #endif
 }
 
@@ -2088,8 +2082,9 @@ std::string PlayerInstanceAAMP::GetThumbnails(double tStart, double tEnd)
  */
 void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 {
-	ERROR_STATE_CHECK_VOID();
-	aamp->SetSessionToken(sessionToken);
+	ERROR_STATE_CHECK_VOID();	
+	// Stored as tune setting , this will get cleared after one tune session
+	SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_SessionToken,sessionToken);
 	return;
 }
 

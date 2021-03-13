@@ -4936,9 +4936,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}	
 			}	
 
-			TunedEventConfig tunedEventConfig =  aamp->IsLive() ?
-					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
-			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
+			
+			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == aamp->GetTuneEventConfig(aamp->IsLive()))
 			{
 				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{

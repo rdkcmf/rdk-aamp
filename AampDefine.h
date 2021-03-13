@@ -51,6 +51,18 @@
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30        /**< Live offset in seconds for CDVR hot recording */
 
+
+/**
+ * @brief Enumeration for TUNED Event Configuration
+ */
+enum TunedEventConfig
+{
+        eTUNED_EVENT_ON_PLAYLIST_INDEXED,           /**< Send TUNED event after playlist indexed*/
+        eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED,    /**< Send TUNED event after first fragment decryption*/
+        eTUNED_EVENT_ON_GST_PLAYING,                /**< Send TUNED event on gstreamer's playing event*/
+        eTUNED_EVENT_MAX
+};
+
 #if 0
 
 #define AAMP_DAI_CURL_COUNT 1           /**< Download Ad manifest */

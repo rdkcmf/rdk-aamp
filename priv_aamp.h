@@ -547,6 +547,7 @@ public:
          * @return void
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
+	TunedEventConfig GetTuneEventConfig(bool isLive);
 	/**
 	 *   @brief Set playback rate before tune.
 	 *
@@ -2084,7 +2085,7 @@ public:
 	 *
 	 *   @return proxy to use for license request
 	 */
-	char * GetLicenseReqProxy() { return mLicenseProxy; };
+	const char* GetLicenseReqProxy() const;
 
 	/**
 	 *   @brief Set is Live flag

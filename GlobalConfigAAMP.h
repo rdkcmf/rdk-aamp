@@ -81,7 +81,7 @@
 //#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
-
+#if 0
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -92,7 +92,7 @@ enum TunedEventConfig
 	eTUNED_EVENT_ON_GST_PLAYING,                /**< Send TUNED event on gstreamer's playing event*/
         eTUNED_EVENT_MAX
 };
-
+#endif
 /**
  * @brief TriState enums
  */
@@ -125,8 +125,8 @@ public:
 	int gAampDemuxHLSVideoTsTrack;          /**< Demux Video track from HLS transport stream*/
 	int gAampMergeAudioTrack;               /**< Merge audio track and queued till video processed*/
 	int gThrottle;                          /**< Regulate output data flow*/
-	TunedEventConfig tunedEventConfigLive;  /**< When to send TUNED event for LIVE*/
-	TunedEventConfig tunedEventConfigVOD;   /**< When to send TUNED event for VOD*/
+	//TunedEventConfig tunedEventConfigLive;  /**< When to send TUNED event for LIVE*/
+	//TunedEventConfig tunedEventConfigVOD;   /**< When to send TUNED event for VOD*/
 	int demuxHLSVideoTsTrackTM;             /**< Demux video track from HLS transport stream track mode*/
 	int demuxedAudioBeforeVideo;            /**< Send demuxed audio before video*/
 	TriState dashParallelFragDownload;        	/**< Enabled DASH parallel download of audio & video fragments*/

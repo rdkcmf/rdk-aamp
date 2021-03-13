@@ -1479,7 +1479,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 #endif
 		}
 
-		licenseServerProxy = aampInstance->GetLicenseReqProxy();
+		licenseServerProxy = (char *)aampInstance->GetLicenseReqProxy();
 	}
 
 	return isContentMetadataAvailable;
