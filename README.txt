@@ -154,7 +154,6 @@ harvest-config=<X> Specify the value to indicate the type of file to be harveste
 	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
 	example :- if you want harvest only manifest and vide0 fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
 	harvest-config=17
-descriptiveaudiotrack	if present, audio tracks will be advertised and selected using syntax <langcode>-<role> instead of just <langcode>
 disableMidFragmentSeek=1       Disables the Mid-Fragment seek functionality in aamp.
 
 langcodepref=<X>

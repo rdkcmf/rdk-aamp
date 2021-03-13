@@ -1182,7 +1182,32 @@ public:
 	 *
 	 *   @return void
 	 */
-	 void SetPreferredLanguages(const char* languageList);
+	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL );
+
+	/**
+	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
+	 *   @param[in][optional] language, rendition, codec, bitrate, channel 
+	 *
+	 *   @return void
+	 */
+	void SetAudioTrack(std::string language="", std::string rendition="", std::string codec="", unsigned int channel=0);
+
+	/**
+	 *   @brief Set optional preferred codec list
+	 *   @param[in] codecList[] - string with array with codec list
+	 *
+	 *   @return void
+	 */
+	void SetPreferredCodec(const char *codecList);
+
+	/**
+	 *   @brief Set optional preferred rendition list
+	 *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
+	 *             from most to least preferred. Set NULL to clear current list.
+	 *
+	 *   @return void
+	 */
+	void SetPreferredRenditions(const char *renditionList);
 
 	/**
 	 *   @brief Get current preferred language list
