@@ -3243,145 +3243,47 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 ***************************************************************************/
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
-	// Priority in choosing best audio track:
-	// 1. Language selected by User: 1. exact match 2.language match (aamp->language and aamp->noExplicitUserLanguageSelection=false)
-	// 2. Preferred language: language match (aamp->preferredLanguages and aamp->noExplicitUserLanguageSelection==true)
-	// 3. Initial value of aamp->language (aamp->noExplicitUserLanguageSelection=true)
-	// 4. Default or AutoSelected audio track
-	// 5. First audio track
-	int first_audio_track = -1;
-	int first_audio_track_matching_language = -1;
-	StreamOutputFormat first_audio_track_matching_language_codec = FORMAT_INVALID;
-	int default_audio_track = -1;
-	int not_explicit_user_lang_track = -1;
-	int preferred_audio_track = -1;
-	int preferred_audio_track_index = -1;
-	int explicitUserLangSelection = -1;
-	StreamOutputFormat explicitSelectionCodec = FORMAT_INVALID;
-	StreamOutputFormat preferred_audio_track_codec = FORMAT_INVALID;
-	int current_preferred_lang_index = aamp->preferredLanguagesList.size();
-	const char *delim = strchr(aamp->language,'-');
-	size_t aamp_language_length = delim?(delim - aamp->language):strlen(aamp->language);
-
-	AAMPLOG_WARN("%s:%d MediaCount:%d current_preferred_lang_index:%d AudioTrack: language %s, noExplicitUserLanguageSelection %s, aamp->preferredLanguages \"%s\"",
-			__FUNCTION__, __LINE__, mMediaCount, current_preferred_lang_index, aamp->language, aamp->noExplicitUserLanguageSelection? "true" : "false", aamp->preferredLanguagesString.c_str());
-
+	int bestTrack = 0;
+	int bestScore = -1;
 	for( int i=0; i<mMediaCount; i++ )
 	{
 		if(this->mediaInfo[i].type == eMEDIATYPE_AUDIO)
 		{
-			if( first_audio_track < 0 )
-			{ // remember first track as a lowest-priority fallback (or) if there is only one audio track, choose the index irrespective of the config.
-				first_audio_track = i;
-			}
-
+			int score = 0;
 			if (!FilterAudioCodecBasedOnConfig(this->mediaInfo[i].audioFormat))
-			{
-				std::string lang = GetLanguageCode(i);
-				const char *track_language = lang.c_str();
-				if (strncmp(aamp->language, track_language, MAX_LANGUAGE_TAG_LENGTH) == 0)
+			{ // allowed codec
+				std::string trackLanguage = GetLanguageCode(i);
+				if( aamp->preferredLanguagesList.size() > 0 )
 				{
-					// exact match, i.e. to eng-commentary
-					if(!aamp->noExplicitUserLanguageSelection)
-					{
-						// now if multi media is available , pick the media based on the codec priority
-						if((this->mediaInfo[i].audioFormat > explicitSelectionCodec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ) || explicitUserLangSelection < 0)
-						{
-							explicitUserLangSelection = i;
-							explicitSelectionCodec = this->mediaInfo[i].audioFormat;
-							AAMPLOG_TRACE("%s:%d Found the explicit audio selection for lang:%s selected-index:%d codec:%d", __FUNCTION__, __LINE__, aamp->language, explicitUserLangSelection, explicitSelectionCodec);
-						}
-					}
-					// remember track from default aamp language
-					if(not_explicit_user_lang_track < 0)
-					{
-						not_explicit_user_lang_track = i;
-						AAMPLOG_TRACE("%s:%d Default track language:%d", __FUNCTION__, __LINE__, not_explicit_user_lang_track);
-					}
-
-					// TODO - Pick the best audio codec type if there are multiple PreferredAudio Entries for same codec ?
-					if(aamp->preferredLanguagesList.size() > 0)
-					{
-						// has not found the most preferred lang yet
-						// find language part in preferred language list
-						// but not further than current index
-						std::string langPart = std::string(lang, 0, lang.find_first_of('-'));
-						auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), langPart);
-						if(iter != aamp->preferredLanguagesList.end())
-						{
-							current_preferred_lang_index  = std::distance(aamp->preferredLanguagesList.begin(),iter);
-							if( preferred_audio_track_index < current_preferred_lang_index )
-							{
-								preferred_audio_track_index = current_preferred_lang_index;
-								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
-								preferred_audio_track = i;
-								AAMPLOG_TRACE("%s:%d 1st preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
-							}
-							else if( preferred_audio_track_index == current_preferred_lang_index && (this->mediaInfo[i].audioFormat > preferred_audio_track_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN ))
-							{
-								preferred_audio_track_codec = this->mediaInfo[i].audioFormat;
-								preferred_audio_track = i;
-								AAMPLOG_TRACE("%s:%d 2nd preferred_audio_track:%d", __FUNCTION__, __LINE__, preferred_audio_track);
-							}
-						}
+					auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
+					if(iter != aamp->preferredLanguagesList.end())
+					{ // track is in preferred language list
+						int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
+						score += (aamp->preferredLanguagesList.size()-distance)*10000; // big bonus for language match
 					}
 				}
-
-				if(first_audio_track_matching_language < 0 || (first_audio_track_matching_language && (this->mediaInfo[i].audioFormat > first_audio_track_matching_language_codec && this->mediaInfo[i].audioFormat < FORMAT_UNKNOWN )))
+				if( !aamp->preferredRenditionString.empty() &&
+				   aamp->preferredRenditionString.compare(this->mediaInfo[i].group_id)==0 )
 				{
-					int len = 0;
-					const char *delim = strchr(track_language,'-');
-					len = delim? (delim - track_language):strlen(track_language);
-					AAMPLOG_TRACE("%s:%d Inside first_audio_track_matching_language:%d audioFormat:%d len:%d aamp_language_length:%d",
-							__FUNCTION__, __LINE__, first_audio_track_matching_language, this->mediaInfo[i].audioFormat, len, aamp_language_length);
-					if( len && len == aamp_language_length && memcmp(aamp->language,track_language,len)==0 )
-					{ // remember matching language (but not role) as next-best fallback
-						first_audio_track_matching_language = i;
-						first_audio_track_matching_language_codec = this->mediaInfo[i].audioFormat;
-						AAMPLOG_TRACE("%s:%d Storing first audio :%d codec:%d", __FUNCTION__, __LINE__, first_audio_track_matching_language, first_audio_track_matching_language_codec);
-					}
+					score += 100; // medium bonus for rendition match
 				}
-				if( default_audio_track < 0 )
-				{
-					if( this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect )
-					{
-						default_audio_track = i;
-					}
+				score += this->mediaInfo[i].audioFormat; // small bonus for better codecs like ATMOS
+				
+				if( this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect )
+				{ // bonus for designated "default"
+					score += 10;
 				}
 			}
-		}
+		
+			AAMPLOG_INFO( "track#%d score = %d\n", i, score );
+			if( score > bestScore )
+			{
+				bestScore = score;
+				bestTrack = i;
+			}
+		} // next track
 	}
-
-	AAMPLOG_WARN("%s:%d noExplicitUserLangSel:%d explicitUserLangSel:%d pref_audio_track:%d first_audio_match_lang:%d not_explicit_user_lang_track:%d default_audio_track:%d first_audio_track:%d",
-			__FUNCTION__, __LINE__, aamp->noExplicitUserLanguageSelection, explicitUserLangSelection, preferred_audio_track,
-			first_audio_track_matching_language, not_explicit_user_lang_track, default_audio_track, first_audio_track);
-
-	if(!aamp->noExplicitUserLanguageSelection && explicitUserLangSelection >=0)
-	{
-		return explicitUserLangSelection;
-	}
-
-	if( !( aamp->noExplicitUserLanguageSelection && preferred_audio_track>=0 ) && first_audio_track_matching_language>=0 )
-	{
-		return first_audio_track_matching_language;
-	}
-
-	if( preferred_audio_track>=0 )
-	{
-		return preferred_audio_track;
-	}
-
-	if( not_explicit_user_lang_track>= 0)
-	{
-		return not_explicit_user_lang_track;
-	}
-
-	if( default_audio_track>=0 )
-	{
-		return default_audio_track;
-	}
-
-	return first_audio_track;
+	return bestTrack;
 }
 
 /***************************************************************************
@@ -3412,7 +3314,7 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 		{
 			if (currentAudioProfileIndex >= 0)
 			{
-				aamp->UpdateAudioLanguageSelection( GetLanguageCode(currentAudioProfileIndex).c_str() );
+				//aamp->UpdateAudioLanguageSelection( GetLanguageCode(currentAudioProfileIndex).c_str() );
 				logprintf("GetPlaylistURI : AudioTrack: language selected is %s", GetLanguageCode(currentAudioProfileIndex).c_str());
 				playlistURI = this->mediaInfo[currentAudioProfileIndex].uri;
 				mAudioTrackIndex = std::to_string(currentAudioProfileIndex);
@@ -4125,14 +4027,6 @@ std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 {
 	std::string lang = this->mediaInfo[iMedia].language;
 	lang = Getiso639map_NormalizeLanguageCode(lang);
-
-	if (gpGlobalConfig->bDescriptiveAudioTrack)
-	{
-		if (this->mediaInfo[iMedia].name)
-		{ // include NAME (role) as part of advertised language
-			lang += "-" + std::string(this->mediaInfo[iMedia].name);
-		}
-	}
 	return lang;
 }
 
@@ -4340,7 +4234,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->streamOutputFormat = FORMAT_INVALID;
 					continue;
 				}
-				else if (aamp->GetAuxiliaryAudioLanguage() == aamp->language)
+//				else if (aamp->GetAuxiliaryAudioLanguage() == aamp->language)
+				else if (aamp->GetAuxiliaryAudioLanguage() == aamp->preferredLanguagesString)
 				{
 					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d auxiliary audio same as primary audio, set forward audio flag", __FUNCTION__, __LINE__);
 					ts->enabled = false;
@@ -7458,13 +7353,14 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::ConfigureAudioTrack()
 {
-	AudioTrackInfo track = aamp->GetPreferredAudioTrack();
+	//AudioTrackInfo track = aamp->GetPreferredAudioTrack();
 	currentAudioProfileIndex = -1;
-	if (!track.index.empty())
-	{
-		currentAudioProfileIndex = std::stoi(track.index);
-	}
-	else if(mMediaCount)
+	//if (!track.index.empty())
+	//{
+	//	currentAudioProfileIndex = std::stoi(track.index);
+	//}
+	//else
+	if(mMediaCount)
 	{
 		currentAudioProfileIndex = GetBestAudioTrackByLanguage();
 	}
