@@ -461,7 +461,6 @@ void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
            if(0 == strcmp(lang, itr->language.c_str()))
            {
                index = std::distance(mAudioTracks.begin(), itr);
-               memcpy(aamp->language, itr->language.c_str(),itr->language.length());
                break;
            }
        }
@@ -580,8 +579,6 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
     thunderAccessObj.InvokeJSONRPC("setAudioTrack", param, result);
     if (result["success"].Boolean()) {
         mAudioTrackIndex = to_string(trackId);
-        memset(aamp->language, 0, sizeof(aamp->language));
-        strncpy (aamp->language, mAudioTracks[trackId].language.c_str(),mAudioTracks[trackId].language.length());
     }
     return;
 #endif
