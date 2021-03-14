@@ -202,6 +202,7 @@ typedef enum
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
 	eAAMPConfig_CEAPreferred,									/*** To force 608/708 track selection in CC manager */
+	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	

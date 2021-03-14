@@ -152,7 +152,7 @@ private:
 	pthread_mutex_t mDrmSessionLock;
 	bool curlSessionAbort;
 	bool licenseRequestAbort;
-	bool mEnableAccessAtrributes;
+	int mMaxDRMSessions;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
@@ -163,7 +163,7 @@ private:
 			double dlnow, double ultotal, double ulnow );
 public:
 
-	AampDRMSessionManager();
+	AampDRMSessionManager(int maxDrmSessions);
 
 	void initializeDrmSessions();
 

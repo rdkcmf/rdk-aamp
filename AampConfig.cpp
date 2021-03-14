@@ -160,7 +160,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
 	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
-	{"dash-max-drm-sessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
+	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
 	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplaybuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
@@ -206,6 +206,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
 	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
 	{"sessionToken",eAAMPConfig_SessionToken,-1,-1},
+	{"enableAccessAttributes",eAAMPConfig_EnableAccessAttributes,-1,-1},
+	
 //	{"<url1> <url2>",eAAMPConfig_RedirectUrl,-1,-1},
 //	{"pr-license-server-url",eAAMPConfig_PRLicenseServerUrl,-1,-1},
 //	{"wv-license-server-url",eAAMPConfig_WVLicenseServerUrl,-1,-1},
@@ -313,6 +315,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	false;
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;	
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
+	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value				=	true;
+	
 	///////////////// Following for Integer Data type configs ////////////////////////////
 //	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
@@ -332,7 +336,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_CEAPreferred-eAAMPConfig_IntStartValue].value			=	-1;	
 	iAampCfgValue[eAAMPConfig_LiveTuneEvent-eAAMPConfig_IntStartValue].value		=	eTUNED_EVENT_ON_GST_PLAYING;
 	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_GST_PLAYING;
-	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;	
+	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;		
+	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;	
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
@@ -341,7 +346,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_NETWORK_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_LiveTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_TSB_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value		=	MAX_PTS_ERRORS_THRESHOLD;
-	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;	
 	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
 	

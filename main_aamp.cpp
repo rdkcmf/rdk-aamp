@@ -1690,13 +1690,7 @@ void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SetLicenseCaching,bValue);
-	// Though its set from App , it may not get applied if other priority owners have diff setting
-	if(!ISCONFIGSET(eAAMPConfig_SetLicenseCaching))
-	{
-		// When License Caching is disabled , set the max drm session to 1
-		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxDASHDRMSessions,1);
-	}
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SetLicenseCaching,bValue);	
 }
 
 /**

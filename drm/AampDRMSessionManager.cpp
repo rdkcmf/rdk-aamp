@@ -99,15 +99,24 @@ static string getFormattedLicenseServerURL(string url)
 /**
  *  @brief      AampDRMSessionManager constructor.
  */
-AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessionContext[gpGlobalConfig->dash_MaxDRMSessions]),
-		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
+AampDRMSessionManager::AampDRMSessionManager(int maxDrmSessions) : drmSessionContexts(NULL),
+		cachedKeyIDs(NULL), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
-		,curlSessionAbort(false), mEnableAccessAtrributes(true)
-		,mDrmSessionLock(), licenseRequestAbort(false)
+		,curlSessionAbort(false)
+		,mDrmSessionLock(), licenseRequestAbort(false),mMaxDRMSessions(maxDrmSessions)
 {
-	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
-	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
+	if(maxDrmSessions < 1)
+	{
+		mMaxDRMSessions = 1; // minimum of 1 drm session needed
+	}
+	else if(maxDrmSessions > MAX_DASH_DRM_SESSIONS)
+	{
+		mMaxDRMSessions = MAX_DASH_DRM_SESSIONS; // limit to 30 
+	}
+	drmSessionContexts	= new DrmSessionContext[mMaxDRMSessions];
+	cachedKeyIDs		= new KeyID[mMaxDRMSessions];
+	AAMPLOG_INFO("AampDRMSessionManager MaxSession:%d",mMaxDRMSessions);
 	pthread_mutex_init(&mDrmSessionLock, NULL);
 }
 
@@ -129,7 +138,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
 void AampDRMSessionManager::clearSessionData()
 {
 	logprintf("%s:%d AampDRMSessionManager:: Clearing session data", __FUNCTION__, __LINE__);
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
@@ -211,7 +220,7 @@ void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
 void AampDRMSessionManager::clearFailedKeyIds()
 {
 	pthread_mutex_lock(&cachedKeyMutex);
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if(cachedKeyIDs[i].isFailedKeyId)
 		{
@@ -250,7 +259,7 @@ void AampDRMSessionManager::clearAccessToken()
  */
 void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 {
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		// Clear the session data if license key acquisition failed or if forceClearSession is true in the case of LicenseCaching is false.
 		if((cachedKeyIDs[i].isFailedKeyId || forceClearSession) && drmSessionContexts != NULL)
@@ -482,7 +491,7 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 {
 	bool ret = true;
 	pthread_mutex_lock(&cachedKeyMutex);
-	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	for (int sessionSlot = 0; sessionSlot < mMaxDRMSessions; sessionSlot++)
 	{
 		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 		{
@@ -520,7 +529,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	std::string serviceZone, streamID;
 	if(aampInstance->mIsVSS)
 	{
-		if (mEnableAccessAtrributes)
+		if (aampInstance->GetEnableAccessAtrributesFlag())
 		{
 			serviceZone = aampInstance->GetServiceZone();
 			streamID = aampInstance->GetVssVirtualStreamID();
@@ -985,7 +994,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	{
 		AampMutexHold keymutex(cachedKeyMutex);
 
-		for (; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+		for (; sessionSlot < mMaxDRMSessions; sessionSlot++)
 		{
 			if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 			{
@@ -1003,7 +1012,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			 * Avoid selecting that slot
 			 * */
 			/*select the first slot that is not primary*/
-			for (int index = 0; index < gpGlobalConfig->dash_MaxDRMSessions; index++)
+			for (int index = 0; index < mMaxDRMSessions; index++)
 			{
 				if (!cachedKeyIDs[index].isPrimaryKeyId)
 				{
@@ -1020,7 +1029,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			}
 
 			/*Check if there's an older slot */
-			for (int index= sessionSlot + 1; index< gpGlobalConfig->dash_MaxDRMSessions; index++)
+			for (int index= sessionSlot + 1; index< mMaxDRMSessions; index++)
 			{
 				if (cachedKeyIDs[index].creationTime < cachedKeyIDs[sessionSlot].creationTime)
 				{

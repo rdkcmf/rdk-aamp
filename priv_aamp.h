@@ -2469,6 +2469,12 @@ public:
 	*   @return string application name
 	*/
 	std::string GetAppName();
+	/*
+	 *	 @brief Get Access Attribute flag for VSS 
+	 *
+	 *	 @return true / false
+	 */
+	bool GetEnableAccessAtrributesFlag() const { return ISCONFIGSET_PRIV(eAAMPConfig_EnableAccessAttributes); }
 
 	/**
 	 * @brief Set profile ramp down limit.

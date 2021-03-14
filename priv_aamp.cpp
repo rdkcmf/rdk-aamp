@@ -1338,7 +1338,6 @@ static void ProcessConfigEntry(std::string cfg)
 			VALIDATE_INT("max-playlist-cache", gpGlobalConfig->gMaxPlaylistCacheSize, MAX_PLAYLIST_CACHE_SIZE);
 			logprintf("aamp max-playlist-cache: %ld", gpGlobalConfig->gMaxPlaylistCacheSize);
 		}
-		#endif
 		else if(sscanf(cfg.c_str(), "dash-max-drm-sessions=%d", &gpGlobalConfig->dash_MaxDRMSessions) == 1)
 		{
 			// Read value in KB , convert it to bytes
@@ -1350,6 +1349,7 @@ static void ProcessConfigEntry(std::string cfg)
 			}
 			logprintf("aamp dash-max-drm-sessions: %d", gpGlobalConfig->dash_MaxDRMSessions);
 		}
+		#endif		
 		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tmpValue))
 		{
 			if(tmpValue)
@@ -1982,8 +1982,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mHarvestConfig(0)
 {
 	LazilyLoadConfigIfNeeded();
+	int maxDrmSession;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-	mDRMSessionManager = new AampDRMSessionManager();
+	mDRMSessionManager = new AampDRMSessionManager(maxDrmSession);
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
@@ -5177,6 +5179,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
 	int iCacheMaxSize = 0;
+	int maxDrmSession = 1;
+	
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
@@ -5225,9 +5229,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			mAampCacheHandler = new AampCacheHandler();
 		}
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		// read the configured max drm session
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 		if(NULL == mDRMSessionManager)
 		{
-			mDRMSessionManager = new AampDRMSessionManager();
+			mDRMSessionManager = new AampDRMSessionManager(maxDrmSession);
 		}
 #endif
 	}
@@ -9624,7 +9630,6 @@ std::string PrivateInstanceAAMP::GetAppName()
 {
 	return mAppName;
 }
-
 
 /*
  *   @brief Set DRM message event
