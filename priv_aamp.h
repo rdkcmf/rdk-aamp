@@ -3003,7 +3003,7 @@ private:
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
 	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
-	std::map<DRMSystems, std::string> mLicenseServerUrls;
+	//std::map<DRMSystems, std::string> mLicenseServerUrls;
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */

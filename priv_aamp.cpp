@@ -1239,11 +1239,12 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
 			logprintf("mpd-discontinuity-handling-cdvr=%d", value);
 		}
+	#if 0
 		else if(ReadConfigStringHelper(cfg, "ck-license-server-url=", (const char**)&gpGlobalConfig->ckLicenseServerURL))
 		{
 			logprintf("Clear Key license-server-url=%s", gpGlobalConfig->ckLicenseServerURL);
 		}
-                #if 0
+
 		else if(ReadConfigStringHelper(cfg, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
 		{
 			gpGlobalConfig->licenseServerLocalOverride = true;
@@ -1965,7 +1966,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS), mUseRetuneForGSTInternalError(true)
-	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
+	//, mLicenseServerUrls()
+	, mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredAudioTrack(), mPreferredTextTrack(), midFragmentSeekCache(false), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
@@ -9801,20 +9803,22 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 {
 	std::string url;
-	auto it = mLicenseServerUrls.find(type);
-	if (it != mLicenseServerUrls.end())
+	if (type == eDRM_PlayReady)
 	{
-		url = it->second;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_PRLicenseServerUrl,url);
 	}
-	else
+	else if (type == eDRM_WideVine)
+	{	
+		GETCONFIGVALUE_PRIV(eAAMPConfig_WVLicenseServerUrl,url);
+	}
+	else if (type == eDRM_ClearKey)
 	{
-		// If url is not explicitly specified, check for generic one.
-		// This might be set in cases of VIPER AAMP/JSController bindings
-		it = mLicenseServerUrls.find(eDRM_MAX_DRMSystems);
-		if (it != mLicenseServerUrls.end())
-		{
-			url = it->second;
-		}
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CKLicenseServerUrl,url);
+	}
+
+	if(url.empty())
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseServerUrl,url);
 	}
 	return url;
 }
@@ -10400,12 +10404,11 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
 	}
-#endif	
+	
 	if (gpGlobalConfig->ckLicenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
 	}
-#if 0
 	if (gpGlobalConfig->licenseServerURL != NULL)
 	{
 		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);

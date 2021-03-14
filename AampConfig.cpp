@@ -143,8 +143,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"hlsAVTrackSyncUsingPDT",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
 	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
 	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
-	{"ck-license-server-url",eAAMPConfig_CKLicenseServerUrl,-1,-1},
-	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
 	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
 	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
 	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,-1,-1},	
@@ -206,11 +204,11 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
 	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
 	{"sessionToken",eAAMPConfig_SessionToken,-1,-1},
-	{"enableAccessAttributes",eAAMPConfig_EnableAccessAttributes,-1,-1},
-	
-//	{"<url1> <url2>",eAAMPConfig_RedirectUrl,-1,-1},
-//	{"pr-license-server-url",eAAMPConfig_PRLicenseServerUrl,-1,-1},
-//	{"wv-license-server-url",eAAMPConfig_WVLicenseServerUrl,-1,-1},
+	{"enableAccessAttributes",eAAMPConfig_EnableAccessAttributes,-1,-1},	
+	{"ckLicenseServerUrl",eAAMPConfig_CKLicenseServerUrl,-1,-1},
+	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
+	{"prLicenseServerUrl",eAAMPConfig_PRLicenseServerUrl,-1,-1},
+	{"wvLicenseServerUrl",eAAMPConfig_WVLicenseServerUrl,-1,-1},
 //	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };

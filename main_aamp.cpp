@@ -1154,15 +1154,26 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
 void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
 	ERROR_STATE_CHECK_VOID();
-        if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey || eDRM_MAX_DRMSystems)
-        {
-              SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LicenseServerUrl,std::string(url));
-        }
-        else
-        {
-              AAMPLOG_ERR("PlayerInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
-              return;
-        }
+	if (type == eDRM_PlayReady)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,std::string(url));
+	}
+	else if (type == eDRM_WideVine)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_WVLicenseServerUrl,std::string(url));
+	}
+	else if (type == eDRM_ClearKey)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CKLicenseServerUrl,std::string(url));
+	}
+	else if (type == eDRM_MAX_DRMSystems)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LicenseServerUrl,std::string(url));
+	}
+	else
+    {
+          AAMPLOG_ERR("PlayerInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
+    }
 }
 
 /**
