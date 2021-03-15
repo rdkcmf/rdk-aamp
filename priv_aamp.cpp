@@ -1559,6 +1559,7 @@ static void ProcessConfigEntry(std::string cfg)
 				mChannelOverrideMap.push_back(channelInfo);
 			}
 		}
+#if 0
 		else if (ReadConfigNumericHelper(cfg, "disableMidFragmentSeek=", value) == 1)
 		{
 			gpGlobalConfig->midFragmentSeekEnabled = (value!=1);
@@ -1569,6 +1570,7 @@ static void ProcessConfigEntry(std::string cfg)
                         gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
                         logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
                 }
+#endif
 		else if (ReadConfigNumericHelper(cfg, "persistBitRateOverSeek=", value))
 		{
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
@@ -2033,7 +2035,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_unlock(&gMutex);
 	mPendingAsyncEvents.clear();
 
-	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
+	if (ISCONFIGSET_PRIV(eAAMPConfig_WifiCurlHeader)) {
 		if (true == IsActiveStreamingInterfaceWifi()) {
 			mCustomHeaders["Wifi:"] = std::vector<std::string> { "1" };
 			activeInterfaceWifi = true;
@@ -9357,7 +9359,7 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		if(gpGlobalConfig->midFragmentSeekEnabled && position != 0 )
+		if(ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && position != 0 )
 		{
 			//RDK-26957 Adding midSeekPtsOffset to position value.
 			//Enables us to seek to the desired position in the mp4 fragment.
@@ -10083,6 +10085,7 @@ bool PrivateInstanceAAMP::IsActiveInstancePresent()
 	return !gActivePrivAAMPs.empty();
 }
 
+#if 0
 /**
  * @brief Set profile ramp down limit.
  *
@@ -10106,7 +10109,6 @@ void PrivateInstanceAAMP::SetInitRampdownLimit(int limit)
 		}
 	}
 }
-#if 0
 /**
  *   @brief Set the session Token for player
  *

@@ -2015,7 +2015,7 @@ std::string PlayerInstanceAAMP::GetTextStyle()
  */
 void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
 {
-	aamp->SetInitRampdownLimit(limit);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RampdownLimit,limit);
 }
 
 /**

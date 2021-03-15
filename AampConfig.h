@@ -138,6 +138,7 @@ typedef enum
 	eAAMPConfig_ManifestLatencyLogging,						/**< Enables Manifest download latency logging */	
 	eAAMPConfig_XREEventReporting,							/**< Enable/Disable Event reporting to XRE */
 	eAAMPConfig_EnableGstPositionQuery, 					/**<GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms*/
+	eAAMPConfig_MidFragmentSeek,                                                    /**<Enable/Disable the Mid-Fragment seek functionality in aamp.*/
 	eAAMPConfig_DisableMidFragmentSeek, 					/**<Disables the Mid-Fragment seek functionality in aamp.*/
 	eAAMPConfig_PropogateURIParam,							/**<Feature where top-level manifest URI parameters included when downloading fragments*/
 	eAAMPConfig_UseWesterosSink, 							/**<Enable/Disable player to use westeros sink based video decoding */
@@ -146,7 +147,7 @@ typedef enum
 	eAAMPConfig_RetuneForGSTError,							/**<disable retune mitigation for gst pipeline internal data stream error*/
 	eAAMPConfig_CurlHeader, 								/**<enable curl header response logging on curl errors*/
 	eAAMPConfig_MatchBaseUrl,								/**<Enable host of main url will be matched with host of base url*/
-	eAAMPConfig_DisablewifiCurlHeader,						/**<Disble wifi custom curl header inclusion*/
+	eAAMPConfig_WifiCurlHeader,
 	eAAMPConfig_EnableSeekRange,							/**<Enable seekable range reporting via progress events */
 	eAAMPConfig_DashParallelFragDownload,					/**<Enable dash fragment parallel download*/
 	eAAMPConfig_PersistentBitRateOverSeek,					/**< ABR profile persistence during Seek/Trickplay/Audio switching*/

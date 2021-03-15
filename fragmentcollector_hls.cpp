@@ -4420,10 +4420,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				int limitCount = 0;
 				int numberOfLimit = 0;
 
-				if (gpGlobalConfig->mInitRampdownLimit){
-					numberOfLimit = gpGlobalConfig->mInitRampdownLimit;
-				}
-
+				GETCONFIGVALUE(eAAMPConfig_RampdownLimit,numberOfLimit);
 				do{
 					video->FetchPlaylist();
 					limitCount++;
@@ -5225,7 +5222,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 			//Set live adusted position to seekPosition
-			if(gpGlobalConfig->midFragmentSeekEnabled)
+			if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				midSeekPtsOffset = seekPosition - video->playTarget;
 				if(midSeekPtsOffset > video->fragmentDurationSeconds/2)
@@ -5399,7 +5396,7 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 		{
 			pts += mFirstPTS;
 		}
-		if(gpGlobalConfig->midFragmentSeekEnabled)
+		if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 		{
 			pts += midSeekPtsOffset;
 		}

@@ -108,6 +108,9 @@ retuneOnBufferingTimeout 	Enable/Disable internal re-tune on buffering time-out.
 client-dai			Enable/Disable Client-DAI.Default false
 cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
 appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false
+seekMidFragment			Enable/Disable Mid-Fragment seek .Default false
+wifiCurlHeader			Enable/Disble wifi custom curl header inclusion.Default true
+
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -147,6 +150,7 @@ ceaFormat				Preferred CEA option for CC. Default stream based . Override value
 							1 - CEA 708
 							
 maxPlaylistCacheSize            Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes.Default is 3072.
+initRampdownLimit		Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time.Default is 0 (disabled).
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

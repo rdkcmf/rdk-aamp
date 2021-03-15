@@ -191,8 +191,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"initRampdownLimit",eAAMPConfig_RampdownLimit,-1,-1},
 	{"enableSeekableRange",eAAMPConfig_EnableSeekRange,-1,-1},
 	{"maxTimeoutForSourceSetup",eAAMPConfig_SourceSetupTimeout,-1,-1},
-	{"disableMidFragmentSeek",eAAMPConfig_DisableMidFragmentSeek,-1,-1},
-	{"disableWifiCurlHeader",eAAMPConfig_DisablewifiCurlHeader,-1,-1},
+	{"seekMidFragment",eAAMPConfig_MidFragmentSeek,-1,-1},
+	{"wifiCurlHeader",eAAMPConfig_WifiCurlHeader,-1,-1},
 	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
 	{"log",eAAMPConfig_LogLevel,-1,-1},
 	{"max-buffer-rampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
@@ -284,7 +284,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 #else
        bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	true;
 #endif
-        bAampCfgValue[eAAMPConfig_DisableMidFragmentSeek].value			=	true;	
+	bAampCfgValue[eAAMPConfig_MidFragmentSeek].value                        =       false;
 	bAampCfgValue[eAAMPConfig_PropogateURIParam].value			=	true;	
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked	
 	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	true;	
@@ -294,7 +294,12 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_CurlHeader].value				=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForGSTError].value			=	true;	
 	bAampCfgValue[eAAMPConfig_MatchBaseUrl].value				=	false;	
-	bAampCfgValue[eAAMPConfig_DisablewifiCurlHeader].value			=	true;	
+#ifdef IARM_MGR
+	bAampCfgValue[eAAMPConfig_WifiCurlHeader].value                         =       true;
+#else
+	bAampCfgValue[eAAMPConfig_WifiCurlHeader].value                         =       false;
+#endif
+
 	bAampCfgValue[eAAMPConfig_EnableLinearSimulator].value			=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForUnpairDiscontinuity].value		=	true;	
 	bAampCfgValue[eAAMPConfig_EnableSeekRange].value			=	false;	
@@ -335,7 +340,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_LiveTuneEvent-eAAMPConfig_IntStartValue].value		=	eTUNED_EVENT_ON_GST_PLAYING;
 	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_GST_PLAYING;
 	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;		
-	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;	
+	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;
+	iAampCfgValue[eAAMPConfig_RampdownLimit-eAAMPConfig_IntStartValue].value                =       0;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
@@ -348,7 +354,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
 	
 	iAampCfgValue[eAAMPConfig_FragmentRetryLimit-eAAMPConfig_IntStartValue].value		=	MAX_FRAGMENT_RETRY_LIMIT;	
-	iAampCfgValue[eAAMPConfig_RampdownLimit-eAAMPConfig_IntStartValue].value		=	0;	
 	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	DRM_FAIL_RETRY_COUNT;	
 	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	SEGMENT_INJECT_FAIL_RETRY_COUNT;	
 	iAampCfgValue[eAAMPConfig_InitFragmentRetryLimit-eAAMPConfig_IntStartValue].value	=	MAX_RETRY_INIT_CURL_FRAGMENT_COUNT;	

@@ -2190,7 +2190,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 								AAMPLOG_INFO("%s:%d [%s] mFirstPTS %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstPTS, firstPTS);
 								mFirstPTS = firstPTS;
 								mVideoPosRemainder = skipTime;
-								if(gpGlobalConfig->midFragmentSeekEnabled)
+								if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 								{
 									mFirstPTS += mVideoPosRemainder;
 									if(mVideoPosRemainder > fragmentDuration/2)
@@ -3928,7 +3928,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				aamp->NotifyOnEnteringLive();
 			}
 			SeekInPeriod( offsetFromStart);
-			if(!gpGlobalConfig->midFragmentSeekEnabled)
+			if(!ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
 				if(0 != mCurrentPeriodIdx)
