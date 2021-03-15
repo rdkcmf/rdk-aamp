@@ -3944,7 +3944,9 @@ void AAMPGstPlayer::SignalTrickModeDiscontinuity()
 	if (stream && (privateContext->rate != AAMP_NORMAL_PLAY_RATE) )
 	{
 		GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
-		GstStructure * eventStruct = gst_structure_new("aamp-tm-disc", "fps", G_TYPE_UINT, (guint)gpGlobalConfig->vodTrickplayFPS, NULL);
+		int  vodTrickplayFPS;
+		GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS); 
+		GstStructure * eventStruct = gst_structure_new("aamp-tm-disc", "fps", G_TYPE_UINT, (guint)vodTrickplayFPS, NULL);
 		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
 		{
 			logprintf("%s:%d Error on sending aamp-tm-disc", __FUNCTION__, __LINE__);

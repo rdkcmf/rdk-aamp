@@ -1216,7 +1216,7 @@ void PlayerInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
 void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetVODTrickplayFPS(vodTrickplayFPS);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS);
 }
 
 /**
@@ -1227,7 +1227,7 @@ void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetLinearTrickplayFPS(linearTrickplayFPS);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LinearTrickPlayFPS,linearTrickplayFPS);
 }
 
 /**
@@ -1496,7 +1496,7 @@ void PlayerInstanceAAMP::SetPlaylistTimeout(double timeout)
 void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetDownloadBufferSize(bufferSize);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxFragmentCached,bufferSize);
 }
 
 /**

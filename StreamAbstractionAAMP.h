@@ -393,6 +393,8 @@ public:
 	TrackType type;                     /**< Media type of the track*/
 	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
 	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
+	int maxCachedFragmentsPerTrack;
+
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */

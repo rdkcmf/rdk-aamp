@@ -151,6 +151,9 @@ ceaFormat				Preferred CEA option for CC. Default stream based . Override value
 							
 maxPlaylistCacheSize            Max Size of Cache to store the VOD Manifest/playlist . Size in KBytes.Default is 3072.
 initRampdownLimit		Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time.Default is 0 (disabled).
+downloadBuffer                  Fragment cache length (defaults 3 fragments)
+vodTrickPlayFps		        Specify the framerate for VOD trickplay (defaults to 4)
+linearTrickPlayFps      	Specify the framerate for Linear trickplay (defaults to 8)
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
@@ -424,8 +427,6 @@ pre-fetch-iframe-playlist=1 Pre-fetch iframe playlist for VOD. Enabled by defaul
 license-server-url=<serverUrl> URL to be used for license requests for encrypted(PR/WV) assets.
 ck-license-server-url=<serverUrl> URL to be used for Clear Key license requests.
 license-retry-wait-time=<x in milli seconds> Wait time before retrying again for DRM license, having value <=0 would disable retry.
-vod-trickplay-fps=<x> Specify the framerate for VOD trickplay (defaults to 4)
-linear-trickplay-fps=<x> Specify the framerate for Linear trickplay (defaults to 8)
 http-proxy=<SCHEME>://<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with schemes such as http, sock, https etc
 http-proxy=<USERNAME:PASSWORD>@<HTTP PROXY IP:HTTP PROXY PORT> Specify the HTTP Proxy with Proxy Authentication Credentials. Make sure to encode special characters if present in username or password (URL Encoding)
 mpd-discontinuity-handling=0	Disable discontinuity handling during MPD period transition.
@@ -435,7 +436,6 @@ audioLatencyLogging  Enable Latency logging for Audio fragment downloads
 videoLatencyLogging  Enable Latency logging for Video fragment downloads
 iframeLatencyLogging Enable Latency logging for Iframe fragment downloads
 pts-error-threshold=<X> aamp maximum number of back-to-back pts errors to be considered for triggering a retune
-fragment-cache-length=<X>  aamp fragment cache length (defaults to 3 fragments)
 iframe-default-bitrate=<X> specify bitrate threshold for selection of iframe track in non-4K assets( less than or equal to X ). Disabled in default configuration.
 iframe-default-bitrate-4k=<X> specify bitrate threshold for selection of iframe track in 4K assets( less than or equal to X ). Disabled in default configuration.
 curl-stall-timeout=<X> specify the value in seconds for a CURL download to be deemed as stalled after download freezes, 0 to disable. Disabled by default

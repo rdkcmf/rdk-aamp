@@ -1237,7 +1237,9 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 		position = position/rate;
 		AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d rate %f pMediaStreamContext->fragmentTime %f updated position %f",
 				__FUNCTION__, __LINE__, rate, pMediaStreamContext->fragmentTime, position);
-		duration = duration/rate * gpGlobalConfig->vodTrickplayFPS;
+		int  vodTrickplayFPS;
+		GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS); 
+		duration = duration/rate * vodTrickplayFPS;
 		//aamp->disContinuity();
 	}
 //	logprintf("%s:%d [%s] mFirstFragPTS %f  position %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstFragPTS[pMediaStreamContext->mediaType], position, mFirstFragPTS[pMediaStreamContext->mediaType]+position);
@@ -6835,6 +6837,10 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 {
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
 	bool isAllowNextFrag = true;
+	int  maxCachedFragmentsPerTrack;
+        GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack); 
+	int  vodTrickplayFPS;
+	GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS); 
 
 	if (waitForFreeFrag && *waitForFreeFrag && !trickPlay)
 	{
@@ -6855,7 +6861,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 	{
 		if (pMediaStreamContext->adaptationSet )
 		{
-			if((pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
+			if((pMediaStreamContext->numberOfFragmentsCached != maxCachedFragmentsPerTrack) && !(pMediaStreamContext->profileChanged))
 			{	// profile not changed and Cache not full scenario
 				if (!pMediaStreamContext->eos)
 				{
@@ -6863,7 +6869,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 					{
 						if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
 						{
-							delta = rate / gpGlobalConfig->vodTrickplayFPS;
+							delta = rate / vodTrickplayFPS;
 						}
 						double currFragTime = pMediaStreamContext->fragmentTime;
 						delta = SkipFragments(pMediaStreamContext, delta);
@@ -6911,7 +6917,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 				FetchAndInjectInitialization();
 			}
 
-			if(pMediaStreamContext->numberOfFragmentsCached != gpGlobalConfig->maxCachedFragmentsPerTrack && bCacheFullState)
+			if(pMediaStreamContext->numberOfFragmentsCached != maxCachedFragmentsPerTrack && bCacheFullState)
 			{
 				*bCacheFullState = false;
 			}

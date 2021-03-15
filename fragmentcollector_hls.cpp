@@ -4519,18 +4519,17 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			return eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR;
 		}
 
-		bool bSetStatePreparing = false;
-
+		bool bSetStatePreparing = false;		
 		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
 			trickplayMode = true;
 			if(aamp->IsTSBSupported())
 			{
-				mTrickPlayFPS = gpGlobalConfig->linearTrickplayFPS;
+				GETCONFIGVALUE(eAAMPConfig_LinearTrickPlayFPS,mTrickPlayFPS);				
 			}
 			else
 			{
-				mTrickPlayFPS = gpGlobalConfig->vodTrickplayFPS;
+				GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,mTrickPlayFPS); 				
 			}
 		}
 		else
@@ -4882,14 +4881,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 					else
 					{
-						this->trickplayMode = true;
+						this->trickplayMode = true;						
 						if(aamp->IsTSBSupported())
 						{
-							mTrickPlayFPS = gpGlobalConfig->linearTrickplayFPS;
+							GETCONFIGVALUE(eAAMPConfig_LinearTrickPlayFPS,mTrickPlayFPS);							
 						}
 						else
 						{
-							mTrickPlayFPS = gpGlobalConfig->vodTrickplayFPS;
+							GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,mTrickPlayFPS); 							
 						}
 						ts->playContext->setRate(this->rate, PlayMode_retimestamp_Ionly);
 						ts->playContext->setFrameRateForTM(mTrickPlayFPS);
@@ -5774,7 +5773,9 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 TrackState::~TrackState()
 {
 	aamp_Free(&playlist.ptr);
-	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
+	int  maxCachedFragmentsPerTrack;
+	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack); 
+	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
 	}

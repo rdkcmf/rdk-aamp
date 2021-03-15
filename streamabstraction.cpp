@@ -187,7 +187,7 @@ void MediaTrack::UpdateTSAfterInject()
 	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment.ptr);
 	memset(&cachedFragment[fragmentIdxToInject], 0, sizeof(CachedFragment));
 	fragmentIdxToInject++;
-	if (fragmentIdxToInject == gpGlobalConfig->maxCachedFragmentsPerTrack)
+	if (fragmentIdxToInject == maxCachedFragmentsPerTrack)
 	{
 		fragmentIdxToInject = 0;
 	}
@@ -231,7 +231,7 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 #endif
 	numberOfFragmentsCached++;
-	assert(numberOfFragmentsCached <= gpGlobalConfig->maxCachedFragmentsPerTrack);
+	assert(numberOfFragmentsCached <= maxCachedFragmentsPerTrack);
 	currentInitialCacheDurationSeconds += cachedFragment[fragmentIdxToFetch].duration;
 
 	if( (eTRACK_VIDEO == type)
@@ -246,7 +246,7 @@ void MediaTrack::UpdateTSAfterFetch()
 			notifyCacheCompleted = true;
 			cachingCompleted = true;
 		}
-		else if (sinkBufferIsFull && numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack)
+		else if (sinkBufferIsFull && numberOfFragmentsCached == maxCachedFragmentsPerTrack)
 		{
 			logprintf("## %s:%d [%s] Cache is Full cacheDuration %d minInitialCacheSeconds %d, aborting caching!##",
 					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
@@ -260,7 +260,7 @@ void MediaTrack::UpdateTSAfterFetch()
 		}
 	}
 	fragmentIdxToFetch++;
-	if (fragmentIdxToFetch == gpGlobalConfig->maxCachedFragmentsPerTrack)
+	if (fragmentIdxToFetch == maxCachedFragmentsPerTrack)
 	{
 		fragmentIdxToFetch = 0;
 	}
@@ -326,7 +326,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 	}
 	
 	pthread_mutex_lock(&mutex);
-	if ( ret && (numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack) )
+	if ( ret && (numberOfFragmentsCached == maxCachedFragmentsPerTrack) )
 	{
 		if (timeoutMs >= 0)
 		{
@@ -858,7 +858,7 @@ int MediaTrack::GetCurrentBandWidth()
  */
 void MediaTrack::FlushFragments()
 {
-	for (int i = 0; i < gpGlobalConfig->maxCachedFragmentsPerTrack; i++)
+	for (int i = 0; i < maxCachedFragmentsPerTrack; i++)
 	{
 		aamp_Free(&cachedFragment[i].fragment.ptr);
 		memset(&cachedFragment[i], 0, sizeof(CachedFragment));
@@ -886,10 +886,11 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
-		mSubtitleParser(NULL), refreshSubtitles(false)
+		mSubtitleParser(NULL), refreshSubtitles(false),maxCachedFragmentsPerTrack(0)
 {
-	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
-	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
+        GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack);
+	cachedFragment = new CachedFragment[maxCachedFragmentsPerTrack];
+	for(int X =0; X< maxCachedFragmentsPerTrack; ++X){
 		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
 	}
 	pthread_cond_init(&fragmentFetched, NULL);
@@ -924,7 +925,7 @@ MediaTrack::~MediaTrack()
 		logprintf("In MediaTrack destructor - fragmentInjectorThreads are still running, signalling cond variable");
 	}
 
-	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
+	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
 	}
@@ -2164,7 +2165,7 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 			}
 		}
 		cachedDuration += cachedFragment[start].duration;
-		if (++start == gpGlobalConfig->maxCachedFragmentsPerTrack)
+		if (++start == maxCachedFragmentsPerTrack)
 		{
 			start = 0;
 		}
@@ -2189,7 +2190,7 @@ void MediaTrack::OnSinkBufferFull()
 	pthread_mutex_lock(&mutex);
 	sinkBufferIsFull = true;
 	// check if cache buffer is full and caching was needed
-	if( numberOfFragmentsCached == gpGlobalConfig->maxCachedFragmentsPerTrack
+	if( numberOfFragmentsCached == maxCachedFragmentsPerTrack
 			&& (eTRACK_VIDEO == type)
 			&& aamp->IsFragmentCachingRequired()
 			&& !cachingCompleted)

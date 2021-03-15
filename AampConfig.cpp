@@ -143,8 +143,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"hlsAVTrackSyncUsingPDT",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
 	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
 	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
-	{"vod-trickplay-fps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
-	{"linear-trickplay-fps",eAAMPConfig_LiveTrickPlayFPS,-1,-1},	
+	{"vodTrickPlayFps",eAAMPConfig_VODTrickPlayFPS,-1,-1},	
+	{"linearTrickPlayFps",eAAMPConfig_LinearTrickPlayFPS,-1,-1},	
 	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,-1,-1},	
 	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
@@ -154,7 +154,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,-1,-1},
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
 	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,-1,-1},
-	{"fragment-cache-length",eAAMPConfig_MaxFragmentCached,-1,-1},
+	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,-1,-1},
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
 	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
@@ -342,13 +342,14 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;
 	iAampCfgValue[eAAMPConfig_RampdownLimit-eAAMPConfig_IntStartValue].value                =       0;
+	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value            =       DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
+
+	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_VOD_PLAYBACK_FPS;
+	iAampCfgValue[eAAMPConfig_LinearTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_LINEAR_PLAYBACK_FPS;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
-	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value		=	DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
 	iAampCfgValue[eAAMPConfig_VideoMinCachedSeconds-eAAMPConfig_IntStartValue].value	=	DEFAULT_MINIMUM_CACHE_VIDEO_SECONDS;
-	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_NETWORK_PLAYBACK_FPS;
-	iAampCfgValue[eAAMPConfig_LiveTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_TSB_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value		=	MAX_PTS_ERRORS_THRESHOLD;
 	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	

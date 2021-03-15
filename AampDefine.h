@@ -52,8 +52,9 @@
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30        /**< Live offset in seconds for CDVR hot recording */
 #define MIN_DASH_DRM_SESSIONS 3
-
-
+#define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
+#define TRICKPLAY_VOD_PLAYBACK_FPS 4            /**< Frames rate for trickplay from CDN server */
+#define TRICKPLAY_LINEAR_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -89,7 +90,6 @@ enum TunedEventConfig
 #define MINIMUM_INIT_CACHE_NOT_OVERRIDDEN  -1        /**< Initial cache size not overridden by aamp.cfg */
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
 
-#define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 #define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */

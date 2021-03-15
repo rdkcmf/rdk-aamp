@@ -185,7 +185,7 @@ typedef enum
 	eAAMPConfig_LiveTuneEvent,									/**< When to send TUNED event for LIVE*/
 	eAAMPConfig_VODTuneEvent,									/**< When to send TUNED event for VOD*/
 	eAAMPConfig_VODTrickPlayFPS,								/**< Trickplay frames per second for VOD*/
-	eAAMPConfig_LiveTrickPlayFPS,								/**< Trickplay frames per second for Linear*/
+	eAAMPConfig_LinearTrickPlayFPS,								/**< Trickplay frames per second for Linear*/
 	eAAMPConfig_ReportProgressInterval,							/**< Interval of progress reporting*/
 	eAAMPConfig_LicenseRetryWaitTime,							/**< License retry wait interval*/
 	eAAMPConfig_PTSErrorThreshold,								/**< Max number of back-to-back PTS errors within designated time*/

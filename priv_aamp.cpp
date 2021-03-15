@@ -7959,7 +7959,7 @@ void PrivateInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
 		AAMPLOG_WARN("%s Playlist PreCaching enabled with timewindow:%d",__FUNCTION__,nTimeWindow);
 	}
 }
-
+#if 0
 /**
  *   @brief Set VOD Trickplay FPS.
  *
@@ -7991,7 +7991,7 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 	gpGlobalConfig->linearTrickplayFPS = linearTrickplayFPS;
 	logprintf("PrivateInstanceAAMP::%s(), linearTrickplayFPS %d", __FUNCTION__, linearTrickplayFPS);
 }
-
+#endif
 /**
  *   @brief Set live offset [Sec]
  *
@@ -8706,6 +8706,7 @@ void PrivateInstanceAAMP::ConfigureLicenseCaching()
 	}
 }
 #endif 
+#if 0
 /**
  *   @brief To set the download buffer size value
  *
@@ -8718,7 +8719,7 @@ void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 		gpGlobalConfig->maxCachedFragmentsPerTrack = bufferSize;
 	}
 }
-
+#endif
 /**
  *   @brief To check if tune operation completed
  *
