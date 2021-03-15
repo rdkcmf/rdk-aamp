@@ -1015,6 +1015,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
 			logprintf("abr %s", gpGlobalConfig->bEnableABR ? "on" : "off");
 		}
+		else if (ReadConfigNumericHelper(cfg, "disableUnderflow=", value) == 1)
+		{
+			gpGlobalConfig->bDisableUnderflow = value;
+			logprintf("disableUnderflow %s", gpGlobalConfig->bDisableUnderflow ? "on" : "off");
+		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-life=", gpGlobalConfig->abrCacheLife) == 1)
 		{
 			gpGlobalConfig->abrCacheLife *= 1000;
