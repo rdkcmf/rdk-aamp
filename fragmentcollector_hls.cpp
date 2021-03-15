@@ -4420,7 +4420,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				int limitCount = 0;
 				int numberOfLimit = 0;
 
-				GETCONFIGVALUE(eAAMPConfig_RampdownLimit,numberOfLimit);
+				GETCONFIGVALUE(eAAMPConfig_InitRampDownLimit,numberOfLimit);
 				do{
 					video->FetchPlaylist();
 					limitCount++;

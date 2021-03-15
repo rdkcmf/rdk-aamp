@@ -154,7 +154,9 @@ initRampdownLimit		Maximum number of rampdown/retries for initial playlist retri
 downloadBuffer                  Fragment cache length (defaults 3 fragments)
 vodTrickPlayFps		        Specify the framerate for VOD trickplay (defaults to 4)
 linearTrickPlayFps      	Specify the framerate for Linear trickplay (defaults to 8)
-
+fragmentRetryLimit		Set fragment rampdown/retry limit for video fragment failure (default is -1).
+initRampdownLimit		 Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
+initFragmentRetryCount	    	Max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
@@ -488,11 +490,8 @@ curlHeader=1 enable curl header response logging on curl errors.  Default is fal
 customHeader=<customHeaderString> custom header string data to be appended to curl request
         Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
-fragmentRetryLimit=<X>	Set fragment rampdown/retry limit for video fragment failure, default is 10 (10 retry attempts including rampdown and segment skip).
-initRampdownLimit=<X> Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
 drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
-initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)

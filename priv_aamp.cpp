@@ -3703,7 +3703,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	int fragmentDurationMs = (int)(fragmentDurationSeconds*1000);/*convert to MS */
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_AUX_AUDIO)
 	{
-		maxDownloadAttempt += mInitFragmentRetryCount;
+		int InitFragmentRetryCount;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_InitFragmentRetryCount,InitFragmentRetryCount); 
+		maxDownloadAttempt += InitFragmentRetryCount;
 	}
 	else
 	{
@@ -5204,7 +5206,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	//ConfigureWesterosSink();
 	//ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
-	ConfigureInitFragTimeoutRetryCount();
+	//ConfigureInitFragTimeoutRetryCount();
 	//mABREnabled = gpGlobalConfig->bEnableABR;
 	//mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;
@@ -5912,6 +5914,8 @@ AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
 	return mAampCacheHandler;
 }
 
+
+#if 0
 /**
  * @brief Set profile ramp down limit.
  * @param limit rampdown limit
@@ -5936,7 +5940,6 @@ void PrivateInstanceAAMP::SetRampDownLimit(int limit)
 		}
 	}
 }
-#if 0
 /**
  * @brief Set minimum bitrate value.
  *
@@ -8050,7 +8053,6 @@ void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
 	AAMPLOG_WARN("%s Progress Interval configured %d",__FUNCTION__,mReportProgressInterval);		
 }
 
-#endif
 /**
  *   @brief To set the max retry attempts for init frag curl timeout failures
  *
@@ -8065,6 +8067,7 @@ void PrivateInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 	}
 }
 
+#endif
 /**
  * @brief Send stalled event to listeners
  */
@@ -8653,7 +8656,7 @@ void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
 		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
 	}
 }
-
+#if 0
 /**
  *   @brief Function to set the max retry attempts for init frag curl timeout failures
  *
@@ -8670,8 +8673,6 @@ void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
 		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
 	}
 }
-
-#if 0
 /**
  *   @brief To set Westeros sink configuration
  *
@@ -10376,11 +10377,11 @@ void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
 
 void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 {
+#if 0
 	if(gpGlobalConfig->rampdownLimit >= 0)
 	{
 		mRampDownLimit = gpGlobalConfig->rampdownLimit;
 	}
- #if 0
 	if(gpGlobalConfig->minBitrate > 0)
 	{
 		mMinBitrate = gpGlobalConfig->minBitrate;

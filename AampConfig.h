@@ -193,11 +193,11 @@ typedef enum
 	eAAMPConfig_MaxDASHDRMSessions,								/**< Max drm sessions that can be cached by AampDRMSessionManager*/
 	eAAMPConfig_Http5XXRetryWaitInterval,						/**< Wait time in milliseconds before retry for 5xx errors*/
 	eAAMPConfig_LanguageCodePreference,							/**< prefered format for normalizing language code */
-	eAAMPConfig_FragmentRetryLimit, 							/**<Set fragment rampdown/retry limit for video fragment failure*/
-	eAAMPConfig_RampdownLimit,									/**<Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time*/
+	eAAMPConfig_RampDownLimit, 							/**<Set fragment rampdown/retry limit for video fragment failure*/
+	eAAMPConfig_InitRampDownLimit,									/**<Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time*/
 	eAAMPConfig_DRMDecryptThreshold,							/**<Retry count on drm decryption failure*/
 	eAAMPConfig_SegmentInjectThreshold, 						/**<Retry count for segment injection discard/failue*/
-	eAAMPConfig_InitFragmentRetryLimit, 						/**<Retry attempts for init frag curl timeout failures*/
+	eAAMPConfig_InitFragmentRetryCount, 						/**<Retry attempts for init frag curl timeout failures*/
 	eAAMPConfig_MinABRNWBufferRampDown, 						/**< Mininum ABR Buffer for Rampdown*/
 	eAAMPConfig_MaxABRNWBufferRampUp,							/**< Maximum ABR Buffer for Rampup*/
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */

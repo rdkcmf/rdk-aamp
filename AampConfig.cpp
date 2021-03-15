@@ -177,18 +177,18 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"remove_Persistent",eAAMPConfig_RemovePersistent,-1,-1},
 	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,-1,-1},
 	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,-1,-1},
-	{"fragmentRetryLimit",eAAMPConfig_FragmentRetryLimit,-1,-1},
+	{"fragmentRetryLimit",eAAMPConfig_RampDownLimit,-1,-1},
 	{"segmentInjectFailThreshold",eAAMPConfig_SegmentInjectThreshold,-1,-1},
 	{"drmDecryptFailThreshold",eAAMPConfig_DRMDecryptThreshold,-1,-1},
 	{"minBitrate",eAAMPConfig_MinBitrate,-1,-1},
 	{"maxBitrate",eAAMPConfig_MaxBitrate,-1,-1},
-	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryLimit,-1,-1},
+	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryCount,-1,-1},
 	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,-1,-1},
 	{"disableSubtec",eAAMPConfig_Subtec_subtitle,-1,-1},
 	{"webVttNative",eAAMPConfig_WebVTTNative,-1,-1},
 	{"ceaFormat",eAAMPConfig_CEAPreferred,-1,-1},
 	{"asyncTune",eAAMPConfig_AsyncTune,-1,-1},	
-	{"initRampdownLimit",eAAMPConfig_RampdownLimit,-1,-1},
+	{"initRampdownLimit",eAAMPConfig_InitRampDownLimit,-1,-1},
 	{"enableSeekableRange",eAAMPConfig_EnableSeekRange,-1,-1},
 	{"maxTimeoutForSourceSetup",eAAMPConfig_SourceSetupTimeout,-1,-1},
 	{"seekMidFragment",eAAMPConfig_MidFragmentSeek,-1,-1},
@@ -341,11 +341,13 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_VODTuneEvent-eAAMPConfig_IntStartValue].value			=	eTUNED_EVENT_ON_GST_PLAYING;
 	iAampCfgValue[eAAMPConfig_MaxPlaylistCacheSize-eAAMPConfig_IntStartValue].value		=	MAX_PLAYLIST_CACHE_SIZE;		
 	iAampCfgValue[eAAMPConfig_MaxDASHDRMSessions-eAAMPConfig_IntStartValue].value		=	MIN_DASH_DRM_SESSIONS;
-	iAampCfgValue[eAAMPConfig_RampdownLimit-eAAMPConfig_IntStartValue].value                =       0;
+	iAampCfgValue[eAAMPConfig_InitRampDownLimit-eAAMPConfig_IntStartValue].value                =       0;
 	iAampCfgValue[eAAMPConfig_MaxFragmentCached-eAAMPConfig_IntStartValue].value            =       DEFAULT_CACHED_FRAGMENTS_PER_TRACK;
 
 	iAampCfgValue[eAAMPConfig_VODTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_VOD_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_LinearTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_LINEAR_PLAYBACK_FPS;
+	iAampCfgValue[eAAMPConfig_RampDownLimit-eAAMPConfig_IntStartValue].value		=	-1;
+	iAampCfgValue[eAAMPConfig_InitFragmentRetryCount-eAAMPConfig_IntStartValue].value	=	DEFAULT_DOWNLOAD_RETRY_COUNT;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -354,10 +356,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
 	
-	iAampCfgValue[eAAMPConfig_FragmentRetryLimit-eAAMPConfig_IntStartValue].value		=	MAX_FRAGMENT_RETRY_LIMIT;	
 	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	DRM_FAIL_RETRY_COUNT;	
 	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	SEGMENT_INJECT_FAIL_RETRY_COUNT;	
-	iAampCfgValue[eAAMPConfig_InitFragmentRetryLimit-eAAMPConfig_IntStartValue].value	=	MAX_RETRY_INIT_CURL_FRAGMENT_COUNT;	
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value	=	AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;	
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value		=	AAMP_HIGH_BUFFER_BEFORE_RAMPUP;	
 	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value 		=	SEGMENTS_DOWNLOADED_BEFORE_PLAY; 

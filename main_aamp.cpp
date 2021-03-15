@@ -441,7 +441,7 @@ void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
  */
 void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 {
-	aamp->SetRampDownLimit(limit);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RampDownLimit,limit);
 }
 
 /**
@@ -1286,7 +1286,7 @@ void PlayerInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 {
 	if(count >= 0)
 	{
-		aamp->SetInitFragTimeoutRetryCount(count);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_InitFragmentRetryCount,count);
 	}
 }
 
@@ -2015,7 +2015,7 @@ std::string PlayerInstanceAAMP::GetTextStyle()
  */
 void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
 {
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RampdownLimit,limit);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_InitRampDownLimit,limit);
 }
 
 /**

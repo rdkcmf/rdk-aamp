@@ -55,6 +55,7 @@
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
 #define TRICKPLAY_VOD_PLAYBACK_FPS 4            /**< Frames rate for trickplay from CDN server */
 #define TRICKPLAY_LINEAR_PLAYBACK_FPS 8                /**< Frames rate for trickplay from TSB */
+#define DEFAULT_DOWNLOAD_RETRY_COUNT (1)		// max download failure retry attempt count
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

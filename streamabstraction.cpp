@@ -1062,8 +1062,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(PrivateInstanceAAMP* aamp):
 	{
 		mAbrManager.setDefaultIframeBitrate(ibitrate);
 	}
-	mRampDownLimit = aamp->mRampDownLimit;
-
+	GETCONFIGVALUE(eAAMPConfig_RampDownLimit,mRampDownLimit); 
 	if (!aamp->IsNewTune())
 	{
 		mBitrateReason = (aamp->rate != AAMP_NORMAL_PLAY_RATE) ? eAAMP_BITRATE_CHANGE_BY_TRICKPLAY : eAAMP_BITRATE_CHANGE_BY_SEEK;
