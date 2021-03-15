@@ -180,6 +180,7 @@ useDashParallelFragDownload=1 used to enable/disable dash fragment parallel down
 persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
 setLicenseCaching=0 used to disable license caching, by default the value is 1 to enable the license caching.
 livePauseBehavior=<x> To set live pause behavior (x can be 0-Autoplay immediate, 1-Live immediate, 2-Autoplay defer, 3- Live defer)
+disableUnderflow=1 to disable underflow functionality, to enable underflow set the flag to 0. By default the value is 0.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
