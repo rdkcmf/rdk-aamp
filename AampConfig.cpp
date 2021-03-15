@@ -165,7 +165,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
 	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,-1,-1},
 	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
-	{"discontinuity-timeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},
+	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
 	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
@@ -372,11 +372,11 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value				=	0;
 	lAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_LongStartValue].value			= 	0;//	tobeadded;
 
-
 	///////////////// Following for double data types /////////////////////////////
 	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
 	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
 #endif
+	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;
 	lAampCfgValue[eAAMPConfig_MaxBitrate-eAAMPConfig_LongStartValue].value			= 	LONG_MAX;
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value	=	0;
@@ -387,6 +387,10 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value		=       DEFAULT_INIT_BITRATE_4K;
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value	=       0;
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value	=       0;
+
+	///////////////// Following for double data types /////////////////////////////
+	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
+	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
 
 	///////////////// Following for double data types /////////////////////////////
 	//dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
@@ -1378,9 +1382,9 @@ bool AampConfig::ValidateRange(std::string key, T& value)
 		}
 		else if (std::is_same<T, double>::value)
 		{
-			if(item.range.dValues.dMinValue != -1 && value < item.range.dValues.dMinValue)
+			if(item.range.dValues.dMinValue != 0 && value < item.range.dValues.dMinValue)
 				retval = false;
-			if(item.range.dValues.dMaxValue != -1 && value > item.range.dValues.dMaxValue)
+			if(item.range.dValues.dMaxValue != 0 && value > item.range.dValues.dMaxValue)
 				retval = false;
 		}
 	}
