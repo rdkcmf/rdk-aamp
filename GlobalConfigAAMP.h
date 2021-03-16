@@ -193,6 +193,7 @@ public:
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
 	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
+	bool isPreferredDRMConfigured;          /** Flag to check whether preferred DRM has set eigther through API or config file **/
 	bool mpdDiscontinuityHandling;          /**< Enable MPD discontinuity handling*/
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/

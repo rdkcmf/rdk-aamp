@@ -1141,6 +1141,7 @@ static void ProcessConfigEntry(std::string cfg)
 			else
 			{
 				gpGlobalConfig->isUsingLocalConfigForPreferredDRM = true;
+				gpGlobalConfig->isPreferredDRMConfigured = true;
 				gpGlobalConfig->preferredDrm = (DRMSystems) value;
 			}
 			logprintf("preferred-drm=%s", GetDrmSystemName(gpGlobalConfig->preferredDrm));
@@ -8572,6 +8573,7 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 	{
 		AAMPLOG_INFO("%s:%d set Preferred drm: %d", __FUNCTION__, __LINE__, drmType);
 		gpGlobalConfig->preferredDrm = drmType;
+		gpGlobalConfig->isPreferredDRMConfigured = true;
 	}
 }
 
