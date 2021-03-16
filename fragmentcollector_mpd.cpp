@@ -2805,6 +2805,24 @@ int StreamAbstractionAAMP_MPD::GetDrmPrefs(const std::string& uuid)
 	return 0; // Unknown DRM
 }
 
+/**
+ * @brief Get the UUID of preferred DRM.
+ * @param None
+ * @return The UUID of preferred DRM
+ */
+std::string StreamAbstractionAAMP_MPD::GetPreferredDrmUUID()
+{
+	int selectedPref = 0;
+	std::string selectedUuid = "";
+	for (auto iter : mDrmPrefs)
+	{
+		if( iter.second > selectedPref){
+			selectedPref = iter.second;
+			selectedUuid = iter.first;
+		}
+	}
+	return selectedUuid; // return uuid of preferred DRM
+}
 
 /**
  * @brief Create DRM helper from ContentProtection
@@ -2874,11 +2892,16 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 			}
 			continue;
 		}
-
+		
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
 			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
+			/** Preferred DRM configured and it is failed hhen exit here */
+			if(gpGlobalConfig->isPreferredDRMConfigured && (GetPreferredDrmUUID() == drmInfo.systemUUID)){
+				AAMPLOG_ERR("%s:%d (%s) Preffered DRM Failed to locate with UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
+				break;
+			}
 		}
 		else if (data && dataLength)
 		{
@@ -2901,6 +2924,11 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		else
 		{
 			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
+			/** Preferred DRM configured and it is failed then exit here */
+			if(gpGlobalConfig->isPreferredDRMConfigured && (GetPreferredDrmUUID() == drmInfo.systemUUID)){
+				AAMPLOG_ERR("%s:%d (%s) No PSSH data available for Preffered DRM with UUID  %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
+				break;
+			}
 		}
 
 		if (data)
@@ -3020,6 +3048,10 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 		{
 			AAMPLOG_ERR("%s:%d (%s) pthread_create failed for CreateDRMSession : error code %d, %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), errno, strerror(errno));
 		}
+	}
+	else if (!drmHelper)
+	{
+		AAMPLOG_ERR("%s:%d (%s) Failed to create DRM helper", __FUNCTION__, __LINE__, getMediaTypeName(mediaType));
 	}
 	else
 	{
@@ -7008,6 +7040,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 									// Save new period ID and create DRM helper for that
 									mEarlyAvailablePeriodIds.push_back(tempPeriod->GetId());
 									std::shared_ptr<AampDrmHelper> drmHelper = CreateDrmHelper(tempPeriod->GetAdaptationSets().at(0), eMEDIATYPE_VIDEO);
+									if (drmHelper){
 									// Identify key ID from parsed PSSH data
 									std::vector<uint8_t> keyIdArray;
 									drmHelper->getKey(keyIdArray);
@@ -7042,6 +7075,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 									else
 									{
 										AAMPLOG_WARN("%s:%d Failed to get keyID for vss common key EAP", __FUNCTION__, __LINE__);
+									}
+									}
+									else
+									{
+										AAMPLOG_ERR("%s:%d Failed to Create DRM Helper", __FUNCTION__, __LINE__);	
 									}
 								}
 							}
