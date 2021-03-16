@@ -118,6 +118,7 @@ dash-max-drm-sessions=<X> Max drm sessions that can be cached by AampDRMSessionM
 enable_setvideorectangle=0       Disable AAMP to set rectangle property to sink. Default is true(enabled).
 discontinuity-timeout=<X>  Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000
 aamp-abr-threshold-size=<X> Specify aamp abr threshold fragment size. Default value is 25000
+downloadDelay=<x> Specify the extra ms to be added in each download. Default value is 0
 harvest-count-limit=<X> Specify the limit of number of files to be harvested
 harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
 harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits
