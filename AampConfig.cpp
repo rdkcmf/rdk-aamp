@@ -209,6 +209,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
 	{"prLicenseServerUrl",eAAMPConfig_PRLicenseServerUrl,-1,-1},
 	{"wvLicenseServerUrl",eAAMPConfig_WVLicenseServerUrl,-1,-1},
+	{"stallErrorCode",eAAMPConfig_StallErrorCode,-1,-1},
+	{"stallTimeout",eAAMPConfig_StallTimeoutMS,-1,-1},
 //	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };
@@ -348,6 +350,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_LinearTrickPlayFPS-eAAMPConfig_IntStartValue].value		=	TRICKPLAY_LINEAR_PLAYBACK_FPS;
 	iAampCfgValue[eAAMPConfig_RampDownLimit-eAAMPConfig_IntStartValue].value		=	-1;
 	iAampCfgValue[eAAMPConfig_InitFragmentRetryCount-eAAMPConfig_IntStartValue].value	=	DEFAULT_DOWNLOAD_RETRY_COUNT;
+	iAampCfgValue[eAAMPConfig_StallErrorCode-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_ERROR_CODE;
+	iAampCfgValue[eAAMPConfig_StallTimeoutMS-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_DETECTION_TIMEOUT;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -364,8 +368,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
 
 
-	///////////////// Following for Long Data type config ////////////////////////////
-	lAampCfgValue[eAAMPConfig_PlaylistTimeout-eAAMPConfig_LongStartValue].value			=	CURL_FRAGMENT_DL_TIMEOUT;
+	///////////////// Following for Long Data type config ////////////////////////////	
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
 	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value		=	DEFAULT_DISCONTINUITY_TIMEOUT;
@@ -391,10 +394,9 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	///////////////// Following for double data types /////////////////////////////
 	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
 	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
-
-	///////////////// Following for double data types /////////////////////////////
-	//dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
-	//dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
+	dAampCfgValue[eAAMPConfig_PlaylistTimeout-eAAMPConfig_DoubleStartValue].value     	=       0;
+	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
+	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 
 	///////////////// Following for String type config ////////////////////////////
 	sAampCfgValue[eAAMPConfig_MapMPD-eAAMPConfig_StringStartValue].value			=	"";

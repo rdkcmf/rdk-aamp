@@ -1822,7 +1822,9 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isSt
 		MediaTrack* mediatrack = GetMediaTrack(eTRACK_VIDEO);
 		if(mediatrack != NULL)
 		{
-			if (!mNetworkDownDetected && (timeElapsedSinceLastFragment > gpGlobalConfig->stallTimeoutInMS) && mediatrack->numberOfFragmentsCached == 0)
+			int stalltimeout;
+			GETCONFIGVALUE(eAAMPConfig_StallTimeoutMS,stalltimeout);
+			if (!mNetworkDownDetected && (timeElapsedSinceLastFragment > stalltimeout) && mediatrack->numberOfFragmentsCached == 0)
 			{
 				AAMPLOG_INFO("StreamAbstractionAAMP::%s() Didn't download a new fragment for a long time(%f) and cache empty!", __FUNCTION__, timeElapsedSinceLastFragment);
 				mIsPlaybackStalled = true;

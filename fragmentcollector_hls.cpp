@@ -1038,23 +1038,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				{ // i.e. "TIME-OFFSET=2.336, PRECISE=YES" - specifies the preferred point in the video to start playback; not yet supported
 
 					// check if App has not configured any liveoffset
-					if(!aamp->mNewLiveOffsetflag)
 					{
 						double offsetval = ParseXStartTimeOffset(ptr);
 						if (offsetval != 0)
 						{
 							if(!aamp->IsLiveAdjustRequired())
 							{
-								// if aamp cfg offset is not set or App has not set the value  , then configure
-								if(gpGlobalConfig->cdvrliveOffset == -1)
-								aamp->mLiveOffset = abs(offsetval);
+								SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_CDVRLiveOffset,(double)abs(offsetval));
 							}
 							else
 							{
-								// if aamp cfg offset is not set or App has not set the value , then configure
-								if(gpGlobalConfig->liveOffset == -1)
-								aamp->mLiveOffset = abs(offsetval);
+								SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,(double)abs(offsetval));
 							}
+							aamp->UpdateLiveOffset();
 							logprintf("%s WARNING:found EXT-X-START in MainManifest Offset:%f  liveOffset:%f",__FUNCTION__,offsetval,aamp->mLiveOffset);
 						}
 					}
@@ -2837,22 +2833,19 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					// X-Start can have two attributes . Time-Offset & Precise .
 					// check if App has not configured any liveoffset
-					if(!aamp->mNewLiveOffsetflag)
 					{
-					 	double offsetval = ParseXStartTimeOffset(ptr);
-		                             	if(!aamp->IsLiveAdjustRequired())
-         					{
-                                                      	// if aamp cfg offset is not set or App has not set the value  , then configure
-                                                       	if(gpGlobalConfig->cdvrliveOffset == -1)
-                                                                SetXStartTimeOffset(offsetval);
-                                                }
-                                                else
-                                                {
-                                                        // if aamp cfg offset is not set or App has not set the value , then configure
-                                                        if(gpGlobalConfig->liveOffset == -1)
-								SetXStartTimeOffset(offsetval);
-                                                }
-                                        }
+						double offsetval = ParseXStartTimeOffset(ptr);
+						if(!aamp->IsLiveAdjustRequired())
+						{
+							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_CDVRLiveOffset,offsetval);
+						}
+						else
+						{
+							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,offsetval);
+						}
+						aamp->UpdateLiveOffset();
+						SetXStartTimeOffset(aamp->mLiveOffset);
+					}
 				}
 				else if (startswith(&ptr,"-X-ENDLIST"))
 				{

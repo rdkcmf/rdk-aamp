@@ -2640,7 +2640,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		{
 			if (tuneFailure == AAMP_TUNE_PLAYBACK_STALLED)
 			{ // allow config override for stall detection error code
-				code = gpGlobalConfig->stallErrorCode;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_StallErrorCode,code);
 			}
 			else
 			{
@@ -5201,10 +5201,13 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,tmpVar);
 	mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
-
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaylistTimeout,tmpVar);
+	mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
+	if(mPlaylistTimeoutMs <= 0) mPlaylistTimeoutMs = mManifestTimeoutMs;
+	
 	//ConfigureNetworkTimeout();
 	//ConfigureManifestTimeout();
-	ConfigurePlaylistTimeout();
+	//ConfigurePlaylistTimeout();
 	//ConfigureParallelFetch();
 	ConfigureDashParallelFragmentDownload();
 	//ConfigureBulkTimedMetadata();
@@ -5336,48 +5339,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mIscDVR = true;
 	}
 
+	UpdateLiveOffset();
 #ifdef AAMP_CC_ENABLED
 	if (eMEDIAFORMAT_OTA == mMediaFormat)
 	{
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(false);
 		}
 	}
 #endif
-	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
-	{
-		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
-		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec
-
-		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
-		if(gpGlobalConfig->cdvrliveOffset != -1)
-		{
-			// if aamp cfg has override that will be set 		
-			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
-		}
-                else if(!mNewLiveOffsetflag)
-		{
-			// if App has not set the value , set it to default		
-			mLiveOffset	=	AAMP_CDVR_LIVE_OFFSET;
-		}
-	}
-	else
-	{
-		// will be used only for live
-		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
-		if(gpGlobalConfig->liveOffset != -1)
-		{
-			// if aamp cfg has override that will be set 
-			mLiveOffset	=	gpGlobalConfig->liveOffset;
-		}
-                else if(!mNewLiveOffsetflag)
-		{
-			// if App has not set the value , set it to default 
-			mLiveOffset	=	AAMP_LIVE_OFFSET;
-		}
-	}
-
+	
 	if(bFirstAttempt)
 	{
 		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
@@ -8003,7 +7975,7 @@ void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 	gpGlobalConfig->linearTrickplayFPS = linearTrickplayFPS;
 	logprintf("PrivateInstanceAAMP::%s(), linearTrickplayFPS %d", __FUNCTION__, linearTrickplayFPS);
 }
-#endif
+
 /**
  *   @brief Set live offset [Sec]
  *
@@ -8022,7 +7994,23 @@ void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
 		logprintf("PrivateInstanceAAMP::%s(), liveoffset beyond limits %d", __FUNCTION__, liveoffset);
 	}
 }
-
+#endif
+/**
+ *   @brief UpdateLiveOffset live offset [Sec]
+ *
+ */
+void PrivateInstanceAAMP::UpdateLiveOffset()
+{
+	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CDVRLiveOffset,mLiveOffset);
+	}
+	else
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveOffset,mLiveOffset);
+	}
+}
+#if 0
 /**
  *   @brief To set the error code to be used for playback stalled error.
  *
@@ -8043,7 +8031,7 @@ void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
 	gpGlobalConfig->stallTimeoutInMS = timeoutMS;
 }
 
-#if 0
+
 /**
  *   @brief To set the Playback Position reporting interval.
  *
@@ -8093,7 +8081,9 @@ void PrivateInstanceAAMP::SendStalledErrorEvent(bool isStalledBeforePlay)
 	}
 	else if (!isStalledBeforePlay)
 	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", gpGlobalConfig->stallTimeoutInMS);
+		int stalltimeout;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_StallTimeoutMS,stalltimeout);
+		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", stalltimeout);
 		errorDesc = description;
 	}
 
@@ -8429,7 +8419,7 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 #ifdef AAMP_CC_ENABLED
 	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
 	{
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(true);
 		}
@@ -8508,7 +8498,7 @@ void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
 	}
 }
-#endif
+
 /**
  *   @brief To set the playlist download timeout value.
  *
@@ -8522,7 +8512,7 @@ void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
 		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
 	}
 }
-#if 0
+
 /**
  *   @brief To set the manifest timeout as per priority
  *
@@ -8538,7 +8528,7 @@ void PrivateInstanceAAMP::ConfigureManifestTimeout()
 		mManifestTimeoutMs = mNetworkTimeoutMs;
 	}
 }
-#endif
+
 
 /**
  *   @brief To set the playlist timeout as per priority
@@ -8555,6 +8545,7 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
                 mPlaylistTimeoutMs = mNetworkTimeoutMs;
         }
 }
+#endif
 
 /**
  *   @brief To set DASH Parallel Download configuration for fragments
@@ -10345,7 +10336,7 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
 #ifdef AAMP_CC_ENABLED
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(false);
 		}

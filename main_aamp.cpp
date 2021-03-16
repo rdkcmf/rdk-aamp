@@ -1238,7 +1238,7 @@ void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetLiveOffset(liveoffset);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset,(double)liveoffset);
 }
 
 /**
@@ -1249,7 +1249,7 @@ void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetStallErrorCode(errorCode);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StallErrorCode,errorCode);	
 }
 
 /**
@@ -1260,7 +1260,7 @@ void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetStallTimeout(timeoutMS);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StallTimeoutMS,timeoutMS);	
 }
 
 /**
@@ -1484,8 +1484,8 @@ void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
  */
 void PlayerInstanceAAMP::SetPlaylistTimeout(double timeout)
 {
-        ERROR_STATE_CHECK_VOID();
-        aamp->SetPlaylistTimeout(timeout);
+        ERROR_STATE_CHECK_VOID();        
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistTimeout,timeout);
 }
 
 /**

@@ -2867,7 +2867,11 @@ public:
 	 *   @return bool - true if enabled
 	 */
 	bool IsBitRatePersistedOverSeek() { return ISCONFIGSET_PRIV(eAAMPConfig_PersistentBitRateOverSeek); }
-
+	/**
+	 *	 @brief UpdateLiveOffset live offset [Sec]
+	 *
+	 */
+	void UpdateLiveOffset();
 private:
 
 	/**

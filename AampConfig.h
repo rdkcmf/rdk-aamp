@@ -204,10 +204,11 @@ typedef enum
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
 	eAAMPConfig_CEAPreferred,									/*** To force 608/708 track selection in CC manager */
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
+	eAAMPConfig_StallErrorCode,
+	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	
-	eAAMPConfig_PlaylistTimeout,								/**<playlist download time out in ms*/
 	eAAMPConfig_DefaultBitrate,									/**< Default bitrate*/
 	eAAMPConfig_DefaultBitrate4K,								/**< Default 4K bitrate*/
 	eAAMPConfig_IFrameDefaultBitrate,							/**< Default bitrate for iframe track selection for non-4K assets*/
@@ -222,8 +223,9 @@ typedef enum
 	eAAMPConfig_LongMaxValue,
 	////////////////////////////////////
 	eAAMPConfig_DoubleStartValue,
-	eAAMPConfig_NetworkTimeout,									/**< Fragment download timeout in ms*/
-	eAAMPConfig_ManifestTimeout,								/**< Manifest download timeout in ms*/
+	eAAMPConfig_NetworkTimeout,									/**< Fragment download timeout in sec*/
+	eAAMPConfig_ManifestTimeout,								/**< Manifest download timeout in sec*/
+	eAAMPConfig_PlaylistTimeout,								/**<playlist download time out in sec*/
 	eAAMPConfig_LiveOffset, 									/**< Current LIVE offset*/
 	eAAMPConfig_CDVRLiveOffset, 								/**< CDVR LIVE offset*/
 	eAAMPConfig_DoubleMaxValue,
