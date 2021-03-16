@@ -206,6 +206,7 @@ typedef enum
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_StallErrorCode,
 	eAAMPConfig_StallTimeoutMS,
+	eAAMPConfig_InitialBuffer,
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	

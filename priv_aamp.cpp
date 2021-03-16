@@ -4662,11 +4662,12 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				mWesterosSinkEnabled = true;
 			}
 		}
-
+		#if 0
 		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
 			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
+		#endif
 	}
 }
 
@@ -5100,7 +5101,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 		// Enable fragment initial caching. Retune not supported
 		if(tuneType != eTUNETYPE_RETUNE
-			&& mMinInitialCacheSeconds > 0
+			&& GetInitialBufferDuration() > 0
 			&& rate == AAMP_NORMAL_PLAY_RATE
 			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
 		{
@@ -9664,7 +9665,7 @@ void PrivateInstanceAAMP::individualization(const std::string& payload)
 	DrmMessageEventPtr event = std::make_shared<DrmMessageEvent>(payload);
 	SendEventAsync(event);
 }
-
+#if 0
 /**
  *   @brief Set initial buffer duration in seconds
  *
@@ -9674,6 +9675,7 @@ void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
 	mMinInitialCacheSeconds = durationSec;
 }
+#endif
 
 /**
  *   @brief Get current initial buffer duration in seconds
@@ -9682,6 +9684,7 @@ void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
+	GETCONFIGVALUE_PRIV(eAAMPConfig_InitialBuffer,mMinInitialCacheSeconds);
 	return mMinInitialCacheSeconds;
 }
 

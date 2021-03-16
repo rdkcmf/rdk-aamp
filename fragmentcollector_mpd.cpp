@@ -2205,7 +2205,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 											{
 												// To prevent underflow when seeked to end of fragment.
 												// Added +1 to ensure next fragment is fetched.
-												aamp->SetInitialBufferDuration((int)fragmentDuration + 1);
+												SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_InitialBuffer,(int)fragmentDuration + 1);
 												aamp->midFragmentSeekCache = true;
 											}
 										}
@@ -2213,7 +2213,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 									else if(aamp->midFragmentSeekCache)
 									{
 										// Resetting fragment cache when seeked to first half of the fragment duration.
-										aamp->SetInitialBufferDuration(0);
+										SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_InitialBuffer,0);
 										aamp->midFragmentSeekCache = false;
 									}
 

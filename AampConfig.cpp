@@ -211,6 +211,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"wvLicenseServerUrl",eAAMPConfig_WVLicenseServerUrl,-1,-1},
 	{"stallErrorCode",eAAMPConfig_StallErrorCode,-1,-1},
 	{"stallTimeout",eAAMPConfig_StallTimeoutMS,-1,-1},
+	{"initialBuffer",eAAMPConfig_InitialBuffer,-1,-1},
 //	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };
@@ -354,6 +355,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_StallTimeoutMS-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_DETECTION_TIMEOUT;	
 	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;
+	iAampCfgValue[eAAMPConfig_InitialBuffer-eAAMPConfig_IntStartValue].value               =       DEFAULT_MINIMUM_INIT_CACHE_SECONDS;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -1100,7 +1102,16 @@ void AampConfig::ReadOperatorConfiguration()
 		}
 		
 	}
-
+	const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
+	if(env_aamp_min_init_cache)
+	{
+		int minInitCache = 0;
+		if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache))
+		{
+			logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
+			SetConfigValue<int>(AAMP_OPERATOR_SETTING, eAAMPConfig_InitialBuffer , minInitCache);
+		}
+	}
 	ShowOperatorSetConfiguration();
 }
 

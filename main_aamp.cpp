@@ -420,10 +420,7 @@ void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
 	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
-	if(gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
-	{
-		aamp->SetInitialBufferDuration(durationSec);
-	}
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_InitialBuffer,durationSec);
 }
 
 /**
