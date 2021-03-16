@@ -7296,15 +7296,16 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 				}
 
 				double lastPrdOffset = mBasePeriodOffset;
+				bool parallelDnld = ISCONFIGSET(eAAMPConfig_DashParallelFragDownload) ;
 				// playback
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
-					bool bCacheFullState = true;
+					bool bCacheFullState = true;					
 					std::thread *parallelDownload[AAMP_TRACK_COUNT];
 
 					for (int trackIdx = (mNumberOfTracks - 1); trackIdx >= 0; trackIdx--)
 					{
-						if (aamp->mDashParallelFragDownload && trackIdx > 0) // (trackIdx > 0) indicates video/iframe/audio-only has to be downloaded in sync mode from this FetcherLoop().
+						if (parallelDnld && trackIdx > 0) // (trackIdx > 0) indicates video/iframe/audio-only has to be downloaded in sync mode from this FetcherLoop().
 						{
 							// Download the audio & subtitle fragments in a separate parallel thread.
 							parallelDownload[trackIdx] = new std::thread(
@@ -7324,7 +7325,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						}
 					}
 
-					for (int trackIdx = (mNumberOfTracks - 1); (aamp->mDashParallelFragDownload && trackIdx >= 0); trackIdx--)
+					for (int trackIdx = (mNumberOfTracks - 1); (parallelDnld && trackIdx >= 0); trackIdx--)
 					{
 						// Join the parallel threads.
 						if (parallelDownload[trackIdx])

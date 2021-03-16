@@ -5193,6 +5193,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
@@ -5209,13 +5210,13 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	//ConfigureManifestTimeout();
 	//ConfigurePlaylistTimeout();
 	//ConfigureParallelFetch();
-	ConfigureDashParallelFragmentDownload();
+	//ConfigureDashParallelFragmentDownload();
 	//ConfigureBulkTimedMetadata();
 	//ConfigureRetuneForUnpairedDiscontinuity();
 	//ConfigureRetuneForGSTInternalError();
 	//ConfigureWesterosSink();
 	//ConfigureLicenseCaching();
-	ConfigurePreCachePlaylist();
+	//ConfigurePreCachePlaylist();
 	//ConfigureInitFragTimeoutRetryCount();
 	//mABREnabled = gpGlobalConfig->bEnableABR;
 	//mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
@@ -7929,7 +7930,7 @@ void PrivateInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 {
 	mUseAvgBandwidthForABR = useAvgBW;
 }
-#endif
+
 /**
  *   @brief Set Max TimeWindow for PreCaching Playlist
  *
@@ -7943,7 +7944,7 @@ void PrivateInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
 		AAMPLOG_WARN("%s Playlist PreCaching enabled with timewindow:%d",__FUNCTION__,nTimeWindow);
 	}
 }
-#if 0
+
 /**
  *   @brief Set VOD Trickplay FPS.
  *
@@ -8547,6 +8548,8 @@ void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
 }
 #endif
 
+#if 0
+
 /**
  *   @brief To set DASH Parallel Download configuration for fragments
  *
@@ -8561,7 +8564,7 @@ void PrivateInstanceAAMP::ConfigureDashParallelFragmentDownload()
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d DASH Paraller Frag DL Config [%d]", __FUNCTION__, __LINE__, mDashParallelFragDownload);
 }
 
-#if 0
+
 /**
  *   @brief To set Parallel Download configuration
  *
@@ -8644,6 +8647,8 @@ void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
 }
 #endif
 
+#if 0
+
 /**
  *   @brief Function to Configure PreCache Playlist functionality
  *
@@ -8655,7 +8660,7 @@ void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
 		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
 	}
 }
-#if 0
+
 /**
  *   @brief Function to set the max retry attempts for init frag curl timeout failures
  *

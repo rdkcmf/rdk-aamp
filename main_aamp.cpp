@@ -1205,7 +1205,7 @@ void PlayerInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 void PlayerInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
 {
 	ERROR_STATE_CHECK_VOID();
-	aamp->SetPreCacheTimeWindow(nTimeWindow);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreCachePlaylistTime,nTimeWindow);
 }
 
 /**

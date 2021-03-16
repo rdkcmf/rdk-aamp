@@ -131,7 +131,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"liveTuneEvent",eAAMPConfig_LiveTuneEvent,-1,-1},
 	{"vodTuneEvent",eAAMPConfig_VODTuneEvent,-1,-1},	
 	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
-	{"useDashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
+	{"dashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
 	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
 	{"bulkTimedMetadata",eAAMPConfig_BulkTimedMetaReport,-1,-1},
 	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,-1,-1},
@@ -161,7 +161,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
 	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
-	{"preplaybuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
+	{"preplayBuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
 	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,-1,-1},
 	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,-1,-1},
@@ -351,7 +351,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_RampDownLimit-eAAMPConfig_IntStartValue].value		=	-1;
 	iAampCfgValue[eAAMPConfig_InitFragmentRetryCount-eAAMPConfig_IntStartValue].value	=	DEFAULT_DOWNLOAD_RETRY_COUNT;
 	iAampCfgValue[eAAMPConfig_StallErrorCode-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_ERROR_CODE;
-	iAampCfgValue[eAAMPConfig_StallTimeoutMS-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_DETECTION_TIMEOUT;
+	iAampCfgValue[eAAMPConfig_StallTimeoutMS-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_DETECTION_TIMEOUT;	
+	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -365,7 +366,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value	=	AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;	
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value		=	AAMP_HIGH_BUFFER_BEFORE_RAMPUP;	
 	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value 		=	SEGMENTS_DOWNLOADED_BEFORE_PLAY; 
-	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
 
 
 	///////////////// Following for Long Data type config ////////////////////////////	
