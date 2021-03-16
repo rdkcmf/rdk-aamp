@@ -4099,7 +4099,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 {
 	std::string lang = this->mediaInfo[iMedia].language;
-	lang = Getiso639map_NormalizeLanguageCode(lang);
+	lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
 
 	if(ISCONFIGSET(eAAMPConfig_DescriptiveAudioTrack))
 	{

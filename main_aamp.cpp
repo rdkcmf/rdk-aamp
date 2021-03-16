@@ -455,7 +455,7 @@ void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, bool useRole)
 {
 	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
-	gpGlobalConfig->langCodePreference = preferredFormat;
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LanguageCodePreference,(int)preferredFormat);
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DescriptiveAudioTrack,useRole);
 }
 

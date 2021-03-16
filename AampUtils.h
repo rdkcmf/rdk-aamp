@@ -149,9 +149,10 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 /**
  * @brief To get the preferred iso639mapped language code
  * @param[in] lang
+ * @param[LangCodePreference] preferFormat
  * @retval[out] preferred iso639 mapped language.
  */
-std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang, LangCodePreference preferFormat );
 
 /**
  * @brief To get the timespec

@@ -491,6 +491,11 @@ public:
 	 * @return void
 	 */
 	void SendMessageOverPipe(const char *str,int nToWrite);
+	/**
+	*   @brief Get Language preference from aamp.cfg.
+	*   @return enum type
+	*/
+	LangCodePreference GetLangCodePreference();
 
 	/**
 	 * @brief Establish PIPE session with Receiver

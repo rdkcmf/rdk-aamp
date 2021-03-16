@@ -157,6 +157,8 @@ linearTrickPlayFps      	Specify the framerate for Linear trickplay (defaults to
 fragmentRetryLimit		Set fragment rampdown/retry limit for video fragment failure (default is -1).
 initRampdownLimit		 Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
 initFragmentRetryCount	    	Max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+langCodePreference		prefered format for normalizing language code.Default is 0.
+
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)

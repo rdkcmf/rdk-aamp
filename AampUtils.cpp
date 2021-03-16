@@ -725,13 +725,13 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
         return response;
 }
 
-std::string Getiso639map_NormalizeLanguageCode(std::string  lang )
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang,LangCodePreference preferLangFormat )
 {
-        if (GetLangCodePreference() != ISO639_NO_LANGCODE_PREFERENCE)
+        if (preferLangFormat != ISO639_NO_LANGCODE_PREFERENCE)
         {
                 char lang2[MAX_LANGUAGE_TAG_LENGTH];
                 strcpy(lang2, lang.c_str());
-                iso639map_NormalizeLanguageCode(lang2, GetLangCodePreference());
+                iso639map_NormalizeLanguageCode(lang2, preferLangFormat);
                 lang = lang2;
         }
 	return lang;

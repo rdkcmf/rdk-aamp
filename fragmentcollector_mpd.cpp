@@ -4995,7 +4995,7 @@ std::string StreamAbstractionAAMP_MPD::GetLanguageForAdaptationSet(IAdaptationSe
 		lang = aamp->language;
 	}
 		
-	lang = Getiso639map_NormalizeLanguageCode(lang);
+	lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
 
 	if (ISCONFIGSET(eAAMPConfig_DescriptiveAudioTrack) && IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
 	{
@@ -5603,7 +5603,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 									delim = value.find(';');
 								}
 								ParseCCStreamIDAndLang(value, id, lang);
-								lang = Getiso639map_NormalizeLanguageCode(lang);
+								lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
 								AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() %d CC Track - lang:%s, isCC:1, group:%s, id:%s",
 									__FUNCTION__, __LINE__, lang.c_str(), schemeId.c_str(), id.c_str());
 								tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty));

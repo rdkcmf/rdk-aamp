@@ -212,14 +212,14 @@ public:
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
-	int langCodePreference; /**<prefered format for normalizing language code */
+	//int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
 	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
-	#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
+	//#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
 	int mInitRampdownLimit; /** Maximum number of limits for ramdown and try download if playlist download failed at start time before reporting failure **/
 	//long minBitrate;		/*** Minimum bandwidth of playback profile */

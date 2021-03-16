@@ -1052,6 +1052,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bDescriptiveAudioTrack  = true;
 			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
 		}
+		#if 0
 		else if( ReadConfigNumericHelper( cfg, "langcodepref=", value) == 1 )
 		{
 			const char *langCodePrefName[] =
@@ -1067,6 +1068,7 @@ static void ProcessConfigEntry(std::string cfg)
 				logprintf("langcodepref:%s\n", langCodePrefName[gpGlobalConfig->langCodePreference] );
 			}
 		}
+		#endif
 		else if (cfg.compare("appSrcForProgressivePlayback") == 0)
 		{
 			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
@@ -5459,6 +5461,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		this->mTraceUUID = "unknown";
 	}
+}
+/**
+         *   @brief Get Language preference from aamp.cfg.
+         *
+         *   @return enum type
+         */
+LangCodePreference PrivateInstanceAAMP::GetLangCodePreference()
+{
+	int langCodePreference;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_LanguageCodePreference,langCodePreference);
+	return (LangCodePreference)langCodePreference;
 }
 
 /**

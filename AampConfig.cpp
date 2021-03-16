@@ -111,7 +111,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
 	{"decoderUnavailableStrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
 	{"descriptiveAudioTrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
-	{"langcodepref",eAAMPConfig_LanguageCodePreference,-1,-1},
+	{"langCodePreference",eAAMPConfig_LanguageCodePreference,-1,-1},
 	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,-1,-1},
 	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
 	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,-1,-1},
@@ -353,6 +353,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	iAampCfgValue[eAAMPConfig_StallErrorCode-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_ERROR_CODE;
 	iAampCfgValue[eAAMPConfig_StallTimeoutMS-eAAMPConfig_IntStartValue].value		=	DEFAULT_STALL_DETECTION_TIMEOUT;	
 	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
+	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
