@@ -5181,7 +5181,7 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet)
 			}
 			else
 			{
-				logprintf("%s:%d - skipping name %s", __FUNCTION__, __LINE__, xml->GetName().c_str());
+				AAMPLOG_TRACE("%s:%d - skipping name %s", __FUNCTION__, __LINE__, xml->GetName().c_str());
 			}
 		}
 		else
