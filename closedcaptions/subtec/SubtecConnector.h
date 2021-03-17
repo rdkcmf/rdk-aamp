@@ -352,9 +352,11 @@ typedef enum {
 typedef int mrcc_Error;
 namespace subtecConnector
 {
-    mrcc_Error initialize();
     void resetChannel();
     void close();
+
+    mrcc_Error initHal();
+    mrcc_Error initPacketSender();
 
 namespace ccMgrAPI
 {

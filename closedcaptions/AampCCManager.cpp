@@ -396,7 +396,11 @@ static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
  * @return int - 0 on success, -1 on failure
  */
 int AampCCManagerBase::SetStyle(const std::string &options)
+try
 {
+	EnsureRendererCommsInitialized();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d", __FUNCTION__, __LINE__);
+
 	int ret = -1;
 	/*
 	 * Values received from JS PP:
@@ -424,6 +428,7 @@ int AampCCManagerBase::SetStyle(const std::string &options)
 	if (!options.empty())
 	{
 		AampJsonObject inputOptions(options);
+
 		std::string optionValue;
 		ret = 0;
 		mOptions = options;
@@ -533,6 +538,12 @@ int AampCCManagerBase::SetStyle(const std::string &options)
 
 	return ret;
 }
+catch(const AampJsonParseException& e)
+{
+	AAMPLOG_ERR("AampCCManagerBase::%s:%d AampJsonParseException - %s", __FUNCTION__, __LINE__, e.what());
+	return -1;
+}
+
 
 /**
  * @brief To stop CC rendering
@@ -541,8 +552,8 @@ int AampCCManagerBase::SetStyle(const std::string &options)
  */
 void AampCCManagerBase::Stop()
 {
-	EnsureInitialized();
-	AAMPLOG_INFO("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
+	EnsureRendererCommsInitialized();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
 	if (mRendering)
 	{
 		StopRendering();
@@ -552,7 +563,8 @@ void AampCCManagerBase::Stop()
 
 void AampCCManagerBase::Start()
 {
-	AAMPLOG_INFO("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
+	EnsureInitialized();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
 	if (!mRendering)
 	{
 		StartRendering();
@@ -562,7 +574,6 @@ void AampCCManagerBase::Start()
 
 int AampCCManagerBase::Init(void *handle)
 {
-	EnsureInitialized();
 	if(Initialize(handle) != 0)
 	{
 		AAMPLOG_WARN("AampCCManagerBase::%s %d Initialize failure ", __FUNCTION__, __LINE__);
@@ -585,8 +596,7 @@ int AampCCManagerBase::Init(void *handle)
 
 void AampCCManagerBase::SetTrickplayStatus(bool on)
 {
-	EnsureInitialized();
-	AAMPLOG_INFO("AampCCManagerBase::%s %d trickplay status(%d)", __FUNCTION__, __LINE__, on);
+	AAMPLOG_WARN("AampCCManagerBase::%s %d trickplay status(%d)", __FUNCTION__, __LINE__, on);
 	if (on)
 	{
 		// When trickplay starts, stop CC rendering
@@ -634,7 +644,8 @@ void AampCCManagerBase::SetParentalControlStatus(bool locked)
  */
 int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 {
-	EnsureInitialized();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d", __FUNCTION__, __LINE__);
+	EnsureRendererCommsInitialized();
 	int ret = -1;
 	unsigned int trackNum = 0;
 	CCFormat finalFormat = eCLOSEDCAPTION_FORMAT_DEFAULT;
@@ -675,13 +686,13 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 				//Hope this will not happen in realtime
 				trackNum = 0;
 			}
-			AAMPLOG_INFO("AampCCManagerBase::%s %d Force CC track format to 608 and trackNum to %d!", __FUNCTION__, __LINE__, trackNum);
+			AAMPLOG_WARN("AampCCManagerBase::%s %d Force CC track format to 608 and trackNum to %d!", __FUNCTION__, __LINE__, trackNum);
 		}
 		else
 		{
 			//Force to 708
 			finalFormat = eCLOSEDCAPTION_FORMAT_708;
-			AAMPLOG_INFO("AampCCManagerBase::%s %d Force CC track format to 708!", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("AampCCManagerBase::%s %d Force CC track format to 708!", __FUNCTION__, __LINE__);
 		}
 	}
 
@@ -717,7 +728,8 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
  */
 int AampCCManagerBase::SetStatus(bool enable)
 {
-	EnsureInitialized();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d enable = %d", __FUNCTION__, __LINE__, (int)enable);
+	
 	int ret = 0;
 	mEnabled = enable;
 	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mRendering=%d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
