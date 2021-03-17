@@ -130,22 +130,18 @@ typedef enum
 	eAAMPConfig_GSTLogging,									/**< Enables Gstreamer logging */
 	eAAMPConfig_ProgressLogging,							/**< Enables Progress logging */
 	eAAMPConfig_CurlLogging,								/**< Enables Curl logging */
-	eAAMPConfig_CurlLicenseLogging, 						/** <Enable verbose curl logging for license request (non-secclient) */
+	eAAMPConfig_CurlLicenseLogging, 						/** <Enable verbose curl logging for license request (non-secclient) */	
 	eAAMPConfig_MetadataLogging,							/**<Enable timed metadata logging */
-	eAAMPConfig_AudioLatencyLogging,						/**< Enables Audio fragment download latency logging */
-	eAAMPConfig_VideoLatencyLogging,						/**< Enables Video fragment download latency logging */
-	eAAMPConfig_IframeLatencyLogging,						/**< Enable Latency logging for Iframe fragment downloads*/
-	eAAMPConfig_ManifestLatencyLogging,						/**< Enables Manifest download latency logging */	
-	eAAMPConfig_XREEventReporting,							/**< Enable/Disable Event reporting to XRE */
+	eAAMPConfig_CurlHeader, 								/**<enable curl header response logging on curl errors*/
+	eAAMPConfig_StreamLogging,								/**< Enables HLS Playlist content logging */
+	//eAAMPConfig_XREEventReporting,							/**< Enable/Disable Event reporting to XRE */
 	eAAMPConfig_EnableGstPositionQuery, 					/**<GStreamer position query will be used for progress report events, Enabled by default for non-Intel platforms*/
 	eAAMPConfig_MidFragmentSeek,                                                    /**<Enable/Disable the Mid-Fragment seek functionality in aamp.*/
-	eAAMPConfig_DisableMidFragmentSeek, 					/**<Disables the Mid-Fragment seek functionality in aamp.*/
 	eAAMPConfig_PropogateURIParam,							/**<Feature where top-level manifest URI parameters included when downloading fragments*/
 	eAAMPConfig_UseWesterosSink, 							/**<Enable/Disable player to use westeros sink based video decoding */
 	eAAMPConfig_EnableLinearSimulator,						/**<Enable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.*/
 	eAAMPConfig_RetuneForUnpairDiscontinuity,				/**<disable unpaired discontinuity retun functionality*/
-	eAAMPConfig_RetuneForGSTError,							/**<disable retune mitigation for gst pipeline internal data stream error*/
-	eAAMPConfig_CurlHeader, 								/**<enable curl header response logging on curl errors*/
+	eAAMPConfig_RetuneForGSTError,							/**<disable retune mitigation for gst pipeline internal data stream error*/	
 	eAAMPConfig_MatchBaseUrl,								/**<Enable host of main url will be matched with host of base url*/
 	eAAMPConfig_WifiCurlHeader,
 	eAAMPConfig_EnableSeekRange,							/**<Enable seekable range reporting via progress events */
@@ -241,7 +237,7 @@ typedef enum
 	eAAMPConfig_WVLicenseServerUrl,								/**< Widevine License server URL*/
 	eAAMPConfig_UserAgent,										/**< Curl user-agent string */
 	eAAMPConfig_SubTitleLanguage,								/**< User preferred subtitle language*/
-	eAAMPConfig_RedirectUrl,									/**<redirects requests to tune to url1 to url2*/
+	//eAAMPConfig_RedirectUrl,									/**<redirects requests to tune to url1 to url2*/
 	eAAMPConfig_CustomHeader,								  	/**<custom header string data to be appended to curl request*/
 	eAAMPConfig_URIParameter,									/**<uri parameter data to be appended on download-url during curl request*/
 	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
@@ -368,7 +364,10 @@ typedef struct ConfigString
  */
 class AampConfig
 {
-
+public:
+	// Had to define as public as globalConfig loggin var is used multiple files
+	// TODO when player level logging is done, need to remove this
+	AampLogManager logging;                 /**< Aamp log manager class*/	
 public: 
 	AampConfig();
 	~AampConfig(){};
@@ -379,8 +378,8 @@ public:
 	void ShowDefaultAampConfiguration();
 	void ShowDevCfgConfiguration();
 	void ShowAAMPConfiguration();
-	void ReadAampCfgTxtFile();
-	void ReadAampCfgJsonFile();
+	bool ReadAampCfgTxtFile();
+	bool ReadAampCfgJsonFile();
 	void ReadOperatorConfiguration();
 	void ParseAampCfgTxtString(std::string &cfg);
 	void ParseAampCfgJsonString(std::string &cfg);
@@ -396,6 +395,7 @@ public:
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
+	void ConfigureLogSettings();
 	////////// Special Functions /////////////////////////
 	//long GetManifestTimeoutMs();
 	//long GetNetworkTimeoutMs();

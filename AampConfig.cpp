@@ -101,6 +101,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"debug",eAAMPConfig_DebugLogging,-1,-1},
 	{"trace",eAAMPConfig_TraceLogging,-1,-1},	
 	{"curl",eAAMPConfig_CurlLogging,-1,-1},	
+	{"stream",eAAMPConfig_StreamLogging,-1,-1},		
 	{"defaultBitrate",eAAMPConfig_DefaultBitrate,-1,-1},
 	{"defaultBitrate4K",eAAMPConfig_DefaultBitrate4K,-1,-1},
 	{"abr",eAAMPConfig_EnableABR,-1,-1},
@@ -197,10 +198,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"log",eAAMPConfig_LogLevel,-1,-1},
 	{"max-buffer-rampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
 	{"min-vod-cache",eAAMPConfig_VODMinCachedSeconds,-1,-1},	
-	{"audioLatencyLogging",eAAMPConfig_AudioLatencyLogging,-1,-1},
-	{"iframeLatencyLogging",eAAMPConfig_IframeLatencyLogging,-1,-1},
-	{"videoLatencyLogging",eAAMPConfig_VideoLatencyLogging,-1,-1},
-	{"manifestLatencyLogging",eAAMPConfig_ManifestLatencyLogging,-1,-1},
 	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
 	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
 	{"sessionToken",eAAMPConfig_SessionToken,-1,-1},
@@ -222,7 +219,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
+AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{
@@ -272,16 +269,14 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	bAampCfgValue[eAAMPConfig_DebugLogging].value				=	false;			
 	bAampCfgValue[eAAMPConfig_TraceLogging].value				=	false;				
 	bAampCfgValue[eAAMPConfig_FailoverLogging].value			=	false;			
-	bAampCfgValue[eAAMPConfig_GSTLogging].value				=	false;			
+	bAampCfgValue[eAAMPConfig_GSTLogging].value					=	false;			
 	bAampCfgValue[eAAMPConfig_ProgressLogging].value			=	false;			
 	bAampCfgValue[eAAMPConfig_CurlLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_CurlLicenseLogging].value			=	false;
 	bAampCfgValue[eAAMPConfig_MetadataLogging].value			=	false;
-	bAampCfgValue[eAAMPConfig_AudioLatencyLogging].value			=	true;	
-	bAampCfgValue[eAAMPConfig_IframeLatencyLogging].value			=	true;	
-	bAampCfgValue[eAAMPConfig_VideoLatencyLogging].value			=	true;			
-	bAampCfgValue[eAAMPConfig_ManifestLatencyLogging].value			=	true;			
-	bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;		
+	bAampCfgValue[eAAMPConfig_StreamLogging].value				=	false;
+	bAampCfgValue[eAAMPConfig_CurlHeader].value					=	false;
+	//bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;		
 #ifdef INTELCE	
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;
 #else
@@ -294,7 +289,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 #else
 	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	false;	
 #endif
-	bAampCfgValue[eAAMPConfig_CurlHeader].value				=	false;	
 	bAampCfgValue[eAAMPConfig_RetuneForGSTError].value			=	true;	
 	bAampCfgValue[eAAMPConfig_MatchBaseUrl].value				=	false;	
 #ifdef IARM_MGR
@@ -408,7 +402,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap()
 	sAampCfgValue[eAAMPConfig_LicenseServerUrl-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_CKLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PRLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
-	sAampCfgValue[eAAMPConfig_RedirectUrl-eAAMPConfig_StringStartValue].value		=	"";
+	//sAampCfgValue[eAAMPConfig_RedirectUrl-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_WVLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value			=	"";
 	sAampCfgValue[eAAMPConfig_SubTitleLanguage-eAAMPConfig_StringStartValue].value		=	"";
@@ -911,8 +905,9 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
  *
  * @return None 
  */
-void AampConfig::ReadAampCfgJsonFile()
+bool AampConfig::ReadAampCfgJsonFile()
 {
+	bool retVal=false;
 		std::string cfgPath = "";
 #ifdef WIN32
 		cfgPath.assign(AAMP_JSON_PATH);
@@ -950,8 +945,10 @@ void AampConfig::ReadAampCfgJsonFile()
 				delete[] jsonbuffer;
 				ShowDevCfgConfiguration();
 				DoCustomSetting();
+				retVal = true;
 			}
 		}
+	return retVal;
 }
 
 
@@ -960,8 +957,9 @@ void AampConfig::ReadAampCfgJsonFile()
  *
  * @return None 
  */
-void AampConfig::ReadAampCfgTxtFile()
+bool AampConfig::ReadAampCfgTxtFile()
 {
+	bool retVal = false;
 	std::string cfgPath = "";
 #ifdef WIN32
 	cfgPath.assign(AAMP_CFG_PATH);
@@ -998,9 +996,10 @@ void AampConfig::ReadAampCfgTxtFile()
 			f.close();
 			ShowDevCfgConfiguration();
 			DoCustomSetting();
+			retVal = true;
 		}
 	}
-
+	return retVal;
 }
 
 /**
@@ -1115,74 +1114,58 @@ void AampConfig::ReadOperatorConfiguration()
 	ShowOperatorSetConfiguration();
 }
 
-#if 0
+
 /**
  * @brief ConfigureLogSettings - This function configures log settings for LogManager instance
  *
  * @return None
  */
-void AampConfig::ConfigureLogSettings(AampLogManager *instance)
+void AampConfig::ConfigureLogSettings()
 {
 	std::string logString;
-	logString = sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].value;
-	ConfigPriority owner = sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].owner;
+	logString = sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].value;	
 
-	if(bAampCfgValue[eAAMPConfig_TraceLogging].value)
+	if(bAampCfgValue[eAAMPConfig_TraceLogging].value || logString.compare("trace") == 0)
 	{
 		// backward compatability
-		owner = bAampCfgValue[eAAMPConfig_TraceLogging].owner;
-		instance->setLogLevel(eLOGLEVEL_TRACE,owner);
-		instance->trace = true;
+		logging.setLogLevel(eLOGLEVEL_TRACE);
+		logging.trace = true;
 	}
-	else if(logString.compare("trace") == 0)
+	else if(bAampCfgValue[eAAMPConfig_DebugLogging].value || logString.compare("debug") == 0)
 	{
-		instance->setLogLevel(eLOGLEVEL_TRACE,owner);
-		instance->trace = true;
+		// backward compatability . Trace ande debug does same job.		
+		logging.info = false;
+		logging.setLogLevel(eLOGLEVEL_TRACE);
+		logging.debug = true;
 	}
-	else if(bAampCfgValue[eAAMPConfig_DebugLogging].value)
-	{
-		// backward compatability
-		owner = bAampCfgValue[eAAMPConfig_DebugLogging].owner;
-		instance->setLogLevel(eLOGLEVEL_DEBUG,owner);
-		instance->debug= true;
-	}
-	else if(logString.compare("debug") == 0)
-	{
-		instance->setLogLevel(eLOGLEVEL_DEBUG,owner);
-                instance->debug= true;
-	}
-	else if(bAampCfgValue[eAAMPConfig_InfoLogging].value)
+	else if((bAampCfgValue[eAAMPConfig_InfoLogging].value || logString.compare("info") == 0))
 	{
 		// backward compatability
-		owner = bAampCfgValue[eAAMPConfig_InfoLogging].owner;
-		instance->setLogLevel(eLOGLEVEL_INFO,owner);
-		instance->info= true;
+		logging.setLogLevel(eLOGLEVEL_INFO);
+		logging.info = true;
 	}
-	else if(logString.compare("info") == 0)
+	else if(logString.compare("warn") == 0)
 	{
-		instance->setLogLevel(eLOGLEVEL_INFO,owner);
-		instance->info= true;
-	}
-	else if(logString.compare("warning") == 0)
-	{
-		instance->setLogLevel(eLOGLEVEL_WARN,owner);
+		logging.setLogLevel(eLOGLEVEL_WARN);
 	}
 	else if(logString.compare("error") == 0)
-	{
-		instance->setLogLevel(eLOGLEVEL_ERROR,owner);
+	{		
+		logging.setLogLevel(eLOGLEVEL_ERROR);
 	}
+	
 
 	// This is pending to handle the ownership rights , whether App can set following config
-	instance->failover	=	bAampCfgValue[eAAMPConfig_FailoverLogging].value;
-	instance->gst		=	bAampCfgValue[eAAMPConfig_GSTLogging].value;
-	instance->progress	=	bAampCfgValue[eAAMPConfig_ProgressLogging].value;
-	instance->curl		=	bAampCfgValue[eAAMPConfig_CurlLogging].value;
-	instance->latencyLogging[eMEDIATYPE_AUDIO]	=	bAampCfgValue[eAAMPConfig_AudioLatencyLogging].value;
-	instance->latencyLogging[eMEDIATYPE_VIDEO]	=	bAampCfgValue[eAAMPConfig_VideoLatencyLogging].value;
-	instance->latencyLogging[eMEDIATYPE_MANIFEST]	=	bAampCfgValue[eAAMPConfig_ManifestLatencyLogging].value;
+	logging.failover			=	bAampCfgValue[eAAMPConfig_FailoverLogging].value;
+	logging.gst				=	bAampCfgValue[eAAMPConfig_GSTLogging].value;
+	logging.progress			=	bAampCfgValue[eAAMPConfig_ProgressLogging].value;
+	logging.curl				=	bAampCfgValue[eAAMPConfig_CurlLogging].value;
+	logging.stream				=	bAampCfgValue[eAAMPConfig_StreamLogging].value;
+	logging.curlHeader			= 	bAampCfgValue[eAAMPConfig_CurlHeader].value;
+	logging.curlLicense			=	bAampCfgValue[eAAMPConfig_CurlLicenseLogging].value;
+	logging.logMetadata			=	bAampCfgValue[eAAMPConfig_MetadataLogging].value;		
 
 }
-#endif
+
 /**
  * @brief ShowOperatorSetConfiguration - List all operator configured settings
  *
@@ -1316,6 +1299,7 @@ void AampConfig::DoCustomSetting()
 		// if EC3 is disabled , no need to enable forceEC3 
 		SetConfigValue<bool>(AAMP_DEV_CFG_SETTING,eAAMPConfig_ForceEC3,false);	
 	}
+	ConfigureLogSettings();
 }
 
 

@@ -144,9 +144,11 @@ if(!iarmInitialized)
 	{		
 		gpGlobalAampConfig =  new AampConfig();
 		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalAampConfig);
-		gpGlobalAampConfig->ReadAampCfgTxtFile();
-		gpGlobalAampConfig->ReadOperatorConfiguration();
-		gpGlobalAampConfig->ReadAampCfgJsonFile();
+		if(!gpGlobalAampConfig->ReadAampCfgTxtFile())
+		{
+			gpGlobalAampConfig->ReadAampCfgJsonFile();
+		}
+		gpGlobalAampConfig->ReadOperatorConfiguration();		
 		gpGlobalAampConfig->ShowAAMPConfiguration();
 		
 	}
