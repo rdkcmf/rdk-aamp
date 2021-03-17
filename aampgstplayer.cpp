@@ -1415,6 +1415,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 					_this->setVolumeOrMuteUnMute();
 				}
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "amlhalasink") == true)
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+				}
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
@@ -3394,6 +3398,13 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		return; /* Return here if the sinkbin or audio_sink is not valid, no need to proceed further */
 	}
 
+#ifdef AMLOGIC /*For AMLOGIC platform*/
+	/*Using "stream-volume" property of audio-sink for setting volume and mute for AMLOGIC platform*/
+	logprintf("AAMPGstPlayer::%s %d > Setting Volume %f using stream-volume property of audio-sink", __FUNCTION__, __LINE__, privateContext->audioVolume);
+	g_object_set(gSource, "stream-volume", privateContext->audioVolume, NULL);
+
+	/* Avoid mute property setting for AMLOGIC as use of "mute" property on pipeline is impacting all other players*/
+#else
 	/* Muting the audio decoder in general to avoid audio passthrough in expert mode for locked channel */
 	if (0 == privateContext->audioVolume)
 	{
@@ -3433,6 +3444,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		logprintf("AAMPGstPlayer::%s %d > Setting Volume %f",	__FUNCTION__, __LINE__, privateContext->audioVolume);
 		g_object_set(gSource, "volume", privateContext->audioVolume, NULL);
 	}
+#endif
 }
 
 
