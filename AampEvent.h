@@ -1249,11 +1249,20 @@ public:
 	void setResponseCode(long code);
 
 	/**
-	 * @brief Is secclient error
+	 * @brief Get secclient error status
 	 *
-	 * @return Is secclient error (true/false)
+	 * @return secclient error (true/false)
 	 */
-	bool secclientError() const;
+	bool getSecclientError() const;
+       
+        /**
+         * @brief Set secclient error status
+         *
+         * @param[in] sec client error status (true/false)
+         * @return void
+         */
+        void setSecclientError(bool secclientError);
+
 };
 
 /**
