@@ -396,11 +396,12 @@ public:
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
 	void ConfigureLogSettings();
+	
 	////////// Special Functions /////////////////////////
+	std::string GetUserAgentString();
 	//long GetManifestTimeoutMs();
 	//long GetNetworkTimeoutMs();
 	//LangCodePreference GetLanguageCodePreference();
-	//std::string GetUserAgentString();
 	//DRMSystems GetPreferredDRM();
 private:
 	void DoCustomSetting();

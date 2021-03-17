@@ -160,7 +160,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
 	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
 	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,-1,-1},
-	{"user-agent",eAAMPConfig_UserAgent,-1,-1},
+	{"userAgent",eAAMPConfig_UserAgent,-1,-1},
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplayBuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
@@ -351,6 +351,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;
 	iAampCfgValue[eAAMPConfig_InitialBuffer-eAAMPConfig_IntStartValue].value               =       DEFAULT_MINIMUM_INIT_CACHE_SECONDS;
 	iAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_IntStartValue].value           =       DEFAULT_TIMEOUT_FOR_SOURCE_SETUP;
+	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	MAX_SEG_DRM_DECRYPT_FAIL_COUNT;	
+	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	MAX_SEG_INJECT_FAIL_COUNT;	
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -359,8 +361,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
 	
-	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	DRM_FAIL_RETRY_COUNT;	
-	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	SEGMENT_INJECT_FAIL_RETRY_COUNT;	
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value	=	AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;	
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value		=	AAMP_HIGH_BUFFER_BEFORE_RAMPUP;	
 	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value 		=	SEGMENTS_DOWNLOADED_BEFORE_PLAY; 
@@ -421,13 +421,11 @@ LangCodePreference AampConfig::GetLanguageCodePreference()
 {
 	return (LangCodePreference)iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value;
 }
-
+#endif
 std::string AampConfig::GetUserAgentString()
 {
 	return std::string(sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value + " " + AAMP_USERAGENT_SUFFIX);
 }
-#endif
-
 
 /**
  * @brief IsConfigSet - Gets the boolean configuration value 

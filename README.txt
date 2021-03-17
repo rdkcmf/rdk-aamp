@@ -162,7 +162,9 @@ initFragmentRetryCount	    	Max retry attempts for init frag curl timeout failur
 langCodePreference		prefered format for normalizing language code.Default is 0.
 initialBuffer			cached duration before playback start, in seconds. Default is 0.
 maxTimeoutForSourceSetup	Timeout value wait for GStreamer appsource setup to complete.default is 1000.
-
+drmDecryptFailThreshold		Retry count on drm decryption failure, default is 10.
+segmentInjectFailThreshold	Retry count for segment injection discard/failue, default is 10.
+preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
@@ -171,7 +173,7 @@ harvestPath			Specify the path where fragments has to be harvested,check folder 
 networkProxy			proxy address to set for all file downloads. Default None  
 licenseProxy			proxy address to set for licese fetch . Default None
 sessionToken			SessionToken string to override from Application . Default None
-
+userAgent		Curl user-agent string.Default is {Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE}
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
@@ -499,8 +501,6 @@ curlHeader=1 enable curl header response logging on curl errors.  Default is fal
 customHeader=<customHeaderString> custom header string data to be appended to curl request
         Note: To add multiple customHeader, add one more line in aamp.cfg and add the data, likewise multiple custom header can be configured.
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
-drmDecryptFailThreshold=<X>	Set retry count on drm decryption failure, default is 10.
-segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/failue, default is 10.
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 disableWifiCurlHeader=1 Disble wifi custom curl header inclusion 
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)

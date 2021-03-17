@@ -371,23 +371,7 @@ void PlayerInstanceAAMP::RegisterEvents(EventListener* eventListener)
  */
 void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
 {
-	if(gpGlobalConfig->segInjectFailCount > 0)
-	{
-		aamp->mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
-		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
-	}
-	else
-	{
-		if ((value > 0) && (value <= MAX_SEG_INJECT_FAIL_COUNT))
-		{
-			aamp->mSegInjectFailCount = value;
-			AAMPLOG_INFO("%s:%d Setting Segment Inject fail count : %d", __FUNCTION__, __LINE__, aamp->mSegInjectFailCount);
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_INJECT_FAIL_COUNT);
-		}
-	}
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SegmentInjectThreshold,value);
 }
 
 /**
@@ -396,23 +380,7 @@ void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
  */
 void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 {
-	if (gpGlobalConfig->drmDecryptFailCount > 0)
-	{
-		aamp->mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
-		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
-	}
-	else
-	{
-		if ((value > 0) && (value <= MAX_SEG_DRM_DECRYPT_FAIL_COUNT))
-		{
-			aamp->mDrmDecryptFailCount = value;
-			AAMPLOG_INFO("%s:%d Setting Segment DRM decrypt fail count : %d", __FUNCTION__, __LINE__, aamp->mDrmDecryptFailCount);
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid value %d, will continue with %d", __FUNCTION__,__LINE__, value, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
-		}
-	}
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DRMDecryptThreshold,value);
 }
 
 /**

@@ -1354,7 +1354,6 @@ static void ProcessConfigEntry(std::string cfg)
 			}
 			logprintf("aamp dash-max-drm-sessions: %d", gpGlobalConfig->dash_MaxDRMSessions);
 		}
-		#endif		
 		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tmpValue))
 		{
 			if(tmpValue)
@@ -1373,7 +1372,6 @@ static void ProcessConfigEntry(std::string cfg)
 				tmpValue = NULL;
 			}
 		}
-                #if 0
 		else if (ReadConfigNumericHelper(cfg, "wait-time-before-retry-http-5xx-ms=", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
 		{
 			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
@@ -1996,6 +1994,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mHarvestConfig(0)
 {
 	LazilyLoadConfigIfNeeded();
+	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
 	int maxDrmSession;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -3344,7 +3343,10 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
                         curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, curlIPResolve);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
-			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
+			
+			std::string UserAgentString;
+			UserAgentString=mConfig->GetUserAgentString();
+			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, UserAgentString.c_str());
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
@@ -5202,6 +5204,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DRMDecryptThreshold,mDrmDecryptFailCount);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
@@ -10416,7 +10419,6 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mMaxBitrate = gpGlobalConfig->maxBitrate;
 	}
- #endif
 	if(gpGlobalConfig->segInjectFailCount > 0)
 	{
 		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
@@ -10425,7 +10427,6 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
 	}
-#if 0	
 	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
 	{
 		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;

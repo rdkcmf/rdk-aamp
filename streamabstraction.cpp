@@ -600,7 +600,9 @@ bool MediaTrack::InjectFragment()
 				{
 					logprintf("%s:%d [%s] - Not updating totalInjectedDuration since fragment is Discarded", __FUNCTION__, __LINE__, name);
 					mSegInjectFailCount++;
-					if(aamp->mSegInjectFailCount <= mSegInjectFailCount)
+					int  SegInjectFailCount;
+					GETCONFIGVALUE(eAAMPConfig_SegmentInjectThreshold,SegInjectFailCount); 
+					if(SegInjectFailCount <= mSegInjectFailCount)
 					{
 						ret	= false;
 						AAMPLOG_ERR("%s:%d [%s] Reached max inject failure count: %d, stopping playback",__FUNCTION__, __LINE__, name, aamp->mSegInjectFailCount);
