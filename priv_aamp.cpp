@@ -2406,7 +2406,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 	{
 		AAMPTuneFailure tuneFailure = event->getFailure();
 		long error_code = event->getResponseCode();
-		bool isSecClientError = event->secclientError();
+		bool isSecClientError = event->getSecclientError();
 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
