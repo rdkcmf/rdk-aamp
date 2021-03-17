@@ -55,8 +55,8 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), 
 	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
-	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), reportBufferEvent(true), fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
-	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
+	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), /*reportBufferEvent(true), */fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
+	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), /*aampRemovePersistent(0),*/ preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),
 	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState),
 #ifdef INTELCE
@@ -76,7 +76,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	wifiCurlHeaderEnabled(false)
 #endif
 	,mEnableSeekableRange(eUndefinedState)
-	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP), mPersistBitRateOverSeek(eUndefinedState), licenseCaching(eUndefinedState)
+	, /*mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP),*/ mPersistBitRateOverSeek(eUndefinedState), licenseCaching(eUndefinedState)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.

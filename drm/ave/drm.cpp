@@ -206,7 +206,7 @@ public:
 			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
 
 			/* Enter if remove_Persistent flag is not set */
-			if(!gpGlobalConfig->aampRemovePersistent)
+			if(!mpAamp->mConfig->IsConfigSet(eAAMPConfig_RemovePersistent))
 			{
 				/*
 				 * Creating file "/tmp/DRM_Error" will invoke self heal logic in

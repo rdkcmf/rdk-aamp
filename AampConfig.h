@@ -203,6 +203,7 @@ typedef enum
 	eAAMPConfig_StallErrorCode,
 	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_InitialBuffer,
+	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	
@@ -215,7 +216,6 @@ typedef enum
 	eAAMPConfig_DiscontinuityTimeout,							/**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	eAAMPConfig_MinBitrate, 									/**<minimum bitrate filter for playback profiles */
 	eAAMPConfig_MaxBitrate, 									/**<maximum bitrate filter for playback profiles*/
-	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	
 	eAAMPConfig_LongMaxValue,
 	////////////////////////////////////

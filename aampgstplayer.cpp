@@ -3987,7 +3987,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 {
 	pthread_mutex_lock(&mBufferingLock);
 	//Check if we are in buffering
-	if (gpGlobalConfig->reportBufferEvent && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
+	if (ISCONFIGSET(eAAMPConfig_ReportBufferEvent) && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
 	{
 		bool stopBuffering = forceStop;
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
@@ -4060,7 +4060,8 @@ bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
 {
 	bool ret = false;
 	media_stream *stream = &privateContext->stream[mediaType];
-	int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+	int timeRemaining = 0;
+  	GETCONFIGVALUE(eAAMPConfig_SourceSetupTimeout,timeRemaining);
 	int waitInterval = 100; //ms
 
 	AAMPLOG_WARN("%s:%d Source element[%p] for track[%d] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source, mediaType);

@@ -1440,11 +1440,13 @@ static void ProcessConfigEntry(std::string cfg)
 				tmpValue = NULL;
 			}
 		}
+		#if 0
 		else if (ReadConfigNumericHelper(cfg, "reportbufferevent=", value) == 1)
 		{
 			gpGlobalConfig->reportBufferEvent = (value != 0);
 			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
 		}
+		#endif
 		else if (ReadConfigNumericHelper(cfg, "enable-tune-profiling=", value) == 1)
 		{
 			gpGlobalConfig->enableMicroEvents = (value!=0);
@@ -1460,10 +1462,12 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->useMatchingBaseUrl = (TriState) (value == 1);
 			logprintf("use-matching-baseurl: %d", gpGlobalConfig->useMatchingBaseUrl);
 		}
+		#if 0
 		else if (ReadConfigNumericHelper(cfg, "remove_Persistent=", gpGlobalConfig->aampRemovePersistent) == 1)
 		{
 			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
 		}
+		#endif
 		else if (ReadConfigNumericHelper(cfg, "avgbwforABR=", value) == 1)
 		{
 			gpGlobalConfig->mUseAverageBWForABR= (TriState)(value != 0);
@@ -1538,10 +1542,12 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
 			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
 		}
+		#if 0
 		else if(ReadConfigNumericHelper(cfg, "maxTimeoutForSourceSetup=", gpGlobalConfig->mTimeoutForSourceSetup) == 1)
 		{
 			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
 		}
+		#endif
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -7171,7 +7177,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			return;
 		}
 
-		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
+		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
 			if ( false == pipeline_paused )

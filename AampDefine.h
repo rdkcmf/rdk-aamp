@@ -61,6 +61,7 @@
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10sec */
 #define DEFAULT_MINIMUM_INIT_CACHE_SECONDS  0        /**< Default initial cache size of playback */
+#define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 
 
 /**

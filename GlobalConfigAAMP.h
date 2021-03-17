@@ -80,7 +80,7 @@
 //#define MAX_PLAYLIST_CACHE_SIZE    (3*1024*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
 //#define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 
-#define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
+//#define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 #if 0
 /**
  * @brief Enumeration for TUNED Event Configuration
@@ -214,10 +214,10 @@ public:
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	//int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
-	bool reportBufferEvent;			/** Enables Buffer event reporting */
+	//bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
-	int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
+	//int aampRemovePersistent;               /**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	int preplaybuffercount;         /** Count of segments to be downloaded until play state */
 	//#define GetLangCodePreference() ((LangCodePreference)gpGlobalConfig->langCodePreference)
 	int rampdownLimit;		/*** Fragment rampdown/retry limit */
@@ -238,7 +238,7 @@ public:
 	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
-	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
+	//long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 
 public:

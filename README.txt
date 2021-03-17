@@ -110,6 +110,8 @@ cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
 appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false
 seekMidFragment			Enable/Disable Mid-Fragment seek .Default false
 wifiCurlHeader			Enable/Disble wifi custom curl header inclusion.Default true
+removeAVEDRMPersistent		Enable/Disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs.Default false.
+reportBufferEvent		Enables Buffer event reporting.Default is true.
 
 
 // Integer inputs
@@ -159,6 +161,7 @@ initRampdownLimit		Maximum number of rampdown/retries for initial playlist retri
 initFragmentRetryCount	    	Max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
 langCodePreference		prefered format for normalizing language code.Default is 0.
 initialBuffer			cached duration before playback start, in seconds. Default is 0.
+maxTimeoutForSourceSetup	Timeout value wait for GStreamer appsource setup to complete.default is 1000.
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

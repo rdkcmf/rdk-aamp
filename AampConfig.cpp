@@ -171,11 +171,11 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
 	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
 	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
-	{"reportbufferevent",eAAMPConfig_ReportBufferEvent,-1,-1},
+	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
 	{"use-matching-baseurl",eAAMPConfig_MatchBaseUrl,-1,-1},
-	{"remove_Persistent",eAAMPConfig_RemovePersistent,-1,-1},
+	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,-1,-1},
 	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,-1,-1},
 	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,-1,-1},
 	{"fragmentRetryLimit",eAAMPConfig_RampDownLimit,-1,-1},
@@ -350,6 +350,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_PreCachePlaylistTime-eAAMPConfig_IntStartValue].value 	=	0; 
 	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;
 	iAampCfgValue[eAAMPConfig_InitialBuffer-eAAMPConfig_IntStartValue].value               =       DEFAULT_MINIMUM_INIT_CACHE_SECONDS;
+	iAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_IntStartValue].value           =       DEFAULT_TIMEOUT_FOR_SOURCE_SETUP;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
