@@ -169,7 +169,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,-1,-1},
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
-	{"aamp-abr-threshold-size",eAAMPConfig_ABRThresholdSize,-1,-1},
+	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,-1,-1},
 	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
@@ -353,6 +353,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_IntStartValue].value           =       DEFAULT_TIMEOUT_FOR_SOURCE_SETUP;
 	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	MAX_SEG_DRM_DECRYPT_FAIL_COUNT;	
 	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	MAX_SEG_INJECT_FAIL_COUNT;	
+	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;

@@ -164,7 +164,8 @@ initialBuffer			cached duration before playback start, in seconds. Default is 0.
 maxTimeoutForSourceSetup	Timeout value wait for GStreamer appsource setup to complete.default is 1000.
 drmDecryptFailThreshold		Retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold	Retry count for segment injection discard/failue, default is 10.
-preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes 
+preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes
+thresholdSizeABR		ABR threshold size. Default 6000.
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
@@ -174,6 +175,8 @@ networkProxy			proxy address to set for all file downloads. Default None
 licenseProxy			proxy address to set for licese fetch . Default None
 sessionToken			SessionToken string to override from Application . Default None
 userAgent		Curl user-agent string.Default is {Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE}
+customHeader			custom header data to be appended to curl request. Default None
+uriParameter			uri parameter data to be appended on download-url during curl request. Default None
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.

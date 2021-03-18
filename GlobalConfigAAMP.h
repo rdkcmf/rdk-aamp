@@ -31,7 +31,7 @@
 #include "AampDrmSystems.h"
 #include "AampLogManager.h"
 
-#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
+//#define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
@@ -211,7 +211,7 @@ public:
 	TriState bReportVideoPTS;                    /**< Enables Video PTS reporting */
 	bool decoderUnavailableStrict;           /**< Reports decoder unavailable GST Warning as aamp error*/
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
-	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
+	//int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	//int langCodePreference; /**<prefered format for normalizing language code */
         bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	//bool reportBufferEvent;			/** Enables Buffer event reporting */
@@ -226,8 +226,8 @@ public:
 	//long maxBitrate;		/*** Maximum bandwidth of playback profile */
 	int segInjectFailCount;		/*** Inject failure retry threshold */
 	int drmDecryptFailCount;	/*** DRM decryption failure retry threshold */
-	char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
-	std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
+	//char *uriParameter;	/*** uri parameter data to be appended on download-url during curl request */
+	//std::vector<std::string> customHeaderStr; /*** custom header data to be appended to curl request */
 	int initFragmentRetryCount; /**< max attempts for int frag curl timeout failures */
 	TriState useMatchingBaseUrl;
 	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */

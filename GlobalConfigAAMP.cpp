@@ -55,7 +55,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	dash_MaxDRMSessions(MIN_DASH_DRM_SESSIONS), 
 	isUsingLocalConfigForPreferredDRM(false), pUserAgentString(NULL), logging(), sslVerifyPeer(eUndefinedState),
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
-	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), /*reportBufferEvent(true), */fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
+	decoderUnavailableStrict(false), /*aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE), */bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), /*reportBufferEvent(true), */fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
 	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), /*aampRemovePersistent(0),*/ preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),
 	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState),
@@ -64,7 +64,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #else
 	bPositionQueryEnabled(true),
 #endif
-	useRetuneForUnpairedDiscontinuity(eUndefinedState), uriParameter(NULL), customHeaderStr{""}, useRetuneForGSTInternalError(eUndefinedState),
+	useRetuneForUnpairedDiscontinuity(eUndefinedState), /*customHeaderStr{""}, */useRetuneForGSTInternalError(eUndefinedState),
 	minABRBufferForRampDown(AAMP_LOW_BUFFER_BEFORE_RAMPDOWN), maxABRBufferForRampUp(AAMP_HIGH_BUFFER_BEFORE_RAMPUP),
 	rampdownLimit(-1), segInjectFailCount(0), drmDecryptFailCount(0),
 	initFragmentRetryCount(-1), unknownValues(), useMatchingBaseUrl(eUndefinedState), bEnableSubtec(true), bWebVttNative(false),
@@ -111,13 +111,13 @@ GlobalConfigAAMP::~GlobalConfigAAMP()
 		free(ckLicenseServerURL);
 		ckLicenseServerURL = NULL;
 	}
-
+	#if 0
 	if(uriParameter)
 	{
 		free(uriParameter);
 		uriParameter = NULL;
 	}
-
+	#endif
 	if(mapMPD)
 	{
 		free(mapMPD);

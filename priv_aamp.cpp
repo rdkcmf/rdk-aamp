@@ -960,6 +960,7 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->logging.logMetadata = true;
 			logprintf("logMetadata logging %s", gpGlobalConfig->logging.logMetadata ? "on" : "off");
 		}
+		#if 0
 		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&tmpValue))
 		{
 			if (tmpValue)
@@ -975,6 +976,7 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			logprintf("uriParameter = %s", gpGlobalConfig->uriParameter);
 		}
+		#endif
 		else if (cfg.compare("gst") == 0)
 		{
 			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
@@ -1415,12 +1417,13 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->playAdFromCDN = (value == 1);
 			logprintf("Ad playback from CDN only: %s", gpGlobalConfig->playAdFromCDN ? "ON" : "OFF");
 		}
+		#if 0
 		else if (ReadConfigNumericHelper(cfg, "aamp-abr-threshold-size=", gpGlobalConfig->aampAbrThresholdSize) == 1)
                 {
                         VALIDATE_INT("aamp-abr-threshold-size", gpGlobalConfig->aampAbrThresholdSize, DEFAULT_AAMP_ABR_THRESHOLD_SIZE);
                         logprintf("aamp aamp-abr-threshold-size: %d\n", gpGlobalConfig->aampAbrThresholdSize);
                 }
-
+		#endif
 		else if(ReadConfigStringHelper(cfg, "subtitle-language=", (const char**)&tmpValue))
 		{
 			if(tmpValue)
@@ -3740,15 +3743,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		CurlAbortReason abortReason = eCURL_ABORT_REASON_NONE;
 		double connectTime = 0;
 		pthread_mutex_unlock(&mLock);
-
+		std::string uriParameter;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_URIParameter,uriParameter);
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST )
+		if (gpGlobalConfig->logging.curlHeader && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
-				gpGlobalConfig->uriParameter[0] = '?';
+				uriParameter[0] = '?';				
 			}
-			remoteUrl.append(gpGlobalConfig->uriParameter);
+			
+			remoteUrl.append(uriParameter.c_str());
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
@@ -3855,14 +3860,12 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
 				{
-					int size = gpGlobalConfig->customHeaderStr.size();
-					for (int i=0; i < size; i++)
-					{
-						if (!gpGlobalConfig->customHeaderStr.at(i).empty())
-						{
-							//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, gpGlobalConfig->customHeaderStr.at(i).c_str());
-							httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->customHeaderStr.at(i).c_str());
-						}
+					std::string customheaderstr;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeader,customheaderstr);					
+					if(!customheaderstr.empty())
+					{				
+						//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, &customheaderstr.at(i));
+						httpHeaders = curl_slist_append(httpHeaders, customheaderstr.c_str());					
 					}
 				}
 
@@ -4125,7 +4128,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && CheckABREnabled())
 			{
-				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
+				int  AbrThresholdSize;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,AbrThresholdSize);	
+				if(buffer->len > AbrThresholdSize)
 				{
 					pthread_mutex_lock(&mLock);
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
