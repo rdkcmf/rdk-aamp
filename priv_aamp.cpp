@@ -1924,7 +1924,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
-	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
+	,mBulkTimedMetadata(false), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
 	,mAsyncTuneEnabled(false), 
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
 	mWesterosSinkEnabled(true)
@@ -2286,6 +2286,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		if (iter->_timeMS != 0 && iter->_timeMS < limitMs)
 		{
 			//logprintf("ERASE(limit:%lld) aamp_ReportTimedMetadata(%lld, '%s', '%s', nb)", limitMs,iter->_timeMS, iter->_name.c_str(), iter->_content.c_str());
+			//logprintf("ERASE(limit:%lld) aamp_ReportTimedMetadata(%lld)", limitMs,iter->_timeMS);
 			iter = timedMetadata.erase(iter);
 		}
 		else
@@ -6747,7 +6748,7 @@ void PrivateInstanceAAMP::Stop()
 void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
-	reportMetadata.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
+	timedMetadata.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
 }
 
 /**
@@ -6757,7 +6758,7 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
 	std::vector<TimedMetadata>::iterator iter;
-	if(gpGlobalConfig->enableSubscribedTags && reportMetadata.size())
+	if(gpGlobalConfig->enableSubscribedTags && timedMetadata.size())
 	{
 		AAMPLOG_INFO("%s:%d Sending bulk Timed Metadata",__FUNCTION__,__LINE__);
 
@@ -6766,7 +6767,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 		root = cJSON_CreateArray();
 		if(root)
 		{
-			for (iter = reportMetadata.begin(); iter != reportMetadata.end(); iter++)
+			for (iter = timedMetadata.begin(); iter != timedMetadata.end(); iter++)
 			{
 				cJSON_AddItemToArray(root, item = cJSON_CreateObject());
 				cJSON_AddStringToObject(item, "name", iter->_name.c_str());
@@ -6821,43 +6822,51 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 	// Check if timedMetadata was already reported
 	std::vector<TimedMetadata>::iterator i;
 	bool ignoreMetaAdd = false;
+
 	for (i = timedMetadata.begin(); i != timedMetadata.end(); i++)
 	{
-
-		// Add a boundary check of 1 sec for rounding correction
-		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ) &&
-			(i->_name.compare(szName) == 0)	&&
-			(i->_content.compare(content) == 0))
+		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ))
 		{
-			// Already same exists , ignore
-			ignoreMetaAdd = true;
-			break;
+			if((i->_name.compare(szName) == 0) && (i->_content.compare(content) == 0))
+			{
+				// Already same exists , ignore
+				ignoreMetaAdd = true;
+				break;
+			}
+			else
+			{
+				continue;
+			}
 		}
-
-		if (i->_timeMS < timeMilliseconds)
+		else if (i->_timeMS < timeMilliseconds)
 		{
 			// move to next entry
 			continue;
+		}		
+		else if (i->_timeMS > timeMilliseconds)
+		{
+			break;
+		}		
+	}
+
+	if(!ignoreMetaAdd) 
+	{
+		bFireEvent = true;
+		if(i == timedMetadata.end())
+		{
+			// Comes here for
+			// 1.No entry in the table
+			// 2.Entries available which is only having time < NewMetatime
+			timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 		}
 		else
 		{
 			// New entry in between saved entries.
 			// i->_timeMS >= timeMilliseconds && no similar entry in table
 			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
-			bFireEvent = true;
-			ignoreMetaAdd = true;
-			break;
 		}
 	}
 
-	if(!ignoreMetaAdd && i == timedMetadata.end())
-	{
-		// Comes here for
-		// 1.No entry in the table
-		// 2.Entries available which is only having time < NewMetatime
-		timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
-		bFireEvent = true;
-	}
 
 	if (bFireEvent)
 	{
