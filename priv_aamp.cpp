@@ -8088,7 +8088,7 @@ int PrivateInstanceAAMP::getStreamType()
 	return type;
 }
 
-#ifdef USE_SECCLIENT
+#if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 /**
  * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
  * @param[out] customHeader - Generated moneytrace is stored
@@ -8143,7 +8143,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 	}	
 	AAMPLOG_TRACE("[GetMoneyTraceString] MoneyTrace[%s]",customHeader.c_str());
 }
-#endif /* USE_SECCLIENT */
+#endif /* USE_SECCLIENT || USE_SECMANAGER */
 
 /**
  * @brief Send tuned event if configured to sent after decryption

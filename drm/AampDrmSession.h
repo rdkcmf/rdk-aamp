@@ -73,6 +73,9 @@ class AampDrmSession
 {
 protected:
 	std::string m_keySystem;
+#ifdef USE_SECMANAGER
+	int64_t mSessionId;
+#endif
 public:
 
 	/**
@@ -161,6 +164,10 @@ public:
 
 #if defined(USE_OPENCDM_ADAPTER)
 	virtual void setKeyId(const std::vector<uint8_t>& keyId) {};
+#endif
+#ifdef USE_SECMANAGER
+	void setSessionId(int64_t sessionId);
+	int64_t getSessionId() const { return mSessionId; }
 #endif
 };
 #endif

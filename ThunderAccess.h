@@ -31,6 +31,8 @@
 using namespace std;
 using namespace WPEFramework;
 
+#define THUNDER_RPC_TIMEOUT 5000
+
 /**
  * @class ThunderAccessAAMP
  * @brief Support Thunder Plugin Access from AAMP
@@ -42,7 +44,7 @@ public:
     ~ThunderAccessAAMP();
 
     bool ActivatePlugin();
-    bool InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result);
+    bool InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result, const uint32_t waitTime = THUNDER_RPC_TIMEOUT);
     bool SubscribeEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
     bool UnSubscribeEvent (string eventName);
 
