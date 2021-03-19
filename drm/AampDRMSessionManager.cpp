@@ -1279,6 +1279,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 #ifdef USE_SECCLIENT
 				if (isContentMetadataAvailable || usingAppDefinedAuthToken)
 				{
+					eventHandle->setSecclientError(true);
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 					// Reload Expired access token only on http error code 412 with status code 401
 					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
@@ -1305,6 +1306,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				else
 #endif
 				{
+					eventHandle->setSecclientError(false);
 					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isContentMetadataAvailable, licenseServerProxy));
 				}
 			}

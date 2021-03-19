@@ -204,6 +204,7 @@ typedef enum
 	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_InitialBuffer,
 	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
+	eAAMPConfig_DownloadDelay,
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	

@@ -76,10 +76,10 @@ bool PacketSender::Init(const char *socket_path)
             ret = false;
         }
         else
-            AAMPLOG_INFO("senderTask started");        
+            AAMPLOG_WARN("senderTask started");
     }
     else
-        AAMPLOG_TRACE("PacketSender::Init already running");
+        AAMPLOG_WARN("PacketSender::Init already running");
         
     return ret;
 }

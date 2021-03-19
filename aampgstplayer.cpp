@@ -84,7 +84,11 @@ typedef enum {
 #endif
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
 #define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
+#if defined(REALTEKCE)
+#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
+#else
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
+#endif
 #define DEFAULT_BUFFERING_MAX_MS (1000)                  // max buffering time
 #define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
@@ -810,10 +814,14 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
+#if defined (REALTEKCE)
+	return aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
+                aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg");
+#else
 	return _this->privateContext->using_westerossink?
 		aamp_StartsWith(name, "westerossink"):
-		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
-		aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
+		aamp_StartsWith(name, "brcmvideodecoder");
+#endif
 }
 
 /**
@@ -1455,7 +1463,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
-
+#if defined (REALTEKCE)
+			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxwmvdec") ||
+				aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxh26") || aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxav1dec")||
+				aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxmpeg") )
+			{
+				_this->privateContext->video_dec = (GstElement *) msg->src;
+			}
+#endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
 			{
@@ -3994,6 +4009,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 		uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
 	        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 	        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
+
 		stopBuffering = stopBuffering || (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN) || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum byte and frame values should be configurable from aamp.cfg
 #else
 		stopBuffering = true;

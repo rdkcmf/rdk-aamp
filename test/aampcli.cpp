@@ -145,7 +145,8 @@ typedef enum{
 	eAAMP_SET_PropagateUriParam,
 	eAAMP_SET_RateOnTune,
 	eAAMP_SET_ThumbnailTrack,
-	eAAMP_SET_SslVerifyPeer
+	eAAMP_SET_SslVerifyPeer,
+	eAAMP_SET_DownloadDelayOnFetch
 }AAMPSetTypes;
 
 /**
@@ -603,7 +604,38 @@ void ShowHelpSet(){
 	printf("set 46 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
 	printf("set 47 <x>            // Set Pre-tune rate (x= PreTuneRate)\n");
 	printf("set 48 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
+	printf("set 49 <x>            // Set delay while downloading fragments (unsigned int x = download delay in ms)\n");
 	printf("******************************************************************************************\n");
+}
+
+
+static const char *StringifyPrivAAMPState(PrivAAMPState state)
+{
+	static const char *stateName[] =
+	{
+		"IDLE",
+		"INITIALIZING",
+		"INITIALIZED",
+		"PREPARING",
+		"PREPARED",
+		"BUFFERING",
+		"PAUSED",
+		"SEEKING",
+		"PLAYING",
+		"STOPPING",
+		"STOPPED",
+		"COMPLETE",
+		"ERROR",
+		"RELEASED"
+	};
+	if( state>=eSTATE_IDLE && state<=eSTATE_RELEASED )
+	{
+		return stateName[state];
+	}
+	else
+	{
+		return "UNKNOWN";
+	}
 }
 
 /**
@@ -625,7 +657,7 @@ public:
 		case AAMP_EVENT_STATE_CHANGED:
 			{
 				StateChangedEventPtr ev = std::dynamic_pointer_cast<StateChangedEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_STATE_CHANGED: %d\n", ev->getState());
+				printf("[AAMPCLI] AAMP_EVENT_STATE_CHANGED: %s (%d)", StringifyPrivAAMPState(ev->getState()), ev->getState());
 				break;
 			}
 		case AAMP_EVENT_SEEKED:
@@ -644,44 +676,67 @@ public:
 				{
 					printf("[AAMPCLI] language: %s\n", languages[i].c_str());
 				}
+				printf("[AAMPCLI] AAMP_EVENT_MEDIA_METADATA\n\tDuration=%ld\n\twidth=%d\n\tHeight=%d\n\tHasDRM=%d\n", ev->getDuration(), ev->getWidth(), ev->getHeight(), ev->hasDrm());
+				int bitrateCount = ev->getBitratesCount();
+				std::vector<long> bitrates = ev->getBitrates();
+				printf("[AAMPCLI] Bitrates:\n");
+				for(int i = 0; i < bitrateCount; i++)
+				{
+					printf("\t[AAMPCLI] bitrate(%d)=%ld\n", i, bitrates.at(i));
+				}
 				break;
 			}
 		case AAMP_EVENT_TUNED:
-			printf("[AAMPCLI] AAMP_EVENT_TUNED\n");
-			break;
-				
+				{
+					printf("[AAMPCLI] AAMP_EVENT_TUNED");
+					break;
+				}
 		case AAMP_EVENT_TUNE_FAILED:
+				{
+					MediaErrorEventPtr ev = std::dynamic_pointer_cast<MediaErrorEvent>(e);
+					mTuneFailureDescription = ev->getDescription();
+					printf("[AAMPCLI] AAMP_EVENT_TUNE_FAILED reason=%s",mTuneFailureDescription.c_str());
+					break;
+				}
+		case AAMP_EVENT_SPEED_CHANGED:
+				{
+					SpeedChangedEventPtr ev = std::dynamic_pointer_cast<SpeedChangedEvent>(e);
+					printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED current rae=%d\n", ev->getRate());
+					break;
+				}
+		case AAMP_EVENT_DRM_METADATA:
+				{
+					DrmMetaDataEventPtr ev = std::dynamic_pointer_cast<DrmMetaDataEvent>(e);
+					printf("[AAMPCLI] AAMP_DRM_FAILED Tune failure:%d\t\naccess status str:%s\t\naccess status val:%d\t\nResponce code:%d\t\nIs SecClient error:%d\t\n",ev->getFailure(), ev->getAccessStatus().c_str(), ev->getAccessStatusValue(), ev->getResponseCode(), ev->getSecclientError());
+					break;
+				}
+		case AAMP_EVENT_EOS:
+				printf("[AAMPCLI] AAMP_EVENT_EOS");
+				break;
+		case AAMP_EVENT_PLAYLIST_INDEXED:
+				printf("[AAMPCLI] AAMP_EVENT_PLAYLIST_INDEXED");
+				break;
+		case AAMP_EVENT_PROGRESS:
 			{
-				MediaErrorEventPtr ev = std::dynamic_pointer_cast<MediaErrorEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_TUNE_FAILED\n");
-				mTuneFailureDescription = ev->getDescription();
+				ProgressEventPtr ev = std::dynamic_pointer_cast<ProgressEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS());
 				break;
 			}
-				
-		case AAMP_EVENT_SPEED_CHANGED:
-			printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED\n");
-			break;
-		case AAMP_EVENT_DRM_METADATA:
-						printf("[AAMPCLI] AAMP_DRM_FAILED\n");
-						break;
-		case AAMP_EVENT_EOS:
-			printf("[AAMPCLI] AAMP_EVENT_EOS\n");
-			break;
-		case AAMP_EVENT_PLAYLIST_INDEXED:
-			printf("[AAMPCLI] AAMP_EVENT_PLAYLIST_INDEXED\n");
-			break;
-		case AAMP_EVENT_PROGRESS:
-			//printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n");
-			break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
-			printf("[AAMPCLI] AAMP_EVENT_CC_HANDLE_RECEIVED\n");
-			break;
+			{
+				CCHandleEventPtr ev = std::dynamic_pointer_cast<CCHandleEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_CC_HANDLE_RECEIVED CCHandle=%lu",ev->getCCHandle());
+				break;
+			}
 		case AAMP_EVENT_BITRATE_CHANGED:
-			printf("[AAMPCLI] AAMP_EVENT_BITRATE_CHANGED\n");
-			break;
+			{
+				BitrateChangeEventPtr ev = std::dynamic_pointer_cast<BitrateChangeEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_BITRATE_CHANGED\n\tbitrate=%d\n\tdescription=\"%s\"\n\tresolution=%dx%d@%ffps\n\ttime=%d\n\tposition=%lf", ev->getBitrate(), ev->getDescription().c_str(), ev->getWidth(), ev->getHeight(), ev->getFrameRate(), ev->getPosition());
+				break;
+			}
 		case AAMP_EVENT_AUDIO_TRACKS_CHANGED:
-			printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED\n");
-			break;
+				printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED");
+				break;
 		case AAMP_EVENT_ID3_METADATA:
 			{
 				printf("[AAMPCLI] AAMP_EVENT_ID3_METADATA\n");
@@ -816,6 +871,7 @@ static void ProcessCliCommand( char *cmd )
 	long grace = 0;
 	long time = -1;
 	bool eventChange=false;
+	unsigned int DownloadDelayInMs = 0;
 	trim(&cmd);
 	while( *cmd==' ' ) cmd++;
 	if (cmd[0] == 0)
@@ -1654,7 +1710,14 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");
 					break;
 				}
-				
+                                case eAAMP_SET_DownloadDelayOnFetch:
+                                {
+                                        logprintf("Matched Command eAAMP_SET_DownloadDelayOnFetch - %s",cmd);
+                                        sscanf(cmd, "set %d %d", &opt, &DownloadDelayInMs);
+                                        mSingleton->ApplyArtificialDownloadDelay(DownloadDelayInMs);
+                                        break;
+                                }
+
 				default:
 					printf("[AAMPCLI] Invalid set command %d\n", opt);
 					break;

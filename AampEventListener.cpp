@@ -168,7 +168,7 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.dash_drmmetadata.accessStatus = ev->getAccessStatus().c_str();
 			event.data.dash_drmmetadata.accessStatus_value = ev->getAccessStatusValue();
 			event.data.dash_drmmetadata.responseCode = ev->getResponseCode();
-			event.data.dash_drmmetadata.isSecClientError = ev->secclientError();
+			event.data.dash_drmmetadata.isSecClientError = ev->getSecclientError();
 			break;
 		}
 		case AAMP_EVENT_REPORT_ANOMALY:

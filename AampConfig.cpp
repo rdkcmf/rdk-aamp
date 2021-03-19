@@ -209,6 +209,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"stallErrorCode",eAAMPConfig_StallErrorCode,-1,-1},
 	{"stallTimeout",eAAMPConfig_StallTimeoutMS,-1,-1},
 	{"initialBuffer",eAAMPConfig_InitialBuffer,-1,-1},
+	{"downloadDelay",eAAMPConfig_DownloadDelay,-1,-1},
 //	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
 	
 };
@@ -357,6 +358,9 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value           =       DEFAULT_PREBUFFER_COUNT;
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value       =       AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value         =       AAMP_HIGH_BUFFER_BEFORE_RAMPUP;
+	iAampCfgValue[eAAMPConfig_DownloadDelay-eAAMPConfig_IntStartValue].value         	=       0;
+
+
 
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		

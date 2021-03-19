@@ -801,13 +801,24 @@ void DrmMetaDataEvent::setResponseCode(long code)
 }
 
 /**
- * @brief Is secclient error
+ * @brief get secclient error
  *
- * @return Is secclient error (true/false)
+ * @return get secclient error (true/false)
  */
-bool DrmMetaDataEvent::secclientError() const
+bool DrmMetaDataEvent::getSecclientError() const
 {
 	return mSecclientError;
+}
+
+/**
+ * @brief Update secclient error
+ *
+ * @param[in] secClientError status (true/false)
+ * @return void
+ */
+void DrmMetaDataEvent::setSecclientError(bool secClientError)
+{
+	mSecclientError = secClientError;
 }
 
 /**

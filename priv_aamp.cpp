@@ -105,6 +105,7 @@
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+#define MAX_DOWNLOAD_DELAY_LIMIT_MS 300000
 
 /**
  * New state for treating a VOD asset as a "virtual linear" stream
@@ -1587,6 +1588,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
 			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
 		}
+		else if (ReadConfigNumericHelper(cfg, "downloadDelay=", value))
+		{
+			gpGlobalConfig->mDownloadDelayInMs = value;
+			logprintf("Apply download delay: %u ms", gpGlobalConfig->mDownloadDelayInMs);
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -2443,7 +2449,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 	{
 		AAMPTuneFailure tuneFailure = event->getFailure();
 		long error_code = event->getResponseCode();
-		bool isSecClientError = event->secclientError();
+		bool isSecClientError = event->getSecclientError();
 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
@@ -3715,6 +3721,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
 	int fragmentDurationMs = (int)(fragmentDurationSeconds*1000);/*convert to MS */
+	int insertDownloadDelay=0;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DownloadDelay,insertDownloadDelay);
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_AUX_AUDIO)
 	{
 		int InitFragmentRetryCount;
@@ -3893,7 +3901,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 
-//				InterruptableMsSleep( 250 ); // this can be uncommented to locally induce extra per-download latency
+				/* optionally locally induce extra per-download latency */
+                if( insertDownloadDelay > 0 )
+                {
+					InterruptableMsSleep( insertDownloadDelay );
+                }
 
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
@@ -6411,6 +6423,25 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 }
 
 
+
+/**
+ *   @brief to optionally configure simulated per-download network latency for negative testing
+ *
+ *   @param[in] DownloadDelayInMs - extra millisecond delay added in each download
+ *   @return void
+ */
+void PrivateInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs)
+{
+	if( DownloadDelayInMs <= MAX_DOWNLOAD_DELAY_LIMIT_MS )
+	{
+		gpGlobalConfig->mDownloadDelayInMs = DownloadDelayInMs;
+		logprintf("%s:%d Apply delay in each download : %u ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
+	}
+	else
+	{
+		logprintf("%s:%d Apply delay in download out of range : %u ms, expected 0 to 300000 ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
+	}
+}
 
 /**
  *   @brief to disable SSL verify peer 
@@ -9577,6 +9608,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks(trackInfo);
+#endif
 		if (!trackInfo.empty())
 		{
 			//Convert to JSON format
