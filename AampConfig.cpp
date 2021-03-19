@@ -117,7 +117,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
 	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,-1,-1},
 	{"abrNwConsistency",eAAMPConfig_ABRNWConsistency,-1,-1},	
-	{"min-buffer-rampdown",eAAMPConfig_MinABRNWBufferRampDown,-1,-1},
+	{"minABRBufferRampdown",eAAMPConfig_MinABRNWBufferRampDown,-1,-1},
 	{"preservePipeline",eAAMPConfig_PreservePipeline,-1,-1},
 	{"demuxHlsAudioTrack",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
 	{"demuxHlsVideoTrack",eAAMPConfig_DemuxVideoHLSTrack,-1,-1},
@@ -170,7 +170,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
 	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,-1,-1},
-	{"subtitle-language",eAAMPConfig_SubTitleLanguage,-1,-1},
+	{"preferredSubtitleLanguage",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
@@ -185,7 +185,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"maxBitrate",eAAMPConfig_MaxBitrate,-1,-1},
 	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryCount,-1,-1},
 	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,-1,-1},
-	{"disableSubtec",eAAMPConfig_Subtec_subtitle,-1,-1},
+	{"subtecSubtitle",eAAMPConfig_Subtec_subtitle,-1,-1},
 	{"webVttNative",eAAMPConfig_WebVTTNative,-1,-1},
 	{"ceaFormat",eAAMPConfig_CEAPreferred,-1,-1},
 	{"asyncTune",eAAMPConfig_AsyncTune,-1,-1},	
@@ -196,7 +196,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"wifiCurlHeader",eAAMPConfig_WifiCurlHeader,-1,-1},
 	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
 	{"log",eAAMPConfig_LogLevel,-1,-1},
-	{"max-buffer-rampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
+	{"maxABRBufferRampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
 	{"min-vod-cache",eAAMPConfig_VODMinCachedSeconds,-1,-1},	
 	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
 	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
@@ -313,7 +313,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	false;
-	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;	
+	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	false;	
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value				=	true;
 	
@@ -354,6 +354,10 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_DRMDecryptThreshold-eAAMPConfig_IntStartValue].value		=	MAX_SEG_DRM_DECRYPT_FAIL_COUNT;	
 	iAampCfgValue[eAAMPConfig_SegmentInjectThreshold-eAAMPConfig_IntStartValue].value	=	MAX_SEG_INJECT_FAIL_COUNT;	
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;
+	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value           =       DEFAULT_PREBUFFER_COUNT;
+	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value       =       AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;
+	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value         =       AAMP_HIGH_BUFFER_BEFORE_RAMPUP;
+
 #if 0
 	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
 	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
@@ -364,7 +368,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value	=	AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;	
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value		=	AAMP_HIGH_BUFFER_BEFORE_RAMPUP;	
-	iAampCfgValue[eAAMPConfig_PrePlayBufferCount-eAAMPConfig_IntStartValue].value 		=	SEGMENTS_DOWNLOADED_BEFORE_PLAY; 
 
 
 	///////////////// Following for Long Data type config ////////////////////////////	

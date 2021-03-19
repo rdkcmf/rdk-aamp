@@ -292,7 +292,6 @@ public:
 		memset(&es, 0x00, sizeof(GrowableBuffer));
 		sentESCount = 0;
 		pes_state = PES_STATE_WAITING_FOR_HEADER;
-		allowPtsRewind = gpGlobalConfig->getUnknownValue("dmx.allowPtsRewind", false);
 		DEBUG_DEMUX("init : position %f, duration %f resetBasePTS %d", position, duration, resetBasePTS);
 	}
 

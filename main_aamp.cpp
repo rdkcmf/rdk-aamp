@@ -1597,9 +1597,9 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
-        AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)", __FUNCTION__, __LINE__, aamp->mSubLanguage, language);
+        AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), language);
 
-	if (strncmp(language, aamp->mSubLanguage, MAX_LANGUAGE_TAG_LENGTH) == 0)
+	if (aamp->mSubLanguage.compare(language) == 0)
 		return;
 
 	
@@ -1611,7 +1611,7 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 	{
 		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set - will take effect on next tune", __FUNCTION__, __LINE__, language);
 	}
-	aamp->UpdateSubtitleLanguageSelection(language);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SubTitleLanguage,(std::string)language);
 }
 
 /**

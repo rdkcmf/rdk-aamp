@@ -54,7 +54,7 @@ public:
                 // If JavaScript cue listeners have been registered use WebVTTParser,
                 // otherwise use subtec
                 if (!aamp->WebVTTCueListenersRegistered())
-                    if (gpGlobalConfig->bWebVttNative)
+                    if (ISCONFIGSET(eAAMPConfig_WebVTTNative))
                         return new WebVTTSubtecParser(aamp, mimeType);
                     else
                         return new WebVTTSubtecDevParser(aamp, mimeType);

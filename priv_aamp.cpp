@@ -1995,6 +1995,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mConfig (config)
 	, mHarvestCountLimit(0)
 	, mHarvestConfig(0)
+	, mSubLanguage()
 {
 	LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -2006,9 +2007,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_cond_init(&mDownloadsDisabled, NULL);
 	strcpy(language,"en");
 	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
-    
-	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
-	if (!gpGlobalConfig->mSubtitleLanguage.empty()) strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
+   	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage); 
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -4322,7 +4321,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		mIsFirstRequestToFOG = false;
 	}
 
-    if (gpGlobalConfig->useLinearSimulator)
+    if (ISCONFIGSET_PRIV(eAAMPConfig_EnableLinearSimulator))
 	{
 		// NEW! note that for simulated playlists, ideally we'd not bother re-downloading playlist above
 
@@ -5214,6 +5213,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
 	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
 	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
@@ -8180,7 +8180,7 @@ void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool ch
 		}
 	}
 }
-
+#if 0
 /**
  * @brief Update subtitle language selection
  * @param lang string corresponding to language
@@ -8190,7 +8190,7 @@ void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
 	strncpy(mSubLanguage, lang, MAX_LANGUAGE_TAG_LENGTH);
 	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 }
-
+#endif
 /**
  * @brief Get current stream type
  * @retval 10 - HLS/Clear
@@ -9292,7 +9292,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
 	// Assumption being that enableSubtec and event listener will not be registered at the same time
 	// in which case subtec gets priority over event listener
-	return (gpGlobalConfig->bEnableSubtec || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
 	//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
 }
 

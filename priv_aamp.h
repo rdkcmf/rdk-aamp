@@ -668,7 +668,7 @@ public:
 	guint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
-	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
+	std::string mSubLanguage;
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
 	bool mPlayerPreBuffered;     // Player changed from BG to FG
 	int mPlayerId;

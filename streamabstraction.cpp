@@ -293,6 +293,9 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 	bool ret = true;
 	int pthreadReturnValue = 0;
 	PrivAAMPState state;
+	int preplaybuffercount=0;
+	GETCONFIGVALUE(eAAMPConfig_PrePlayBufferCount,preplaybuffercount);
+
 	if(abort)
 	{
 		ret = false;
@@ -303,7 +306,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 		// Wait for 100ms
 		pthread_mutex_lock(&aamp->mMutexPlaystart);
 		aamp->GetState(state);
-		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > gpGlobalConfig->preplaybuffercount
+		if(state == eSTATE_PREPARED && totalFragmentsDownloaded > preplaybuffercount
 				&& !aamp->IsFragmentCachingRequired() )
 		{
 
@@ -1254,6 +1257,8 @@ void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
 void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int &newProfileIndex)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
+	int maxBuffer;
+	GETCONFIGVALUE(eAAMPConfig_MaxABRNWBufferRampUp,maxBuffer);
 
 	long currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 	long newBandwidth = GetStreamInfo(newProfileIndex)->bandwidthBitsPerSecond;
@@ -1269,7 +1274,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 		{
 			// Rampup attempt . check if buffer availability is good before profile change
 			// else retain current profile  
-			if(bufferValue < gpGlobalConfig->maxABRBufferForRampUp)
+			if(bufferValue < maxBuffer)
 				newProfileIndex = currProfileIndex;
 		}
 		else
@@ -1290,12 +1295,15 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
 	int  abrCacheLength;
-        GETCONFIGVALUE(eAAMPConfig_ABRCacheLength,abrCacheLength);
+	int minBuffer,maxBuffer;
+	GETCONFIGVALUE(eAAMPConfig_ABRCacheLength,abrCacheLength);
+	GETCONFIGVALUE(eAAMPConfig_MinABRNWBufferRampDown,minBuffer);
+	GETCONFIGVALUE(eAAMPConfig_MaxABRNWBufferRampUp,maxBuffer);
 
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
 		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
-		if(bufferValue > gpGlobalConfig->maxABRBufferForRampUp)
+		if(bufferValue > maxBuffer)
 		{
 			mABRHighBufferCounter++;
 			mABRLowBufferCounter = 0 ;
@@ -1322,7 +1330,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 		}
 		// steady state ,with no ABR cache available to determine actual bandwidth
 		// this state can happen due to timeouts
-		if(nwBandwidth == -1 && bufferValue < gpGlobalConfig->minABRBufferForRampDown && !video->IsInjectionAborted())
+		if(nwBandwidth == -1 && bufferValue < minBuffer && !video->IsInjectionAborted())
 		{
 			mABRLowBufferCounter++;
 			mABRHighBufferCounter = 0;
@@ -1354,6 +1362,9 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
+	int maxBuffer;
+	GETCONFIGVALUE(eAAMPConfig_MaxABRNWBufferRampUp,maxBuffer);
+
 	if(video && video->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download 
@@ -1362,13 +1373,13 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 		if(vBufferDuration > 0)
 		{
 			long timeoutMs = (long)(vBufferDuration*1000); ;
-			if(vBufferDuration < gpGlobalConfig->maxABRBufferForRampUp)
+			if(vBufferDuration < maxBuffer)
 			{
 				timeoutMs = aamp->mNetworkTimeoutMs;
 			}
 			else
 			{	// enough buffer available 
-				timeoutMs = std::min(timeoutMs/2,(long)(gpGlobalConfig->maxABRBufferForRampUp*1000));
+				timeoutMs = std::min(timeoutMs/2,(long)(maxBuffer*1000));
 				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
 			}
 			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_VIDEO);
@@ -1383,13 +1394,13 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 		if(aBufferDuration > 0)
 		{
 			long timeoutMs = (long)(aBufferDuration*1000);
-			if(aBufferDuration < gpGlobalConfig->maxABRBufferForRampUp)
+			if(aBufferDuration < maxBuffer)
 			{
 				timeoutMs = aamp->mNetworkTimeoutMs;
 			}
 			else
 			{
-				timeoutMs = std::min(timeoutMs/2,(long)(gpGlobalConfig->maxABRBufferForRampUp*1000));
+				timeoutMs = std::min(timeoutMs/2,(long)(maxBuffer*1000));
 				timeoutMs = std::max(timeoutMs , aamp->mNetworkTimeoutMs);
 			}
 			aamp->SetCurlTimeout(timeoutMs,eCURLINSTANCE_AUDIO);
