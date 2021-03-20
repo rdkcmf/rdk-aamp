@@ -30,7 +30,7 @@
 #endif
 
 #include "main_aamp.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
 #ifdef AAMP_CC_ENABLED
@@ -50,7 +50,7 @@
 #include <regex>
 #endif //WIN32
 
-AampConfig *gpGlobalAampConfig=NULL;
+AampConfig *gpGlobalConfig=NULL;
 
 #define ERROR_STATE_CHECK_VOID() \
 	PrivAAMPState state; \
@@ -140,21 +140,25 @@ if(!iarmInitialized)
 
 	// Create very first instance of Aamp Config to read the cfg & Operator file .This is needed for very first
 	// tune only . After that every tune will use the same config parameters
-	if(gpGlobalAampConfig == NULL)
+	if(gpGlobalConfig == NULL)
 	{		
-		gpGlobalAampConfig =  new AampConfig();
-		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalAampConfig);
-		if(!gpGlobalAampConfig->ReadAampCfgTxtFile())
+#ifdef AAMP_BUILD_INFO
+		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
+		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
+#endif
+		gpGlobalConfig =  new AampConfig();
+		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalConfig);
+		if(!gpGlobalConfig->ReadAampCfgTxtFile())
 		{
-			gpGlobalAampConfig->ReadAampCfgJsonFile();
+			gpGlobalConfig->ReadAampCfgJsonFile();
 		}
-		gpGlobalAampConfig->ReadOperatorConfiguration();		
-		gpGlobalAampConfig->ShowAAMPConfiguration();
+		gpGlobalConfig->ReadOperatorConfiguration();		
+		gpGlobalConfig->ShowAAMPConfiguration();
 		
 	}
 
 	// Copy the default configuration to session configuration .App can modify the configuration set
-	mConfig = *gpGlobalAampConfig;
+	mConfig = *gpGlobalConfig;
 
 	aamp = new PrivateInstanceAAMP(&mConfig);
 	if (NULL == streamSink)
@@ -228,17 +232,18 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 #endif
 	if (isLastPlayerInstance && gpGlobalConfig)
 	{
-		logprintf("[%s] Release GlobalConfig(%p)", __FUNCTION__,gpGlobalConfig);
+		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalConfig);
 		delete gpGlobalConfig;
 		gpGlobalConfig = NULL;
 	}
-	
+#if 0	
 	if(isLastPlayerInstance && gpGlobalAampConfig)
 	{
 		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalAampConfig);
 		delete gpGlobalAampConfig;
 		gpGlobalAampConfig = NULL;
 	}
+#endif
 }
 
 
@@ -250,7 +255,7 @@ void PlayerInstanceAAMP::ResetConfiguration()
 {
 	AAMPLOG_WARN("%s Resetting Configuration to default values ",__FUNCTION__);
 	// Copy the default configuration to session configuration .App can modify the configuration set
-	mConfig = *gpGlobalAampConfig;
+	mConfig = *gpGlobalConfig;
 	// Based on the default condition , reset the AsyncTune scheduler
 	AsyncStartStop();
 	mConfig.ShowAAMPConfiguration();
@@ -1324,7 +1329,7 @@ void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 	{
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableABR,true);
 		long gpDefaultBitRate;
-		gpGlobalAampConfig->GetConfigValue( eAAMPConfig_DefaultBitrate ,gpDefaultBitRate);
+		gpGlobalConfig->GetConfigValue( eAAMPConfig_DefaultBitrate ,gpDefaultBitRate);
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,gpDefaultBitRate);
 		AAMPLOG_WARN("%s:%d Resetting default bitrate to  %ld",__FUNCTION__, __LINE__,gpDefaultBitRate);
 	}

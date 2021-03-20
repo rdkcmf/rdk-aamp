@@ -25,7 +25,7 @@
 #include <string>
 #include "tr181api.h"
 #include "AampRfc.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 #ifdef AAMP_RFC_ENABLED
 namespace RFCSettings

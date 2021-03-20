@@ -430,7 +430,7 @@ private:
 	ChannelMap mChannelOverrideMap;
 };
 
-
+extern AampConfig  *gpGlobalConfig;
 #endif
 
 

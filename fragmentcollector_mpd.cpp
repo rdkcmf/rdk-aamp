@@ -611,6 +611,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 
 	// setup DRM prefs from config
 	int highestPref = 0;
+	#if 0
 	std::vector<std::string> values;
 	if (gpGlobalConfig->getMatchingUnknownKeys("drm-preference.", values))
 	{
@@ -624,6 +625,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 			}
 		}
 	}
+	#endif
 
 	// Get the highest number
 	for (auto const& pair: mDrmPrefs)
@@ -633,7 +635,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 			highestPref = pair.second;
 		}
 	}
-
+	
 	// Give preference based on GetPreferredDRM.
 	switch (aamp->GetPreferredDRM())
 	{

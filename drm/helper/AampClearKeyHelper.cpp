@@ -20,7 +20,7 @@
 #include "AampClearKeyHelper.h"
 #include "AampJsonObject.h"
 
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "AampConstants.h"
 
 static AampClearKeyHelperFactory clearkey_helper_factory;

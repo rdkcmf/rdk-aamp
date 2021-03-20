@@ -34,6 +34,11 @@
 #endif
 #endif
 
+
+//Stringification of Macro :  use two levels of macros
+#define MACRO_TO_STRING(s) X_STR(s)
+#define X_STR(s) #s
+
 #define MAX_PTS_ERRORS_THRESHOLD 4
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 #define MAX_PLAYLIST_CACHE_SIZE    (3*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
@@ -70,8 +75,12 @@
 #define DEFAULT_PREBUFFER_COUNT (2)
 #define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 // 10sec buffer before rampdown
 #define AAMP_HIGH_BUFFER_BEFORE_RAMPUP  15 // 15sec buffer before rampup
-
-
+#define MAX_DASH_DRM_SESSIONS 30
+#define MAX_AD_SEG_DOWNLOAD_FAIL_COUNT 2            /**< Max Ad segment download failures to identify as the ad playback failure. */
+#define FRAGMENT_DOWNLOAD_WARNING_THRESHOLD 2000    /**< MAX Fragment download threshold time in Msec*/
+#define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
+#define MAX_DIFF_BETWEEN_PTS_POS_MS (3600*1000)
+#define MAX_SEG_DOWNLOAD_FAIL_COUNT 10              /**< Max segment download failures to identify a playback failure. */
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

@@ -313,7 +313,7 @@ public:
 	void setBaseUserAgentString(const char * newUserAgent);
 };
 
-extern GlobalConfigAAMP *gpGlobalConfig;
+//extern GlobalConfigAAMP *gpGlobalConfig;
 
 #endif /* GLOBALCONFIGAAMP_H */
 

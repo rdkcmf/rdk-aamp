@@ -30,7 +30,6 @@
 #include "AampDrmHelper.h"
 #include "AampDrmMediaFormat.h"
 #include "AampDrmCallbacks.h"
-#include "GlobalConfigAAMP.h"
 #include "main_aamp.h"
 #ifdef SESSION_STATS
 #include <IPVideoStat.h>

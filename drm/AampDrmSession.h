@@ -31,7 +31,7 @@
 #include <gst/gst.h>
 
 #include "AampDRMutils.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 using namespace std;
 

@@ -812,7 +812,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 		}
 #endif
 }
-
+#if 0
 void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 {
 	memset(streamInfo, 0, sizeof(HlsStreamInfo));
@@ -833,6 +833,15 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	streamInfo->resolution.framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", framerate);
 	streamInfo->codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs", codecs).c_str();
 }
+#else
+void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
+{
+	memset(streamInfo, 0, sizeof(HlsStreamInfo));	
+	streamInfo->resolution.width = DEFAULT_STREAM_WIDTH;
+	streamInfo->resolution.height = DEFAULT_STREAM_HEIGHT;
+	streamInfo->resolution.framerate = DEFAULT_STREAM_FRAMERATE;
+}
+#endif
 
 /**
  * @brief Convert custom curl errors to original
@@ -4750,8 +4759,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							{
 								logprintf("StreamAbstractionAAMP_HLS::%s : Configure audio TS track demuxing", __FUNCTION__);
 								ts->playContext = new TSProcessor(aamp, eStreamOp_DEMUX_AUDIO);
-							}
-							else if (gpGlobalConfig->gAampMergeAudioTrack)
+							}							
+							else
 							{
 								logprintf("Configure audio TS track to queue");
 								ts->playContext = new TSProcessor(aamp, eStreamOp_QUEUE_AUDIO);

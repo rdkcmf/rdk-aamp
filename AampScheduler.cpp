@@ -23,7 +23,7 @@
  */
 
 #include "AampScheduler.h"
-#include "GlobalConfigAAMP.h" //Required for logprintf, TODO: fix this
+#include "AampConfig.h"
 
 /**
  * @brief AampScheduler Constructor

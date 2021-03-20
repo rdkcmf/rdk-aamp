@@ -24,7 +24,7 @@
 
 #include "AampUtils.h"
 #include "_base64.h"
-#include "GlobalConfigAAMP.h" //For logprintf
+#include "AampConfig.h"
 #include "AampConstants.h"
 
 #include <sys/time.h>

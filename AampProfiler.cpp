@@ -25,7 +25,7 @@
 #include "AampProfiler.h"
 #include "AampConstants.h"
 #include "AampUtils.h"
-#include "GlobalConfigAAMP.h" //Required for gpGlobalConfig and AAMPLOG
+#include "AampConfig.h"
 
 #include <algorithm>
 

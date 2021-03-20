@@ -5,7 +5,8 @@
 #include <algorithm>
 #include <iterator>
 
-#include "GlobalConfigAAMP.h"
+//#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 #include "AampDrmHelper.h"
 

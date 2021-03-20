@@ -140,8 +140,6 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 static bool activeInterfaceWifi = false;
 
-GlobalConfigAAMP *gpGlobalConfig;
-
 /**
  * @struct ChannelInfo 
  * @brief Holds information of a channel
@@ -800,6 +798,8 @@ static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& va
 
 	return ret;
 }
+
+#if 0
 
 /**
  * @brief Process config entries,i and update gpGlobalConfig params
@@ -1601,8 +1601,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->unknownValues.insert(std::make_pair(key, value));
 			logprintf("Added unknown key %s with value %s", key.c_str(), value.c_str());
 		}
+		
 	}
 }
+#endif
+
 // End of helper functions for loading configuration
 
 // Curl callback functions
@@ -2003,7 +2006,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mHarvestConfig(0)
 	, mSubLanguage()
 {
-	LazilyLoadConfigIfNeeded();
+	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
 	int maxDrmSession;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
@@ -4534,6 +4537,7 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 }
 
 
+#if 0
 /**
  * @brief Load AAMP configuration file
  */
@@ -4546,7 +4550,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
 		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
 #endif
-		gpGlobalConfig = new GlobalConfigAAMP();
+		gpGlobalConfig = new AampConfig();
 #ifdef IARM_MGR 
 		logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  ");
 		size_t iConfigLen = 0;
@@ -4575,7 +4579,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				{
 					//ProcessConfigEntry takes char * and line.c_str() returns const string hence copy of line is created
 					logprintf("LazilyLoadConfigIfNeeded aamp-cmd:[%s]", line.c_str());
-					ProcessConfigEntry(line);
+					//ProcessConfigEntry(line);
 				}
 			}
 		}
@@ -4613,12 +4617,13 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				while (f.good())
 				{
 					std::getline(f, buf);
-					ProcessConfigEntry(buf);
+					//ProcessConfigEntry(buf);
 				}
 				f.close();
 			}
 		}
-
+		
+		#if 0
 		const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
 		if(env_aamp_force_aac)
 		{
@@ -4686,7 +4691,6 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 				mWesterosSinkEnabled = true;
 			}
 		}
-		#if 0
 		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
 		{
 			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
@@ -4694,6 +4698,7 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		#endif
 	}
 }
+#endif
 
 /**
  * @brief Executes tear down sequence
@@ -4929,7 +4934,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		lastUnderFlowTimeMs[i] = 0;
 	}
-	LazilyLoadConfigIfNeeded();
+	//LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
@@ -7970,6 +7975,7 @@ void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d", __FUNCTION__, url, type);
 }
 #endif
+#if 0
 /**
  *   @brief Indicates if session token has to be used with license request or not.
  *
@@ -7979,7 +7985,6 @@ void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	gpGlobalConfig->licenseAnonymousRequest = isAnonymous;
 }
-#if 0
 /**
  *   @brief Indicates average BW to be used for ABR Profiling.
  *

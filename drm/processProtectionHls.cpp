@@ -48,7 +48,7 @@ static pthread_mutex_t drmProcessingMutex = PTHREAD_MUTEX_INITIALIZER;
 /**
  * Global aamp config data 
  */
-extern GlobalConfigAAMP *gpGlobalConfig;
+extern AampConfig *gpGlobalConfig;
 DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 
 /**

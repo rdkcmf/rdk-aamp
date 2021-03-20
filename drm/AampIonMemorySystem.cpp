@@ -24,7 +24,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "GlobalConfigAAMP.h"
+//#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 AampIonMemorySystem::AampIonMemorySystem() : context_() {
 }

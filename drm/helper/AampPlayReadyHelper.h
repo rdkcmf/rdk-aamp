@@ -22,7 +22,7 @@
 #include <memory>
 
 #include "AampDrmHelper.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 class AampPlayReadyHelper : public AampDrmHelper
 {
