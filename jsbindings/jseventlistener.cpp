@@ -1331,17 +1331,21 @@ void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEvent
 
 		typedef std::multimap<AAMPEventType, void*>::iterator listenerIter_t;
 		std::pair<listenerIter_t, listenerIter_t> range = obj->_listeners.equal_range(type);
-		for(listenerIter_t iter = range.first; iter != range.second; iter++)
+		for(listenerIter_t iter = range.first; iter != range.second; )
 		{
-			if (iter->second == jsCallback)
+			AAMP_JSEventListener *listener = (AAMP_JSEventListener *)iter->second;
+			if (listener->p_jsCallback == jsCallback)
 			{
-				AAMP_JSEventListener *listener = (AAMP_JSEventListener *)iter->second;
 				if (obj->_aamp != NULL)
 				{
 					obj->_aamp->RemoveEventListener(iter->first, listener);
 				}
 				iter = obj->_listeners.erase(iter);
 				delete listener;
+			}
+			else
+			{
+				iter++;
 			}
 		}
 	}
