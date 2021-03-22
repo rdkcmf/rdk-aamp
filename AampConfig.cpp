@@ -321,7 +321,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	false;
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	false;	
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
-	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value				=	true;
+	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	
 	///////////////// Following for Integer Data type configs ////////////////////////////
 //	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	

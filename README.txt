@@ -113,6 +113,19 @@ seekMidFragment			Enable/Disable Mid-Fragment seek .Default false
 wifiCurlHeader			Enable/Disble wifi custom curl header inclusion.Default true
 removeAVEDRMPersistent		Enable/Disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs.Default false.
 reportBufferEvent		Enables Buffer event reporting.Default is true.
+info            		Enable/Disable logging of requested urls.Default is false
+gst             		Enable/Disable gstreamer logging including pipeline dump.Default is false
+progress        		Enable/Disable periodic logging of position.Default is false
+trace           		Enable/Disable dumps of manifests.Default is false
+curl            		Enable/Disable verbose curl logging for manifest/playlist/segment downloads.Default is false
+curlLicense     		Enable/Disable verbose curl logging for license request (non-secclient).Default is false
+debug           		Enable/Disable debug level logs.Default is false
+logMetadata     		Enable/Disable timed metadata logging.Default is false
+useLinearSimulator		Enable/Disable linear simulator for testing purpose, simulate VOD asset as a "virtual linear" stream.Default is false
+dashParallelFragDownload	Enable/Disable dash fragment parallel download.Default is true
+enableAccessAttributes		Enable/Disable Usage of Access Attributes in VSS.Default is true 
+subtecSubtitle			Enable/Disable subtec-based subtitles.Default is false
+webVttNative			Enable/Disable Native WebVTT processing.Default is false
 
 
 // Integer inputs
@@ -169,6 +182,11 @@ preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes
 thresholdSizeABR		ABR threshold size. Default 6000.
 stallTimeout			Stall detection timeout. Default is  10sec
 stallErrorCode			Stall error code.Default is  7600
+minABRBufferRampdown		Mininum ABR Buffer for Rampdown.Default is 10sec
+maxABRBufferRampup		Maximum ABR Buffer for Rampup.Default is 15sec
+preplayBuffercount		Count of segments to be downloaded until play state.Default is 2
+downloadDelay			Delay for downloads to simulate network latency.Default is 0
+onTuneRate			Tune rate.Default is INT_MAX
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)
@@ -180,6 +198,7 @@ sessionToken			SessionToken string to override from Application . Default None
 userAgent		Curl user-agent string.Default is {Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE}
 customHeader			custom header data to be appended to curl request. Default None
 uriParameter			uri parameter data to be appended on download-url during curl request. Default None
+preferredSubtitleLanguage	User preferred subtitle language.Default is None
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
