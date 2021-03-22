@@ -77,7 +77,7 @@ void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
 { // STUB
-        AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN:%s:%d",__FUNCTION__,__LINE__);
 	return std::vector<StreamInfo*>();
 }
 
