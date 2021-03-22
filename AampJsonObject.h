@@ -105,6 +105,14 @@ public:
 	 */
 	std::string print();
 
+
+	/**
+	 *  @brief Print the constructed JSON to a string
+	 *
+	 *  @return JSON string
+	*/
+	std::string print_UnFormatted();
+
 	/**
 	 *  @brief Print the constructed JSON into the provided vector
 	 *
@@ -112,6 +120,41 @@ public:
 	 *  @return	 void.
 	 */
 	void print(std::vector<uint8_t>& data);
+	/**
+	 *  @brief Add a bool value
+	 *
+	 *  @param name name for the value
+	 *  @param value bool to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, bool value);	
+	/**
+	 *  @brief Add a int value
+	 *
+	 *  @param name name for the value
+	 *  @param value int to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, int value);
+	
+	/**
+	 *  @brief Add a double value
+	 *
+	 *  @param name name for the value
+	 *  @param value double to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, double value);
+	
+	/**
+	 *  @brief Add a long value
+	 *
+	 *  @param name name for the value
+	 *  @param value long to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, long value);
+	
 
 private:
 	bool add(const std::string& name, cJSON *value);

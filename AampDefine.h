@@ -81,6 +81,19 @@
 #define BITRATE_ALLOWED_VARIATION_BAND 500000       /**< NW BW change beyond this will be ignored */
 #define MAX_DIFF_BETWEEN_PTS_POS_MS (3600*1000)
 #define MAX_SEG_DOWNLOAD_FAIL_COUNT 10              /**< Max segment download failures to identify a playback failure. */
+
+#define MAX_ERROR_DESCRIPTION_LENGTH 128
+#define MAX_ANOMALY_BUFF_SIZE   256
+
+// Player supported play/trick-play rates.
+#define AAMP_RATE_TRICKPLAY_MAX		64
+#define AAMP_NORMAL_PLAY_RATE		1
+#define AAMP_RATE_PAUSE			0
+#define AAMP_RATE_INVALID		INT_MAX
+
+#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
+#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -174,17 +187,6 @@ enum TunedEventConfig
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
-#define MAX_ERROR_DESCRIPTION_LENGTH 128
-#define MAX_ANOMALY_BUFF_SIZE   256
-
-// Player supported play/trick-play rates.
-#define AAMP_RATE_TRICKPLAY_MAX		64
-#define AAMP_NORMAL_PLAY_RATE		1
-#define AAMP_RATE_PAUSE			0
-#define AAMP_RATE_INVALID		INT_MAX
-
-#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */

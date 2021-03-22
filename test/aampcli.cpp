@@ -50,6 +50,7 @@
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
+#include "AampConfig.h"
 #include "../StreamAbstractionAAMP.h"
 
 #define MAX_BUFFER_LENGTH 4096
@@ -2382,6 +2383,7 @@ int main(int argc, char **argv)
 	ABRManager mAbrManager;
 
 	/* Set log directory path for AAMP and ABR Manager */
+	AampConfig::SetCfgDrive(driveName);
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 

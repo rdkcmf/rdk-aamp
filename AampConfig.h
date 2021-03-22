@@ -174,7 +174,6 @@ typedef enum
 	eAAMPConfig_ABRThresholdSize,								/**< AAMP ABR threshold size*/
 	eAAMPConfig_MaxFragmentCached,								/**< fragment cache length*/
 	eAAMPConfig_VODMinCachedSeconds,							/**< Minimum VOD caching duration in seconds*/
-	eAAMPConfig_VideoMinCachedSeconds,						  	/**<Video duration to be cached before playing in seconds*/
 	eAAMPConfig_BufferHealthMonitorDelay,						/**< Buffer health monitor start delay after tune/ seek*/
 	eAAMPConfig_BufferHealthMonitorInterval,					/**< Buffer health monitor interval*/
 	eAAMPConfig_PreferredDRM,									/**< Preferred DRM*/
@@ -205,6 +204,7 @@ typedef enum
 	eAAMPConfig_InitialBuffer,
 	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	eAAMPConfig_DownloadDelay,
+	eAAMPConfig_OnTuneRate,
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,	
@@ -397,6 +397,8 @@ public:
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
 	void ConfigureLogSettings();
+	static void SetCfgDrive(char drivename);
+	bool GetAampConfigJSONStr(std::string &str);
 	
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
@@ -428,6 +430,10 @@ private:
 	typedef std::list<ConfigChannelInfo> ChannelMap ;
 	typedef std::list<ConfigChannelInfo>::iterator ChannelMapIter ;
 	ChannelMap mChannelOverrideMap;
+#ifdef WIN32	
+	static std::string cWindowsCfg;
+	static std::string cWindowsJsonCfg;
+#endif
 };
 
 extern AampConfig  *gpGlobalConfig;

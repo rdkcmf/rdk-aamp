@@ -19,6 +19,7 @@
 #include "AampConfig.h"
 #include "_base64.h"
 #include "base16.h"
+#include "AampJsonObject.h" // For JSON parsing
 
 
 //////////////// CAUTION !!!! STOP !!! Read this before you proceed !!!!!!! /////////////
@@ -43,6 +44,12 @@ template void AampConfig::SetConfigValue<long>(ConfigPriority owner, AAMPConfigS
 template void AampConfig::SetConfigValue<double>(ConfigPriority owner, AAMPConfigSettings cfg , const double &value);
 template void AampConfig::SetConfigValue<int>(ConfigPriority owner, AAMPConfigSettings cfg , const int &value);
 template void AampConfig::SetConfigValue<bool>(ConfigPriority owner, AAMPConfigSettings cfg , const bool &value);
+
+#ifdef WIN32
+std::string AampConfig::cWindowsCfg= AAMP_CFG_PATH;
+std::string AampConfig::cWindowsJsonCfg = AAMP_JSON_PATH;
+#endif
+
 /**
  * @brief AAMP Config Owners enum-string mapping table
  */
@@ -124,7 +131,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"demuxHlsVideoTrackTrickMode",eAAMPConfig_DemuxHLSVideoTsTrackTM,-1,-1},
 	{"demuxAudioBeforeVideo",eAAMPConfig_DemuxAudioBeforeVideo,-1,-1},
 	{"throttle",eAAMPConfig_Throttle,-1,-1},
-	{"min-init-cache",eAAMPConfig_VideoMinCachedSeconds,-1,-1},	
 	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
 	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
 	{"preferredDrm",eAAMPConfig_PreferredDRM,0,eDRM_MAX_DRMSystems},
@@ -210,8 +216,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"stallTimeout",eAAMPConfig_StallTimeoutMS,-1,-1},
 	{"initialBuffer",eAAMPConfig_InitialBuffer,-1,-1},
 	{"downloadDelay",eAAMPConfig_DownloadDelay,-1,-1},
-//	{"report-xre-event",eAAMPConfig_XREEventReporting,-1,-1},
-	
+	{"onTuneRate",eAAMPConfig_OnTuneRate,-1,-1},
 };
 	
 /////////////////// Public Functions /////////////////////////////////////
@@ -359,32 +364,10 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
 	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value       =       AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value         =       AAMP_HIGH_BUFFER_BEFORE_RAMPUP;
 	iAampCfgValue[eAAMPConfig_DownloadDelay-eAAMPConfig_IntStartValue].value         	=       0;
+	iAampCfgValue[eAAMPConfig_OnTuneRate-eAAMPConfig_IntStartValue].value         	=       AAMP_RATE_INVALID;
 
-
-
-#if 0
-	iAampCfgValue[eAAMPConfig_ABRThresholdSize-eAAMPConfig_IntStartValue].value		=	DEFAULT_AAMP_ABR_THRESHOLD_SIZE;		
-	iAampCfgValue[eAAMPConfig_VODMinCachedSeconds-eAAMPConfig_IntStartValue].value		=	DEFAULT_MINIMUM_CACHE_VOD_SECONDS;
-	iAampCfgValue[eAAMPConfig_VideoMinCachedSeconds-eAAMPConfig_IntStartValue].value	=	DEFAULT_MINIMUM_CACHE_VIDEO_SECONDS;
-	iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value		=	MAX_PTS_ERRORS_THRESHOLD;
-	iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;	
-	iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value	=	0;	
 	
-	iAampCfgValue[eAAMPConfig_MinABRNWBufferRampDown-eAAMPConfig_IntStartValue].value	=	AAMP_LOW_BUFFER_BEFORE_RAMPDOWN;	
-	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value		=	AAMP_HIGH_BUFFER_BEFORE_RAMPUP;	
 
-
-	///////////////// Following for Long Data type config ////////////////////////////	
-	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value			=	0;
-	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value		=	0;
-	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value		=	DEFAULT_DISCONTINUITY_TIMEOUT;
-	lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value				=	0;
-	lAampCfgValue[eAAMPConfig_SourceSetupTimeout-eAAMPConfig_LongStartValue].value			= 	0;//	tobeadded;
-
-	///////////////// Following for double data types /////////////////////////////
-	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
-	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
-#endif
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;
 	lAampCfgValue[eAAMPConfig_MaxBitrate-eAAMPConfig_LongStartValue].value			= 	LONG_MAX;
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value		=	0;
@@ -433,6 +416,14 @@ LangCodePreference AampConfig::GetLanguageCodePreference()
 std::string AampConfig::GetUserAgentString()
 {
 	return std::string(sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value + " " + AAMP_USERAGENT_SUFFIX);
+}
+
+void AampConfig::SetCfgDrive(char drivename)
+{
+#ifdef WIN32
+	cWindowsCfg.replace(0,1,1,drivename);
+	cWindowsJsonCfg.replace(0,1,1,drivename);
+#endif	
 }
 
 /**
@@ -746,6 +737,43 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 	return retval;
 }
 
+bool AampConfig::GetAampConfigJSONStr(std::string &str)
+{
+	AampJsonObject jsondata;
+
+	// All Bool values 
+	for(int i=0;i<eAAMPConfig_BoolMaxValue;i++)
+	{
+		jsondata.add(GetConfigName((AAMPConfigSettings)i),bAampCfgValue[i].value);
+	}
+
+	// All integer values 
+	for(int i=eAAMPConfig_IntStartValue+1;i<eAAMPConfig_IntMaxValue;i++)
+	{
+		jsondata.add(GetConfigName((AAMPConfigSettings)i),iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
+	}
+
+	// All long values 
+	for(int i=eAAMPConfig_LongStartValue+1;i<eAAMPConfig_LongMaxValue;i++)
+	{
+		jsondata.add(GetConfigName((AAMPConfigSettings)i),lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
+	}
+
+	// All double values
+	for(int i=eAAMPConfig_DoubleStartValue+1;i<eAAMPConfig_DoubleMaxValue;i++)
+	{
+		jsondata.add(GetConfigName((AAMPConfigSettings)i),dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);	
+	}
+
+	// All String values
+	for(int i=eAAMPConfig_StringStartValue+1;i<eAAMPConfig_StringMaxValue;i++)
+	{
+		jsondata.add(GetConfigName((AAMPConfigSettings)i),sAampCfgValue[i-eAAMPConfig_StringStartValue].value);	
+	}
+
+	str = jsondata.print_UnFormatted();	
+}
+
 /**
  * @brief ProcessConfigText - Function to parse and process configuration text 
  *
@@ -917,7 +945,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 	bool retVal=false;
 		std::string cfgPath = "";
 #ifdef WIN32
-		cfgPath.assign(AAMP_JSON_PATH);
+		cfgPath.assign(cWindowsJsonCfg);
 #elif defined(__APPLE__)
 		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aampcfg.json";
@@ -968,8 +996,9 @@ bool AampConfig::ReadAampCfgTxtFile()
 {
 	bool retVal = false;
 	std::string cfgPath = "";
+	
 #ifdef WIN32
-	cfgPath.assign(AAMP_CFG_PATH);
+	cfgPath.assign(cWindowsCfg);
 #elif defined(__APPLE__)
 	std::string cfgPath(getenv("HOME"));
 	cfgPath += "/aamp.cfg";
@@ -1067,16 +1096,17 @@ void AampConfig::ReadOperatorConfiguration()
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_StereoOnly,true);
 	}
 
-	const char *env_aamp_min_vod_cache = getenv("AAMP_MIN_VOD_CACHE");
-	if(env_aamp_min_vod_cache)
+	const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
+	if(env_aamp_min_init_cache)
 	{
-		int minVodCache = 0;
-		if(sscanf(env_aamp_min_vod_cache,"%d",&minVodCache))
+		int minInitCache = 0;
+		if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache) && minInitCache >= 0)
 		{
-			logprintf("AAMP_MIN_VOD_CACHE present: Changing min vod cache to %d seconds",minVodCache);
-			SetConfigValue<int>(AAMP_OPERATOR_SETTING,eAAMPConfig_VODMinCachedSeconds,minVodCache);
+			logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
+			SetConfigValue<int>(AAMP_OPERATOR_SETTING,eAAMPConfig_InitialBuffer,minInitCache);
 		}
 	}
+
 
 	const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
 	if(env_enable_micro_events)
@@ -1108,16 +1138,7 @@ void AampConfig::ReadOperatorConfiguration()
 		}
 		
 	}
-	const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
-	if(env_aamp_min_init_cache)
-	{
-		int minInitCache = 0;
-		if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache))
-		{
-			logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
-			SetConfigValue<int>(AAMP_OPERATOR_SETTING, eAAMPConfig_InitialBuffer , minInitCache);
-		}
-	}
+	
 	ShowOperatorSetConfiguration();
 }
 
@@ -1244,26 +1265,6 @@ void AampConfig::ShowAAMPConfiguration()
 //////////////// Special Functions which involve conversion of configuration ///////////
 /////////Only add new functions if required only , else use default Get call and covert 
 /////////at usage 
-#if 0
-/**
- * @brief GetNetworkTimeout - Get NetworkTimeout in MilliSec
- *
- * @return long - Network Timeout 
- */
-long AampConfig::GetNetworkTimeoutMs()
-{
-	return (long)CONVERT_SEC_TO_MS(dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value);
-}
-/**
- * @brief GetNetworkTimeout - Get Manifest Timeout in MilliSec
- *
- * @return long - Network Timeout 
- */
-long AampConfig::GetManifestTimeoutMs()
-{
-	return (long)CONVERT_SEC_TO_MS(dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value);
-}
-#endif
 #if 0
 /**
  * @brief GetPreferredDRM - Get Preferred DRM type

@@ -236,14 +236,6 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		delete gpGlobalConfig;
 		gpGlobalConfig = NULL;
 	}
-#if 0	
-	if(isLastPlayerInstance && gpGlobalAampConfig)
-	{
-		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalAampConfig);
-		delete gpGlobalAampConfig;
-		gpGlobalAampConfig = NULL;
-	}
-#endif
 }
 
 
@@ -658,7 +650,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	}
 	else
 	{
-		aamp->mSetOnTuneRateRequested = rate;
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_OnTuneRate,rate);
 		AAMPLOG_WARN("%s:%d aamp_SetRate rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
@@ -2233,6 +2225,28 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING);
 	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING);
 }
+
+
+
+/**
+* @brief InitAAMPConfig - Initialize the media player session with json config
+*/
+bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
+{
+	return mConfig.ProcessConfigJson(jsonStr,AAMP_APPLICATION_SETTING);
+}
+
+/**
+* @brief GetAAMPConfig - Get AAMP Config as JSON String 
+*/
+const char * PlayerInstanceAAMP::GetAAMPConfig()
+{
+	std::string jsonStr;
+	mConfig.GetAampConfigJSONStr(jsonStr);
+	return jsonStr.c_str();
+}
+
+
 /**
  * @}
  */
