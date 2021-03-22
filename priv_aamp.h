@@ -699,6 +699,9 @@ public:
 	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
 	int mDisplayWidth; /**< Display resolution width */
 	int mDisplayHeight; /**< Display resolution height */
+	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
+	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
+	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
 	/**
 	 * @brief Curl initialization function
 	 *

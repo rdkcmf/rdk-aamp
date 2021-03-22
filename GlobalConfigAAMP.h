@@ -94,6 +94,18 @@ enum TunedEventConfig
 };
 
 /**
+ * @brief Enumeration for Paused state behavior
+ */
+enum PausedBehavior
+{
+	ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE,		/**< automatically begin playback from eldest portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_IMMEDIATE,			/**< automatically jump to live*/
+	ePAUSED_BEHAVIOR_AUTOPLAY_DEFER,			/**< video remains paused indefinitely till play() call, resume playback from new start portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_DEFER,				/**<  video remains paused indefinitely till play() call, resume playback from live position*/
+	ePAUSED_BEHAVIOR_MAX
+};
+
+/**
  * @brief TriState enums
  */
 enum TriState
@@ -242,6 +254,7 @@ public:
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 	unsigned int mDownloadDelayInMs; /** optional delay for downloads to simulate network latency **/
+	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
 
 public:
 
