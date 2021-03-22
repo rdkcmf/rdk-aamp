@@ -167,6 +167,8 @@ drmDecryptFailThreshold		Retry count on drm decryption failure, default is 10.
 segmentInjectFailThreshold	Retry count for segment injection discard/failue, default is 10.
 preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes
 thresholdSizeABR		ABR threshold size. Default 6000.
+stallTimeout			Stall detection timeout. Default is  10sec
+stallErrorCode			Stall error code.Default is  7600
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd)

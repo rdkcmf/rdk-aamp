@@ -180,7 +180,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
 	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
-	{"use-matching-baseurl",eAAMPConfig_MatchBaseUrl,-1,-1},
+	{"useMatchingBaseUrl",eAAMPConfig_MatchBaseUrl,-1,-1},
 	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,-1,-1},
 	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,-1,-1},
 	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,-1,-1},
