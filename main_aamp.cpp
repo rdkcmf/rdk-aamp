@@ -569,8 +569,9 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		logprintf("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
 		logprintf("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
 
-		if (rate == aamp->rate)
+		if (!aamp->mSeekFromPausedState && (rate == aamp->rate))
 		{ // no change in desired play rate
+			// no deferring for playback resume
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
@@ -597,10 +598,17 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 		else
 		{
+			TuneType tuneTypePlay = eTUNETYPE_SEEK;
+			if(aamp->mJumpToLiveFromPause)
+			{
+				tuneTypePlay = eTUNETYPE_SEEKTOLIVE;
+				aamp->mJumpToLiveFromPause = false;
+			}
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
+			aamp->mSeekFromPausedState = false;
 			aamp->ResumeDownloads();
-			aamp->TuneHelper(eTUNETYPE_SEEK); // this unpauses pipeline as side effect
+			aamp->TuneHelper(tuneTypePlay); // this unpauses pipeline as side effect
 		}
 
 		if(retValue)
@@ -2041,6 +2049,29 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 
 	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
+}
+
+/**
+ *   @brief To set preferred paused state behavior
+ *
+ *   @param[in] int behavior
+ */
+void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	if(ePAUSED_BEHAVIOR_MAX != gpGlobalConfig->mPausedBehavior)
+	{
+	    aamp->mPausedBehavior = gpGlobalConfig->mPausedBehavior;
+	}
+	else
+	{
+	    if(behavior >= 0 && behavior < ePAUSED_BEHAVIOR_MAX)
+	    {
+		    AAMPLOG_WARN("%s:%d Player Paused behavior : %d", __FUNCTION__, __LINE__, behavior);
+		    aamp->mPausedBehavior = (PausedBehavior) behavior;
+	    }
+	}
 }
 /**
  * @}

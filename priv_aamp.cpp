@@ -317,25 +317,30 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
-	if (aamp->pipeline_paused)
-	{
-		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			retValue = aamp->mStreamSink->Pause(false, false);
-			aamp->pipeline_paused = false;
-		}
-		else
-		{
-			aamp->rate = AAMP_NORMAL_PLAY_RATE;
-			aamp->pipeline_paused = false;
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-		}
-		aamp->ResumeDownloads();
+	TuneType tuneType = eTUNETYPE_SEEK;
 
-		if(retValue)
+	if (!aamp->mSeekFromPausedState && (aamp->rate == AAMP_NORMAL_PLAY_RATE))
+	{
+		retValue = aamp->mStreamSink->Pause(false, false);
+		aamp->pipeline_paused = false;
+	}
+	else
+	{
+		// Live immediate : seek to live position from paused state.
+		if (aamp->mPausedBehavior == ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
 		{
-			aamp->NotifySpeedChanged(aamp->rate);
+			tuneType = eTUNETYPE_SEEKTOLIVE;
 		}
+		aamp->rate = AAMP_NORMAL_PLAY_RATE;
+		aamp->pipeline_paused = false;
+		aamp->mSeekFromPausedState = false;
+		aamp->TuneHelper(tuneType);
+	}
+
+	aamp->ResumeDownloads();
+	if(retValue)
+	{
+		aamp->NotifySpeedChanged(aamp->rate);
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -1554,6 +1559,14 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
 			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
 		}
+		else if (ReadConfigNumericHelper(cfg, "livePauseBehavior=", value))
+		{
+			if(value >= 0 && value < ePAUSED_BEHAVIOR_MAX)
+			{
+				gpGlobalConfig->mPausedBehavior = (PausedBehavior) value;
+				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
+			}
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1953,6 +1966,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProgramDateTime (0)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2294,8 +2308,34 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
 		if (this->culledSeconds >= position)
 		{
-			logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
-			g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+			if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
+			{
+				// Immediate play from paused state, Execute player resume.
+				// Live immediate - Play from live position
+				// Autoplay immediate - Play from start of live window
+				if(ePAUSED_BEHAVIOR_LIVE_IMMEDIATE == mPausedBehavior)
+				{
+					// Enable this flag to perform seek to live.
+					mSeekFromPausedState = true;
+				}
+				logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
+				g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+			}
+			else if(mPausedBehavior >= ePAUSED_BEHAVIOR_AUTOPLAY_DEFER)
+			{
+				// Wait for play() call to resume, enable mSeekFromPausedState for reconfigure.
+				// Live differ - Play from live position
+				// Autoplay differ -Play from eldest part (start of live window)
+				mSeekFromPausedState = true;
+				if(ePAUSED_BEHAVIOR_LIVE_DEFER == mPausedBehavior)
+				{
+					mJumpToLiveFromPause = true;
+				}
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
+			}
 		}
 		else if (this->culledSeconds >= minPlaylistPositionToResume)
 		{
@@ -2306,11 +2346,29 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 			if (culledSecs <= maxRefreshPlaylistIntervalSecs)
 			{
-				logprintf("%s(): Resume playback since start position(%f) moved very close to minimum resume position(%f) ", __FUNCTION__, this->culledSeconds, minPlaylistPositionToResume);
-				g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+				if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
+				{
+					if(ePAUSED_BEHAVIOR_LIVE_IMMEDIATE == mPausedBehavior)
+					{
+						mSeekFromPausedState = true;
+					}
+					logprintf("%s(): Resume playback since start position(%f) moved very close to minimum resume position(%f) ", __FUNCTION__, this->culledSeconds, minPlaylistPositionToResume);
+					g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+				}
+				else if(mPausedBehavior >= ePAUSED_BEHAVIOR_AUTOPLAY_DEFER)
+				{
+					mSeekFromPausedState = true;
+					if(ePAUSED_BEHAVIOR_LIVE_DEFER == mPausedBehavior)
+					{
+						mJumpToLiveFromPause = true;
+					}
+				}
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
 			}
 		}
-
 	}
 }
 
@@ -5092,6 +5150,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
+	if(ePAUSED_BEHAVIOR_MAX != gpGlobalConfig->mPausedBehavior)
+	{
+		mPausedBehavior = gpGlobalConfig->mPausedBehavior;
+	}
+	mSeekFromPausedState = false;
+	mJumpToLiveFromPause = false;
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;
@@ -5173,6 +5237,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		seek_pos_seconds = 0;
 	}
+
+	AAMPLOG_INFO("%s:%d Paused behavior : %d", __FUNCTION__, __LINE__, mPausedBehavior);
 
 	for(int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
