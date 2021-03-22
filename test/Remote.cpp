@@ -29,7 +29,7 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 #include <fcntl.h>
-#include "XFCIrKeyCodes.h"
+#include "comcastIrKeyCodes.h"
 
 #define IR_REMOTE_APP_INIT_STR "IrRemoteApp"
 
