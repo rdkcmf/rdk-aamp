@@ -8285,8 +8285,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 											durationMs += ((repeatCount + 1) * timelineDurationMs);
 											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
 											replace(tmedia, "Number", timeLineIndex);
-											char *ptr = (char *)malloc(tmedia.size()+1); // +1 for NULL terminator.
-											strcpy(ptr, tmedia.c_str());
+											char *ptr = strndup(tmedia.c_str(), tmedia.size());
 											tileInfo.url = ptr;
 											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
 											tileInfo.startTime = startTime;
