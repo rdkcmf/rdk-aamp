@@ -1200,7 +1200,7 @@ int AveDrmManager::IsMetadataAvailable(char* sha1Hash)
 
 extern "C"
 {
-	extern void setAccessSessionToken(const char *customData);
+	extern void setComcastSessionToken(const char *customData);
 }
 
 /**
@@ -1360,7 +1360,7 @@ long AveDrmManager::setSessionToken()
 				{
 					logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
 					CustomToken = first + token + last;
-					setAccessSessionToken(CustomToken.c_str());
+					setComcastSessionToken(CustomToken.c_str());
 				}
 				else
 				{

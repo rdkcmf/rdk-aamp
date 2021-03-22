@@ -48,7 +48,6 @@
 #include <regex>
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
-#include "AampRfc.h"
 //#define DEBUG_TIMELINE
 
 /**
@@ -69,6 +68,8 @@
  */
 #define SUPPLEMENTAL_PROPERTY_TAG "SupplementalProperty"
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
+#define SCHEME_ID_URI_VSS_STREAM "urn:comcast:x1:lin:ck"
+#define SCHEME_ID_URI_DAI_STREAM "urn:comcast:dai:2018"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
 /**
  * @struct FragmentDescriptor
@@ -4646,9 +4647,7 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 			}
 			if (name == "SupplementalProperty" && node->HasAttribute("schemeIdUri")) {
 				const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
-#ifdef AAMP_RFC_ENABLED
-				const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
-				if (schemeIdUri == schemeIdUriDai && node->HasAttribute("id")) {
+				if (schemeIdUri == SCHEME_ID_URI_DAI_STREAM && node->HasAttribute("id")) {
 					const std::string& ID = node->GetAttributeValue("id");
 					if (ID == "identityADS" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
@@ -4696,7 +4695,6 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 						continue;
 					}
 				}
-#endif
 				continue;
 			}
 		}
@@ -4722,12 +4720,9 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 {
 	if (node->HasAttribute("schemeIdUri")) {
 		const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
-		
 		if(!schemeIdUri.empty())
 		{
-#ifdef AAMP_RFC_ENABLED
-			const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
-			if ((schemeIdUri == schemeIdUriDai) && node->HasAttribute("id")) {
+			if ((schemeIdUri == SCHEME_ID_URI_DAI_STREAM) && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if ((ID == "Tracking") && node->HasAttribute("value")) {
 					const std::string& value = node->GetAttributeValue("value");
@@ -4768,8 +4763,7 @@ void PrivateStreamAbstractionMPD::ProcessPeriodSupplementalProperty(Node* node, 
 					}
 				}
 			}
-#endif
-			if (!AdID.empty() && (schemeIdUri == "urn:scte:scte130-10:2014")) {
+			else if (!AdID.empty() && (schemeIdUri == "urn:scte:scte130-10:2014")) {
 				std::vector<Node*> children = node->GetSubNodes();
 				for (size_t i=0; i < children.size(); i++) {
 					Node* child = children.at(i);
@@ -7706,10 +7700,8 @@ bool PrivateStreamAbstractionMPD::CheckForVssTags()
 			{
 				if (childNode->HasAttribute("schemeIdUri"))
 				{
-#ifdef AAMP_RFC_ENABLED
 					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
-					const std::string& schemeIdUriVss = RFCSettings::getSchemeIdUriVssStream();
-					if (schemeIdUri == schemeIdUriVss)
+					if (schemeIdUri == SCHEME_ID_URI_VSS_STREAM)
 					{
 						if (childNode->HasAttribute("value"))
 						{
@@ -7719,7 +7711,6 @@ bool PrivateStreamAbstractionMPD::CheckForVssTags()
 							isVss = true;
 						}
 					}
-#endif
 				}
 			}
 		}
