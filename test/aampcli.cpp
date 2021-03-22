@@ -134,7 +134,8 @@ typedef enum{
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
-	eAAMP_SET_LanguageFormat
+	eAAMP_SET_LanguageFormat,
+	eAAMP_SET_PausedBehavior
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -371,6 +372,7 @@ void ShowHelpSet(){
 	logprintf("42 - Set TextTrack (int track index)" );
 	logprintf("43 - Set CC status (0/1)" );
 	logprintf("44 - Set a predefined CC style option (1/2/3)" );
+	logprintf("45 - Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"");
 }
 
 #define LOG_CLI_EVENTS
@@ -1246,6 +1248,16 @@ static void ProcessCliCommand(char *cmd)
 					if (sscanf(cmd, "set %d %d %d", &opt, &preference, &useRole) == 3)
 					{
 						mSingleton->SetLanguageFormat(preference, useRole);
+					}
+					break;
+				}
+				case eAAMP_SET_PausedBehavior:
+				{
+					char behavior[24];
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PausedBehavior - %s\n", cmd);
+					if(sscanf(cmd, "set %d %d", &opt, &rate) == 2)
+					{
+						mSingleton->SetPausedBehavior(rate);
 					}
 					break;
 				}

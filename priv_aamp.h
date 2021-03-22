@@ -651,6 +651,9 @@ public:
 	                                in gst brcmaudiodecoder, default: True */
 	std::string mSessionToken; /**< Field to set session token for player */
 
+	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
+	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
+	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
 	/**
 	 * @brief Curl initialization function
 	 *

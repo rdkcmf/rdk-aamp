@@ -92,6 +92,18 @@ enum TunedEventConfig
 };
 
 /**
+ * @brief Enumeration for Paused state behavior
+ */
+enum PausedBehavior
+{
+	ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE,		/**< automatically begin playback from eldest portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_IMMEDIATE,			/**< automatically jump to live*/
+	ePAUSED_BEHAVIOR_AUTOPLAY_DEFER,			/**< video remains paused indefinitely till play() call, resume playback from new start portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_DEFER,				/**<  video remains paused indefinitely till play() call, resume playback from live position*/
+	ePAUSED_BEHAVIOR_MAX
+};
+
+/**
  * @brief TriState enums
  */
 enum TriState
@@ -233,6 +245,8 @@ public:
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
+	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
+
 public:
 
 	/**

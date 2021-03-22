@@ -1301,6 +1301,13 @@ public:
 	 */
 	void SetReportVideoPTS(bool enabled);
 
+	/**
+	 *   @brief To set preferred paused state behavior
+	 *
+	 *   @param[in] int behavior
+	 */
+	void SetPausedBehavior(int behavior);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */

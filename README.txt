@@ -209,6 +209,7 @@ segmentInjectFailThreshold=<X>	Set retry count for segment injection discard/fai
 use-matching-baseurl=1 Enable host matching while selecting base url, host of main url will be matched with host of base url
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
+livePauseBehavior=<x> To set live pause behavior (x can be 0-Autoplay immediate, 1-Live immediate, 2-Autoplay defer, 3- Live defer)
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

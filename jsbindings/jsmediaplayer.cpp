@@ -246,6 +246,7 @@ enum ConfigParamType
 	ePARAM_MAX_PLAYLIST_CACHE_SIZE,
 	ePARAM_ENABLE_SEEKABLE_RANGE,
 	ePARAM_REPORT_VIDEO_PTS,
+	ePARAM_PAUSED_BEHAVIOR,
 	ePARAM_MAX_COUNT
 };
 
@@ -310,6 +311,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_MAX_PLAYLIST_CACHE_SIZE, "maxPlaylistCacheSize"},
 	{ ePARAM_ENABLE_SEEKABLE_RANGE, "enableSeekableRange" },
 	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
+	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -724,6 +726,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_INIT_FRAGMENT_RETRY_COUNT:
 			case ePARAM_LANG_CODE_PREFERENCE:
 			case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
+			case ePARAM_PAUSED_BEHAVIOR:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
@@ -905,6 +908,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_REPORT_VIDEO_PTS:
 					privObj->_aamp->SetReportVideoPTS(valueAsBoolean);
+					break;
+				case ePARAM_PAUSED_BEHAVIOR:
+					privObj->_aamp->SetPausedBehavior((int) valueAsNumber);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;
