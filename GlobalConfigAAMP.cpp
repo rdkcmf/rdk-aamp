@@ -82,7 +82,8 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 #endif
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP)
 	, midFragmentSeekEnabled(false)
-	,mEnableSeekableRange(eUndefinedState)
+	, mEnableSeekableRange(eUndefinedState)
+	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.

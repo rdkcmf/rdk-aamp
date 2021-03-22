@@ -665,6 +665,10 @@ public:
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 
 	int mthumbIndexValue;
+
+	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
+	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
+	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
 	/**
 	 * @brief Curl initialization function
 	 *

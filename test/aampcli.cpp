@@ -139,7 +139,8 @@ typedef enum{
 	eAAMP_SET_CCStyle,
 	eAAMP_SET_LanguageFormat,
 	eAAMP_SET_PropagateUriParam,
-	eAAMP_SET_ThumbnailTrack
+	eAAMP_SET_ThumbnailTrack,
+	eAAMP_SET_PausedBehavior
 }AAMPSetTypes;
 
 static std::list<VirtualChannelInfo> mVirtualChannelMap;
@@ -387,6 +388,7 @@ void ShowHelpSet(){
 	printf("set 44 <x>            // Set a predefined CC style option (x = 1/2/3)\n");
 	printf("set 45 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
 	printf("set 46 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
+	printf("set 47 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -1310,7 +1312,16 @@ static void ProcessCliCommand(char *cmd)
 					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");;
 					break;
 				}
-				
+				case eAAMP_SET_PausedBehavior:
+				{
+					char behavior[24];
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PausedBehavior - %s\n", cmd);
+					if(sscanf(cmd, "set %d %d", &opt, &rate) == 2)
+					{
+						mSingleton->SetPausedBehavior(rate);
+					}
+					break;
+				}
 				default:
 					logprintf("Invalid set command %d\n", opt);
 			}

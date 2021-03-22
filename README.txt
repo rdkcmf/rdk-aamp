@@ -154,6 +154,7 @@ maxTimeoutForSourceSetup=<X> timeout value in milliseconds to wait for GStreamer
 enableSeekableRange=1 Enable seekable range reporting via progress events (startMilliseconds, endMilliseconds)
 reportvideopts if present, current video pts is reported via progress events
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
+livePauseBehavior=<x> To set live pause behavior (x can be 0-Autoplay immediate, 1-Live immediate, 2-Autoplay defer, 3- Live defer)
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows
