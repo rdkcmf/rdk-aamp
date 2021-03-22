@@ -173,7 +173,6 @@ typedef enum
 	eAAMPConfig_ABRNWConsistency,								/**< Adaptive bitrate network consistency*/
 	eAAMPConfig_ABRThresholdSize,								/**< AAMP ABR threshold size*/
 	eAAMPConfig_MaxFragmentCached,								/**< fragment cache length*/
-	eAAMPConfig_VODMinCachedSeconds,							/**< Minimum VOD caching duration in seconds*/
 	eAAMPConfig_BufferHealthMonitorDelay,						/**< Buffer health monitor start delay after tune/ seek*/
 	eAAMPConfig_BufferHealthMonitorInterval,					/**< Buffer health monitor interval*/
 	eAAMPConfig_PreferredDRM,									/**< Preferred DRM*/

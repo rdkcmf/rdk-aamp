@@ -203,7 +203,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
 	{"log",eAAMPConfig_LogLevel,-1,-1},
 	{"maxABRBufferRampup",eAAMPConfig_MaxABRNWBufferRampUp,-1,-1},
-	{"min-vod-cache",eAAMPConfig_VODMinCachedSeconds,-1,-1},	
 	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
 	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
 	{"sessionToken",eAAMPConfig_SessionToken,-1,-1},
