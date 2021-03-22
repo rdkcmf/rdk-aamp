@@ -83,6 +83,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, mEnableSeekableRange(eUndefinedState)
 	, mPersistBitRateOverSeek(eUndefinedState)
 	, licenseCaching(eUndefinedState)
+	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
