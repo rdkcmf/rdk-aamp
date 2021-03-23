@@ -148,6 +148,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
+                    AampGstUtils.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
@@ -551,6 +552,7 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h
   AampScheduler.h
   drm/AampSecManager.h
+  AampGstUtils.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)
