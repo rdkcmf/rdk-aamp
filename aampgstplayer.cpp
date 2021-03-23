@@ -25,6 +25,7 @@
 
 #include "aampgstplayer.h"
 #include "AampUtils.h"
+#include "AampGstUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/app/gstappsink.h>
@@ -91,6 +92,7 @@ typedef enum {
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 #define BUFFERING_TIMEOUT_PRIORITY -70
 #define AAMP_MIN_DECODE_ERROR_INTERVAL 10000
+#define VIDEO_COORDINATES_SIZE 32
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -106,6 +108,13 @@ struct media_stream
 	bool bufferUnderrun;
 	bool eosReached;
 	bool sourceConfigured;
+
+	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
+			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
+			 bufferUnderrun(false), eosReached(false), sourceConfigured(false)
+	{
+
+	}
 };
 
 /**
@@ -143,7 +152,7 @@ struct AAMPGstPlayerPriv
 	guint eosCallbackIdleTaskId; //ID of idle handler created for notifying EOS event.
 	std::atomic<bool> eosCallbackIdleTaskPending; //Set if any eos callback is pending.
 	bool firstFrameReceived; //Flag that denotes if first frame was notified.
-	char videoRectangle[32]; //Video-rectangle co-ordinates in format x,y,w,h.
+	char videoRectangle[VIDEO_COORDINATES_SIZE]; //Video-rectangle co-ordinates in format x,y,w,h.
 	bool pendingPlayState; //Flag that denotes if set pipeline to PLAYING state is pending.
 	bool decoderHandleNotified; //Flag that denotes if decoder handle was notified.
 	guint firstFrameCallbackIdleTaskId; //ID of idle handler created for notifying first frame event.
@@ -178,6 +187,58 @@ struct AAMPGstPlayerPriv
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
+	bool progressiveBufferingEnabled;
+	bool progressiveBufferingStatus;
+
+	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
+			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
+			firstProgressCallbackIdleTaskPending(false), periodicProgressCallbackIdleTaskId(0),
+			bufferingTimeoutTimerId(0), id3MetadataCallbackIdleTaskId(0),
+			id3MetadataCallbackTaskPending(false), video_dec(NULL), audio_dec(NULL),
+			video_sink(NULL), audio_sink(NULL),
+#ifdef INTELCE_USE_VIDRENDSINK
+			video_pproc(NULL),
+#endif
+			rate(AAMP_NORMAL_PLAY_RATE), zoom(VIDEO_ZOOM_FULL), videoMuted(false), audioMuted(false),
+			audioVolume(1.0), eosCallbackIdleTaskId(0), eosCallbackIdleTaskPending(false),
+			firstFrameReceived(false), pendingPlayState(false), decoderHandleNotified(false),
+			firstFrameCallbackIdleTaskId(0), firstFrameCallbackIdleTaskPending(false),
+			using_westerossink(false), busWatchId(0), eosSignalled(false),
+			buffering_enabled(FALSE), buffering_in_progress(FALSE), buffering_timeout_cnt(0),
+			buffering_target_state(GST_STATE_NULL),
+#ifdef INTELCE
+			keepLastFrame(false),
+#endif
+			lastKnownPTS(0), ptsUpdatedTimeMS(0), ptsCheckForEosOnUnderflowIdleTaskId(0),
+			numberOfVideoBuffersSent(0), segmentStart(0), positionQuery(NULL), durationQuery(NULL),
+			paused(false), pipelineState(GST_STATE_NULL), firstVideoFrameDisplayedCallbackIdleTaskId(0),
+			firstVideoFrameDisplayedCallbackIdleTaskPending(false), lastId3DataLen(0), lastId3Data(NULL),
+#if defined(REALTEKCE)
+			firstTuneWithWesterosSinkOff(false),
+			audioSinkAsyncEnabled(FALSE),
+#endif
+			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
+			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
+	{
+		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
+#ifdef INTELCE
+                strcpy(videoRectangle, "0,0,0,0");
+#else
+                /* DELIA-45366-default video scaling should take into account actual graphics
+                 * resolution instead of assuming 1280x720.
+                 * By default we where setting the resolution has 0,0,1280,720.
+                 * For Full HD this default resolution will not scale to full size.
+                 * So, we no need to set any default rectangle size here,
+                 * since the video will display full screen, if a gstreamer pipeline is started
+                 * using the westerossink connected using westeros compositor.
+                 */
+                strcpy(videoRectangle, "");
+#endif
+		for(int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			protectionEvent[i] = NULL;
+		}
+	}
 };
 
 /**
@@ -252,12 +313,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	, cbExportYUVFrame(NULL)
 #endif
 {
-	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
+	privateContext = new AAMPGstPlayerPriv();
 	if(privateContext)
 	{
-		memset(privateContext, 0, sizeof(*privateContext));
-		privateContext->audioVolume = 1.0;
-		privateContext->pipelineState = GST_STATE_NULL;
 		this->aamp = aamp;
 
 		pthread_mutex_init(&mBufferingLock, NULL);
@@ -267,20 +325,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 		this->cbExportYUVFrame = exportFrames;
 #endif
 		CreatePipeline();
-		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-#ifdef INTELCE
-                strcpy(privateContext->videoRectangle, "0,0,0,0");
-#else
-                /* DELIA-45366-default video scaling should take into account actual graphics
-                 * resolution instead of assuming 1280x720.
-                 * By default we where setting the resolution has 0,0,1280,720.
-                 * For Full HD this default resolution will not scale to full size.
-                 * So, we no need to set any default rectangle size here,
-                 * since the video will display full screen, if a gstreamer pipeline is started
-                 * using the westerossink connected using westeros compositor.
-                 */
-                strcpy(privateContext->videoRectangle, "");
-#endif
 	}
 	else
 	{
@@ -295,7 +339,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
-	free(privateContext);
+	delete privateContext;
 	pthread_mutex_destroy(&mBufferingLock);
 	pthread_mutex_destroy(&mProtectionLock);
 }
@@ -397,84 +441,6 @@ static gboolean appsrc_seek(GstAppSrc *src, guint64 offset, AAMPGstPlayer * _thi
 	logprintf("appsrc %p seek-signal - offset %" G_GUINT64_FORMAT, src, offset);
 #endif
 	return TRUE;
-}
-
-
-/**
- * @brief Parse format to generate GstCaps
- * @param[in] format stream format to generate caps
- * @retval GstCaps for the input format
- */
-static GstCaps* GetGstCaps(StreamOutputFormat format)
-{
-	GstCaps * caps = NULL;
-	switch (format)
-	{
-		case FORMAT_MPEGTS:
-			caps = gst_caps_new_simple ("video/mpegts",
-					"systemstream", G_TYPE_BOOLEAN, TRUE,
-					"packetsize", G_TYPE_INT, 188, NULL);
-			break;
-		case FORMAT_ISO_BMFF:
-			caps = gst_caps_new_simple("video/quicktime", NULL, NULL);
-			break;
-		case FORMAT_AUDIO_ES_AAC:
-			caps = gst_caps_new_simple ("audio/mpeg",
-					"mpegversion", G_TYPE_INT, 2,
-					"stream-format", G_TYPE_STRING, "adts", NULL);
-			break;
-		case FORMAT_AUDIO_ES_AC3:
-			caps = gst_caps_new_simple ("audio/x-ac3", NULL, NULL);
-			break;
-		case FORMAT_AUDIO_ES_ATMOS:
-			// Todo :: a) Test with all platforms if atmos works 
-			//	   b) Test to see if x-eac3 config is enough for atmos stream.
-			//	 	if x-eac3 is enough then both switch cases can be combined
-			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
-                        break;
-		case FORMAT_AUDIO_ES_EC3:
-			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
-			break;
-		case FORMAT_VIDEO_ES_H264:
-#ifdef INTELCE
-			caps = gst_caps_new_simple ("video/x-h264",
-					"stream-format", G_TYPE_STRING, "avc",
-					"width", G_TYPE_INT, 1920,
-					"height", G_TYPE_INT, 1080,
-					NULL);
-#elif (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
-			caps = gst_caps_new_simple ("video/x-h264",
-                                       "alignment", G_TYPE_STRING, "au",
-                                       "stream-format", G_TYPE_STRING, "avc",
-                                       NULL);
-#else
-			caps = gst_caps_new_simple ("video/x-h264", NULL, NULL);
-#endif
-			break;
-		case FORMAT_VIDEO_ES_HEVC:
-#if (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
-			caps = gst_caps_new_simple ("video/x-h265",
-					"alignment", G_TYPE_STRING, "au",
-					"stream-format", G_TYPE_STRING, "hev1",
-					NULL);
-#else
-			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
-#endif
-			break;
-		case FORMAT_VIDEO_ES_MPEG2:
-			caps = gst_caps_new_simple ("video/mpeg",
-					"mpegversion", G_TYPE_INT, 2,
-					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
-			break;  //CID:81305 - Using break statement
-		case FORMAT_UNKNOWN:
-			AAMPLOG_WARN("%s:%d Unknown format %d", __FUNCTION__, __LINE__, format);
-			break;
-		case FORMAT_INVALID:
-		default:
-			AAMPLOG_WARN("%s:%d Unsupported format %d", __FUNCTION__, __LINE__, format);
-			break;
-	}
-	return caps;
 }
 
 
