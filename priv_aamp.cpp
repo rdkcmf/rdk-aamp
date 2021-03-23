@@ -2549,13 +2549,6 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
-#if 0
-			// dev override in cfg file takes priority to App Setting 
-			if(gpGlobalConfig->httpProxy != NULL)
-			{
-				proxy = gpGlobalConfig->httpProxy;				
-			}
-#endif
 			if (proxy != NULL)
 			{
 				/* use this proxy */
@@ -4260,37 +4253,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
 	if(mPlaylistTimeoutMs <= 0) mPlaylistTimeoutMs = mManifestTimeoutMs;
 	
-	//ConfigureNetworkTimeout();
-	//ConfigureManifestTimeout();
-	//ConfigurePlaylistTimeout();
-	//ConfigureParallelFetch();
-	//ConfigureDashParallelFragmentDownload();
-	//ConfigureBulkTimedMetadata();
-	//ConfigureRetuneForUnpairedDiscontinuity();
-	//ConfigureRetuneForGSTInternalError();
-	//ConfigureWesterosSink();
-	//ConfigureLicenseCaching();
-	//ConfigurePreCachePlaylist();
-	//ConfigureInitFragTimeoutRetryCount();
-	//mABREnabled = gpGlobalConfig->bEnableABR;
-	//mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
 	mProgramDateTime = 0;
-	#if 0
-	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
-	{
-		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
-	}
-
-
-	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState){
-		/* Disable ssl verification by default */
-		gpGlobalConfig->sslVerifyPeer = eFalseState;
-		AAMPLOG_INFO("%s:%d : SSL Verification has not configured , default is False", __FUNCTION__,__LINE__);
-	}
-	#endif
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))

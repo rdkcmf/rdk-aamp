@@ -224,7 +224,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging()
+AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable()
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{
@@ -579,15 +579,24 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg ,co
 	}
 	else if(cfg > eAAMPConfig_IntStartValue && cfg < eAAMPConfig_IntMaxValue)
 	{	
-		SetValue<ConfigInt , int>(iAampCfgValue[cfg-eAAMPConfig_IntStartValue], owner,(int)value);		
+		if(ValidateRange(GetConfigName(cfg),value))
+		{
+			SetValue<ConfigInt , int>(iAampCfgValue[cfg-eAAMPConfig_IntStartValue], owner,(int)value);		
+		}
 	}
 	else if(cfg > eAAMPConfig_LongStartValue && cfg < eAAMPConfig_LongMaxValue)
 	{	
-		SetValue<ConfigLong , long>(lAampCfgValue[cfg-eAAMPConfig_LongStartValue], owner,(long)value);		
+		if(ValidateRange(GetConfigName(cfg),value))
+		{
+			SetValue<ConfigLong , long>(lAampCfgValue[cfg-eAAMPConfig_LongStartValue], owner,(long)value);		
+		}
 	}
 	else if(cfg > eAAMPConfig_DoubleStartValue && cfg < eAAMPConfig_DoubleMaxValue)
 	{
-		SetValue<ConfigDouble , double>(dAampCfgValue[cfg-eAAMPConfig_DoubleStartValue], owner,(double)value);
+		if(ValidateRange(GetConfigName(cfg),value))
+		{
+			SetValue<ConfigDouble , double>(dAampCfgValue[cfg-eAAMPConfig_DoubleStartValue], owner,(double)value);
+		}
 	}
 	else
 	{
@@ -658,19 +667,40 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 					{
 						// For those parameters in Integer Settings
 						int conv = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valueint;
-						SetConfigValue<int>(owner,cfgEnum,conv);
+						if(ValidateRange(keyname,conv))
+						{
+							SetConfigValue<int>(owner,cfgEnum,conv);
+						}
+						else
+						{
+							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+						}
 					}
 					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
 					{
 						// For those parameters in long Settings
 						long conv = (long )cJSON_GetObjectItem(cfgdata, keyname.c_str())->valueint;
-						SetConfigValue<long>(owner,cfgEnum,conv);
+						if(ValidateRange(keyname,conv))
+						{
+							SetConfigValue<long>(owner,cfgEnum,conv);
+						}
+						else
+						{
+							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+						}
 					}
 					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
 					{
 						// For those parameters in double settings
 						double conv=cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuedouble;
-						SetConfigValue<double>(owner,cfgEnum,conv);
+						if(ValidateRange(keyname,conv))
+						{
+							SetConfigValue<double>(owner,cfgEnum,conv);
+						}						
+						else
+						{
+							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+						}
 					}
 					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
 					{
@@ -678,6 +708,12 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 						char *value = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuestring;
 						SetConfigValue<std::string>(owner,cfgEnum,(std::string)value);
 					}
+				}
+				else
+				{
+					char *value = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuestring;
+					mAampDevCmdTable[keyname]=value;
+					logprintf("%s:%d Unknown command(%s) added to DeveloperTable",__FUNCTION__,__LINE__,keyname.c_str());
 				}
 			}
 			// checked all the config string in json
@@ -736,6 +772,12 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 	return retval;
 }
 
+/**
+ * @brief GetAampConfigJSONStr - Function to Complete Config as JSON str
+ *
+ * @param[in] str  - input string where config json will be stored
+ * @return true
+ */
 bool AampConfig::GetAampConfigJSONStr(std::string &str)
 {
 	AampJsonObject jsondata;
@@ -771,7 +813,29 @@ bool AampConfig::GetAampConfigJSONStr(std::string &str)
 	}
 
 	str = jsondata.print_UnFormatted();	
+	return true;
 }
+
+/**
+ * @brief ProcessConfigText - Function to parse and process configuration text 
+ *
+ * @param[in] cfg - config text ( new line separated)
+ * @param[in] owner   - Owner who is setting the value 
+ * @return None 
+ */
+bool AampConfig::GetDeveloperConfigData(std::string &key,std::string &value)
+{
+	bool retval = false;
+	DevCmdsIter iter = mAampDevCmdTable.find(key);
+	if(iter != mAampDevCmdTable.end())
+	{
+		value = iter->second;
+		retval = true;
+	}
+	return retval;
+}
+
+
 
 /**
  * @brief ProcessConfigText - Function to parse and process configuration text 
@@ -926,7 +990,8 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 			}
 			else
 			{
-				logprintf("%s:%d ERROR Unknown command(%s) for config setting\n",__FUNCTION__,__LINE__,key.c_str());
+				mAampDevCmdTable[key]=value;
+				logprintf("%s:%d Unknown command(%s) added to DeveloperTable",__FUNCTION__,__LINE__,key.c_str());
 			}
 		}
 	}

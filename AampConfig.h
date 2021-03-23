@@ -398,6 +398,7 @@ public:
 	void ConfigureLogSettings();
 	static void SetCfgDrive(char drivename);
 	bool GetAampConfigJSONStr(std::string &str);
+	bool GetDeveloperConfigData(std::string &key,std::string &value);
 	
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
@@ -420,7 +421,10 @@ private:
 private:
 	typedef std::map<std::string, AampConfigLookupEntry> LookUp;
 	typedef std::map<std::string, AampConfigLookupEntry>::iterator LookUpIter;
-	LookUp mAampLookupTable;	
+	LookUp mAampLookupTable;
+	typedef std::map<std::string, std::string> DevCmds;
+	typedef std::map<std::string, std::string>::iterator DevCmdsIter;
+	DevCmds mAampDevCmdTable;	
 	ConfigBool	bAampCfgValue[eAAMPConfig_BoolMaxValue];								// Stores bool configuration
 	ConfigInt	iAampCfgValue[eAAMPConfig_IntMaxValue-eAAMPConfig_IntStartValue];		// Stores int configuration
 	ConfigLong	lAampCfgValue[eAAMPConfig_LongMaxValue-eAAMPConfig_LongStartValue];		// Stores long configuration
