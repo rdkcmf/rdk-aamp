@@ -2991,13 +2991,13 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 
 			if(drmSessionThreadStarted) //In the case of license rotation
 			{
+				drmSessionThreadStarted = false;
 				void *value_ptr = NULL;
 				int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 				if (rc != 0)
 				{
 					AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), rc);
 				}
-				drmSessionThreadStarted = false;
 			}
 			/*
 			*
@@ -3051,13 +3051,13 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 
 		if(drmSessionThreadStarted) //In the case of license rotation
 		{
+			drmSessionThreadStarted = false;
 			void *value_ptr = NULL;
 			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
 			if (rc != 0)
 			{
 				AAMPLOG_ERR("%s:%d (%s) pthread_join returned %d for createDRMSession Thread", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), rc);
 			}
-			drmSessionThreadStarted = false;
 		}
 		/*
 		*
@@ -8124,8 +8124,8 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 
 	if(fragmentCollectorThreadStarted)
 	{
-		fragmentCollectorThreadID->join();
 		fragmentCollectorThreadStarted = false;
+		fragmentCollectorThreadID->join();
 	}
 
 	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
@@ -8143,6 +8143,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 
 	if(drmSessionThreadStarted)
 	{
+		drmSessionThreadStarted = false;
 		AAMPLOG_INFO("Waiting to join CreateDRMSession thread");
 		int rc = pthread_join(createDRMSessionThreadID, NULL);
 		if (rc != 0)
@@ -8150,7 +8151,6 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 			logprintf("pthread_join returned %d for createDRMSession Thread", rc);
 		}
 		AAMPLOG_INFO("Joined CreateDRMSession thread");
-		drmSessionThreadStarted = false;
 	}
 
 	if(deferredDRMRequestThreadStarted)
