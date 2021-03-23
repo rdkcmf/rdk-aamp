@@ -3456,7 +3456,9 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 ***************************************************************************/
 static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 {
-	StreamOutputFormat format = FORMAT_INVALID;
+    //Delia-49381 : To enable aamp to work with streams like azure dynamic packaged streams
+    //set the format default to MPEGTS
+	StreamOutputFormat format = FORMAT_MPEGTS;
 	std::istringstream playlistStream(trackState->playlist.ptr);
 	for (std::string line; std::getline(playlistStream, line); )
 	{
