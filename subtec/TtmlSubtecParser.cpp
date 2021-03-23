@@ -23,25 +23,24 @@
 
 TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
 {
-	m_channel = make_unique<TtmlChannel>();
-	m_channel->SendResetAllPacket();
-}
-
-bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
-{		
 	if (!PacketSender::Instance()->Init())
 	{
 		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
-		return false;
+		throw std::runtime_error("PacketSender init failed");
 	}
-	
-	int width = 1280, height = 720;
-	
+	m_channel = make_unique<TtmlChannel>();
+	m_channel->SendResetAllPacket();
+
+	int width = 1920, height = 1080;
 	mAamp->GetPlayerVideoSize(width, height);
 	m_channel->SendSelectionPacket(width, height);
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
-	
+	m_channel->SendMutePacket();
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
+}
+
+bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
+{
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
 
 	return true;
 }
@@ -51,35 +50,56 @@ void TtmlSubtecParser::updateTimestamp(unsigned long long positionMs)
 	m_channel->SendTimestampPacket(positionMs);
 }
 
+void TtmlSubtecParser::reset()
+{
+	m_channel->SendResetChannelPacket();
+}
+
 bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
-{	
+{
 	IsoBmffBuffer isobuf;
-	
+
 	isobuf.setBuffer(reinterpret_cast<uint8_t *>(buffer), bufferLen);
 	isobuf.parseBuffer();
-	
+
 	if (!isobuf.isInitSegment())
 	{
 		uint8_t *mdat;
 		size_t mdatLen;
-		
-		isobuf.printBoxes();
+
+		//isobuf.printBoxes();
 		isobuf.getMdatBoxSize(mdatLen);
-		
+
 		mdat = (uint8_t *)malloc(mdatLen);
 		isobuf.parseMdatBox(mdat, mdatLen);
 
 		std::vector<uint8_t> data(mdatLen);
 		data.assign(mdat, mdat+mdatLen);
-		
+
 		m_channel->SendDataPacket(std::move(data));
 
 		free(mdat);
-		AAMPLOG_INFO("Sent buffer with size %zu position %.3f\n", bufferLen, position);
+		AAMPLOG_TRACE("Sent buffer with size %zu position %.3f\n", bufferLen, position);
 	}
 	else
 	{
 		AAMPLOG_INFO("%s:%d Init Segment", __FUNCTION__, __LINE__);
 	}
 	return true;
+}
+
+void TtmlSubtecParser::mute(bool mute)
+{
+	if (mute)
+		m_channel->SendMutePacket();
+	else
+		m_channel->SendUnmutePacket();
+}
+
+void TtmlSubtecParser::pause(bool pause)
+{
+	if (pause)
+		m_channel->SendPausePacket();
+	else
+		m_channel->SendResumePacket();
 }

@@ -4678,7 +4678,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported media format for audio or video - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__);
 							subtitle->streamOutputFormat = FORMAT_INVALID;
 							subtitle->fragmentURI = NULL;
-							//mSubtitleParser will be deleted in destructor, so unhandled here
 							subtitle->enabled = false;
 						}
 					}
@@ -4714,6 +4713,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
 						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, type);
+						if (!ts->mSubtitleParser) 
+						{
+							ts->streamOutputFormat = FORMAT_INVALID;
+							ts->fragmentURI = NULL;
+							ts->enabled = false;
+						}
 					}
 					else
 					{
@@ -5205,7 +5210,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		aux->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((video->streamOutputFormat == FORMAT_ISO_BMFF || audio->streamOutputFormat == FORMAT_ISO_BMFF) || (rate == AAMP_NORMAL_PLAY_RATE && (!audio->enabled || audio->playContext)));
-		if (subtitle->enabled && subtitle->mSubtitleParser != NULL)
+		if (subtitle->enabled && subtitle->mSubtitleParser)
 		{
 			//Need to set reportProgressOffset to subtitleParser
 			//playTarget becomes seek_pos_seconds and playlistPosition is the acutal position in playlist
@@ -5802,10 +5807,6 @@ TrackState::~TrackState()
 	{
 		delete playContext;
 	}
-	if (mSubtitleParser)
-	{
-		delete mSubtitleParser;
-	}
 	if (mCMSha1Hash)
 	{
 		free(mCMSha1Hash);
@@ -6338,13 +6339,14 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	mFirstPTS = ((double)pts / (double)timeScale);
-
-	//start subtitles
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
 		//position within playlist and pts in ms
-		subtitle->mSubtitleParser->init(seekPosition, pts);
+		int timescale_ms = timeScale / 1000;
+		long long pts_ms = pts / timescale_ms;
+		logprintf("%s: sending timestamp %lld", __FUNCTION__, pts_ms);
+		subtitle->mSubtitleParser->init(seekPosition, pts_ms);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
@@ -6357,7 +6359,7 @@ void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
 	
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 
-	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser)
 	{
 		subtitle->mSubtitleParser->pause(pause);
 	}

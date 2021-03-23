@@ -133,7 +133,6 @@ struct gActivePrivAAMP_t
 static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP_t>();
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t streamLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t gCurlInitMutex = PTHREAD_MUTEX_INITIALIZER;
 static int PLAYERID_CNTR = 0;
@@ -4757,14 +4756,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	ResetDiscontinuityInTracks();
 	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
-        pthread_mutex_lock(&streamLock);
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->Stop(false);
 		delete mpStreamAbstractionAAMP;
 		mpStreamAbstractionAAMP = NULL;
 	}
-        pthread_mutex_unlock(&streamLock);
 	pthread_mutex_lock(&mLock);
 	mVideoFormat = FORMAT_INVALID;
 	pthread_mutex_unlock(&mLock);
@@ -7108,16 +7105,6 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 	return ret;
 }
 
-void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
-{
-	pthread_mutex_lock(&streamLock);
-        if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp();
-	}
-        pthread_mutex_unlock(&streamLock);
-}
-
 /**
  * @brief Schedules retune or discontinuity processing based on state.
  * @param errorType type of playback error
@@ -8120,7 +8107,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
-	UpdateSubtitleTimestamp();
 }
 
 /**

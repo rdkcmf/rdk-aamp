@@ -5519,22 +5519,20 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 							{
 								mimeType = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetMimeType();
 							}
-							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
-							if (pMediaStreamContext->mSubtitleParser)
-							{
-								if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
-								{
-									pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-								}
-								else
-								{
-									delete pMediaStreamContext->mSubtitleParser;
-									pMediaStreamContext->mSubtitleParser = NULL;
-								}
-							}
 							if (selAdaptationSetIndex != -1)
 							{
 								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
+							}
+							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
+							if (pMediaStreamContext->mSubtitleParser) 
+							{
+								pMediaStreamContext->mSubtitleParser->init(seekPosition, 0);
+								pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+							}
+							else
+							{
+								pMediaStreamContext->enabled = false;
+								selAdaptationSetIndex = -1;
 							}
 						}
 					}

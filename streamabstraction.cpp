@@ -883,7 +883,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
-		mSubtitleParser(NULL), refreshSubtitles(false)
+		mSubtitleParser(), refreshSubtitles(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -1994,7 +1994,7 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 		double audioDuration = audio->GetTotalInjectedDuration();
 		double subtitleDuration = subtitle->GetTotalInjectedDuration();
 		//Allow subtitles to be ahead by 5 seconds compared to audio
-		while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 5.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
+		while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 15.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
 		{
 			traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
 	#ifdef AAMP_DEBUG_FETCH_INJECT
@@ -2053,18 +2053,6 @@ void StreamAbstractionAAMP::MuteSubtitles(bool mute)
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
 		subtitle->mSubtitleParser->mute(mute);
-	}
-}
-
-void StreamAbstractionAAMP::UpdateSubtitleTimestamp()
-{
-	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
-	
-	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
-	{
-		uint64_t positionms = static_cast<uint64_t>(GetStreamPosition() * 1000.0);
-		logprintf("%s:%d : positionms %ld", __FUNCTION__, __LINE__, positionms);
-		subtitle->mSubtitleParser->updateTimestamp(positionms);
 	}
 }
 
