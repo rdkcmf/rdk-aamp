@@ -648,13 +648,13 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 				AampConfigLookupEntry cfg = it->second;
 				AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
 				keyname =  it->first;
-				if(cJSON_GetObjectItem(cfgdata,keyname.c_str()))
+				cJSON *searchObj = cJSON_GetObjectItem(cfgdata,keyname.c_str());
+				if(searchObj)
 				{
 					// Found that keyname in json string
 					if(cfgEnum < eAAMPConfig_BoolMaxValue )
 					{
-						cJSON *boolConfig = cJSON_GetObjectItemCaseSensitive(cfgdata, keyname.c_str());
-						if (cJSON_IsTrue(boolConfig))
+						if(cJSON_IsTrue(searchObj))
 						{
 							SetConfigValue<bool>(owner,cfgEnum,true);
 						}
@@ -663,10 +663,10 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 							SetConfigValue<bool>(owner,cfgEnum,false);
 						}
 					}
-					else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue)
+					else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in Integer Settings
-						int conv = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valueint;
+						int conv = (int)searchObj->valueint;
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<int>(owner,cfgEnum,conv);
@@ -676,10 +676,10 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
 						}
 					}
-					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
+					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in long Settings
-						long conv = (long )cJSON_GetObjectItem(cfgdata, keyname.c_str())->valueint;
+						long conv = (long)searchObj->valueint;
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<long>(owner,cfgEnum,conv);
@@ -689,10 +689,10 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
 						}
 					}
-					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
+					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in double settings
-						double conv=cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuedouble;
+						double conv= (double)searchObj->valuedouble;
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<double>(owner,cfgEnum,conv);
@@ -702,20 +702,16 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
 						}
 					}
-					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
+					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue && cJSON_IsString(searchObj))
 					{
 						// For those parameters in string Settings
-						char *value = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuestring;
-						SetConfigValue<std::string>(owner,cfgEnum,(std::string)value);
+						//char *value = searchObj->valuestring;
+						//SetConfigValue<std::string>(owner,cfgEnum,(std::string)value);
+						//TODO need to fix this , crash happening on string 
 					}
 				}
-				else
-				{
-					char *value = cJSON_GetObjectItem(cfgdata, keyname.c_str())->valuestring;
-					mAampDevCmdTable[keyname]=value;
-					logprintf("%s:%d Unknown command(%s) added to DeveloperTable",__FUNCTION__,__LINE__,keyname.c_str());
-				}
 			}
+#if 0
 			// checked all the config string in json
 			// next check is channel override array is present
 			cJSON *chMap = cJSON_GetObjectItem(cfgdata,"chmap");
@@ -765,6 +761,7 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 					subitem = subitem->next;
 				}
 			}
+#endif
 			retval = true;
 			cJSON_Delete(cfgdata);
 		}
@@ -1042,7 +1039,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 				f.close();
 				ProcessConfigJson( jsonbuffer, AAMP_DEV_CFG_SETTING);
 				delete[] jsonbuffer;
-				ShowDevCfgConfiguration();
+				//ShowDevCfgConfiguration();
 				DoCustomSetting();
 				retVal = true;
 			}
