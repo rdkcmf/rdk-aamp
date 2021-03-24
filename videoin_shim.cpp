@@ -52,8 +52,11 @@ using namespace WPEFramework;
  */
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
 {
-    AAMPStatusType retval = eAAMPSTATUS_OK;
-    return retval;
+	AAMPStatusType retval = eAAMPSTATUS_OK;
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+        RegisterAllEvents();
+#endif
+	return retval;
 }
 
 /**
