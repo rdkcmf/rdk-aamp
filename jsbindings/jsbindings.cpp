@@ -3852,7 +3852,7 @@ static const JSClassDefinition AAMP_class_def =
 	AAMP_static_values,
 	AAMP_staticfunctions,
 	NULL,
-	AAMP_finalize,
+	NULL, // _allocated_aamp is reused, so don't clean when one object goes out of scope
 	NULL,
 	NULL,
 	NULL,
@@ -4227,9 +4227,12 @@ void aamp_UnloadJS(void* context)
 		return;
 	}
 
+	// Only a single AAMP object is available in this JS context which is added at the time of webpage load
+	// So it makes sense to remove the object when webpage is unloaded.
 	AAMP_finalize(aampObj);
 
-	JSObjectSetProperty(jsContext, globalObj, str, JSValueMakeUndefined(jsContext), kJSPropertyAttributeReadOnly, NULL);
+	// Per comments in DELIA-48964, use JSObjectDeleteProperty instead of JSObjectSetProperty when trying to invalidate a read-only property
+	JSObjectDeleteProperty(jsContext, globalObj, str, NULL);
 	JSStringRelease(str);
 
 	// Force a garbage collection to clean-up all AAMP objects.
