@@ -2535,6 +2535,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
+	std::string discStr;
 	
 	if(IsRefresh && !UseProgramDateTimeIfAvailable())
 	{
@@ -2584,7 +2585,9 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					if (discontinuity)
 					{
-						logprintf("%s:%d #EXT-X-DISCONTINUITY in track[%d] indexCount %d periodPosition %f", __FUNCTION__, __LINE__, type, indexCount, totalDuration);
+						char str[32];
+						snprintf(str,32,"[%d]-[%.3f],",indexCount,totalDuration);
+						discStr.append(str);
 						DiscontinuityIndexNode discontinuityIndexNode;
 						discontinuityIndexNode.fragmentIdx = indexCount;
 						discontinuityIndexNode.position = totalDuration;
@@ -2918,7 +2921,18 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:(%f -> %f) TrackCulled:%f",
 				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
 		}
-	}	
+
+		if (culledSec != 0 && discStr.size())
+		{
+			logprintf("%s DISCONTINUITY in track[%d]%s",__FUNCTION__,type,discStr.c_str());
+		}
+
+	}
+	else  if(discStr.size())
+	{
+		logprintf("%s DISCONTINUITY in track[%d]%s",__FUNCTION__,type,discStr.c_str());
+	}
+	
 
 	pthread_cond_signal(&mPlaylistIndexed);
 	pthread_mutex_unlock(&mPlaylistMutex);
