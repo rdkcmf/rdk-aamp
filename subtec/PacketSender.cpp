@@ -71,11 +71,11 @@ bool PacketSender::Init(const char *socket_path)
     {
         ret = initSocket(socket_path) && initSenderTask();
         if (!ret) {
-            AAMPLOG_WARN("SenderTask failed to init");
+            logprintf("SenderTask failed to init");
         }
         else if (mStartCv.wait_for(lock, std::chrono::milliseconds(100)) == std::cv_status::timeout)
         {
-            AAMPLOG_WARN("SenderTask timed out waiting to start");
+            logprintf("SenderTask timed out waiting to start");
             ret = false;
         }
         else
@@ -169,7 +169,7 @@ bool PacketSender::initSocket(const char *socket_path)
     mSubtecSocketHandle = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (mSubtecSocketHandle == -1)
     {
-        AAMPLOG_WARN("PacketSender: %s: Unable to init socket", __FUNCTION__);
+        logprintf("PacketSender: %s: Unable to init socket", __FUNCTION__);
         return false;
     }
     
@@ -183,7 +183,7 @@ bool PacketSender::initSocket(const char *socket_path)
     if (::connect(mSubtecSocketHandle, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) != 0)
     {
         ::close(mSubtecSocketHandle);
-        AAMPLOG_WARN("PacketSender: %s - cannot connect to address \'%s\'", __func__, socket_path);
+        logprintf("PacketSender: %s - cannot connect to address \'%s\'", __func__, socket_path);
         return false;
     }
     AAMPLOG_INFO("PacketSender: Initialised with socket_path %s", socket_path);

@@ -38,9 +38,12 @@
 
 /**
  * @brief Macro for validating the log level to be enabled
+ *
+ * if gpGlobalConfig is not initialized, skip logging
+ * if gpGlobalConfig is initialized, check the LogLevel
  */
 #define AAMPLOG(LEVEL,FORMAT, ...) \
-		do { if (gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
+		do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
 				logprintf(FORMAT, ##__VA_ARGS__); \
 		} } while (0)
 
