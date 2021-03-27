@@ -958,8 +958,7 @@ MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* na
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
 		mSubtitleParser(NULL), refreshSubtitles(false)
 		,abortPlaylistDownloader(true), playlistDownloaderThreadStarted(false), plDownloaderSignal()
-		,plDwnldMutex(), playlistDownloaderThread(NULL), playlistProcessMutex(), playlistProcessLock(playlistProcessMutex, std::defer_lock)
-		, fragmentCollectorWaitingForPlaylistUpdate(false)
+		,plDwnldMutex(), playlistDownloaderThread(NULL), fragmentCollectorWaitingForPlaylistUpdate(false)
 {
 	cachedFragment = new CachedFragment[gpGlobalConfig->maxCachedFragmentsPerTrack];
 	for(int X =0; X< gpGlobalConfig->maxCachedFragmentsPerTrack; ++X){
@@ -2627,26 +2626,6 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchupForAux()
 }
 
 /**
- * @brief To acquire playlist process lock for synchronisation purposes
- *
- * @return void
- */
-void MediaTrack::AcquirePlaylistLock()
-{
-	playlistProcessLock.lock();
-}
-
-/**
- * @brief To release playlist process lock
- *
- * @return void
- */
-void MediaTrack::ReleasePlaylistLock()
-{
-	playlistProcessLock.unlock();
-}
-
-/**
  * @brief Returns playlist type of track
  *
  * @param[in] type - track type
@@ -2717,6 +2696,7 @@ void MediaTrack::PlaylistDownloader()
 	std::string trackName = aamp->MediaTypeString(mediaType);
 	int updateDuration = 0, liveRefreshTimeOutInMs = 0 ;
 	updateDuration = (int) GetMinUpdateDuration();
+	AAMPLOG_INFO("%s[%s] Playlist download timeout : %d",__FUNCTION__, trackName.c_str(), updateDuration);
 	long long lastPlaylistDownloadTimeMS = 0;
 	bool quickPlaylistDownload = false;
 	AAMPLOG_WARN("%s[%s] : Enter, track '%s'", __FUNCTION__, trackName.c_str(), name);
@@ -2736,7 +2716,7 @@ void MediaTrack::PlaylistDownloader()
 			liveRefreshTimeOutInMs = updateDuration - (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 			if(liveRefreshTimeOutInMs <= 0 && aamp->IsLive() && aamp->rate > 0)
 			{
-				AAMPLOG_INFO("%s[%s] Refreshing playlist as it exceeded download timeout",__FUNCTION__, trackName.c_str());
+				AAMPLOG_TRACE("%s[%s] Refreshing playlist as it exceeded download timeout : %d",__FUNCTION__, trackName.c_str(), updateDuration);
 			}
 			else
 			{
@@ -2801,11 +2781,7 @@ void MediaTrack::PlaylistDownloader()
 				}
 			}
 
-
-			// Acquire playlist process lock, Process Playlist
-			AcquirePlaylistLock();
 			ProcessPlaylist(manifest, http_error);
-			ReleasePlaylistLock();
 
 			if(fragmentCollectorWaitingForPlaylistUpdate)
 			{
@@ -2823,11 +2799,6 @@ void MediaTrack::PlaylistDownloader()
 					// Download playlist without any wait
 					quickPlaylistDownload = true;
 				}
-				/*
-					* TODO:: Profile error
-					* 		Send proper error event.
-					*/
-				// aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
 			}
 			else // if downloads disabled
 			{

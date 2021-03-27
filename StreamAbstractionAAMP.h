@@ -252,20 +252,6 @@ public:
 	MediaType GetPlaylistMediaTypeFromTrack(TrackType type, bool isIframe);
 
 	/**
-	 * @brief To acquire playlist process lock for synchronisation purposes
-	 *
-	 * @return void
-	 */
-	void AcquirePlaylistLock();
-
-	/**
-	 * @brief To release playlist process lock
-	 *
-	 * @return void
-	 */
-	void ReleasePlaylistLock();
-
-	/**
 	 * @brief To notify that the fragment collector is waiting for next playlistProcess
 	 *
 	 * @return void
@@ -533,8 +519,6 @@ private:
 	bool abortPlaylistDownloader;			/**< Flag used to abort playlist downloader*/
 	std::condition_variable plDownloaderSignal;	/**< Conditional variable for signalling timed wait*/
 	std::mutex plDwnldMutex;				/**< Playlist download mutex for conditional timed wait*/
-	std::mutex playlistProcessMutex;		/**< Playlist process mutex for synchronization*/
-	std::unique_lock<std::mutex> playlistProcessLock;	/**< Lock to be used by AcquirePlaylistLock and ReleasePlaylistLock*/
 	bool fragmentCollectorWaitingForPlaylistUpdate;	/**< Flag to indicate that the fragment collecor is waiting for ongoing playlist download, used for profile changes*/
 };
 
