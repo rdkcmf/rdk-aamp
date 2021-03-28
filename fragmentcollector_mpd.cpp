@@ -5941,14 +5941,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							mStreamInfo[idx].resolution.height = representation->GetHeight();
 							mStreamInfo[idx].resolution.width = representation->GetWidth();
 							mStreamInfo[idx].resolution.framerate = 0;
-							mStreamInfo[idx].isCappedProfile = false;
 							mStreamInfo[idx].enabled = false;
 							//Update profile resolution with VideoEnd Metrics object.
 							aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 													mStreamInfo[idx].bandwidthBitsPerSecond,
 													mStreamInfo[idx].resolution.width,
-													mStreamInfo[idx].resolution.height,
-													mStreamInfo[idx].isCappedProfile);
+													mStreamInfo[idx].resolution.height);
 
 							std::string repFrameRate = representation->GetFrameRate();
 							if(repFrameRate.empty())
@@ -6066,7 +6064,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.width = representation->GetWidth();
 								mStreamInfo[idx].resolution.framerate = 0;
 								std::string repFrameRate = representation->GetFrameRate();
-								mStreamInfo[idx].isCappedProfile = false;
 								mStreamInfo[idx].enabled = false;
 								if(repFrameRate.empty())
 									repFrameRate = adapFrameRate;
@@ -6123,7 +6120,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								addedProfiles++;
 								if (resolutionCheckEnabled && (mStreamInfo[pidx].isIframeTrack && bIframeCapped) || (!mStreamInfo[pidx].isIframeTrack && bVideoCapped))
                                                                 {
-                                                                         mStreamInfo[pidx].isCappedProfile = true;
+                                                                        aamp->mProfileCappedStatus = true;
                                                                 }
 
 								//Update profile resolution with VideoEnd Metrics object.
@@ -6131,8 +6128,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									(mStreamInfo[pidx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 								mStreamInfo[pidx].bandwidthBitsPerSecond,
 								mStreamInfo[pidx].resolution.width,
-								mStreamInfo[pidx].resolution.height,
-								mStreamInfo[pidx].isCappedProfile);
+								mStreamInfo[pidx].resolution.height);
 								if(mStreamInfo[pidx].resolution.height > 1080
 									|| mStreamInfo[pidx].resolution.width > 1920)
 								{
@@ -6140,7 +6136,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									iframeBitrate = gpGlobalConfig->iframeBitrate4K;
 								}
 								mStreamInfo[pidx].enabled = true;
-								AAMPLOG_INFO("%s:%d Added Video Profile to ABR BW= %ld res= %d:%d display= %d:%d cp:%d", __FUNCTION__, __LINE__, mStreamInfo[pidx].bandwidthBitsPerSecond, mStreamInfo[pidx].resolution.width, mStreamInfo[pidx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[pidx].isCappedProfile);
+								AAMPLOG_INFO("%s:%d Added Video Profile to ABR BW= %ld res= %d:%d display= %d:%d pc:%d", __FUNCTION__, __LINE__, mStreamInfo[pidx].bandwidthBitsPerSecond, mStreamInfo[pidx].resolution.width, mStreamInfo[pidx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, aamp->mProfileCappedStatus);
 							}
 						}
 					}
@@ -6160,7 +6156,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.width = 0;
 								mStreamInfo[idx].resolution.framerate = 0;
 								mStreamInfo[idx].enabled = true;
-								mStreamInfo[idx].isCappedProfile = false;
 								std::string repFrameRate = representation->GetFrameRate();
                                                                                             
                                                                  if(repFrameRate.empty())

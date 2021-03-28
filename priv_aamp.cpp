@@ -102,6 +102,7 @@
 #define LOCATION_HEADER_STRING		"Location:"
 #define CONTENT_ENCODING_STRING		"Content-Encoding:"
 #define FOG_RECORDING_ID_STRING		"Fog-Recording-Id:"
+#define CAPPED_PROFILE_STRING 		"Profile-Capped:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -1663,6 +1664,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 
 	bool isBitrateHeader = false;
 	bool isFogRecordingIdHeader = false;
+	bool isProfileCapHeader = false;
 
 	if( len<2 || ptr[endPos] != '\r' || ptr[endPos+1] != '\n' )
 	{ // only proceed if this is a CRLF terminated curl header, as expected
@@ -1719,6 +1721,11 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		// The Content-Encoding entity header incidcates media is compressed
 		context->downloadIsEncoded = true;
 	}
+	else if (context->aamp->mOutputResolutionCheckEnabled && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
+	{
+		startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
+		isProfileCapHeader = true;
+	}
 	else if (0 == context->buffer->avail)
 	{
 		if (STARTS_WITH_IGNORE_CASE(ptr, CONTENTLENGTH_STRING))
@@ -1746,7 +1753,6 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		{ // strip leading whitespace
 			startPos++;
 		}
-
 		if(isBitrateHeader)
 		{
 			const char * strBitrate = ptr + startPos;
@@ -1758,6 +1764,12 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			context->aamp->mTsbRecordingId = string( ptr + startPos, endPos - startPos );
 			AAMPLOG_TRACE("Parsed Fog-Id : %s", context->aamp->mTsbRecordingId.c_str());
 		}
+		else if(isProfileCapHeader)
+		{
+			const char * strProfileCap = ptr + startPos;
+			context->aamp->mProfileCappedStatus = atol(strProfileCap)? true : false;
+			AAMPLOG_TRACE("Parsed Profile-Capped Header : %d", context->aamp->mProfileCappedStatus);
+                }
 		else
 		{
 			httpHeader->data = string( ptr + startPos, endPos - startPos );
@@ -1988,6 +2000,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mProgramDateTime (0)
+	, mProfileCappedStatus(false)
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
@@ -2827,15 +2840,14 @@ void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
  * @param reason reason for bitrate change
  * @param width new width in pixels
  * @param height new height in pixels
- * @param isCappedProfile to indicate restricted profile
  * @param GetBWIndex get bandwidth index - used for logging
  */
-void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool isCappedProfile, bool GetBWIndex)
+void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex)
 {
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_BITRATE_CHANGED])
 	{
 		AsyncEventDescriptor* e = new AsyncEventDescriptor();
-		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, isCappedProfile, mDisplayWidth, mDisplayHeight);
+		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 
@@ -2844,12 +2856,12 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
 			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), isCappedProfile, mDisplayWidth, mDisplayHeight);
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 		}
 		else
 		{
 			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s profileCap:%d tvWidth:%d tvHeight:%d",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), isCappedProfile, mDisplayWidth, mDisplayHeight);
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
@@ -2861,12 +2873,12 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
 			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), isCappedProfile, mDisplayWidth, mDisplayHeight);
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 		}
 		else
 		{
 			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s profileCap:%d tvWidth:%d tvHeight:%d",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), isCappedProfile, mDisplayWidth, mDisplayHeight);
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight);
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	}
@@ -4994,6 +5006,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		playStartUTCMS = aamp_GetCurrentTimeMS();
 		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
+		mProfileCappedStatus = false;
 #ifdef USE_OPENCDM
 		AampOutputProtection *pInstance = AampOutputProtection::GetAampOutputProcectionInstance();
 		pInstance->GetDisplayResolution(mDisplayWidth, mDisplayHeight);
@@ -5118,6 +5131,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		prevPositionMiliseconds = -1;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
+		UpdateProfileCappedStatus();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
 #endif
@@ -7479,10 +7493,9 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
  *   @param[in]  bitrate - bitrate ( bits per sec )
  *   @param[in]  width - Frame width
  *   @param[in]  Height - Frame Height
- *   @param[in] cappedProfile - profile capping status
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height, bool cappedProfile)
+void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
 #ifdef SESSION_STATS
 	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
@@ -7495,7 +7508,7 @@ void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, l
 			{
 				trackType = VideoStatTrackType::STAT_IFRAME;
 			}
-			mVideoEnd->SetProfileResolution(trackType,bitrate,width,height,cappedProfile);
+			mVideoEnd->SetProfileResolution(trackType,bitrate,width,height);
 		}
 		pthread_mutex_unlock(&mLock);
 	}
@@ -7537,6 +7550,27 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 	}
 #endif
 }   
+
+/**
+ *   @brief updates profile capped status
+ *
+ *   @param[in] void
+ *   @return  void
+ */
+void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
+{
+#ifdef SESSION_STATS
+	if(gpGlobalConfig->mEnableVideoEndEvent)
+	{
+		pthread_mutex_lock(&mLock);
+		if(mVideoEnd)
+		{
+			mVideoEnd->SetProfileCappedStatus(mProfileCappedStatus);
+		}
+		pthread_mutex_unlock(&mLock);
+	}
+#endif
+}
 
 /**
  *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.

@@ -697,6 +697,7 @@ public:
 	int mthumbIndexValue;
 
 	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
+	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	int mDisplayWidth; /**< Display resolution width */
 	int mDisplayHeight; /**< Display resolution height */
 	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
@@ -993,11 +994,10 @@ public:
 	 * @param[in] width - Video width
 	 * @param[in] height - Video height
  	 * @param[in] framerate - FRAME-RATE from manifest
-	 * @param[in] isCappedProfile - Flag to indicate restricted profile
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool isCappedProfile, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false);
 
 	/**
 	 * @brief Notify when end of stream reached
@@ -2132,6 +2132,13 @@ public:
 	 */
 	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
 
+         /**
+         *   @brief IsFirstRequestToFog Function to check first reqruest to fog
+         *
+         *   @return true if first request to fog
+         */
+        bool IsFirstRequestToFog()  { return mIsFirstRequestToFOG; }
+
 	/**
 	 *   @brief Check if current stream is muxed
 	 *
@@ -2223,10 +2230,9 @@ public:
 	 *   @param[in]  bitrate - bitrate ( bits per sec )
 	 *   @param[in]  width - Frame width
 	 *   @param[in]  Height - Frame Height
-	 *   @param[in] cappedProfile - Profile restriction status
 	 *   @return void
 	 */
-	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height, bool cappedProfile);
+	void UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height);
 
 	/**
 	 *   @brief updates time shift buffer status
@@ -2235,6 +2241,13 @@ public:
 	 *   @return void
 	 */
 	void UpdateVideoEndTsbStatus(bool btsbAvailable);
+
+	/**
+	 *   @brief updates profile capped status
+	 *
+	 *   @return void
+	 */
+	void UpdateProfileCappedStatus(void);
 
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.

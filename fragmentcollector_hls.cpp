@@ -7499,8 +7499,6 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			{
 				struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
 				streamInfo->enabled = false;
-				streamInfo->isCappedProfile = false;
-
 				if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
 				{
 					iFrameAvailableCount++;
@@ -7511,17 +7509,11 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					}
 					else if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
 					{
-						if (resolutionCheckEnabled)
-						{
-							streamInfo->isCappedProfile = true;
-						}
-
 						//Update profile resolution with VideoEnd Metrics object.
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
-								streamInfo->resolution.height,
-								streamInfo->isCappedProfile );
+								streamInfo->resolution.height );
 
 						mAbrManager.addProfile({
 								streamInfo->isIframeTrack,
@@ -7534,19 +7526,23 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						streamInfo->enabled = true;
 						iFrameSelectedCount++;
 
-						AAMPLOG_INFO("%s:%d Video Profile added to ABR for Iframe, userData=%d BW =%ld res=%d:%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height);
+						AAMPLOG_INFO("%s:%d Video Profile added to ABR for Iframe, userData=%d BW =%ld res=%d:%d display=%d:%d pc:%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height,aamp->mDisplayWidth,aamp->mDisplayHeight,iProfileCapped);
 					}
 				}
 			}
 			if (iFrameAvailableCount > 0 && 0 == iFrameSelectedCount && resolutionCheckEnabled)
 			{
-				resolutionCheckEnabled = false;
+				resolutionCheckEnabled = iProfileCapped = false;
 				loopAgain = true;
 			}
 			if (false == loopAgain)
 			{
 				break;
 			}
+		}
+		if (!aamp->IsTSBSupported() && iProfileCapped)
+		{
+			aamp->mProfileCappedStatus = true;
 		}
 		if(iFrameSelectedCount == 0 && iFrameAvailableCount !=0)
 		{
@@ -7599,7 +7595,6 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			{
 				struct HlsStreamInfo *streamInfo = &this->streamInfo[j];
 				streamInfo->enabled = false;
-				streamInfo->isCappedProfile = false;
 				bool ignoreProfile = false;
 				bool clearProfiles = false;
 				if(!streamInfo->isIframeTrack)
@@ -7764,8 +7759,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_VIDEO,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
-								streamInfo->resolution.height,
-								iProfileCapped );
+								streamInfo->resolution.height );
 
 						mAbrManager.addProfile({
 								streamInfo->isIframeTrack,
@@ -7774,11 +7768,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								streamInfo->resolution.height,
 								"",
 								j});
-						if (iProfileCapped)
-						{
-							streamInfo->isCappedProfile = true;
-						}
-						AAMPLOG_INFO("%s:%d Video Profile added to ABR, userData=%d BW=%ld res=%d:%d pc=%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, iProfileCapped);
+						AAMPLOG_INFO("%s:%d Video Profile added to ABR, userData=%d BW=%ld res=%d:%d display=%d:%d pc=%d", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, iProfileCapped);
 					}
 					else if( isThumbnailStream(streamInfo) )
 					{
@@ -7786,8 +7776,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
-								streamInfo->resolution.height,
-								streamInfo->isCappedProfile );
+								streamInfo->resolution.height );
 
 						mAbrManager.addProfile({
 								streamInfo->isIframeTrack,
@@ -7798,6 +7787,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								j});
 						AAMPLOG_INFO("%s:%d Adding image track, userData=%d BW = %ld ", __FUNCTION__, __LINE__, j, streamInfo->bandwidthBitsPerSecond);
 					}
+				}
+				if (!aamp->IsTSBSupported() && iProfileCapped)
+				{
+					aamp->mProfileCappedStatus = true;
 				}
 				break;
 			}
