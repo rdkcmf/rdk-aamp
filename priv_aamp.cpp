@@ -9232,6 +9232,14 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 					{
 						cJSON_AddNumberToObject(item, "bandwidth", iter->bandwidth);
 					}
+					if (!iter->contentType.empty())
+					{
+						cJSON_AddStringToObject(item, "contentType", iter->contentType.c_str());
+					}
+					if (!iter->mixType.empty())
+					{
+						cJSON_AddStringToObject(item, "mixType", iter->mixType.c_str());
+					}
 				}
 				char *jsonStr = cJSON_Print(root);
 				if (jsonStr)
