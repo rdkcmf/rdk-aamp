@@ -236,12 +236,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
  */
 static gboolean buffering_timeout (gpointer data);
 
-/**
- * @brief validateStateWithMsTimeout Ensures that the AAMP pipeline
- *        transitions to the required state by performing a time based check
- */
-static GstState validateStateWithMsTimeout(AAMPGstPlayer *_this, GstState stateToValidate, guint msTimeOut);
-
 /** 
  * @brief check if elemement is instance (BCOM-3563)
  */
@@ -2770,21 +2764,18 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	}
 	if (this->privateContext->pipeline)
 	{
+		GstState current;
+		GstState pending;
 		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
-
-		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
-		logprintf("AAMPGstPlayer::%s: Pipeline state set to null", __FUNCTION__);
-
-
-                if (GST_STATE_NULL != validateStateWithMsTimeout(this, GST_STATE_NULL, 10))
-		{
-			logprintf("AAMPGstPlayer::%s: Pipeline is in FAILURE state : validateStateWithMsTimeout - FAILED GstState %s", __FUNCTION__,gst_element_state_get_name(GST_STATE_NULL));
-		}
-
 #ifndef INTELCE
 		DisconnectCallbacks();
 #endif
-
+		if(GST_STATE_CHANGE_FAILURE == gst_element_get_state(privateContext->pipeline, &current, &pending, 0))
+		{
+			logprintf("AAMPGstPlayer::%s: Pipeline is in FAILURE state : current %s  pending %s", __FUNCTION__,gst_element_state_get_name(current), gst_element_state_get_name(pending));
+		}
+		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
+		logprintf("AAMPGstPlayer::%s: Pipeline state set to null", __FUNCTION__);
 	}
 #ifdef AAMP_MPD_DRM
 	if(AampOutputProtection::IsAampOutputProcectionInstanceActive())
