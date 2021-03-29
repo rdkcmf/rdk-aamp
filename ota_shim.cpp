@@ -528,7 +528,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 
         std::string languageCode;
         languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String());
-        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode,/* lang */ audioData["name"].String(),	/* name*/ audioData["type"].String(), /* codecStr  */ (int)audioData["pk"].Number()));           //pk
+        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
     }
 
     mAudioTracks = aTracks;
