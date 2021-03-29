@@ -160,6 +160,19 @@ cmake ..
 make
 make install
 ```
+
+**11. Install aampmetrics**
+
+```
+git clone https://code.rdkcentral.com/r/rdk/components/generic/aampmetrics aampmetrics
+cd aampmetrics
+mkdir build
+cd build
+cmake ..
+make
+make install
+```
+
 ##Build and execute aamp-cli
 **1. Open aamp.xcodeproj in Xcode**
 
