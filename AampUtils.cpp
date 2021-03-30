@@ -66,42 +66,6 @@ long long aamp_GetCurrentTimeMS(void)
 }
 
 /**
- * @brief Get curl IPRESOLVE based on current IP protocol
- *
- * @retval - current IPRESOLVE
- */
-long aamp_GetIPResolveValue()
-{
-    struct stat v4Stat;
-    struct stat v6Stat;
-    bool is_v4(::stat( "/tmp/estb_ipv4", &v4Stat) == 0);
-    bool is_v6(::stat( "/tmp/estb_ipv6", &v6Stat) == 0);
-    long IPType;
-    
-    if( is_v4 && is_v6 )
-    {
-        IPType = CURL_IPRESOLVE_WHATEVER;
-        AAMPLOG_INFO("aamp ipv4=%d and ipv6=%d enabled\n",is_v4,is_v6);
-    }
-    else if(is_v6)
-    {
-        IPType = CURL_IPRESOLVE_V6;
-        AAMPLOG_INFO("aamp ipv6=%d enabled\n",is_v6);
-    }
-    else if(is_v4)
-    {
-        IPType = CURL_IPRESOLVE_V4;
-        AAMPLOG_INFO("aamp ipv4=%d enabled\n",is_v4);
-    }
-    else
-    {
-        IPType = CURL_IPRESOLVE_WHATEVER;
-        AAMPLOG_INFO("aamp /tmp/estb_ipv4 and /tmp/estb_ipv6 not found\n");
-    }
-    return IPType;
-
-}
-/**
  * @brief parse leading protcocol from uri if present
  * @param[in] uri manifest/ fragment uri
  * @retval return pointer just past protocol (i.e. http://) if present (or) return NULL uri doesn't start with protcol
