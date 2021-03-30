@@ -617,7 +617,16 @@ public:
 	 * @return void
 	 */
 	void EnableAllMediaDownloads();
-
+	
+	/**
+	 * @brief Replace KeyID from PsshData
+	 * @param initialization data input 
+	 * @param initialization data input size
+	 * @param [out] output data size
+	 * @retval Output data pointer 
+	 */
+	unsigned char* ReplaceKeyIDPsshData(const unsigned char *InputData, const size_t InputDataLength,  size_t & OutputDataLength);
+	
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
@@ -650,7 +659,7 @@ public:
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
-
+	bool mIsWVKIDWorkaround;            /*Widevine KID workaround flag*/
 	int mSetOnTuneRateRequested;
 	int mOnTuneRate;
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
@@ -2956,6 +2965,14 @@ public:
 	 */
 	void UpdateLiveOffset();
 private:
+
+	/**
+	 *   @brief get the SkyDE Store workaround 
+	 *
+	 *   @param[in] value - url info
+	 *   @return true/false
+	 */
+	bool IsWideVineKIDWorkaround(const std::string url);
 
 	/**
 	 *   @brief Load the configuration lazily

@@ -221,7 +221,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"disableUnderflow",eAAMPConfig_DisableUnderflow,-1,-1},
 	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
-	{"id3",eAAMPConfig_ID3Logging,-1,-1}
+	{"id3",eAAMPConfig_ID3Logging,-1,-1},
+	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -336,6 +337,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 #endif
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
 
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
