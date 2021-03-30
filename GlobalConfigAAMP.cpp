@@ -84,6 +84,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, mPersistBitRateOverSeek(eUndefinedState)
 	, licenseCaching(eUndefinedState)
 	, bDisableUnderflow(false)
+	, mIsWideVineKIDWorkaround(eUndefinedState)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
