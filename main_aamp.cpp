@@ -660,9 +660,9 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 		}
 	}
 
-	if (aamp->pipeline_paused)
+	if ((aamp->mbPlayEnabled) && aamp->pipeline_paused)
 	{
-		// resume downloads and clear paused flag. state change will be done
+		// resume downloads and clear paused flag for foreground instance. state change will be done
 		// on streamSink configuration.
 		logprintf("%s(): paused state, so resume downloads", __FUNCTION__);
 		aamp->pipeline_paused = false;
