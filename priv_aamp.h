@@ -582,6 +582,15 @@ public:
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
 	TunedEventConfig GetTuneEventConfig(bool isLive);
+	/**
+	 * @brief Replace KeyID from PsshData
+	 * @param initialization data input 
+	 * @param initialization data input size
+	 * @param [out] output data size
+	 * @retval Output data pointer 
+	 */
+	unsigned char* ReplaceKeyIDPsshData(const unsigned char *InputData, const size_t InputDataLength,  size_t & OutputDataLength);
+	
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
@@ -614,6 +623,7 @@ public:
 	std::string mTunedManifestUrl;
 
 	bool isPreferredDRMConfigured;
+	bool mIsWVKIDWorkaround;            /*Widevine KID workaround flag*/
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
@@ -2883,6 +2893,14 @@ public:
 	 */
 	void UpdateLiveOffset();
 private:
+
+	/**
+	 *   @brief get the SkyDE Store workaround 
+	 *
+	 *   @param[in] value - url info
+	 *   @return true/false
+	 */
+	bool IsWideVineKIDWorkaround(const std::string url);
 
 	/**
 	 *   @brief Load the configuration lazily
