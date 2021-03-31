@@ -3353,9 +3353,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
-        long curlIPResolve;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
-        curlIPResolve = aamp_GetIPResolveValue();
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (!curl[i])
@@ -3372,8 +3370,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
 			curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 			curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
-                        //Depending on ip mode supported by box, force curl to use that particular ip mode (DELIA-46626)
-                        curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, curlIPResolve);
+			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
 			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
