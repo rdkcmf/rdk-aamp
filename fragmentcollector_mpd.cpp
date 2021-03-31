@@ -5957,9 +5957,14 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.framerate = frate;
 							}
 
-							mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 							delete representation;
-
+							// Skip profile by resolution, if profile capping already applied in Fog
+							if(aamp->mOutputResolutionCheckEnabled && aamp->mProfileCappedStatus &&  aamp->mDisplayWidth > 0 && mStreamInfo[idx].resolution.width > aamp->mDisplayWidth)
+							{
+								AAMPLOG_INFO ("Video Profile Ignoring resolution=%d:%d display=%d:%d Bw=%ld", mStreamInfo[idx].resolution.width, mStreamInfo[idx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[idx].bandwidthBitsPerSecond);
+								continue;
+							}
+							mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 							if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
 							{
 								mMaxTSBBandwidth = mStreamInfo[idx].bandwidthBitsPerSecond;
