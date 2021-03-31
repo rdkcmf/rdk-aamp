@@ -1697,17 +1697,6 @@ void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
 }
 
 /**
- *   @brief Call to optionally configure simulated per-download network latency for negative testing
- *   @param[in] DownloadDelayInMs - extra millisecond delay added in each download
- *
- *   @return void
- */
-void PlayerInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs)
-{
-        aamp->ApplyArtificialDownloadDelay( DownloadDelayInMs );
-}
-
-/**
  *   @brief Configure URI  parameters
  *   @param[in] bValue -true to enable
  *

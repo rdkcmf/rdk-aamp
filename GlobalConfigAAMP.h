@@ -254,7 +254,6 @@ public:
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
-	unsigned int mDownloadDelayInMs; /** optional delay for downloads to simulate network latency **/
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
 
 public:

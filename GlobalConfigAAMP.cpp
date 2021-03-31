@@ -81,7 +81,6 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	,bLimitResolution(eUndefinedState)
 	,mEnableSeekableRange(eUndefinedState)
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP), mPersistBitRateOverSeek(eUndefinedState), licenseCaching(eUndefinedState)
-	, mDownloadDelayInMs(0)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.

@@ -2377,14 +2377,6 @@ public:
 	 */
 	void SetPropagateUriParameters(bool bValue);
 
-        /**
-         *       @brief Configure simulated per-download network latency for negative testing
-         *       @param[in] DownloadDelayInMs - extra millisecond delay added in each download
-         *
-         *       @return void
-         */
-        void ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs);
-
 	/**
 	 *   @brief to configure disable ssl verify peer parameter
 	 *
