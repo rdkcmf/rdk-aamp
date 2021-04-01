@@ -778,12 +778,10 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
 #if defined (REALTEKCE)
-	return aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
-                aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg");
+	return (aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26")
+				|| aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
 #else
-	return _this->privateContext->using_westerossink?
-		aamp_StartsWith(name, "westerossink"):
-		aamp_StartsWith(name, "brcmvideodecoder");
+	return (_this->privateContext->using_westerossink ? aamp_StartsWith(name, "westerossink"): aamp_StartsWith(name, "brcmvideodecoder"));
 #endif
 }
 
@@ -800,6 +798,17 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 #else
 	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
 			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+#endif
+}
+
+bool AAMPGstPlayer_isAudioSinkOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
+{
+#if defined (REALTEKCE)
+	return (aamp_StartsWith(name, "rtkaudiosink")
+						|| aamp_StartsWith(name, "alsasink")
+						|| aamp_StartsWith(name, "fakesink"));
+#else
+	return (aamp_StartsWith(name, "brcmaudiodecoder") || aamp_StartsWith(name, "amlhalasink"));
 #endif
 }
 
@@ -830,7 +839,12 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 		isAudioOrVideoDecoder = true;
 	}
 #if defined (REALTEKCE)
-	else if (aamp_StartsWith(name, "omx"))
+	else if (aamp_StartsWith(name, "omx")
+			|| aamp_StartsWith(name, "westerossink")
+			|| aamp_StartsWith(name, "rtkv1sink")
+			|| aamp_StartsWith(name, "rtkaudiosink")
+			|| aamp_StartsWith(name, "alsasink")
+			|| aamp_StartsWith(name, "fakesink"))
 	{
 		isAudioOrVideoDecoder = true;
 	}
@@ -848,11 +862,7 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 	AAMPGstPlayer *_this = (AAMPGstPlayer *) user_data;
 	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 #ifndef INTELCE
-	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
-	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-	}
+	gint64 currentPTS = _this->GetVideoPTS();
 
 	if (currentPTS == privateContext->lastKnownPTS)
 	{
@@ -935,37 +945,37 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	//TODO - Handle underflow
 	MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
 	AAMPGstPlayerPriv *privateContext = _this->privateContext;
-	logprintf("## %s() : Got Underflow message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
-	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+	if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
 	{
 		type = eMEDIATYPE_VIDEO;
 	}
-	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
+	else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
+	else
+	{
+		logprintf("## %s() : WARNING!! Underflow message from %s not handled, unmapped underflow!", __FUNCTION__, GST_ELEMENT_NAME(object));
+		return;
+	}
+
+	logprintf("## %s() : Got Underflow message from %s type %d ##", __FUNCTION__, GST_ELEMENT_NAME(object), type);
+
 	_this->privateContext->stream[type].bufferUnderrun = true;
+
 	if (_this->privateContext->stream[type].eosReached)
 	{
 		if (_this->privateContext->rate > 0)
 		{
-			if (privateContext->video_dec)
+			if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
 			{
-				if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
-				{
-					g_object_get(privateContext->video_dec, "video-pts", &privateContext->lastKnownPTS, NULL);
-					privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
-					privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
-				}
-				else
-				{
-					logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
-				}
+				privateContext->lastKnownPTS =_this->GetVideoPTS();
+				privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+				privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
 			}
 			else
 			{
-				logprintf("%s:%d : video_dec not available", __FUNCTION__, __LINE__);
-				_this->NotifyEOS();
+				logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
 			}
 		}
 		else
@@ -992,11 +1002,11 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
         AAMPGstPlayer * _this)
 {
 	logprintf("## %s() : Got PTS error message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
-	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+	if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
 	}
-	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
+	else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_AUDIO);
 	}
@@ -1228,7 +1238,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
 				// To register decode-error-callback for video decoder source alone
-				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
+				if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
 				{
 					g_signal_connect(msg->src, "decode-error-callback",
 						G_CALLBACK(AAMPGstPlayer_OnGstDecodeErrorCb), _this);
@@ -1430,10 +1440,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
+
 #if defined (REALTEKCE)
-			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxwmvdec") ||
-				aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxh26") || aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxav1dec")||
-				aamp_StartsWith(GST_OBJECT_NAME(msg->src), "omxmpeg") )
+			if ((NULL != msg->src) && AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
 				_this->privateContext->video_dec = (GstElement *) msg->src;
 			}
@@ -3611,11 +3620,7 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 {
 	bool ret = true;
 #ifndef INTELCE
-	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
-	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-	}
+	gint64 currentPTS = GetVideoPTS();
 	if (currentPTS != 0)
 	{
 		if (currentPTS != privateContext->lastKnownPTS)
@@ -3652,17 +3657,25 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 long long AAMPGstPlayer::GetVideoPTS(void)
 {
 	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
+	GstElement *element;
+#if defined (REALTEKCE)
+	element = privateContext->video_sink;
+#else
+	element = privateContext->video_dec;
+#endif
+	if( element )
 	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-		//Westeros sink sync returns PTS in 90Khz format where as BCM returns in 45 KHz, 
+		g_object_get(element, "video-pts", &currentPTS, NULL);
+		
+#ifndef REALTEKCE
+		//Westeros sink sync returns PTS in 90Khz format where as BCM returns in 45 KHz,
 		// hence converting to 90Khz for BCM
 		if(!privateContext->using_westerossink)
 		{
 			currentPTS = currentPTS * 2; // convert from 45 KHz to 90 Khz PTS
 		}
+#endif
 	}
-
 	return (long long) currentPTS;
 }
 
