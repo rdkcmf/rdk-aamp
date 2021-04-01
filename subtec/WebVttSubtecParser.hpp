@@ -20,7 +20,6 @@
 #pragma once
 
 #include "subtitleParser.h"
-#include "PacketSender.hpp"
 #include "WebVttPacket.hpp"
 
 class WebVTTSubtecParser : public SubtitleParser

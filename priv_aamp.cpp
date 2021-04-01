@@ -4654,10 +4654,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			// Stop CC when pipeline is stopped/destroyed and if foreground instance
 			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
 			{
-				if(!newTune)
-				{
-					AampCCManager::GetInstance()->Release();
-				}
+				AampCCManager::GetInstance()->Release();
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -5216,6 +5213,15 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mIscDVR = true;
 	}
 
+#ifdef AAMP_CC_ENABLED
+	if (eMEDIAFORMAT_OTA == mMediaFormat)
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+	}
+#endif
 	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
 		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
@@ -5374,7 +5380,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
         {
                 rc = eMEDIAFORMAT_COMPOSITE;
         }
-	else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0)) 
+	else if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0)  || (urlStr.rfind("mr:",0)==0)) 
 	{
 		rc = eMEDIAFORMAT_OTA;
 	}
@@ -6889,6 +6895,14 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 	return ret;
 }
 
+void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp();
+	}
+}
+
 /**
  * @brief Schedules retune or discontinuity processing based on state.
  * @param errorType type of playback error
@@ -7855,6 +7869,8 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 		SetState(eSTATE_PLAYING);
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
+	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
+	UpdateSubtitleTimestamp();
 }
 
 /**
@@ -8166,6 +8182,15 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 {
 	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
 	SendEventAsync(event);
+#ifdef AAMP_CC_ENABLED
+	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
+	{
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(true);
+		}
+	}
+#endif
 }
 
 /**
@@ -9977,6 +10002,12 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
+#ifdef AAMP_CC_ENABLED
+		if (gpGlobalConfig->nativeCCRendering)
+		{
+			AampCCManager::GetInstance()->SetParentalControlStatus(false);
+		}
+#endif
 	}
 }
 

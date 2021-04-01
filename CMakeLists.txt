@@ -148,6 +148,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
 )
+
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp)
 endif()
@@ -201,6 +202,13 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-multichar -std=c++11 -Wno-non-virtual-dtor -Werror=effc++")
 
+if (CMAKE_AAMP_RFC_REQUIRED)
+	message("AAMP RFC set")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RFC_ENABLED")
+	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
+	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
+endif()
+
 if(CMAKE_IARM_MGR)
 	message("CMAKE_IARM_MGR set")
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DIARM_MGR=1")
@@ -208,17 +216,19 @@ endif()
 
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 
-set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp subtec/SubtecChannelManager.cpp)
+set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp)
 
-if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-	# avoid cmake failure on OSX
-        set(CMAKE_MACOSX_RPATH 1)
-else()
-	set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
-	add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
-	set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
-	target_link_libraries(subtectest "-lpthread")
-	install(TARGETS subtectest DESTINATION bin)
+if(CMAKE_BUILD_SUBTEC_TEST)
+    if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        # avoid cmake failure on OSX
+            set(CMAKE_MACOSX_RPATH 1)
+    else()
+        #set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
+        #add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
+        #set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
+        #target_link_libraries(subtectest "-lpthread")
+        #install(TARGETS subtectest DESTINATION bin)
+    endif()
 endif()
 
 set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
@@ -414,7 +424,6 @@ if (CMAKE_RDK_CC_ENABLED)
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
 endif()
 
-
 if (CMAKE_SUBTEC_CC_ENABLED)
     message("CMAKE_SUBTEC_CC_ENABLED set")
 
@@ -510,6 +519,10 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
   DESTINATION include)
+
+if (CMAKE_AAMP_RFC_REQUIRED)
+install(FILES AampRfc.h DESTINATION include)
+endif()
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
 message("LIBAAMP_SOURCES is ${LIBAAMP_SOURCES}")

@@ -35,13 +35,6 @@ namespace subtecConnector
 
 namespace
 {
-    template<typename Packet>
-    void sendSinglePacket(Packet && p)
-    {
-        PacketSender::Instance()->AddPacket(std::forward<Packet>(p));
-        PacketSender::Instance()->SendPackets();
-    }
-
     gsw_CcAttributes createDefaultAttributes()
     {
         gsw_CcAttributes attribs;
@@ -74,7 +67,7 @@ CCDataController* CCDataController::Instance()
 void CCDataController::closedCaptionDataCb (int decoderIndex, VL_CC_DATA_TYPE eType, unsigned char* ccData,
                                 unsigned dataLength, int sequenceNumber, long long localPts)
 {
-    sendSinglePacket(channel.generateDataPacketWithPTS(localPts, ccData, dataLength));
+    channel.SendDataPacketWithPTS(localPts, ccData, dataLength);
 }
 
 void CCDataController::closedCaptionDecodeCb(int decoderIndex, int event)
@@ -84,24 +77,28 @@ void CCDataController::closedCaptionDecodeCb(int decoderIndex, int event)
 
 void CCDataController::sendMute()
 {
-    sendSinglePacket(channel.generateMutePacket());
+    channel.SendMutePacket();
 }
 
 void CCDataController::sendUnmute()
 {
-    sendSinglePacket(channel.generateUnmutePacket());
+    channel.SendUnmutePacket();
 }
 
 void CCDataController::sendPause()
 {
-    sendSinglePacket(channel.generatePausePacket());
+    channel.SendPausePacket();
 }
 
 void CCDataController::sendResume()
 {
-    sendSinglePacket(channel.generateResumePacket());
+    channel.SendResumePacket();
 }
 
+void CCDataController::sendResetChannelPacket()
+{
+    channel.SendResetChannelPacket();
+}
 
 CCDataController::CCDataController()
     : channel{}
@@ -111,12 +108,12 @@ CCDataController::CCDataController()
 
 void CCDataController::ccSetDigitalChannel(unsigned int channelId)
 {
-    sendSinglePacket(channel.generateActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA::type_708, channelId));
+    channel.SendActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA::type_708, channelId);
 }
 
 void CCDataController::ccSetAnalogChannel(unsigned int channelId)
 {
-    sendSinglePacket(channel.generateActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA::type_608, channelId));
+    channel.SendActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA::type_608, channelId);
 }
 
 void CCDataController::ccGetAttributes(gsw_CcAttributes * attrib, gsw_CcType /*ccType*/)
@@ -311,7 +308,7 @@ void CCDataController::sendCCSetAttribute(gsw_CcAttributes * attrib, short type,
 
     const auto ccTypeValue = getValue(ccType);
 
-    sendSinglePacket(channel.generateCCSetAttributePacket(ccTypeValue, uint32_t{type}, attributes));
+    channel.SendCCSetAttributePacket(ccTypeValue, uint32_t{type}, attributes);
 }
 
 void closedCaptionDecodeCb(void *context, int decoderIndex, int event)

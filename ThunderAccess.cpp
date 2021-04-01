@@ -32,6 +32,7 @@ using namespace WPEFramework;
 
 #define SERVER_DETAILS  "127.0.0.1:9998"
 #define MAX_LENGTH 1024
+#define THUNDER_RPC_TIMEOUT 5000 
 
 /**
  *   @brief  ThunderAccessAAMP constructor
@@ -128,7 +129,7 @@ bool ThunderAccessAAMP::ActivatePlugin()
 
     if (NULL != controllerObject) {
         controlParam["callsign"] = pluginCallsign;
-        status = controllerObject->Invoke<JsonObject, JsonObject>(1000, _T("activate"), controlParam, result);
+        status = controllerObject->Invoke<JsonObject, JsonObject>(THUNDER_RPC_TIMEOUT, _T("activate"), controlParam, result);
         if (Core::ERROR_NONE == status){
             result.ToString(response);
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s plugin Activated. Response : %s ", pluginCallsign.c_str(), response.c_str());
@@ -159,7 +160,7 @@ bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(con
     bool ret = true;
     uint32_t status = Core::ERROR_NONE;
     if (NULL != remoteObject) {
-        status = remoteObject->Subscribe<JsonObject>(1000, _T(eventName), functionHandler);
+        status = remoteObject->Subscribe<JsonObject>(THUNDER_RPC_TIMEOUT, _T(eventName), functionHandler);
         if (Core::ERROR_NONE == status) {
             AAMPLOG_INFO( "[ThunderAccessAAMP] %s : Subscribed to : %s", __FUNCTION__, eventName.c_str());
         } else {
@@ -185,7 +186,7 @@ bool ThunderAccessAAMP::UnSubscribeEvent (string eventName)
 {
     bool ret = true;
     if (NULL != remoteObject) {
-        remoteObject->Unsubscribe(1000, _T(eventName));
+        remoteObject->Unsubscribe(THUNDER_RPC_TIMEOUT, _T(eventName));
         AAMPLOG_INFO( "[ThunderAccessAAMP] %s : UnSubscribed : %s event", __FUNCTION__, eventName.c_str());
     } else {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : remoteObject not created for the plugin!", __FUNCTION__ );
@@ -212,7 +213,7 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : client not initialized! ", __FUNCTION__ );
         return false;
     }
-    status = remoteObject->Invoke<JsonObject, JsonObject>(1000, _T(method), param, result);
+    status = remoteObject->Invoke<JsonObject, JsonObject>(THUNDER_RPC_TIMEOUT, _T(method), param, result);
     if (Core::ERROR_NONE == status)
     {
         if (result["success"].Boolean()) {
