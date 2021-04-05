@@ -175,7 +175,6 @@ struct AAMPGstPlayerPriv
 	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
 #if defined(REALTEKCE)
 	bool firstTuneWithWesterosSinkOff; 	// DELIA-33640: track if first tune was done for Realtekce build
-	gboolean audioSinkAsyncEnabled; 	// XIONE-1279: track if AudioSink Async Mode is enabled for Realtekce build
 #endif
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
@@ -1542,9 +1541,6 @@ bool AAMPGstPlayer::CreatePipeline()
 			logprintf("%s buffering_enabled forced 0, INTELCE", GST_ELEMENT_NAME(privateContext->pipeline));
 #else
 			logprintf("%s buffering_enabled %u", GST_ELEMENT_NAME(privateContext->pipeline), privateContext->buffering_enabled);
-#endif
-#if defined(REALTEKCE)
-			privateContext->audioSinkAsyncEnabled = FALSE;
 #endif
 			if (privateContext->positionQuery == NULL)
 			{
@@ -3381,26 +3377,21 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			return;
 		}
 #if defined (REALTEKCE)
+		bool bAsyncModify = FALSE;
 		if (privateContext->audio_sink)
 		{
-			if (privateContext->rate > 1 || privateContext->rate < 0)
+			PrivAAMPState state = eSTATE_IDLE;
+			aamp->GetState(state);
+			if (privateContext->rate > 1 || privateContext->rate < 0 || state == eSTATE_SEEKING)
 			{
 				//aamp won't feed audio bitstreame to gstreamer at trickplay.
 				//It needs to disable async of audio base sink to prevent audio sink never sends ASYNC_DONE to pipeline.
 				logprintf("%s:%d: Disable async for audio stream at trickplay", __FUNCTION__, __LINE__);
-				privateContext->audioSinkAsyncEnabled =
-						gst_base_sink_is_async_enabled(GST_BASE_SINK(privateContext->audio_sink));
-
-				if(privateContext->audioSinkAsyncEnabled == TRUE)
+				if(gst_base_sink_is_async_enabled(GST_BASE_SINK(privateContext->audio_sink)) == TRUE)
 				{
-					privateContext->audioSinkAsyncEnabled = FALSE;
 					gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), FALSE);
+					bAsyncModify = TRUE;
 				}
-			}
-			else if(privateContext->audioSinkAsyncEnabled == FALSE)
-			{
-				privateContext->audioSinkAsyncEnabled = TRUE;
-				gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), TRUE);
 			}
 		}
 #endif
@@ -3487,7 +3478,12 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				logprintf("AAMPGstPlayer::%s:%d Pipeline state change (PAUSED) failed", __FUNCTION__, __LINE__);
 			}
 		}
-
+#if defined (REALTEKCE)
+		if(bAsyncModify == TRUE)
+		{
+			gst_base_sink_set_async_enabled(GST_BASE_SINK(privateContext->audio_sink), TRUE);
+		}
+#endif
 	}
 	privateContext->eosSignalled = false;
 	privateContext->numberOfVideoBuffersSent = 0;
