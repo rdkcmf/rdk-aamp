@@ -180,6 +180,7 @@ reportvideopts if present, current video pts is reported via progress events
 useDashParallelFragDownload=1 used to enable/disable dash fragment parallel download logic, by default the value is 1, can be disabled by setting the value to 0
 persistBitRateOverSeek=1 used to enable AAMP ABR profile persistence during Seek/Trickplay/Audio switching. By default its disabled and profile switches to default BW
 setLicenseCaching=0 used to disable license caching, by default the value is 1 to enable the license caching.
+disableUnderflow=1 to disable underflow functionality, to enable underflow set the flag to 0. By default the value is 1 for now.
 =================================================================================================================
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channnels to custom urls as follows

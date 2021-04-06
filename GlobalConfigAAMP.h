@@ -240,6 +240,7 @@ public:
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
+	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow processing*/
 
 public:
 
