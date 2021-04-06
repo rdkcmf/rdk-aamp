@@ -942,56 +942,65 @@ GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAM
 static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-	//TODO - Handle underflow
-	MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
-	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 #ifdef REALTEKCE
-	if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
-#else
-	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+    if (gpGlobalConfig->bDisableUnderflow) // temp hack to avoid video freeze while processing underflow for Realtek.
+    {
+        logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
+    }
+    else
 #endif
 	{
-		type = eMEDIATYPE_VIDEO;
-	}
-	else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
-	{
-		type = eMEDIATYPE_AUDIO;
-	}
-	else
-	{
-		logprintf("## %s() : WARNING!! Underflow message from %s not handled, unmapped underflow!", __FUNCTION__, GST_ELEMENT_NAME(object));
-		return;
-	}
-
-	logprintf("## %s() : Got Underflow message from %s type %d ##", __FUNCTION__, GST_ELEMENT_NAME(object), type);
-
-	_this->privateContext->stream[type].bufferUnderrun = true;
-
-	if (_this->privateContext->stream[type].eosReached)
-	{
-		if (_this->privateContext->rate > 0)
+		//TODO - Handle underflow
+		MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
+		AAMPGstPlayerPriv *privateContext = _this->privateContext;
+#ifdef REALTEKCE
+		if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
+#else
+		if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+#endif
 		{
-			if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
+			type = eMEDIATYPE_VIDEO;
+		}
+		else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
+		{
+			type = eMEDIATYPE_AUDIO;
+		}
+		else
+		{
+			logprintf("## %s() : WARNING!! Underflow message from %s not handled, unmapped underflow!", __FUNCTION__, GST_ELEMENT_NAME(object));
+			return;
+		}
+
+		logprintf("## %s() : Got Underflow message from %s type %d ##", __FUNCTION__, GST_ELEMENT_NAME(object), type);
+
+		_this->privateContext->stream[type].bufferUnderrun = true;
+
+		if (_this->privateContext->stream[type].eosReached)
+		{
+			if (_this->privateContext->rate > 0)
 			{
-				privateContext->lastKnownPTS =_this->GetVideoPTS();
-				privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
-				privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
+				if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
+				{
+					privateContext->lastKnownPTS =_this->GetVideoPTS();
+					privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+					privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
+				}
+				else
+				{
+					logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+				}
 			}
 			else
 			{
-				logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
+				logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
+				_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 			}
 		}
 		else
 		{
-                        logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
+			logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
 			_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 		}
-	}
-	else
-	{
-                logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
-		_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 	}
 }
 
