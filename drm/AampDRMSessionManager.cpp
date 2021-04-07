@@ -1295,10 +1295,16 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				}
 				if (NULL == sessionToken)
 				{
-					// Failed to get access token, but will still try without it
-					AAMPLOG_WARN("%s:%d failed to get access token", __FUNCTION__, __LINE__);
+					// Failed to get access token
+					// licenseAnonymousRequest is not set, Report failure
+					AAMPLOG_WARN("%s:%d failed to get access token, Anonymous request not enabled", __FUNCTION__, __LINE__);
 					eventHandle->setFailure(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN);
 					eventHandle->setResponseCode(tokenError);
+					if(!licenseRequestAbort)
+					{
+						// report error
+						return KEY_ERROR;
+					}
 				}
 				else
 				{
