@@ -481,6 +481,9 @@ public:
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
+	// Signals subtitle renderer to begin presentation
+	void StartSubtitleParser(unsigned long long firstPts);
+
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
 	int GetMediaIndexForDefaultLanguage(TrackType type);
