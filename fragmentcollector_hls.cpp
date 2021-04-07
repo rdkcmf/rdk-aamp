@@ -7341,7 +7341,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					//		1.1 If available , pick the profiles for the bw range
 					//		1.2 Pick the best audio type
 
-					if((!audiogroupId.empty() && !audiogroupId.compare(streamInfo->audio)) || audiogroupId.empty())
+					if((!audiogroupId.empty() && streamInfo->audio && !audiogroupId.compare(streamInfo->audio)) || audiogroupId.empty())
 					{
 						audioProfileMatchedCount++;
 
