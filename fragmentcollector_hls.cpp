@@ -4502,6 +4502,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							ts->fragmentURI = NULL;
 							ts->enabled = false;
 						}
+						aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 					}
 					else
 					{
@@ -6075,14 +6076,19 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	mFirstPTS = ((double)pts / (double)timeScale);
+}
+
+/**
+ * @brief Signal start of subtitle renderering - should be sent at start of video presentation
+ * 
+ */
+void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
+{
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		//position within playlist and pts in ms
-		int timescale_ms = timeScale / 1000;
-		long long pts_ms = pts / timescale_ms;
-		logprintf("%s: sending timestamp %lld", __FUNCTION__, pts_ms);
-		subtitle->mSubtitleParser->init(seekPosition, pts_ms);
+		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
+		subtitle->mSubtitleParser->init(seekPosition, firstPts);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
@@ -6090,9 +6096,9 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
 void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
 {
 	StreamAbstractionAAMP::NotifyPlaybackPaused(pause);
-	
+
 	AAMPLOG_INFO("%s: pause %d\n", __FUNCTION__, pause);
-	
+
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 
 	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser)
