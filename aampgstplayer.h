@@ -73,6 +73,7 @@ public:
 	void ClearProtectionEvent();
 	void StopBuffering(bool forceStop);
 
+
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
