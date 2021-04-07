@@ -402,6 +402,11 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 	}
 	else
 	{
+		if (aamp->pipeline_paused)
+		{
+			aamp->pipeline_paused = false;
+		}
+
 		aamp->mIsRetuneInProgress = true;
 		pthread_mutex_unlock(&gMutex);
 
