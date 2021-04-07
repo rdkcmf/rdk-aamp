@@ -78,21 +78,6 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 }
 
 /**
- *   @brief  Initialize a newly created object.
- *   @note   To be implemented by sub classes
- *   @param  tuneType to set type of object.
- *   @retval eAAMPSTATUS_OK
- */
-AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
-{
-	AAMPStatusType bretVal = StreamAbstractionAAMP_VIDEOIN::Init(tuneType);
-#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-	RegisterAllEvents();
-#endif
-	return bretVal;
-}
-
-/**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks
  */
