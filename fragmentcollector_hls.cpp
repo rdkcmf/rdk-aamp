@@ -2570,6 +2570,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		bool mediaSequence = false;
 		const char* programDateTimeIdxOfFragment = NULL;
 		bool discontinuity = false;
+		bool pdtAtTopAvailable=false;
 
 		mDrmInfo.mediaFormat = eMEDIAFORMAT_HLS;
 		mDrmInfo.manifestURL = mEffectiveUrl;
@@ -2692,11 +2693,26 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
-					mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
-						
 					if(gpGlobalConfig->logging.stream)
 					{
 						AAMPLOG_INFO("%s %s EXT-X-PROGRAM-DATE-TIME: %.*s ",__FUNCTION__,name, 30, programDateTimeIdxOfFragment);
+					}
+					if(!pdtAtTopAvailable)
+					{
+						// Fix : mProgramDateTime to be updated only for playlist at top of playlist , not with each segment of Discontinuity						
+						if(indexCount)
+						{
+							// Found PDT in between , not at the top . Need to extrapolate and find the ProgramDateTime of first segment 
+							double tmppdt = ISO8601DateTimeToUTCSeconds(ptr);
+							mProgramDateTime = tmppdt - totalDuration;
+							AAMPLOG_WARN("%s %s mProgramDateTime From Extrapolation : %f ",__FUNCTION__,name, mProgramDateTime);
+						}
+						else
+						{
+							mProgramDateTime = ISO8601DateTimeToUTCSeconds(ptr);
+							AAMPLOG_INFO("%s %s mProgramDateTime From Start : %f ",__FUNCTION__,name, mProgramDateTime);
+						}
+						pdtAtTopAvailable = true;
 					}
 					// The first X-PROGRAM-DATE-TIME tag holds the start time for each track
 					if (startTimeForPlaylistSync == 0.0 )
@@ -2913,13 +2929,20 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		}
 		else
 		{
-			culledSec = mProgramDateTime - prevProgramDateTime;
-
-			// Both negative and positive values added
-			mCulledSeconds += culledSec;
-
-			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:(%f -> %f) TrackCulled:%f",
-				__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
+			if(mProgramDateTime > 0)
+			{
+				culledSec = mProgramDateTime - prevProgramDateTime;
+				// Both negative and positive values added
+				mCulledSeconds += culledSec;
+				AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with ProgramDateTime:(%f -> %f) TrackCulled:%f",
+					__FUNCTION__, __LINE__, name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
+			}
+			else
+			{			
+				AAMPLOG_INFO("%s:%d (%s) Failed to read ProgramDateTime:(%f) Retained last PDT (%f) TrackCulled:%f",
+					__FUNCTION__, __LINE__, name, mProgramDateTime, prevProgramDateTime, mCulledSeconds);
+				mProgramDateTime = prevProgramDateTime;
+			}
 		}
 
 		if (culledSec != 0 && discStr.size())
@@ -5036,6 +5059,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 
 		
+		// negative buffer calculation fix
+		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+		{
+			if (seekPosition < aamp->culledSeconds)
+			{
+				trackState[iTrack]->playTargetBufferCalc = aamp->culledSeconds + seekPosition;
+			}
+		}
+
+
 		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
 		{
 			int iframeStreamIdx = GetIframeTrack();
