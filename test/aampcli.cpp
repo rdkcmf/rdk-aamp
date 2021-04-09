@@ -146,6 +146,7 @@ typedef enum{
 	eAAMP_SET_RateOnTune,
 	eAAMP_SET_ThumbnailTrack,
 	eAAMP_SET_SslVerifyPeer,
+	eAAMP_SET_DownloadDelayOnFetch,
 	eAAMP_SET_PausedBehavior
 }AAMPSetTypes;
 
@@ -605,7 +606,8 @@ void ShowHelpSet(){
 	printf("set 47 <x>            // Set Pre-tune rate (x= PreTuneRate)\n");
 	printf("set 48 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
 	printf("set 49 <x>            // Set Ssl Verify Peer flag (x = 1 for enabling)\n");
-	printf("set 50 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
+	printf("set 50 <x>            // Set delay while downloading fragments (unsigned int x = download delay in ms)\n");
+	printf("set 51 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -860,6 +862,7 @@ static void ProcessCliCommand( char *cmd )
 	long grace = 0;
 	long time = -1;
 	bool eventChange=false;
+	unsigned int DownloadDelayInMs = 0;
 	trim(&cmd);
 	while( *cmd==' ' ) cmd++;
 	if (cmd[0] == 0)
@@ -1751,6 +1754,15 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");
 					break;
 				}
+				case eAAMP_SET_DownloadDelayOnFetch:
+				{
+						logprintf("Matched Command eAAMP_SET_DownloadDelayOnFetch - %s",cmd);
+						sscanf(cmd, "set %d %d", &opt, &DownloadDelayInMs);
+						mSingleton->ApplyArtificialDownloadDelay(DownloadDelayInMs);
+						break;
+				}
+
+
 				case eAAMP_SET_PausedBehavior:
 				{
 					char behavior[24];
