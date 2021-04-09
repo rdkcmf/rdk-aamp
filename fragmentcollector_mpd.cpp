@@ -2455,7 +2455,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				bool isFogTsb = !(rawAttributes.find("customlist") == rawAttributes.end());
 				if(!isFogTsb)
 				{
-					segmentDuration = segmentList->GetDuration() / timescale;
+					segmentDuration = ComputeFragmentDuration( segmentList->GetDuration() , timescale);
 				}
 				else if(pMediaStreamContext->type == eTRACK_AUDIO)
 				{
@@ -3158,7 +3158,7 @@ uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumb
 				{
 					ITimeline *timeline = timelines.at(timeLineIndex);
 					uint32_t segmentCount = timeline->GetRepeatCount() + 1;
-					uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+					uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
 					for(int i=0;i<segmentCount;i++)
 					{
 						if(startNumber > curEndNumber)
@@ -3441,7 +3441,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 						{
 							ITimeline *timeline = timelines.at(timeLineIndex);
 							uint32_t repeatCount = timeline->GetRepeatCount();
-							uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+							uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
 							durationMs += ((repeatCount + 1) * timelineDurationMs);
 							AAMPLOG_TRACE("%s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
 							timeLineIndex++;
@@ -3550,7 +3550,7 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 							const std::vector<ISegmentURL*> segmentURLs = segmentList->GetSegmentURLs();
 							if(!segmentURLs.empty())
 							{
-								durationMs += (double) segmentList->GetDuration() * 1000 / segmentList->GetTimescale();
+								durationMs += ComputeFragmentDuration( segmentList->GetDuration(), segmentList->GetTimescale()) * 1000;
 							}
 							else
 							{
@@ -4177,7 +4177,7 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 							{
 								ITimeline *timeline = timelines.at(timeLineIndex);
 								uint32_t repeatCount = timeline->GetRepeatCount();
-								uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+								uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
 								durationMs += ((repeatCount + 1) * timelineDurationMs);
 								traceprintf("%s period[%d] timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, iPeriod, timeLineIndex, timelines.size(), durationMs);
 								timeLineIndex++;
@@ -4202,7 +4202,7 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 							{
 								AAMPLOG_WARN("%s:%d :  segmentURLs is null", __FUNCTION__, __LINE__);  //CID:82113 - Null Returns
 							}
-							durationMs += (double) segmentList->GetDuration() * 1000 / segmentList->GetTimescale();
+							durationMs += ComputeFragmentDuration(segmentList->GetDuration(), segmentList->GetTimescale()) * 1000;
 						}
 						else
 						{
@@ -8283,7 +8283,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 											ITimeline *timeline = timelines.at(timeLineIndex);
 											double startTime = timeline->GetStartTime() / timeScale;
 											uint32_t repeatCount = timeline->GetRepeatCount();
-											uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
+											uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
 											durationMs += ((repeatCount + 1) * timelineDurationMs);
 											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
 											replace(tmedia, "Number", timeLineIndex);
@@ -8523,8 +8523,7 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint32_t &durati
 									{
 										timeScale = eventStream->GetTimescale();
 									}
-									//first multiply then divide to avoid magnifying rounding off issues.
-									duration = ((uint64_t)event->GetDuration()*1000)/timeScale; //milliseconds
+									duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
 									scte35 = signalChild->GetText();
 									if(scte35.length())
 									{
