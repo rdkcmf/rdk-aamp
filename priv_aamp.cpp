@@ -105,6 +105,7 @@
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
+#define MAX_DOWNLOAD_DELAY_LIMIT_MS 30000
 
 /**
  * New state for treating a VOD asset as a "virtual linear" stream
@@ -1580,6 +1581,18 @@ static void ProcessConfigEntry(std::string cfg)
 		{
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
 			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
+		}
+		else if (ReadConfigNumericHelper(cfg, "downloadDelay=", value))
+		{
+			if(value <= MAX_DOWNLOAD_DELAY_LIMIT_MS)
+			{
+				gpGlobalConfig->mDownloadDelayInMs = value;
+				logprintf("Apply download delay: %u ms", gpGlobalConfig->mDownloadDelayInMs);
+			}
+			else
+			{
+				logprintf("Apply delay in download out of range, expected 0 to 30000 ms");
+			}
 		}
 		else if (ReadConfigNumericHelper(cfg, "livePauseBehavior=", value))
 		{
@@ -3908,7 +3921,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 
-//				InterruptableMsSleep( 250 ); // this can be uncommented to locally induce extra per-download latency
+				/* optionally locally induce extra per-download latency */
+                                if( gpGlobalConfig->mDownloadDelayInMs > 0 )
+                                {
+                                        InterruptableMsSleep( gpGlobalConfig->mDownloadDelayInMs );
+                                }
 
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
@@ -6352,6 +6369,25 @@ void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
 {
 	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
 	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
+}
+
+/**
+ *   @brief to optionally configure simulated per-download network latency for negative testing
+ *
+ *   @param[in] DownloadDelayInMs - extra millisecond delay added in each download
+ *   @return void
+ */
+void PrivateInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs)
+{
+	if( DownloadDelayInMs <= MAX_DOWNLOAD_DELAY_LIMIT_MS )
+	{
+		gpGlobalConfig->mDownloadDelayInMs = DownloadDelayInMs;
+		logprintf("%s:%d Apply delay in each download : %u ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
+	}
+	else
+	{
+		logprintf("%s:%d Apply delay in download out of range : %u ms, expected 0 to 30000 ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
+	}
 }
 
 /**

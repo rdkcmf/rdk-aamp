@@ -131,6 +131,7 @@ Note: To add multiple customHeader, add one more line in aamp.cfg and add the da
 uriParameter=<uriParameterString> uri parameter data to be appended on download-url during curl request, note that it will be considered the "curlHeader=1" config is set.
 useRetuneForUnpairedDiscontinuity=0 To disable unpaired discontinuity retun functionality, by default this is flag enabled.
 initFragmentRetryCount=<X> To set max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
+downloadDelay=<x> Specify the extra ms to be added in each download. Default value is 0. Expected value from 0 to 30000 ms.
 harvest-count-limit=<X> Specify the limit of number of files to be harvested
 harvest-path=<X> Specify the path where fragments has to be harvested,check folder permissions specifying the path
 harvest-config=<X> Specify the value to indicate the type of file to be harvested. It is bitmasking technique, enable more file type by setting more bits

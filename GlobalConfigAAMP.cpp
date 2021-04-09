@@ -90,6 +90,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, mEnableSeekableRange(eUndefinedState)
 	, mPersistBitRateOverSeek(eUndefinedState)
 	, licenseCaching(eUndefinedState)
+	, mDownloadDelayInMs(0)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 	, bLimitResolution(eUndefinedState)
 	, bDisableUnderflow(false)
