@@ -10426,56 +10426,65 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
  */
 void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
 {
-	preferredLanguagesString.clear();
-	preferredLanguagesList.clear();
-	if(languageList != NULL)
+	if((languageList && preferredLanguagesString != languageList) ||
+	(preferredRendition && preferredRenditionString != preferredRendition))
 	{
-		preferredLanguagesString = std::string(languageList);
-		std::istringstream ss(preferredLanguagesString);
-		std::string lng;
-		while(std::getline(ss, lng, ','))
+		preferredLanguagesString.clear();
+		preferredLanguagesList.clear();
+		if(languageList != NULL)
 		{
-			preferredLanguagesList.push_back(lng);
-			AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
-					lng.c_str());
+			preferredLanguagesString = std::string(languageList);
+			std::istringstream ss(preferredLanguagesString);
+			std::string lng;
+			while(std::getline(ss, lng, ','))
+			{
+				preferredLanguagesList.push_back(lng);
+				AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
+						lng.c_str());
+			}
+
+			preferredLanguagesString = std::string(languageList);
 		}
 
-		preferredLanguagesString = std::string(languageList);
-	}
-
-	AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
 			preferredLanguagesList.size());
-	
+		
 
-	if( preferredRendition )
-	{
-                AAMPLOG_INFO("%s:%d: Setting rendition %s", __FUNCTION__, __LINE__, preferredRendition);
-		preferredRenditionString = std::string(preferredRendition);
+		if( preferredRendition )
+		{
+			AAMPLOG_INFO("%s:%d: Setting rendition %s", __FUNCTION__, __LINE__, preferredRendition);
+			preferredRenditionString = std::string(preferredRendition);
+		}
+		else
+		{
+			preferredRenditionString.clear();
+		}
+
+		PrivAAMPState state;
+		GetState(state);
+		if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
+		{ // active playback session; apply immediately
+			if (mpStreamAbstractionAAMP)
+			{
+				if(mMediaFormat == eMEDIAFORMAT_OTA)
+				{
+					mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
+				}
+				else
+				{
+					discardEnteringLiveEvt = true;
+				
+					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					TeardownStream(false);
+					TuneHelper(eTUNETYPE_SEEK);
+					discardEnteringLiveEvt = false;
+				}
+			}
+		}
 	}
 	else
 	{
-		preferredRenditionString.clear();
-	}
-
-	PrivAAMPState state;
-	GetState(state);
-	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
-	{ // active playback session; apply immediately
-		if (mpStreamAbstractionAAMP)
-		{
-			if(mMediaFormat == eMEDIAFORMAT_OTA)
-			{
-				mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
-			}
-			else
-			{
-				discardEnteringLiveEvt = true;
-			
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-				TeardownStream(false);
-				TuneHelper(eTUNETYPE_SEEK);
-				discardEnteringLiveEvt = false;
-			}
-		}
+		AAMPLOG_INFO("%s:%d: Discarding set lanuage(s) (%s) and rendition (%s) since already set", __FUNCTION__, __LINE__, 
+		languageList?languageList:"", preferredRendition?preferredRendition:"");
 	}
 }
