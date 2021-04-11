@@ -46,7 +46,7 @@
 #include <list>
 #include <sstream>
 #include <string>
-//#include <stdio.h>
+#include <ctype.h>
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
@@ -2300,9 +2300,18 @@ static std::string GetNextFieldFromCSV( const char **pptr )
 	const char *delim = ptr;
 	const char *next = ptr;
 
+	if (!isprint(*ptr) && *ptr != '\0')
+	{  // Skip BOM UTF-8 start codes and not end of string
+		while (!isprint(*ptr))
+		{
+			ptr++;
+		}
+		delim = ptr;
+	}
+	
 	if( *ptr=='\"' )
-	{
-		ptr++; // skip startquote
+	{ // Skip startquote
+		ptr++;
 		delim  = strchr(ptr,'\"');
 		if( delim )
 		{
@@ -2314,8 +2323,8 @@ static std::string GetNextFieldFromCSV( const char **pptr )
 		}
 	}
 	else
-	{
-		while( *delim>=' ' && *delim!=',' )
+	{  // Include space and greater chars and not , and not end of string
+		while( *delim >= ' ' && *delim != ',' && *delim != '\0')
 		{
 			delim++;
 		}
@@ -2336,10 +2345,18 @@ static void LoadVirtualChannelMapFromCSV( FILE *f )
 		VirtualChannelInfo channelInfo;
 		const char *ptr = buf;
 		std::string channelNumber = GetNextFieldFromCSV( &ptr );
+		// invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID, will be auto assigned
 		channelInfo.channelNumber = atoi(channelNumber.c_str());
 		channelInfo.name = GetNextFieldFromCSV(&ptr);
 		channelInfo.uri = GetNextFieldFromCSV(&ptr);
-		mVirtualChannelMap.Add( channelInfo );
+		if (!channelInfo.name.empty() && !channelInfo.uri.empty())
+		{
+			mVirtualChannelMap.Add( channelInfo );
+		}
+		else
+		{ // no name, no uri, no service
+			printf("[AAMPCLI] can not parse virtual channel '%s'\n", buf);
+		}
 	}
 }
 
@@ -2376,7 +2393,8 @@ static void LoadVirtualChannelMapLegacyFormat( FILE *f )
 		}
 		
 		VirtualChannelInfo channelInfo;		// extract channel number
-		channelInfo.channelNumber = atoi(ptr);  // invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID
+		// invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID, will be auto assigned
+		channelInfo.channelNumber = atoi(ptr);
 		while( *ptr>='0' && *ptr<='9' ) ptr++;
 		ptr = skipwhitespace(ptr);
 		
