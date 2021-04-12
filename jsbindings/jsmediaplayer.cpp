@@ -3550,24 +3550,6 @@ private:
 #ifdef AAMP_CC_ENABLED
 			AampCCManager::GetInstance()->SetStatus(enable_value);
 #endif
-			if(enable_value)
-			{
-				const auto textTracks = AampCCManager::GetInstance()->getLastTextTracks();
-				std::string defaultTrack;
-				if(!textTracks.empty())
-				{
-					defaultTrack = textTracks.front().instreamId;
-				}
-				else
-				{
-					defaultTrack = "CC1";
-				}
-				ERROR("[XREReceiver]:%s:%d found %d tracks, selected default textTrack = %s", __FUNCTION__, __LINE__, (int)textTracks.size(), defaultTrack.c_str());
-
-#ifdef AAMP_CC_ENABLED
-				AampCCManager::GetInstance()->SetTrack(defaultTrack);
-#endif
-			}
 		}
 
 		if(JSValueIsObject(ctx, param_setOptions_value))

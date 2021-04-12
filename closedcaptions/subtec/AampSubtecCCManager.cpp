@@ -47,8 +47,10 @@ void AampSubtecCCManager::EnsureInitialized()
 */
 void AampSubtecCCManager::EnsureHALInitialized()
 {
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d mHALInitialized = %s", __FUNCTION__, __LINE__, mHALInitialized ? "true" : "false");
 	if(not mHALInitialized)
 	{
+		AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initHal()", __FUNCTION__, __LINE__);
 		if(subtecConnector::initHal() == CC_VL_OS_API_RESULT_SUCCESS)
 		{
 			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initHal() - success", __FUNCTION__, __LINE__);
@@ -67,8 +69,10 @@ void AampSubtecCCManager::EnsureHALInitialized()
 	*/
 void AampSubtecCCManager::EnsureRendererCommsInitialized()
 {
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d mRendererInitialized = %s", __FUNCTION__, __LINE__, mRendererInitialized ? "true" : "false");
 	if(not mRendererInitialized)
 	{
+		AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initPacketSender()", __FUNCTION__, __LINE__);
 		if(subtecConnector::initPacketSender() == CC_VL_OS_API_RESULT_SUCCESS)
 		{
 			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initPacketSender() - success", __FUNCTION__, __LINE__);
@@ -86,7 +90,6 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
  */
 void AampSubtecCCManager::Release(void)
 {
-	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
 	subtecConnector::resetChannel();
 	if(mHALInitialized)
 	{
@@ -142,20 +145,21 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 }
 
 /**
- * @brief ensure mEnabled is consistent with renderer state
+ * @brief ensure mRendering is consistent with renderer state
  *
  * @return void
  */
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
-	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
-	if(mEnabled)
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d rendering", __FUNCTION__, __LINE__);
+	if(mRendering)
 	{
-		Start();
+		StartRendering();
 	}
 	else
 	{
-		Stop();
+		StopRendering();
 	}
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d style", __FUNCTION__, __LINE__);
 	SetStyle(mOptions);
 }

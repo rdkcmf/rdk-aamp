@@ -4789,14 +4789,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		else
 		{
 #ifdef AAMP_CC_ENABLED
-			AAMPLOG_INFO("%s:%d before CC Release - nativeCCRendering:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, gpGlobalConfig->nativeCCRendering, mbPlayEnabled);
-			if (mbPlayEnabled)
+			// Stop CC when pipeline is stopped/destroyed and if foreground instance
+			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
 			{
 				AampCCManager::GetInstance()->Release();
-			}
-			else
-			{
-				AAMPLOG_WARN("%s:%d CC Release - skipped ", __FUNCTION__, __LINE__);
 			}
 #endif
 			mStreamSink->Stop(!newTune);

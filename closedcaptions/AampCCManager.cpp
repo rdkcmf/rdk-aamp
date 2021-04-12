@@ -553,15 +553,23 @@ catch(const AampJsonParseException& e)
 void AampCCManagerBase::Stop()
 {
 	EnsureRendererCommsInitialized();
-	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled=%d", __FUNCTION__, __LINE__, mEnabled);
-	StopRendering();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
+	if (mRendering)
+	{
+		StopRendering();
+		mRendering = false;
+	}
 }
 
 void AampCCManagerBase::Start()
 {
 	EnsureInitialized();
-	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled=%d", __FUNCTION__, __LINE__, mEnabled);
-	StartRendering();
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mRendering(%d), mEnabled=%d", __FUNCTION__, __LINE__, mRendering, mEnabled);
+	if (!mRendering)
+	{
+		StartRendering();
+		mRendering = true;
+	}
 }
 
 int AampCCManagerBase::Init(void *handle)
@@ -572,7 +580,7 @@ int AampCCManagerBase::Init(void *handle)
 		return -1;
 	}
 
-	AAMPLOG_WARN("AampCCManagerBase::%s %d Start CC with video dec handle: %p and mEnabled: %d", __FUNCTION__, __LINE__, handle, mEnabled);
+	AAMPLOG_WARN("AampCCManagerBase::%s %d Start CC with video dec handle: %p and mEnabled: %d, mRendering=%d", __FUNCTION__, __LINE__, handle, mEnabled, mRendering);
 
 	if (mEnabled)
 	{
@@ -636,6 +644,7 @@ void AampCCManagerBase::SetParentalControlStatus(bool locked)
  */
 int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 {
+	AAMPLOG_WARN("AampCCManagerBase::%s %d", __FUNCTION__, __LINE__);
 	EnsureRendererCommsInitialized();
 	int ret = -1;
 	unsigned int trackNum = 0;
@@ -719,10 +728,12 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
  */
 int AampCCManagerBase::SetStatus(bool enable)
 {
+	AAMPLOG_WARN("AampCCManagerBase::%s %d enable = %d", __FUNCTION__, __LINE__, (int)enable);
+	
 	int ret = 0;
 	mEnabled = enable;
-	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
-				__FUNCTION__, __LINE__, mEnabled, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mRendering=%d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
+				__FUNCTION__, __LINE__, mEnabled, mRendering, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
 	if (!mTrickplayStarted && !mParentalCtrlLocked && CheckCCHandle())
 	{
 		// Setting CC rendering to true before media_closeCaptionStart is not honoured
