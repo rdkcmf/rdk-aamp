@@ -217,7 +217,6 @@ protected:
 	std::string mOptions{}; /**< CC rendering styles */
 	std::string mTrack{}; /**< CC track */
 	std::vector<TextTrackInfo> mLastTextTracks{};
-	bool mRendering{false}; /**< If CC is visible or not */
 	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
 	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
 	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */
