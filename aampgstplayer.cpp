@@ -940,13 +940,11 @@ GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAM
 static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-#ifdef REALTEKCE
-    if (gpGlobalConfig->bDisableUnderflow) // temp hack to avoid video freeze while processing underflow for Realtek.
-    {
-        logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
-    }
-    else
-#endif
+	if (gpGlobalConfig->bDisableUnderflow)
+	{ // optioonally ignore underflow
+		logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
+	}
+	else
 	{
 		//TODO - Handle underflow
 		MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
@@ -969,6 +967,13 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 			return;
 		}
 
+#if defined(AMLOGIC)
+		if(!_this->aamp->CheckIfMediaTrackBufferLow(type))
+		{
+			AAMPLOG_WARN("%s():%d Ignoring underflow from %s as Buffer health is not low", __FUNCTION__, __LINE__, GST_ELEMENT_NAME(object));
+			return;
+		}
+#endif
 		logprintf("## %s() : Got Underflow message from %s type %d ##", __FUNCTION__, GST_ELEMENT_NAME(object), type);
 
 		_this->privateContext->stream[type].bufferUnderrun = true;
