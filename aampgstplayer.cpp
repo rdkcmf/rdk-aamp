@@ -907,6 +907,15 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 	{
 		type = eMEDIATYPE_AUDIO;
 	}
+
+#if defined(AMLOGIC)
+		if(!_this->aamp->CheckIfMediaTrackBufferLow(type))
+		{
+			AAMPLOG_WARN("%s():%d Ignoring underflow from %s as Buffer health is not low", __FUNCTION__, __LINE__, GST_ELEMENT_NAME(object));
+			return;
+		}
+#endif
+
 	_this->privateContext->stream[type].bufferUnderrun = true;
 	if (_this->privateContext->stream[type].eosReached)
 	{
