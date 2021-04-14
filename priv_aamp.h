@@ -2770,6 +2770,13 @@ public:
 	 */
 	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
 
+	/**
+	*   @brief Check if buffer underflow (RED)
+	*
+	*   @return bool
+	*/
+	bool CheckIfMediaTrackBufferLow(MediaType type);
+
 private:
 
 	/**
