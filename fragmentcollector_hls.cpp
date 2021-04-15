@@ -6843,6 +6843,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 		}
 		else
 		{
+			bool waitForRefresh = false;
+
 			// existing code logic 
 			if (0 != mDiscontinuityIndexCount)
 			{
@@ -6901,48 +6903,60 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					logprintf("%s:%d ##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d discontinuity-discardTolreanceInSec %f",
 						__FUNCTION__, __LINE__, name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useDiscontinuityDateTime, discDiscardTolreanceInSec);
 
-					if (IsLive())
-					{
-						int maxPlaylistRefreshCount;
-						bool liveNoTSB;
-						if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
-						{
-							maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
-							liveNoTSB = false;
-						}
-						else
-						{
-							maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
-							liveNoTSB = true;
-						}
-
-						if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
-						{
-							logprintf("%s:%d Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
-							        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
-							pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-							logprintf("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
-							playlistRefreshCount++;
-						}
-						else
-						{
-							AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
-							break;
-						}
-					}
-					else
-					{
-						break;
-					}
+					waitForRefresh = true;
 				}
 				else
 				{
+					AAMPLOG_WARN("%s:%d [%s] Break :: mLastMatchedDiscontPosition %f", __FUNCTION__, __LINE__, name, mLastMatchedDiscontPosition);
 					break;
 				}
 			}
 			else
 			{
-				// No discontinuity present , just break
+				waitForRefresh = true;
+				AAMPLOG_WARN("%s:%d ##[%s] Discontinuity not found, wait for next playlist refresh, present mDiscontinuityIndexCount %d", __FUNCTION__, __LINE__, name, mDiscontinuityIndexCount);
+			}
+
+			if (waitForRefresh)
+			{
+				if (IsLive())
+				{
+					int maxPlaylistRefreshCount;
+					bool liveNoTSB;
+					if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
+					{
+						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
+						liveNoTSB = false;
+					}
+					else
+					{
+						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
+						liveNoTSB = true;
+					}
+
+					if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
+					{
+						logprintf("%s:%d Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d", __FUNCTION__,
+						        __LINE__, name, mDuration, mCulledSeconds, playlistRefreshCount);
+						pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
+						logprintf("%s:%d Wait for [%s] playlist update over for playlistRefreshCount %d", __FUNCTION__, __LINE__, name, playlistRefreshCount);
+						playlistRefreshCount++;
+					}
+					else
+					{
+						AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
+						break;
+					}
+				}
+				else
+				{
+					AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
+					break;
+				}
+			}
+			else
+			{
+				AAMPLOG_INFO("%s:%d [%s] Break", __FUNCTION__, __LINE__, name);
 				break;
 			}
 		}
