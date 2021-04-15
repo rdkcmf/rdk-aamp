@@ -723,6 +723,8 @@ public:
 	int mDisplayWidth; /**< Display resolution width */
 	int mDisplayHeight; /**< Display resolution height */
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
+	bool mUseAbsoluteTimeline; /**< Flag used to enable progress report from available start time */
+	double mProgressReportOffset; /**< Offset time for progress reporting */
 	/**
 	 * @brief Curl initialization function
 	 *

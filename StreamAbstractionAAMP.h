@@ -495,7 +495,6 @@ public:
 	 *   @return current position of stream.
 	 */
 	virtual double GetStreamPosition() = 0;
-
 	/**
 	 *   @brief  Get PTS of first sample.
 	 *
@@ -721,6 +720,8 @@ public:
 
 	double GetElapsedTime();
 
+	virtual double GetFirstPeriodStartTime() { return 0; }
+	virtual double GetFirstPeriodDynamicStartTime() { return 0; }
 	/**
 	 *   @brief Check for ramp down limit reached by player
 	 *   @return true if limit reached, false otherwise

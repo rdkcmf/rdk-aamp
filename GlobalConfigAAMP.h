@@ -258,7 +258,7 @@ public:
 	unsigned int mDownloadDelayInMs; /** optional delay for downloads to simulate network latency **/
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
 	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow processing*/
-
+	TriState mUseAbsoluteTimeline ; /**< DELIA-49735 Enable Report Progress report position based on Availability Start Time */
 public:
 
 	/**

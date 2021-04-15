@@ -751,6 +751,11 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 		{
 			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
+			if (aamp->mUseAbsoluteTimeline)
+			{
+				secondsRelativeToTuneTime -= aamp->mProgressReportOffset;
+				logprintf("%s(): Seek position adjusted to :%f", __FUNCTION__, secondsRelativeToTuneTime);
+			}
 			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
 				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
@@ -2138,6 +2143,23 @@ void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
 	    }
 	}
 }
+
+
+/**
+ *   @brief To set AST based progress reporting 
+ *
+ *   @param[in] bool On/Off
+ */
+void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	if(gpGlobalConfig->mUseAbsoluteTimeline == eUndefinedState)
+	{
+		aamp->mUseAbsoluteTimeline  = configState;
+	}
+}
+
 /**
  * @}
  */
