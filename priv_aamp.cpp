@@ -1612,6 +1612,12 @@ static void ProcessConfigEntry(std::string cfg)
 				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
 			}
 		}
+		//DELIA-49735 - Report Progress report position based on Availability Start Time
+		else if (ReadConfigNumericHelper(cfg, "useAbsoluteTimeline=", value) == 1)
+		{
+			 gpGlobalConfig->mUseAbsoluteTimeline = (TriState)(value == 1);
+			 logprintf("UseAbsoluteTimeline: %s", gpGlobalConfig->mUseAbsoluteTimeline? "Enabled" : "Disabled");
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -2033,6 +2039,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mDisplayHeight(0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
     	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
+	, mUseAbsoluteTimeline(false), mProgressReportOffset(0.0)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -2218,7 +2225,6 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		double end = -1;
 		long long videoPTS = -1;
 		double bufferedDuration = 0.0;
-
 		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		// Override above logic if mEnableSeekableRange is set, used by third-party apps
@@ -2228,8 +2234,16 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 			end = -1;
 		}
 		else
-		{
-			start = culledSeconds*1000.0;
+		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
+			start = 0;
+			if( mContentType == ContentType_LINEAR && eMEDIAFORMAT_DASH == mMediaFormat
+					&& mUseAbsoluteTimeline && mpStreamAbstractionAAMP )
+			{
+				start = mProgressReportOffset*1000;
+				position += start;
+			}
+			start += (culledSeconds*1000.0);
+
 			end = start + duration;
 			if (position > end)
 			{ // clamp end
@@ -6886,6 +6900,7 @@ void PrivateInstanceAAMP::Stop()
 	seek_pos_seconds = -1;
 	culledSeconds = 0;
 	durationSeconds = 0;
+	mProgressReportOffset = 0;
 	rate = 1;
 	// Set the state to eSTATE_IDLE
 	// directly setting state variable . Calling SetState will trigger event :(
@@ -10455,6 +10470,10 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 		mOutputResolutionCheckEnabled = gpGlobalConfig->bLimitResolution;
 	}
 
+	if(gpGlobalConfig->mUseAbsoluteTimeline != eUndefinedState)
+	{
+		mUseAbsoluteTimeline = gpGlobalConfig->mUseAbsoluteTimeline;
+	}
 }
 
 /**

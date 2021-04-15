@@ -1466,6 +1466,13 @@ public:
 	 */
 	void SetPausedBehavior(int behavior);
 
+	/**
+         *   @brief To set UseAbsoluteTimeline for DASH
+         *
+         *   @param[in] bool enable/disable configuration
+         */
+	void SetUseAbsoluteTimeline(bool configState);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 

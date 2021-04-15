@@ -63,7 +63,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	manifestTimeoutMs(-1), fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
 	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),
-	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState),
+	abrBufferCheckEnabled(eUndefinedState), useNewDiscontinuity(eUndefinedState), mUseAbsoluteTimeline(eUndefinedState),
 #ifdef INTELCE
 	bPositionQueryEnabled(false),
 #else

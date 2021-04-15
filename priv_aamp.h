@@ -738,6 +738,8 @@ public:
 	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
 	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
 	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
+	bool mUseAbsoluteTimeline; /**< Flag used to enable progress report from available start time */
+	double mProgressReportOffset; /**< Offset time for progress reporting */
 	/**
 	 * @brief Curl initialization function
 	 *
