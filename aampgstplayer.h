@@ -85,7 +85,6 @@ public:
 	~AAMPGstPlayer();
 	static void InitializeAAMPGstreamerPlugins();
 	void NotifyEOS();
-	bool IsFirstFrameReceived(void);
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();

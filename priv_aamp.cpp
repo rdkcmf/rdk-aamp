@@ -94,7 +94,6 @@
     }
 
 #define FOG_REASON_STRING			"Fog-Reason:"
-#define FOG_ERROR_STRING			"X-Fog-Error:"
 #define CURLHEADER_X_REASON			"X-Reason:"
 #define BITRATE_HEADER_STRING		"X-Bitrate:"
 #define CONTENTLENGTH_STRING		"Content-Length:"
@@ -1658,11 +1657,6 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
 		startPos = STRLEN_LITERAL(CURLHEADER_X_REASON);
 	}
-	else if (STARTS_WITH_IGNORE_CASE(ptr, FOG_ERROR_STRING))
-	{
-		httpHeader->type = eHTTPHEADERTYPE_FOG_ERROR;
-		startPos = STRLEN_LITERAL(FOG_ERROR_STRING);
-	}
 	else if (STARTS_WITH_IGNORE_CASE(ptr, BITRATE_HEADER_STRING))
 	{
 		startPos = STRLEN_LITERAL(BITRATE_HEADER_STRING);
@@ -1731,9 +1725,9 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		else
 		{
 			httpHeader->data = string( ptr + startPos, endPos - startPos );
-			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION && httpHeader->type != eHTTPHEADERTYPE_FOG_ERROR)
+			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
 			{ //Append delimiter ";"
-				httpHeader->data += ';';
+			 	httpHeader->data += ';';
 			}
 		}
 
@@ -1909,7 +1903,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
-	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(), mFogErrorString(""),
+	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0), noExplicitUserLanguageSelection(true), languageSetByUser(false), preferredLanguagesString(), preferredLanguagesList(),
 #ifdef SESSION_STATS
 	mVideoEnd(NULL),
@@ -2629,8 +2623,6 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	{
 		logprintf("PrivateInstanceAAMP::%s:%d Ignore error %d[%s]", __FUNCTION__, __LINE__, (int)tuneFailure, description);
 	}
-
-	mFogErrorString.clear();
 }
 
 
@@ -3835,13 +3827,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					else
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
-					}
-
-					if ((http_code == 200) && (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_ERROR) && (httpRespHeaders[curlInstance].data.length() > 0))
-					{
-						mFogErrorString.clear();
-						mFogErrorString.assign(httpRespHeaders[curlInstance].data);
-						logprintf("%s:%d Fog Error : '%s'",__FUNCTION__,__LINE__, mFogErrorString.c_str());
 					}
 
 					if(effectiveUrlPtr)
@@ -7137,15 +7122,6 @@ gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask d
 }
 
 /**
- * @brief Check if first frame received or not
- * @retval true if the first frame received
- */
-bool PrivateInstanceAAMP::IsFirstFrameReceived(void)
-{
-	return mStreamSink->IsFirstFrameReceived();
-}
-
-/**
  * @brief Check if sink cache is empty
  * @param mediaType type of track
  * @retval true if sink cache is empty
@@ -7832,24 +7808,12 @@ void PrivateInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 /**
  * @brief Send stalled event to listeners
  */
-void PrivateInstanceAAMP::SendStalledErrorEvent(bool isStalledBeforePlay)
+void PrivateInstanceAAMP::SendStalledErrorEvent()
 {
-	char* errorDesc = NULL;
 	char description[MAX_ERROR_DESCRIPTION_LENGTH];
 	memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
-
-	if (IsTSBSupported() && !mFogErrorString.empty())
-	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "%s", mFogErrorString.c_str());
-		errorDesc = description;
-	}
-	else if (!isStalledBeforePlay)
-	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", gpGlobalConfig->stallTimeoutInMS);
-		errorDesc = description;
-	}
-
-	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, errorDesc);
+	snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "Playback has been stalled for more than %d ms", gpGlobalConfig->stallTimeoutInMS);
+	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, description);
 }
 
 /**
