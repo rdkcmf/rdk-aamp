@@ -47,6 +47,7 @@ using namespace WPEFramework;
 #define APP_ID "MainPlayer"
 
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
+#define PIN_LOCK_REASON "SERVICE_PIN_LOCKED"
 
 void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
 	std::string message;
@@ -58,18 +59,36 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
 	std::string currState = playerData["playerStatus"].String();
+	
+	
 	if(0 != prevState.compare(currState))
 	{
 		PrivAAMPState state = eSTATE_IDLE;
-		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		std::string prevStatebackup = prevState;
 		prevState = currState;
+		
+		JsonObject ratingObj = playerData["rating"].Object();
+		
+		JsonObject usTVObject = ratingObj["US_TV"].Object();
+		std::string usRating = usTVObject["rating"].String();
+		
+		JsonObject caTVObject = ratingObj["CA_TV_FR"].Object();
+		std::string caRating = caTVObject["rating"].String();
+		
 		if(0 == currState.compare("PENDING"))
 		{
 			state = eSTATE_PREPARING;
 		}else if(0 == currState.compare("BLOCKED"))
 		{
-			std::string reason = playerData["blockedReason"].String(); 
-			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
+			std::string reason = playerData["blockedReason"].String();
+			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s rating US:%s CA:%s", __FUNCTION__, reason.c_str(), usRating.c_str(),caRating.c_str());
+
+			if((0 == reason.compare(PIN_LOCK_REASON)) && (usRating == "null") && (caRating == "null"))
+                        {
+                                prevState = prevStatebackup;
+                                return;
+                        }
+
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
@@ -85,6 +104,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
 			}
+			AAMPLOG_WARN( "[OTA_SHIM]%s PLAYING STATE rating US:%s CA:%s", __FUNCTION__, usRating.c_str(),caRating.c_str());
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
 		{
@@ -104,6 +124,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			/* Need not set a new state hence returning */
 			return;
 		}
+                AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevStatebackup.c_str(), currState.c_str());
 		aamp->SetState(state);
 	}
 }
