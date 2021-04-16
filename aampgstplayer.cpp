@@ -187,7 +187,8 @@ struct AAMPGstPlayerPriv
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
-
+	bool progressiveBufferingEnabled;
+	bool progressiveBufferingStatus;
 
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
@@ -216,7 +217,7 @@ struct AAMPGstPlayerPriv
 			firstTuneWithWesterosSinkOff(false),
 			audioSinkAsyncEnabled(FALSE),
 #endif
-			forwardAudioBuffers(false), decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
+			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
 			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
 	{
 		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
