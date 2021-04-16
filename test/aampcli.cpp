@@ -735,20 +735,8 @@ public:
 				printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED");
 				break;
 		case AAMP_EVENT_ID3_METADATA:
-			{
 				printf("[AAMPCLI] AAMP_EVENT_ID3_METADATA\n");
-				ID3MetadataEventPtr ev = std::dynamic_pointer_cast<ID3MetadataEvent>(e);
-				std::vector<uint8_t> metadata = ev->getMetadata();
-				int len = ev->getMetadataSize();
-				printf("[AAMPCLI] ID3 payload, length %d bytes:", len);
-				printf("\t");
-				for (int i = 0; i < len; i++)
-				{
-					printf("%c", metadata[i]);
-				}
-				printf("\n");
 				break;
-			}
 		case AAMP_EVENT_BLOCKED :
 			{
 				BlockedEventPtr ev = std::dynamic_pointer_cast<BlockedEvent>(e);
