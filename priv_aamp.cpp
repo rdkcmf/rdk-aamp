@@ -1011,6 +1011,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->logging.curl = !gpGlobalConfig->logging.curl;
 			logprintf("curl logging %s", gpGlobalConfig->logging.curl ? "on" : "off");
 		}
+		else if (cfg.compare("id3") == 0)
+		{
+			gpGlobalConfig->logging.id3 = !gpGlobalConfig->logging.id3;
+			logprintf("ID3 logging %s", gpGlobalConfig->logging.id3 ? "on" : "off");
+		}
 		else if (ReadConfigNumericHelper(cfg, "default-bitrate=", gpGlobalConfig->defaultBitrate) == 1)
 		{
 			VALIDATE_LONG("default-bitrate",gpGlobalConfig->defaultBitrate, DEFAULT_INIT_BITRATE)
@@ -9234,6 +9239,38 @@ void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
 {
 	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data);
+	if (gpGlobalConfig->logging.id3)
+	{
+		std::vector<uint8_t> metadata = e->getMetadata();
+		int metadataLen = e->getMetadataSize();
+		int printableLen = 0;
+		std::ostringstream tag;
+
+		tag << "ID3 tag length: " << metadataLen;
+	
+		if (metadataLen > 0 )
+		{
+			tag << " payload: ";
+	
+			for (int i = 0; i < metadataLen; i++)
+			{
+				if (std::isprint(metadata[i]))
+				{
+					tag << metadata[i];
+					printableLen++;
+				}
+			}
+		}
+		// Logger has a maximum message size limit, warn if too big
+		// Current large ID3 tag size is 1055, but printable < MAX_DEBUG_LOG_BUFF_SIZE.
+		std::string tagLog(tag.str());
+		logprintf("%s", tag.str().c_str());
+		
+		if (printableLen > MAX_DEBUG_LOG_BUFF_SIZE)
+		{
+			AAMPLOG_WARN("%s:%d ID3 log was truncated, original size %d (printable %d)" ,__FUNCTION__,__LINE__, metadataLen, printableLen);
+		}
+	}
 	SendEventSync(e);
 }
 
