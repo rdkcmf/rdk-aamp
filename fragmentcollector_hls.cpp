@@ -1581,12 +1581,13 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 									}
 									else if (programDateTime)
 									{
-										logprintf("%s:%d [%s] diff %f ", __FUNCTION__, __LINE__, name, diff);
-										/*If other track's discontinuity is in advanced position, diff is positive*/
-										if (diff > fragmentDurationSeconds/2 )
+										logprintf("%s:%d [WARN] [%s] diff %f with other track discontinuity position!!", __FUNCTION__, __LINE__, name, diff);
+
+										/*If other track's discontinuity is in advanced position more than the targetDuration, then skip it.*/
+										if (diff > targetDurationSeconds)
 										{
 											/*Skip fragment*/
-											logprintf("%s:%d [%s] Discontinuity - other track's discontinuity time greater by %f. updating playTarget %f to %f",
+											logprintf("%s:%d [WARN!! Can be a Stream Issue!!] [%s] Other track's discontinuity time greater by %f. updating playTarget %f to %f",
 													__FUNCTION__, __LINE__, name, diff, playTarget, playlistPosition + diff);
 											mSyncAfterDiscontinuityInProgress = true;
 											playTarget = playlistPosition + diff;
