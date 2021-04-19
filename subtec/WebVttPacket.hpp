@@ -37,7 +37,7 @@ public:
      * @param height
      *      Display height.
      */
-    WebVttSelectionPacket(uint32_t channelId, uint32_t counter, uint32_t width, uint32_t height)
+    WebVttSelectionPacket(uint32_t channelId, uint32_t counter, uint32_t width, uint32_t height) : Packet(counter)
     {
         appendType(Packet::PacketType::WEBVTT_SELECTION);
         append32(counter);
@@ -46,7 +46,7 @@ public:
         append32(width);
         append32(height);
     }
-    
+
 private:
     static constexpr std::uint8_t WEBVTT_SELECTION_PACKET_SIZE = 12;
 };
@@ -62,24 +62,24 @@ public:
      *      Packet channelId.
      * @param counter
      *      Packet counter.
-     * @param dataOffset
+     * @param timeOffsetMs
      *      Data offset if needed
      * @param dataBuffer
      *      Packet data.
      */
     WebVttDataPacket(std::uint32_t channelId,
                    std::uint32_t counter,
-                   std::int64_t dataOffset,
-                   std::vector<std::uint8_t> &&dataBuffer)
+                   std::int64_t timeOffsetMs,
+                   std::vector<std::uint8_t> &&dataBuffer) : Packet(counter)
     {
         auto& buffer = getBuffer();
         uint32_t size = 8 + 4 + dataBuffer.size();
-        
+
         appendType(PacketType::WEBVTT_DATA);
         append32(counter);
         append32(size);
         append32(channelId);
-        append64(dataOffset);
+        append64(timeOffsetMs);
 
         for (auto &byte : dataBuffer)
             buffer.push_back(byte);
@@ -99,7 +99,7 @@ public:
      */
     WebVttTimestampPacket(std::uint32_t channelId,
                     std::uint32_t counter,
-                    std::uint64_t timestamp)
+                    std::uint64_t timestamp) : Packet(counter)
     {
         appendType(PacketType::WEBVTT_TIMESTAMP);
         append32(counter);
@@ -122,8 +122,8 @@ public:
     void SendSelectionPacket(uint32_t width, uint32_t height) {
         sendPacket<WebVttSelectionPacket>(width, height);
     }
-    void SendDataPacket(std::vector<uint8_t> &&data) {
-        sendPacket<WebVttDataPacket>(0, std::move(data));
+    void SendDataPacket(std::vector<uint8_t> &&data, std::uint64_t time_offset_ms = 0) {
+        sendPacket<WebVttDataPacket>(time_offset_ms, std::move(data));
     }
     void SendTimestampPacket(uint64_t timestampMs) {
         sendPacket<WebVttTimestampPacket>(timestampMs);

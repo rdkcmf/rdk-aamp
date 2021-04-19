@@ -6962,16 +6962,6 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 	return ret;
 }
 
-void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
-{
-	pthread_mutex_lock(&streamLock);
-        if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp();
-	}
-        pthread_mutex_unlock(&streamLock);
-}
-
 /**
  * @brief Schedules retune or discontinuity processing based on state.
  * @param errorType type of playback error
@@ -7918,7 +7908,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
-	UpdateSubtitleTimestamp();
 }
 
 /**

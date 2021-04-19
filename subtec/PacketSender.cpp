@@ -70,7 +70,10 @@ bool PacketSender::Init(const char *socket_path)
     if (!running)
     {
         ret = initSocket(socket_path) && initSenderTask();
-        if (mStartCv.wait_for(lock, std::chrono::milliseconds(100)) == std::cv_status::timeout)
+        if (!ret) {
+            AAMPLOG_WARN("SenderTask failed to init");
+        }
+        else if (mStartCv.wait_for(lock, std::chrono::milliseconds(100)) == std::cv_status::timeout)
         {
             AAMPLOG_WARN("SenderTask timed out waiting to start");
             ret = false;
