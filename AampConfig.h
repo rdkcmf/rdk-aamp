@@ -163,7 +163,6 @@ typedef enum
 	eAAMPConfig_BoolMaxValue,	
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,	
-	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
 	eAAMPConfig_HarvestCountLimit,									/**< Number of files to be harvested */
 	eAAMPConfig_HarvestConfig,									/**< Indicate type of file to be  harvest */
 	eAAMPConfig_ABRCacheLife,									/**< Adaptive bitrate cache life in seconds*/
@@ -243,6 +242,7 @@ typedef enum
 	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
 	eAAMPConfig_LicenseProxy,									/**<License Proxy */
 	eAAMPConfig_SessionToken,									/**<Session Token  */
+	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
 	eAAMPConfig_StringMaxValue,				
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;

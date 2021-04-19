@@ -323,7 +323,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	
 	///////////////// Following for Integer Data type configs ////////////////////////////
-//	iAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_IntStartValue].value			=	0;	
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
 
@@ -402,6 +401,7 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 	sAampCfgValue[eAAMPConfig_NetworkProxy-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_LicenseProxy-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_SessionToken-eAAMPConfig_StringStartValue].value		=	"";
+	sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].value                  =       "";
 	
 	logprintf("Completed AampConfig Constructor.....");	
 }
