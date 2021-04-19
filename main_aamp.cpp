@@ -97,6 +97,7 @@
 	}
 
 static bool iarmInitialized = false;
+std::mutex PlayerInstanceAAMP::mPrvAampMtx;
 /**
  *   @brief Constructor.
  *
@@ -183,6 +184,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			//Release lock
 			ReleaseExLock();
 		}
+		std::lock_guard<std::mutex> lock (mPrvAampMtx);
 		delete aamp;
 		aamp = NULL;
 	}
@@ -1268,8 +1270,20 @@ double PlayerInstanceAAMP::GetPlaybackDuration()
  */
 PrivAAMPState PlayerInstanceAAMP::GetState(void)
 {
-	PrivAAMPState currentState;
-	aamp->GetState(currentState);
+	PrivAAMPState currentState = eSTATE_RELEASED;
+	try 
+	{
+		std::lock_guard<std::mutex> lock (mPrvAampMtx);
+		if(NULL == aamp)
+		{	
+			throw std::invalid_argument("NULL reference");
+		}
+		aamp->GetState(currentState);
+	}
+	catch (std::exception &e)
+	{
+		AAMPLOG_WARN("%s:%d: Invalid access to the instance of PrivateInstanceAAMP (%s), returning %s as current state", __FUNCTION__, __LINE__, e.what(),"eSTATE_RELEASED");
+	}
 	return currentState;
 }
 

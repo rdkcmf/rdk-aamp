@@ -43,6 +43,7 @@
 #include <vector>
 #include <string>
 #include <string.h>
+#include <mutex>
 #include <stddef.h>
 #include "AampEvent.h"
 #include "AampEventListener.h"
@@ -1470,6 +1471,7 @@ private:
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 	bool mAsyncRunning;                 /**< Flag denotes if async mode is on or not */
+	static std::mutex mPrvAampMtx;      /**< Mutex to protect aamp instance in GetState() */
 };
 
 #endif // MAINAAMP_H
