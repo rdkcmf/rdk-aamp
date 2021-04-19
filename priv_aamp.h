@@ -2904,6 +2904,13 @@ public:
 	 */
 	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
 
+        /**
+         *   @brief Check if buffer underflow (RED)
+         *
+         *   @return bool
+         */
+        bool CheckIfMediaTrackBufferLow(MediaType type);
+
 private:
 
 	/**
