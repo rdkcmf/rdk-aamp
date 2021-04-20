@@ -2306,7 +2306,7 @@ static std::string GetNextFieldFromCSV( const char **pptr )
 
 	if (!isprint(*ptr) && *ptr != '\0')
 	{  // Skip BOM UTF-8 start codes and not end of string
-		while (!isprint(*ptr))
+		while (!isprint(*ptr) && *ptr != '\0')
 		{
 			ptr++;
 		}
