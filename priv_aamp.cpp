@@ -4701,10 +4701,14 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		else
 		{
 #ifdef AAMP_CC_ENABLED
-			// Stop CC when pipeline is stopped/destroyed and if foreground instance
-			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
+			AAMPLOG_INFO("%s:%d before CC Release - nativeCCRendering:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, gpGlobalConfig->nativeCCRendering, mbPlayEnabled);
+			if (mbPlayEnabled)
 			{
 				AampCCManager::GetInstance()->Release();
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d CC Release - skipped ", __FUNCTION__, __LINE__);
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -9336,6 +9340,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks(trackInfo);
+#endif
 		if (!trackInfo.empty())
 		{
 			//Convert to JSON format
