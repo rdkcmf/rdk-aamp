@@ -70,6 +70,10 @@
 #include "AampAveDrmHelper.h"
 #include "AampVanillaDrmHelper.h"
 
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
+#endif
+
 //#define TRACE // compile-time optional noisy debug output
 
 static const int DEFAULT_STREAM_WIDTH = 720;
@@ -7644,6 +7648,10 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 				mTextTracks.push_back(TextTrackInfo(index, language, media->isCC, group_id, name, instreamID, characteristics));
 			}
 		}
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks(mTextTracks);
+#endif
+
 	}
 	else
 	{

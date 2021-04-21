@@ -37,25 +37,61 @@
  */
 void AampSubtecCCManager::EnsureInitialized()
 {
-	AAMPLOG_WARN("AampSubtecCCManager::%s %d mInitialized = %s", __FUNCTION__, __LINE__, mInitialized ? "true" : "false");
-	if(not mInitialized)
-	{
-		AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initialize()", __FUNCTION__, __LINE__);
-		subtecConnector::initialize();
-		mInitialized = true;
-	}
+	EnsureHALInitialized();
+	EnsureRendererCommsInitialized();
 }
+
+/**
+	* @brief Impl specific initialization code for HAL
+	* @return void
+*/
+void AampSubtecCCManager::EnsureHALInitialized()
+{
+	if(not mHALInitialized)
+	{
+		if(subtecConnector::initHal() == CC_VL_OS_API_RESULT_SUCCESS)
+		{
+			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initHal() - success", __FUNCTION__, __LINE__);
+			mHALInitialized = true;
+		}
+		else
+		{
+			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initHal() - failure", __FUNCTION__, __LINE__);
+		}
+	}
+};
+
+/**
+	* @brief Impl specific initialization code for Communication with renderer
+	* @return void
+	*/
+void AampSubtecCCManager::EnsureRendererCommsInitialized()
+{
+	if(not mRendererInitialized)
+	{
+		if(subtecConnector::initPacketSender() == CC_VL_OS_API_RESULT_SUCCESS)
+		{
+			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initPacketSender() - success", __FUNCTION__, __LINE__);
+			mRendererInitialized = true;
+		}
+		else
+		{
+			AAMPLOG_WARN("AampSubtecCCManager::%s %d calling subtecConnector::initPacketSender() - failure", __FUNCTION__, __LINE__);
+		}
+	}
+};
 
 /**
  * @brief Release CC resources
  */
 void AampSubtecCCManager::Release(void)
-{	
+{
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
 	subtecConnector::resetChannel();
-	if(mInitialized)
+	if(mHALInitialized)
 	{
 		subtecConnector::close();
-		mInitialized = false;
+		mHALInitialized = false;
 	}
 	mTrickplayStarted = false;
 	mParentalCtrlLocked = false;
@@ -106,21 +142,20 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 }
 
 /**
- * @brief ensure mRendering is consistent with renderer state
+ * @brief ensure mEnabled is consistent with renderer state
  *
  * @return void
  */
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
-	AAMPLOG_INFO("AampSubtecCCManager::%s %d rendering", __FUNCTION__, __LINE__);
-	if(mRendering)
+	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
+	if(mEnabled)
 	{
-		StartRendering();
+		Start();
 	}
 	else
 	{
-		StopRendering();
+		Stop();
 	}
-	AAMPLOG_INFO("AampSubtecCCManager::%s %d style", __FUNCTION__, __LINE__);
 	SetStyle(mOptions);
 }

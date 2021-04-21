@@ -50,6 +50,10 @@
 #include "AampUtils.h"
 //#define DEBUG_TIMELINE
 
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
+#endif
+
 /**
  * @addtogroup AAMP_COMMON_TYPES
  * @{
@@ -8808,6 +8812,10 @@ void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo
 
 	mTextTracks = tracks;
 	mTextTrackIndex = trackIndex;
+
+#ifdef AAMP_CC_ENABLED
+	AampCCManager::GetInstance()->updateLastTextTracks(mTextTracks);
+#endif
 
 	if (tracksChanged)
 	{
