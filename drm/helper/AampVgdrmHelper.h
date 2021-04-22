@@ -37,7 +37,7 @@ class AampVgdrmHelper : public AampDrmHelper
 public:
 	friend class AampVgdrmHelperFactory;
 
-	const uint32_t FIVE_SECONDS = 5000U;
+	const uint32_t TEN_SECONDS = 10000U;
 
 	virtual const std::string& ocdmSystemId() const;
 
@@ -49,7 +49,8 @@ public:
 
 	bool isHdcp22Required() const { return true; }
 
-	uint32_t keyProcessTimeout() const { return FIVE_SECONDS; }
+	uint32_t keyProcessTimeout() const { return TEN_SECONDS; }
+        uint32_t licenseGenerateTimeout() const { return TEN_SECONDS; }
 
 	void getKey(std::vector<uint8_t>& keyID) const;
 
