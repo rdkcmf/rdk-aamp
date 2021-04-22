@@ -49,12 +49,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	linearTrickplayFPSLocalOverride(false), stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT),
 	httpProxy(0), reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true), bForceHttp(false),
 	internalReTune(true), bAudioOnlyPlayback(false),
-#ifdef REALTEKCE
-// XIONE-3397 temporary workaround for SkyDE - use of queued_frames for default 'prebuffering' is not working (this can be removed once REALTEK-286 addressed)
-	gstreamerBufferingBeforePlay(false),
-#else
 	gstreamerBufferingBeforePlay(true),
-#endif
 	licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 	iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD), ckLicenseServerURL(NULL),
 	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
@@ -90,11 +85,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, mTimeoutForSourceSetup(DEFAULT_TIMEOUT_FOR_SOURCE_SETUP), mPersistBitRateOverSeek(eUndefinedState), licenseCaching(eUndefinedState)
 	, mDownloadDelayInMs(0)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
-#ifdef REALTEKCE
-	, bDisableUnderflow(true)
-#else
 	, bDisableUnderflow(false)
-#endif
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
