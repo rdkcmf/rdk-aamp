@@ -199,8 +199,8 @@ TEST(AampDrmHelperTests, TestCreateVgdrmHelper)
 		CHECK_EQUAL(true, vgdrmHelper->isHdcp22Required());
 		CHECK_EQUAL(4, vgdrmHelper->getDrmCodecType());
 		CHECK_EQUAL(true, vgdrmHelper->isExternalLicense());
-		CHECK_EQUAL(5000U, vgdrmHelper->licenseGenerateTimeout());
-		CHECK_EQUAL(5000U, vgdrmHelper->keyProcessTimeout());
+		CHECK_EQUAL(10000U, vgdrmHelper->licenseGenerateTimeout());
+		CHECK_EQUAL(10000U, vgdrmHelper->keyProcessTimeout());
 
 		vgdrmHelper->getKey(keyID);
 
