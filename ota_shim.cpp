@@ -68,8 +68,12 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			state = eSTATE_PREPARING;
 		}else if(0 == currState.compare("BLOCKED"))
 		{
-			std::string reason = playerData["blockedReason"].String(); 
-			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
+			std::string ratingString;
+			JsonObject ratingObj = playerData["rating"].Object();
+			ratingObj.ToString(ratingString);
+			std::string reason = playerData["blockedReason"].String();
+			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
+
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
@@ -85,6 +89,10 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
 			}
+			std::string ratingString;
+			JsonObject ratingObj = playerData["rating"].Object();
+			ratingObj.ToString(ratingString);
+			AAMPLOG_WARN( "[OTA_SHIM]%s PLAYING STATE Current Ratings : %s", __FUNCTION__, ratingString.c_str());
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
 		{
