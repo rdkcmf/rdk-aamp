@@ -47,8 +47,8 @@
 /**
  * @brief start and end tags for DRM policy
  */
-#define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
-#define DRM_METADATA_TAG_END "</ckm:policy>"
+#define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
+#define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
 
 void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
 
