@@ -4702,8 +4702,8 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		else
 		{
 #ifdef AAMP_CC_ENABLED
-			AAMPLOG_INFO("%s:%d before CC Release - nativeCCRendering:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, gpGlobalConfig->nativeCCRendering, mbPlayEnabled);
-			if (mbPlayEnabled)
+			AAMPLOG_INFO("%s:%d before CC Release - mTuneType:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, mTuneType, mbPlayEnabled);
+			if (mbPlayEnabled && mTuneType != eTUNETYPE_RETUNE)
 			{
 				AampCCManager::GetInstance()->Release();
 			}
