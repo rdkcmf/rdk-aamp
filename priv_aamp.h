@@ -678,7 +678,8 @@ public:
 	long long playStartUTCMS;
 	double durationSeconds;
 	double culledSeconds;
-	double mProgramDateTime;
+	double culledOffset;
+        double mProgramDateTime;
 	float maxRefreshPlaylistIntervalSecs;
 	long long initialTuneTimeMs;
 	EventListener* mEventListener;

@@ -5208,7 +5208,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		// negative buffer calculation fix
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
-			if (seekPosition < aamp->culledSeconds)
+			if (aamp->culledSeconds > 0)
 			{
 				trackState[iTrack]->playTargetBufferCalc = aamp->culledSeconds + seekPosition;
 			}

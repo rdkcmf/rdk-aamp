@@ -578,7 +578,14 @@ public:
 
 	double GetBufferedDuration()
 	{
-		return (fragmentTime - (aamp->GetPositionMs() / 1000));
+		double position = aamp->GetPositionMs() / 1000.00;
+		if (fragmentTime >= position) {
+			return (fragmentTime - position);
+		}
+		else
+		{
+			return ((fragmentTime + aamp->culledOffset) - position);
+		}
 	}
 
 
