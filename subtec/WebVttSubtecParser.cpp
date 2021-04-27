@@ -22,39 +22,29 @@
 
 WebVTTSubtecParser::WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
 {
-	if (!PacketSender::Instance()->Init())
-	{
-		AAMPLOG_INFO("%s: Init failed to connect to subtitle renderer - subtitle parsing disabled\n", __FUNCTION__);
-		throw std::runtime_error("PacketSender init failed");
-	}
-
 	m_channel = make_unique<WebVttChannel>();
-	AAMPLOG_INFO("%s: Sending RESET ALL", __FUNCTION__);
 	m_channel->SendResetAllPacket();
-	int width = 1920, height = 1080;
-	m_channel->SendMutePacket();
-	mAamp->GetPlayerVideoSize(width, height);
-	m_channel->SendSelectionPacket(width, height);
 }
 
 void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_INFO("%s: positionMs %lld", __FUNCTION__, positionMs);
 	m_channel->SendTimestampPacket(positionMs);
 }
 
-void WebVTTSubtecParser::reset()
-{	
-	m_channel->SendMutePacket();
-	m_channel->SendResetChannelPacket();
-}
-	
 bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
-{
-	AAMPLOG_INFO("%s: startPos %f start_ms %lld", __FUNCTION__, startPos, start_ms_);
-
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
-
+{	
+	if (!PacketSender::Instance()->Init())
+	{
+		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
+		return false;
+	}
+	
+	int width = 1280, height = 720;
+	
+	mAamp->GetPlayerVideoSize(width, height);
+	m_channel->SendSelectionPacket(width, height);
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
+	
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	
 	return true;
@@ -65,23 +55,7 @@ bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double posi
 	std::string str(const_cast<const char*>(buffer), bufferLen);
 	std::vector<uint8_t> data(str.begin(), str.end());
 		
-	m_channel->SendDataPacket(std::move(data), 0);
+	m_channel->SendDataPacket(std::move(data));
 
 	return true;
-}
-
-void WebVTTSubtecParser::mute(bool mute)
-{
-	if (mute)
-		m_channel->SendMutePacket();
-	else
-		m_channel->SendUnmutePacket();
-}
-
-void WebVTTSubtecParser::pause(bool pause)
-{
-	if (pause)
-		m_channel->SendPausePacket();
-	else
-		m_channel->SendResumePacket();
 }

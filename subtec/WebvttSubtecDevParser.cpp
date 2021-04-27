@@ -99,18 +99,8 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 
 WebVTTSubtecDevParser::WebVTTSubtecDevParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : WebVTTParser(aamp, type), m_channel(nullptr)
 {
-	if (!PacketSender::Instance()->Init())
-	{
-		AAMPLOG_WARN("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
-		throw std::runtime_error("PacketSender init failed");
-	}
 	m_channel = make_unique<TtmlChannel>();
 	m_channel->SendResetAllPacket();
-	int width = 1920, height = 1080;
-
-	mAamp->GetPlayerVideoSize(width, height);
-	m_channel->SendSelectionPacket(width, height);
-	m_channel->SendMutePacket();
 }
 
 bool WebVTTSubtecDevParser::processData(char *buffer, size_t bufferLen, double position, double duration)
@@ -130,7 +120,7 @@ void WebVTTSubtecDevParser::sendCueData()
 	std::string ttml = getVttAsTtml();
 	std::vector<uint8_t> data(ttml.begin(), ttml.end());
 	
-	m_channel->SendDataPacket(std::move(data), 0);
+	m_channel->SendDataPacket(std::move(data));
 }
 
 void WebVTTSubtecDevParser::reset()
@@ -149,16 +139,33 @@ void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 }
 
 bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
-{
+{	
+	if (!PacketSender::Instance()->Init())
+	{
+		AAMPLOG_WARN("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
+		return false;
+	}
+	
+	int width = 1280, height = 720;
 	bool ret = true;
+	
+	mAamp->GetPlayerVideoSize(width, height);
+	m_channel->SendSelectionPacket(width, height);
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos * 1000));
+	
 	mVttQueueIdleTaskId = -1;
 
-	ret = WebVTTParser::init(startPos, 0);
+	uint64_t adjustedPts = 0;
+	uint64_t startPosPts = static_cast<uint64_t>(startPos * 90000.0);
+
+	if (basePTS > startPosPts)
+	{
+		adjustedPts = basePTS - startPosPts;
+	}
+
+	ret = WebVTTParser::init(startPos, adjustedPts);
 	mVttQueueIdleTaskId = 0;
-
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
-
-
+	
 	return ret;
 }
 
