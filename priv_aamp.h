@@ -2324,13 +2324,13 @@ public:
 	 *   @param[in]  mediaType stream type
 	 */
 	void CheckForDiscontinuityStall(MediaType mediaType);
-	
+
 	/**
 	 *   @brief Notifies base PTS of the HLS video playback
 	 *
 	 *   @param[in]  pts - base pts value
 	 */
-	void NotifyVideoBasePTS(unsigned long long basepts);
+	void NotifyVideoBasePTS(unsigned long long basepts, unsigned long timeScale = 90000);
 
 	/**
 	 *   @brief To get any custom license HTTP headers that was set by application

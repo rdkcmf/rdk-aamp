@@ -245,6 +245,7 @@ public:
 	TriState useMatchingBaseUrl;
 	bool bEnableSubtec; 		/**< Enable subtec-based subtitles */
 	bool bWebVttNative; 		/**< Enable subtec-based subtitles */
+	bool bUseBasePts; 		/**< Enable subtec-based subtitles */
 	std::map<std::string, std::string> unknownValues;       /***  Anything we don't know about **/
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	bool midFragmentSeekEnabled;    /*** Enables Mid Fragment Seek functionality ***/

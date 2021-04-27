@@ -22,6 +22,8 @@
 #include <sys/epoll.h>
 #include <thread>
 #include <unistd.h>
+#include <fstream>
+#include <algorithm>
 
 using DataBuffer = std::vector<uint8_t>;
 
@@ -76,12 +78,16 @@ int main(int argc, char *argv[])
     bool test_thread = false, ret, send_reset = false;
     std::thread th;
     const char *path = NULL;
+    const char *webvtt_file_path = NULL;
     
-    while ((opt = getopt(argc, argv, "s:tr")) != -1)
+    while ((opt = getopt(argc, argv, "sf:tr")) != -1)
     {
         switch(opt) {
         case 't':
             test_thread = true;
+            break;
+        case 'f':
+            webvtt_file_path = optarg;
             break;
         case 's':
             path = optarg;
@@ -109,17 +115,30 @@ int main(int argc, char *argv[])
     }
     
     WebVttChannel *channel = new WebVttChannel();
-    std::vector<uint8_t> data = {'a', 'b', 'c'};
+    std::vector<uint8_t> data;
 
-    ret = sender->Init();
+    ret = PacketSender::Instance()->Init();
 	if (ret)
 	{
 		channel->SendResetAllPacket();
         if (!send_reset)
         {
             channel->SendResetChannelPacket();
-            channel->SendSelectionPacket(1280, 720);
-            channel->SendDataPacket(data);
+            channel->SendSelectionPacket(1920, 1080);
+            channel->SendUnmutePacket();
+            channel->SendTimestampPacket(0);
+            if (webvtt_file_path) {
+                auto ifile = std::ifstream(webvtt_file_path, std::ios::in | std::ios::binary);
+                
+                std::for_each(std::istreambuf_iterator<char>(ifile),
+                            std::istreambuf_iterator<char>(),
+                            [&data](const char c) {
+                                data.push_back(c);
+                            });
+            } else {
+                data = {'a', 'b', 'c'};
+            }
+            channel->SendDataPacket(std::move(data));
             sleep(1);
         }
 	}
