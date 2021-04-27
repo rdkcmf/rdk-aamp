@@ -263,6 +263,54 @@ public:
 	// Function to retune XStart Time Offset
 	double GetXStartTimeOffset() { return mXStartTimeOFfset;}
 	double GetBufferedDuration();
+
+	/**
+	 * @brief Return current playlist URL
+	 *
+	 * @return string - original playlist URL(redirected)
+	 */
+	std::string& GetPlaylistUrl() { return mPlaylistUrl; }
+
+	/**
+	 * @brief Returns the MPD original playlist URL
+	 *
+	 * @return string - original playlist URL(redirected)
+	 */
+	std::string& GetEffectivePlaylistUrl() { return mEffectiveUrl; }
+
+	/**
+	 * @brief Returns last playlist download time
+	 *
+	 * @return lastPlaylistDownloadTime
+	 */
+	long long GetLastPlaylistDownloadTime() { return lastPlaylistDownloadTimeMS; }
+
+	/**
+	 * @brief Sets last playlist download time
+	 *
+	 * @param[in] time last playlist download time
+	 * @return void
+	 */
+	void SetLastPlaylistDownloadTime(long long time) { lastPlaylistDownloadTimeMS = time; }
+
+	/**
+	 * @brief Returns minimum playlist update duration
+	 *
+	 * @return minimumUpdateDuration
+	 */
+	long GetMinUpdateDuration();
+
+	/**
+	 * @brief Returns default playlist update duration in Ms
+	 *
+	 * @return maxIntervalBtwPlaylistUpdateMs
+	 */
+	int GetDefaultDurationBetweenPlaylistUpdates();
+
+	/**
+	 * @brief Process downloaded playlist
+	 */
+	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
 private:
 	/// Function to get fragment URI based on Index 
 	char *GetFragmentUriFromIndex(bool &bSegmentRepeated);
@@ -272,8 +320,6 @@ private:
 	void FetchFragment();
 	/// Helper function fetch the fragments 
 	bool FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError, double &downloadTime);
-	/// Function to redownload playlist after refresh interval .
-	void RefreshPlaylist(void);
 	/// Function to get Context pointer
 	StreamAbstractionAAMP* GetContext();
 	/// Function to inject fragment decrypted fragment
@@ -372,6 +418,7 @@ private:
 	double mXStartTimeOFfset;		/**< Holds value of time offset from X-Start tag */
 	double mCulledSecondsAtStart;		/**< Total culled duration with this asset prior to streamer instantiation*/
 	bool mSkipSegmentOnError;				/**< Flag used to enable segment skip on fetch error */
+	MediaType playlistMediaType;		/**< Media type of playlist of this track */
 };
 
 class StreamAbstractionAAMP_HLS;
