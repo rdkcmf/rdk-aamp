@@ -5613,22 +5613,39 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 							std::string adaptationMimeType = adaptationSet->GetMimeType();
 							if (!adaptationMimeType.empty())
 							{
-								adaptationMimeType = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetMimeType();
+								if (IsCompatibleMimeType(adaptationMimeType, MediaType::eMEDIATYPE_SUBTITLE))
+								{
+									selAdaptationSetIndex = iAdaptationSet;
+									selRepresentationIndex = 0;
+									pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
+									if (pMediaStreamContext->mSubtitleParser) 
+									{
+										if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+											pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+										else {
+											delete pMediaStreamContext->mSubtitleParser;
+											pMediaStreamContext->mSubtitleParser = NULL;
+										}
+									}
+								}
+							}
+							else
+							{
+								const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+								for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+								{
+									const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+									std::string mimeType = rep->GetMimeType();
+									if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, MediaType::eMEDIATYPE_SUBTITLE)))
+									{
+										selAdaptationSetIndex = iAdaptationSet;
+										selRepresentationIndex = representationIndex;
+									}
+								}
 							}
 							if (selAdaptationSetIndex != -1)
 							{
 								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-							}
-							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
-							if (pMediaStreamContext->mSubtitleParser) 
-							{
-								pMediaStreamContext->mSubtitleParser->init(seekPosition, 0);
-								pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-							}
-							else
-							{
-								pMediaStreamContext->enabled = false;
-								selAdaptationSetIndex = -1;
 							}
 							if (selAdaptationSetIndex != iAdaptationSet)
 							{

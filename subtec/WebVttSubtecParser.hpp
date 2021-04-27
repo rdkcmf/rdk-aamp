@@ -34,14 +34,9 @@ public:
 	bool init(double startPos, unsigned long long basePTS);
 	bool processData(char* buffer, size_t bufferLen, double position, double duration);
 	bool close() { return true; }
-	void reset();
+	void reset() {}
 	void setProgressEventOffset(double offset) {}
 	void updateTimestamp(unsigned long long positionMs);
-	void pause(bool pause) override;
-	void mute(bool mute) override;
 protected:
 	std::unique_ptr<WebVttChannel> m_channel;
-private:
-	std::uint64_t time_offset_ms_ = 0;
-	std::uint64_t start_ms_ = 0;
 };
