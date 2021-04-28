@@ -411,11 +411,14 @@ const std::string &MediaMetadataEvent::getDrmType() const
  * @param[in] height     - Video height
  * @param[in] frameRate  - Framerate
  * @param[in] position   - Position
+ * @param[in] videoScanType - Video Scan Type
+ * @param[in] aspectRatioWidth - Aspect Ratio Width
+ * @param[in] aspectRatioHeight - Aspect Ratio Height
  */
-BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position):
+BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, VideoScanType videoScanType, int aspectRatioWidth, int aspectRatioHeight):
 		AAMPEventObject(AAMP_EVENT_BITRATE_CHANGED), mTime(time),
 		mBitrate(bitrate), mDescription(desc), mWidth(width),
-		mHeight(height), mFrameRate(frameRate), mPosition(position)
+		mHeight(height), mFrameRate(frameRate), mPosition(position), mVideoScanType(videoScanType), mAspectRatioWidth(aspectRatioWidth), mAspectRatioHeight(aspectRatioHeight)
 {
 
 }
@@ -488,6 +491,36 @@ double BitrateChangeEvent::getFrameRate() const
 double BitrateChangeEvent::getPosition() const
 {
 	return mPosition;
+}
+
+/**
+ * @brief Get Video Scan Type
+ *
+ * @return Video Scan Type
+ */
+VideoScanType BitrateChangeEvent::getScanType() const
+{
+        return mVideoScanType;
+}
+
+/**
+ * @brief Get Aspect Ratio Width
+ *
+ * @return Aspect Ratio Width
+ */
+int BitrateChangeEvent::getAspectRatioWidth() const
+{
+        return mAspectRatioWidth;
+}
+
+/**
+ * @brief Get Aspect Ratio Height
+ *
+ * @return Aspect Ratio Height
+ */
+int BitrateChangeEvent::getAspectRatioHeight() const
+{
+        return mAspectRatioHeight;
 }
 
 /*

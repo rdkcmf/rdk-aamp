@@ -162,6 +162,18 @@ typedef enum E_MetricsDataType
 } MetricsDataType;
 
 /**
+ * @enum Video Scan Type
+ *
+ * @brief Video Scan Type - Progressive/Interlaced
+ * */
+typedef enum
+{
+	eVIDEOSCAN_PROGRESSIVE,
+	eVIDEOSCAN_INTERLACED,
+	eVIDEOSCAN_UNKNOWN
+}VideoScanType;
+
+/**
  * @brief Structure of the AAMP events.
  * Recommend new AAMP integration layers to use AAMPEventObject based listener
  * For new event definition, should use AAMPEventObject class
@@ -233,6 +245,9 @@ struct AAMPEvent
 			int height;                 /**< Video height */
 			double framerate;           /**< FrameRate */
 			double position;            /**< bitrate changed position*/
+			VideoScanType videoScanType;/**< video scan type*/
+			int aspectRatioWidth;	    /**< aspect ratio width*/
+			int aspectRatioHeight;	    /**< aspect ratio height*/
 		} bitrateChanged;
 
 		/**
@@ -810,6 +825,9 @@ class BitrateChangeEvent: public AAMPEventObject
 	int mHeight;			/**< Video height */
 	double mFrameRate;		/**< FrameRate */
 	double mPosition;		/**< Position at which bitrate changed */
+	VideoScanType mVideoScanType;   /**< Video Scan Type progressive/interlaced */
+	int mAspectRatioWidth;		/**< Aspect Ratio Width*/
+	int mAspectRatioHeight;		/**< Aspect Ratio Height*/
 
 public:
 	BitrateChangeEvent() = delete;
@@ -825,9 +843,12 @@ public:
 	 * @param[in] width      - Video width
 	 * @param[in] height     - Video height
 	 * @param[in] frameRate  - Framerate
-	 * @param[in] position   - Position 
+	 * @param[in] position   - Position
+	 * @param[in] videoScanType   - Video Scan Type
+	 * @param[in] position   - Aspect Ratio Width
+	 * @param[in] position   - Aspect Ratio Height
 	 */
-	BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position);
+	BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, VideoScanType videoScanType, int aspectRatioWidth, int aspectRatioHeight);
 
 	/**
 	 * @brief BitrateChangeEvent Destructor
@@ -882,6 +903,25 @@ public:
 	 * @return Position
 	 */
 	double getPosition() const;
+
+	/**
+	 * @brief Get Video Scan Type
+	 *
+	 * @return output video scan type
+	 */
+	VideoScanType getScanType() const;
+	 /**
+	 * @brief Get Aspect Ratio Width
+	 *
+	 * @return output aspect ratio width
+	 */
+	int getAspectRatioWidth() const;
+	 /**
+	 * @brief Get Aspect Ratio Height
+	 *
+	 * @return output Aspect Ratio Height
+	 */
+	int getAspectRatioHeight() const;
 };
 
 /**

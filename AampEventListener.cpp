@@ -108,6 +108,9 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.bitrateChanged.height = ev->getHeight();
 			event.data.bitrateChanged.framerate = ev->getFrameRate();
 			event.data.bitrateChanged.position = ev->getPosition();
+			event.data.bitrateChanged.videoScanType = ev->getScanType();
+			event.data.bitrateChanged.aspectRatioWidth = ev->getAspectRatioWidth();
+			event.data.bitrateChanged.aspectRatioHeight = ev->getAspectRatioHeight();
 			break;
 		}
 		case AAMP_EVENT_TIMED_METADATA:
