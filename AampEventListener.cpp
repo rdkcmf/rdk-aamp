@@ -111,6 +111,9 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.bitrateChanged.cappedProfile = ev->getCappedProfileStatus();
 			event.data.bitrateChanged.displayWidth = ev->getDisplayWidth();
 			event.data.bitrateChanged.displayHeight = ev->getDisplayHeight();
+			event.data.bitrateChanged.videoScanType = ev->getScanType();
+			event.data.bitrateChanged.aspectRatioWidth = ev->getAspectRatioWidth();
+			event.data.bitrateChanged.aspectRatioHeight = ev->getAspectRatioHeight();
 			break;
 		}
 		case AAMP_EVENT_TIMED_METADATA:

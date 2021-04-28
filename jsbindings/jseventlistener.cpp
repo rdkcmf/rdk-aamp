@@ -1051,6 +1051,24 @@ public:
                 JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getDisplayHeight()), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(name);
 
+		if(eVIDEOSCAN_UNKNOWN != evt->getScanType())
+		{
+			name = JSStringCreateWithUTF8CString("progressive");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeBoolean(p_obj->_ctx, ((eVIDEOSCAN_PROGRESSIVE == evt->getScanType())?true:false)), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
+
+		if((0 != evt->getAspectRatioWidth()) && (0 != evt->getAspectRatioHeight()))
+		{
+			name = JSStringCreateWithUTF8CString("aspectRatioWidth");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioWidth()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+
+			name = JSStringCreateWithUTF8CString("aspectRatioHeight");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioHeight()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
+
 	}
 };
 

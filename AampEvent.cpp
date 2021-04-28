@@ -414,11 +414,14 @@ const std::string &MediaMetadataEvent::getDrmType() const
  * @param[in] cappedProfile - Restricted profile status
  * @param[in] displayWidth - Output display width
  * @param[in] displayHeight - Output display height
+ * @param[in] videoScanType - Video Scan Type
+ * @param[in] aspectRatioWidth - Aspect Ratio Width
+ * @param[in] aspectRatioHeight - Aspect Ratio Height
  */
-BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool cappedProfile, int displayWidth, int displayHeight):
+BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool cappedProfile, int displayWidth, int displayHeight, VideoScanType videoScanType, int aspectRatioWidth, int aspectRatioHeight):
 		AAMPEventObject(AAMP_EVENT_BITRATE_CHANGED), mTime(time),
 		mBitrate(bitrate), mDescription(desc), mWidth(width),
-		mHeight(height), mFrameRate(frameRate), mPosition(position), mCappedProfile(cappedProfile), mDisplayWidth(displayWidth), mDisplayHeight(displayHeight)
+		mHeight(height), mFrameRate(frameRate), mPosition(position), mCappedProfile(cappedProfile), mDisplayWidth(displayWidth), mDisplayHeight(displayHeight), mVideoScanType(videoScanType), mAspectRatioWidth(aspectRatioWidth), mAspectRatioHeight(aspectRatioHeight)
 {
 
 }
@@ -521,6 +524,36 @@ int BitrateChangeEvent::getDisplayWidth() const
 int BitrateChangeEvent::getDisplayHeight() const
 {
         return mDisplayHeight;
+}
+
+/**
+ * @brief Get Video Scan Type
+ *
+ * @return Video Scan Type
+ */
+VideoScanType BitrateChangeEvent::getScanType() const
+{
+        return mVideoScanType;
+}
+
+/**
+ * @brief Get Aspect Ratio Width
+ *
+ * @return Aspect Ratio Width
+ */
+int BitrateChangeEvent::getAspectRatioWidth() const
+{
+        return mAspectRatioWidth;
+}
+
+/**
+ * @brief Get Aspect Ratio Height
+ *
+ * @return Aspect Ratio Height
+ */
+int BitrateChangeEvent::getAspectRatioHeight() const
+{
+        return mAspectRatioHeight;
 }
 
 /*

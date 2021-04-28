@@ -114,6 +114,22 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		}
 		aamp->SetState(state);
 	}
+	if(tuned){
+		JsonObject videoInfoObj = playerData["videoInfo"].Object();
+		std::string currDisplyInfo = videoInfoObj["displayInfo"].String();
+		if(0 != prevDisplyInfo.compare(currDisplyInfo))
+		{
+			prevDisplyInfo = currDisplyInfo;
+			VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
+			double frameRate = 0.0;
+			double frameRateN = static_cast<double> (videoInfoObj["frameRateN"].Number());
+			double frameRateD = static_cast<double> (videoInfoObj["frameRateD"].Number());
+			if((0 != frameRateN) && (0 != frameRateD))
+				frameRate = frameRateN / frameRateD;
+
+			aamp->NotifyBitRateChangeEvent(videoInfoObj["bitrate"].Number(), eAAMP_BITRATE_CHANGE_BY_OTA, videoInfoObj["width"].Number(), videoInfoObj["height"].Number(), frameRate, 0, false, videoScanType, videoInfoObj["aspectRatioWidth"].Number(), videoInfoObj["aspectRatioHeight"].Number());
+		}
+	}
 }
 
 #endif
@@ -133,6 +149,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 #else
     AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
     prevState = "IDLE";
+    prevDisplyInfo = "";
     tuned = false;
 
     thunderAccessObj.ActivatePlugin();
