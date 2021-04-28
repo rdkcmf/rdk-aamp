@@ -5058,7 +5058,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
         switch( mMediaFormat )
 	{
-        case eMEDIAFORMAT_DASH:
+        case eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA:
+		AAMPLOG_ERR("Error: SmoothStreamingMedia playback not supported");
+		mInitSuccess = false;
+		SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+		return;
+	case eMEDIAFORMAT_DASH:
 		#if defined (INTELCE)
 		logprintf("Error: Dash playback not available\n");
 		mInitSuccess = false;
@@ -5672,7 +5677,15 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 			else if((sniffedBytes.len >= 6 && memcmp(sniffedBytes.ptr, "<?xml ", 6) == 0) || // can start with xml
 					 (sniffedBytes.len >= 5 && memcmp(sniffedBytes.ptr, "<MPD ", 5) == 0)) // or directly with mpd
 			{ // note: legal to have whitespace before leading tag
-				rc = eMEDIAFORMAT_DASH;
+				aamp_AppendNulTerminator(&sniffedBytes);
+				if (strstr(sniffedBytes.ptr, "SmoothStreamingMedia"))
+				{
+					rc = eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA;
+				}
+				else
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
 			}
 			else
 			{
