@@ -5056,6 +5056,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
                         mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
                 }
         }
+	else if (mMediaFormat == eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA)
+	{
+		AAMPLOG_ERR("Error: SmoothStreamingMedia playback not supported");
+		mInitSuccess = false;
+		SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
+		return;
+	}
 
 	mInitSuccess = true;
 	AAMPStatusType retVal;
@@ -5604,14 +5611,13 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		int fogError;
 
 		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
-
 		bool gotManifest = GetFile(
 							url,
 							&sniffedBytes,
 							effectiveUrl,
 							&http_error,
 							&downloadTime,
-							"0-100", // download first few bytes only
+							"0-150", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
 							eCURLINSTANCE_MANIFEST_PLAYLIST,
 							false,
@@ -5629,7 +5635,15 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 			else if((sniffedBytes.len >= 6 && memcmp(sniffedBytes.ptr, "<?xml ", 6) == 0) || // can start with xml
 					 (sniffedBytes.len >= 5 && memcmp(sniffedBytes.ptr, "<MPD ", 5) == 0)) // or directly with mpd
 			{ // note: legal to have whitespace before leading tag
-				rc = eMEDIAFORMAT_DASH;
+				aamp_AppendNulTerminator(&sniffedBytes);
+				if (strstr(sniffedBytes.ptr, "SmoothStreamingMedia"))
+				{
+					rc = eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA;
+				}
+				else
+				{
+					rc = eMEDIAFORMAT_DASH;
+				}
 			}
 			else
 			{
