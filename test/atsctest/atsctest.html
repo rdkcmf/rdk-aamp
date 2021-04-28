@@ -642,6 +642,7 @@ function playChannel()
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+			aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		}
 		if(enableNativeCC === true) {
 			aampPlayer.initConfig(ccInitConfigParam);
@@ -753,6 +754,7 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+		aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		clog("Tuning:"+strLocator);
 		aampPlayer.load(strLocator);
 	
@@ -1061,6 +1063,11 @@ function playbackStarted() {
 function blockedEventHandler(event) {
     console.log("Blocked event: " + JSON.stringify(event));
 	log("Blocked event: " + JSON.stringify(event));
+}
+
+function bitrateChangedEventHandler(event) {
+    console.log("Bitrate changed event: " + JSON.stringify(event));
+	log("Bitrate changed  event: " + JSON.stringify(event));
 }
 
 </script>

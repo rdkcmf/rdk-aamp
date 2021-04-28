@@ -235,7 +235,8 @@ typedef enum
 	eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL = 5,
 	eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY = 6,
 	eAAMP_BITRATE_CHANGE_BY_FOG_ABR = 7,
-	eAAMP_BITRATE_CHANGE_MAX = 8
+	eAAMP_BITRATE_CHANGE_BY_OTA = 8,
+	eAAMP_BITRATE_CHANGE_MAX = 9
 } BitrateChangeReason;
 
 /**
@@ -1015,7 +1016,7 @@ public:
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false, VideoScanType scantype = eVIDEOSCAN_UNKNOWN, int aspectRatioWidth = 0, int aspectRatioHeight = 0);
 
 	/**
 	 * @brief Notify when end of stream reached

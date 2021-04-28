@@ -40,6 +40,9 @@ class ThunderAccessAAMP
 public:
     ThunderAccessAAMP(std::string callsign);
     ~ThunderAccessAAMP();
+    // Copy constructor and Copy assignment disabled
+    ThunderAccessAAMP(const ThunderAccessAAMP&) = delete;
+    ThunderAccessAAMP& operator=(const ThunderAccessAAMP&) = delete;
 
     bool ActivatePlugin();
     bool InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result);
