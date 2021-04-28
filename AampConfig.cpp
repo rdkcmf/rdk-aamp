@@ -705,9 +705,7 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue && cJSON_IsString(searchObj))
 					{
 						// For those parameters in string Settings
-						//char *value = searchObj->valuestring;
-						//SetConfigValue<std::string>(owner,cfgEnum,(std::string)value);
-						//TODO need to fix this , crash happening on string 
+						SetConfigValue<std::string>(owner,cfgEnum,std::string(searchObj->valuestring));
 					}
 				}
 			}
