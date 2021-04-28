@@ -130,7 +130,6 @@ struct gActivePrivAAMP_t
 static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP_t>();
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t streamLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t gCurlInitMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -4670,14 +4669,14 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
 	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
-        pthread_mutex_lock(&streamLock);
+
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->Stop(false);
 		delete mpStreamAbstractionAAMP;
 		mpStreamAbstractionAAMP = NULL;
 	}
-        pthread_mutex_unlock(&streamLock);
+
 	pthread_mutex_lock(&mLock);
 	mVideoFormat = FORMAT_INVALID;
 	pthread_mutex_unlock(&mLock);
@@ -6964,12 +6963,10 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 
 void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
 {
-	pthread_mutex_lock(&streamLock);
-        if (mpStreamAbstractionAAMP)
+	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp();
 	}
-        pthread_mutex_unlock(&streamLock);
 }
 
 /**
