@@ -725,7 +725,7 @@ public:
 	void StopInjection();
 	void StartInjection();
 	void SetCDAIObject(CDAIObject *cdaiObj);
-	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
+	bool isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	long GetMaxTSBBandwidth() { return mMaxTSBBandwidth; }
@@ -740,7 +740,7 @@ private:
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
-	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
+	bool ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
@@ -2776,6 +2776,8 @@ AAMPStatusType PrivateStreamAbstractionMPD::GetMpdFromManfiest(const GrowableBuf
 				{
 					mpd->SetFetchTime(fetchTime);
 #if 1
+					mIsLiveManifest = !(mpd->GetType() == "static");
+					aamp->SetIsLive(mIsLiveManifest);
 					FindTimedMetadata(mpd, root, init, aamp->mBulkTimedMetadata);
 					if(aamp->mBulkTimedMetadata && init && aamp->IsNewTune())
 					{
@@ -4492,8 +4494,6 @@ AAMPStatusType PrivateStreamAbstractionMPD::UpdateMPD(bool init)
 				delete this->mpd;
 			}
 			this->mpd = mpd;
-			mIsLiveManifest = !(mpd->GetType() == "static");
-                        aamp->SetIsLive(mIsLiveManifest);
 			if(aamp->mIsVSS)
 			{
 				CheckForVssTags();
@@ -4628,7 +4628,6 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 		{
 		uint64_t periodStartMS = 0;
 		uint64_t periodDurationMS = 0;
-
 		std::vector<std::string> newPeriods;
 		// Iterate through each of the MPD's Period nodes, and ProgrameInformation.
 		int periodCnt = 0;
@@ -4692,10 +4691,11 @@ void PrivateStreamAbstractionMPD::FindTimedMetadata(MPD* mpd, Node* root, bool i
 								continue;
 							}
 							if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
-							   && (!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size())))    //Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
+                                				&& ((!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size()))   //Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
+                                   				|| (!mIsLiveManifest && init))) 				//to enable VOD content to send the metadata
 							{
 								mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
-								ProcessEventStream(periodStartMS, period);
+								ProcessEventStream(periodStartMS, period, reportBulkMeta);
 								continue;
 							}
 						}
@@ -4997,24 +4997,44 @@ void PrivateStreamAbstractionMPD::ProcessPeriodAssetIdentifier(Node* node, uint6
 	}
 }
 
-
-bool PrivateStreamAbstractionMPD::ProcessEventStream(uint64_t startMS, IPeriod * period)
+/**
+ *   @brief Process ad event stream.
+ *
+ *   @param[in] Break start time in milli seconds
+ *   @param[in] Period instance.
+ */
+bool PrivateStreamAbstractionMPD::ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta)
 {
 	bool ret = false;
-	if(!(gpGlobalConfig->enableClientDai))
-	{
-		return ret;
-	}
 	const std::string &prdId = period->GetId();
 	if(!prdId.empty())
 	{
-		uint32_t breakdur = 0;
 		uint64_t startMS1 = 0;
-		std::string scte35;
-		if(isAdbreakStart(period, breakdur, startMS1, scte35))
+		//Vector of pair of scte35 binary data and correspoding duration
+		std::vector<std::pair<std::string, uint32_t>> scte35Vec;
+		if(isAdbreakStart(period, startMS1, scte35Vec))
 		{
-			//Found an Ad break.
-			aamp->FoundSCTE35(prdId, startMS, breakdur, scte35);
+			for(std::pair<std::string, uint32_t> scte35 : scte35Vec)
+			{
+				//for livestream send the timedMetadata only., because at init, control does not come here
+				if(mIsLiveManifest)
+				{
+					aamp->FoundSCTE35(prdId, startMS, scte35.second, scte35.first);
+				}
+				else
+				{
+					//for vod, send timedMetadata only when bulkmetadata is not enabled 
+					//Control comes here only at init, so no need for an init check for bulkmetadata send
+					if(reportBulkMeta)
+					{
+						aamp->SaveTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), prdId.c_str(), scte35.second);
+					}
+					else
+					{
+						aamp->ReportTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), false, prdId.c_str(), scte35.second);
+					}
+				}
+			}
 			ret = true;
 		}
 	}
@@ -8480,15 +8500,25 @@ void PrivateStreamAbstractionMPD::SetCDAIObject(CDAIObject *cdaiObj)
 		mCdaiObject = cdaiObjMpd->GetPrivateCDAIObjectMPD();
 	}
 }
-
-bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35)
+/**
+ *   @brief Check whether the period has any valid ad.
+ *
+ *   @param[in] Period instance.
+ *   @param[in] Break start time in milli seconds.
+ *   @param[in] vector of pairs of SCTE35 binary object and corresponding duration.
+ */
+bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec)
 {
 	const std::vector<IEventStream *> &eventStreams = period->GetEventStreams();
+	bool ret = false;
+	uint32_t duration = 0;
 	for(auto &eventStream: eventStreams)
 	{
 		for(auto &event: eventStream->GetEvents())
 		{
-			if(event && event->GetDuration())
+			//Currently for linear assets only the SCTE35 events having 'duration' tag present are considered for generating timedMetadat Events.
+			//For VOD assets the events are generated irrespective of the 'duration' tag present or not
+			if(event && (!mIsLiveManifest || 0 != event->GetDuration()))
 			{
 				for(auto &evtChild: event->GetAdditionalSubNodes())
 				{
@@ -8513,15 +8543,41 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 									{
 										timeScale = eventStream->GetTimescale();
 									}
-									duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
-									scte35 = signalChild->GetText();
-									if(scte35.length())
+									//With the current implementation, ComputeFragmentDuration returns 2000 when the event->GetDuration() returns '0'
+									//This is not desirable for VOD assets (for linear event->GetDuration() with 0 value will not bring the control to this point)
+									if(0 != event->GetDuration())
 									{
-										return true;
+										duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
+									}
+									else
+									{
+										//Control gets here only for VOD with no duration data for the event, here set 0 as duration intead of the default 2000
+										duration = 0;
+									}
+									std::string scte35 = signalChild->GetText();
+									if(0 != scte35.length())
+									{
+										scte35Vec.push_back({scte35, duration});
+										if(mIsLiveManifest)
+										{
+											return true;
+										}
+										else
+										{
+											ret = true;
+											continue;
+										}
+									}
+									else
+									{
+										AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Binary in manifest with empty binary data!!",__FUNCTION__,__LINE__);
 									}
 								}
+								else
+								{
+									AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!",__FUNCTION__,__LINE__);
+								}
 							}
-							AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!",__FUNCTION__,__LINE__);
 						}
 					}
 					else
@@ -8532,7 +8588,7 @@ bool PrivateStreamAbstractionMPD::isAdbreakStart(IPeriod *period, uint32_t &dura
 			}
 		}
 	}
-	return false;
+	return ret;
 }
 bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt)
 {
