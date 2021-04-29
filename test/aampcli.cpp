@@ -1031,8 +1031,12 @@ static void ProcessCliCommand( char *cmd )
 	{
 		mSingleton->Stop();
 		delete mSingleton;
+		mSingleton = NULL;
 		if (mBackgroundPlayer)
+		{
 			delete mBackgroundPlayer;
+			mBackgroundPlayer = NULL;
+		}
 		TermPlayerLoop();
 		exit(0);
 	}
